@@ -2,7 +2,7 @@
 
 > Mirrored by `constants.yaml`; code and data defaults are generated from the YAML (`Tools/gen_constants.py`, S0). Tags: `CORE` · `GATED(<source>)` · `MEASURED(<ref>)`. Changing a `CORE` shape constant needs a decision record and a dependency sweep (`Harness/H04 §5`).
 >
-> **Status: DRAFT — awaiting owner confirmation line by line (OPEN O-001).** Source: `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` part 3 §08 and §07.
+> **Status: §1 confirmed by the owner (D-001); locks formally at S1 exit.** Source: `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` part 3 §08 and §07.
 
 ## 1. Shape constants (lock at S1 exit)
 
@@ -29,7 +29,7 @@
 | C.POWER.ARCHETYPE_BAND | ±0.15 | ratio | CORE | 10_Tuning §3 |
 | C.INTERCESSION.BAND | ±0.20 of mean | ratio | CORE | keepers.md §7 |
 
-## 2. Budgets (from `G02` §07; confirm with O-003)
+## 2. Budgets (from `G02` §07 and D-003)
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
@@ -37,6 +37,10 @@
 | C.BUDGET.GAME_THREAD_P50_MS | 8 | ms | CORE | 11_Quality §perf |
 | C.BUDGET.GAME_THREAD_P95_MS | 10 | ms | CORE | 11_Quality §perf |
 | C.BUDGET.GPU_MS_4070 | 12 | ms | CORE | 11_Quality §perf |
+| C.BUDGET.MAC_TARGET_HW | M2 MacBook Air | — | CORE (D-003) | 11_Quality §perf |
+| C.BUDGET.MAC_RES_FPS | TBD | — | GATED(S0: empty-arena measurement on the M2 Air) | 11_Quality §perf |
+| C.BUDGET.MAC_FRAME_P50_MS | TBD | ms | GATED(S0) | 11_Quality §perf |
+| C.BUDGET.MAC_FRAME_P95_MS | TBD | ms | GATED(S0) | 11_Quality §perf |
 | C.SIM.FIXED_HZ | 60 | Hz | CORE | 07_Technical invariant 3 |
 
 ## 3. Harness caps

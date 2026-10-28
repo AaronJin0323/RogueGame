@@ -1,6 +1,6 @@
 # 00 — Vision (Dusktracer / 曳光)
 
-> **Status: DRAFT — owner confirms line by line in the window.** Source: `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` part 3 §00 and `G00 §1`. Numbers live in `08_Constants.md`; this page names them by key.
+> **Status: confirmed with the shape constants (D-001).** Source: `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` part 3 §00 and `G00 §1`. Numbers live in `08_Constants.md`; this page names them by key.
 
 ## 1. One line
 *You are the bullet hell.* A top-down survivor-like shooter: one run of `C.RUN.LENGTH_TO_BOSS` ending in a boss, with the build driven by the blessings of six Keepers.
@@ -29,4 +29,4 @@ No online co-op before 1.0 · no dialogue system · no realism over readability 
 - **Bilingual (en + zh-Hans) from the first string.**
 
 ## 6. Players and platform
-Players of survivor-likes and bullet-hells who want builds with identity. UE 5.8, Win64 first, keyboard/mouse and gamepad from the first offer screen; Steam Deck tier at 1.0; local two-player in 1.0 (pending OPEN O-003, O-004).
+Players of survivor-likes and bullet-hells who want builds with identity. UE 5.8 on Win64 and macOS in parallel (performance target hardware: 4070-class PC and M2 MacBook Air); keyboard/mouse and gamepad from the first offer screen; Steam Deck tier at 1.0; local two-player in 1.0 (D-003, D-004).

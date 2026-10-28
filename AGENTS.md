@@ -29,6 +29,8 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
+- Platforms: Win64 and macOS in parallel (D-003). Code must compile on both; no Windows-only APIs outside `#if PLATFORM_WINDOWS`. A Mac gate that was not run is reported `not run`, never passed.
+- Build: `Tools/Build.bat`. Models: Blender 5.2.2, headless only (path in `Docs/STATE.md`).
 
 ## Known traps (from the previous project)
 - C4458: locals/params shadowing members (`Slot`, `World`, `Name`).

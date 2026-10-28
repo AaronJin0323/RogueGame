@@ -1,4 +1,4 @@
-# constants.yaml — mirror of 08_Constants.md. DRAFT until OPEN O-001 is confirmed.
+# constants.yaml — mirror of 08_Constants.md. Shape rows confirmed by D-001.
 # tag: CORE | GATED(<source>) | MEASURED(<ref>)
 shape:
   RUN.LENGTH_TO_BOSS:          { value: 900,  unit: s,     tag: CORE, dependents: [02_Systems/director.md, 09_Catalog/timeline_*.csv, T-DIR-01] }
@@ -25,6 +25,10 @@ budget:
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P95_MS:   { value: 10,   unit: ms,    tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GPU_MS_4070:          { value: 12,   unit: ms,    tag: CORE, dependents: [11_Quality.md] }
+  BUDGET.MAC_TARGET_HW:        { value: "M2 MacBook Air", unit: hw, tag: CORE, dependents: [11_Quality.md] }
+  BUDGET.MAC_RES_FPS:          { value: null, unit: res_fps, tag: GATED(S0), dependents: [11_Quality.md] }
+  BUDGET.MAC_FRAME_P50_MS:     { value: null, unit: ms,    tag: GATED(S0), dependents: [11_Quality.md] }
+  BUDGET.MAC_FRAME_P95_MS:     { value: null, unit: ms,    tag: GATED(S0), dependents: [11_Quality.md] }
   SIM.FIXED_HZ:                { value: 60,   unit: Hz,    tag: CORE, dependents: [07_Technical.md] }
 caps:
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
