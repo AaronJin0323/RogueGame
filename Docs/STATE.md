@@ -4,6 +4,7 @@
 - Stage: **S0 Foundations**, day 1 — entry 2026-10-28; exit test not yet booked
 - Main branch: S0 scaffold + empty UE 5.8 project `Dusktracer.uproject` (module `Dusktracer`, Win64 + Mac targets)
 - Release branch: none
+- Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006): nothing secret or licence-restricted is ever committed
 - Platforms: Win64 and macOS in parallel (D-003). Mac reachable over SSH (`dt-mac`); Mac gate `Tools/MacGate.sh` is **not run** until Xcode + UE 5.8 are installed on the Mac.
 
 ## Decided today
@@ -23,7 +24,7 @@
 - none; automated launches: off
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
-- O-007
+- none
 
 ## Numbers at risk (GATED unmeasured: 3/5)
 - C.BUDGET.MAC_RES_FPS, C.BUDGET.MAC_FRAME_P50_MS, C.BUDGET.MAC_FRAME_P95_MS wait for the S0 empty-arena measurement on the M2 Air

@@ -11,8 +11,10 @@ if ! ssh -o BatchMode=yes -o ConnectTimeout=8 dt-mac true 2>/dev/null; then
 	exit 2
 fi
 
+# Code goes over SSH; LFS objects go to GitHub (D-006) because the Mac's bare repo has no LFS server.
+git lfs push origin "$SHA" || exit 1
 git push -q -f mac "HEAD:refs/heads/gate" || exit 1
-ssh -o BatchMode=yes dt-mac "export PATH=/opt/homebrew/bin:\$PATH; cd ~/Dev/Dusktracer && git fetch -q origin gate && git checkout -q --detach $SHA && bash Tools/mac_build.sh"
+ssh -o BatchMode=yes dt-mac "export PATH=/opt/homebrew/bin:\$PATH; cd ~/Dev/Dusktracer && git fetch -q origin gate && git checkout -q --detach $SHA && git lfs pull && bash Tools/mac_build.sh"
 RC=$?
 [ "$RC" = 0 ] && echo "Mac gate PASSED at $SHA" || echo "Mac gate exit $RC at $SHA"
 exit $RC
