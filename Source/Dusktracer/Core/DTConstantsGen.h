@@ -28,6 +28,10 @@ namespace DTConst
 	inline constexpr float POWER_KEEPER_SHARE_L16 = 0.6f; // ratio, CORE
 	inline constexpr float POWER_ARCHETYPE_BAND = 0.15f; // ratio, CORE
 	inline constexpr float INTERCESSION_BAND = 0.2f; // ratio, CORE
+	// sim
+	inline constexpr int32 ARENA_HALF_EXTENT_UU = 4000; // uu, GATED(S1)
+	inline constexpr int32 HASH_CELL_UU = 200; // uu, GATED(S0)
+	inline constexpr int32 SIM_PLANE_Z_UU = 50; // uu, CORE
 	// presentation
 	inline constexpr float PRE_CONTRAST_MIN = 3.0f; // ratio, CORE
 	inline constexpr int32 PRE_DENSITY_LOD_KILLS_PER_S = 20; // per_s, GATED(S1)
@@ -44,7 +48,7 @@ namespace DTConst
 	inline constexpr int32 SIM_MAX_SUBSTEPS = 2; // n, CORE
 	inline constexpr int32 SAVE_VERSION = 1; // n, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 4; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 6; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

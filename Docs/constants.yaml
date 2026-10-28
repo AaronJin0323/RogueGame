@@ -23,6 +23,10 @@ shape:
   POWER.KEEPER_SHARE_L16:      { value: 0.60, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-BAL-01] }
   POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md] }
   INTERCESSION.BAND:           { value: 0.20, unit: ratio, tag: CORE, dependents: [02_Systems/keepers.md] }
+sim:
+  ARENA.HALF_EXTENT_UU:        { value: 4000, unit: uu,    tag: GATED(S1),  dependents: [07_Technical.md, Core/DTSpatialHash] }
+  HASH.CELL_UU:                { value: 200,  unit: uu,    tag: GATED(S0),  dependents: [07_Technical.md, Core/DTSpatialHash, T-TEC-13] }
+  SIM.PLANE_Z_UU:              { value: 50,   unit: uu,    tag: CORE,       dependents: [07_Technical.md] }
 presentation:
   PRE.CONTRAST_MIN:            { value: 3.0,  unit: ratio, tag: CORE,       dependents: [04_Presentation.md, T-PRE-05] }
   PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
@@ -39,7 +43,7 @@ budget:
   SIM.MAX_SUBSTEPS:            { value: 2,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
   SAVE.VERSION:                { value: 1,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-04] }
 caps:
-  GATE.TEST_FLOOR:             { value: 4,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 6,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }

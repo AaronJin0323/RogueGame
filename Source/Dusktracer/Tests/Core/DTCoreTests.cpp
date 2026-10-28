@@ -2,11 +2,15 @@
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Tec; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTFixedStep.h"
 #include "Core/DTRngStreams.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSaveEnvelope.h"
+#include "Core/DTSimSubsystem.h"
+#include "Core/DTSpatialHash.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -159,6 +163,90 @@ bool FDTTecSaveEnvelope::RunTest(const FString& Parameters)
 	FDTSaveEnvelope Gap;
 	Gap.Migrations.Add(1, [](TArray<uint8>& P) { return true; });
 	TestEqual(TEXT("missing step fails"), Gap.Unwrap(FDTSaveEnvelope::Wrap(Payload, 1), Out, Loaded, 3), EDTSaveLoadResult::MigrationMissing);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTecSpatialHashQuery, "Dusktracer.Tec.SpatialHash.Query", DTCoreTest::Flags) // T-TEC-13
+bool FDTTecSpatialHashQuery::RunTest(const FString& Parameters)
+{
+	// Brute force is the oracle: every point within the radius must be among the candidates the grid returns.
+	FDTSpatialHash Hash(100.0f, 1000.0f);
+	FRandomStream Rng(7);
+	TArray<FVector2f> Points;
+	for (int32 Index = 0; Index < 2000; ++Index)
+	{
+		// Some points outside the arena on purpose: they must clamp into edge cells, not vanish.
+		Points.Add(FVector2f(Rng.FRandRange(-1200.0f, 1200.0f), Rng.FRandRange(-1200.0f, 1200.0f)));
+	}
+	Hash.Build(Points);
+	TestEqual(TEXT("every point stored"), Hash.Num(), Points.Num());
+
+	int32 Misses = 0;
+	int32 Candidates = 0;
+	for (int32 Query = 0; Query < 200; ++Query)
+	{
+		const FVector2f Center(Rng.FRandRange(-1100.0f, 1100.0f), Rng.FRandRange(-1100.0f, 1100.0f));
+		const float Radius = Rng.FRandRange(5.0f, 250.0f);
+		TArray<int32> Found;
+		Hash.QueryCircle(Center, Radius, Found);
+		Candidates += Found.Num();
+		const TSet<int32> FoundSet(Found);
+		for (int32 Index = 0; Index < Points.Num(); ++Index)
+		{
+			if (FVector2f::DistSquared(Points[Index], Center) <= Radius * Radius && !FoundSet.Contains(Index))
+			{
+				++Misses;
+			}
+		}
+		TestEqual(TEXT("no duplicate candidates"), FoundSet.Num(), Found.Num());
+	}
+	TestEqual(TEXT("no point inside a query circle is missed"), Misses, 0);
+	TestTrue(TEXT("the grid prunes (fewer candidates than brute force)"), Candidates < 200 * Points.Num() / 4);
+
+	const TArray<int32> Ids = { 40, 41 };
+	Hash.Build(TArray<FVector2f>{ FVector2f(0.0f, 0.0f), FVector2f(500.0f, 500.0f) }, Ids);
+	TArray<int32> Found;
+	Hash.QueryCircle(FVector2f(0.0f, 0.0f), 10.0f, Found);
+	TestTrue(TEXT("caller indices are stored"), Found.Contains(40) && !Found.Contains(41));
+	return true;
+}
+
+namespace DTCoreTest
+{
+	struct FRecorder : IDTSimSystem
+	{
+		TArray<FString>* Log = nullptr;
+		FString Name;
+		virtual void SimStep(const FDTSimContext& Context) override
+		{
+			Log->Add(FString::Printf(TEXT("%s@%lld"), *Name, Context.StepIndex));
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTecSimPhaseOrder, "Dusktracer.Tec.Sim.PhaseOrder", DTCoreTest::Flags) // T-TEC-14
+bool FDTTecSimPhaseOrder::RunTest(const FString& Parameters)
+{
+	UDTSimSubsystem* Sim = NewObject<UDTSimSubsystem>(GetTransientPackage());
+	Sim->StartRun(5, 1);
+	TArray<FString> Log;
+	DTCoreTest::FRecorder Bullets, Enemies, Resolve;
+	Bullets.Log = Enemies.Log = Resolve.Log = &Log;
+	Bullets.Name = TEXT("Bullets");
+	Enemies.Name = TEXT("Enemies");
+	Resolve.Name = TEXT("Resolve");
+	// Registered out of order on purpose: phase order, not registration order, decides.
+	Sim->Register(EDTSimPhase::ResolveHits, &Resolve);
+	Sim->Register(EDTSimPhase::Bullets, &Bullets);
+	Sim->Register(EDTSimPhase::Enemies, &Enemies);
+	Sim->StepNow(2);
+	TestEqual(TEXT("phase order within and across steps"), Log,
+		TArray<FString>{ TEXT("Enemies@0"), TEXT("Bullets@0"), TEXT("Resolve@0"), TEXT("Enemies@1"), TEXT("Bullets@1"), TEXT("Resolve@1") });
+	Sim->Unregister(&Bullets);
+	Log.Reset();
+	Sim->StepNow(1);
+	TestEqual(TEXT("unregistered system no longer steps"), Log, TArray<FString>{ TEXT("Enemies@2"), TEXT("Resolve@2") });
+	TestEqual(TEXT("view has one hero position per player"), Sim->GetView().HeroPositions.Num(), 1);
 	return true;
 }
 

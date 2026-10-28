@@ -69,7 +69,7 @@ if (-not (Skipped "nonunity")) {
 	}
 	else {
 		Push-Location $Root
-		$Names = @(git diff --name-only "$Base...HEAD" 2>$null) + @(git diff --name-only HEAD) + @(git ls-files --others --exclude-standard)
+		$Names = @(git diff --name-only "$Base...HEAD" 2>$null) + @(git diff --name-only HEAD 2>$null) + @(git ls-files --others --exclude-standard 2>$null)
 		Pop-Location
 		$Files = @($Names | Where-Object { $_ -match '^Source/.*\.(cpp|h)$' } | ForEach-Object { $_ -replace '\.h$', '.cpp' } |
 			Sort-Object -Unique | ForEach-Object { Join-Path $Root $_ } | Where-Object { Test-Path $_ })

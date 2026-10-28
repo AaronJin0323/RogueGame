@@ -29,14 +29,22 @@
 | C.POWER.ARCHETYPE_BAND | ±0.15 | ratio | CORE | 10_Tuning §3 |
 | C.INTERCESSION.BAND | ±0.20 of mean | ratio | CORE | keepers.md §7 |
 
-## 2. Presentation (04_Presentation)
+## 2. Simulation (07_Technical §4)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.ARENA.HALF_EXTENT_UU | 4000 | uu | GATED(S1) | 07_Technical §4, Core/DTSpatialHash |
+| C.HASH.CELL_UU | 200 | uu | GATED(S0) | 07_Technical §4, T-TEC-13 |
+| C.SIM.PLANE_Z_UU | 50 | uu | CORE | 07_Technical §4 |
+
+## 3. Presentation (04_Presentation)
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.PRE.CONTRAST_MIN | 3.0 | ratio | CORE | 04_Presentation §2, T-PRE-05 |
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
 
-## 3. Budgets (from `G02` §07 and D-003)
+## 4. Budgets (from `G02` §07 and D-003)
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
@@ -52,12 +60,12 @@
 | C.SIM.MAX_SUBSTEPS | 2 | n | CORE | 07_Technical R-TEC-03, T-TEC-03 |
 | C.SAVE.VERSION | 1 | n | CORE | 07_Technical R-TEC-04, T-TEC-04 |
 
-## 4. Harness caps
+## 5. Harness caps
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 4 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 6 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 

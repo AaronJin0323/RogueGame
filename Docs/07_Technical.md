@@ -44,6 +44,11 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 - **R-TEC-12** Debug console commands (`DT.*`) and experiments (`dt.Exp.*`) are compiled out of Shipping.
   - T-TEC-12 Shipping compile gate (`Tools/Gate.ps1` step `shipping`) + `Dusktracer.Tec.Debug.NotInShipping` PLANNED(S1).
 
+- **R-TEC-13** Proximity queries go through `FDTSpatialHash` (uniform grid of `C.HASH.CELL_UU` over `±C.ARENA.HALF_EXTENT_UU`, rebuilt every step by counting sort); a query never misses a point inside its circle, and points outside the arena clamp into edge cells.
+  - T-TEC-13 `Dusktracer.Tec.SpatialHash.Query`: brute-force oracle over random points, including points outside the arena.
+- **R-TEC-14** Gameplay systems never tick themselves: they implement `IDTSimSystem` and register with `UDTSimSubsystem` for one `EDTSimPhase`; within a step, phases run in enum order. Systems exchange data only through `FDTWorldView` (enemy positions and hash, hits, hero positions).
+  - T-TEC-14 `Dusktracer.Tec.Sim.PhaseOrder`: phase order beats registration order; unregistered systems stop.
+
 ## 3. Folders and naming
 
 ```
