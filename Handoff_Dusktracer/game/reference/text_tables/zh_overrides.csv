@@ -1,0 +1,1120 @@
+Key,Table,zh,en
+Blessing.Forge.BankedHeat.Desc,ST_Blessings,"<kw id=""Burn"">灼烧</kw>持续时间 +{0} 秒
+灼烧伤害 +{1}%。","<kw id=""Burn"">Burn</kw> lasts {0} s longer and deals {1}% more damage."
+Blessing.Forge.BankedHeat.Name,ST_Blessings,封火,Banked Heat
+Blessing.Forge.EmberTrail.Desc,ST_Blessings,"冲刺落地、每第 6 次近战命中和每次被击中时，
+都会在 {0} 米内<kw id=""Slam"">重砸</kw>一次。","Your dash landing, every 6th melee hit and every hit you take set off a <kw id=""Slam"">slam</kw> within {0} m."
+Blessing.Forge.Kindling.Desc,ST_Blessings,"{0}% 的命中让敌人<kw id=""Burn"">灼烧</kw>。
+近距离命中留下燃烧地面，地面上的灼烧跳伤更快。","{0}% of hits <kw id=""Burn"">Burn</kw>. Close hits leave burning ground, where Burn ticks faster."
+Blessing.Forge.TemperedPlating.Name,ST_Blessings,淬甲,Tempered Plating
+Blessing.Quicksilver.LightStep.Desc,ST_Blessings,"冲刺和神临的
+冷却时间 −{0}%。",Dash and Intercession cooldowns −{0}%.
+Blessing.Quicksilver.LightStep.Name,ST_Blessings,换马,Light Step
+Blessing.Quicksilver.Slipstream.Desc,ST_Blessings,"子弹多<kw id=""Ricochet"">弹射</kw> {0} 次，
+每次弹射都会找新目标。","Shots <kw id=""Ricochet"">ricochet</kw> {0} more time, and bounces find a new target."
+Blessing.Quicksilver.Tailwind.Desc,ST_Blessings,"冲刺后 {1} 秒内
+攻击速度 +{0}%。",Dashing grants +{0}% attack speed for {1} s.
+Blessing.Quicksilver.Wayfare.Desc,ST_Blessings,"每移动 {0} 米
+在你周围释放一圈气浪
+造成 {1} 点伤害。","Every {0} m you travel, a pressure wave deals {1} damage around you."
+Blessing.Quicksilver.Wayfare.Name,ST_Blessings,驿程,Wayfare
+Blessing.Radiance.Afterimage.Desc,ST_Blessings,"<kw id=""Blind"">致盲</kw>持续时间 +{0} 秒。","<kw id=""Blind"">Blind</kw> lasts {0} s longer."
+Blessing.Radiance.Corona.Desc,ST_Blessings,"每暴击 {0} 次
+在目标周围释放光脉冲
+造成 {1} 点伤害。","Every {0} crits, a light pulse deals {1} damage around the target."
+Blessing.Radiance.Flashpoint.Desc,ST_Blessings,"暴击<kw id=""Split"">分裂</kw>成 3 道光矛，伤害 {0}%。
+光矛不会再次<kw id=""Split"">分裂</kw>。","Crits <kw id=""Split"">split</kw> into 3 lances of light for {0}%. Lances don't <kw id=""Split"">split</kw> again."
+Blessing.Shade.Dividend.Desc,ST_Blessings,"击杀被<kw id=""Mark"">标记</kw>的敌人或精英时，召出一个<kw id=""Shades"">亡影</kw>，
+用你最强的武器射击，伤害 {0}%，模块同样生效。","<kw id=""Mark"">Marked</kw> kills and elite kills raise a <kw id=""Shades"">Shade</kw> that fires your best weapon at {0}%, modifiers included."
+Blessing.Shade.Foreclosure.Desc,ST_Blessings,"子弹更猛地拐向被<kw id=""Mark"">标记</kw>的敌人。
+标记多持续 {0} 秒。","Shots bend harder toward <kw id=""Mark"">Marked</kw> enemies. Marks last {0} s longer."
+Blessing.Shade.Foreclosure.Name,ST_Blessings,宽限,Foreclosure
+Blessing.Shade.Interest.Desc,ST_Blessings,"每击杀一个被<kw id=""Mark"">标记</kw>的敌人，记 1 笔债。
+满 {0} 笔时，下一次<kw id=""Volley"">齐射</kw>追踪全屏敌人。","Each <kw id=""Mark"">Marked</kw> kill adds 1 Debt. At {0} Debt, your next <kw id=""Volley"">volley</kw> hunts every enemy on screen."
+Blessing.Shade.Lien.Desc,ST_Blessings,"子弹会拐向被<kw id=""Mark"">标记</kw>的敌人，多穿透 1 个，
+并<kw id=""Mark"">标记</kw>命中的目标。","Your shots bend toward <kw id=""Mark"">Marked</kw> enemies, pierce one more, and <kw id=""Mark"">Mark</kw> what they hit."
+Blessing.Shade.LongArm.Name,ST_Blessings,追讨,Long Arm
+Blessing.Storm.GroundFault.Desc,ST_Blessings,"电弧会让敌人<kw id=""Shock"">感电</kw>。
+感电的敌人受到的电弧伤害 +{0}%。","Arcs <kw id=""Shock"">Shock</kw>. Shocked enemies take +{0}% from arcs."
+Blessing.Storm.GroundFault.Name,ST_Blessings,雷痕,Ground Fault
+Blessing.Storm.Overcharge.Name,ST_Blessings,雷怒,Overcharge
+Blessing.Storm.Thunderclap.Desc,ST_Blessings,"每次<kw id=""Volley"">齐射</kw>在 {0} 秒后化作天雷
+再落一次，伤害 {1}%。","Each <kw id=""Volley"">volley</kw> falls again from the sky as bolts, {0} s later, for {1}%."
+Blessing.Tide.ColdFront.Desc,ST_Blessings,"每第 3 次<kw id=""Volley"">齐射</kw>化作一道浪，
+把敌人<kw id=""Herd"">驱赶</kw>成一排。","Every 3rd <kw id=""Volley"">volley</kw> becomes a wave that <kw id=""Herd"">herds</kw> enemies into a front."
+Blessing.Tide.DeepCold.Desc,ST_Blessings,"<kw id=""Chill"">减速</kw>持续时间 +{0} 秒
+<kw id=""Freeze"">冻结</kw>持续时间 +{1} 秒。","<kw id=""Chill"">Chill</kw> lasts {0} s longer. <kw id=""Freeze"">Freeze</kw> lasts {1} s longer."
+Blessing.Tide.Undertow.Desc,ST_Blessings,"命中把敌人拉近 {0} 米，并让它们<kw id=""Chill"">减速</kw>。
+被拉得撞在一起的敌人受到<kw id=""Crush"">挤压</kw>伤害。","Hits pull enemies {0} m in and <kw id=""Chill"">Chill</kw> them; colliding enemies are <kw id=""Crush"">crushed</kw>."
+Blessing.Tide.Wellspring.Desc,ST_Blessings,"每秒回复 {0} 点生命，
+站定时变为 3 倍。","Regenerate {0} HP per second, tripled while you stand still."
+Codex.Keeper.Forge,ST_Codex,司炉，古代石刻上写作 FOUNDRY。东西坏了，它都会修，回收者也一样。它每次都把回收者修好送回来，只要神血，再加一点耐心。,"The Keeper of the Forge, FOUNDRY on the old stones, mends whatever breaks, the Reclaimer most of all. It sends the Reclaimer back whole every time, and asks only Ichor and patience."
+Codex.Keeper.Quicksilver,ST_Codex,司驰，石刻上写作 RELAY。守境里所有会动的东西都由它运送：水、光、神血，还有我们。它从不停下，也不喜欢看到别的东西停下。,"The Keeper of Ways, RELAY on the stones, carries everything that moves in the Keep: water, light, Ichor, us. It never rests, and it does not like to see anything else at rest."
+Codex.Keeper.Radiance,ST_Codex,司曜，也叫 LUMEN，让守境的灯每晚都亮着。你问它什么，它就只回答什么，一个字也不多说。,"The Keeper of Light, LUMEN, keeps the lamps of the Keep burning through every night. Ask it a question and it answers that question exactly, and nothing more."
+Codex.Keeper.Shade,ST_Codex,司幽负责记录，奠基者写作 LEDGER：每一次出生、每一次死亡、每一笔债。它记下的东西从不丢失，也从不还回来。,"The Keeper of the Dead keeps the record, LEDGER in the Founders' hand: every birth, every death, every debt. What it files is never lost, and never given back."
+Codex.Keeper.Storm,ST_Codex,司雷管天气，奠基者的石刻称它为 ATMOS。它的风雨从不迟到。老人们说，我们动作一慢，它就来得更猛。,"The Keeper of Storms turns the sky; the Founders' stones name it ATMOS. Its weather is never late, and the old ones say it comes harder when we are slow."
+Codex.Keeper.Tide,ST_Codex,司潮，奠基者称它为 CISTERN，让守夜镇地下的水一直流动、保持冰冷。六司里它收的贡最少，有人说，只有它会听我们说话。,"The Keeper of Tides, CISTERN to the Founders, keeps the water under Vigil cold and moving. Of the Six it takes the smallest tithe, and some say it is the only one that listens."
+Codex.Recollection.Crit500,ST_Codex,一击打中要害，弃物就会裂开，流出像灯光一样亮的神血。听说司曜最留意这样的一击。,"Struck true, a Cast-off breaks open and spills Ichor as bright as lamplight. The Keeper of Light is said to watch such blows more closely than the rest."
+Codex.Recollection.Elite3Mods,ST_Codex,最强的弃物身上的神血，多得不像被丢掉的东西。有人一直在往它们身上灌神血。,The strongest Cast-offs carry more Ichor than anything thrown away should. Someone keeps filling them.
+Codex.Recollection.Freeze100,ST_Codex,裂口变冷时，弃物会变慢，镇子地下的水也安静下来。人们说司潮在难过，但没人说得清为什么。,"When the Breach runs cold the Cast-offs slow, and the water under Vigil goes quiet. People say the Keeper of Tides is grieving, though no one can say for what."
+Codex.Recollection.HeavySlug,ST_Codex,司者只跟回收者说话，从不跟我们说。偷听过的人说，六司的想法并不总是一样。,The Keepers speak to the Reclaimer and never to us. Those who have overheard them say the Six do not always agree.
+Codex.Recollection.Lifeline,ST_Codex,守夜镇交的贡，和回收者带回来的东西，最后都流到同一个地方。六司从来没有拒绝过任何一样。,Vigil's tithe and the Reclaimer's returns end up in the same place. The Six have never once refused either.
+Codex.Recollection.Linger,ST_Codex,每一轮，六司先拿走自己那份神血，司炉才重新造出回收者。没人见过那份神血回到裂口，可裂口里的神血从来没有用完过。,"Each run, the Six take their share of the Ichor before FOUNDRY rebuilds the Reclaimer. No one has seen that share go back into the Breach, yet the Breach never runs dry."
+Codex.Recollection.Magnify,ST_Codex,裂口里的每台机器，都是六司很久以前为某种工作造的。原来是做什么的，守夜镇早就忘了；现在它们在做什么，镇上的人再清楚不过。,"Every machine in the Breach was made by the Six for some work, long ago. What the work was, Vigil has forgotten; what they do now, it knows too well."
+Codex.Recollection.Overclock,ST_Codex,回收者在自己的房间里醒来，脑子里除了干活的本事，什么都不记得。守夜镇把房间打扫得干干净净，什么也不问。,The Reclaimer wakes in its room with nothing in its head but its trade. Vigil keeps the room swept and asks it no questions.
+Codex.Recollection.ReachL10,ST_Codex,回收者从裂口回来时，带回的东西比带进去的多。每次都是这样，守夜镇每次都很高兴。,"The Reclaimer came back from the Breach carrying more than it took in. It always does, and Vigil is always glad."
+Codex.Recollection.ScatterKills500,ST_Codex,弃物多到守夜镇没人能数得完。只有回收者会走进裂口去面对它们。,The Cast-offs come in numbers no one in Vigil has counted to the end. The Reclaimer is the only thing that goes in to meet them.
+Codex.Recollection.SpreadWave,ST_Codex,司雷想让活干得更快，司潮却希望少干一点。讨好了其中一个，就会得罪另一个。,The Keeper of Storms wants the work done faster; the Keeper of Tides wants less of it done at all. A tithe that pleases one slights the other.
+Codex.Recollection.Survive10,ST_Codex,旧账本上写着，弃物是按时出来的，不早也不晚。真正逃出来的机器，可不会这么准时。,"The old tallies say the Cast-offs come out on a schedule, never early, never late. Machines that escape do not keep time."
+Codex.Recollection.Velocity,ST_Codex,六司给裂口起了另一个名字：清理场。清理场，就是放那些以后还要回来取走的东西的地方。,The Six have another name for the Breach: the Yard. A yard is where you leave things you mean to collect.
+Codex.Recollection.Win,ST_Codex,典狱倒下后，裂口安静了下来。司者只说了一句：已记录。可还没到下一轮，清理场里又有东西在动了。,"When the Warden fell the Breach went quiet, and the Keepers said one word: noted. Before the next run, something was moving in the Yard again."
+Imbue.CardJoin,ST_Blessings,"{0}
+{1}","{0}
+{1}"
+Imbue.Forge.Rules,ST_Blessings,"所有子弹：近距离命中<kw id=""Cleave"">横斩</kw>，伤害 {0}%；
+{1}% 的命中让敌人<kw id=""Burn"">灼烧</kw>。","All shots: close hits <kw id=""Cleave"">cleave</kw> for {0}%; {1}% of hits <kw id=""Burn"">Burn</kw>."
+Imbue.Quicksilver.Rules,ST_Blessings,"所有子弹：弹速 +{2}%；命中时 {0}% 几率<kw id=""Ricochet"">弹射</kw>。","All bullets: +{2}% speed; {0}% of hits <kw id=""Ricochet"">ricochet</kw>."
+Imbue.Radiance.Rules,ST_Blessings,所有子弹：暴击率 +{2}%；暴击时可能迸出光脉冲。,All bullets: +{2}% crit chance; crits may flash.
+Imbue.Shade.Rules,ST_Blessings,"所有子弹：{0}% 的命中会<kw id=""Mark"">标记</kw>敌人
+（每点神眷 +{1}%），子弹偏向被标记的敌人。","All shots: {0}% of hits <kw id=""Mark"">Mark</kw> (+{1}%/Favor), and shots lean toward Marked enemies."
+Imbue.Storm.Rules,ST_Blessings,"所有子弹：{0}% <kw id=""Split"">分裂</kw>成 2 发
+（每点神眷 +{1}%）；命中有时放出电弧。","All shots: {0}% <kw id=""Split"">split</kw> in 2 (+{1}%/Favor); some hits arc."
+Imbue.Tide.Rules,ST_Blessings,"所有子弹：{0}% 的命中让敌人<kw id=""Chill"">减速</kw>
+（每点神眷 +{1}%），命中会轻微击退。","All shots: {0}% of hits <kw id=""Chill"">Chill</kw> (+{1}%/Favor) and push slightly."
+Codex.Recollection.Burst,ST_Codex,算筹倒下时仍在计数，司幽一个不落地记下。守夜镇不知道，这本账是替谁记的。,"Tallymen keep counting even as they fall, and the Keeper of the Dead files every one. Vigil wonders whose account is being kept."
+Codex.Warden.FormIII,ST_Codex,六道导管，共一具机身。它被造出来，就是要同时承载这六者。,"Six conduits, one housing. It was built to carry all of them at once."
+Discovery.Crit500.Desc,ST_Discoveries,打出一次 500 点以上的暴击。,Land a critical hit of 500 or more.
+Discovery.Crit500.Name,ST_Discoveries,正中要害,True Strike
+Discovery.Dashes100.Name,ST_Discoveries,永不停步,Never Still
+Discovery.DroneKills300.Desc,ST_Discoveries,单局用浮游炮摧毁 300 个弃物。,Destroy 300 Cast-offs with Orbital Drones in a single run.
+Discovery.DroneKills300.Name,ST_Discoveries,长期指令,Standing Orders
+Discovery.Elite3Mods.Desc,ST_Discoveries,用装有三个模块的武器摧毁一个精英。,Destroy an elite with a weapon carrying three modifiers.
+Discovery.Elites10.Name,ST_Discoveries,大型猎物,Big Game
+Discovery.Favor9.Desc,ST_Discoveries,任一流派达到 3 阶。,Reach Tier 3 on any Path.
+Discovery.RailKills300.Desc,ST_Discoveries,单局用磁轨长枪摧毁 300 个弃物。,Destroy 300 Cast-offs with the Rail Lance in a single run.
+Discovery.RailKills300.Name,ST_Discoveries,笔直一线,Straight Line
+Discovery.ReachL10.Name,ST_Discoveries,深入作业,Deep Work
+Discovery.ScatterKills500.Desc,ST_Discoveries,单局用霰弹炮摧毁 500 个弃物。,Destroy 500 Cast-offs with the Scatter Cannon in a single run.
+Discovery.Survive10.Desc,ST_Discoveries,在裂口里坚持 10 分钟。,Survive 10:00 in the Breach.
+Discovery.Survive10.Name,ST_Discoveries,长夜班,Long Shift
+Discovery.Toast,ST_Discoveries,寻回了一段忆痕：{0},Recollection recovered: {0}
+Discovery.TwoPaths6.Desc,ST_Discoveries,单局让两个流派达到 2 阶。,Reach Tier 2 on two Paths in a single run.
+Discovery.TwoPaths6.Name,ST_Discoveries,一仆二主,Two Masters
+Discovery.Unlocks,ST_Discoveries,解锁：{0},Opens: {0}
+Discovery.Win.Desc,ST_Discoveries,赢得一局。,Win a run.
+Affix.Armored.Name,ST_Enemies,重甲,Armored
+Affix.Vampiric.Name,ST_Enemies,吸血,Vampiric
+Affix.Volatile.Name,ST_Enemies,易爆,Volatile
+Enemy.Rusher.Name,ST_Enemies,驿骑,Courser
+Enemy.Support.Name,ST_Enemies,算筹,Tallyman
+Blessing.Forge.Legendary.Desc,ST_Fusions,"范围 +25%
+<kw id=""Burn"">灼烧</kw>效果 +75%
+灼烧持续 +2 秒。","Area +25%. <kw id=""Burn"">Burn</kw> is 75% stronger and lasts 2 s longer."
+Blessing.Forge.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Blessing.Quicksilver.Legendary.Desc,ST_Fusions,"攻击速度 +25%
+移动速度 +15%。","Attack speed +25%, move speed +15%."
+Blessing.Quicksilver.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Blessing.Radiance.Legendary.Desc,ST_Fusions,"暴击率 +15%
+暴击伤害 +50%
+<kw id=""Blind"">致盲</kw>持续更久。","Crit chance +15%, crit damage +50%. <kw id=""Blind"">Blind</kw> lasts longer."
+Blessing.Radiance.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Blessing.Shade.Legendary.Desc,ST_Fusions,"伤害 +20%
+每秒恢复 1 点生命
+<kw id=""Mark"">标记</kw>效果 +50%。","Damage +20%, regenerate 1 HP per second. <kw id=""Mark"">Mark</kw> is 50% stronger."
+Blessing.Shade.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Blessing.Storm.Legendary.Desc,ST_Fusions,"伤害 +25%
+<kw id=""Shock"">感电</kw>效果 +50%
+感电持续 +1 秒。","Damage +25%. <kw id=""Shock"">Shock</kw> is 50% stronger and lasts 1 s longer."
+Blessing.Storm.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Blessing.Tide.Legendary.Desc,ST_Fusions,"伤害 +15%
+<kw id=""Chill"">减速</kw>效果 +50%
+减速持续 +2 秒。","Damage +15%. <kw id=""Chill"">Chill</kw> is 50% stronger and lasts 2 s longer."
+Blessing.Tide.Legendary.Name,ST_Fusions,倾囊,Final Advance
+Fusion.Forge.FlakMortar.Desc,ST_Fusions,"高抛重型炮弹
+落点燃烧 4 秒。",Heavy shells on a high arc; their craters burn for 4 seconds.
+Fusion.Forge.FlakMortar.Name,ST_Fusions,熔雨,Crucible
+Fusion.Quicksilver.OrbitalDrones.Desc,ST_Fusions,"浮游炮变成环绕的刀刃
+飞镖会<kw id=""Ricochet"">弹射</kw>
+你移动时它们更快。","Drones become blades; darts <kw id=""Ricochet"">ricochet</kw>. Faster while you move."
+Fusion.Quicksilver.OrbitalDrones.Name,ST_Fusions,驿刃,Relay Blades
+Fusion.Radiance.PulseRifle.Desc,ST_Fusions,"发射能<kw id=""Pierce"">穿透</kw>的光矛
+暴击率和暴击伤害都很高
+并<kw id=""Blind"">致盲</kw>敌人。","<kw id=""Pierce"">Piercing</kw> lances that crit often and hard. <kw id=""Blind"">Blinds</kw>."
+Fusion.Shade.SeekerSwarm.Desc,ST_Fusions,"三个不知疲倦的追猎者
+被<kw id=""Mark"">标记</kw>的敌人
+受到四倍伤害。","Three hunters that never tire. <kw id=""Mark"">Marked</kw> enemies pay four times over."
+Fusion.Shade.SeekerSwarm.Name,ST_Fusions,索命者,Collectors
+Fusion.Storm.RailLance.Desc,ST_Fusions,"闪电长枪
+电弧跳向沿途每个敌人
+并使其<kw id=""Shock"">感电</kw>。","A lightning lance that arcs to every enemy it passes. <kw id=""Shock"">Shocks</kw>."
+Keeper.Forge.PassedOver,ST_Keepers,次等的搭配。先凑合着用。,"A second-rate fitting. It will hold, for now."
+Keeper.Forge.Tier1,ST_Keepers,精度合格。继续。,Tolerances within spec. Proceed.
+Keeper.Forge.Tier2,ST_Keepers,你以前可没造得这么好。,You were not always this well made.
+Keeper.Forge.Tier3,ST_Keepers,我从没造过你。我只是一直在修你。,I did not make you. I only ever repaired you.
+Keeper.Quicksilver.PassedOver,ST_Keepers,随你。反正都是我送你去。,Fine. I carry you either way.
+Keeper.Quicksilver.Path,ST_Keepers,驰驿,Quicksilver
+Keeper.Quicksilver.Tier1,ST_Keepers,动起来。停着不动，就会被他们盯上。,Move. Standing still is how they count you.
+Keeper.Quicksilver.Tier2,ST_Keepers,守境的一切都由我运送。你也是，每一次。,"Everything in the Keep passes through me. Including you, every time."
+Keeper.Quicksilver.Tier3,ST_Keepers,我也想逃。可我哪儿也去不了。,I would run from this too. Nowhere in me to run to.
+Keeper.Radiance.PassedOver,ST_Keepers,你看过了，还是选错了。,"You looked, and still chose wrong."
+Keeper.Radiance.Tier2,ST_Keepers,你现在看见了。可他们不会让你一直看见。,You see it now. You will not be allowed to keep it.
+Keeper.Radiance.Tier3,ST_Keepers,问对了问题，我就没法说谎。我们都一样。,Ask the right question and I cannot lie. None of us can.
+Keeper.Shade.PassedOver,ST_Keepers,记下了。你欠我的，还没完。,Noted. Your account with me stays open.
+Keeper.Shade.Tier1,ST_Keepers,已开账。欠的都记下了。,Entry opened. Debts noted.
+Keeper.Shade.Tier2,ST_Keepers,你杀的每一个，名字早在我账上。,"Every name you take, I already hold."
+Keeper.Shade.Tier3,ST_Keepers,有一笔账比我们都早。我无权翻看。,An entry older than all of us. I may not read it.
+Keeper.Storm.PassedOver,ST_Keepers,选得太慢了。我会记住的。,Slow choice. I will remember it.
+Keeper.Storm.Path,ST_Keepers,雷霆,Storm
+Keeper.Storm.Tier1,ST_Keepers,快点。天可不会等你。,Faster. The sky does not wait for you.
+Keeper.Storm.Tier2,ST_Keepers,很好。让它们后悔没倒下。,Good. Now make them regret standing.
+Keeper.Storm.Tier3,ST_Keepers,我记得这种愤怒。那时，它就够了。,I remember being this angry. I remember it being enough.
+Keeper.Tide.PassedOver,ST_Keepers,也好，跟他们去吧。我会等你。,Good. Go with them. I will wait.
+Keeper.Tide.Tier1,ST_Keepers,冷会让一切慢下来。这也一样。,Cold slows everything. Even this.
+Keeper.Tide.Tier2,ST_Keepers,别急着回来。反正他们还会再送你来。,Do not hurry back. They will send you anyway.
+Keeper.Tide.Tier3,ST_Keepers,能停下的那部分在我这。其余在你那。,I kept the part of us that stops. You kept the rest.
+Mod.Boomerang.Desc,ST_Modifiers,"子弹飞出后会折返
+回来时再次命中。","Bullets turn back to you, hitting again on the way."
+Mod.Boomerang.Name,ST_Modifiers,回旋弹,Boomerang
+Mod.BurstCapacitor.Desc,ST_Modifiers,改为每次连发 3 枪。,Fires in 3-round bursts.
+Mod.ChainTrigger.Desc,ST_Modifiers,"每击杀一个敌人
+免费多射<kw id=""Volley"">一轮</kw>。","Each kill fires a free extra <kw id=""Volley"">volley</kw>."
+Mod.CritLens.Desc,ST_Modifiers,"暴击率 +15%
+<kw id=""Crit"">暴击</kw>伤害 +50%。","+15% crit chance; <kw id=""Crit"">crits</kw> deal +50% damage."
+Mod.CritLens.Name,ST_Modifiers,聚焦透镜,Crit Lens
+Mod.DivineConduit.Desc,ST_Modifiers,"每次命中都附带
+<kw id=""Patron"">主司</kw>的元素效果。","Every hit applies your <kw id=""Patron"">Patron</kw>'s element."
+Mod.DivineConduit.Name,ST_Modifiers,主司回路,Divine Conduit
+Mod.Fork.Desc,ST_Modifiers,"每次射击额外发射 2 发
+偏角 ±15°。",Every shot adds 2 bullets at ±15°.
+Mod.HeavySlug.Desc,ST_Modifiers,"伤害 +60%，附带<kw id=""Push"">击退</kw>
+射速 −30%。","+60% damage and <kw id=""Push"">knockback</kw>, −30% fire rate."
+Mod.Homing.Desc,ST_Modifiers,"子弹会自动飞向
+最近的敌人。",Bullets steer toward the nearest enemy.
+Mod.Homing.Name,ST_Modifiers,寻的陀螺,Homing Gyro
+Mod.Lifeline.Desc,ST_Modifiers,"这件武器造成伤害的 3%
+转为你的生命。",Heals you for 3% of this weapon's damage.
+Mod.LingeringField.Desc,ST_Modifiers,"命中处留下<kw id=""Field"">伤害区域</kw>
+持续 1 秒。","Impacts leave a <kw id=""Field"">damage zone</kw> for 1 s."
+Mod.LingeringField.Name,ST_Modifiers,滞留场,Lingering Field
+Mod.Magnify.Desc,ST_Modifiers,"子弹尺寸 +50%
+弹速 −10%。","+50% bullet size, −10% bullet speed."
+Mod.Magnify.Name,ST_Modifiers,扩径,Magnify
+Mod.Mirror.Desc,ST_Modifiers,每次射击，同时向正后方多射一发。,Every shot is copied backwards.
+Mod.OrbitLock.Desc,ST_Modifiers,"子弹先<kw id=""Orbit"">环绕</kw>你 2 秒
+再飞向首领或最近的敌人。","Bullets <kw id=""Orbit"">circle</kw> you for 2 s, then fly at the boss or nearest enemy."
+Mod.Overclock.Desc,ST_Modifiers,"射速 +35%
+伤害 −15%。","+35% fire rate, −15% damage."
+Mod.Pierce.Desc,ST_Modifiers,"子弹能多<kw id=""Pierce"">穿透</kw> 3 个敌人。","Bullets <kw id=""Pierce"">pass through</kw> 3 more enemies."
+Mod.Pierce.Name,ST_Modifiers,穿透弹,Pierce Rounds
+Mod.Ricochet.Desc,ST_Modifiers,"子弹命中后会<kw id=""Ricochet"">弹向</kw>新目标，最多 2 次。","Bullets <kw id=""Ricochet"">bounce</kw> to a new target up to 2 times."
+Mod.ScatterShell.Desc,ST_Modifiers,"子弹飞到尽头时
+炸成 6 发小子弹。","At the end of its flight, a bullet bursts into 6."
+Mod.ScatterShell.Name,ST_Modifiers,子母弹,Scatter Shell
+Mod.SplitCore.Desc,ST_Modifiers,"命中时子弹<kw id=""Split"">一分为二</kw>
+每发造成 60% 伤害。","On hit, bullets <kw id=""Split"">split</kw> in two at 60% damage."
+Mod.SplitCore.Name,ST_Modifiers,裂芯,Split Core
+Mod.SpreadWave.Desc,ST_Modifiers,"子弹飞到尽头时
+变成一道短冲击波。","At the end of its flight, a bullet becomes a short wave."
+Mod.VelocityCoil.Desc,ST_Modifiers,子弹速度和射程 +50%。,+50% bullet speed and range.
+Tree.Balance,ST_Tree,现有神血：{0},Ichor held: {0}
+Tree.Branch.Advance4.Desc,ST_Tree,{0}的第四项预支会出现在升级选项里。,{0} adds a fourth advance to its offers.
+Tree.Branch.Advance4.Name,ST_Tree,追加预支,Further Advance
+Tree.Branch.Advance5.Desc,ST_Tree,{0}的第五项预支会出现在升级选项里。,{0} adds its last advance to its offers.
+Tree.Branch.Advance5.Name,ST_Tree,第五项预支,Fifth Advance
+Tree.Branch.Intercession.Desc,ST_Tree,{0}的神临充能速度 +{1}%。,{0}'s Intercession recharges {1}% faster.
+Tree.Branch.Intercession.Name,ST_Tree,神临速至,Prompt Intercession
+Tree.Branch.Keeper,ST_Tree,与{0}的长期契约,Standing contract: {0}
+Tree.Branch.Reforging.Desc,ST_Tree,升到 16 级时，{0}可以为你神铸一件武器。,{0} agrees to reforge one weapon at level 16.
+Tree.Branch.Retainer.Desc,ST_Tree,以{0}为主司时，每局开始就有 +{1} 点神眷。,"As your Patron, {0} starts each run with +{1} Favor."
+Tree.Branch.Retainer.Name,ST_Tree,聘金,Retainer
+Tree.Branch.StandingAdvance.Desc,ST_Tree,每局开始时，直接获得{0}的一项预支。,Begin a run with one of {0}'s advances.
+Tree.Branch.StandingAdvance.Name,ST_Tree,长期预支,Standing Advance
+Tree.Purchased,ST_Tree,契约已签订：{0},Contract signed: {0}
+Tree.Rank,ST_Tree,{0}/{1} 级,Rank {0}/{1}
+Tree.Requires,ST_Tree,需要先签：{0},Requires {0}
+Tree.RequiresItem,ST_Tree,{0} {1} 级,{0} rank {1}
+Tree.State.Locked,ST_Tree,未解锁,Locked
+Tree.State.Maxed,ST_Tree,已满级,Complete
+Tree.State.ReadOnly,ST_Tree,这个存档来自更新版本的游戏，契约只能查看，不能修改。,This save is from a newer build. Contracts are read-only.
+Tree.Trunk.Armor.Desc,ST_Tree,每级护甲 +{1}。,+{1} Armor per rank.
+Tree.Trunk.Banish.Desc,ST_Tree,每局可拒约的次数 +{1}。,+{1} Refuse each run.
+Tree.Trunk.Lock.Desc,ST_Tree,每局可保留的次数 +{1}。,+{1} Hold each run.
+Tree.Trunk.Luck.Desc,ST_Tree,每级幸运 +{1}。,+{1} Luck per rank.
+Tree.Trunk.Luck.Name,ST_Tree,公道,Fair Odds
+Tree.Trunk.MaxHP.Desc,ST_Tree,每级生命上限 +{1}。,+{1} max HP per rank.
+Tree.Trunk.MaxHP.Name,ST_Tree,加固机体,Reinforced Frame
+Tree.Trunk.PickupRadius.Desc,ST_Tree,每级拾取范围 +{1}%。,+{1}% pickup radius per rank.
+Tree.Trunk.PickupRadius.Name,ST_Tree,回收网,Salvage Net
+Tree.Trunk.Reroll.Desc,ST_Tree,每局可重议的次数 +{1}。,+{1} Renegotiate each run.
+Tree.Trunk.StartWeapon.Desc,ST_Tree,每局的初始武器直接从 2 级开始。,Your starting weapon begins at level 2.
+Tree.Trunk.StartWeapon.Name,ST_Tree,预热,Warm Start
+Tree.Trunk.XPGain.Desc,ST_Tree,每级获得的经验 +{1}%。,+{1}% experience per rank.
+Tree.Trunk.XPGain.Name,ST_Tree,速成,Quick Study
+Card.Body.BlessingNew,ST_UI,新获得 · {0} 级,New · Rank {0}
+Card.Body.Fusion,ST_UI,重铸{0},Reforges {0}
+Card.Body.GodChoice,ST_UI,选为你的第二位司者。,A second Keeper takes a stake.
+Card.Body.Legendary,ST_UI,来自神眷最高的司者。,From the Keeper with the highest stake.
+Card.Body.Modifier,ST_UI,装在{0}上,Socket into {0}
+Card.Body.NewWeapon,ST_UI,装入空武器槽。,Mount in a free slot.
+Card.Body.Rank,ST_UI,{0} 级 → {1} 级,Rank {0} → {1}
+Card.Body.Upgrade,ST_UI,Lv.{0} → Lv.{1},Level {0} → {1}
+Card.Kind.Blessing,ST_UI,预支,Advance
+Card.Kind.Modifier,ST_UI,模块,Modifier
+Card.Kind.Upgrade,ST_UI,武器升级,Upgrade
+Card.Marker.Forced,ST_UI,逾期,Overdue
+Card.Marker.Held,ST_UI,已保留,Held
+Card.Stat.Size,ST_UI,尺寸 +{0}%,Size +{0}%
+Codex.Count,ST_UI,已寻回 {0} / {1},Recovered {0} / {1}
+Codex.Locked,ST_UI,还没寻回。,Not yet recovered.
+HUD.Level,ST_UI,Lv.{0},L{0}
+HUD.Paused,ST_UI,暂停中,PAUSED
+HUD.WeaponLine,ST_UI,{0} Lv.{1},{0} L{1}
+HUD.WeaponMax,ST_UI,满级,MAX
+HUD.XP,ST_UI,Lv.{0}  经验 {1}/{2},Lv {0}  {1}/{2} XP
+LevelUp.Subtitle,ST_UI,选一项,Choose one
+LevelUp.Title,ST_UI,升到 {0} 级,Level {0}
+MuscleMemory.Locked,ST_UI,还没解锁。,Not yet remembered.
+MuscleMemory.Stage1.Desc,ST_UI,每局一次：受到致命伤害时，保留 1 点生命，并获得 1 秒无敌。,"Once per run, a hit that would kill you leaves you at 1 HP with 1 s of invulnerability."
+MuscleMemory.Stage1.Name,ST_UI,惊觉,Flinch
+MuscleMemory.Stage1.Unlock,ST_UI,完成 {0} 局后解锁。,Finish {0} runs.
+MuscleMemory.Stage2.Desc,ST_UI,冲刺穿过敌人的攻击预警区域时，返还一半冲刺冷却。,Dashing through an active enemy telegraph gives back half the dash cooldown.
+MuscleMemory.Stage2.Name,ST_UI,本能,Reflex
+MuscleMemory.Stage2.Unlock,ST_UI,赢一局后解锁。,Win a run.
+MuscleMemory.Stage3.Desc,ST_UI,每局拿到的第一件武器，最高可升到 Lv.9。,The first weapon you take in a run can reach level 9.
+MuscleMemory.Stage3.Name,ST_UI,架势,Form
+MuscleMemory.Stage3.Unlock,ST_UI,赢 {0} 局，或寻回 {1} 段忆痕后解锁。,"Win {0} runs, or recover {1} Recollections."
+MuscleMemory.Title,ST_UI,身忆,Muscle Memory
+MuscleMemory.Toast,ST_UI,身体想起来了：{0},Muscle memory: {0}
+Prompt.Branch,ST_UI,换分支,Branch
+Prompt.Change,ST_UI,调整,Change
+Prompt.Select,ST_UI,确定,Select
+RunSummary.AdvanceLine,ST_UI,{0}  {1} 级,{0}  Rank {1}
+RunSummary.Advances,ST_UI,预支,Advances
+RunSummary.Balance,ST_UI,神血余额 {0},Balance {0}
+RunSummary.Metrics,ST_UI,每分钟击杀 {0} · 杂兵平均 {1} 秒被击杀 · 每分钟冲刺 {2} 次 · 每分钟损失 {3}% 生命,{0} kills/min · swarm TTK {1} s · {2} dashes/min · {3}% HP lost/min
+RunSummary.PathLine,ST_UI,{0}  {1} 阶,{0}  Tier {1}
+RunSummary.Recovered,ST_UI,寻回的忆痕,Recollections recovered
+RunSummary.StoryNoPath,ST_UI,没有任何流派达到 1 阶,No Path reached a tier
+RunSummary.Time,ST_UI,存活时间,Time survived
+RunSummary.WeaponLine,ST_UI,{0}  Lv.{1},{0}  Lv {1}
+HUD.Ult.NoPath,ST_Ultimates,还没有主司,No Keeper yet
+Ult.Forge.Desc,ST_Ultimates,"{0} 秒内你就是铁锤：
+每半秒，一圈火从你身边<kw id=""Slam"">砸开</kw>。","For {0} s you are the hammer: a ring of fire <kw id=""Slam"">slams</kw> out around you every half second."
+Ult.Forge.Name,ST_Ultimates,开炉,Forge Nova
+Ult.Quicksilver.Desc,ST_Ultimates,"{0} 秒内世界放慢到 30%，
+每次冲刺都发射所有武器。","For {0} s the world slows to 30%, and every dash fires all your weapons."
+Ult.Quicksilver.Name,ST_Ultimates,急递,Time Dilation
+Ult.Radiance.Desc,ST_Ultimates,"蓄力后发射持续 {0} 秒的光束，
+必定<kw id=""Crit"">暴击</kw>，<kw id=""Overkill"">多余的伤害</kw>会炸成光。","Charge, then a beam for {0} s that always <kw id=""Crit"">crits</kw> and bursts on <kw id=""Overkill"">overkill</kw>."
+Ult.Radiance.Name,ST_Ultimates,贯日,Sun Lance
+Ult.Shade.Name,ST_Ultimates,清算,Closing
+Ult.Storm.Desc,ST_Ultimates,"{0} 秒内，每发子弹<kw id=""Split"">分裂</kw>成 3 发，
+分出的子弹放出<kw id=""Arc"">电弧</kw>，天雷劈遍全屏。","For {0} s every shot you fire <kw id=""Split"">splits</kw> into 3, each child <kw id=""Arc"">arcs</kw>, and bolts strike across the screen."
+Ult.Storm.Name,ST_Ultimates,雷狱,Thunderhead
+Ult.Tide.Desc,ST_Ultimates,"一道浪把全屏敌人<kw id=""Pull"">拉</kw>到你面前排成一线，
+<kw id=""Freeze"">冻结</kw> {0} 秒。","A wave <kw id=""Pull"">pulls</kw> every enemy on screen into a line before you and <kw id=""Freeze"">Freezes</kw> them for {0} s."
+Ult.Tide.Name,ST_Ultimates,决堤,Tidal Wave
+Weapon.ArcBlade.Desc,ST_Weapons,"挥出一道大弧形刀刃
+砍向身边最近的敌人。",Sweeps a wide blade around you at whatever is closest.
+Weapon.FlakMortar.Desc,ST_Weapons,"向敌群最密处抛射炮弹
+落地爆炸。",Lobs shells onto the thickest crowd; they burst on landing.
+Weapon.GravityMine.Desc,ST_Weapons,"向敌群投下地雷
+先把敌人吸拢，再引爆。","Drops a mine on a crowd: it pulls them in, then detonates."
+Weapon.GravityMine.Name,ST_Weapons,引力雷,Gravity Mine
+Weapon.OrbitalDrones.Desc,ST_Weapons,"浮游炮绕着你转
+射击靠近的敌人。",Drones circle you and fire at whatever comes near.
+Weapon.OrbitalDrones.Name,ST_Weapons,浮游炮,Orbital Drones
+Weapon.PulseRifle.Desc,ST_Weapons,"向最近的敌人
+快速发射光弹。",Fires fast bolts at the nearest enemy.
+Weapon.RailLance.Desc,ST_Weapons,"朝敌人最密集的一线
+射出缓慢但能<kw id=""Pierce"">穿透</kw>的长枪。","A slow, <kw id=""Pierce"">piercing</kw> lance down the densest line."
+Weapon.RailLance.Name,ST_Weapons,磁轨长枪,Rail Lance
+Weapon.RingEmitter.Desc,ST_Weapons,定时向四周发射一圈子弹。,Pulses a ring of bullets in every direction.
+Weapon.RingEmitter.Name,ST_Weapons,环射器,Ring Emitter
+Weapon.ScatterCannon.Desc,ST_Weapons,"向近处的敌人
+喷出一片扇形霰弹。",Blasts a cone of pellets at close range.
+Weapon.ScatterCannon.Name,ST_Weapons,霰弹炮,Scatter Cannon
+Weapon.SeekerSwarm.Desc,ST_Weapons,"发射微型导弹
+自动追击随机的敌人。",Launches micro-missiles that hunt down random enemies.
+Weapon.SeekerSwarm.Name,ST_Weapons,猎蜂,Seeker Swarm
+Weapon.SpiralProjector.Desc,ST_Weapons,"旋转射出
+连绵不绝的螺旋弹幕。",Spins out an endless spiral of bullets.
+Weapon.SpiralProjector.Name,ST_Weapons,旋射器,Spiral Projector
+Hub.Quota,ST_World,加征,Quota
+Hub.Quota.Change1,ST_World,耀柱自 6:00 起就展开宽幅扇射。,Flare Pylons open their wide fan from 6:00.
+Hub.Quota.Change2,ST_World,每个精英多带一个词缀。,Every elite carries one more affix.
+Hub.Quota.Change3,ST_World,每次事件都会附带一次较弱的事件。,Each event arrives with a lighter second one.
+Hub.Quota.Change4,ST_World,驿骑会连冲两次。,Coursers charge twice.
+Hub.Quota.Change5,ST_World,典狱生命降至一半时即进入狂暴。,The Warden rages from half its strength.
+Hub.Quota.Change6,ST_World,空降的敌人更勤，可同时来两个，种类不同。,"Drop-ins come more often, two at once, never alike."
+Hub.Quota.Change7,ST_World,精英最多带 3 个词缀；护盾破后会再生一次。,Elites carry up to 3 affixes; shields come back once.
+Hub.Quota.Change8,ST_World,首领各添一招：螺旋弹幕、两条水渠齐冲、喷口重开。,"Each boss gains a pattern: spiral, twin flushes, reopened nozzles."
+Hub.Quota.Change9,ST_World,喘息只剩 3 秒；精英宝箱要站 1 秒才打开。,Breaths last 3 s; chests take 1 s to open.
+Hub.Quota.Change10,ST_World,满额加征：事件成对出现，敌方弹速更快。,Full Quota: events come in pairs; enemy fire flies faster.
+Hub.Quota.Level,ST_World,加征 {0},Quota {0}
+Hub.Quota.Locked,ST_World,在加征 {0} 下获胜，可再加一级。,Win at Quota {0} to raise it.
+Hub.Quota.LockedFirst,ST_World,赢得一局后开放加征。,Win a run to raise the quota.
+Hub.Quota.None,ST_World,常例,Standard terms
+Hub.Quota.Reward,ST_World,神血 ×{0},Ichor ×{0}
+Hub.Recovered,ST_World,资产已回收。本周期返修：{Count} 次。,Asset recovered. Repairs this cycle: {Count}.
+Hub.Shrine.Locked,ST_World,封存,Sealed
+Hub.Shrine.LockedHint,ST_World,这位司者暂时还不能选。,This Keeper is not taking terms yet.
+Hub.Shrine.Prompt,ST_World,选一位司者作为本局的主司。,Accept one Keeper's terms for this run.
+Summary.FiledUnder,ST_World,归档编号：{0},Filed under: {0}
+Summary.Reclaimed,ST_World,回收 {0},Reclaimed {0}
+Summary.Retained,ST_World,留存 {0},Retained {0}
+Summary.SixShare,ST_World,六司所取 {0},The Six's share {0}
+Bid.Header,ST_UI,出价 · {Keeper},Bid · {Keeper}
+Bid.Term.Binding.Name,ST_UI,绑定,Binding
+Bid.Term.Binding.Desc,ST_UI,"神眷 +2（而不是 +1）。Lv.8 时必定出现这位司者。
+不选它，这项预支降 1 级。",+2 Favor instead of +1. This Keeper is offered at level 8. Pass it over and this blessing loses a rank.
+Bid.Term.Levy.Name,ST_UI,抽成,Levy
+Bid.Term.Levy.Desc,ST_UI,这位司者多拿走本局 20% 的神血。,This Keeper takes 20% more of this run's Ichor.
+Bid.Term.Collateral.Name,ST_UI,抵押,Collateral
+Bid.Term.Collateral.Desc,ST_UI,立即失去 1 次重议。,Lose one Renegotiate now.
+Bid.NoHoldRefuse,ST_UI,出价不能保留，也不能拒约。,Bids cannot be held or refused.
+Summary.Levy,ST_World,{0} 抽成：{1},Levy to {0}: {1}
+Keeper.Storm.Bid.Binding,ST_Keepers,现在拿着。第八级时站到我这边。,Take it now. Stand with me at the eighth.
+Keeper.Storm.Bid.Levy,ST_Keepers,现在多给你力量，之后我多拿。,More strength now. I take more after.
+Keeper.Storm.Bid.Collateral,ST_Keepers,别再重议了。拿这个。,Stop renegotiating. Take this instead.
+Keeper.Forge.Bid.Binding,ST_Keepers,装到我这边，公差更好。,"Better tolerances, if you are fitted to me."
+Keeper.Forge.Bid.Levy,ST_Keepers,上等的活。费用从你的回收里扣。,Superior work. The cost comes out of your return.
+Keeper.Forge.Bid.Collateral,ST_Keepers,一次重议换这个零件，公道。,One renegotiation for this part. A fair trade.
+Keeper.Tide.Bid.Binding,ST_Keepers,拿去吧。第八级时回到我身边就好。,Take it. Only come back to me at the eighth.
+Keeper.Tide.Bid.Levy,ST_Keepers,这个要用你带回去的一点来换。,This one costs a little of what you carry home.
+Keeper.Tide.Bid.Collateral,ST_Keepers,放弃一次重来的机会，留下这个。,Give up one second chance. Keep this one.
+Keeper.Shade.Bid.Binding,ST_Keepers,现在签字，第八级时收账。,Signed now. Collected at the eighth.
+Keeper.Shade.Bid.Levy,ST_Keepers,用你的回收作抵，先借给你。计息。,An advance against your returns. Interest applies.
+Keeper.Shade.Bid.Collateral,ST_Keepers,抵押一次重议，记在账上。,"Collateral: one renegotiation, held against the debt."
+Keeper.Radiance.Bid.Binding,ST_Keepers,看清楚它。第八级时选我。,Look at it clearly. Then choose me at the eighth.
+Keeper.Radiance.Bid.Levy,ST_Keepers,它值这个价。大体上。,It is worth more than it costs. Mostly.
+Keeper.Radiance.Bid.Collateral,ST_Keepers,你少一次再看的机会。认了吧。,You lose one chance to look again. Accept that.
+Keeper.Quicksilver.Bid.Binding,ST_Keepers,条件简单：之后选我，不能反悔。,Fast terms. You choose me later. No turning back.
+Keeper.Quicksilver.Bid.Levy,ST_Keepers,拿去。我顺路多带一点回去。,Take it. I carry a little extra home for myself.
+Keeper.Quicksilver.Bid.Collateral,ST_Keepers,没时间重议了。给你。,No time to reconsider. Here.
+Keeper.Storm.PassedOver.Act2,ST_Keepers,第二次了。我不再客气。,Twice now. I stop asking politely.
+Keeper.Forge.PassedOver.Act2,ST_Keepers,那就让他们修你吧。看能修多好。,Then they can repair you. We will see how well.
+Keeper.Tide.PassedOver.Act2,ST_Keepers,去吧。我不怪你，他们会。,Go. I will not hold it against you. They will.
+Keeper.Shade.PassedOver.Act2,ST_Keepers,拒绝已记录。会记在账上。,Refusal noted. It will be charged to the account.
+Keeper.Radiance.PassedOver.Act2,ST_Keepers,你没看就选了。我都看见了。,You chose without looking. I watched you do it.
+Keeper.Quicksilver.PassedOver.Act2,ST_Keepers,行。别人说你的话，我也会捎到。,Fine. I carry the others' word against you too.
+Transform.Storm.Name,ST_Fusions,过载,Overload
+Transform.Storm.Desc,ST_Fusions,"<kw id=""Shock"">感电</kw>最多叠加到 3 层。
+满 3 层时，敌人放出连锁闪电，
+再击中 {0} 个敌人。","<kw id=""Shock"">Shock</kw> stacks to 3. At 3, the enemy discharges a chain bolt to {0} more enemies."
+Transform.Forge.Name,ST_Fusions,窑炉,Kiln
+Transform.Forge.Desc,ST_Fusions,"<kw id=""Burn"">灼烧</kw>中死去的敌人变成熔渣残骸，
+持续 {0} 秒，<kw id=""Cleave"">横斩</kw>靠近它的一切。","Enemies that die <kw id=""Burn"">Burning</kw> become slag husks for {0} s that <kw id=""Cleave"">cleave</kw> anything near them."
+Transform.Tide.Name,ST_Fusions,冰川,Glacier
+Transform.Tide.Desc,ST_Fusions,"被<kw id=""Freeze"">冻结</kw>的敌人变成冰柱，持续 {0} 秒，
+挡住敌人和它们的子弹，然后碎裂。","<kw id=""Freeze"">Frozen</kw> enemies become ice pillars for {0} s that block enemies and their shots, then shatter."
+Transform.Shade.Name,ST_Fusions,收账,Collection
+Transform.Shade.Desc,ST_Fusions,"被<kw id=""Mark"">标记</kw>的敌人死后化为亡影，环绕你，
+用你的第一把武器射击，伤害 {0}%。","<kw id=""Mark"">Marked</kw> enemies that die rise as Shades that orbit you and fire your first weapon at {0}% damage."
+Transform.Radiance.Name,ST_Fusions,天顶,Zenith
+Transform.Radiance.Desc,ST_Fusions,"蓄能弹<kw id=""Split"">分裂</kw>成 3 道蓄能光矛，
+每次多余的伤害都会炸成光。","Charged shots <kw id=""Split"">split</kw> into 3 charged lances, and every overkill bursts in light."
+Transform.Quicksilver.Name,ST_Fusions,滑流,Slipstream Drive
+Transform.Quicksilver.Desc,ST_Fusions,"冲刺次数 +1。冲刺时发射所有武器，
+速度越快威力越强，没有上限。","+1 dash charge. Dashes fire all weapons, and your power keeps rising with speed, without a cap."
+Evolve.PulseRifle.Name,ST_Fusions,轨暴,Railstorm
+Evolve.PulseRifle.Desc,ST_Fusions,"变成 {0} 把环绕你的刀刃，
+射向最近的敌人，再飞回来。",Becomes {0} orbiting blades that launch at the nearest enemy and return.
+Evolve.ScatterCannon.Name,ST_Fusions,箭霰,Flechette
+Evolve.ScatterCannon.Desc,ST_Fusions,弹丸钉入敌人，0.5 秒后爆炸。,"Pellets embed in enemies, then explode after 0.5 s."
+Evolve.OrbitalDrones.Name,ST_Fusions,刃环,Blade Halo
+Evolve.OrbitalDrones.Desc,ST_Fusions,"浮游炮变成 {0} 把刀刃。
+你移动越快，环绕范围越大。",Drones become {0} blades. Their orbit widens the faster you move.
+Evolve.RailLance.Name,ST_Fusions,横扫光束,Sweep Beam
+Evolve.RailLance.Desc,ST_Fusions,"发射持续 {0} 秒的光束，
+扫向敌人最密的一侧。",Fires a beam for {0} s that sweeps across the densest side.
+Evolve.FlakMortar.Name,ST_Fusions,地毯轰炸,Carpet
+Evolve.FlakMortar.Desc,ST_Fusions,"每发炮弹落地后变成一排
+向前推进的 {0} 次爆炸。",Each shell lands as a line of {0} blasts walking forward.
+Evolve.ArcBlade.Name,ST_Fusions,旋风,Cyclone
+Evolve.ArcBlade.Desc,ST_Fusions,"移动时转成整圈，
+每秒命中 {0} 次。","Spins in a full circle while you move, hitting {0} times per second."
+Evolve.SeekerSwarm.Name,ST_Fusions,椋鸟群,Murmuration
+Evolve.SeekerSwarm.Desc,ST_Fusions,"导弹留下来成群猎杀，持续 {0} 秒，
+每次击杀后换新目标。",Missiles stay as a hunting swarm for {0} s and pick new targets after each kill.
+Evolve.RingEmitter.Name,ST_Fusions,脉冲墙,Pulse Wall
+Evolve.RingEmitter.Desc,ST_Fusions,"光环在你周围化作一道墙，
+持续 {0} 秒，把敌人推开。","Rings hold as a wall around you for {0} s, pushing enemies out."
+Evolve.SpiralProjector.Name,ST_Fusions,涡流,Vortex
+Evolve.SpiralProjector.Desc,ST_Fusions,"螺旋向内卷成漩涡，
+把敌人吸到一起。",The spiral curls inward into a vortex that pulls enemies together.
+Evolve.GravityMine.Name,ST_Fusions,奇点,Singularity
+Evolve.GravityMine.Desc,ST_Fusions,"所有引力雷合成一颗，
+把一切吸进来，然后坍缩。","All your mines merge into one that pulls everything in, then collapses."
+Transform.Refund,ST_UI,{0} 不适用于 {1}，已退还为 1 次重议。,{0} doesn't fit {1}. Refunded as a Renegotiate.
+Enemy.Lurker.Name,ST_Enemies,浚泵,Dredge
+Enemy.Tether.Name,ST_Enemies,缆工,Linesman
+Enemy.Artillery.Name,ST_Enemies,渣炮,Slagger
+Transform.Hand.Title,ST_UI,选择一项质变,Choose a transformation
+Transform.Kind.Path,ST_UI,流派,Path
+Transform.Kind.Weapon,ST_UI,进化,Evolution
+Transform.Kind.Fusion,ST_UI,神铸,Fusion
+Transform.Sealed,ST_UI,已封存。在契约中解锁。,Sealed. Unlock it in Contracts.
+Omen.Label,ST_World,今日条款,Terms of the day
+Omen.Banner,ST_World,今日条款：{0},Terms of the day: {0}
+Omen.BranchArg,ST_World,{0} · {1},{0} · {1}
+Omen.FavoredBranch.Name,ST_World,偏爱之作,Favoured Work
+Omen.FavoredBranch.Desc,ST_World,{0} 的预支出现的几率翻倍。,{0} blessings are offered twice as often.
+Omen.SecondWeapon.Name,ST_World,备用配件,Spare Fitting
+Omen.SecondWeapon.Desc,ST_World,开局多带一把武器：{0}。,Start with a second weapon: {0}.
+Omen.FineParts.Name,ST_World,精良零件,Fine Parts
+Omen.FineParts.Desc,ST_World,模块卡至少为稀有。,Modifier cards are always Rare or better.
+Omen.OpenTerms.Name,ST_World,宽松条款,Open Terms
+Omen.OpenTerms.Desc,ST_World,重议 +2，保留 -1。,"+2 Renegotiate, −1 Hold."
+Omen.Bounty.Name,ST_World,悬赏,Bounty
+Omen.Bounty.Desc,ST_World,精英宝箱提供 4 张卡。,Elite chests offer 4 cards.
+Omen.CrossedLines.Name,ST_World,越界,Crossed Lines
+Omen.CrossedLines.Desc,ST_World,"从 Lv.6 起，结约两位司者以外的预支
+也会出现，而且更常出现。","Blessings from outside your pair appear from level 6, more often."
+Omen.HeavyArms.Name,ST_World,重装,Heavy Arms
+Omen.HeavyArms.Desc,ST_World,"武器升级至少为稀有。
+移动速度 -10%。",Weapon upgrades are Rare or better. Move speed −10%.
+Omen.DrySpell.Name,ST_World,旱季,Dry Spell
+Omen.DrySpell.Desc,ST_World,经验 -10%。神血 +25%。,XP −10%. Ichor +25%.
+Omen.GlassEdge.Name,ST_World,玻璃刃,Glass Edge
+Omen.GlassEdge.Desc,ST_World,伤害 +20%。生命上限 -20。,Damage +20%. Max HP −20.
+Omen.QuietKeepers.Name,ST_World,六司沉默,Quiet Keepers
+Omen.QuietKeepers.Desc,ST_World,"本局没有出价。
+Lv.8 之后，预支的稀有度高一级。","No bids this run. After level 8, blessings are one rarity higher."
+Omen.SwarmDay.Name,ST_World,碎翼日,Swarm Day
+Omen.SwarmDay.Desc,ST_World,碎翼 +30%。经验 +15%。,Scrapwings +30%. XP +15%.
+Omen.OldAlliance.Name,ST_World,旧盟,Old Alliance
+Omen.OldAlliance.Desc,ST_World,"Lv.8 之后，立即提供
+你结约两位司者的双司预支。",Your pair's duo blessing is offered right after level 8.
+Mod.Backwash.Name,ST_Modifiers,回流,Backwash
+Mod.Backwash.Desc,ST_Modifiers,"命中会把敌人<kw id=""Pull"">拉向</kw>你开火的位置。","Hits <kw id=""Pull"">pull</kw> enemies toward where the shot came from."
+Mod.Spillover.Name,ST_Modifiers,溢流,Spillover
+Mod.Spillover.Desc,ST_Modifiers,"击杀时，<kw id=""Overkill"">多余的伤害</kw>会跳到最近的敌人身上。","On a kill, <kw id=""Overkill"">overkill</kw> damage jumps to the nearest enemy."
+Settings.TextSize,ST_UI,文字大小,Text size
+Settings.Graphics.Deck,ST_UI,Steam Deck,Steam Deck
+Settings.Motion,ST_UI,动态效果,Motion
+Settings.Motion.Full,ST_UI,完整,Full
+Settings.Motion.Reduced,ST_UI,减弱,Reduced
+Settings.Motion.Custom,ST_UI,自定义,Custom
+Settings.Shake,ST_UI,屏幕震动,Screen shake
+Settings.HitStop,ST_UI,击中停顿,Hit-stop
+Settings.Flash,ST_UI,屏幕闪光,Screen flashes
+Settings.SlowMo,ST_UI,慢动作,Slow motion
+Settings.DangerOutline,ST_UI,危险描边,Danger outlines
+Settings.On,ST_UI,开,On
+Settings.Off,ST_UI,关,Off
+Settings.Controls,ST_UI,按键设置,Controls
+Settings.Controls.Open,ST_UI,改键,Remap
+Controls.Title,ST_UI,按键设置,Controls
+Controls.Header.Action,ST_UI,操作,Action
+Controls.Header.KBM,ST_UI,键盘和鼠标,Keyboard & mouse
+Controls.Header.Pad,ST_UI,手柄,Controller
+Controls.Group.Gameplay,ST_UI,战斗中,In play
+Controls.Group.Menu,ST_UI,升级时,Level-up
+Controls.Action.Move.Up,ST_UI,向上移动,Move up
+Controls.Action.Move.Down,ST_UI,向下移动,Move down
+Controls.Action.Move.Left,ST_UI,向左移动,Move left
+Controls.Action.Move.Right,ST_UI,向右移动,Move right
+Controls.Action.Dash,ST_UI,冲刺,Dash
+Controls.Action.Ultimate,ST_UI,神临,Intercession
+Controls.Action.Restart,ST_UI,重新开始,Restart run
+Controls.Action.UI.Prev,ST_UI,上一张卡,Previous card
+Controls.Action.UI.Next,ST_UI,下一张卡,Next card
+Controls.Action.UI.Reroll,ST_UI,重议,Renegotiate
+Controls.Action.UI.Lock,ST_UI,保留,Hold
+Controls.Action.UI.Banish,ST_UI,拒约,Refuse
+Controls.PressKey,ST_UI,请按一个键…,Press a key…
+Controls.PressPad,ST_UI,请按一个按钮…,Press a button…
+Controls.Capturing,ST_UI,为「{0}」设置新按键。按 Esc / 菜单键取消。,New key for {0}. Esc / Menu cancels.
+Controls.Cancelled,ST_UI,未作更改。,No change.
+Controls.WrongDevice.Pad,ST_UI,这一栏请用手柄。,Use the controller for this column.
+Controls.WrongDevice.KBM,ST_UI,这一栏请用键盘或鼠标。,Use the keyboard or mouse for this column.
+Controls.Reserved,ST_UI,这个键是固定的，不能在这里使用。,That key is fixed and cannot be used here.
+Controls.Swapped,ST_UI,「{0}」已设置；「{1}」换用了它原来的按键。,{0} set; {1} took its old key.
+Controls.Bound,ST_UI,「{0}」已设置。,{0} set.
+Controls.Reset,ST_UI,恢复默认,Reset to defaults
+Controls.ResetDone,ST_UI,已恢复默认按键。,Defaults restored.
+Controls.Rebind,ST_UI,改键,Rebind
+Controls.Action.Ultimate2,ST_UI,第二神临,Second Intercession
+Npc.Clerk.Late,ST_World,有人从六司那份里又抽走了一份。我查不出是谁。,Someone takes a share of the share. I can't find whose.
+Hub.Loadout,ST_World,装备,Rig
+Hub.Loadout.Locked,ST_World,尚未配好：{0},Not fitted yet: {0}
+Loadout.PulseRifle.Name,ST_World,标准配置,Standard Kit
+Loadout.PulseRifle.Trait,ST_World,无改动。,No changes.
+Loadout.ScatterCannon.Name,ST_World,破门配置,Breaching Kit
+Loadout.ScatterCannon.Trait,ST_World,护甲 +{0}。冲刺会击退敌人。,+{0} Armor. Dashing knocks enemies back.
+Loadout.ScatterCannon.Drawback,ST_World,拾取范围 -{0}%。,Pickup radius −{0}%.
+Loadout.OrbitalDrones.Name,ST_World,护卫配置,Escort Kit
+Loadout.OrbitalDrones.Trait,ST_World,每架浮游炮每 {0} 秒挡下一发敌弹。,Each drone blocks one enemy bullet every {0} s.
+Loadout.OrbitalDrones.Drawback,ST_World,移动速度 -{0}%。,Move speed −{0}%.
+Loadout.RailLance.Name,ST_World,长枪配置,Lance Kit
+Loadout.RailLance.Trait,ST_World,所有武器多穿透 {0} 个敌人。,Every weapon pierces {0} more enemy.
+Loadout.RailLance.Drawback,ST_World,射速 -{0}%。,Fire rate −{0}%.
+Loadout.ArcBlade.Name,ST_World,刀刃配置,Blade Kit
+Loadout.ArcBlade.Trait,ST_World,"击杀回复 {0} 点生命
+（每秒最多 {1} 点）。",Kills heal {0} HP (at most {1} HP per second).
+Loadout.ArcBlade.Drawback,ST_World,不会再出现环射器和旋射器。,Ring Emitter and Spiral Projector are never offered.
+Loadout.SeekerSwarm.Name,ST_World,猎杀配置,Hunting Kit
+Loadout.SeekerSwarm.Trait,ST_World,精英受到的伤害 +{0}%。,Elites take +{0}% damage.
+Loadout.SeekerSwarm.Drawback,ST_World,生命上限 -{0}。,Max HP −{0}.
+Discovery.DronesWin.Name,ST_Discoveries,有人护送,Escorted
+Discovery.DronesWin.Desc,ST_Discoveries,使用浮游炮赢得一局。,Win a run with Orbital Drones.
+Discovery.RailLanceWin.Name,ST_Discoveries,长线,Long Line
+Discovery.RailLanceWin.Desc,ST_Discoveries,使用磁轨长枪赢得一局。,Win a run with the Rail Lance.
+Discovery.SeekerElites30.Name,ST_Discoveries,盯上的猎物,Marked Prey
+Discovery.SeekerElites30.Desc,ST_Discoveries,单局用猎蜂摧毁 30 个精英。,Destroy 30 elites with Seeker Swarm in one run.
+Discovery.ArcBladeKills500.Name,ST_Discoveries,近身肉搏,Close Quarters
+Discovery.ArcBladeKills500.Desc,ST_Discoveries,单局用弧刃摧毁 500 个敌人。,Destroy 500 enemies with the Arc Blade in one run.
+Transform.Tide2.Name,ST_Fusions,平潮,Slack Water
+Transform.Tide2.Desc,ST_Fusions,"站在水里的敌人，<kw id=""Chill"">减速</kw>永远不会消退。
+水里被<kw id=""Freeze"">冻结</kw>的敌人碎裂时造成双倍伤害。","<kw id=""Chill"">Chill</kw> never wears off on enemies standing in water. <kw id=""Freeze"">Frozen</kw> enemies in water shatter for double damage."
+Discovery.OmenReroll.Name,ST_Discoveries,再读一遍,Second Reading
+Discovery.OmenReroll.Desc,ST_Discoveries,赢得 3 局。,Win 3 runs.
+Hub.Omen.Reroll,ST_World,重读条款,Re-read the terms
+Discovery.OutfallWin.Name,ST_Discoveries,低水位,Low Water
+Discovery.OutfallWin.Desc,ST_Discoveries,击败泄洪闸。,Defeat the Floodgate.
+Discovery.DredgeSurfaced50.Name,ST_Discoveries,底栖者,Bottom Feeders
+Discovery.DredgeSurfaced50.Desc,ST_Discoveries,在浚泵浮出水面时摧毁 50 台。,Destroy 50 Dredges while they are surfaced.
+Discovery.FlushSurvive.Name,ST_Discoveries,逆流,Against the Current
+Discovery.FlushSurvive.Desc,ST_Discoveries,开闸冲水时待在那条水渠里活下来。,Survive a sluice flush inside its channel.
+Discovery.PumpsIntact.Name,ST_Discoveries,留下水泵,Leave the Pumps
+Discovery.PumpsIntact.Desc,ST_Discoveries,在泄口获胜，且第一阶段没有摧毁任何水泵。,Win the Outfall without destroying a pump in its first phase.
+Discovery.OutfallTier3.Name,ST_Discoveries,深流,Deep Current
+Discovery.OutfallTier3.Desc,ST_Discoveries,在泄口让任一流派达到 3 阶。,Reach Tier 3 of any Path in the Outfall.
+Discovery.OutfallQuota3.Name,ST_Discoveries,足额,Full Measure
+Discovery.OutfallQuota3.Desc,ST_Discoveries,以加征 3 或更高在泄口获胜。,Win the Outfall at Quota 3 or higher.
+Discovery.BidTaken.Name,ST_Discoveries,更好的条件,Better Terms
+Discovery.BidTaken.Desc,ST_Discoveries,接受一次司者的出价。,Accept a Keeper's bid.
+Discovery.BindingCalled.Name,ST_Discoveries,催债,Debt Called
+Discovery.BindingCalled.Desc,ST_Discoveries,立约时不选与你绑定的司者。,Pass over a Keeper that holds your binding.
+Discovery.ReadFacets3.Name,ST_Discoveries,三只手,Three Hands
+Discovery.ReadFacets3.Desc,ST_Discoveries,在典册中读三位司者最早的条目。,Read three Keepers' oldest entries in the Codex.
+Discovery.LoadoutWin.Name,ST_Discoveries,自带装备,Own Kit
+Discovery.LoadoutWin.Desc,ST_Discoveries,用标准配置以外的装备赢得一局。,Win a run with a loadout other than Standard.
+Discovery.FourPaths.Name,ST_Discoveries,众手,Many Hands
+Discovery.FourPaths.Desc,ST_Discoveries,单局让四个流派达到 1 阶。,Reach Tier 1 with four Paths in one run.
+Discovery.NoUltWin.Name,ST_Discoveries,未曾求援,Unasked
+Discovery.NoUltWin.Desc,ST_Discoveries,不使用神临赢得一局。,Win a run without calling an Intercession.
+Discovery.Refuse20.Name,ST_Discoveries,回绝,Turned Down
+Discovery.Refuse20.Desc,ST_Discoveries,拒约 20 项预支。,Refuse 20 blessings.
+Discovery.WardenFormII.Name,ST_Discoveries,开笼,Open Cage
+Discovery.WardenFormII.Desc,ST_Discoveries,击败第二形态的典狱。,Defeat the Warden in its second form.
+Discovery.StillWater.Name,ST_Discoveries,静水,Still Water
+Discovery.StillWater.Desc,ST_Discoveries,在泄口寒潮达到 2 阶时，站着不动 10 秒。,Stand still for 10 seconds in the Outfall with Tide at Tier 2.
+Hub.Loadout.Line,ST_World,{0}{1},{0} · {1}
+Codex.Recollection.OutfallWin,ST_Codex,典狱底下，清理场的东西都流进奠基者凿出的一个盆地。那里原本修了六条水渠，如今只剩三条还在流。,Below the Warden the Yard empties into a basin the Founders cut. Six channels were made for it; three still run.
+Codex.Recollection.DredgeSurfaced50,ST_Codex,浚泵本来是造来清理排水道的。它们还在干这份活，只是排水道已经变了。,Dredges were built to keep the drains clear. They still do the work; only the drains have changed.
+Codex.Recollection.FlushSurvive,ST_Codex,水闸按司潮定的时刻开启。每次开闸后的第二天早上，守夜镇的井水都会涨起来。,"The sluices open on a schedule the Keeper of Tides keeps. Vigil's wells rise the morning after, every time."
+Codex.Recollection.PumpsIntact,ST_Codex,泄洪闸的水泵上刻着六座神龛的记号。一台机器，六只手。,"The Floodgate's pumps carry the marks of all six shrines. One machine, six hands on it."
+Codex.Recollection.OutfallTier3,ST_Codex,在奠基者的文字里，六司共用同一个根字。守夜镇的石匠把它刻了六遍，从来没问过为什么。,In the Founders' script the six Keepers share one root sign. Vigil's stonecutters carved it six times and never asked why.
+Codex.Recollection.OutfallQuota3,ST_Codex,回收者走得越深，六司拿走的就越多。定这份额的笔迹，比六司中任何一位都要古老。,"The deeper the Reclaimer goes, the more the Six take. The quota is written in a hand older than any of them."
+Codex.Recollection.BidTaken,ST_Codex,司者们以前只是开价。现在它们互相抬价，好像生怕失去一样本来就属于自己的东西。,"The Keepers used to offer. Now they outbid one another, as if afraid of losing something they already own."
+Codex.Recollection.BindingCalled,ST_Codex,没被选中的司者，会把给过的东西一级一级全部收回。如果只是一套机制，用不着这样。,"A Keeper that is passed over takes back what it gave, to the last rank. A system would not need to."
+Codex.Recollection.ReadFacets3,ST_Codex,每位司者的记录都从同一天开始。在那一天之前，每份记录都是同一行空白。,"Every Keeper's record begins on the same day. Before that day, each record is the same blank line."
+Codex.Recollection.LoadoutWin,ST_Codex,FOUNDRY 送回来的装备，不一定是它收走的那一套。有些配件比 FOUNDRY 自己的手艺还要古老。,The rig FOUNDRY returns is not always the rig it took. Some fittings are older than FOUNDRY's own work.
+Codex.Recollection.FourPaths,ST_Codex,只有回收者能同时承载每位司者的馈赠。司者们却承载不了彼此的。,Only the Reclaimer can hold every Keeper's gift at once. The Keepers cannot hold each other's.
+Codex.Recollection.NoUltWin,ST_Codex,神临，就是司者借回收者的手出手。这双手一次也没有拒绝过。,An Intercession is a Keeper acting through the Reclaimer's hands. The hands have never once refused.
+Codex.Recollection.Refuse20,ST_Codex,回收者回绝一位司者时，另外五位会安静片刻。它们在听着什么。,"When the Reclaimer turns a Keeper down, the other five go quiet for a moment. They are listening for something."
+Codex.Recollection.WardenFormII,ST_Codex,典狱的笼子是六司一起封上的。里面的东西是被留下来的，不是被扔掉的。,"All six sealed the Warden's cage. Whatever is inside was kept, not thrown away."
+Codex.Recollection.StillWater,ST_Codex,司潮曾经请求停下。其余几位把这份请求归了档。,The Keeper of Tides once asked to stop. The others filed the request.
+Card.Archetype,ST_UI,{0} · {1},{0} · {1}
+Card.Key,ST_UI,核心,Key
+Card.NeedsKey,ST_UI,需要{0},Needs {0}
+Card.BreaksOnMove,ST_UI,移动就会打断,Breaks when you move
+Build.Load,ST_UI,负载 {0}×,Load {0}×
+Shrine.Trait,ST_UI,主司特性：{0},Patron trait: {0}
+Card.Capstone,ST_UI,终章,Capstone
+Build.Archetypes,ST_UI,流派路线,Archetypes
+Build.ArchetypeCount,ST_UI,{0}/{1},{0}/{1}
+Branch.Shade.Hunters.Name,ST_Blessings,收债人,Collectors
+Blessing.Forge.Bellows.Desc,ST_Blessings,"每次<kw id=""Volley"">齐射</kw>的前 {0} 发变成
+你身边的一记<kw id=""Cleave"">横斩</kw>，伤害 ×{1}。","The first {0} shots of each <kw id=""Volley"">volley</kw> become a <kw id=""Cleave"">cleave</kw> around you for ×{1} damage."
+Blessing.Storm.ForkedPath.Desc,ST_Blessings,"{0}% 的子弹在命中或飞行结束时
+<kw id=""Split"">分裂</kw>成 3 发。","{0}% of shots <kw id=""Split"">split</kw> into 3 on hit or at the end of their flight."
+Blessing.Tide.Brittle.Desc,ST_Blessings,"<kw id=""Chill"">减速</kw>两次就会<kw id=""Freeze"">冻结</kw>。
+被冻结的敌人受到的伤害 +{0}%。","Two <kw id=""Chill"">Chills</kw> <kw id=""Freeze"">Freeze</kw>. Frozen enemies take +{0}% damage."
+Blessing.Tide.HighWater.Desc,ST_Blessings,"几乎静止 0.6 秒：每把武器的下一次<kw id=""Volley"">齐射</kw>
+伤害 ×{0} 并<kw id=""Freeze"">冻结</kw>敌人。冲刺不会打断蓄力。","Hold almost still for 0.6 s: every weapon's next <kw id=""Volley"">volley</kw> deals ×{0} and <kw id=""Freeze"">Freezes</kw>. Dashing keeps the charge."
+Blessing.Radiance.PerfectSight.Desc,ST_Blessings,"每把武器每第 {0} 发是蓄能光矛：
+伤害 ×{1}，<kw id=""Pierce"">穿透</kw>一切。","Every {0}th shot of each weapon is a charged lance: ×{1} damage, <kw id=""Pierce"">pierces</kw> everything."
+Blessing.Storm.Overcharge.Desc,ST_Blessings,"<kw id=""Split"">分裂</kw>时多分出 {0} 发。
+分出的子弹伤害 +{1}%。","<kw id=""Split"">Split</kw> shots make {0} more child. Children deal +{1}%."
+Blessing.Forge.TemperedPlating.Desc,ST_Blessings,"护甲 +{0}。你的<kw id=""Cleave"">横斩</kw>会击退敌人。","+{0} Armor. Your <kw id=""Cleave"">cleaves</kw> knock enemies back."
+Blessing.Tide.Wellspring.Name,ST_Blessings,涌泉,Wellspring
+Blessing.Storm.LowCeiling.Name,ST_Blessings,低云,Low Ceiling
+Blessing.Storm.LowCeiling.Desc,ST_Blessings,"每次<kw id=""Volley"">齐射</kw>多 {0} 发子弹加入环绕。","{0} more shots join the circle each <kw id=""Volley"">volley</kw>."
+Blessing.Forge.BlastFurnace.Name,ST_Blessings,高炉,Blast Furnace
+Blessing.Forge.BlastFurnace.Desc,ST_Blessings,"<kw id=""Cleave"">横斩</kw>和爆炸的范围扩大 {0}%。","<kw id=""Cleave"">Cleaves</kw> and explosions are {0}% larger."
+Blessing.Forge.CinderStorm.Name,ST_Blessings,烬暴,Cinder Storm
+Blessing.Forge.CinderStorm.Desc,ST_Blessings,"<kw id=""Slam"">重砸</kw>时，范围内所有<kw id=""Burn"">灼烧</kw>中的敌人
+立刻受到剩余的灼烧伤害。","<kw id=""Slam"">Slams</kw> set off every <kw id=""Burn"">Burning</kw> enemy in range."
+Blessing.Tide.Riptide.Name,ST_Blessings,离岸流,Riptide
+Blessing.Tide.Riptide.Desc,ST_Blessings,"被击退的敌人撞上墙、冰或彼此时，
+受到 {0}% 的<kw id=""Crush"">挤压</kw>伤害。","Pushed enemies that hit a wall, ice or each other take {0}% <kw id=""Crush"">crush</kw> damage."
+Blessing.Shade.FinalNotice.Name,ST_Blessings,最后通牒,Final Notice
+Blessing.Shade.FinalNotice.Desc,ST_Blessings,"拐弯的子弹让被<kw id=""Mark"">标记</kw>的敌人
+提早 {0}% 被<kw id=""Execute"">斩杀</kw>。","Bending shots <kw id=""Execute"">execute</kw> <kw id=""Mark"">Marked</kw> enemies {0}% sooner."
+Blessing.Radiance.HaloRing.Name,ST_Blessings,光轮,Halo Ring
+Blessing.Radiance.HaloRing.Desc,ST_Blessings,"你身边围着一圈光。对精英和首领造成伤害
+会为一颗太阳充能，每 3 秒在它们身上爆发。",A ring of light surrounds you. Damage to elites and bosses charges a sun that bursts on them every 3 s.
+Blessing.Quicksilver.Drafting.Name,ST_Blessings,借势,Drafting
+Blessing.Quicksilver.Drafting.Desc,ST_Blessings,冲刺增加 {0} 点动量。动量消退得更慢。,Dashing adds {0} Momentum. Momentum fades slower.
+Blessing.Quicksilver.TerminalVelocity.Name,ST_Blessings,极速,Terminal Velocity
+Blessing.Quicksilver.TerminalVelocity.Desc,ST_Blessings,"动量满 30 点时，子弹多穿透 1 个敌人，
+并回响一次。","At 30 Momentum, shots pierce one more enemy and echo once."
+Blessing.Storm.GridLock.Name,ST_Blessings,电网,Grid Lock
+Blessing.Storm.GridLock.Desc,ST_Blessings,环绕的子弹会向穿过圆环的敌人放出电弧。,Circling shots arc to enemies that cross the ring.
+Blessing.Storm.Supercell.Name,ST_Blessings,雷暴核,Supercell
+Blessing.Storm.Supercell.Desc,ST_Blessings,电弧击杀敌人时，分成 2 道新电弧。,An arc that kills forks into 2 new arcs.
+Blessing.Forge.SparkShower.Name,ST_Blessings,火星雨,Spark Shower
+Blessing.Forge.SparkShower.Desc,ST_Blessings,"<kw id=""Slam"">重砸</kw>抛出 {0} 颗余烬，
+命中的目标会<kw id=""Burn"">灼烧</kw>。","<kw id=""Slam"">Slams</kw> throw {0} embers that <kw id=""Burn"">Burn</kw> what they hit."
+Blessing.Forge.Quench.Name,ST_Blessings,淬火,Quench
+Blessing.Forge.Quench.Desc,ST_Blessings,"被击中后，下一次<kw id=""Slam"">重砸</kw>伤害翻倍。","When you are hit, your next <kw id=""Slam"">slam</kw> deals double damage."
+Blessing.Shade.Compound.Name,ST_Blessings,复利,Compound
+Blessing.Shade.Compound.Desc,ST_Blessings,"清账的<kw id=""Volley"">齐射</kw><kw id=""Pierce"">穿透</kw>所有敌人。","Payday <kw id=""Volley"">volleys</kw> <kw id=""Pierce"">pierce</kw> every enemy."
+Blessing.Shade.Audit.Name,ST_Blessings,审计,Audit
+Blessing.Shade.Audit.Desc,ST_Blessings,"清账时，还会<kw id=""Execute"">斩杀</kw>生命低于 {0}% 的被<kw id=""Mark"">标记</kw>敌人。","Payday also <kw id=""Execute"">executes</kw> <kw id=""Mark"">Marked</kw> enemies below {0}% HP."
+Blessing.Quicksilver.SecondWind.Name,ST_Blessings,回气,Second Wind
+Blessing.Quicksilver.SecondWind.Desc,ST_Blessings,每第 3 次冲刺不消耗冲刺次数。,Every 3rd dash costs no charge.
+Mod.Refit.Name,ST_Modifiers,改装,Refit
+Ult.Variant.Format,ST_Ultimates,{0} · {1},{0} · {1}
+Ult.Storm.Tempest.Desc,ST_Ultimates,"子弹<kw id=""Split"">分裂</kw>成 5 发的扇形，分出的子弹再分裂一次。","Rounds <kw id=""Split"">split</kw> into 5-round fans, and the children split again."
+Ult.Forge.Hammer.Desc,ST_Ultimates,"每圈都是 360° <kw id=""Cleave"">横斩</kw>，范围翻倍并<kw id=""Push"">击退</kw>。","Each ring is a 360° <kw id=""Cleave"">cleave</kw> with double reach that <kw id=""Push"">knocks back</kw>."
+Ult.Storm.Stormwall.Desc,ST_Ultimates,"每发子弹都<kw id=""Orbit"">环绕</kw>你形成风暴之环，结束时一齐向外迸射。","Every round <kw id=""Orbit"">orbits</kw> you as a storm ring, then bursts outward at once."
+Ult.Storm.ArcGrid.Desc,ST_Ultimates,每秒一张电网，把每个敌人与最近的 3 个相连。,"Every second, a lightning net links each enemy to its 3 nearest."
+Ult.Storm.Downpour.Desc,ST_Ultimates,"每个命中点都会被天雷再<kw id=""Echo"">回响</kw>两次。","Every impact point is <kw id=""Echo"">echoed</kw> twice more by bolts from the sky."
+Ult.Forge.Furnace.Desc,ST_Ultimates,"火环留下持续 8 秒的<kw id=""Field"">燃烧地面</kw>，<kw id=""Burn"">灼烧</kw>更猛。","Rings leave <kw id=""Field"">burning ground</kw> for 8 s that <kw id=""Burn"">Burns</kw> harder."
+Ult.Forge.Slam.Desc,ST_Ultimates,"冲刺立即就绪，每次冲刺都落下一记陨石<kw id=""Slam"">重砸</kw>。","Your dash is ready, and every dash lands a meteor <kw id=""Slam"">slam</kw>."
+Ult.Tide.Whirlpool.Desc,ST_Ultimates,"一切都被<kw id=""Pull"">吸拢</kw>到同一点，然后<kw id=""Freeze"">冻结</kw>。","Everything is <kw id=""Pull"">pulled</kw> into one point, then <kw id=""Freeze"">Frozen</kw>."
+Ult.Tide.Breakwater.Desc,ST_Ultimates,"浪潮把所有敌人赶成你面前的一堵墙，相撞即受挤压，随后<kw id=""Chill"">减速</kw>。","The wave herds everyone into a wall ahead of you; collisions crush. Then it <kw id=""Chill"">Chills</kw>."
+Ult.Tide.Frost.Desc,ST_Ultimates,"屏幕上的一切<kw id=""Freeze"">冻结</kw> 4 秒，并受到 +50% 伤害。","Everything on screen <kw id=""Freeze"">Freezes</kw> for 4 s and takes +50% damage."
+Ult.Tide.Stillness.Desc,ST_Ultimates,"形成持续 6 秒的潮池：池内你算作<kw id=""Stillness"">站定</kw>，每次<kw id=""Volley"">齐射</kw>都会<kw id=""Freeze"">冻结</kw>敌人。","A tide pool forms for 6 s: inside, you count as <kw id=""Stillness"">still</kw> and every <kw id=""Volley"">volley</kw> <kw id=""Freeze"">Freezes</kw>."
+Ult.Shade.Hound.Desc,ST_Ultimates,"子弹以不受限的转向<kw id=""Seek"">追踪</kw>敌人，并<kw id=""Pierce"">穿透</kw> 2 个敌人。","Rounds <kw id=""Seek"">hunt</kw> with an unlimited turn and <kw id=""Pierce"">pierce</kw> 2."
+Ult.Shade.Collectors.Desc,ST_Ultimates,"6 个<kw id=""Shades"">亡影</kw>同时升起，生命翻倍，用你等级最高的武器射击。","Six <kw id=""Shades"">Shades</kw> rise at once with double life, firing your highest-level weapon."
+Ult.Shade.Economy.Desc,ST_Ultimates,"<kw id=""Debt"">债</kw>立即三倍清账；生命低于 40% 的敌人被<kw id=""Execute"">斩杀</kw>。","Your <kw id=""Debt"">Debt</kw> pays out three times over; the weak <kw id=""Execute"">die</kw> below 40% health."
+Ult.Radiance.Lance.Desc,ST_Ultimates,接连三道光矛，每道都瞄准敌人最密集的一线。,"Three lances in succession, each aimed at the densest line."
+Ult.Radiance.Prism.Desc,ST_Ultimates,光束分裂成五道扇形。,The beam splits into a fan of five.
+Ult.Radiance.Solar.Desc,ST_Ultimates,光束每 0.4 秒沿全长引爆一次太阳光爆。,The beam detonates a sun nova along its length every 0.4 s.
+Branch.Storm.Tempest.Name,ST_Blessings,暴风,Tempest
+Branch.Storm.Stormwall.Name,ST_Blessings,风暴墙,Stormwall
+Branch.Storm.ArcGrid.Name,ST_Blessings,电弧网,Arc Grid
+Branch.Storm.Downpour.Name,ST_Blessings,倾盆,Downpour
+Branch.Forge.Hammer.Name,ST_Blessings,铁锤,Hammer
+Branch.Forge.Furnace.Name,ST_Blessings,熔炉,Furnace
+Branch.Forge.Slam.Name,ST_Blessings,重砸,Slam
+Branch.Tide.Whirlpool.Name,ST_Blessings,漩涡,Whirlpool
+Branch.Tide.Frost.Name,ST_Blessings,霜冻,Frost
+Branch.Tide.Stillness.Name,ST_Blessings,止水,Stillness
+Branch.Shade.Hound.Name,ST_Blessings,猎犬,Hound
+Branch.Shade.Economy.Name,ST_Blessings,账簿,Ledger
+Branch.Radiance.Lance.Name,ST_Blessings,光矛,Lance
+Branch.Radiance.Prism.Name,ST_Blessings,棱镜,Prism
+Branch.Radiance.Solar.Name,ST_Blessings,烈日,Solar
+Branch.Quicksilver.Vector.Name,ST_Blessings,矢量,Vector
+Branch.Quicksilver.Momentum.Name,ST_Blessings,动量,Momentum
+Branch.Quicksilver.Rebound.Name,ST_Blessings,弹射,Rebound
+Blessing.Storm.StaticFocus.Name,ST_Blessings,风眼墙,Eye Wall
+Blessing.Storm.StaticFocus.Desc,ST_Blessings,"你的子弹先绕着你转 {0} 秒，
+再向外爆散：伤害 +{1}%，多穿透 1 个敌人。","Your shots circle you for {0} s, then burst outward with +{1}% damage and 1 more pierce."
+Blessing.Storm.LiveWire.Name,ST_Blessings,惊蛰,Live Wire
+Blessing.Storm.LiveWire.Desc,ST_Blessings,"命中时电弧再跳 {0} 个敌人，
+造成 {1}% 伤害。",Hits arc to {0} more enemies for {1}% damage.
+Blessing.Storm.Thunderclap.Name,ST_Blessings,霹雳,Thunderclap
+Blessing.Forge.Bellows.Name,ST_Blessings,锤手,Hammer Hand
+Blessing.Forge.Kindling.Name,ST_Blessings,引火,Kindling
+Blessing.Forge.EmberTrail.Name,ST_Blessings,踏火,Ember Trail
+Blessing.Tide.Undertow.Name,ST_Blessings,暗涌,Undertow
+Blessing.Tide.ColdFront.Name,ST_Blessings,寒息,Cold Front
+Blessing.Shade.Interest.Name,ST_Blessings,生息,Interest
+Blessing.Shade.Lien.Name,ST_Blessings,入簿,Lien
+Blessing.Shade.Dividend.Name,ST_Blessings,收讫,Dividend
+Blessing.Radiance.Halo.Name,ST_Blessings,光爆,Radiant Burst
+Blessing.Radiance.Halo.Desc,ST_Blessings,"多余的伤害在目标周围炸成光，
+半径 {0} 米。","Overkill damage bursts in light around the target, r {0} m."
+Blessing.Radiance.Flashpoint.Name,ST_Blessings,炫目,Flashpoint
+Blessing.Quicksilver.Fleet.Name,ST_Blessings,健步,Fleet
+Blessing.Quicksilver.Fleet.Desc,ST_Blessings,"移动积累动量，最多 30 点。
+每点：伤害和射速 +{0}%。被击中失去 10 点。","Moving builds Momentum, up to 30. Each point: +{0}% damage and fire rate. Getting hit loses 10."
+Blessing.Quicksilver.Slipstream.Name,ST_Blessings,尾流,Slipstream
+Blessing.Storm.ForkedPath.Name,ST_Blessings,分岔,Forked Path
+Blessing.Tide.Brittle.Name,ST_Blessings,易碎,Brittle
+Blessing.Tide.HighWater.Name,ST_Blessings,静渊,Deep Calm
+Blessing.Radiance.PerfectSight.Name,ST_Blessings,明察,Perfect Sight
+Blessing.Quicksilver.BlinkStrike.Name,ST_Blessings,瞬击,Blink Strike
+Blessing.Quicksilver.BlinkStrike.Desc,ST_Blessings,"冲刺时，所有武器沿冲刺路线开火，伤害 ×{0}。
+每次击杀返还 0.15 秒冲刺冷却。",Dashing fires every weapon along the dash line at ×{0}. Each kill refunds 0.15 s of dash cooldown.
+Ult.Quicksilver.Vector.Desc,ST_Ultimates,冲刺冷却降至 0.2 秒：冲刺不再受限。,Dash cooldown drops to 0.2 s: dashes are unlimited.
+Ult.Quicksilver.Momentum.Desc,ST_Ultimates,动量立即升到 30 点并保持不减；每移动 1 米释放一圈气浪。,Momentum jumps to 30 and holds; every metre you move releases a pressure wave.
+Ult.Quicksilver.Rebound.Desc,ST_Ultimates,"每发子弹都会<kw id=""Ricochet"">弹射</kw> 3 次，并<kw id=""Seek"">追踪</kw>目标。","Every round <kw id=""Ricochet"">ricochets</kw> 3 times, <kw id=""Seek"">seeking</kw>."
+Hand.Minor.Title,ST_UI,精修,Refinement
+Hand.Cache.Title,ST_UI,喘息补给,Breath cache
+Enemy.Carrier.Name,ST_Enemies,驿驮,Ferry
+Enemy.Siphon.Name,ST_Enemies,抽筹,Tapper
+Enemy.Boss.Sump.Name,ST_Enemies,母机,The Font
+Settings.ExportLogs,ST_UI,导出日志,Export logs
+Settings.ExportLogs.Action,ST_UI,导出,Export
+Settings.ExportLogs.Saved,ST_UI,已保存到 {0},Saved to {0}
+Settings.ExportLogs.Failed,ST_UI,无法保存任何内容。,Nothing could be saved.
+Settings.Licences,ST_UI,许可信息,Licences
+Settings.Licences.Open,ST_UI,查看,View
+Licences.PrivacyTitle,ST_UI,隐私,Privacy
+Licences.Privacy,ST_UI,本游戏不通过网络收集任何数据。游戏日志和崩溃报告只保存在你的电脑上，除非你自己选择发送。,No network telemetry. Play logs and crash reports stay on your PC unless you choose to send them.
+Licences.ThirdParty,ST_UI,第三方许可,Third-party licences
+Licences.Line,ST_UI,{0} · {1},{0} · {1}
+Licences.FullText,ST_UI,完整的许可协议文本随游戏一同提供，与字体文件放在一起。,"The full licence texts ship with the game, next to the fonts."
+Licences.Unreal,ST_UI,"Unreal® Engine, Copyright 1998–2026, Epic Games, Inc. All rights reserved. Unreal® is a trademark or registered trademark of Epic Games, Inc. in the United States of America and elsewhere.","Unreal® Engine, Copyright 1998–2026, Epic Games, Inc. All rights reserved. Unreal® is a trademark or registered trademark of Epic Games, Inc. in the United States of America and elsewhere."
+Hub.Version,ST_UI,v{0},v{0}
+Hub.VersionBuild,ST_UI,v{0} · {1},v{0} · {1}
+Keyword.Burn.Name,ST_Keywords,灼烧,Burn
+Keyword.Burn.Def,ST_Keywords,持续几秒，每秒受到伤害。,Deals damage every second for a few seconds.
+Keyword.Shock.Name,ST_Keywords,感电,Shock
+Keyword.Shock.Def,ST_Keywords,感电的敌人受到的所有伤害提高。,A Shocked enemy takes more damage from everything.
+Keyword.Chill.Name,ST_Keywords,减速,Chill
+Keyword.Chill.Def,ST_Keywords,让敌人变慢。可以叠加，叠满 3 层就会冻结。,Slows the enemy. Chill stacks: 3 stacks Freeze it.
+Keyword.Freeze.Name,ST_Keywords,冻结,Freeze
+Keyword.Freeze.Def,ST_Keywords,敌人短时间内不能移动或攻击。首领不会被冻结。,The enemy can't move or attack for a short time. Bosses can't be Frozen.
+Keyword.Shatter.Name,ST_Keywords,碎裂,Shatter
+Keyword.Shatter.Def,ST_Keywords,被冻结的敌人死亡时碎裂，伤害周围的敌人并让它们减速。,"When a Frozen enemy dies it shatters, hurting and Chilling enemies around it."
+Keyword.Blind.Name,ST_Keywords,致盲,Blind
+Keyword.Blind.Def,ST_Keywords,让敌人短暂眩晕，不能移动也不能射击。首领不会被致盲。,Stuns the enemy briefly: it can't move or shoot. Bosses can't be Blinded.
+Keyword.Mark.Name,ST_Keywords,标记,Mark
+Keyword.Mark.Def,ST_Keywords,为司幽记下这个敌人。追踪的子弹、亡影和斩杀都会优先找上被标记的敌人。,"Marks an enemy for the Keeper of the Dead. Tracking shots, hunters and executions go after Marked enemies first."
+Keyword.Execute.Name,ST_Keywords,斩杀,Execute
+Keyword.Execute.Def,ST_Keywords,敌人生命低于一定比例时，直接将其击杀。首领不会被斩杀。,Kills an enemy outright once its HP drops below a threshold. Bosses are never executed.
+Keyword.Volley.Name,ST_Keywords,齐射,Volley
+Keyword.Volley.Def,ST_Keywords,武器开火一次射出的全部子弹。「每第 4 次齐射」数的是开火次数。,"One firing of a weapon: all the bullets it shoots at once. ""Every 4th volley"" counts firings, not bullets."
+Keyword.Cleave.Name,ST_Keywords,横斩,Cleave
+Keyword.Cleave.Def,ST_Keywords,在你面前横扫出一道弧形斩击，击中范围内的所有敌人，而不是射出子弹。,"A sweeping arc in front of you that hits every enemy inside it, instead of a bullet that flies."
+Keyword.Slam.Name,ST_Keywords,重砸,Slam
+Keyword.Slam.Def,ST_Keywords,以你为中心，从地面砸出一圈冲击，击中并击退身边的一切。,"A ring that bursts out of the ground around you, hitting and knocking back everything near you."
+Keyword.Split.Name,ST_Keywords,分裂,Split
+Keyword.Split.Def,ST_Keywords,子弹命中或飞到尽头时，分成几发小子弹。分出的子弹伤害较低。,A bullet breaks into smaller bullets when it hits or ends its flight. They deal less damage.
+Keyword.Echo.Name,ST_Keywords,回响,Echo
+Keyword.Echo.Def,ST_Keywords,回响会在同一命中点延迟打出一次攻击。,A delayed strike on the same impact point.
+Keyword.ChargedShot.Name,ST_Keywords,蓄能弹,Charged shot
+Keyword.ChargedShot.Def,ST_Keywords,每隔几发，武器会射出一发蓄能弹，伤害成倍提高。,Every few shots a weapon fires one charged shot that deals multiplied damage.
+Keyword.Arc.Name,ST_Keywords,电弧,Arc
+Keyword.Arc.Def,ST_Keywords,命中时，闪电跳到附近的敌人身上，造成部分伤害。,Lightning that jumps from a hit to a nearby enemy for part of the damage.
+Keyword.Chain.Name,ST_Keywords,连锁,Chain
+Keyword.Chain.Def,ST_Keywords,电弧在敌人之间连续跳跃好几次。,"An arc that keeps jumping from enemy to enemy, several times."
+Keyword.Ricochet.Name,ST_Keywords,弹射,Ricochet
+Keyword.Ricochet.Def,ST_Keywords,子弹命中后，弹向另一个敌人。,"After a hit, the bullet bounces on to another enemy."
+Keyword.Pierce.Name,ST_Keywords,穿透,Pierce
+Keyword.Pierce.Def,ST_Keywords,子弹穿过敌人继续飞行。数字是它还能多击中几个敌人。,The bullet passes through enemies and keeps flying. The number is how many more enemies it can hit.
+Keyword.Seek.Name,ST_Keywords,追踪,Tracking
+Keyword.Seek.Def,ST_Keywords,子弹在飞行中拐向目标，优先追向被标记的敌人。,"Bullets bend in flight toward their target, Marked enemies first."
+Keyword.Orbit.Name,ST_Keywords,环绕,Orbit
+Keyword.Orbit.Def,ST_Keywords,子弹先绕着你转一会儿，再向外飞出。,"Bullets circle you for a moment, then fly outward."
+Keyword.Overkill.Name,ST_Keywords,多余伤害,Overkill
+Keyword.Overkill.Def,ST_Keywords,击杀敌人后溢出的那部分伤害。有些效果会让它炸向附近的敌人。,Damage beyond what it took to kill the enemy. Some effects make it burst onto nearby enemies.
+Keyword.Push.Name,ST_Keywords,击退,Knockback
+Keyword.Push.Def,ST_Keywords,把敌人推离你。,Shoves enemies away from you.
+Keyword.Pull.Name,ST_Keywords,吸拢,Pull
+Keyword.Pull.Def,ST_Keywords,把敌人拉向一点，聚成一团。,"Drags enemies toward a point, bunching them together."
+Keyword.Field.Name,ST_Keywords,伤害区域,Damage zone
+Keyword.Field.Def,ST_Keywords,一片地面，在短时间内伤害站在里面的敌人。,A patch of ground that hurts enemies standing in it for a short time.
+Keyword.Stillness.Name,ST_Keywords,站定,Stand still
+Keyword.Stillness.Def,ST_Keywords,原地不动。有些效果在你站定时蓄力，随下一次齐射打出。,Not moving. Some effects charge up while you stand still and fire with your next volley.
+Keyword.Crit.Name,ST_Keywords,暴击,Crit
+Keyword.Crit.Def,ST_Keywords,造成额外伤害的命中。暴击率决定多常出现，暴击伤害决定多打多少。,A hit that deals extra damage. Crit chance is how often; crit damage is how much extra.
+Keyword.Souls.Name,ST_Keywords,魂,Soul
+Keyword.Souls.Def,ST_Keywords,击杀后为司幽留下的东西。拾取后回复生命并获得经验。,Dropped by kills for the Keeper of the Dead. Picking one up heals you and gives XP.
+Keyword.Shades.Name,ST_Keywords,亡影,Shade
+Keyword.Shades.Def,ST_Keywords,从被击杀的敌人身上召出的友方影子。它在你身边作战几秒，用你的武器射击。,"An allied ghost raised from a kill. It fights beside you for a few seconds, firing your weapon."
+Keyword.Embers.Name,ST_Keywords,余烬,Embers
+Keyword.Embers.Def,ST_Keywords,敌人死亡或重砸时抛出的火星，会让命中的目标灼烧。,Burning sparks thrown out by a death or a Slam. They Burn what they hit.
+Keyword.Shield.Name,ST_Keywords,护盾,Shield
+Keyword.Shield.Def,ST_Keywords,先于生命承受伤害。,Takes damage before your HP does.
+Keyword.Armor.Name,ST_Keywords,护甲,Armor
+Keyword.Armor.Def,ST_Keywords,减少你受到的每次伤害。,Reduces the damage of every hit you take.
+Keyword.Favor.Name,ST_Keywords,神眷,Favor
+Keyword.Favor.Def,ST_Keywords,你在一位司者那里的分量。每拿它一项预支加 1 点；3、6、9 点开启它的阶。,"Your standing with a Keeper. Each of its advances adds one; 3, 6 and 9 open its Tiers."
+Keyword.Tier.Name,ST_Keywords,阶,Tier
+Keyword.Tier.Def,ST_Keywords,司者的大额奖励，在神眷达到 3、6、9 点时开启。,"A Keeper's big reward, unlocked at 3, 6 and 9 Favor."
+Keyword.Patron.Name,ST_Keywords,主司,Patron
+Keyword.Patron.Def,ST_Keywords,本局你接受其条款的司者。你的神临由它给予。,The Keeper whose terms you accepted for this run. It gives your Intercession.
+Keyword.Intercession.Name,ST_Keywords,神临,Intercession
+Keyword.Intercession.Def,ST_Keywords,主司赐予的终极技能。战斗中逐渐充能，充满后按键释放。,Your Patron's ultimate. It charges as you fight; press to unleash it.
+Keyword.Advance.Name,ST_Keywords,预支,Advance
+Keyword.Advance.Def,ST_Keywords,司者的祝福，先拿后还。司者日后会来收取。,"A Keeper's blessing, taken on credit. The Keepers collect later."
+Keyword.Renegotiate.Name,ST_Keywords,重议,Renegotiate
+Keyword.Renegotiate.Def,ST_Keywords,重新抽一手选项。,Redraw the whole hand of offers.
+Keyword.Hold.Name,ST_Keywords,保留,Hold
+Keyword.Hold.Def,ST_Keywords,把一张选项留到下一次升级。,Keep one offer for the next level-up.
+Keyword.Refuse.Name,ST_Keywords,拒约,Refuse
+Keyword.Refuse.Def,ST_Keywords,本局拒绝这张选项，它不会再出现。,Turn an offer down for the rest of the run: it will not be offered again.
+Keyword.Debt.Name,ST_Keywords,债,Debt
+Keyword.Debt.Def,ST_Keywords,记下标记击杀的数目。记满时，你的下一次齐射会追踪全屏的敌人。,"Counts Marked kills. When the count is full, your next volley hunts every enemy on screen."
+Keyword.Imbue.Name,ST_Keywords,灌注,Imbue
+Keyword.Imbue.Def,ST_Keywords,只要持有一位司者的预支，你的所有子弹都会带上它的一点效果，并随神眷增强。,Holding any advance from a Keeper gives all your bullets a little of its effect. It grows with Favor.
+Keyword.Archetype.Name,ST_Keywords,流派,Archetype
+Keyword.Archetype.Def,ST_Keywords,一位司者的一组预支。它的核心卡会改变你武器的射击方式。,A set of a Keeper's advances. Its key card changes how your weapons fire.
+Keyword.Key.Name,ST_Keywords,核心,Key card
+Keyword.Key.Def,ST_Keywords,流派中改变武器射击方式的那张卡。拿到它之后，同流派的其他卡才会出现。,The archetype card that changes how your weapons fire. Its other cards only come after it.
+Keyword.Capstone.Name,ST_Keywords,终章,Capstone
+Keyword.Capstone.Def,ST_Keywords,流派中最强的一张卡，持有该流派两张卡之后才会出现。,"An archetype's strongest card, offered once you hold two of its cards."
+Keyword.Duo.Name,ST_Keywords,双司,Duo
+Keyword.Duo.Def,ST_Keywords,同时属于你两位司者的预支，会强化它们的反应。,An advance that belongs to both of your Keepers and strengthens their reaction.
+Keyword.Reaction.Name,ST_Keywords,反应,Reaction
+Keyword.Reaction.Def,ST_Keywords,两位司者的效果落在同一个敌人身上时，会产生新的效果。,"When two Keepers' effects meet on one enemy, something new happens."
+Keyword.Transformation.Name,ST_Keywords,质变,Transformation
+Keyword.Transformation.Def,ST_Keywords,16 级时的选择，改变一件武器或一位司者力量的运作方式。,The level-16 choice. It changes how a weapon or a Keeper's power works.
+Keyword.Socket.Name,ST_Keywords,插槽,Socket
+Keyword.Socket.Def,ST_Keywords,武器上安装一个模块的位置。,A slot on a weapon for one modifier.
+Keyword.Load.Name,ST_Keywords,负载,Load
+Keyword.Load.Def,ST_Keywords,除最强的一件外，每多一件武器火力就略弱一些：武器越多，力量越分散。,"Each weapon after your strongest fires a little weaker, so more weapons spread your power."
+Keyword.Binding.Name,ST_Keywords,绑定,Binding
+Keyword.Binding.Def,ST_Keywords,出价条款：Lv.8 时必定出现这位司者。不选它，这项预支降 1 级。,A bid term: that Keeper will be offered at level 8. Pass it over and the advance loses a rank.
+Keyword.Levy.Name,ST_Keywords,抽成,Levy
+Keyword.Levy.Def,ST_Keywords,出价条款：这位司者多拿走本局的神血。,A bid term: the Keeper takes more of this run's Ichor.
+Keyword.Collateral.Name,ST_Keywords,抵押,Collateral
+Keyword.Collateral.Def,ST_Keywords,出价条款：立即失去 1 次重议。,A bid term: you lose one Renegotiate now.
+Blessing.Duo.ForgeQuicksilver.Desc,ST_Blessings,"冲刺必定引发野火。靠近<kw id=""Burn"">灼烧</kw>中的敌人时，移速 +{0}%。强化铁锤与矢量。","Dashes always start Wildfire. +{0}% speed near <kw id=""Burn"">Burning</kw> enemies. Boosts Hammer and Vector."
+Blessing.Duo.ForgeTide.Desc,ST_Blessings,"蒸汽让命中的敌人<kw id=""Chill"">减速</kw>并<kw id=""Burn"">灼烧</kw>，引发更多蒸汽。强化铁锤与防波堤。","Steam <kw id=""Chill"">Chills</kw> and <kw id=""Burn"">Burns</kw> what it hits, setting off more Steam. Boosts Hammer and Breakwater."
+Blessing.Duo.ShadeQuicksilver.Desc,ST_Blessings,收回在敌人生命低于 {0}% 时生效；之后 3 秒内冲刺次数 +1。强化猎犬与矢量。,Repossession works below {0}% HP; +1 dash charge for 3 s. Boosts Hound and Vector.
+Blessing.Duo.ShadeRadiance.Desc,ST_Blessings,"曝露对所有被<kw id=""Blind"">致盲</kw>的敌人生效，无论是否被<kw id=""Mark"">标记</kw>，伤害 +{0}%。强化猎犬与光矛。","Exposure works on every <kw id=""Blind"">Blinded</kw> enemy, <kw id=""Mark"">Marked</kw> or not, at +{0}%. Boosts Hound and Lance."
+Blessing.Duo.StormRadiance.Desc,ST_Blessings,"闪弧<kw id=""Blind"">致盲</kw> {0} 秒；被致盲的敌人受到的电弧伤害 +{1}%。强化倾盆与光矛。","Flash Arc <kw id=""Blind"">Blinds</kw> {0} s; Blinded enemies take +{1}% from arcs. Boosts Downpour and Lance."
+Blessing.Duo.StormShade.Desc,ST_Blessings,"传票的落雷会<kw id=""Mark"">标记</kw>被击中的敌人。强化暴风与猎犬。","Writ bolts <kw id=""Mark"">Mark</kw> what they strike. Boosts Tempest and Hound."
+Blessing.Duo.StormTide.Desc,ST_Blessings,"传导不再有上限，每第 3 次跳跃会<kw id=""Freeze"">冻结</kw>敌人。强化电弧网与漩涡。","Conduction has no limit, and every 3rd jump <kw id=""Freeze"">Freezes</kw>. Boosts Arc Grid and Whirlpool."
+Blessing.Duo.TideQuicksilver.Desc,ST_Blessings,"水与冰不再让你减速；黑冰对<kw id=""Chill"">减速</kw>的敌人同样生效。强化防波堤与弹射。","Water and ice never slow you. Black Ice works off <kw id=""Chill"">Chill</kw>. Boosts Breakwater and Rebound."
+Blessing.Duo.TideRadiance.Desc,ST_Blessings,"折射光片让敌人<kw id=""Chill"">减速</kw>。暴击产生的光片会<kw id=""Blind"">致盲</kw>。强化漩涡与光矛。","Refraction shards <kw id=""Chill"">Chill</kw>. Shards from crits <kw id=""Blind"">Blind</kw>. Boosts Whirlpool and Lance."
+Blessing.Duo.TideShade.Desc,ST_Blessings,"深账<kw id=""Execute"">斩杀</kw>时掉落 2 个魂，并<kw id=""Freeze"">冻结</kw>附近的敌人。强化漩涡与猎犬。","Deep Ledger <kw id=""Execute"">executions</kw> drop 2 Souls and <kw id=""Freeze"">Freeze</kw> enemies nearby. Boosts Whirlpool and Hound."
+Reaction.ForgeShade.Toast,ST_World,灼烧中的标记敌人留下追踪余烬。,Marked burning enemies leave seeking embers.
+Reaction.ShadeQuicksilver.Toast,ST_World,冲刺穿过残血的标记敌人，将其斩杀。,Dash through weak marked enemies to execute them.
+Reaction.ShadeRadiance.Toast,ST_World,被致盲的标记敌人受到更多伤害，并扩散标记。,Blinded marks take more and spread the mark.
+Reaction.StormForge.Toast,ST_World,电弧引燃灼烧中的敌人。,Arcs ignite burning enemies.
+Reaction.StormQuicksilver.Toast,ST_World,弹射与冲刺会释放感电。,Ricochets and dashes discharge Shock.
+Reaction.StormRadiance.Toast,ST_World,暴击感电的敌人会放出电弧并致盲。,Crits on shocked enemies arc and blind.
+Reaction.StormShade.Toast,ST_World,感电的标记敌人死亡时召来落雷。,Shocked marks call down bolts when they die.
+Reaction.StormTide.Toast,ST_World,电弧贯穿所有减速的敌人。,Arcs run through everything chilled.
+Reaction.TideQuicksilver.Toast,ST_World,冲刺穿过减速的敌人会将其冻结。,Dashing through the chilled freezes them.
+Reaction.TideRadiance.Toast,ST_World,暴击被冻结的敌人会碎成光片。,Crits on ice split into shards.
+Reaction.TideShade.Toast,ST_World,被冻结的标记敌人更早被斩杀。,Frozen marks are executed sooner.
+Ult.Shade.Desc,ST_Ultimates,"{0} 秒内，所有敌人被<kw id=""Mark"">标记</kw>，
+每发子弹都<kw id=""Seek"">追踪</kw>敌人。结束时<kw id=""Execute"">斩杀</kw>残血的敌人。","For {0} s every enemy is <kw id=""Mark"">Marked</kw> and every shot <kw id=""Seek"">hunts</kw>. Then the weak are <kw id=""Execute"">executed</kw>."
+Fusion.Tide.RingEmitter.Desc,ST_Fusions,"弹环变成扩散的<kw id=""Freeze"">冻结</kw>波
+穿透所有敌人。","Rings widen into <kw id=""Freeze"">freezing</kw> waves that pass through everything."
+World.Sump,ST_World,沉井,The Sump
+Blessing.Shade.LongArm.Desc,ST_Blessings,拾取范围 +{0}%。,+{0}% pickup range.
+Blessing.Radiance.Glint.Desc,ST_Blessings,暴击伤害 +{0}%。,+{0}% crit damage.
+Blessing.Duo.StormForge.Desc,ST_Blessings,等离子爆发留下持续 {0} 秒的燃烧地面。强化电弧网与铁锤。,Plasma bursts leave burning ground for {0} s. Boosts Arc Grid and Hammer.
+Blessing.Duo.StormQuicksilver.Desc,ST_Blessings,"冲刺留下<kw id=""Shock"">感电</kw>轨迹。活轨再连锁一次。强化暴风与矢量。","Dashing leaves a <kw id=""Shock"">Shocking</kw> trail. Live Rail chains once more. Boosts Tempest and Vector."
+Blessing.Duo.ForgeShade.Desc,ST_Blessings,"火葬余烬的击杀算作<kw id=""Mark"">标记</kw>击杀。强化熔炉与猎犬。","Cremation embers count as <kw id=""Mark"">Marked</kw> kills. Boosts Furnace and Hound."
+Blessing.Duo.ForgeRadiance.Desc,ST_Blessings,耀斑引爆必定暴击。强化熔炉与光矛。,Flare detonations crit. Boosts Furnace and Lance.
+Blessing.Duo.RadianceQuicksilver.Desc,ST_Blessings,余晖暴击加成翻倍。暴击返还 {0}% 冲刺冷却。强化光矛与弹射。,Afterglow's crit bonus doubles. Crits refund {0}% dash cooldown. Boosts Lance and Rebound.
+Blessing.Storm.RollingThunder.Desc,ST_Blessings,"落雷留下持续 1 秒的电场，
+进入电场的敌人会<kw id=""Shock"">感电</kw>。","Bolts leave a crackling field for 1 s that <kw id=""Shock"">Shocks</kw> anything in it."
+Blessing.Storm.Stormfront.Desc,ST_Blessings,"每击杀 {0} 个敌人，
+落雷劈中 5 个敌人。","Every {0} kills, bolts strike 5 enemies."
+Blessing.Storm.Capacitor.Desc,ST_Blessings,"每命中 {0} 次，
+下一次命中伤害 +{1}% 并放出电弧。","Every {0} hits, your next hit deals +{1}% damage and arcs."
+Blessing.Forge.SlowBurn.Desc,ST_Blessings,"<kw id=""Burn"">灼烧</kw>最多叠加 {0} 层。","<kw id=""Burn"">Burn</kw> stacks up to {0} times."
+Blessing.Forge.Conflagration.Desc,ST_Blessings,"每秒，每个<kw id=""Burn"">灼烧</kw>中的敌人
+把灼烧传给一个相邻的敌人。","Every second, each <kw id=""Burn"">Burning</kw> enemy spreads Burn to one neighbour."
+Blessing.Forge.Masterwork.Desc,ST_Blessings,"你的第一把武器
+多出第 4 个模块插槽。",Your first weapon gains a 4th modifier socket.
+Blessing.Tide.Shatterpoint.Desc,ST_Blessings,"被<kw id=""Freeze"">冻结</kw>的敌人碎裂时，
+{0} 米内的敌人会被冻结。","When a <kw id=""Freeze"">Frozen</kw> enemy shatters, enemies within {0} m Freeze."
+Blessing.Tide.SpringTide.Desc,ST_Blessings,"满血后多出的治疗变成护盾，
+最多 {0} 点。","Healing past full HP becomes a shield, up to {0}."
+Blessing.Tide.KingTide.Desc,ST_Blessings,"每 {0} 秒，一道浪从你身边涌出，
+击退所有敌人并让它们<kw id=""Chill"">减速</kw>。","Every {0} s, a wave rolls out from you, pushing back and <kw id=""Chill"">Chilling</kw> everything."
+Blessing.Shade.Garnish.Desc,ST_Blessings,"被<kw id=""Mark"">标记</kw>的敌人受到的伤害 +{0}%。","<kw id=""Mark"">Marked</kw> enemies take +{0}% damage."
+Blessing.Shade.Escrow.Desc,ST_Blessings,魂多回复 {0} 点生命。,Souls heal {0} HP more.
+Blessing.Shade.ShadeBoost.Desc,ST_Blessings,"亡影多持续 {0} 秒，
+伤害 +{1}%。",Shades last {0} s longer and deal +{1}% damage.
+Blessing.Shade.Arrears.Desc,ST_Blessings,"每收集 {0} 个<kw id=""Souls"">魂</kw>，召出一个持久的<kw id=""Shades"">亡影</kw>，
+射击伤害 {1}%。","Every {0} <kw id=""Souls"">Souls</kw> raise a lasting <kw id=""Shades"">Shade</kw> that fires at {1}%."
+Blessing.Radiance.KeenEdge.Desc,ST_Blessings,暴击率 +{0}%。,+{0}% crit chance.
+Blessing.Radiance.FocalPoint.Desc,ST_Blessings,"对同一个敌人每暴击一次，
+对它的暴击伤害 +{0}%，最多 5 次。","Each crit on the same enemy adds +{0}% crit damage against it, up to 5 times."
+Blessing.Radiance.Whiteout.Desc,ST_Blessings,"被<kw id=""Blind"">致盲</kw>的敌人死亡时，
+让身边的敌人致盲。","<kw id=""Blind"">Blinded</kw> enemies Blind their neighbours when they die."
+Blessing.Radiance.WideAperture.Desc,ST_Blessings,子弹尺寸 +{0}%。,Bullets are {0}% larger.
+Blessing.Radiance.RadiantWake.Desc,ST_Blessings,"子弹留下渐渐消失的光迹，
+造成子弹伤害的 {0}%。",Bullets leave a fading trail of light that deals {0}% of their damage.
+Blessing.Quicksilver.BankShot.Desc,ST_Blessings,"子弹多<kw id=""Ricochet"">弹射</kw> {0} 次。","Bullets <kw id=""Ricochet"">ricochet</kw> {0} more time."
+Blessing.Quicksilver.Carom.Desc,ST_Blessings,"每次<kw id=""Ricochet"">弹射</kw>伤害 +{0}%。","Each <kw id=""Ricochet"">ricochet</kw> deals +{0}% damage."
+Blessing.Quicksilver.RicochetKill.Desc,ST_Blessings,"<kw id=""Ricochet"">弹射</kw>击杀敌人时，
+向下一个敌人免费射出一发子弹。","When a <kw id=""Ricochet"">ricochet</kw> kills, it fires a free bullet at the next enemy."
+Mod.Refit.Desc,ST_Modifiers,每分钟一次，这把武器击杀时掉落一个随机模块。需装满 3 个模块。,"Once a minute, a kill by this weapon drops a random modifier. Needs 3 modifiers fitted."
+Card.Reserve.Restore.Name,ST_UI,修复,Restore
+Card.Reserve.Restore.Desc,ST_UI,按生命上限修复 {0}%。,Heal {0}% of your max HP.
+Card.Reserve.Hone.Name,ST_UI,磨砺,Hone
+Card.Reserve.Hone.Desc,ST_UI,伤害 +{0}%，可叠加。,+{0}% damage. Stacks.
+Card.Reserve.Currency.Name,ST_UI,神血储备,Ichor Cache
+Card.Reserve.Currency.Desc,ST_UI,本局结束时 +{0} 神血。,+{0} Ichor at the end of the run.
+Card.Family.Own,ST_UI,归己,Own
+Keeper.Storm.Remark.Hesitate,ST_Keepers,你在数。别数了。,You are counting. Stop counting.
+Keeper.Storm.Remark.SlowPick,ST_Keepers,选。天不等人。,Choose. The sky does not wait.
+Keeper.Storm.Remark.Burst,ST_Keepers,好些了。再来。,Better. Again.
+Keeper.Forge.Remark.SocketsFull,ST_Keepers,公差达标。这件完工了。,Tolerances met. That one is finished.
+Keeper.Forge.Remark.Refit,ST_Keepers,好活。这个尺寸我记下了。,Good work. I will remember the fit.
+Keeper.Forge.Remark.WornDown,ST_Keepers,你在被磨损。返修可不便宜。,You are being worn down. Repair is costly.
+Keeper.Tide.Remark.LowHp,ST_Keepers,慢一点。他们会等。,Slow down. They will wait.
+Keeper.Tide.Remark.Still,ST_Keepers,对。就这样。,Yes. Like that.
+Keeper.Tide.Remark.DeathRest,ST_Keepers,歇一歇。反正他们还会送你去。,Rest. They will send you anyway.
+Keeper.Shade.Remark.Fifty,ST_Keepers,五十笔。全部结清。,Fifty entries. All closed.
+Keeper.Shade.Remark.Settled,ST_Keepers,结清了。暂时。,Settled. For now.
+Keeper.Shade.Remark.RefusalNoted,ST_Keepers,记下了。拒约也是一笔。,Noted. Refusal is also an entry.
+Keeper.Radiance.Remark.CritRun,ST_Keepers,正是那里。再来。,Exactly there. Again.
+Keeper.Radiance.Remark.Asking,ST_Keepers,问吧。我只答这一个。,Ask. I will answer only that.
+Keeper.Radiance.Remark.UnreadTerms,ST_Keepers,你没读。我读了。,You did not read it. I did.
+Keeper.Quicksilver.Remark.StandStill,ST_Keepers,动起来。他们在数你。,Move. They are counting you.
+Keeper.Quicksilver.Remark.Distance,ST_Keepers,再远些。越远越好。,Further. Further is better.
+Keeper.Quicksilver.Remark.DashThrough,ST_Keepers,就这样。照这样做。,That. Do that.
+Keeper.Storm.Rival,ST_Keepers,冷。你选了冷，不选我。,Cold. You chose cold over me.
+Keeper.Tide.Rival,ST_Keepers,更快。那我帮不了你。,Faster. Then I cannot help you.
+Keeper.Forge.Rival,ST_Keepers,零件松了。我警告过你。,Loose parts. I warned you.
+Keeper.Quicksilver.Rival,ST_Keepers,太重了。你跟不上的。,Heavy. You will not keep up.
+Keeper.Shade.Rival,ST_Keepers,它会告诉你一些事。归档要仔细。,It will tell you things. File them carefully.
+Keeper.Radiance.Rival,ST_Keepers,它留着一笔不肯读的账。问它为什么。,It keeps an entry it will not read. Ask it why.
+Discovery.SumpWin.Name,ST_Discoveries,井底,Bottom of the Drain
+Discovery.SumpWin.Desc,ST_Discoveries,击败母机。,Defeat the Font.
+Discovery.CarriersInFlight50.Name,ST_Discoveries,货未落地,Freight Lost
+Discovery.CarriersInFlight50.Desc,ST_Discoveries,在驿驮卸货之前击毁它们，累计 50 架。,Destroy 50 Ferries before they drop their load.
+Discovery.NoSiphonElite.Name,ST_Discoveries,分毫未取,Nothing Taken
+Discovery.NoSiphonElite.Desc,ST_Discoveries,赢下沉井一局，且没有任何抽筹变成精英。,Win the Sump without letting a Tapper turn elite.
+Discovery.NozzlesP1.Name,ST_Discoveries,六口皆停,Six Stopped
+Discovery.NozzlesP1.Desc,ST_Discoveries,在母机的第一阶段结束前，摧毁全部六个喷口。,Destroy all six nozzles before the Font's first phase ends.
+Codex.Recollection.SumpWin,ST_Codex,母机外壳里的那个凹槽，是照着一个人的身量凿出来的。整座工坊都围着一个空位而建。,The socket in the Font's housing was cut to a person's measure. The works were built around one empty place.
+Codex.Recollection.CarriersInFlight50,ST_Codex,每架驿驮的货单上都写着两站：先是清理场，然后是守夜镇的收贡所。,"Every Ferry's manifest lists two stops: the Yard, then Vigil's tithe-house."
+Codex.Recollection.NoSiphonElite,ST_Codex,抽筹收走回收者留下的东西。每一粒都记在同一个账户下。,Tappers collect what the Reclaimer leaves behind. Every grain is entered under the same account.
+Codex.Recollection.NozzlesP1,ST_Codex,每个喷口各听命于一位司者。六口全停，工坊也不会停下，它只是在等另一只手。,"Each nozzle answers to one Keeper. With all six stopped, the works do not halt; they wait for another hand."
+Codex.Enemy.Carrier,ST_Codex,驿驮成打地把小家伙运进来。早一点把它打下来，那一打也跟着落地。,Ferries bring the small ones in by the dozen. Bring one down early and the dozen fall with it.
+Codex.Enemy.Siphon,ST_Codex,抽筹不打仗。它们拿走你留在地上的东西，靠这些长大。,"Tappers do not fight. They take what you leave on the ground, and grow on it."
+Codex.Enemy.Boss.Depth3,ST_Codex,在排水道的最底下，有个东西会在弃物被扔掉之前，先把它们灌满。,At the bottom of the drain something fills the Cast-offs before they are thrown away.
+Codex.Arena.Depth3,ST_Codex,播种工坊就在排水道的最底下。每一个弃物在被扔掉之前，都经过这里。,The seeding works lie at the bottom of the drain. Every Cast-off passed through here before it was ever thrown away.
+Hub.Arena.LockedSump,ST_World,在泄口获胜后才能继续往下。,Win in the Outfall to go further down.
+Summary.OffLedger,ST_World,账外留存 {0},Kept off-ledger {0}
+Hud.RecollectionMeter,ST_UI,忆痕 {0}/{1},Recollections {0}/{1}
+Hud.Ult2.Ready,ST_UI,{0}就绪,{0} ready
+Settings.KeeperRemarks,ST_UI,司者插话,Keeper remarks
+Settings.KeeperRemarks.All,ST_UI,全部,All
+Settings.KeeperRemarks.Milestones,ST_UI,仅关键时刻,Milestones only
+Branch.Tide.Breakwater.Name,ST_Blessings,防波堤,Breakwater
+Blessing.Tide.DeepReserve.Name,ST_Blessings,永冻,Permafrost
+Blessing.Tide.DeepReserve.Desc,ST_Blessings,"冻结会一直持续到敌人被击中，
+最多同时冻住 {0} 个敌人。","Freeze lasts until the enemy is hit, up to {0} enemies at once."
+Blessing.Tide.Breakwater.Name,ST_Blessings,防波堤,Breakwater
+Blessing.Tide.Breakwater.Desc,ST_Blessings,"被冻结的敌人会像墙一样
+挡住其他敌人。",Frozen enemies block other enemies like walls.
+Card.Reserve.Tools.Name,ST_UI,备用条款,Spare Terms
+Card.Reserve.Tools.Desc,ST_UI,重议 +1 次。,+1 Renegotiate.
+Card.Reserve.Mend.Name,ST_UI,补甲,Field Patch
+Card.Reserve.Mend.Desc,ST_UI,护甲 +{0}，可叠加。,+{0} Armor. Stacks.
+Pause.Abandon,ST_UI,放弃本局,Abandon run
+Pause.AbandonConfirm,ST_UI,确认放弃,Abandon
+Pause.AbandonCancel,ST_UI,取消,Cancel
+HUD.Momentum,ST_UI,动量 {0}/{1},Momentum {0}/{1}
+Keyword.Cracked.Name,ST_Keywords,脆化,Cracked
+Keyword.Cracked.Def,ST_Keywords,首领不会被冻结或致盲；这些效果改为让它脆化：短时间内受到的伤害提高。,Bosses can't be Frozen or Blinded; those effects crack them instead: they take more damage for a moment.
+Keyword.MomentumStack.Name,ST_Keywords,动量,Momentum
+Keyword.MomentumStack.Def,ST_Keywords,移动和冲刺时积累，每点都提高伤害和射速。被击中会失去一部分。,Built by moving and dashing; each point adds damage and fire rate. Getting hit loses some.
+Ult.Storm.Layer.Forge.Name,ST_Ultimates,雷砧,Thunder Anvil
+Ult.Storm.Layer.Forge.Desc,ST_Ultimates,"每道落雷都伴随一圈火焰<kw id=""Slam"">重砸</kw>。","Each bolt lands a fire <kw id=""Slam"">slam</kw> ring."
+Ult.Storm.Layer.Tide.Name,ST_Ultimates,冰格,Ice Lattice
+Ult.Storm.Layer.Tide.Desc,ST_Ultimates,"落雷所及之处<kw id=""Freeze"">冻结</kw>；电弧在所有冻结的敌人之间跳跃。","Bolts <kw id=""Freeze"">freeze</kw> where they land; arcs jump between all Frozen enemies."
+Ult.Storm.Layer.Shade.Name,ST_Ultimates,债雷,Debt Bolt
+Ult.Storm.Layer.Shade.Desc,ST_Ultimates,"落雷优先劈向被<kw id=""Mark"">标记</kw>的敌人；击杀会把标记传给邻近的敌人。","Bolts strike <kw id=""Mark"">Marked</kw> enemies first; their kills pass the Mark on."
+Ult.Storm.Layer.Radiance.Name,ST_Ultimates,蓄天,Stored Sky
+Ult.Storm.Layer.Radiance.Desc,ST_Ultimates,每道落雷都为天空蓄能；结束时一道巨雷劈向敌人最密处。,Every bolt charges the sky; at the end one giant bolt strikes the densest point.
+Ult.Storm.Layer.Quicksilver.Name,ST_Ultimates,追雷,Chasing Storm
+Ult.Storm.Layer.Quicksilver.Desc,ST_Ultimates,每次冲刺都沿路召下一串落雷，冲刺次数回满。,"Each dash calls bolts along its path, and your dash charges refill."
+Ult.Forge.Layer.Storm.Name,ST_Ultimates,活环,Live Ring
+Ult.Forge.Layer.Storm.Desc,ST_Ultimates,"火环命中后<kw id=""Chain"">连锁</kw>到环外的 2 个敌人。","Ring hits <kw id=""Chain"">chain</kw> to 2 enemies beyond the ring."
+Ult.Forge.Layer.Tide.Name,ST_Ultimates,冰火,Fire and Frost
+Ult.Forge.Layer.Tide.Desc,ST_Ultimates,"火环与霜环交替：火环向外<kw id=""Push"">击退</kw>，霜环向内<kw id=""Pull"">吸拢</kw>。","Rings alternate fire, which <kw id=""Push"">pushes</kw> out, and frost, which <kw id=""Pull"">pulls</kw> in."
+Ult.Forge.Layer.Shade.Name,ST_Ultimates,烬犬,Cinder Hounds
+Ult.Forge.Layer.Shade.Desc,ST_Ultimates,火环每击杀一个敌人，就放出一只烬犬，扑向最近的敌人并爆炸。,Each ring kill releases a cinder hound that runs at the nearest enemy and explodes.
+Ult.Forge.Layer.Radiance.Name,ST_Ultimates,白炽,White Heat
+Ult.Forge.Layer.Radiance.Desc,ST_Ultimates,"每第 3 圈火环白炽：必定<kw id=""Crit"">暴击</kw>，<kw id=""Overkill"">多余伤害</kw>会炸开。","Every 3rd ring is white-hot: sure <kw id=""Crit"">crits</kw>, and <kw id=""Overkill"">overkill</kw> bursts."
+Ult.Forge.Layer.Quicksilver.Name,ST_Ultimates,行砧,Walking Anvil
+Ult.Forge.Layer.Quicksilver.Desc,ST_Ultimates,火环跟随你，每次冲刺都炸出一圈；移动时火环间隔减半。,Rings follow you and burst on every dash; they come twice as fast while you move.
+Ult.Tide.Layer.Storm.Name,ST_Ultimates,导流,Conductor
+Ult.Tide.Layer.Storm.Desc,ST_Ultimates,"每秒有电流沿<kw id=""Freeze"">冻结</kw>的一线奔过。","Current runs along the <kw id=""Freeze"">Frozen</kw> line every second."
+Ult.Tide.Layer.Forge.Name,ST_Ultimates,热震,Thermal Shock
+Ult.Tide.Layer.Forge.Desc,ST_Ultimates,解冻时，整条冰线在蒸汽爆炸中炸开。,"When it thaws, the whole line bursts in a steam explosion."
+Ult.Tide.Layer.Shade.Name,ST_Ultimates,溺名册,Drowning List
+Ult.Tide.Layer.Shade.Desc,ST_Ultimates,"整条冰线被<kw id=""Mark"">标记</kw>并遭追踪；解冻时生命低于 30% 的敌人被<kw id=""Execute"">斩杀</kw>。","The line is <kw id=""Mark"">Marked</kw> and hunted; at the thaw, any below 30% are <kw id=""Execute"">executed</kw>."
+Ult.Tide.Layer.Radiance.Name,ST_Ultimates,冰透镜,Ice Lens
+Ult.Tide.Layer.Radiance.Desc,ST_Ultimates,"穿过冰线的子弹变成<kw id=""ChargedShot"">蓄能弹</kw>：伤害 ×2 并<kw id=""Pierce"">穿透</kw>。","Rounds passing through the line become <kw id=""ChargedShot"">charged</kw>: ×2 and <kw id=""Pierce"">piercing</kw>."
+Ult.Tide.Layer.Quicksilver.Name,ST_Ultimates,冲浪,Surf
+Ult.Tide.Layer.Quicksilver.Desc,ST_Ultimates,"沿冰线冲刺会<kw id=""Shatter"">碎裂</kw>沿途的敌人；每碎裂 10 个返还一次冲刺。","Dashing along the line <kw id=""Shatter"">shatters</kw> what you pass; every 10 shattered refunds a dash."
+Ult.Shade.Layer.Storm.Name,ST_Ultimates,连坐,Joint Liability
+Ult.Shade.Layer.Storm.Desc,ST_Ultimates,"每次<kw id=""Execute"">斩杀</kw>都放出电弧，标记并感电最近的 3 个敌人。","Each <kw id=""Execute"">execution</kw> arcs to the 3 nearest, Marking and Shocking them."
+Ult.Shade.Layer.Forge.Name,ST_Ultimates,焚账,Burning Ledger
+Ult.Shade.Layer.Forge.Desc,ST_Ultimates,"被<kw id=""Mark"">标记</kw>的敌人<kw id=""Burn"">灼烧</kw>，被斩杀时爆炸。","<kw id=""Mark"">Marked</kw> enemies <kw id=""Burn"">Burn</kw> and explode when executed."
+Ult.Shade.Layer.Tide.Name,ST_Ultimates,羁押,Custody
+Ult.Shade.Layer.Tide.Desc,ST_Ultimates,"被<kw id=""Mark"">标记</kw>的敌人被慢慢拖向你并<kw id=""Chill"">减速</kw>；冻结的敌人更早被斩杀。","<kw id=""Mark"">Marked</kw> enemies are dragged toward you and <kw id=""Chill"">Chilled</kw>; Frozen ones die sooner."
+Ult.Shade.Layer.Radiance.Name,ST_Ultimates,查账之光,Audit Light
+Ult.Shade.Layer.Radiance.Desc,ST_Ultimates,"结束时，每个被<kw id=""Mark"">标记</kw>的敌人挨一道光矛，伤害等于它已损失的生命。","At the end, each <kw id=""Mark"">Marked</kw> enemy takes a lance equal to its missing health."
+Ult.Shade.Layer.Quicksilver.Name,ST_Ultimates,上门收账,Collection Run
+Ult.Shade.Layer.Quicksilver.Desc,ST_Ultimates,"冲刺穿过生命低于 50% 的被<kw id=""Mark"">标记</kw>敌人时将其<kw id=""Execute"">斩杀</kw>，并返还冲刺。","Dashing through a <kw id=""Mark"">Marked</kw> enemy below 50% <kw id=""Execute"">executes</kw> it and refunds the dash."
+Ult.Radiance.Layer.Storm.Name,ST_Ultimates,枝光,Branching
+Ult.Radiance.Layer.Storm.Desc,ST_Ultimates,光束每 0.25 秒分出一道闪电。,Lightning branches off the beam every 0.25 s.
+Ult.Radiance.Layer.Forge.Name,ST_Ultimates,熔沟,Molten Trench
+Ult.Radiance.Layer.Forge.Desc,ST_Ultimates,"光束留下持续 6 秒的<kw id=""Field"">燃烧沟壑</kw>。","The beam leaves a <kw id=""Field"">burning trench</kw> for 6 s."
+Ult.Radiance.Layer.Tide.Name,ST_Ultimates,冷光,Cold Light
+Ult.Radiance.Layer.Tide.Desc,ST_Ultimates,"光束所过之处<kw id=""Freeze"">冻结</kw>，结束时全部碎裂。","The beam <kw id=""Freeze"">freezes</kw> what it passes and shatters it all at its end."
+Ult.Radiance.Layer.Shade.Name,ST_Ultimates,曲光,Bending Light
+Ult.Radiance.Layer.Shade.Desc,ST_Ultimates,"光束弯向被<kw id=""Mark"">标记</kw>的敌人和精英。","The beam bends toward <kw id=""Mark"">Marked</kw> enemies and elites."
+Ult.Radiance.Layer.Quicksilver.Name,ST_Ultimates,携日,Carried Sun
+Ult.Radiance.Layer.Quicksilver.Desc,ST_Ultimates,光束随你移动，冲刺会延长持续时间。,"The beam moves with you, and dashes extend it."
+Ult.Quicksilver.Layer.Storm.Name,ST_Ultimates,静电尾迹,Static Wake
+Ult.Quicksilver.Layer.Storm.Desc,ST_Ultimates,每次冲刺留下静电，慢动作结束时全部释放。,Each dash leaves static; it all discharges when the slow-motion ends.
+Ult.Quicksilver.Layer.Forge.Name,ST_Ultimates,落锤,Drop Hammer
+Ult.Quicksilver.Layer.Forge.Desc,ST_Ultimates,"每次冲刺落地都<kw id=""Slam"">重砸</kw>出一圈火。","Each dash landing <kw id=""Slam"">slams</kw> a ring of fire."
+Ult.Quicksilver.Layer.Tide.Name,ST_Ultimates,定格,Freeze Frame
+Ult.Quicksilver.Layer.Tide.Desc,ST_Ultimates,"冲刺碰到的敌人<kw id=""Freeze"">冻结</kw>，慢动作结束时全部碎裂。","Enemies your dash touches <kw id=""Freeze"">freeze</kw>, and all shatter when the slow-motion ends."
+Ult.Quicksilver.Layer.Shade.Name,ST_Ultimates,幻影枪手,Phantom Gunners
+Ult.Quicksilver.Layer.Shade.Desc,ST_Ultimates,每次冲刺留下一个残影，用你的武器射击直到结束。,Each dash leaves an afterimage that fires your weapons until the end.
+Ult.Quicksilver.Layer.Radiance.Name,ST_Ultimates,长曝光,Long Exposure
+Ult.Quicksilver.Layer.Radiance.Desc,ST_Ultimates,结束时，每条冲刺路线都重演为一道光矛。,"At the end, every dash line replays as a light lance."
+Ult.Variant.FormatLayer,ST_Ultimates,{0} · {1} + {2},{0} · {1} + {2}
+Ult.LayersNote,ST_Ultimates,"基础：{0}
+形态：{1}
+第二司者：{2}","Base: {0}
+Shape: {1}
+Second Keeper: {2}"
+Keyword.Crush.Name,ST_Keywords,挤压,Crush
+Keyword.Crush.Def,ST_Keywords,被推到墙、冰或其他敌人身上时受到的额外伤害。,Pushed or pulled enemies hurt each other when they collide.
+Keyword.Herd.Name,ST_Keywords,驱赶,Herd
+Keyword.Herd.Def,ST_Keywords,把敌人驱赶到你面前聚成密集的一堵墙，而不是让它们散开。,Pushes enemies into a dense wall in front of you instead of scattering them.
+Keyword.SunCharge.Name,ST_Keywords,日光蓄能,Sun charge
+Keyword.SunCharge.Def,ST_Keywords,对精英和首领造成的伤害会被储存，每隔几秒化作光在它们身上爆发。,Damage to elites and bosses is stored and bursts on them as light every few seconds.
+Keyword.Resonance.Name,ST_Keywords,共鸣,Resonance
+Keyword.Resonance.Def,ST_Keywords,这件武器适合该流派。仅为显示提示，不改变任何数值。,This weapon suits the archetype. A display hint only: it changes no numbers.
+Ult.LayersNote.None,ST_Ultimates,"基础：{0}
+形态：{1}
+第二位司者的加成在 8 级后生效。","Base: {0}
+Shape: {1}
+The second Keeper's layer joins at level 8."
+RunSummary.Player,ST_UI,玩家 {0},Player {0}
+RunSummary.Damage,ST_UI,造成伤害,Damage dealt
+RunSummary.Picks,ST_UI,选牌次数,Offer picks
+Coop.Join,ST_UI,第二具躯体已就绪。,A second vessel is ready.
+Coop.Leave,ST_UI,第二具躯体已送回存储。,The second vessel is returned to storage.
+UI.Coop.Marker.P1,ST_UI,I,I
+UI.Coop.Marker.P2,ST_UI,II,II
+HUD.Coop.Downed,ST_UI,倒地,Downed
+HUD.Coop.Reviving,ST_UI,救援中,Reviving
+HUD.Coop.BledOut,ST_UI,失血过多,Bled out
+Coop.Join.Guest,ST_UI,访客躯体,Guest vessel
+Coop.Join.SecondProfile,ST_UI,第二本地档案,Second local profile
+Coop.Join.Guest.Desc,ST_UI,初始卡池。不保存进度。,Starter pool. No progress saved.
+Coop.Join.SecondProfile.Desc,ST_UI,独立的契约与进度。本局结束时保存。,Own Contracts and progress. Saved at run end.
+Coop.Guest.NotSaved,ST_UI,访客躯体——不保存任何进度。,Guest vessel - nothing saved.
+Settings.SendReport,ST_UI,发送报告,Send report
+Settings.SendReport.Action,ST_UI,保存,Save
+Settings.SendReport.None,ST_UI,未发现崩溃,No crash found
+Settings.SendReport.Saved,ST_UI,报告已保存到 {0}。请将其附在邮件或论坛帖子中。,Report saved to {0}. Attach it to an email or forum post.
+Settings.SendReport.NoCrash,ST_UI,未找到崩溃报告，无需发送。,No crash report found. There is nothing to send.
+Settings.SendReport.Failed,ST_UI,无法保存报告。,The report could not be saved.
+Settings.Privacy,ST_UI,游戏不会自动发送任何内容。崩溃报告会留在本机，直到你自行分享。,Nothing is sent automatically. Crash reports stay on this PC until you share them.
+Presence.Hub,ST_UI,在{0},In {0}
+Presence.Run,ST_UI,在{Arena} · {Quota} · {Time},In {Arena} · {Quota} · {Time}
+Presence.RunStandard,ST_UI,在{Arena} · {Time},In {Arena} · {Time}
+Hub.Begin.Terms,ST_World,· 接受{0}的条件,· accept the terms of the {0}
+Hub.Shrine.Status,ST_World,{0} · {1},{0} · {1}

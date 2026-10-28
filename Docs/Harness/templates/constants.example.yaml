@@ -1,0 +1,16 @@
+# constants.yaml — the only place numbers live. Mirrored by 08_Constants.md; code/data defaults are generated from this file.
+# tag: CORE | GATED(<source>) | MEASURED(<ref>)   dependents: who must be swept when this changes
+shape:
+  SESSION.LENGTH:        { value: 900,  unit: s,   tag: CORE,              dependents: [02_Systems/director.md, 09_Catalog/timeline_*.csv, T-DIR-01] }
+  MILESTONE.A_MIN:       { value: 300,  unit: s,   tag: CORE,              dependents: [02_Systems/progression.md, T-PRG-02] }
+  DECISIONS.PER_SESSION: { value: 28,   unit: n,   tag: CORE,              dependents: [02_Systems/offers.md, dashboard] }
+  ENTITIES.CAP:          { value: 400,  unit: n,   tag: CORE,              dependents: [07_Technical.md §budgets, T-PERF-01] }
+  BUDGET.FRAME_P50_MS:   { value: 16.6, unit: ms,  tag: CORE,              dependents: [11_Quality.md §perf] }
+  BUDGET.FRAME_P95_MS:   { value: 20.0, unit: ms,  tag: CORE,              dependents: [11_Quality.md §perf] }
+  VALUE.CORE_SHARE_MIN:  { value: 0.60, unit: ratio, tag: CORE,            dependents: [10_Tuning.md §ablation, T-BAL-01] }
+caps:
+  SYSTEMS.RUNTIME_MAX:   { value: 12,   unit: n,   tag: CORE,              dependents: [12_Production.md §system-budget] }
+  GLOSSARY.NOTES_MAX:    { value: 40,   unit: n,   tag: CORE,              dependents: [06_UX.md, lint] }
+  GATED.DEBT_MAX:        { value: 5,    unit: n,   tag: CORE,              dependents: [H03 §4] }
+tuning:
+  XP.GROWTH:             { value: 1.11, unit: x,   tag: GATED(validation-S1), dependents: [02_Systems/progression.md, 10_Tuning.md log] }

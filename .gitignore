@@ -1,0 +1,24 @@
+# Unreal Engine
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+.idea/
+*.sln
+*.slnx
+*.suo
+*.sdf
+*.VC.db
+*.VC.opendb
+Build/*/
+!Build/*.ini
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+# Generated (H07 / 07_Technical invariant 8: .po/.locres are build products)
+Content/Localization/**/*.locres
+Content/Localization/**/*.po
+# Tooling
+__pycache__/
+*.pyc
+.claude/settings.local.json

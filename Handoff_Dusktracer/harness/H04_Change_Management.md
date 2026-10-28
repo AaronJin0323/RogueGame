@@ -1,0 +1,76 @@
+# H04 — Change management: how a change stays a change / 变更管理
+
+Requirements will keep changing because validation keeps happening. The goal is that each change **replaces** something, so the project does not accrete.
+
+## 1. The six ways changes become bloat (watch for them)
+
+| Path | Symptom | Guard |
+|---|---|---|
+| Add-only fixes | every finding answered with a new mechanism | §4 system budget |
+| Stacking instead of replacing | old text kept with "the new one wins" | P2, lint |
+| Changing without knowing dependents | a constant changes, six places go stale | §5 dependency sweep |
+| Tuning against the wrong oracle | oscillation: the same lever moved five times | §3 step 6, `H07 §5` |
+| Reacting too fast | a spec finalised the day feedback arrived | §6 two-speed rule |
+| Fixing at the wrong layer | a budget problem "fixed" by adding content | §3 step 4 |
+
+## 2. The only legal outcomes
+**Replace** (new rule in, old rule, code, strings and tests out, same commit) · **Tune** (one existing constant, logged) · **Revert** (hypothesis not met → removed, not patched). Anything else is an application for a new system (§4).
+
+## 3. The lifecycle of a finding
+
+```
+observe → triage → hypothesis → layer → change → measure → keep | revert → consolidate
+```
+
+1. **Observe.** Record the raw words verbatim, with the session log and metric slice. No solution yet.
+2. **Triage.** The scheduler assigns a class; the owner confirms the *class*, not the solution:
+
+   | Class | Definition | Allowed action | Gate |
+   |---|---|---|---|
+   | BUG | behaviour ≠ spec | fix code | tests + merge gates |
+   | TUNE | a number on an existing lever is off | change one constant | number-change log + named re-measure |
+   | PRESENT | rule is right; user cannot see/hear/read it | change presentation layer | presentation contract + goldens |
+   | RULE | the spec is wrong | decision record: replace text + dependency sweep | sweep list empty |
+   | SYSTEM | needs a mechanism that does not exist | candidate list; **not built now** | §4 |
+
+3. **Hypothesis line** (mandatory for RULE, SYSTEM and large TUNE):
+   `We believe <change> moves <metric> from <now> to <target> because <observation>; measured at <session N>; reverted if not met.`
+4. **Layer.** Fix at the lowest layer that explains the observation: pillar > shape constant > rule > content > presentation.
+5. **Change.** The brief cites the hypothesis and rule IDs; `allowed_files` includes the old implementation to be **removed**; the reviewer checks "is the old one gone?" and "is the sweep list empty?".
+6. **Measure** at the agreed session or nightly job. Simulated numbers are bounds until calibrated; human-only properties need humans.
+7. **Keep or revert.** Met → hypothesis becomes spec text, decision closed. Not met → revert commit, decision marked "reverted, because". Never "keep it and tune once more" — that is the first patch on a patch.
+8. **Consolidate.** Spec text shows only the present; history lives in the decision file.
+
+## 4. The system budget
+- **Hard caps** in the constants file: number of runtime systems, decisions per session, strings per table, UI element kinds, glossary/hover notes, primary verbs. Above a cap: one in, one out.
+- **Admission** (`OPEN.md` SYSTEM entry) must answer: which pillar; the hypothesis line; which existing mechanism it retires or merges with; which metric would prove it *unnecessary*; expected new strings/tests/constants.
+- **Waiting period:** a candidate is scheduled only after being wanted independently in two validation sessions.
+- **Glossary growth is a complexity alarm:** when hover-notes exceed the cap, simplify rules before adding notes.
+
+## 5. Dependency sweep
+Every constant lists its dependents (specs, tests, data tables, text). A change to a constant is a decision record whose checklist is that list; the lint fails on dangling dependents. Shape constants change only at stage gates.
+
+## 6. Two-speed rule
+
+| Layer | Change frequency | Approver | Record |
+|---|---|---|---|
+| Pillars | never | — | `00_Vision` |
+| Shape constants | stage gates only | owner | D-nnn + sweep |
+| System rules | ≤ once per system per validation cycle | owner confirms class; scheduler finalises | D-nnn replaces text |
+| Content & numbers | daily | scheduler | data commit + number-change log |
+| Presentation | daily, within the contract | scheduler | golden re-baseline |
+
+Plus: the same lever moves at most once between two validation sessions; two specs for the same system are never finalised on the same day — the second is a replacement decision of the first.
+
+## 7. Make removal cheap
+Feature = data row (delete the row, delete the feature; no long-lived `if (featureX)` branches) · experiment flags carry an expiry and a decision ID; a nightly job lists expired ones and reviews reject merges carrying them · strings grouped by feature prefix with a per-table row budget · tests parameterised from the catalog · dependency lists generated by tools · generated files are never hand-edited or union-merged.
+
+## 8. Consolidation windows (15 % of every stage)
+After each external validation, before the next stage: write decisions back into spec text; delete expired flags, revert residue, orphan strings and tests, unreplaced fallbacks; merge overlapping mechanisms; re-baseline goldens and performance; refresh the glossary; run lint; archive the dashboard row.
+
+## 9. Three questions for every finding
+**What class is it? What layer is it on? What does it replace?** A change that cannot answer the third is the start of bloat.
+
+---
+### 中文摘要
+六条臃肿路径与守卫；改变的三种合法结果；八步生命周期（观察→分类→假设→定层→改动→测量→保留/撤回→收口）；系统预算（硬上限、入场申请、等待期、术语增长即警报）；依赖清扫；两速制；让删除便宜；每阶段 15 % 的收口窗口；三问。

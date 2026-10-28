@@ -1,0 +1,2 @@
+date,constant,from,to,evidence,hypothesis_or_decision,remeasure_job,result
+2026-01-01,C.EXAMPLE.KEY,1.0,1.2,[H],D-012,test-job-id,met|not met|pending
