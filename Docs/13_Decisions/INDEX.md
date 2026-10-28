@@ -9,3 +9,4 @@
 | D-005 | Act II / III sketches until findings_S3 | VALVE | applied |
 | D-006 | GitHub (public) as origin and LFS host | GO-NOGO | applied |
 | D-007 | macOS deferred; Windows only for now | VALVE | applied |
+| D-008 | Palette confirmed, with darker ground references | RULE | applied |

@@ -34,13 +34,13 @@ Every rule is checked on the rendered frame at gameplay camera, not on swatches.
 
 ## 3. Palette tokens (binding)
 
-Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colours; contrast is judged on the rendered frame (R-PRE-05), where emissives sit at their intensity. Rows marked **PROPOSED (owner confirms)** are new values; the rest come from the previous project's locked art book (A1, Cast-off volume).
+Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colours; contrast is judged on the rendered frame (R-PRE-05), where emissives sit at their intensity. Rows marked **owner (D-008)** were set for this project; the rest come from the previous project's locked art book (A1, Cast-off volume).
 
 | Token | sRGB | Y | Use | Contrast requirement | Status |
 |---|---|---|---|---|---|
 | `Pal.Player.Core` | #EEF7FF | 0.92 | core of every player round | vs both ground refs, both weathers | from art book (A3 near-white core) |
-| `Pal.Player.TrailNeutral` | #9CD2FF | 0.58 | player trail while no Keeper is held | trail is not a carrier; core carries | PROPOSED (owner confirms) |
-| `Pal.Hero.Armour` | #D9DDE2 | 0.72 | hero armour; brightest neutral object | vs both ground refs, both weathers | PROPOSED (owner confirms) |
+| `Pal.Player.TrailNeutral` | #9CD2FF | 0.58 | player trail while no Keeper is held | trail is not a carrier; core carries | owner (D-008) |
+| `Pal.Hero.Armour` | #D9DDE2 | 0.72 | hero armour; brightest neutral object | vs both ground refs, both weathers | owner (D-008) |
 | `Pal.Keeper.Storm` | #7FB4FF | 0.44 | trail, rig light, conduits, HUD, cards | rendered emissive vs `Pal.Ground.Bright` | art book A1 |
 | `Pal.Keeper.Forge` | #FF9F3A | 0.46 | as Storm; trail only, never the head | as Storm; hue stays clear of the enemy band | art book A1 |
 | `Pal.Keeper.Tide` | #6FE0E8 | 0.63 | as Storm | as Storm | art book A1 |
@@ -53,13 +53,13 @@ Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colou
 | `Pal.Enemy.Optic` | #FF3B9E | 0.27 | always-lit enemy status light | rendered emissive vs both ground refs | Cast-off volume C01 |
 | `Pal.Elite.Light` | #FF7AC2 | 0.39 | elite status light, per-affix blink | vs both ground refs, brighter than `Pal.Enemy.Optic` | Cast-off volume C14 |
 | `Pal.Telegraph` | #FF2A2A | 0.23 | projected rings, bands, arcs, aim lines | rendered vs both ground refs, both weathers | Cast-off volume C01 |
-| `Pal.Ground.Bright` | #A39D92 | 0.34 | brightest ground reference (sunlit slab) | reference tone | PROPOSED (owner confirms) |
-| `Pal.Ground.Lit` | #77736B | 0.17 | typical lit slab; target for ground albedo | reference tone (art book: lit stone Y ≤ 0.20) | PROPOSED (owner confirms) |
-| `Pal.Ground.Shadow` | #34322F | 0.03 | darkest ground reference (shadowed slab, low sun) | reference tone | PROPOSED (owner confirms) |
-| `Pal.Rarity.Common` | #B8B2A7 | 0.45 | rarity marker, Common | vs `Pal.UI.Panel` | PROPOSED (owner confirms) |
-| `Pal.Rarity.Rare` | #5FA8E0 | 0.36 | rarity marker, Rare | vs `Pal.UI.Panel` | PROPOSED (owner confirms) |
+| `Pal.Ground.Bright` | #7E7970 | 0.19 | brightest ground reference (sunlit slab) | reference tone | owner (D-008) |
+| `Pal.Ground.Lit` | #66625B | 0.12 | typical lit slab; target for ground albedo | reference tone (art book: lit stone Y ≤ 0.20) | owner (D-008) |
+| `Pal.Ground.Shadow` | #34322F | 0.03 | darkest ground reference (shadowed slab, low sun) | reference tone | owner (D-008) |
+| `Pal.Rarity.Common` | #B8B2A7 | 0.45 | rarity marker, Common | vs `Pal.UI.Panel` | owner (D-008) |
+| `Pal.Rarity.Rare` | #5FA8E0 | 0.36 | rarity marker, Rare | vs `Pal.UI.Panel` | owner (D-008) |
 | `Pal.Rarity.Epic` | #8A7CFF | 0.27 | rarity marker, Epic | vs `Pal.UI.Panel` | G02 (≈ #8A7CFF) |
-| `Pal.UI.Panel` | #15171C | 0.01 | dark translucent panel base | reference tone for UI | PROPOSED (owner confirms) |
+| `Pal.UI.Panel` | #15171C | 0.01 | dark translucent panel base | reference tone for UI | owner (D-008) |
 | `Pal.UI.Text` | #E8E4DC | 0.78 | main UI text (bone) | vs `Pal.UI.Panel` | art book PL.24 |
 
 The rarity ladder covers the tiers `02_Systems/offers.md` defines; a tier added there gets a row here before it is drawn.
@@ -114,7 +114,6 @@ Binding but not yet set (owned by the arena post-process volume, S0): depth of f
 
 | Question | Data that resolves it |
 |---|---|
-| Owner confirms the PROPOSED rows of §3 | owner read in the daily window; grey-box captures in both weathers |
 | Enemy optic `#FF3B9E` and enemy round `#FF2D8A` are two near-identical hues; unify into one danger hue? | side-by-side capture at gameplay camera |
 | Exposure value per weather, bloom threshold | first S0 stress-arena captures; become `C.PRE.*` keys when measured |
 | Per-weapon hue variation inside the cool range, or one core for all weapons | S1 playtest: can players tell weapons apart by shape alone |
