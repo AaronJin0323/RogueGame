@@ -29,7 +29,14 @@
 | C.POWER.ARCHETYPE_BAND | ±0.15 | ratio | CORE | 10_Tuning §3 |
 | C.INTERCESSION.BAND | ±0.20 of mean | ratio | CORE | keepers.md §7 |
 
-## 2. Budgets (from `G02` §07 and D-003)
+## 2. Presentation (04_Presentation)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.PRE.CONTRAST_MIN | 3.0 | ratio | CORE | 04_Presentation §2, T-PRE-05 |
+| C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
+
+## 3. Budgets (from `G02` §07 and D-003)
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
@@ -41,13 +48,16 @@
 | C.BUDGET.MAC_RES_FPS | TBD | — | GATED(S0: empty-arena measurement on the M2 Air) | 11_Quality §perf |
 | C.BUDGET.MAC_FRAME_P50_MS | TBD | ms | GATED(S0) | 11_Quality §perf |
 | C.BUDGET.MAC_FRAME_P95_MS | TBD | ms | GATED(S0) | 11_Quality §perf |
-| C.SIM.FIXED_HZ | 60 | Hz | CORE | 07_Technical invariant 3 |
+| C.SIM.FIXED_HZ | 60 | Hz | CORE | 07_Technical R-TEC-03, T-TEC-03 |
+| C.SIM.MAX_SUBSTEPS | 2 | n | CORE | 07_Technical R-TEC-03, T-TEC-03 |
+| C.SAVE.VERSION | 1 | n | CORE | 07_Technical R-TEC-04, T-TEC-04 |
 
-## 3. Harness caps
+## 4. Harness caps
 
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
+| C.GATE.TEST_FLOOR | 4 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 

@@ -1,5 +1,7 @@
 # constants.yaml — mirror of 08_Constants.md. Shape rows confirmed by D-001.
 # tag: CORE | GATED(<source>) | MEASURED(<ref>)
+# Format (parsed by Tools/dtconst.py, stdlib only): '<section>:' lines, then one constant per line:
+#   '  KEY: { value: <number|string|null|[a, b]>, unit: <u>, tag: <tag>, dependents: [..] }'
 shape:
   RUN.LENGTH_TO_BOSS:          { value: 900,  unit: s,     tag: CORE, dependents: [02_Systems/director.md, 09_Catalog/timeline_*.csv, T-DIR-01] }
   RUN.BOSS_MAX:                { value: 120,  unit: s,     tag: CORE, dependents: [02_Systems/boss.md] }
@@ -21,7 +23,11 @@ shape:
   POWER.KEEPER_SHARE_L16:      { value: 0.60, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-BAL-01] }
   POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md] }
   INTERCESSION.BAND:           { value: 0.20, unit: ratio, tag: CORE, dependents: [02_Systems/keepers.md] }
+presentation:
+  PRE.CONTRAST_MIN:            { value: 3.0,  unit: ratio, tag: CORE,       dependents: [04_Presentation.md, T-PRE-05] }
+  PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
 budget:
+  BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P95_MS:   { value: 10,   unit: ms,    tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GPU_MS_4070:          { value: 12,   unit: ms,    tag: CORE, dependents: [11_Quality.md] }
@@ -29,8 +35,11 @@ budget:
   BUDGET.MAC_RES_FPS:          { value: null, unit: res_fps, tag: GATED(S0), dependents: [11_Quality.md] }
   BUDGET.MAC_FRAME_P50_MS:     { value: null, unit: ms,    tag: GATED(S0), dependents: [11_Quality.md] }
   BUDGET.MAC_FRAME_P95_MS:     { value: null, unit: ms,    tag: GATED(S0), dependents: [11_Quality.md] }
-  SIM.FIXED_HZ:                { value: 60,   unit: Hz,    tag: CORE, dependents: [07_Technical.md] }
+  SIM.FIXED_HZ:                { value: 60,   unit: Hz,    tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
+  SIM.MAX_SUBSTEPS:            { value: 2,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
+  SAVE.VERSION:                { value: 1,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-04] }
 caps:
+  GATE.TEST_FLOOR:             { value: 4,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }

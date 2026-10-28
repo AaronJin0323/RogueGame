@@ -18,6 +18,7 @@ Plugins/*/Intermediate/
 # Generated (H07 / 07_Technical invariant 8: .po/.locres are build products)
 Content/Localization/**/*.locres
 Content/Localization/**/*.po
+Content/DT/Text/Generated/
 # Tooling
 __pycache__/
 *.pyc

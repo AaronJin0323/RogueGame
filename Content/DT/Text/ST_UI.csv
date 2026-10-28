@@ -1,0 +1,4 @@
+Key,en,zh-Hans,Context,Kw
+Product.Name,Dusktracer,曳光,"The game's name. The two names share an image; neither translates the other (Docs/Glossary.md).",
+Product.Tagline,You are the bullet hell.,弹幕即你。,Title-screen tagline under the game's name.,
+Test.LocRoundTrip,Language check: this line is English.,语言检查：这一行是中文。,"S0 exit test string, not shown to players: rendered in both en and zh-Hans to prove both cultures load and CJK glyphs display.",
