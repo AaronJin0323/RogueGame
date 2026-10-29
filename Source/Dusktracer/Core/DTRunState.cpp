@@ -15,6 +15,10 @@ bool FDTRunState::ApplyEvent(const FDTGameEvent& Event)
 {
 	if (!IsValidPlayer(Event.OwnerId))
 	{
+		if (Sink)
+		{
+			Sink->OnRunEvent(Event, false);
+		}
 		return false;
 	}
 	FDTPlayerRunState& Owner = Players[Event.OwnerId];
@@ -30,6 +34,10 @@ bool FDTRunState::ApplyEvent(const FDTGameEvent& Event)
 		++Owner.Pickups;
 		Owner.Xp += Event.Amount;
 		break;
+	}
+	if (Sink)
+	{
+		Sink->OnRunEvent(Event, true);
 	}
 	return true;
 }

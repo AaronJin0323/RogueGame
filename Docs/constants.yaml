@@ -79,6 +79,12 @@ arena:
   PERF.WARMUP_S:               { value: 10,   unit: s,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
   PERF.CAPTURE_FRAMES:         { value: 1800, unit: n,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
   PERF.LOAD_MIN_RATIO:         { value: 0.95, unit: ratio, tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
+telemetry:
+  TEL.INTERVAL_S:              { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-01] }
+  TEL.RATE_UNIT_S:             { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }
+  TEL.TTK_PERCENTILE:          { value: 0.50, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, C.TTK.SWARM_STEERED_MAX] }
+  TEL.NEAREST_PERCENTILE:      { value: 0.10, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }
+  TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
 caps:
   GATE.TEST_FLOOR:             { value: 21,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
