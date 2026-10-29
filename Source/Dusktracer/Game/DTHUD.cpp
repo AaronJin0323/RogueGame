@@ -5,6 +5,9 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Internationalization/Text.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
+#include "Dusktracer.h"
 #include "Core/DTPaletteGen.h"
 
 namespace DTHUDLocal
@@ -79,7 +82,13 @@ void ADTHUD::DrawHUD()
 	};
 
 	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Product.Name")), DTHUDLocal::TitleScale);
-	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip")), 1.0f);
+	const FText RoundTrip = FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip"));
+	DrawLine(RoundTrip, 1.0f);
+	if (!bLoggedRoundTrip)
+	{
+		bLoggedRoundTrip = true;
+		UE_LOG(LogDT, Log, TEXT("LocRoundTrip culture=%s text=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(), *RoundTrip.ToString());
+	}
 
 	// Developer readout, not player text.
 	if (FrameTimes.IsValid() && FrameTimes->bHasSample)

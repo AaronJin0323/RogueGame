@@ -21,4 +21,6 @@ public:
 private:
 	/** Receives the engine's per-frame unit times (IPerformanceDataConsumer); registered while the HUD is in play. */
 	TSharedPtr<FDTHUDFrameTimes> FrameTimes;
+	/** The round-trip line is logged once as drawn, so Tools/Smoke.ps1 can check the culture without reading pixels. */
+	bool bLoggedRoundTrip = false;
 };

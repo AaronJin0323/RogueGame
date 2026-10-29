@@ -4,7 +4,8 @@
 # Launches the game (UnrealEditor -game, 1280x720 window) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
-# Verdict: no crash, no ensure, no Error/Fatal line from LogDT, "Run start" seen, screenshot present, and
+# Verdict: no crash, no ensure, no Error/Fatal line from LogDT, "Run start" seen, the drawn Test.LocRoundTrip equals
+# ST_UI.csv for the culture, screenshot present, and
 # Tools/image_check.py PASS against Docs/Validation/goldens/<Name>_<Culture>.png (-Update re-baselines the golden).
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
@@ -90,6 +91,19 @@ $Lines | Where-Object { $_ -match "LogLoad: LoadMap|LogDT:" } | Select-Object -F
 if ($OtherErr.Count) { Write-Host "    ($($OtherErr.Count) engine Error line(s), not judged; first:)"; $OtherErr | Select-Object -First 5 | ForEach-Object { "      $_" } }
 $Crash + $Ensure + $DTErr | Select-Object -First 15 | ForEach-Object { "  ! $_" }
 
+# Localisation round trip (12_Production §2 S0 exit): the HUD logs Test.LocRoundTrip once as drawn; it must equal the
+# source CSV's column for this culture. Pixel goldens cannot tell two cultures apart, the log line can.
+$Expected = (Import-Csv -Path (Join-Path $Root "Content\DT\Text\ST_UI.csv") -Encoding UTF8 | Where-Object { $_.Key -eq "Test.LocRoundTrip" }).$Culture
+$Drawn = ($Lines | Select-String -Pattern "LogDT: LocRoundTrip culture=(\S+) text=(.*)$" | Select-Object -First 1)
+$LocOk = $false
+$Loc = "loc: no LocRoundTrip line"
+if ($Drawn) {
+	$DrawnCulture = $Drawn.Matches[0].Groups[1].Value
+	$DrawnText = $Drawn.Matches[0].Groups[2].Value.Trim()
+	$LocOk = ($DrawnCulture -eq $Culture) -and ($DrawnText -ceq $Expected)
+	$Loc = if ($LocOk) { "loc ok ($Culture)" } else { "loc MISMATCH (culture '$DrawnCulture', drew '$DrawnText', expected '$Expected')" }
+}
+
 $Image = "no screenshot"
 $ImageOk = $false
 if (Test-Path $Shot) {
@@ -102,8 +116,8 @@ if (Test-Path $Shot) {
 Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"
 
-$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Image
-if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $ImageOk) {
+$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Image
+if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $ImageOk) {
 	Write-Host "SMOKE: PASS ($Summary)"
 	exit 0
 }
