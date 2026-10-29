@@ -40,7 +40,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 - **R-TEC-10** Performance is measured as median and p95 against `C.BUDGET.*`, on the named hardware; GPU measurements hold the file semaphore `Saved/gpu.lock`.
   - T-TEC-10 PLANNED(S0) `Tools/Perf.ps1` on the stress map.
 - **R-TEC-11** Bullets and swarm enemies are never Actors.
-  - T-TEC-11 PLANNED(S1) `Dusktracer.Tec.Bullets.NoActors`.
+  - T-TEC-11 `Dusktracer.Tec.Bullets.NoActors`: a real game world fires `C.BULLETS.CAP` bullets; no actor is added and there is one instance per bullet.
 - **R-TEC-12** Debug console commands (`DT.*`) and experiments (`dt.Exp.*`) are compiled out of Shipping.
   - T-TEC-12 Shipping compile gate (`Tools/Gate.ps1` step `shipping`) + `Dusktracer.Tec.Debug.NotInShipping` PLANNED(S1).
 

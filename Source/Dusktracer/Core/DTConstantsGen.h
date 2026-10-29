@@ -59,6 +59,15 @@ namespace DTConst
 	inline constexpr float ENM_OPTIC_TINT = 0.35f; // ratio, GATED(S1)
 	inline constexpr float ENM_EMISSIVE_STRENGTH = 2.0f; // ratio, GATED(S1)
 	inline constexpr float ENM_KILL_RATE_WINDOW_S = 1.0f; // s, GATED(S0)
+	// bullets
+	inline constexpr int32 BULLETS_HIT_MEMORY = 8; // n, GATED(S1)
+	inline constexpr float BULLETS_EMISSIVE_PLAYER = 4.0f; // ratio, GATED(S1)
+	inline constexpr int32 BULLETS_STRESS_RADIUS_UU = 8; // uu, GATED(S0)
+	inline constexpr int32 BULLETS_STRESS_SPEED_UU_S = 800; // uu_per_s, GATED(S0)
+	inline constexpr float BULLETS_STRESS_LIFE_S = 4.0f; // s, GATED(S0)
+	inline constexpr int32 BULLETS_STRESS_PIERCE = 1000; // n, GATED(S0)
+	inline constexpr float BULLETS_STRESS_DAMAGE = 1.0f; // hp, GATED(S0)
+	inline constexpr int32 BULLETS_STRESS_SPIN_DEG_S = 90; // deg_per_s, GATED(S0)
 	// caps
 	inline constexpr int32 GATE_TEST_FLOOR = 6; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
