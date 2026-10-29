@@ -21,7 +21,7 @@
 | **S6 Modes and co-op** | Refusal, fates, endings, local 2P (D-004), daily seed | couch test with 2 humans; `SoloParity` golden unchanged | online |
 | **S7 1.0** | polish, accessibility, Deck tier, onboarding | release checklist; perf re-certified on all tiers | — |
 
-Forecast (separate from the gates): S0 gate 2026-11-01 if the arena and perf tool land; S1 sessions to be booked by the owner (`STATE.md` queue).
+Forecast (separate from the gates): S0 gate passed 2026-10-30 (D-012). S1 gate: after the slice lands and the three sessions in O-008 have happened.
 
 ## 3. Rules specific to this project
 - GATED-debt limit `C.GATED.DEBT_MAX`; deferred-platform constants (D-007) do not count.
