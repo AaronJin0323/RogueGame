@@ -43,7 +43,7 @@ Render (not a rule with a test yet): the subsystem draws every enemy with one in
 | kill rate | `FDTKillRateCounter` | kills per second over `C.ENM.KILL_RATE_WINDOW_S` |
 | instance custom data | `float[4]` | `0-2` linear RGB, `3` emissive strength (`M_InstanceColor`; fallback `Fallback_EnemyMaterial`) |
 
-Body colour: `Pal.UI.Panel` (darkest neutral token) mixed toward `Pal.Enemy.Optic` by `C.ENM.OPTIC_TINT`.
+Body colour: `Pal.Enemy.Body` mixed toward `Pal.Enemy.Optic` by `C.ENM.OPTIC_TINT`, read from `DTPal::` (generated from `04_Presentation §3`).
 
 Debug (not in Shipping, R-TEC-12): `DT.Spawn <N>`, `DT.Spawn.Keep <N>`, `DT.Spawn.Clear`, `DT.Enemies.Stats`. Requests are queued and applied at the start of the next Enemies phase.
 
@@ -70,6 +70,4 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N>`, `DT.Spawn.Keep <N>`, `DT.Spaw
 - Vertex animation, the optic as a separate always-lit part, density LOD of kill effects (uses the kill-rate counter, S1).
 
 ## Open
-- A dedicated `Pal.Enemy.Body` token: the body borrows `Pal.UI.Panel` until `04_Presentation §3` names one → resolved by a PRESENT change with a capture.
 - Swarm radius, speed and HP are placeholders until the time-to-kill target is measured → resolved by S1 sessions against `C.TTK.SWARM_STEERED_MAX`.
-- `Fallback_EnemyMaterial` must be registered in the catalog (R-TEC-05) once `09_Catalog` exists.

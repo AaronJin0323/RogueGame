@@ -1,12 +1,7 @@
 #include "Combat/DTBulletSubsystem.h"
 #include "Core/DTConstantsGen.h"
+#include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
-
-namespace DTBulletSubsystemPrivate
-{
-	/** Palette token Pal.Player.Core (04_Presentation §3); sRGB hex, converted to linear for the material. */
-	static const TCHAR* PalPlayerCoreHex = TEXT("EEF7FF");
-}
 
 bool UDTBulletSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -35,7 +30,7 @@ void UDTBulletSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	Renderer = InWorld.SpawnActor<ADTBulletRenderer>(ADTBulletRenderer::StaticClass(), FTransform::Identity, Params);
 	if (Renderer)
 	{
-		const FLinearColor Core(FColor::FromHex(DTBulletSubsystemPrivate::PalPlayerCoreHex));
+		const FLinearColor Core = DTPal::Linear(DTPal::Player_Core);
 		Renderer->InitRender(Core, DTConst::BULLETS_EMISSIVE_PLAYER);
 	}
 }

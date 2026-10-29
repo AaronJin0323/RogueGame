@@ -11,6 +11,7 @@ Checks (Docs/ except Harness/ and 13_Decisions/, which are method and history):
   6  02_Systems specs: all nine section-contract headings, <= C.SPEC.LINES_MAX lines, no bare numbers
   7  STATE.md <= C.STATE.LINES_MAX lines
   8  must-read set (AGENTS.md, STATE.md, 00_Vision.md, 08_Constants.md) within the token budget (warning)
+  9  every Fallback_* name in Source/ is registered in Docs/09_Catalog/fallbacks.csv and vice versa (T-TEC-05)
 """
 
 import os
@@ -155,6 +156,19 @@ def main():
 			total += cjk + (len(t) - cjk) // 4
 	if total > MUSTREAD_TOKENS:
 		warnings.append(f"must-read set ~{total} tokens > {MUSTREAD_TOKENS}")
+
+	# 9 (T-TEC-05): C++ fallbacks for missing data are registered with their replacement point (R-TEC-05)
+	in_code = {n[:-4] if n.endswith("Path") else n for n in re.findall(r"\bFallback_[A-Za-z0-9]+\b", code)}
+	reg_path = os.path.join(DOCS, "09_Catalog", "fallbacks.csv")
+	registered = set()
+	if os.path.exists(reg_path):
+		for line in read(reg_path).splitlines()[1:]:
+			if line.strip():
+				registered.add(line.split(",", 1)[0].strip())
+	for name in sorted(in_code - registered):
+		errors.append(f"Source: {name} is not registered in Docs/09_Catalog/fallbacks.csv (R-TEC-05)")
+	for name in sorted(registered - in_code):
+		errors.append(f"Docs/09_Catalog/fallbacks.csv: {name} no longer exists in Source/; remove the row")
 
 	for w in warnings:
 		print("warning:", w)

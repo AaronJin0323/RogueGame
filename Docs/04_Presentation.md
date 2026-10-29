@@ -30,7 +30,7 @@ Every rule is checked on the rendered frame at gameplay camera, not on swatches.
 - **R-PRE-08** UI card kinds are distinguishable by **border, icon, label and rarity independently**: each of the four channels alone identifies the kind (or the rarity, for the rarity channel), so no channel — colour least of all — is the only carrier. `Pal.Enemy.*` and `Pal.Telegraph` never appear in UI.
   - T-PRE-08 PLANNED(S1) `Dusktracer.Pre.CardIdentity`: for every card kind × rarity, border, icon and label keys are unique per kind and the rarity marker is unique per rarity; no UI style reads an enemy or telegraph token.
 - **R-PRE-09** Colour comes only from the tokens of §3: code, materials and UI styles read a token by name; a literal colour outside the token source is a lint error. Changing a token value is a PRESENT change with a before/after capture.
-  - T-PRE-09 PLANNED(S1) `Tools/palette_lint.py`: no hex or linear colour literal in `Source/` or generated materials outside the token source; every token of §3 exists there.
+  - T-PRE-09 `Tools/gen_constants.py --check` (gate step `constants`): `Source/Dusktracer/Core/DTPaletteGen.h` is generated from the §3 table and matches it; no hex colour literal (`FromHex`, `#RRGGBB`/`RRGGBB` string) appears in `Source/` outside generated files.
 
 ## 3. Palette tokens (binding)
 
@@ -50,6 +50,7 @@ Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colou
 | `Pal.Enemy.Bullet` | #FF2D8A | 0.25 | enemy round rim and trail | rim vs `Pal.Ground.Shadow` | art book A1 |
 | `Pal.Enemy.BulletCore` | #2A0A16 | 0.01 | dark centre of every enemy round | core vs `Pal.Ground.Bright` | art book PL.16 |
 | `Pal.Enemy.Muzzle` | #FF7A3A | 0.36 | enemy muzzle flash, hit-on-hero flash | brief flash; not measured | art book PL.16 |
+| `Pal.Enemy.Body` | #1C1E24 | 0.01 | swarm hull (dark gunmetal); readability is carried by the optic, not the hull | none (hull is a silhouette; `Pal.Enemy.Optic` meets R-PRE-05) | scheduler (D-010) |
 | `Pal.Enemy.Optic` | #FF3B9E | 0.27 | always-lit enemy status light | rendered emissive vs both ground refs | Cast-off volume C01 |
 | `Pal.Elite.Light` | #FF7AC2 | 0.39 | elite status light, per-affix blink | vs both ground refs, brighter than `Pal.Enemy.Optic` | Cast-off volume C14 |
 | `Pal.Telegraph` | #FF2A2A | 0.23 | projected rings, bands, arcs, aim lines | rendered vs both ground refs, both weathers | Cast-off volume C01 |

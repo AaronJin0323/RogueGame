@@ -11,3 +11,4 @@
 | D-007 | macOS deferred; Windows only for now | VALVE | applied |
 | D-008 | Palette confirmed, with darker ground references | RULE | applied |
 | D-009 | Owner delegates decisions to the scheduler | GO-NOGO | applied |
+| D-010 | Palette generated into code; enemy hull token; fallback registry | RULE | applied |

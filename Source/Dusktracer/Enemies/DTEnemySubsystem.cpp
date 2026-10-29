@@ -2,6 +2,7 @@
 #include "Dusktracer.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Core/DTConstantsGen.h"
+#include "Core/DTPaletteGen.h"
 #include "Core/DTRngStreams.h"
 #include "Core/DTRunState.h"
 #include "Engine/World.h"
@@ -64,9 +65,8 @@ void UDTEnemySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 FLinearColor UDTEnemySubsystem::GetInstanceColor()
 {
-	// Palette tokens (04_Presentation §3); values copied from the token table until a shared token source exists.
-	const FLinearColor Body = FLinearColor(FColor::FromHex(TEXT("15171C")));  // Pal.UI.Panel: darkest neutral token
-	const FLinearColor Optic = FLinearColor(FColor::FromHex(TEXT("FF3B9E"))); // Pal.Enemy.Optic
+	const FLinearColor Body = DTPal::Linear(DTPal::Enemy_Body);
+	const FLinearColor Optic = DTPal::Linear(DTPal::Enemy_Optic);
 	return Body + (Optic - Body) * DTConst::ENM_OPTIC_TINT;
 }
 
