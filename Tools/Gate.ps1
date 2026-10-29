@@ -107,7 +107,15 @@ if (-not (Skipped "tests")) {
 }
 
 # --- not built yet -------------------------------------------------------------------------------------------------
-NotRun "smoke" "no S0 arena yet"
+if (-not (Skipped "smoke")) {
+	foreach ($Culture in @("en", "zh-Hans")) {
+		$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Culture $Culture 2>&1
+		$Rc = $LASTEXITCODE
+		$Out | Set-Content (Join-Path $LogDir "Gate_smoke_$Culture.log") -Encoding utf8
+		Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
+		if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
+	}
+}
 NotRun "pad" "no package yet"
 NotRun "scope" "no brief in flight"
 NotRun "mac" "deferred, D-007"
