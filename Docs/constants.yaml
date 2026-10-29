@@ -63,6 +63,21 @@ bullets:
   BULLETS.STRESS_PIERCE:       { value: 1000, unit: n,     tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
   BULLETS.STRESS_DAMAGE:       { value: 1.0,  unit: hp,    tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
   BULLETS.STRESS_SPIN_DEG_S:   { value: 90,   unit: deg_per_s, tag: GATED(S0), dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+arena:
+  ARENA.SUN_ELEVATION_DEG:     { value: 20,   unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
+  ARENA.SUN_YAW_DEG:           { value: -60,  unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py] }
+  ARENA.SUN_LUX:               { value: 10,   unit: lux,   tag: GATED(S0),  dependents: [Tools/create_arena.py] }
+  ARENA.SKY_LIGHT_INTENSITY:   { value: 1.0,  unit: scale, tag: GATED(S0),  dependents: [Tools/create_arena.py] }
+  ARENA.EXPOSURE_EV100:        { value: 0.0,  unit: ev100, tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
+  ARENA.BLOOM_THRESHOLD:       { value: 1.0,  unit: scale, tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
+  ARENA.CAMERA_PITCH_DEG:      { value: 60,   unit: deg,   tag: GATED(S1),  dependents: [Game/DTCameraPawn] }
+  ARENA.CAMERA_FOV_DEG:        { value: 50,   unit: deg,   tag: GATED(S1),  dependents: [Game/DTCameraPawn] }
+  ARENA.CAMERA_FRAME_RADIUS_UU: { value: 2000, unit: uu,   tag: GATED(S0),  dependents: [Game/DTCameraPawn] }
+  SMOKE.SECONDS:               { value: 10,   unit: s,     tag: CORE,       dependents: [Tools/Smoke.ps1] }
+  SMOKE.GOLDEN_MEAN_DIFF_MAX:  { value: 12.0, unit: level, tag: GATED(S0),  dependents: [Tools/image_check.py, Tools/Smoke.ps1] }
+  SMOKE.IMAGE_STDDEV_MIN:      { value: 4.0,  unit: level, tag: CORE,       dependents: [Tools/image_check.py] }
+  PERF.WARMUP_S:               { value: 10,   unit: s,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
+  PERF.CAPTURE_FRAMES:         { value: 1800, unit: n,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
 caps:
   GATE.TEST_FLOOR:             { value: 21,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
