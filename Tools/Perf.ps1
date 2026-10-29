@@ -41,6 +41,9 @@ function Get-Constant([string]$Key) {
 $GtP50Max = Get-Constant "BUDGET.GAME_THREAD_P50_MS"
 $GtP95Max = Get-Constant "BUDGET.GAME_THREAD_P95_MS"
 $GpuMax = Get-Constant "BUDGET.GPU_MS_4070"
+$LoadMin = Get-Constant "PERF.LOAD_MIN_RATIO"
+$BulletCap = Get-Constant "BULLETS.CAP"
+$EnemyCap = Get-Constant "ENEMIES.CAP"
 if ($Warmup -lt 0) { $Warmup = Get-Constant "PERF.WARMUP_S" }
 if ($Frames -lt 0) { $Frames = [int](Get-Constant "PERF.CAPTURE_FRAMES") }
 if (-not $PSBoundParameters.ContainsKey("Cmds")) { $Cmds = "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
@@ -107,6 +110,8 @@ $Cols = [ordered]@{
 	"frame" = Col @("FrameTime")
 	"game"  = Col @("GameThreadTime")
 	"gpu"   = Col @("GPUTime", "GPU/Total", "RHI/GPUTime")
+	"bul"   = Col @("DT/LiveBullets")
+	"enm"   = Col @("DT/LiveEnemies")
 }
 $Values = @{}
 foreach ($K in $Cols.Keys) { $Values[$K] = New-Object System.Collections.Generic.List[double] }
@@ -134,6 +139,7 @@ function Fmt([double]$V) { if ([double]::IsNaN($V)) { "n/a" } else { $V.ToString
 Write-Host ("    frames      {0} (csv {1})" -f $N, $Csv)
 Write-Host ("    FrameTime   p50 {0} ms  p95 {1} ms" -f (Fmt $R.frame50), (Fmt $R.frame95))
 Write-Host ("    GameThread  p50 {0} ms  p95 {1} ms   budget p50 <= {2}, p95 <= {3}" -f (Fmt $R.game50), (Fmt $R.game95), $GtP50Max, $GtP95Max)
+Write-Host ("    Load        bullets p50 {0} (cap {1})  enemies p50 {2} (cap {3})  need >= {4} of cap" -f (Fmt $R.bul50), $BulletCap, (Fmt $R.enm50), $EnemyCap, $LoadMin)
 Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   budget p95 <= {2} (C.BUDGET.GPU_MS_4070; GPU here: {3})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $GpuMax, $Gpu)
 
 $Why = @()
@@ -141,6 +147,11 @@ if ($N -lt $Frames * 0.9) { $Why += "captured $N of $Frames frames" }
 if ([double]::IsNaN($R.game50)) { $Why += "no GameThreadTime column" }
 elseif ($R.game50 -gt $GtP50Max -or $R.game95 -gt $GtP95Max) { $Why += "game thread over budget" }
 if (-not [double]::IsNaN($R.gpu95) -and $R.gpu95 -gt $GpuMax) { $Why += "GPU over budget" }
+# A pass at a lighter load than the caps proves nothing: the median live counts must reach C.PERF.LOAD_MIN_RATIO of them.
+if ($PSBoundParameters.ContainsKey("Cmds") -eq $false) {
+	if ([double]::IsNaN($R.bul50) -or $R.bul50 -lt $BulletCap * $LoadMin) { $Why += "bullet load below cap" }
+	if ([double]::IsNaN($R.enm50) -or $R.enm50 -lt $EnemyCap * $LoadMin) { $Why += "enemy load below cap" }
+}
 $Verdict = if ($Why.Count -eq 0) { "PASS" } else { "FAIL" }
 
 $Result = Join-Path $PerfDir "perf.csv"
@@ -148,7 +159,7 @@ if (-not (Test-Path $Result)) { "time,commit,gpu,res,cmds,frames,frame_p50,frame
 ('{0},{1},"{2}",{3}x{4},"{5}",{6},{7},{8},{9},{10},{11},{12},{13}' -f $Stamp, $Head, $Gpu, $ResX, $ResY, $Cmds, $N,
 	(Fmt $R.frame50), (Fmt $R.frame95), (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu50), (Fmt $R.gpu95), $Verdict) | Add-Content $Result -Encoding ascii
 
-$Summary = "game p50 {0} / p95 {1} ms, GPU p95 {2} ms, {3} frames" -f (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu95), $N
+$Summary = "game p50 {0} / p95 {1} ms, GPU p95 {2} ms, load {3} bullets / {4} enemies, {5} frames" -f (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu95), (Fmt $R.bul50), (Fmt $R.enm50), $N
 if ($Verdict -eq "PASS") { Write-Host "PERF: PASS ($Summary)"; exit 0 }
 Write-Host ("PERF: FAIL ({0}; {1})" -f $Summary, ($Why -join "; "))
 exit 1

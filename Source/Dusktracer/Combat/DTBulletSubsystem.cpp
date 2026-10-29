@@ -1,4 +1,5 @@
 #include "Combat/DTBulletSubsystem.h"
+#include "Dusktracer.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
@@ -57,6 +58,7 @@ void UDTBulletSubsystem::SimStep(const FDTSimContext& Context)
 
 void UDTBulletSubsystem::SimRender(float Alpha)
 {
+	CSV_CUSTOM_STAT(DT, LiveBullets, Pool.Num(), ECsvCustomStatOp::Set);
 	if (!Renderer)
 	{
 		return;

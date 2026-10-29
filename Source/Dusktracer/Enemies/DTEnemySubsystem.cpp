@@ -143,6 +143,7 @@ void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 
 void UDTEnemySubsystem::SimRender(float Alpha)
 {
+	CSV_CUSTOM_STAT(DT, LiveEnemies, Pool.Num(), ECsvCustomStatOp::Set);
 	EnsureRenderer();
 	if (!Renderer)
 	{

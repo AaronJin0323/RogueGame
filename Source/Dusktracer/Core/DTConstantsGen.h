@@ -83,6 +83,7 @@ namespace DTConst
 	inline constexpr float SMOKE_IMAGE_STDDEV_MIN = 4.0f; // level, CORE
 	inline constexpr int32 PERF_WARMUP_S = 10; // s, CORE
 	inline constexpr int32 PERF_CAPTURE_FRAMES = 1800; // n, CORE
+	inline constexpr float PERF_LOAD_MIN_RATIO = 0.95f; // ratio, CORE
 	// caps
 	inline constexpr int32 GATE_TEST_FLOOR = 21; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE

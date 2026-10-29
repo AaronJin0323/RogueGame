@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogDT);
+CSV_DEFINE_CATEGORY_MODULE(DUSKTRACER_API, DT, true);
 
 /** Game module: registers the string tables (07_Technical R-TEC-08: namespace = table id, CSVs from Tools/loc_build.py --build). */
 class FDusktracerModule : public FDefaultGameModuleImpl

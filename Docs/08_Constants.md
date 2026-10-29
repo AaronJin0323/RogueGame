@@ -120,3 +120,4 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.SMOKE.IMAGE_STDDEV_MIN | 4.0 | 8-bit level | CORE | Tools/image_check.py (not blank / uniform) |
 | C.PERF.WARMUP_S | 10 | s | CORE | Tools/Perf.ps1, T-TEC-10 |
 | C.PERF.CAPTURE_FRAMES | 1800 | n | CORE | Tools/Perf.ps1, T-TEC-10 |
+| C.PERF.LOAD_MIN_RATIO | 0.95 | ratio | CORE | Tools/Perf.ps1, T-TEC-10 (median live bullets and enemies must reach this share of the caps, or the measurement is void) |
