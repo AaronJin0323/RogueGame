@@ -7,7 +7,7 @@ Every run, from the first validation session on, leaves a per-interval CSV and a
 - **R-TEL-01** The telemetry clock is the sim step count, never wall time: `UDTTelemetrySubsystem` runs in `EDTSimPhase::Director` (end of each step, R-TEC-03), and a CSV interval closes exactly when `C.TEL.INTERVAL_S` of sim time has passed since the last one.
 - **R-TEL-02** Every counter that has an owner is kept per player (R-TEC-01); the CSV has one row per player per interval with a `player` column. Events reach telemetry through the `FDTRunState` event sink with their `OwnerId`; an event whose owner is not a player of the run lands in no row and is counted in `run_end.unowned_events`.
 - **R-TEL-03** Swarm TTK is spawn-to-death sim time per enemy, measured without touching the enemy pool: telemetry mirrors the pool's spawn step per slot (stamped when the enemy system applies spawns), matches the events of `ResolveHits` to the hit list in order (one `Hit` per live target, then one `Kill` on death, R-ENM-05/06) and compacts the mirror as the pool compacts (R-ENM-07). The CSV reports the `C.TEL.TTK_PERCENTILE` of the interval's samples (nearest rank); a mismatch is counted in `run_end.mirror_desyncs` and those events still count, without source or TTK.
-- **R-TEL-04** Hits are never logged one line per hit: each step writes at most one `hit` record per player, with the count, the damage and the damage by source.
+- **R-TEL-04** Hits and kills are never logged one line per event: each step writes at most one `hit` and one `kill` record per player. The `hit` record carries the count, the damage and the damage by source; the `kill` record carries the count, the count by source and the step's TTK as sums (`ttk_n`, `ttk_sum_s`, plus `ttk_min_s`/`ttk_max_s` when `ttk_n` is above zero) so a tool recombines exact means. Every per-kill TTK sample still feeds the CSV percentile (R-TEL-03).
 - **R-TEL-05** Damage, hits and kills are kept per (owner, source). A source is a small id on `FDTHit::SourceId` resolved through the name table `FDTTelemetrySources` (`Unknown`, `Stress`, later `Weapon.<Key>`, `Keeper.<Path>`, `Modifier.<Key>`); a hit nobody tagged is `Unknown`. Strings are never stored per hit.
 - **R-TEL-06** The CSV header is pinned (column list in §Data); changing it is a RULE change to this spec and its test.
 - **R-TEL-07** A session writes `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv` and `.jsonl` under the project's (or packaged build's) Saved directory (`FPaths::ProjectSavedDir`); this is the log export of the packaged build.
@@ -49,7 +49,7 @@ JSONL: one object per line; every record starts with `t` (sim seconds), `step`, 
 | Kind | Fields | When |
 |---|---|---|
 | `run_start` | `seed players culture build input_device interval_s step_s wall` | session start (`wall` is the only wall-clock field) |
-| `kill` | `source`, `ttk_s` (when known) | every kill |
+| `kill` | `kills kills_by_source{name: kills} ttk_n ttk_sum_s`, `ttk_min_s ttk_max_s` (when `ttk_n` is above zero) | once per player per step with kills (R-TEL-04); `ttk_n` counts the kills whose TTK is known |
 | `hit` | `hits damage damage_by_source{name: damage}` | once per player per step with hits (R-TEL-04) |
 | `sources` | `interval damage{} kills{} hits{}` by source name | per player at each interval end |
 | `run_end` | `reason steps unowned_events mirror_desyncs` | session end |
@@ -65,7 +65,7 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 - T-TEL-01 `Dusktracer.Telemetry.IntervalSimClock`: no row one step before the interval ends, one row on its last step, and further rows follow steps with no wall time passing.
 - T-TEL-02 `Dusktracer.Telemetry.PerPlayer`: two players' kills, damage and level land in their own rows; an event for a non-player is in no row.
 - T-TEL-03 `Dusktracer.Telemetry.SwarmTtk`: spawn-to-death times are exact through overkill, a stale index and compaction; the row reports the percentile; no desync.
-- T-TEL-04 `Dusktracer.Telemetry.HitsPerStep`: N hits in one step give one `hit` record with the count and damage; two owners give one each.
+- T-TEL-04 `Dusktracer.Telemetry.HitsPerStep`: N hits in one step give one `hit` record with the count and damage; two owners give one each; N kills by one player in one step give one `kill` record with `kills` = N, the counts by source and the TTK sums.
 - T-TEL-05 `Dusktracer.Telemetry.Sources`: the name table is stable; kills and damage are credited per (owner, source) to the hit that landed them.
 - T-TEL-06 `Dusktracer.Telemetry.CsvHeader`: the header equals the pinned column list.
 - T-TEL-07 `Dusktracer.Telemetry.Files`: files go to `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv|.jsonl` and exist after a write.

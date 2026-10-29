@@ -95,7 +95,7 @@ public:
 	void BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits);
 	/** ResolveHits phase, after the pool applied and compacted; PoolNum checks the mirror. */
 	void EndResolve(int32 PoolNum);
-	/** Director phase: per-step samples, the per-step hit records, and the interval rollover on sim time. */
+	/** Director phase: per-step samples, the per-step hit and kill records, and the interval rollover on sim time. */
 	void EndStep(int64 StepIndex, const FDTTelemetrySample& Sample);
 
 	bool HasOutput() const { return !CsvOut.IsEmpty() || !JsonlOut.IsEmpty(); }
@@ -125,10 +125,16 @@ private:
 		TArray<float> NearestSquaredSamples;
 		TMap<uint16, FDTTelemetrySourceTotals> BySource;
 		TMap<uint16, FDTTelemetrySourceTotals> RunBySource;
-		// This step's hits (one JSONL record per player per step, R-TEL-04).
+		// This step's hits and kills (at most one JSONL record of each per player per step, R-TEL-04).
 		int32 StepHits = 0;
 		int64 StepDamage = 0;
 		TMap<uint16, int64> StepDamageBySource;
+		int32 StepKills = 0;
+		TMap<uint16, int64> StepKillsBySource;
+		int32 StepTtkCount = 0;
+		double StepTtkSum = 0.0;
+		float StepTtkMin = 0.0f;
+		float StepTtkMax = 0.0f;
 	};
 
 	struct FPendingEvent
@@ -139,7 +145,8 @@ private:
 
 	void ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 Amount);
 	void ApplyKill(int32 Owner, bool bRouted, uint16 Source, float TtkSeconds);
-	void WriteStepHits();
+	/** Writes this step's hit and kill records (at most one each per player) and clears the step accumulators. */
+	void WriteStepRecords();
 	void WriteInterval();
 	void ResetInterval();
 	void ResyncMirror(int32 PoolNum);
