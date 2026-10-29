@@ -29,4 +29,4 @@ No online co-op before 1.0 · no dialogue system · no realism over readability 
 - **Bilingual (en + zh-Hans) from the first string.**
 
 ## 6. Players and platform
-Players of survivor-likes and bullet-hells who want builds with identity. UE 5.8 on Win64 and macOS in parallel (performance target hardware: 4070-class PC and M2 MacBook Air); keyboard/mouse and gamepad from the first offer screen; Steam Deck tier at 1.0; local two-player in 1.0 (D-003, D-004).
+Players of survivor-likes and bullet-hells who want builds with identity. UE 5.8 on Win64 (performance target hardware: 4070-class PC; macOS on an M2 MacBook Air is a target deferred by D-007); keyboard/mouse and gamepad from the first offer screen; Steam Deck tier at 1.0; local two-player in 1.0 (D-003, D-004, D-007).
