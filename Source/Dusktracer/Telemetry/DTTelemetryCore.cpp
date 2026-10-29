@@ -68,6 +68,21 @@ namespace DTTelemetryCoreLocal
 		return Out + TEXT("}");
 	}
 
+	/** {"Name":value,...} of a per-step source map, in source-id order. */
+	static FString JsonStepBySource(const TMap<uint16, int64>& Map)
+	{
+		TArray<uint16> Ids;
+		Map.GetKeys(Ids);
+		Ids.Sort();
+		FString Out = TEXT("{");
+		for (int32 Index = 0; Index < Ids.Num(); ++Index)
+		{
+			Out += FString::Printf(TEXT("%s%s:%lld"), Index ? TEXT(",") : TEXT(""), *JsonText(FDTTelemetrySources::GetName(Ids[Index])),
+				static_cast<long long>(Map[Ids[Index]]));
+		}
+		return Out + TEXT("}");
+	}
+
 	static FString Rate(double Count, double Elapsed)
 	{
 		return FString::Printf(TEXT("%.3f"), Elapsed > 0.0 ? Count * DTConst::TEL_RATE_UNIT_S / Elapsed : 0.0);
@@ -123,7 +138,7 @@ void FDTTelemetryCore::End(const FString& Reason)
 	{
 		return;
 	}
-	WriteStepHits();
+	WriteStepRecords();
 	if (StepsDone > IntervalStartStep)
 	{
 		WriteInterval();
@@ -191,7 +206,6 @@ void FDTTelemetryCore::ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 
 
 void FDTTelemetryCore::ApplyKill(int32 Owner, bool bRouted, uint16 Source, float TtkSeconds)
 {
-	using namespace DTTelemetryCoreLocal;
 	if (!bRouted || !Players.IsValidIndex(Owner))
 	{
 		++UnownedEvents;
@@ -201,13 +215,16 @@ void FDTTelemetryCore::ApplyKill(int32 Owner, bool bRouted, uint16 Source, float
 	++P.Kills;
 	++P.BySource.FindOrAdd(Source).Kills;
 	++P.RunBySource.FindOrAdd(Source).Kills;
-	FString Line = JsonHead(TEXT("kill"), Owner) + TEXT(",\"source\":") + JsonText(FDTTelemetrySources::GetName(Source));
+	++P.StepKills;
+	++P.StepKillsBySource.FindOrAdd(Source);
 	if (TtkSeconds >= 0.0f)
 	{
-		P.TtkSamples.Add(TtkSeconds);
-		Line += FString::Printf(TEXT(",\"ttk_s\":%.4f"), TtkSeconds);
+		P.TtkSamples.Add(TtkSeconds); // the CSV percentile keeps every sample (R-TEL-03)
+		P.StepTtkMin = P.StepTtkCount ? FMath::Min(P.StepTtkMin, TtkSeconds) : TtkSeconds;
+		P.StepTtkMax = P.StepTtkCount ? FMath::Max(P.StepTtkMax, TtkSeconds) : TtkSeconds;
+		P.StepTtkSum += TtkSeconds;
+		++P.StepTtkCount;
 	}
-	JsonlOut += Line + TEXT("}\n");
 }
 
 void FDTTelemetryCore::OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum)
@@ -355,7 +372,7 @@ void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample
 		}
 	}
 
-	WriteStepHits();
+	WriteStepRecords();
 	++StepsDone;
 	CurrentStep = StepIndex + 1;
 	if (StepsDone - IntervalStartStep >= IntervalSteps)
@@ -365,30 +382,37 @@ void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample
 	}
 }
 
-void FDTTelemetryCore::WriteStepHits()
+void FDTTelemetryCore::WriteStepRecords()
 {
 	using namespace DTTelemetryCoreLocal;
 	for (int32 Player = 0; Player < Players.Num(); ++Player)
 	{
 		FPlayerInterval& P = Players[Player];
-		if (P.StepHits == 0)
+		if (P.StepHits > 0)
 		{
-			continue;
+			JsonlOut += JsonHead(TEXT("hit"), Player) + FString::Printf(TEXT(",\"hits\":%d,\"damage\":%lld,\"damage_by_source\":%s}\n"),
+				P.StepHits, static_cast<long long>(P.StepDamage), *JsonStepBySource(P.StepDamageBySource));
+			P.StepHits = 0;
+			P.StepDamage = 0;
+			P.StepDamageBySource.Reset();
 		}
-		TArray<uint16> Ids;
-		P.StepDamageBySource.GetKeys(Ids);
-		Ids.Sort();
-		FString BySource = TEXT("{");
-		for (int32 Index = 0; Index < Ids.Num(); ++Index)
+		if (P.StepKills > 0)
 		{
-			BySource += FString::Printf(TEXT("%s%s:%lld"), Index ? TEXT(",") : TEXT(""), *JsonText(FDTTelemetrySources::GetName(Ids[Index])),
-				static_cast<long long>(P.StepDamageBySource[Ids[Index]]));
+			// Sums, not means, so a tool recombines exact means across steps; min/max only when a TTK was known.
+			FString Line = JsonHead(TEXT("kill"), Player) + FString::Printf(TEXT(",\"kills\":%d,\"kills_by_source\":%s,\"ttk_n\":%d,\"ttk_sum_s\":%.4f"),
+				P.StepKills, *JsonStepBySource(P.StepKillsBySource), P.StepTtkCount, P.StepTtkSum);
+			if (P.StepTtkCount > 0)
+			{
+				Line += FString::Printf(TEXT(",\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f"), P.StepTtkMin, P.StepTtkMax);
+			}
+			JsonlOut += Line + TEXT("}\n");
+			P.StepKills = 0;
+			P.StepKillsBySource.Reset();
+			P.StepTtkCount = 0;
+			P.StepTtkSum = 0.0;
+			P.StepTtkMin = 0.0f;
+			P.StepTtkMax = 0.0f;
 		}
-		JsonlOut += JsonHead(TEXT("hit"), Player) + FString::Printf(TEXT(",\"hits\":%d,\"damage\":%lld,\"damage_by_source\":%s}}\n"),
-			P.StepHits, static_cast<long long>(P.StepDamage), *BySource);
-		P.StepHits = 0;
-		P.StepDamage = 0;
-		P.StepDamageBySource.Reset();
 	}
 }
 
