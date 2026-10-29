@@ -16,6 +16,8 @@ struct FDTBulletSpawn
 	float Life = 0.0f; // seconds
 	int32 OwnerId = INDEX_NONE;
 	int32 Pierce = 1;
+	/** Telemetry source id (FDTTelemetrySources; 0 = Unknown), copied onto every FDTHit this bullet makes (R-BUL-08). */
+	uint16 SourceId = 0;
 };
 
 /** Monotonic counters; never reset except by Reset(). */
@@ -55,6 +57,7 @@ public:
 	TConstArrayView<FVector2f> GetPrevPositions() const { return PrevPos; }
 	TConstArrayView<float> GetRadii() const { return Radius; }
 	TConstArrayView<int32> GetOwners() const { return OwnerId; }
+	TConstArrayView<uint16> GetSources() const { return SourceId; }
 
 private:
 	void RemoveAtSwap(int32 Index);
@@ -72,6 +75,7 @@ private:
 	TArray<float> LifeLeft;
 	TArray<int32> OwnerId;
 	TArray<int32> PierceLeft;
+	TArray<uint16> SourceId; // telemetry source of every hit this bullet makes (R-BUL-08)
 	TArray<uint64> Serial;   // spawn order; the smallest is the oldest live bullet
 	TArray<int32> HitCount;  // enemies this bullet has hit; ring slot = HitCount % C.BULLETS.HIT_MEMORY
 	TArray<int32> HitRing;   // C.BULLETS.HIT_MEMORY slots per bullet: the last enemies it hit

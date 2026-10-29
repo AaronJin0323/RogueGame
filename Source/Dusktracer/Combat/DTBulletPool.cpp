@@ -12,6 +12,7 @@ FDTBulletPool::FDTBulletPool(int32 InCapacity)
 	LifeLeft.Reserve(Capacity);
 	OwnerId.Reserve(Capacity);
 	PierceLeft.Reserve(Capacity);
+	SourceId.Reserve(Capacity);
 	Serial.Reserve(Capacity);
 	HitCount.Reserve(Capacity);
 	HitRing.Reserve(Capacity * DTConst::BULLETS_HIT_MEMORY);
@@ -27,6 +28,7 @@ void FDTBulletPool::Reset()
 	LifeLeft.Reset();
 	OwnerId.Reset();
 	PierceLeft.Reset();
+	SourceId.Reset();
 	Serial.Reset();
 	HitCount.Reset();
 	HitRing.Reset();
@@ -60,6 +62,7 @@ int32 FDTBulletPool::Spawn(const FDTBulletSpawn& Params)
 		LifeLeft.AddUninitialized();
 		OwnerId.AddUninitialized();
 		PierceLeft.AddUninitialized();
+		SourceId.AddUninitialized();
 		Serial.AddUninitialized();
 		HitCount.AddUninitialized();
 		HitRing.AddUninitialized(DTConst::BULLETS_HIT_MEMORY);
@@ -72,6 +75,7 @@ int32 FDTBulletPool::Spawn(const FDTBulletSpawn& Params)
 	LifeLeft[Index] = Params.Life;
 	OwnerId[Index] = Params.OwnerId;
 	PierceLeft[Index] = FMath::Max(1, Params.Pierce);
+	SourceId[Index] = Params.SourceId;
 	Serial[Index] = NextSerial++;
 	HitCount[Index] = 0;
 	++Counters.Spawned;
@@ -91,6 +95,7 @@ void FDTBulletPool::RemoveAtSwap(int32 Index)
 		LifeLeft[Index] = LifeLeft[Last];
 		OwnerId[Index] = OwnerId[Last];
 		PierceLeft[Index] = PierceLeft[Last];
+		SourceId[Index] = SourceId[Last];
 		Serial[Index] = Serial[Last];
 		HitCount[Index] = HitCount[Last];
 		FMemory::Memcpy(&HitRing[Index * DTConst::BULLETS_HIT_MEMORY], &HitRing[Last * DTConst::BULLETS_HIT_MEMORY],
@@ -104,6 +109,7 @@ void FDTBulletPool::RemoveAtSwap(int32 Index)
 	LifeLeft.Pop(EAllowShrinking::No);
 	OwnerId.Pop(EAllowShrinking::No);
 	PierceLeft.Pop(EAllowShrinking::No);
+	SourceId.Pop(EAllowShrinking::No);
 	Serial.Pop(EAllowShrinking::No);
 	HitCount.Pop(EAllowShrinking::No);
 	HitRing.SetNum(Last * DTConst::BULLETS_HIT_MEMORY, EAllowShrinking::No);
@@ -184,6 +190,7 @@ void FDTBulletPool::Step(float Dt, FDTWorldView& View)
 				Hit.OwnerId = OwnerId[Index];
 				Hit.Damage = Damage[Index];
 				Hit.Position = P;
+				Hit.SourceId = SourceId[Index];
 				++Counters.Hits;
 				RememberHit(Index, Enemy);
 				if (--PierceLeft[Index] <= 0)

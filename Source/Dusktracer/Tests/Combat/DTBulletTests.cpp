@@ -310,4 +310,52 @@ bool FDTTecBulletsNoActors::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBulletsHitSource, "Dusktracer.Bullets.HitSource", DTBulletTest::Flags) // T-BUL-08
+bool FDTBulletsHitSource::RunTest(const FString& Parameters)
+{
+	using namespace DTBulletTest;
+	FDTWorldView View;
+	// One enemy per tagged bullet, far enough apart that each resting bullet touches only its own enemy.
+	SetEnemies(View, { FVector2f(0.0f, 0.0f), FVector2f(100.0f, 0.0f), FVector2f(200.0f, 0.0f), FVector2f(300.0f, 0.0f), FVector2f(400.0f, 0.0f) }, 10.0f);
+	// Enemy index -> the source id the bullet resting on it was spawned with.
+	const TArray<uint16> Expected = { 6, 7, 8, 9, 10 };
+	auto Tagged = [](FVector2f Position, float Life, uint16 Source)
+	{
+		FDTBulletSpawn Spawn = Make(Position, FVector2f::ZeroVector, Life, 0, 100);
+		Spawn.SourceId = Source;
+		return Spawn;
+	};
+
+	FDTBulletPool Pool(4);
+	TestEqual(TEXT("untagged spawn is Unknown"), FDTBulletSpawn().SourceId, static_cast<uint16>(0));
+	// Slot 0 dies in the first step, so the newest bullet (source 8) is swapped into it before it is stepped.
+	Pool.Spawn(Tagged(FVector2f(-1000.0f, 0.0f), 0.5f * Dt, 5));
+	Pool.Spawn(Tagged(FVector2f(0.0f, 0.0f), 100.0f, 6));
+	Pool.Spawn(Tagged(FVector2f(100.0f, 0.0f), 100.0f, 7));
+	Pool.Spawn(Tagged(FVector2f(200.0f, 0.0f), 100.0f, 8));
+	Pool.Step(Dt, View);
+	TestEqual(TEXT("expiry compacted the pool"), Pool.Num(), 3);
+	TestEqual(TEXT("the swapped bullet keeps its source"), Pool.GetSources()[0], static_cast<uint16>(8));
+	TestEqual(TEXT("three hits after compaction"), View.Hits.Num(), 3);
+
+	// Fill to the cap, then recycle the oldest live bullet (source 6) with a bullet of source 10.
+	Pool.Spawn(Tagged(FVector2f(300.0f, 0.0f), 100.0f, 9));
+	Pool.Spawn(Tagged(FVector2f(400.0f, 0.0f), 100.0f, 10));
+	TestEqual(TEXT("the last spawn recycled"), Pool.GetCounters().Recycled, static_cast<int64>(1));
+	Pool.Step(Dt, View);
+	TestEqual(TEXT("two more hits after recycling"), View.Hits.Num(), 5);
+
+	TArray<uint16> Live(Pool.GetSources());
+	Live.Sort();
+	TestEqual(TEXT("live sources after recycling"), Live, TArray<uint16>{ 7, 8, 9, 10 });
+	for (const FDTHit& Hit : View.Hits)
+	{
+		if (TestTrue(TEXT("hit a tagged enemy"), Expected.IsValidIndex(Hit.EnemyIndex)))
+		{
+			TestEqual(*FString::Printf(TEXT("hit on enemy %d carries its bullet's source"), Hit.EnemyIndex), Hit.SourceId, Expected[Hit.EnemyIndex]);
+		}
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
