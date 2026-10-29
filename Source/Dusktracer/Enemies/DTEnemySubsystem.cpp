@@ -6,6 +6,7 @@
 #include "Core/DTRngStreams.h"
 #include "Core/DTRunState.h"
 #include "Engine/World.h"
+#include "Telemetry/DTTelemetrySubsystem.h"
 
 void FDTEnemyResolveHitsPhase::SimStep(const FDTSimContext& Context)
 {
@@ -132,13 +133,29 @@ void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
 
 void UDTEnemySubsystem::SimStep(const FDTSimContext& Context)
 {
+	const bool bCleared = bClearPending;
 	ApplyRequests(Context);
+	// Telemetry hook (read-only): stamps the spawn step of new slots for swarm TTK (02_Systems/telemetry.md R-TEL-03).
+	if (UDTTelemetrySubsystem* Telemetry = GetWorld() ? GetWorld()->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
+	{
+		Telemetry->OnEnemiesSpawned(Context.StepIndex, bCleared, Pool.Num());
+	}
 	Pool.StepEnemies(Context);
 }
 
 void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 {
+	// Telemetry hook (read-only): brackets the resolve so kills are matched to their hit's slot and source.
+	UDTTelemetrySubsystem* Telemetry = GetWorld() ? GetWorld()->GetSubsystem<UDTTelemetrySubsystem>() : nullptr;
+	if (Telemetry && Context.View)
+	{
+		Telemetry->BeginResolve(Context.StepIndex, Context.View->Hits);
+	}
 	Pool.ResolveHits(Context);
+	if (Telemetry)
+	{
+		Telemetry->EndResolve(Pool.Num());
+	}
 }
 
 void UDTEnemySubsystem::SimRender(float Alpha)

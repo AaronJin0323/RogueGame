@@ -7,7 +7,8 @@
 #include "DTGameMode.generated.h"
 
 /**
- * Default pawn ADTCameraPawn at the origin, HUD ADTHUD; on BeginPlay starts a run seeded from -DTSeed=<n> (default 0).
+ * Default pawn ADTCameraPawn at the origin, HUD ADTHUD; on BeginPlay starts a run seeded from -DTSeed=<n> (default 0)
+ * and its telemetry session (02_Systems/telemetry.md); EndPlay ends the session.
  *
  * Measurement hooks for Tools/Smoke.ps1 and Tools/Perf.ps1 (compiled out of Shipping, R-TEC-12):
  *   -DTShot=<file.png> [-DTShotAfter=<s>]  screenshot (with HUD) <s> seconds after run start (default C.SMOKE.SECONDS),
@@ -24,6 +25,8 @@ public:
 	ADTGameMode();
 
 	virtual void BeginPlay() override;
+	/** Ends the telemetry session with the reason (writes the last interval and run_end, R-TEL-08). */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Spawns the camera pawn at the origin; the arena has no player start. */
 	virtual void RestartPlayer(AController* NewPlayer) override;

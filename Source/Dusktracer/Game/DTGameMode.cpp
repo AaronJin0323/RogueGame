@@ -8,6 +8,7 @@
 #include "GameFramework/Controller.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Telemetry/DTTelemetrySubsystem.h"
 
 #if !UE_BUILD_SHIPPING
 #include "HAL/FileManager.h"
@@ -47,8 +48,32 @@ void ADTGameMode::BeginPlay()
 		UE_LOG(LogDT, Error, TEXT("ADTGameMode: no UDTSimSubsystem in this world; run not started"));
 		return;
 	}
-	Sim->StartRun(GetCommandLineSeed(), 1);
+	const int32 Seed = GetCommandLineSeed();
+	Sim->StartRun(Seed, 1);
+	if (UDTTelemetrySubsystem* const Telemetry = MyWorld->GetSubsystem<UDTTelemetrySubsystem>())
+	{
+		Telemetry->StartSession(Seed, Sim->GetRun().GetNumPlayers());
+	}
 	StartMeasurementHooks();
+}
+
+void ADTGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UWorld* const MyWorld = GetWorld();
+	if (UDTTelemetrySubsystem* const Telemetry = MyWorld ? MyWorld->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
+	{
+		const TCHAR* Reason = TEXT("end_play");
+		switch (EndPlayReason)
+		{
+		case EEndPlayReason::Destroyed: Reason = TEXT("destroyed"); break;
+		case EEndPlayReason::LevelTransition: Reason = TEXT("level_transition"); break;
+		case EEndPlayReason::EndPlayInEditor: Reason = TEXT("end_pie"); break;
+		case EEndPlayReason::RemovedFromWorld: Reason = TEXT("removed_from_world"); break;
+		case EEndPlayReason::Quit: Reason = TEXT("quit"); break;
+		}
+		Telemetry->EndSession(Reason);
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void ADTGameMode::RestartPlayer(AController* NewPlayer)

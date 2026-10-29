@@ -19,6 +19,14 @@ struct FDTGameEvent
 	int32 Amount = 0;
 };
 
+/** Optional observer of every event offered to a run (telemetry). Called after routing, for routed and rejected events. */
+class IDTRunEventSink
+{
+public:
+	virtual ~IDTRunEventSink() = default;
+	virtual void OnRunEvent(const FDTGameEvent& Event, bool bRouted) = 0;
+};
+
 /** Everything one player owns during a run. Systems add their fields here, never to a global. */
 struct FDTPlayerRunState
 {
@@ -45,7 +53,12 @@ public:
 	/** Routes an event to its owner. Returns false (and changes nothing) when the owner is not a player of this run. */
 	bool ApplyEvent(const FDTGameEvent& Event);
 
+	/** Installs (or clears with nullptr) the observer that sees every ApplyEvent. Survives Start(); not owned. */
+	void SetEventSink(IDTRunEventSink* InSink) { Sink = InSink; }
+	IDTRunEventSink* GetEventSink() const { return Sink; }
+
 private:
 	FDTRngStreams Rng;
 	TArray<FDTPlayerRunState> Players;
+	IDTRunEventSink* Sink = nullptr;
 };

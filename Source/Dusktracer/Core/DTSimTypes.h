@@ -27,6 +27,8 @@ struct FDTHit
 	int32 OwnerId = INDEX_NONE;
 	float Damage = 0.0f;
 	FVector2f Position = FVector2f::ZeroVector;
+	/** Which weapon/system dealt it: an id in FDTTelemetrySources (0 = Unknown). Telemetry only; never gameplay. */
+	uint16 SourceId = 0;
 };
 
 /** What systems publish for each other during a step. Owned by UDTSimSubsystem; reset per step where noted. */
