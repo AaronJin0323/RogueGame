@@ -47,6 +47,18 @@ namespace DTConst
 	inline constexpr int32 SIM_FIXED_HZ = 60; // Hz, CORE
 	inline constexpr int32 SIM_MAX_SUBSTEPS = 2; // n, CORE
 	inline constexpr int32 SAVE_VERSION = 1; // n, CORE
+	// enemies
+	inline constexpr int32 ENM_SWARM_RADIUS_UU = 32; // uu, GATED(S1)
+	inline constexpr int32 ENM_SWARM_SPEED_UU_S = 280; // uu_per_s, GATED(S1)
+	inline constexpr int32 ENM_SWARM_HP = 10; // hp, GATED(S1)
+	inline constexpr int32 ENM_STEER_ACCEL_UU_S2 = 2400; // uu_per_s2, GATED(S1)
+	inline constexpr int32 ENM_SEPARATION_RADIUS_UU = 72; // uu, GATED(S0)
+	inline constexpr float ENM_SEPARATION_STRENGTH = 1.5f; // ratio, GATED(S0)
+	inline constexpr int32 ENM_MAX_NEIGHBOURS = 8; // n, GATED(S0)
+	inline constexpr int32 ENM_SPAWN_RING_RADIUS_UU = 1600; // uu, GATED(S1)
+	inline constexpr float ENM_OPTIC_TINT = 0.35f; // ratio, GATED(S1)
+	inline constexpr float ENM_EMISSIVE_STRENGTH = 2.0f; // ratio, GATED(S1)
+	inline constexpr float ENM_KILL_RATE_WINDOW_S = 1.0f; // s, GATED(S0)
 	// caps
 	inline constexpr int32 GATE_TEST_FLOOR = 6; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
