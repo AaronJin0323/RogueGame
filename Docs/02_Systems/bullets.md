@@ -11,6 +11,7 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 - **R-BUL-05** Collision queries `FDTWorldView::EnemyHash` (R-TEC-13) with the bullet radius plus the largest enemy radius in the view, then tests circles exactly; each contact appends exactly one `FDTHit` carrying the bullet's `OwnerId` and damage. The bullet system never applies damage itself (that is `EDTSimPhase::ResolveHits`).
 - **R-BUL-06** The step is deterministic: the same spawns against the same enemies give bit-identical positions and the same hit sequence.
 - **R-BUL-07** Bullets are drawn by one `UInstancedStaticMeshComponent` on one transient `ADTBulletRenderer` per world (R-TEC-11): never an Actor or component per bullet. Each frame the instances interpolate `PrevPos → Pos` with the sim alpha at height `C.SIM.PLANE_Z_UU`; instances are added or removed only at the tail when the live count changes, and transforms are written in one batch.
+- **R-BUL-08** Every bullet carries a telemetry source id (`FDTBulletSpawn::SourceId`, `FDTTelemetrySources`, `telemetry.md` R-TEL-05; `Unknown` when untagged), kept through swap-removal and set anew when its slot is recycled; every `FDTHit` it appends carries that id. `DT.Bullets` stress emitters spawn with `Stress`.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -36,9 +37,10 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 | `FDTBulletSpawn.Radius` / `Damage` / `Life` | `float` | uu, damage per hit, seconds |
 | `FDTBulletSpawn.OwnerId` | `int32` | player index (R-TEC-01) |
 | `FDTBulletSpawn.Pierce` | `int32` | distinct enemies it may hit; one means no pierce |
-| Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft Serial HitCount HitRing` |
+| `FDTBulletSpawn.SourceId` | `uint16` | telemetry source (R-BUL-08); defaults to `Unknown` |
+| Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft SourceId Serial HitCount HitRing` |
 | `HitRing` | `int32[C.BULLETS.HIT_MEMORY]` per bullet | last enemies hit (ring) |
-| `FDTHit` | `Core/DTSimTypes.h` | `EnemyIndex OwnerId Damage Position`, appended to `FDTWorldView::Hits` |
+| `FDTHit` | `Core/DTSimTypes.h` | `EnemyIndex OwnerId Damage Position SourceId`, appended to `FDTWorldView::Hits` |
 | Instance custom data | `float` × four | `RGB` linear from `Pal.Player.Core`, then emissive strength; read by `M_InstanceColor` |
 | `Fallback_BulletMaterial` | code path | `/Engine/BasicShapes/BasicShapeMaterial` when `/Game/DT/Materials/M_InstanceColor` is missing (R-TEC-05) |
 
@@ -52,6 +54,7 @@ API: `UDTBulletSubsystem::Spawn(const FDTBulletSpawn&)`, `GetPool()`, `GetRender
 - T-BUL-05 `Dusktracer.Bullets.SingleHit`: one contact gives exactly one hit with the right enemy, owner and damage; a piercing bullet resting in an enemy hits it once.
 - T-BUL-06 `Dusktracer.Bullets.Determinism`: two identical runs give bit-identical positions and hit sequences.
 - T-BUL-07 `Dusktracer.Tec.Bullets.NoActors` (also T-TEC-11): in a headless game world, `C.BULLETS.CAP` bullets add no actor and exactly one instance each; the instance count follows the live count down.
+- T-BUL-08 `Dusktracer.Bullets.HitSource`: hits carry their bullet's source, including a bullet swapped into a freed slot and a bullet that recycled the oldest slot; an untagged spawn is `Unknown`.
 - HUMAN: in the stress arena, `DT.Bullets` at `C.BULLETS.CAP` shows a spinning ring of cool-white rounds with no visible stutter; `DT.Bullets.Stats` reports the live count near the target.
 
 ## Telemetry

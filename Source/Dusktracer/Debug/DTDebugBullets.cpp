@@ -12,6 +12,7 @@
 #include "Dusktracer.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Telemetry/DTTelemetrySources.h"
 #include "UObject/WeakObjectPtr.h"
 
 namespace DTDebugBullets
@@ -43,6 +44,7 @@ namespace DTDebugBullets
 			Spawn.Life = Life;
 			Spawn.OwnerId = 0;
 			Spawn.Pierce = DTConst::BULLETS_STRESS_PIERCE;
+			Spawn.SourceId = FDTTelemetrySources::Stress;
 			const float Speed = static_cast<float>(DTConst::BULLETS_STRESS_SPEED_UU_S);
 			const float TwoPi = static_cast<float>(UE_TWO_PI);
 			for (int32 Shot = 0; Shot < Count; ++Shot)
