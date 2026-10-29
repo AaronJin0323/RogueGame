@@ -42,6 +42,15 @@ budget:
   SIM.FIXED_HZ:                { value: 60,   unit: Hz,    tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
   SIM.MAX_SUBSTEPS:            { value: 2,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
   SAVE.VERSION:                { value: 1,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-04] }
+bullets:
+  BULLETS.HIT_MEMORY:          { value: 8,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/bullets.md, Combat/DTBulletPool, T-BUL-04] }
+  BULLETS.EMISSIVE_PLAYER:     { value: 4.0,  unit: ratio, tag: GATED(S1),  dependents: [02_Systems/bullets.md, 04_Presentation.md, Combat/DTBulletSubsystem] }
+  BULLETS.STRESS_RADIUS_UU:    { value: 8,    unit: uu,    tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+  BULLETS.STRESS_SPEED_UU_S:   { value: 800,  unit: uu_per_s, tag: GATED(S0), dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+  BULLETS.STRESS_LIFE_S:       { value: 4.0,  unit: s,     tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+  BULLETS.STRESS_PIERCE:       { value: 1000, unit: n,     tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+  BULLETS.STRESS_DAMAGE:       { value: 1.0,  unit: hp,    tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
+  BULLETS.STRESS_SPIN_DEG_S:   { value: 90,   unit: deg_per_s, tag: GATED(S0), dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
 caps:
   GATE.TEST_FLOOR:             { value: 6,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
