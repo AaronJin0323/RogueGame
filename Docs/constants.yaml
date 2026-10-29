@@ -64,7 +64,7 @@ bullets:
   BULLETS.STRESS_DAMAGE:       { value: 1.0,  unit: hp,    tag: GATED(S0),  dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
   BULLETS.STRESS_SPIN_DEG_S:   { value: 90,   unit: deg_per_s, tag: GATED(S0), dependents: [02_Systems/bullets.md, Debug/DTDebugBullets] }
 caps:
-  GATE.TEST_FLOOR:             { value: 6,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 21,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }

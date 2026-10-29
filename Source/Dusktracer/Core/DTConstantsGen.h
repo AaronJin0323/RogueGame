@@ -69,7 +69,7 @@ namespace DTConst
 	inline constexpr float BULLETS_STRESS_DAMAGE = 1.0f; // hp, GATED(S0)
 	inline constexpr int32 BULLETS_STRESS_SPIN_DEG_S = 90; // deg_per_s, GATED(S0)
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 6; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 21; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
