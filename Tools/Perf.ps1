@@ -41,6 +41,8 @@ function Get-Constant([string]$Key) {
 $GtP50Max = Get-Constant "BUDGET.GAME_THREAD_P50_MS"
 $GtP95Max = Get-Constant "BUDGET.GAME_THREAD_P95_MS"
 $GpuMax = Get-Constant "BUDGET.GPU_MS_4070"
+# D-011: on an RTX 4080 the GPU reading is scaled up by a pessimistic proxy factor before it is judged.
+$GpuProxy = Get-Constant "PERF.GPU_PROXY_4080_TO_4070"
 $LoadMin = Get-Constant "PERF.LOAD_MIN_RATIO"
 $BulletCap = Get-Constant "BULLETS.CAP"
 $EnemyCap = Get-Constant "ENEMIES.CAP"
@@ -140,13 +142,15 @@ Write-Host ("    frames      {0} (csv {1})" -f $N, $Csv)
 Write-Host ("    FrameTime   p50 {0} ms  p95 {1} ms" -f (Fmt $R.frame50), (Fmt $R.frame95))
 Write-Host ("    GameThread  p50 {0} ms  p95 {1} ms   budget p50 <= {2}, p95 <= {3}" -f (Fmt $R.game50), (Fmt $R.game95), $GtP50Max, $GtP95Max)
 Write-Host ("    Load        bullets p50 {0} (cap {1})  enemies p50 {2} (cap {3})  need >= {4} of cap" -f (Fmt $R.bul50), $BulletCap, (Fmt $R.enm50), $EnemyCap, $LoadMin)
-Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   budget p95 <= {2} (C.BUDGET.GPU_MS_4070; GPU here: {3})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $GpuMax, $Gpu)
+$Factor = if ($Gpu -match "4080") { $GpuProxy } else { 1.0 }
+$Gpu95Judged = $R.gpu95 * $Factor
+Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   x{2} proxy = {3} ms, budget p95 <= {4} (C.BUDGET.GPU_MS_4070; GPU here: {5})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $Factor, (Fmt $Gpu95Judged), $GpuMax, $Gpu)
 
 $Why = @()
 if ($N -lt $Frames * 0.9) { $Why += "captured $N of $Frames frames" }
 if ([double]::IsNaN($R.game50)) { $Why += "no GameThreadTime column" }
 elseif ($R.game50 -gt $GtP50Max -or $R.game95 -gt $GtP95Max) { $Why += "game thread over budget" }
-if (-not [double]::IsNaN($R.gpu95) -and $R.gpu95 -gt $GpuMax) { $Why += "GPU over budget" }
+if (-not [double]::IsNaN($R.gpu95) -and $Gpu95Judged -gt $GpuMax) { $Why += "GPU over budget" }
 # A pass at a lighter load than the caps proves nothing: the median live counts must reach C.PERF.LOAD_MIN_RATIO of them.
 if ($PSBoundParameters.ContainsKey("Cmds") -eq $false) {
 	if ([double]::IsNaN($R.bul50) -or $R.bul50 -lt $BulletCap * $LoadMin) { $Why += "bullet load below cap" }

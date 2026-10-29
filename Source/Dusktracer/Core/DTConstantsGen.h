@@ -84,6 +84,7 @@ namespace DTConst
 	inline constexpr int32 PERF_WARMUP_S = 10; // s, CORE
 	inline constexpr int32 PERF_CAPTURE_FRAMES = 1800; // n, CORE
 	inline constexpr float PERF_LOAD_MIN_RATIO = 0.95f; // ratio, CORE
+	inline constexpr float PERF_GPU_PROXY_4080_TO_4070 = 1.6f; // x, GATED(S4)
 	// caps
 	inline constexpr int32 GATE_TEST_FLOOR = 21; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE

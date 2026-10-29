@@ -87,7 +87,7 @@ World
 Step order (one fixed step): input → hero → enemies (hash rebuild, steer, statuses) → weapons fire → bullets (integrate, collide → hit buffer) → resolve hits → kill buffer → effects → director. Rendering reads the last two steps and interpolates.
 
 ## 5. Budgets
-Frame and thread budgets are `C.BUDGET.*`; caps are `C.BULLETS.CAP` and `C.ENEMIES.CAP`. Measurement rules are `11_Quality §5`. Hardware: 4070-class PC (Epic), 3060-class tier, Steam Deck tier at 1.0; M2 MacBook Air when D-007 is reopened.
+Frame and thread budgets are `C.BUDGET.*`; caps are `C.BULLETS.CAP` and `C.ENEMIES.CAP`. Measurement rules are `11_Quality §5`. Hardware: 4070-class PC (Epic), 3060-class tier, Steam Deck tier at 1.0; M2 MacBook Air when D-007 is reopened. Until a 4070 is available, GPU readings from the RTX 4080 measurement machine are multiplied by `C.PERF.GPU_PROXY_4080_TO_4070` before they are judged (D-011); real 4070 and 3060-class readings replace the proxy before S4 exits.
 
 ## 6. Toolchain
 - Engine: UE 5.8.3 at `E:\UE5\UE_5.8` (`UE_ROOT` overrides). Builds through `Tools/Build.bat`; gates through `Tools/Gate.ps1` (`11_Quality §1`).
