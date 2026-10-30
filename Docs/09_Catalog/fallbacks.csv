@@ -2,3 +2,4 @@ Key,Owner,Uses,ReplacedBy,ReplaceWhen
 Fallback_BulletMaterial,Combat/DTBulletRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
 Fallback_EnemyMaterial,Enemies/DTEnemyRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
 Fallback_EnemyFireMaterial,Enemies/DTEnemyBulletRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
+Fallback_TelegraphMaterial,Enemies/DTTelegraphRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)

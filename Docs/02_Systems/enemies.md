@@ -36,7 +36,7 @@ Fill the arena with bodies for the player's bullet hell to cut through, and make
 
 ### Identity and look (S1)
 - **R-ENM-23** Slot generations: every spawn gets a `Serial` from a per-pool counter (never zero, never reused within a run), kept through swap-removal (R-ENM-07) and published as `EnemySerials`. An `FDTEnemyHandle{Index, Serial}` is valid only while the serial at that index matches. `FDTHit` carries the serial; `ResolveHits` ignores a hit with a stale handle (as R-ENM-06). Anything that remembers an enemy across steps (bullet hit memory, status applications, aim-token order, Keeper targets) keys it by serial, never by bare index.
-- **R-ENM-24** Every enemy is drawn as two instanced parts per role: a hull in `Pal.Enemy.Body` without emissive, and a separate always-lit optic in `Pal.Enemy.Optic` at `C.ENEMIES.OPTIC_EMISSIVE` (R-PRE-04), placed where the role's model language puts it. The optic, not a tinted hull, carries readability; `C.ENM.OPTIC_TINT` no longer tints the hull once the optic part draws.
+- **R-ENM-24** Every enemy is drawn as two instanced parts per role: a hull in `Pal.Enemy.Body` without emissive, and a separate always-lit optic in `Pal.Enemy.Optic` at `C.ENEMIES.OPTIC_EMISSIVE` (R-PRE-04), placed where the role's model language puts it. The optic, not a tinted hull, carries readability.
 
 Render (S0, kept): one instanced mesh per part on a transient renderer actor, interpolating between the last two steps, facing the velocity (Tank: its facing; Turret: its head), at `C.SIM.PLANE_Z_UU`.
 
@@ -47,10 +47,8 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 | Swarm radius, speed, HP | C.ENM.SWARM_RADIUS_UU, C.ENM.SWARM_SPEED_UU_S, C.ENM.SWARM_HP | GATED(S1) | T-ENM-02, C.TTK.SWARM_STEERED_MAX |
 | Steering, separation, neighbours | C.ENM.STEER_ACCEL_UU_S2, C.ENM.SEPARATION_RADIUS_UU, C.ENM.SEPARATION_STRENGTH, C.ENM.MAX_NEIGHBOURS | GATED(S0/S1) | R-ENM-02, T-ENM-03, T-PERF-01 |
 | Debug spawn ring | C.ENM.SPAWN_RING_RADIUS_UU | GATED(S1) | `DT.Spawn` |
-| Hull tint (S0 stand-in for the optic) | C.ENM.OPTIC_TINT | GATED(S1) | R-ENM-24 |
-| Emissive strength (S0 hull) | C.ENM.EMISSIVE_STRENGTH | GATED(S1) | 04_Presentation §2 |
 | Kill-rate window | C.ENM.KILL_RATE_WINDOW_S | GATED(S0) | C.PRE.DENSITY_LOD_KILLS_PER_S |
-| Optic and telegraph emissive | C.ENEMIES.OPTIC_EMISSIVE, C.ENEMIES.TELEGRAPH_EMISSIVE | GATED(S1) | R-ENM-24, R-ENM-13 |
+| Optic and telegraph emissive, telegraph height | C.ENEMIES.OPTIC_EMISSIVE, C.ENEMIES.TELEGRAPH_EMISSIVE, C.ENEMIES.TELEGRAPH_Z_UU | GATED(S1) | R-ENM-24, R-ENM-13 |
 | Minimum telegraph lead | C.ENEMIES.TELEGRAPH_LEAD_MIN_S | GATED(S1) | R-ENM-13, T-ENM-13, boss.md |
 | Role stats and behaviour | C.ROLE.* | GATED(S1) | R-ENM-09…12, R-ENM-14, `09_Catalog/enemies.csv` |
 | Elite HP factor | C.ROLE.ELITE_HP_MULT | MEASURED | R-ENM-09, T-ENM-09 (role share caps are `C.DIR.SHARE_MAX_*`, `director.md`) |
@@ -115,6 +113,8 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - T-ENM-22 `Dusktracer.Enemies.StatusEffect`: Shock raises damage taken; a full Burn deals exactly damage per second times duration and its kill goes to the burner; Chill slows per stack; Freeze stops movement and pauses a wind-up; contact damage unchanged.
 - T-ENM-23 `Dusktracer.Enemies.SlotGenerations`: after an enemy dies and its slot is refilled (by swap and by a new spawn), an old handle is invalid, a hit with the old serial is ignored, and a bullet that hit the old enemy can hit the new one.
 - T-ENM-24 `Dusktracer.Enemies.OpticPart`: every live enemy has exactly one hull and one optic instance; the hull colour equals `Pal.Enemy.Body` with zero emissive; the optic equals `Pal.Enemy.Optic`.
+- T-ENM-25 `Dusktracer.Enemies.TelegraphRender`: every published telegraph draws on one instanced renderer (a band or aim line one quad over its length and width, a ring or arc tessellated around its origin) at `C.ENEMIES.TELEGRAPH_Z_UU`, in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE`; the instance count follows `Telegraphs` every frame, an empty arena draws none, and no actor is added.
+- T-ENM-26 `Dusktracer.Enemies.ThreatTelemetry`: a Turret burst inside the threat ring of the hero is forwarded from the enemy subsystem to telemetry and fills `threat_actions_per_min`; without the call the column stays zero.
 - HUMAN: in PIE with `DT.Spawn` per role, a validator names each role from above by silhouette and optic alone, sees every Rusher band and Turret aim line before damage, flanks a Tank, and weaves a Turret burst; enemy rounds are never confused with player rounds.
 
 ## Telemetry
@@ -135,8 +135,7 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - Kill horizon: strong builds kill Rushers before `C.ROLE.RUSHER_TRIGGER_UU` → `director.md` (drop-ins, threat ring); a longer trigger is a TUNE after the first S1 session.
 - Turret radius has no measured source → first S1 capture of the Turret grey box.
 - S1 implementation deviations (non-behavioural):
-  - Telegraphs are published to `FDTWorldView::Telegraphs` but not drawn yet: `Tools/gen_constants.py` only generates two-part tokens, so `Pal.Telegraph` has no `DTPal::` constant → widen the token pattern, regenerate, then add the telegraph renderer (`Enemies/`).
+  - Telegraphs draw as flat quads of one instanced plane (`ADTTelegraphRenderer`) at constant `C.ENEMIES.TELEGRAPH_EMISSIVE`; `Progress` does not ramp the fill yet. Ring and Arc have no producer: the renderer reads Ring as outer radius `Length`, thickness `Width` (none = filled disc) and Arc as a filled sector of radius `Length` around `Dir` whose full angle in degrees is `Width` → confirm or change with `boss.md`.
   - Enemy rounds draw the `Pal.Enemy.Bullet` rim token only; the `Pal.Enemy.BulletCore` dark core needs a two-tone material (`M_InstanceColor` carries one colour) → content task.
   - `HeroHits` is reset at the start of the Enemies phase (the hero has read it in the Hero phase), so the list stays bounded while no hero system is registered.
-  - `ThreatAction` is counted in the pool (`DT.Enemies.Stats`) until telemetry adds the event kind.
-  - The optic part's size is `C.ENEMIES.OPTIC_SCALE`; `C.ENM.OPTIC_TINT` and `C.ENM.EMISSIVE_STRENGTH` are no longer read.
+  - The optic part's size is `C.ENEMIES.OPTIC_SCALE`.

@@ -6,6 +6,7 @@
 #include "Core/DTRngStreams.h"
 #include "Core/DTRunState.h"
 #include "Engine/World.h"
+#include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
 
 void FDTEnemyResolveHitsPhase::SimStep(const FDTSimContext& Context)
@@ -46,6 +47,11 @@ void UDTEnemySubsystem::Deinitialize()
 		RoundRenderer->Destroy();
 		RoundRenderer = nullptr;
 	}
+	if (TelegraphRenderer)
+	{
+		TelegraphRenderer->Destroy();
+		TelegraphRenderer = nullptr;
+	}
 	ResolvePhase.Owner = nullptr;
 	Super::Deinitialize();
 }
@@ -84,10 +90,23 @@ FLinearColor UDTEnemySubsystem::GetRoundColor()
 	return DTPal::Linear(DTPal::Enemy_Bullet);
 }
 
+FLinearColor UDTEnemySubsystem::GetTelegraphColor()
+{
+	return DTPal::Linear(DTPal::Telegraph);
+}
+
+void UDTEnemySubsystem::ForwardThreatActions(const FDTEnemyPool& InPool, FDTTelemetryCore& Records)
+{
+	for (const FDTThreatAction& Action : InPool.GetStepThreatActions())
+	{
+		Records.RecordThreatAction(Action.Origin, Action.Role, Action.AttackId);
+	}
+}
+
 void UDTEnemySubsystem::EnsureRenderer()
 {
 	UWorld* World = GetWorld();
-	if (!World || (Renderer && RoundRenderer))
+	if (!World || (Renderer && RoundRenderer && TelegraphRenderer))
 	{
 		return;
 	}
@@ -109,6 +128,15 @@ void UDTEnemySubsystem::EnsureRenderer()
 		if (RoundRenderer)
 		{
 			RoundRenderer->InitRender(GetRoundColor(), DTConst::ENEMY_FIRE_EMISSIVE);
+		}
+	}
+	if (!TelegraphRenderer)
+	{
+		TelegraphRenderer = World->SpawnActor<ADTTelegraphRenderer>(ADTTelegraphRenderer::StaticClass(), FTransform::Identity, Params);
+		if (TelegraphRenderer)
+		{
+			// R-ENM-13, R-PRE-03: red projected telegraphs, never dimmed by density (R-PRE-06).
+			TelegraphRenderer->InitRender(GetTelegraphColor(), DTConst::ENEMIES_TELEGRAPH_EMISSIVE);
 		}
 	}
 }
@@ -230,6 +258,11 @@ void UDTEnemySubsystem::SimStep(const FDTSimContext& Context)
 		Telemetry->OnEnemiesSpawned(Context.StepIndex, bCleared, Pool.Num());
 	}
 	Pool.StepEnemies(Context);
+	// Threat actions started this step go to telemetry from here, on the game thread (enemies.md Telemetry).
+	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
+	{
+		ForwardThreatActions(Pool, Telemetry->Records());
+	}
 }
 
 void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
@@ -301,5 +334,12 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 			RoundTransforms[Index] = FTransform(FQuat::Identity, FVector(P.X, P.Y, Z), FVector(Radii[Index] * InvMeshRadius));
 		}
 		RoundRenderer->SetInstances(RoundTransforms);
+	}
+
+	if (TelegraphRenderer)
+	{
+		// Telegraphs are overwritten every step by their producers (enemies, boss); drawn as published, not interpolated.
+		UDTSimSubsystem* SimSystem = Sim.Get();
+		TelegraphRenderer->SetTelegraphs(SimSystem ? TConstArrayView<FDTTelegraph>(SimSystem->GetView().Telegraphs) : TConstArrayView<FDTTelegraph>());
 	}
 }

@@ -51,12 +51,11 @@ enemies:
   ENM.SEPARATION_STRENGTH:     { value: 1.5,  unit: ratio, tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-ENM-03] }
   ENM.MAX_NEIGHBOURS:          { value: 8,    unit: n,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-PERF-01] }
   ENM.SPAWN_RING_RADIUS_UU:    { value: 1600, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/enemies.md, Debug/DTDebugEnemies] }
-  ENM.OPTIC_TINT:              { value: 0.35, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/enemies.md, 04_Presentation.md, Enemies/DTEnemySubsystem] }
-  ENM.EMISSIVE_STRENGTH:       { value: 2.0,  unit: ratio, tag: GATED(S1),  dependents: [02_Systems/enemies.md, 04_Presentation.md, Enemies/DTEnemySubsystem] }
   ENM.KILL_RATE_WINDOW_S:      { value: 1.0,  unit: s,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S, T-ENM-05] }
   ENEMIES.OPTIC_EMISSIVE:      { value: 14.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, T-ENM-24] }
   ENEMIES.OPTIC_SCALE:         { value: 0.35, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, Enemies/DTEnemySubsystem] }
   ENEMIES.TELEGRAPH_EMISSIVE:  { value: 12.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, 04_Presentation.md] }
+  ENEMIES.TELEGRAPH_Z_UU:      { value: 2, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, Enemies/DTTelegraphRenderer] }
   ENEMIES.TELEGRAPH_LEAD_MIN_S:{ value: 0.75, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/boss.md, R-ENM-13, T-ENM-13, R-BOS-05] }
   ROLE.SWARM_CONTACT_DAMAGE:   { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }
   ROLE.TANK_HP:                { value: 90, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-09] }
