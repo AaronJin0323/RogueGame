@@ -506,7 +506,8 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Out.EnemySerial = View.EnemySerials[Enemy];
 		Out.OwnerId = Shot.OwnerId;
 		Out.Damage = Damage;
-		Out.Position = View.EnemyPositions[Enemy];
+		// The contact point: the rim of the enemy facing the sweep's origin (R-ENM-10 reads it for the Tank's plate).
+		Out.Position = Dist > KINDA_SMALL_NUMBER ? View.EnemyPositions[Enemy] - ToEnemy / Dist * View.EnemyRadii[Enemy] : View.EnemyPositions[Enemy];
 		Out.SourceId = Shot.SourceId;
 		Out.WeaponSlot = static_cast<int8>(Shot.Slot);
 		Out.bCrit = bCrit;
@@ -523,7 +524,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Impact.HitDamage = Damage;
 		Impact.EnemySerial = Out.EnemySerial;
 		Impact.EnemyRadius = View.EnemyRadii[Enemy];
-		Impact.EnemyPosition = Out.Position;
+		Impact.EnemyPosition = View.EnemyPositions[Enemy];
 		Impact.bCleave = bCleave;
 		Impact.StatusMask = StatusMaskOf(Enemy, Out.EnemySerial);
 		if (bMarkKills)

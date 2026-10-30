@@ -1203,6 +1203,33 @@ namespace DTKeeperParamTest
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(Class, "Dusktracer.Keepers.Param." Name, DTWeaponTestHarness::TestFlags) \
 	bool Class::RunTest(const FString& Parameters)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponArcPlate, "Dusktracer.Weapons.ArcContactPoint", DTWeaponTestHarness::TestFlags) // R-ENM-10
+bool FDTWeaponArcPlate::RunTest(const FString& Parameters)
+{
+	using namespace DTKeeperParamTest;
+	FDTKeeperHarness H;
+	const int32 Tank = H.Enemies.Spawn(EDTEnemyRole::Tank, FVector2f(250.0f, 0.0f));
+	H.Enemies.SetHp(Tank, 1.0e5f); // small enough that float HP registers each cleave
+	H.Enemies.SetFacing(Tank, FVector2f(-1.0f, 0.0f));
+	H.Patron(EDTPath::Forge);
+	H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Key")));
+	const float Before = H.Enemies.GetHp()[Tank];
+	H.StepMany(120);
+	if (TestTrue(TEXT("the cleave hits"), H.HitLog.Num() > 0))
+	{
+		const FDTHit& Hit = H.HitLog[0];
+		const float Radius = H.Enemies.GetRadii()[Tank];
+		TestEqual(TEXT("a sweep's hit sits on the rim facing the hero"), Hit.Position.X, 250.0f - Radius, 0.01f);
+		double Taken = 0.0;
+		for (const FDTHit& One : H.HitLog)
+		{
+			Taken += One.Damage * DTConst::ROLE_TANK_FRONT_DAMAGE_MULT;
+		}
+		TestEqual(TEXT("the plate halves a cleave to the Tank's face"), static_cast<double>(Before - H.Enemies.GetHp()[Tank]), Taken, 0.01 * Taken);
+	}
+	return true;
+}
+
 DT_KEEPER_PARAM_TEST(FDTKeeperParamCrush, "Crush")
 {
 	using namespace DTKeeperParamTest;
