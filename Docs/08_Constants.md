@@ -305,9 +305,9 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.SCALE.HP_PER_MIN | 0.16 | /min | GATED(S1) | director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10 |
 | C.SCALE.DMG_PER_MIN | 0.0667 | /min | GATED(S1) | director.md, T-DIR-02, T-DIR-10 |
 | C.DROP.XP_SWARM | 1 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
-| C.DROP.XP_TANK | 4 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
-| C.DROP.XP_RUSHER | 2 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
-| C.DROP.XP_TURRET | 3 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_TANK | 5 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_RUSHER | 3 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_TURRET | 4 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
 | C.DROP.XP_ELITE_MULT | 5 | x | GATED(S1) | director.md, T-DIR-12 |
 
 ## Boss (02_Systems/boss.md)

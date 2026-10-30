@@ -258,9 +258,9 @@ namespace DTConst
 	inline constexpr float SCALE_HP_PER_MIN = 0.16f; // per_min, GATED(S1)
 	inline constexpr float SCALE_DMG_PER_MIN = 0.0667f; // per_min, GATED(S1)
 	inline constexpr int32 DROP_XP_SWARM = 1; // xp, GATED(S1)
-	inline constexpr int32 DROP_XP_TANK = 4; // xp, GATED(S1)
-	inline constexpr int32 DROP_XP_RUSHER = 2; // xp, GATED(S1)
-	inline constexpr int32 DROP_XP_TURRET = 3; // xp, GATED(S1)
+	inline constexpr int32 DROP_XP_TANK = 5; // xp, GATED(S1)
+	inline constexpr int32 DROP_XP_RUSHER = 3; // xp, GATED(S1)
+	inline constexpr int32 DROP_XP_TURRET = 4; // xp, GATED(S1)
 	inline constexpr int32 DROP_XP_ELITE_MULT = 5; // x, GATED(S1)
 	// boss
 	inline constexpr int32 BOSS_FORM_II_WINS = 1; // n, GATED(S2)
