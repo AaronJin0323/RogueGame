@@ -90,3 +90,6 @@ Part A (Keeper parameters, Reserve effects) and the arc contact-point fix are in
 | Storm/ArcGrid:Forge | 5/5 | 3 | 970 | 0.02 | 0.59 |
 
 Checks: `T-DIR-01: PASS (median end 592.9 s over 10 seeds; 1 run(s) did not die)`; `T-OFF-15: PASS (29/29 runs at the boss, mean decisions 28.7)`; `Tools/pressure.py --check` now judges per arm: FAIL, 0/10 arms inside both bands. Gap 1 above reads differently now: the bot's fixed second Keeper decides the arm. Tide as a Keeper is what loses (0–2 of 15 at the boss), not Storm (`S1_balance_pass2.md` §6).
+
+## Bot changes after D-016 (2026-10-30)
+Two instrument fixes, no game change (`S1_boss_after_fields.md`): the hazard ring scores by the distance outside it, so the bot walks in from past its look-ahead; the wall band no longer closes the pickup reward for a chest. Win counts in every earlier section carry the ring blind spot and read low.
