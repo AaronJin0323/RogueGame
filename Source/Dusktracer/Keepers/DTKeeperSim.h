@@ -61,6 +61,8 @@ public:
 
 	/** Casts that ended since the last call (the subsystem forwards them to telemetry). */
 	TArray<FDTKeeperCastRecord> TakeFinishedCasts() { return MoveTemp(Finished); }
+	/** Players whose dash cooldown resets now (Slam's dash_cooldown_reset; the subsystem calls the hero, resolved next Hero phase). */
+	TArray<int32> TakeDashResets() { return MoveTemp(DashResets); }
 
 	/** Drops transient state (captured hits, running casts); keeps counters until ResetRun. */
 	void ResetRun();
@@ -124,5 +126,6 @@ private:
 	TArray<FCapturedHit> Captured;
 	TMap<uint32, int32> SerialToIndex;
 	TArray<FDTKeeperCastRecord> Finished;
+	TArray<int32> DashResets;
 	int64 LastStep = -1;
 };

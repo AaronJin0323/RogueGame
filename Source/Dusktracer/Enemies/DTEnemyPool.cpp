@@ -1177,6 +1177,13 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 			Dead[Index] = 1;
 			++Kills;
 			Run.ApplyEvent({ EDTGameEventKind::Kill, Hit.OwnerId, 0 });
+			FDTEnemyDeath& Death = StepDeaths.AddDefaulted_GetRef();
+			Death.Serial = Serial[Index];
+			Death.StatusMask = GetStatusMask(Index);
+			for (const FDTBurnStack& Stack : Aux[Index].Burn)
+			{
+				Death.BurnDps = Stack.Left > 0.0f ? FMath::Max(Death.BurnDps, Stack.Dps) : Death.BurnDps;
+			}
 			if (OutKills)
 			{
 				FDTKill& Kill = OutKills->AddDefaulted_GetRef();
@@ -1201,6 +1208,7 @@ int32 FDTEnemyPool::ResolveHits(const FDTSimContext& Context)
 	check(Context.View && Context.Run);
 	FDTWorldView& View = *Context.View;
 	View.Kills.Reset();
+	StepDeaths.Reset();
 	const int32 Kills = ApplyHits(View.Hits, *Context.Run, &View.Kills);
 	View.Hits.Reset();
 	Compact();

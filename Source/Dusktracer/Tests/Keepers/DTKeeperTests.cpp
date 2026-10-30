@@ -53,6 +53,7 @@ namespace DTKeeperTest
 		explicit FDTKeeperHarness(int32 Seed = 7, int32 NumPlayers = 1)
 		{
 			Run.Start(Seed, NumPlayers);
+			Weapons.SetEnemies(&Enemies);
 			View.HeroPositions.Init(FVector2f::ZeroVector, Run.GetNumPlayers());
 			View.HeroAimDirs.Init(FVector2f(1.0f, 0.0f), Run.GetNumPlayers());
 			View.HeroIntangible.Init(false, Run.GetNumPlayers());
@@ -1102,9 +1103,7 @@ DT_KEEPER_KEY_TEST(FDTKeepersKeyWhirlpool, "Whirlpool")
 	H.StepMany(FireSteps);
 	TestTrue(TEXT("impacts pull enemies"), H.MoveLog.Num() > 0);
 	TestTrue(TEXT("pulled enemies are Chilled by Keeper.Tide"), H.CountStatuses(EDTStatus::Chill, DTKeepers::KeeperSource(EDTPath::Tide)) > 0);
-	// The Whirlpool Key has no damage term in expression.csv (pull + Chill; crush_dmg arrives with Amp2), so its
-	// Keeper share is its control: the share of hits made on enemies the Keeper moved.
-	AddInfo(FString::Printf(TEXT("Whirlpool Key damage share %.3f (no damage term by data)"), H.KeeperShare(EDTPath::Tide)));
+	TestTrue(FString::Printf(TEXT("Keeper share %.3f > 0 through crush_dmg"), H.KeeperShare(EDTPath::Tide)), H.KeeperShare(EDTPath::Tide) > 0.0);
 	return true;
 }
 
@@ -1142,5 +1141,325 @@ DT_KEEPER_KEY_TEST(FDTKeepersKeyStillness, "Stillness")
 }
 
 #undef DT_KEEPER_KEY_TEST
+
+// ---- T-KEE-21: Keeper parameters the weapon and Keeper layers express (keepers.md R-KEE-13, weapons.md) ------------------------------------------
+
+namespace DTKeeperParamTest
+{
+	using namespace DTKeeperTest;
+
+	static const FName TestSource(TEXT("Test.Params"));
+
+	/** One Keeper-sourced flag handed straight to the seam (the blessing path is covered by the Key tests). */
+	static FDTFlagEntry& AddFlag(FDTWeaponFlags& Flags, DTCat::EFlag Flag, EDTPath Path)
+	{
+		return Flags.Add(Flag, DTKeepers::KeeperSource(Path), EDTFlagTier::Key);
+	}
+
+	static void Burn(FDTKeeperHarness& H, int32 Enemy)
+	{
+		FDTStatusApply Apply;
+		Apply.Handle = H.Enemies.GetHandle(Enemy);
+		Apply.Status = EDTStatus::Burn;
+		Apply.Magnitude = 1.0f;
+		Apply.OwnerId = 0;
+		H.Enemies.ApplyStatus(Apply);
+	}
+
+	static void Shock(FDTKeeperHarness& H, int32 Enemy)
+	{
+		FDTStatusApply Apply;
+		Apply.Handle = H.Enemies.GetHandle(Enemy);
+		Apply.Status = EDTStatus::Shock;
+		Apply.OwnerId = 0;
+		H.Enemies.ApplyStatus(Apply);
+	}
+
+	static int32 HitsOn(const FDTKeeperHarness& H, uint32 Serial, uint16 Source)
+	{
+		int32 Count = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Count += Hit.EnemySerial == Serial && Hit.SourceId == Source ? 1 : 0;
+		}
+		return Count;
+	}
+
+	static float BiggestHit(const FDTKeeperHarness& H, uint16 Source)
+	{
+		float Best = 0.0f;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Best = Hit.SourceId == Source ? FMath::Max(Best, Hit.Damage) : Best;
+		}
+		return Best;
+	}
+}
+
+#define DT_KEEPER_PARAM_TEST(Class, Name) \
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(Class, "Dusktracer.Keepers.Param." Name, DTWeaponTestHarness::TestFlags) \
+	bool Class::RunTest(const FString& Parameters)
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamCrush, "Crush")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	FDTKeeperHarness H;
+	H.AddBlock();
+	H.Patron(EDTPath::Tide);
+	H.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Key")));
+	H.StepMany(FireSteps);
+	TestTrue(TEXT("the Key's pulled enemies collide and take Keeper damage"), H.Damage(Tide) > 0.0);
+	int32 WithSlot = 0;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		WithSlot += Hit.SourceId == Tide && Hit.WeaponSlot != INDEX_NONE ? 1 : 0;
+	}
+	TestEqual(TEXT("crush is a Keeper-only hit: no weapon slot, no proc feeds on it"), WithSlot, 0);
+
+	// Apart: a single pulled enemy touches nothing, so nothing is crushed.
+	FDTKeeperHarness Lone;
+	Lone.AddEnemy(FVector2f(300.0f, 0.0f));
+	Lone.Patron(EDTPath::Tide);
+	Lone.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Key")));
+	Lone.StepMany(FireSteps);
+	TestEqual(TEXT("no collision, no crush"), Lone.Damage(Tide), 0.0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamPulledVuln, "PulledVuln")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	FDTKeeperHarness H;
+	const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
+	H.Patron(EDTPath::Tide);
+	FDTWeaponFlags Flags;
+	FDTFlagEntry& Pull = AddFlag(Flags, DTCat::EFlag::Pull, EDTPath::Tide);
+	Pull.Params.Set(DTFlagParam::DistanceUu, 1.0f);
+	Pull.Params.Set(DTFlagParam::RadiusUu, 200.0f);
+	Pull.Params.Set(DTFlagParam::PulledVuln, 0.5f);
+	Pull.Params.Set(DTFlagParam::PulledVulnSeconds, 2.0f);
+	H.Weapons.AddFlagSource(0, TestSource, Flags);
+	H.StepMany(FireSteps);
+	const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+	const int32 Extra = HitsOn(H, Serial, Tide);
+	TestTrue(TEXT("a pulled enemy takes extra Keeper hits"), Extra > 0);
+	const float Plain = DTWeapons::GetLevelRow(DTWeapons::FindWeapon(PulseRifle), 1)->Damage;
+	TestTrue(FString::Printf(TEXT("the extra is pulled_vuln of the hit (%.2f)"), BiggestHit(H, Tide)), FMath::IsNearlyEqual(BiggestHit(H, Tide), 0.5f * Plain, 0.01f * Plain));
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamArcs, "Arcs")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Storm = DTKeepers::KeeperSource(EDTPath::Storm);
+	const auto Run = [&Storm](float VsShocked, float Return, bool bShock, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const int32 Second = H.AddEnemy(FVector2f(380.0f, 0.0f));
+		H.Patron(EDTPath::Storm);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Chain = AddFlag(Flags, DTCat::EFlag::Chain, EDTPath::Storm);
+		Chain.Params.Set(DTFlagParam::Jumps, 1.0f);
+		Chain.Params.Set(DTFlagParam::RangeUu, 350.0f);
+		Chain.Params.Set(DTFlagParam::Dmg, 1.0f);
+		Chain.Params.Set(DTFlagParam::DmgVsShocked, VsShocked);
+		Chain.Params.Set(DTFlagParam::ReturnSameTarget, Return);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		if (bShock)
+		{
+			Shock(H, Second);
+		}
+		H.StepMany(120);
+	};
+	FDTKeeperHarness Plain;
+	Run(0.5f, 0.0f, false, Plain);
+	FDTKeeperHarness Shocked;
+	Run(0.5f, 0.0f, true, Shocked);
+	TestTrue(TEXT("dmg_vs_shocked raises an arc on a Shocked enemy"), FMath::IsNearlyEqual(BiggestHit(Shocked, Storm), 1.5f * BiggestHit(Plain, Storm), 0.01f));
+	TestEqual(TEXT("without return_same_target the first enemy takes no arc"), HitsOn(Plain, Plain.Enemies.GetSerials()[0], Storm), 0);
+	FDTKeeperHarness Back;
+	Run(0.0f, 1.0f, false, Back);
+	TestTrue(TEXT("return_same_target: the arc leaps back onto the enemy it left"), HitsOn(Back, Back.Enemies.GetSerials()[0], Storm) > 0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamForkOnKill, "ForkOnKill")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Storm = DTKeepers::KeeperSource(EDTPath::Storm);
+	const auto Run = [](float Forks, FDTKeeperHarness& H, TArray<uint32>& OutBystanders)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.AddEnemy(FVector2f(380.0f, 0.0f), 1.0f); // dies to the arc
+		const int32 A = H.AddEnemy(FVector2f(480.0f, 40.0f)); // beyond a jump from the struck enemy, within one of the victim
+		const int32 B = H.AddEnemy(FVector2f(480.0f, -40.0f));
+		OutBystanders = { H.Enemies.GetSerials()[A], H.Enemies.GetSerials()[B] };
+		H.Patron(EDTPath::Storm);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Chain = AddFlag(Flags, DTCat::EFlag::Chain, EDTPath::Storm);
+		Chain.Params.Set(DTFlagParam::Jumps, 1.0f);
+		Chain.Params.Set(DTFlagParam::RangeUu, 100.0f + 50.0f);
+		Chain.Params.Set(DTFlagParam::Dmg, 1.0f);
+		Chain.Params.Set(DTFlagParam::ForkOnKill, Forks);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		H.StepMany(120);
+	};
+	FDTKeeperHarness Plain;
+	TArray<uint32> Bystanders;
+	Run(0.0f, Plain, Bystanders);
+	TestEqual(TEXT("no fork: the bystanders take no arc"), HitsOn(Plain, Bystanders[0], Storm) + HitsOn(Plain, Bystanders[1], Storm), 0);
+	FDTKeeperHarness Forked;
+	Run(3.0f, Forked, Bystanders); // the nearest fork lands on the first enemy, the next two on the bystanders
+	TestTrue(TEXT("a killing arc forks to both bystanders"), HitsOn(Forked, Bystanders[0], Storm) > 0 && HitsOn(Forked, Bystanders[1], Storm) > 0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamRetarget, "Retarget")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Storm = DTKeepers::KeeperSource(EDTPath::Storm);
+	const auto Run = [](bool bRetarget, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		FDTEnemySpawn Elite;
+		Elite.Role = EDTEnemyRole::Swarm;
+		Elite.Position = FVector2f(350.0f, -420.0f); // behind the fan of a straight-on hit
+		Elite.bElite = true;
+		const int32 Index = H.Enemies.Spawn(Elite, nullptr);
+		H.Enemies.SetHp(Index, ToughHp);
+		const uint32 Serial = H.Enemies.GetSerials()[Index];
+		H.Patron(EDTPath::Storm);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Split = AddFlag(Flags, DTCat::EFlag::Split, EDTPath::Storm);
+		Split.Params.Set(DTFlagParam::Children, 1.0f);
+		Split.Params.Set(DTFlagParam::ChildDmg, 1.0f);
+		Split.Params.Set(DTFlagParam::Gen, 1.0f);
+		Split.Params.Set(DTFlagParam::FanDeg, 0.0f);
+		if (bRetarget)
+		{
+			Split.Params.SetWord(DTFlagParam::Retarget, FName(TEXT("EliteOrBoss")));
+		}
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		H.StepMany(FireSteps);
+		return Serial;
+	};
+	FDTKeeperHarness Plain;
+	const uint32 PlainElite = Run(false, Plain);
+	TestEqual(TEXT("straight children miss the elite"), HitsOn(Plain, PlainElite, Storm), 0);
+	FDTKeeperHarness Seek;
+	const uint32 SeekElite = Run(true, Seek);
+	TestTrue(TEXT("retarget=EliteOrBoss: children fly at the elite"), HitsOn(Seek, SeekElite, Storm) > 0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamHitOnBurning, "HitOnBurning")
+{
+	using namespace DTKeeperParamTest;
+	const auto Fields = [](bool bBurning)
+	{
+		FDTKeeperHarness H;
+		const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Patron(EDTPath::Forge);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Field = AddFlag(Flags, DTCat::EFlag::Field, EDTPath::Forge);
+		Field.Params.SetWord(DTFlagParam::Trigger, FName(TEXT("HitOnBurning")));
+		Field.Params.Set(DTFlagParam::RadiusUu, 120.0f);
+		Field.Params.Set(DTFlagParam::DurationS, 2.0f);
+		Field.Params.Set(DTFlagParam::Dps, 0.3f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		if (bBurning)
+		{
+			Burn(H, Enemy);
+		}
+		int32 Most = 0;
+		for (int32 Step = 0; Step < 120; ++Step)
+		{
+			H.StepOnce();
+			Most = FMath::Max(Most, H.Weapons.GetLiveFields());
+		}
+		return Most;
+	};
+	TestEqual(TEXT("hitting an enemy that does not Burn leaves nothing"), Fields(false), 0);
+	TestTrue(TEXT("hitting a Burning enemy leaves a field"), Fields(true) > 0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamBurningDeath, "BurningDeath")
+{
+	using namespace DTKeeperParamTest;
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	const auto Run = [](DTCat::EFlag Flag, bool bBurning, bool bExplode, bool bSpread, FDTKeeperHarness& H)
+	{
+		const int32 Victim = H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
+		const int32 Near = H.AddEnemy(FVector2f(420.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Near];
+		H.Patron(EDTPath::Forge);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Entry = AddFlag(Flags, Flag, EDTPath::Forge);
+		if (bExplode)
+		{
+			Entry.Params.Set(DTFlagParam::BurningExplodeOnDeathUu, 200.0f);
+			Entry.Params.Set(DTFlagParam::ExplodeDmg, 0.5f);
+		}
+		if (bSpread)
+		{
+			Entry.Params.Set(DTFlagParam::SpreadBurnOnKillUu, 200.0f);
+			Entry.Params.Set(DTFlagParam::SpreadBurnIntervalS, 1.0f);
+		}
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		if (bBurning)
+		{
+			Burn(H, Victim);
+		}
+		H.StepMany(60);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Near = Run(DTCat::EFlag::Field, true, true, false, H);
+		TestTrue(TEXT("a Burning enemy explodes on death (Furnace: any death)"), HitsOn(H, Near, Forge) > 0);
+		TestTrue(TEXT("the explosion Burns"), H.CountStatuses(EDTStatus::Burn, Forge) > 0);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Near = Run(DTCat::EFlag::Field, false, true, false, H);
+		TestEqual(TEXT("no Burn, no explosion"), HitsOn(H, Near, Forge), 0);
+	}
+	{
+		// Slam's line asks for a slam's kill; a rifle kill does not count.
+		FDTKeeperHarness H;
+		const uint32 Near = Run(DTCat::EFlag::Slam, true, true, false, H);
+		TestEqual(TEXT("a Slam entry explodes only on a slam's kill"), HitsOn(H, Near, Forge), 0);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Near = Run(DTCat::EFlag::Field, true, false, true, H);
+		TestEqual(TEXT("spread deals no hit of its own"), HitsOn(H, Near, Forge), 0);
+		TestTrue(TEXT("a Burning death spreads Burn"), H.CountStatuses(EDTStatus::Burn, Forge) > 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamDashReset, "DashCooldownReset")
+{
+	using namespace DTKeeperParamTest;
+	FDTKeeperHarness H;
+	H.Patron(EDTPath::Forge);
+	H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Key")));
+	H.Keepers.QueueIntercession(0);
+	H.StepOnce();
+	TestTrue(TEXT("the cast runs"), H.Keepers.IsCasting(0));
+	TestEqual(TEXT("no dash, no reset"), H.Keepers.TakeDashResets().Num(), 0);
+	H.View.HeroIntangible[0] = true;
+	H.StepOnce();
+	H.View.HeroIntangible[0] = false;
+	H.StepOnce();
+	TestEqual(TEXT("a dash landing during the cast resets the cooldown"), H.Keepers.TakeDashResets().Num(), 1);
+	return true;
+}
+
+#undef DT_KEEPER_PARAM_TEST
 
 #endif // WITH_DEV_AUTOMATION_TESTS

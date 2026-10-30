@@ -95,4 +95,6 @@ namespace DTFlagParam
 	DUSKTRACER_API extern const FName MaxLive, Status, Leave, DistanceUu, Target, Rounds, ArcDeg, DmgMult, DmgRatio;
 	DUSKTRACER_API extern const FName Bounces, SeekRangeUu, FreezeStacks, FreezeDurationScale, ChillStacksOnPull;
 	DUSKTRACER_API extern const FName BurnStacksMax, StillMoveUu, ChargeS, Mult, ChargesMax, ChargedPierce;
+	DUSKTRACER_API extern const FName CrushDmg, PulledVuln, PulledVulnSeconds, DmgVsShocked, ReturnSameTarget, ForkOnKill, Retarget;
+	DUSKTRACER_API extern const FName BurningExplodeOnDeathUu, ExplodeDmg, SpreadBurnOnKillUu, SpreadBurnIntervalS;
 }

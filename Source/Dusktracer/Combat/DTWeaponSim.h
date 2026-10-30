@@ -10,6 +10,7 @@
 #include "Combat/DTWeaponFlags.h"
 
 class FDTBulletPool;
+class FDTEnemyPool;
 struct FDTBulletSpawn;
 
 /** Result of an inventory change (offers and debug commands read it). */
@@ -73,6 +74,9 @@ public:
 	void SetHeroStats(int32 OwnerId, const FDTWeaponHeroStats& Stats);
 	/** combat_core.md R-CMB-04 aim mode: Manual makes Nearest weapons fire along HeroAimDirs (R-WPN-12). */
 	void SetAimManual(int32 OwnerId, bool bManual);
+
+	/** The read side of enemy state: statuses, elite and role, death records (R-KEE-10: read in Effects, never written). */
+	void SetEnemies(const FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
@@ -143,6 +147,9 @@ private:
 		float StillTime = 0.0f;
 		bool bHasAnchor = false;
 		bool bWasIntangible = false;
+		/** pulled_vuln: serial -> step the mark ends (Pull, keepers.md). */
+		TMap<uint32, int64> PulledUntilStep;
+		float SpreadReadyIn = 0.0f;
 	};
 
 	/** What kind of contact an impact was; decides which reactions run (see DTWeaponSim.cpp). */
@@ -170,6 +177,8 @@ private:
 		int32 BouncesLeft = 0;
 		bool bSpent = false;
 		bool bCleave = false;
+		/** Bitmask of EDTStatus on the struck enemy when the hit landed (a lethal hit still reads it). */
+		uint8 StatusMask = 0;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -230,6 +239,16 @@ private:
 		int32 OwnerId = INDEX_NONE;
 		uint16 SourceId = 0;
 		FDTFlagParams Params;
+	};
+
+	/** An arc that struck Serial; if that blow kills, it forks (fork_on_kill, read at the step's kills). */
+	struct FArcMark
+	{
+		uint32 Serial = 0;
+		int32 OwnerId = INDEX_NONE;
+		int8 Slot = INDEX_NONE;
+		uint16 SourceId = 0;
+		float Damage = 0.0f;
 	};
 
 	/** One firing context: who fires, from where, with what source. */
@@ -299,6 +318,22 @@ private:
 		const FDTFlagEntry& Entry, bool bRing, const FVector2f& From);
 	void ApplyStatus(const FDTSimContext& Context, const FDTFlagParams& Params, const FDTEnemyHandle& Handle,
 		float HitDamage, int32 OwnerId, uint16 SourceId);
+	/** Bitmask of EDTStatus on an enemy (0 without an enemy pool or for a stale handle). */
+	uint8 StatusMaskOf(int32 Enemy, uint32 Serial) const;
+	/** One arc jump onto Enemy: a hit of Damage (dmg_vs_shocked applied), plus every on=ChainHit status. Returns false at the spawn cap. */
+	bool ArcJump(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FDTFlagEntry& Chain, const TArray<FDTResolvedFlag>& Flags,
+		int32 OwnerId, int8 Slot, int32 Enemy, float Damage, bool bMark);
+	/** Pulled enemies whose final positions touch take crush_dmg x the triggering hit as the Keeper (keepers.md §2). */
+	void CrushContacts(const FDTSimContext& Context, const FDTFlagEntry& Pull, const TArray<TPair<int32, FVector2f>>& Moved, float HitDamage, int32 OwnerId);
+	/** Kill-time reactions: arc forks, burning explosions, Burn spread. */
+	void ReactToKills(const FDTSimContext& Context, TConstArrayView<FArcMark> Marks);
+	void ForkArcs(const FDTSimContext& Context, const FDTKill& Kill, const FArcMark& Mark);
+	void ExplodeBurning(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius);
+	void SpreadBurn(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius, float BurnDps);
+	/** The strongest per-hit damage among OwnerId's composed weapons (the explosion's basis, as Slam's dmg_ratio). */
+	float StrongestDamage(int32 OwnerId) const;
+	/** Live elites and the boss, nearest to the query first (retarget=EliteOrBoss); collected once per Effects phase. */
+	const TArray<int32>& PriorityTargets(const FDTWorldView& View);
 
 	TArray<FPlayerRuntime> Players;
 	TArray<FRound> Rounds;
@@ -307,7 +342,14 @@ private:
 	TArray<FArcFlash> Arcs;
 	TArray<FImpact> Impacts;
 	TArray<FPendingStatus> PendingStatuses;
+	TArray<FArcMark> ArcMarks;
+	/** Enemies struck this step by a melee arc or a slam whose flag carries burning_explode_on_death_uu. */
+	TSet<uint32> StepCleaved;
+	TSet<uint32> StepSlammed;
 	TArray<int32> Candidates;
+	TArray<int32> Priority;
+	bool bPriorityBuilt = false;
+	const FDTEnemyPool* Enemies = nullptr;
 	int32 WeaponsHitsEnd = 0;
 	int32 MaxGeneration = 0;
 	int64 LastStep = -1;

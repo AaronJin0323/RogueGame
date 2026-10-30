@@ -38,6 +38,7 @@ namespace DTWeaponTestHarness
 		explicit FDTHarness(int32 Seed = 7, int32 NumPlayers = 1)
 		{
 			Run.Start(Seed, NumPlayers);
+			Weapons.SetEnemies(&Enemies);
 			View.HeroPositions.Init(FVector2f::ZeroVector, Run.GetNumPlayers());
 			View.HeroAimDirs.Init(FVector2f(1.0f, 0.0f), Run.GetNumPlayers());
 			View.HeroIntangible.Init(false, Run.GetNumPlayers());

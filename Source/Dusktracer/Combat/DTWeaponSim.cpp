@@ -1,6 +1,7 @@
 #include "Combat/DTWeaponSim.h"
 #include "Combat/DTBulletPool.h"
 #include "Core/DTConstantsGen.h"
+#include "Enemies/DTEnemyPool.h"
 #include "Telemetry/DTTelemetrySources.h"
 
 // Which reactions an impact runs (R-WPN-08 native expressions; fallbacks run at activation, OnActivation):
@@ -11,6 +12,8 @@
 //   Detonation (one per mine):                Split (children burst), Field, Pull, Echo (fallback: repeats in place)
 //   Expiry     (a tracked round's life ran out): Split on=Expiry (Mod.ScatterShell)
 // Field ticks, echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains).
+// Kills (StepEffects, ReactToKills): arc forks, burning explosions, Burn spread. Crush, pulled_vuln and explosion hits carry
+// no weapon slot: they are Keeper-only and never feed the enchantment or other reactions.
 
 namespace DTWeaponSimLocal
 {
@@ -90,6 +93,11 @@ namespace DTWeaponSimLocal
 	static const FName WordOrigin(TEXT("Origin"));
 	static const FName WordField(TEXT("Field"));
 	static const FName WordPatron(TEXT("Patron"));
+	static const FName WordHitOnBurning(TEXT("HitOnBurning"));
+	static const FName WordEliteOrBoss(TEXT("EliteOrBoss"));
+	static const FName WordBurn(TEXT("Status.Burn"));
+	constexpr uint8 BurnBit = 1 << static_cast<int32>(EDTStatus::Burn);
+	constexpr uint8 ShockBit = 1 << static_cast<int32>(EDTStatus::Shock);
 }
 
 // ------------------------------------------------------------------------------------------------------------------
@@ -338,6 +346,8 @@ void FDTWeaponSim::ResetTransient()
 		Player.StillTime = 0.0f;
 		Player.bHasAnchor = false;
 		Player.bWasIntangible = false;
+		Player.PulledUntilStep.Reset();
+		Player.SpreadReadyIn = 0.0f;
 	}
 	Rounds.Reset();
 	Fields.Reset();
@@ -345,6 +355,9 @@ void FDTWeaponSim::ResetTransient()
 	Arcs.Reset();
 	Impacts.Reset();
 	PendingStatuses.Reset();
+	ArcMarks.Reset();
+	StepCleaved.Reset();
+	StepSlammed.Reset();
 	WeaponsHitsEnd = 0;
 	MaxGeneration = 0;
 	LastStep = -1;
@@ -470,6 +483,8 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		View.EnemyHash.QueryCircle(Shot.Origin, Reach + MaxEnemyRadius, Candidates);
 	}
 	int32 Hit = 0;
+	const FDTResolvedFlag* Melee = Runtime.Spec.FindFlag(DTCat::EFlag::ConvertMelee);
+	const bool bMarkKills = Melee && Melee->Entry.Params.Has(DTFlagParam::BurningExplodeOnDeathUu);
 	for (const int32 Enemy : Candidates)
 	{
 		if (Enemy < 0 || Enemy >= Num)
@@ -510,6 +525,11 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Impact.EnemyRadius = View.EnemyRadii[Enemy];
 		Impact.EnemyPosition = Out.Position;
 		Impact.bCleave = bCleave;
+		Impact.StatusMask = StatusMaskOf(Enemy, Out.EnemySerial);
+		if (bMarkKills)
+		{
+			StepCleaved.Add(Out.EnemySerial);
+		}
 		++Runtime.Counters.Impacts;
 		++Hit;
 	}
@@ -1038,6 +1058,7 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 		Impact.EnemySerial = Out.EnemySerial;
 		Impact.EnemyRadius = View.EnemyRadii[Out.EnemyIndex];
 		Impact.EnemyPosition = Out.Position;
+		Impact.StatusMask = StatusMaskOf(Out.EnemyIndex, Out.EnemySerial);
 		++Runtime.Counters.Impacts;
 	}
 	FImpact& Blast = Impacts.AddDefaulted_GetRef();
@@ -1205,6 +1226,13 @@ void FDTWeaponSim::EmitSlam(const FDTSimContext& Context, int32 OwnerId, int32 S
 	RollCrit(Context, Runtime.Spec, Damage);
 	TArray<FDTEnemyHandle> Hit;
 	HitCircle(Context, OwnerId, Slot, Slam.Entry.SourceId, Hero, Radius, Damage, false, nullptr, &Hit);
+	if (Params.Has(DTFlagParam::BurningExplodeOnDeathUu))
+	{
+		for (const FDTEnemyHandle& Handle : Hit)
+		{
+			StepSlammed.Add(Handle.Serial);
+		}
+	}
 	if (!Params.GetWord(DTFlagParam::Status).IsNone())
 	{
 		for (const FDTEnemyHandle& Handle : Hit)
@@ -1486,6 +1514,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 		{
 			Impact.EnemyPosition = View.EnemyPositions[Hit.EnemyIndex];
 			Impact.EnemyRadius = View.EnemyRadii[Hit.EnemyIndex];
+			Impact.StatusMask = StatusMaskOf(Hit.EnemyIndex, Hit.EnemySerial);
 		}
 		const FVector2f Hero = HeroOf(View, Hit.OwnerId);
 		Impact.Origin = Hero;
@@ -1551,6 +1580,25 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	FDTWorldView& View = *Context.View;
 	SyncPlayers(Run);
 	BuildSerialIndex(View);
+	bPriorityBuilt = false;
+	for (FPlayerRuntime& Player : Players)
+	{
+		Player.SpreadReadyIn -= Context.StepSeconds;
+		for (TMap<uint32, int64>::TIterator It = Player.PulledUntilStep.CreateIterator(); It; ++It)
+		{
+			if (It.Value() < Context.StepIndex)
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	// Kills first: the marks were made by last Effects' arcs and the cleaves and slams of this step.
+	const TArray<FArcMark> Marks = MoveTemp(ArcMarks);
+	ArcMarks.Reset();
+	ReactToKills(Context, Marks);
+	StepCleaved.Reset();
+	StepSlammed.Reset();
 
 	TArray<FImpact> Batch = MoveTemp(Impacts);
 	Impacts.Reset();
@@ -1584,6 +1632,258 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 
 // ------------------------------------------------------------------------------------------------------------------
 // Reactions
+
+uint8 FDTWeaponSim::StatusMaskOf(int32 Enemy, uint32 Serial) const
+{
+	return Enemies && Enemies->IsHandleValid(FDTEnemyHandle{ Enemy, Serial }) ? Enemies->GetStatusMask(Enemy) : 0;
+}
+
+float FDTWeaponSim::StrongestDamage(int32 OwnerId) const
+{
+	float Best = 0.0f;
+	if (Players.IsValidIndex(OwnerId))
+	{
+		for (const FWeaponRuntime& Weapon : Players[OwnerId].Weapons)
+		{
+			Best = FMath::Max(Best, Weapon.Spec.Damage);
+		}
+	}
+	return Best;
+}
+
+const TArray<int32>& FDTWeaponSim::PriorityTargets(const FDTWorldView& View)
+{
+	if (bPriorityBuilt)
+	{
+		return Priority;
+	}
+	bPriorityBuilt = true;
+	Priority.Reset();
+	if (Enemies)
+	{
+		const TConstArrayView<uint8> Flags = Enemies->GetFlags();
+		const TConstArrayView<EDTEnemyRole> Roles = Enemies->GetRoles();
+		const int32 Num = FMath::Min3(DTWeaponSimLocal::NumEnemies(View), Flags.Num(), Roles.Num());
+		for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+		{
+			if ((Flags[Enemy] & DTEnemyFlags::Elite) != 0 || Roles[Enemy] == EDTEnemyRole::Boss)
+			{
+				Priority.Add(Enemy);
+			}
+		}
+	}
+	return Priority;
+}
+
+bool FDTWeaponSim::ArcJump(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FDTFlagEntry& Chain, const TArray<FDTResolvedFlag>& Flags,
+	int32 OwnerId, int8 Slot, int32 Enemy, float Damage, bool bMark)
+{
+	using namespace DTWeaponSimLocal;
+	if (!TryEmit(Runtime))
+	{
+		return false;
+	}
+	FDTWorldView& View = *Context.View;
+	const uint32 Serial = View.EnemySerials[Enemy];
+	float Final = Damage;
+	if ((StatusMaskOf(Enemy, Serial) & ShockBit) != 0)
+	{
+		Final *= 1.0f + Chain.Params.Get(DTFlagParam::DmgVsShocked);
+	}
+	FDTHit& Out = View.Hits.AddDefaulted_GetRef();
+	Out.EnemyIndex = Enemy;
+	Out.EnemySerial = Serial;
+	Out.OwnerId = OwnerId;
+	Out.Damage = Final;
+	Out.Position = View.EnemyPositions[Enemy];
+	Out.SourceId = Chain.SourceId;
+	Out.WeaponSlot = Slot;
+	if (bMark)
+	{
+		ArcMarks.Add(FArcMark{ Serial, OwnerId, Slot, Chain.SourceId, Damage });
+	}
+	for (const FDTResolvedFlag& Status : Flags)
+	{
+		if (Status.Entry.Flag == DTCat::EFlag::StatusApply && Status.Entry.Params.GetWord(DTFlagParam::On) == WordChainHit)
+		{
+			ApplyStatus(Context, Status.Entry.Params, FDTEnemyHandle{ Enemy, Serial }, Final, OwnerId, Status.Entry.SourceId);
+		}
+	}
+	return true;
+}
+
+void FDTWeaponSim::CrushContacts(const FDTSimContext& Context, const FDTFlagEntry& Pull, const TArray<TPair<int32, FVector2f>>& Moved, float HitDamage, int32 OwnerId)
+{
+	FDTWorldView& View = *Context.View;
+	const float Damage = HitDamage * Pull.Params.Get(DTFlagParam::CrushDmg);
+	for (int32 A = 0; A < Moved.Num(); ++A)
+	{
+		const float RadiusA = View.EnemyRadii[Moved[A].Key];
+		bool bTouching = false;
+		for (int32 B = 0; B < Moved.Num() && !bTouching; ++B)
+		{
+			if (A != B)
+			{
+				const float Reach = RadiusA + View.EnemyRadii[Moved[B].Key];
+				bTouching = FVector2f::DistSquared(Moved[A].Value, Moved[B].Value) <= Reach * Reach;
+			}
+		}
+		if (bTouching)
+		{
+			FDTHit& Out = View.Hits.AddDefaulted_GetRef();
+			Out.EnemyIndex = Moved[A].Key;
+			Out.EnemySerial = View.EnemySerials[Moved[A].Key];
+			Out.OwnerId = OwnerId;
+			Out.Damage = Damage;
+			Out.Position = View.EnemyPositions[Moved[A].Key];
+			Out.SourceId = Pull.SourceId;
+		}
+	}
+}
+
+void FDTWeaponSim::ForkArcs(const FDTSimContext& Context, const FDTKill& Kill, const FArcMark& Mark)
+{
+	FWeaponRuntime* Runtime = FindRuntime(Mark.OwnerId, Mark.Slot);
+	if (!Runtime)
+	{
+		return;
+	}
+	const FDTResolvedFlag* Chain = Runtime->Spec.Flags.FindByPredicate([&Mark](const FDTResolvedFlag& F)
+	{
+		return F.Entry.Flag == DTCat::EFlag::Chain && F.Entry.SourceId == Mark.SourceId;
+	});
+	if (!Chain)
+	{
+		return;
+	}
+	const FDTWorldView& View = *Context.View;
+	const int32 Num = DTWeaponSimLocal::NumEnemies(View);
+	const int32 Forks = FMath::RoundToInt(Chain->Entry.Params.Get(DTFlagParam::ForkOnKill));
+	const float Range = Chain->Entry.Params.Get(DTFlagParam::RangeUu);
+	TArray<int32> Local;
+	View.EnemyHash.QueryCircle(Kill.Position, Range, Local);
+	Local.Sort();
+	TArray<int32, TInlineAllocator<8>> Struck;
+	for (int32 Fork = 0; Fork < Forks; ++Fork)
+	{
+		int32 Best = INDEX_NONE;
+		float BestDist = Range * Range;
+		for (const int32 Enemy : Local)
+		{
+			if (Enemy < 0 || Enemy >= Num || Struck.Contains(Enemy))
+			{
+				continue;
+			}
+			const float D = FVector2f::DistSquared(Kill.Position, View.EnemyPositions[Enemy]);
+			if (D < BestDist)
+			{
+				BestDist = D;
+				Best = Enemy;
+			}
+		}
+		if (Best == INDEX_NONE || !ArcJump(Context, *Runtime, Chain->Entry, Runtime->Spec.Flags, Mark.OwnerId, Mark.Slot, Best, Mark.Damage, false))
+		{
+			return; // a fork never forks again
+		}
+		Struck.Add(Best);
+	}
+}
+
+void FDTWeaponSim::ExplodeBurning(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius)
+{
+	const int32 Slot = Kill.WeaponSlot != INDEX_NONE ? Kill.WeaponSlot : 0;
+	FWeaponRuntime* Runtime = FindRuntime(Kill.OwnerId, Slot);
+	if (!Runtime || !TryEmit(*Runtime))
+	{
+		return;
+	}
+	const float Damage = StrongestDamage(Kill.OwnerId) * Entry.Params.Get(DTFlagParam::ExplodeDmg);
+	TArray<FDTEnemyHandle> Hit;
+	HitCircle(Context, Kill.OwnerId, INDEX_NONE, Entry.SourceId, Kill.Position, Radius, Damage, false, nullptr, &Hit);
+	FDTFlagParams Burn;
+	Burn.SetWord(DTFlagParam::Status, DTWeaponSimLocal::WordBurn);
+	for (const FDTEnemyHandle& Handle : Hit)
+	{
+		ApplyStatus(Context, Burn, Handle, Damage, Kill.OwnerId, Entry.SourceId); // the explosion Burns (keeper_identity_spec)
+	}
+	if (Entry.Flag == DTCat::EFlag::Field && Entry.Params.GetWord(DTFlagParam::Leave) == DTWeaponSimLocal::WordField)
+	{
+		SpawnField(Kill.OwnerId, Slot, Entry.SourceId, Kill.Position, Entry.Params, Damage);
+	}
+}
+
+void FDTWeaponSim::SpreadBurn(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius, float BurnDps)
+{
+	const FDTWorldView& View = *Context.View;
+	const int32 Num = DTWeaponSimLocal::NumEnemies(View);
+	if (Num == 0 || View.EnemyHash.Num() == 0)
+	{
+		return;
+	}
+	TArray<int32> Local;
+	View.EnemyHash.QueryCircle(Kill.Position, Radius, Local);
+	Local.Sort();
+	FDTFlagParams Burn;
+	Burn.SetWord(DTFlagParam::Status, DTWeaponSimLocal::WordBurn);
+	const float HitDamage = BurnDps / DTConst::STATUS_BURN_DPS_RATIO; // ApplyStatus turns it back into the same damage per second
+	for (const int32 Enemy : Local)
+	{
+		if (Enemy >= 0 && Enemy < Num && FVector2f::DistSquared(Kill.Position, View.EnemyPositions[Enemy]) <= Radius * Radius)
+		{
+			ApplyStatus(Context, Burn, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, HitDamage, Kill.OwnerId, Entry.SourceId);
+		}
+	}
+}
+
+void FDTWeaponSim::ReactToKills(const FDTSimContext& Context, TConstArrayView<FArcMark> Marks)
+{
+	using namespace DTWeaponSimLocal;
+	const TArray<FDTKill>& Kills = Context.View->Kills;
+	const TConstArrayView<FDTEnemyDeath> Deaths = Enemies ? Enemies->GetStepDeaths() : TConstArrayView<FDTEnemyDeath>();
+	for (int32 Index = 0; Index < Kills.Num(); ++Index)
+	{
+		const FDTKill& Kill = Kills[Index];
+		if (!Players.IsValidIndex(Kill.OwnerId))
+		{
+			continue;
+		}
+		for (const FArcMark& Mark : Marks)
+		{
+			if (Mark.Serial == Kill.EnemySerial && Mark.OwnerId == Kill.OwnerId)
+			{
+				ForkArcs(Context, Kill, Mark);
+				break;
+			}
+		}
+		const bool bHasDeath = Deaths.IsValidIndex(Index) && Deaths[Index].Serial == Kill.EnemySerial;
+		if (!bHasDeath || (Deaths[Index].StatusMask & BurnBit) == 0)
+		{
+			continue;
+		}
+		FPlayerRuntime& Player = Players[Kill.OwnerId];
+		for (const FFlagSource& Source : Player.Sources)
+		{
+			for (const FDTFlagEntry& Entry : Source.Flags.Entries)
+			{
+				const float Explode = Entry.Params.Get(DTFlagParam::BurningExplodeOnDeathUu);
+				// Hammer's explosions need a cleave's kill, Slam's a slam's, Furnace's any death (their tier lines, ST_Keepers).
+				const bool bBlast = Explode > 0.0f && (Entry.Flag == DTCat::EFlag::Field ||
+					(Entry.Flag == DTCat::EFlag::ConvertMelee && StepCleaved.Contains(Kill.EnemySerial)) ||
+					(Entry.Flag == DTCat::EFlag::Slam && StepSlammed.Contains(Kill.EnemySerial)));
+				if (bBlast)
+				{
+					ExplodeBurning(Context, Kill, Entry, Explode);
+				}
+				const float Spread = Entry.Params.Get(DTFlagParam::SpreadBurnOnKillUu);
+				if (Spread > 0.0f && Player.SpreadReadyIn <= 0.0f)
+				{
+					Player.SpreadReadyIn = Entry.Params.Get(DTFlagParam::SpreadBurnIntervalS);
+					SpreadBurn(Context, Kill, Entry, Spread, Deaths[Index].BurnDps);
+				}
+			}
+		}
+	}
+}
 
 void FDTWeaponSim::ApplyStatus(const FDTSimContext& Context, const FDTFlagParams& Params, const FDTEnemyHandle& Handle,
 	float HitDamage, int32 OwnerId, uint16 SourceId)
@@ -1660,8 +1960,30 @@ void FDTWeaponSim::EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bul
 	}
 	const float Clear = Impact.EnemySerial != 0 ? Impact.EnemyRadius + Shot.Radius : 0.0f;
 	const FVector2f Forward = SafeDir(Impact.Dir, FVector2f(1.0f, 0.0f));
+	// retarget=EliteOrBoss: children go for the elites and the boss in their reach, nearest first, then the fan.
+	TArray<TPair<float, int32>, TInlineAllocator<8>> Seek;
+	if (!bRing && Params.GetWord(DTFlagParam::Retarget) == WordEliteOrBoss)
+	{
+		const FDTWorldView& View = *Context.View;
+		const float Reach = Shot.Speed * Shot.Life;
+		for (const int32 Enemy : PriorityTargets(View))
+		{
+			const float D = FVector2f::DistSquared(From, View.EnemyPositions[Enemy]);
+			if (D <= Reach * Reach && View.EnemySerials[Enemy] != Impact.EnemySerial)
+			{
+				Seek.Emplace(D, Enemy);
+			}
+		}
+		Seek.Sort([](const TPair<float, int32>& A, const TPair<float, int32>& B) { return A.Key != B.Key ? A.Key < B.Key : A.Value < B.Value; });
+	}
 	for (int32 Child = 0; Child < Children; ++Child)
 	{
+		if (Seek.Num() > 0)
+		{
+			const FVector2f Dir = SafeDir(Context.View->EnemyPositions[Seek[Child % Seek.Num()].Value] - From, Forward);
+			SpawnRound(Context, Bullets, Runtime, Shot, From + Dir * Clear, Dir);
+			continue;
+		}
 		float Angle = 0.0f;
 		if (bRing)
 		{
@@ -1748,7 +2070,14 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			break;
 		}
 		case DTCat::EFlag::Field:
-			if (Flag.IsNative() && bPlace)
+			if (Params.GetWord(DTFlagParam::Trigger) == WordHitOnBurning)
+			{
+				if (Flag.IsNative() && bEnemyHit && (Impact.StatusMask & BurnBit) != 0)
+				{
+					SpawnField(Impact.OwnerId, Impact.Slot, Flag.Entry.SourceId, Impact.EnemyPosition, Params, Impact.BaseDamage);
+				}
+			}
+			else if (Flag.IsNative() && bPlace)
 			{
 				SpawnField(Impact.OwnerId, Impact.Slot, Flag.Entry.SourceId, Impact.Position, Params, Impact.BaseDamage);
 			}
@@ -1760,6 +2089,19 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				break;
 			}
 			const float Distance = Params.Get(DTFlagParam::DistanceUu);
+			// pulled_vuln: a pulled enemy takes more from every hit; the extra is Keeper damage (as frozen_vuln, R-KEE-13).
+			const float Vuln = Params.Get(DTFlagParam::PulledVuln);
+			FPlayerRuntime& Puller = Players[Impact.OwnerId];
+			if (Vuln > 0.0f && HitEnemy != INDEX_NONE && Puller.PulledUntilStep.Contains(Impact.EnemySerial))
+			{
+				FDTHit& Extra = View.Hits.AddDefaulted_GetRef();
+				Extra.EnemyIndex = HitEnemy;
+				Extra.EnemySerial = Impact.EnemySerial;
+				Extra.OwnerId = Impact.OwnerId;
+				Extra.Damage = Impact.HitDamage * Vuln;
+				Extra.Position = View.EnemyPositions[HitEnemy];
+				Extra.SourceId = Flag.Entry.SourceId;
+			}
 			if (Params.GetWord(DTFlagParam::Target) == WordOrigin)
 			{
 				// Mod.Backwash: the hit enemy is drawn toward the round's origin.
@@ -1783,6 +2125,9 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				break;
 			}
 			const float Radius = Params.Get(DTFlagParam::RadiusUu);
+			const int64 VulnSteps = FMath::RoundToInt64(Params.Get(DTFlagParam::PulledVulnSeconds) / Context.StepSeconds);
+			const bool bCrush = Params.Get(DTFlagParam::CrushDmg) > 0.0f;
+			TArray<TPair<int32, FVector2f>> Moved;
 			TArray<int32> Local;
 			View.EnemyHash.QueryCircle(Impact.Position, Radius, Local);
 			for (const int32 Enemy : Local)
@@ -1802,6 +2147,14 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				Move.EnemySerial = View.EnemySerials[Enemy];
 				Move.Delta = To / Dist * FMath::Min(Distance, Dist);
 				Move.OwnerId = Impact.OwnerId;
+				if (bCrush)
+				{
+					Moved.Emplace(Enemy, View.EnemyPositions[Enemy] + Move.Delta);
+				}
+				if (Vuln > 0.0f)
+				{
+					Puller.PulledUntilStep.Add(Move.EnemySerial, Context.StepIndex + VulnSteps);
+				}
 				for (const FDTResolvedFlag& Status : Flags)
 				{
 					if (Status.Entry.Flag == DTCat::EFlag::StatusApply && Status.Entry.Params.GetWord(DTFlagParam::On) == WordPulled)
@@ -1809,6 +2162,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 						ApplyStatus(Context, Status.Entry.Params, FDTEnemyHandle{ Enemy, Move.EnemySerial }, Impact.HitDamage, Impact.OwnerId, Status.Entry.SourceId);
 					}
 				}
+			}
+			if (bCrush)
+			{
+				CrushContacts(Context, Flag.Entry, Moved, Impact.HitDamage, Impact.OwnerId);
 			}
 			break;
 		}
@@ -1835,9 +2192,12 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			const int32 Jumps = FMath::RoundToInt(Params.Get(DTFlagParam::Jumps));
 			const float Range = Params.Get(DTFlagParam::RangeUu);
 			const float Damage = Impact.HitDamage * Params.Get(DTFlagParam::Dmg, 1.0f);
+			const float ReturnChance = Params.Get(DTFlagParam::ReturnSameTarget);
+			const bool bMark = Params.Get(DTFlagParam::ForkOnKill) > 0.0f;
 			TArray<uint32, TInlineAllocator<8>> Visited;
 			Visited.Add(Impact.EnemySerial);
 			FVector2f From = Impact.EnemyPosition;
+			int32 Previous = HitEnemy; // the enemy the arc leaves; INDEX_NONE when the struck one died
 			for (int32 Jump = 0; Jump < Jumps; ++Jump)
 			{
 				TArray<int32> Local;
@@ -1857,27 +2217,18 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 						Best = Enemy;
 					}
 				}
-				if (Best == INDEX_NONE || !TryEmit(*Runtime))
+				if (Best == INDEX_NONE || !ArcJump(Context, *Runtime, Flag.Entry, Flags, Impact.OwnerId, Impact.Slot, Best, Damage, bMark))
 				{
 					break;
 				}
 				Visited.Add(View.EnemySerials[Best]);
-				FDTHit& Out = View.Hits.AddDefaulted_GetRef();
-				Out.EnemyIndex = Best;
-				Out.EnemySerial = View.EnemySerials[Best];
-				Out.OwnerId = Impact.OwnerId;
-				Out.Damage = Damage;
-				Out.Position = View.EnemyPositions[Best];
-				Out.SourceId = Flag.Entry.SourceId;
-				Out.WeaponSlot = Impact.Slot;
-				for (const FDTResolvedFlag& Status : Flags)
+				// return_same_target: the arc may leap back onto the enemy it just left (one roll per jump).
+				if (ReturnChance > 0.0f && Previous != INDEX_NONE && Rng.FRand() < ReturnChance)
 				{
-					if (Status.Entry.Flag == DTCat::EFlag::StatusApply && Status.Entry.Params.GetWord(DTFlagParam::On) == WordChainHit)
-					{
-						ApplyStatus(Context, Status.Entry.Params, FDTEnemyHandle{ Best, Out.EnemySerial }, Damage, Impact.OwnerId, Status.Entry.SourceId);
-					}
+					ArcJump(Context, *Runtime, Flag.Entry, Flags, Impact.OwnerId, Impact.Slot, Previous, Damage, bMark);
 				}
-				From = Out.Position;
+				Previous = Best;
+				From = View.EnemyPositions[Best];
 			}
 			break;
 		}

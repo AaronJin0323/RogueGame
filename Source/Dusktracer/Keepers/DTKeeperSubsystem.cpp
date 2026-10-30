@@ -181,6 +181,13 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 	UWorld* World = GetWorld();
 	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
 	Sim.StepEffects(Context, Weapons ? &Weapons->GetSim() : nullptr);
+	if (UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr)
+	{
+		for (const int32 OwnerId : Sim.TakeDashResets())
+		{
+			Hero->RefillDash(OwnerId);
+		}
+	}
 	TArray<FDTKeeperCastRecord> Casts = Sim.TakeFinishedCasts();
 	if (Casts.Num() == 0)
 	{

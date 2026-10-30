@@ -30,6 +30,7 @@ namespace DTKeeperSimLocal
 	static const FName ParamChargeS(TEXT("charge_s"));
 	static const FName ParamBurnToCap(TEXT("burn_to_cap"));
 	static const FName ParamGrantCharge(TEXT("grant_charge"));
+	static const FName ParamDashCooldownReset(TEXT("dash_cooldown_reset"));
 	static const FName WordPattern(TEXT("pattern"));
 	static const FName WordFan(TEXT("Fan"));
 	static const FName WordOn(TEXT("on"));
@@ -158,6 +159,7 @@ void FDTKeeperSim::ResetRun()
 {
 	Captured.Reset();
 	Finished.Reset();
+	DashResets.Reset();
 	for (FPlayer& Player : Players)
 	{
 		Player.Cast = FCast();
@@ -570,6 +572,10 @@ void FDTKeeperSim::StepCast(const FDTSimContext& Context, int32 OwnerId, FPlayer
 		{
 			HitCircle(Context, OwnerId, Player, Hero, SlamVariant->GetNum(ParamRadiusUu, DTConst::INTERCESSION_FORGE_RING_RADIUS_UU),
 				Damage, EDTPath::Forge, Knockback, true, BurnApplications);
+			if (SlamVariant->GetNum(ParamDashCooldownReset) > 0.0f)
+			{
+				DashResets.Add(OwnerId);
+			}
 		}
 	}
 	if (Plan.Base == EDTPath::Storm)

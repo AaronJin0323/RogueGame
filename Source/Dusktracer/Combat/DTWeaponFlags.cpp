@@ -41,6 +41,17 @@ namespace DTFlagParam
 	const FName Mult(TEXT("mult"));
 	const FName ChargesMax(TEXT("charges_max"));
 	const FName ChargedPierce(TEXT("charged_pierce"));
+	const FName CrushDmg(TEXT("crush_dmg"));
+	const FName PulledVuln(TEXT("pulled_vuln"));
+	const FName PulledVulnSeconds(TEXT("pulled_vuln_s"));
+	const FName DmgVsShocked(TEXT("dmg_vs_shocked"));
+	const FName ReturnSameTarget(TEXT("return_same_target"));
+	const FName ForkOnKill(TEXT("fork_on_kill"));
+	const FName Retarget(TEXT("retarget"));
+	const FName BurningExplodeOnDeathUu(TEXT("burning_explode_on_death_uu"));
+	const FName ExplodeDmg(TEXT("explode_dmg"));
+	const FName SpreadBurnOnKillUu(TEXT("spread_burn_on_kill_uu"));
+	const FName SpreadBurnIntervalS(TEXT("spread_burn_interval_s"));
 }
 
 EDTParamOp FDTFlagParams::DefaultOp(FName Name)
