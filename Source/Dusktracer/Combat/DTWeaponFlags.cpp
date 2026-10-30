@@ -41,6 +41,42 @@ namespace DTFlagParam
 	const FName Mult(TEXT("mult"));
 	const FName ChargesMax(TEXT("charges_max"));
 	const FName ChargedPierce(TEXT("charged_pierce"));
+	const FName CrushDmg(TEXT("crush_dmg"));
+	const FName PulledVuln(TEXT("pulled_vuln"));
+	const FName PulledVulnSeconds(TEXT("pulled_vuln_s"));
+	const FName DmgVsShocked(TEXT("dmg_vs_shocked"));
+	const FName ReturnSameTarget(TEXT("return_same_target"));
+	const FName ForkOnKill(TEXT("fork_on_kill"));
+	const FName Retarget(TEXT("retarget"));
+	const FName BurningExplodeOnDeathUu(TEXT("burning_explode_on_death_uu"));
+	const FName ExplodeDmg(TEXT("explode_dmg"));
+	const FName SpreadBurnOnKillUu(TEXT("spread_burn_on_kill_uu"));
+	const FName SpreadBurnIntervalS(TEXT("spread_burn_interval_s"));
+	const FName ShatterOnFrozenKillUu(TEXT("shatter_on_frozen_kill_uu"));
+	const FName ShatterUu(TEXT("shatter_uu"));
+	const FName ShatterDmg(TEXT("shatter_dmg"));
+	const FName ShatterStatus(TEXT("shatter_status"));
+	const FName Shatter(TEXT("shatter"));
+	const FName ClusterFreezeMin(TEXT("cluster_freeze_min"));
+	const FName FrozenBlocksEnemies(TEXT("frozen_blocks_enemies"));
+	const FName FreezeUntilHit(TEXT("freeze_until_hit"));
+	const FName HeldMax(TEXT("held_max"));
+	const FName FrozenHitChillsNeighboursUu(TEXT("frozen_hit_chills_neighbours_uu"));
+	const FName ChargedPullUu(TEXT("charged_pull_uu"));
+	const FName ChargedAuraUu(TEXT("charged_aura_uu"));
+	const FName AuraStatus(TEXT("aura_status"));
+	const FName AuraIntervalS(TEXT("aura_interval_s"));
+	const FName ChargedFreezeRingUu(TEXT("charged_freeze_ring_uu"));
+	const FName Around(TEXT("around"));
+	const FName AfterHitTakenMult(TEXT("after_hit_taken_mult"));
+	const FName Embers(TEXT("embers"));
+	const FName EmberStatus(TEXT("ember_status"));
+	const FName EmberDmg(TEXT("ember_dmg"));
+	const FName DetonateBurning(TEXT("detonate_burning"));
+	const FName BurnTickRate(TEXT("burn_tick_rate"));
+	const FName ApplyModifierOnHit(TEXT("apply_modifier_on_hit"));
+	const FName EveryN(TEXT("every_n"));
+	const FName KillShocksNeighboursUu(TEXT("kill_shocks_neighbours_uu"));
 }
 
 EDTParamOp FDTFlagParams::DefaultOp(FName Name)

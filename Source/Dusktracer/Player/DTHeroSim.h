@@ -58,6 +58,11 @@ public:
 	/** Written by the stat system; MaxHp and charges follow on the next step. */
 	void SetStats(int32 OwnerId, const FDTHeroStats& Stats);
 
+	/** Reserve.Restore (offers.md): adds Amount HP, never above MaxHp; a down hero stays down. */
+	void Heal(int32 OwnerId, float Amount);
+	/** Slam's dash_cooldown_reset (keepers.md): every dash charge back, the refill timer cleared. */
+	void RefillDash(int32 OwnerId);
+
 	/** Debug (DT.God): every hit is discarded. */
 	void SetNoDamage(bool bInNoDamage) { bNoDamage = bInNoDamage; }
 	bool GetNoDamage() const { return bNoDamage; }

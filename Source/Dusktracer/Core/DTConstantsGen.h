@@ -33,6 +33,7 @@ namespace DTConst
 	inline constexpr int32 HASH_CELL_UU = 200; // uu, GATED(S0)
 	inline constexpr int32 SIM_PLANE_Z_UU = 50; // uu, CORE
 	// presentation
+	inline constexpr float HUD_BANNER_S = 2.5f; // s, GATED(S1)
 	inline constexpr float PRE_CONTRAST_MIN = 3.0f; // ratio, CORE
 	inline constexpr int32 PRE_DENSITY_LOD_KILLS_PER_S = 20; // per_s, GATED(S1)
 	// budget
@@ -159,6 +160,7 @@ namespace DTConst
 	inline constexpr int32 KEEPER_TRAIT_PREREQ_CARDS = 2; // n, GATED(S1)
 	inline constexpr float KEEPER_PACKAGE_GAIN_BAND_MIN = 2.0f; // x, GATED(S1)
 	inline constexpr float KEEPER_PACKAGE_GAIN_BAND_MAX = 2.4f; // x, GATED(S1)
+	inline constexpr float KEEPER_PULL_INTERVAL_S = 2.0f; // s, GATED(S1)
 	inline constexpr int32 TIER_FAVOR_PER_BLESSING = 1; // favor, CORE
 	inline constexpr int32 TIER_FAVOR_T1 = 3; // favor, CORE
 	inline constexpr int32 TIER_FAVOR_T2 = 6; // favor, CORE

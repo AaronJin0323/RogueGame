@@ -3,6 +3,7 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Dusktracer.h"
+#include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
 
 int32 DTWeaponPalette::NumBuckets()
@@ -78,6 +79,10 @@ void UDTWeaponSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	UDTSimSubsystem* SimSys = InWorld.GetSubsystem<UDTSimSubsystem>();
 	UDTBulletSubsystem* BulletSys = InWorld.GetSubsystem<UDTBulletSubsystem>();
 	Bullets = BulletSys;
+	if (UDTEnemySubsystem* EnemySys = InWorld.GetSubsystem<UDTEnemySubsystem>())
+	{
+		Sim.SetEnemies(&EnemySys->GetPool());
+	}
 	if (!SimSys)
 	{
 		return;

@@ -201,6 +201,25 @@ void FDTHeroSim::SetStats(int32 OwnerId, const FDTHeroStats& Stats)
 	}
 }
 
+void FDTHeroSim::Heal(int32 OwnerId, float Amount)
+{
+	if (States.IsValidIndex(OwnerId) && !States[OwnerId].bDown)
+	{
+		FDTHeroState& S = States[OwnerId];
+		S.Hp = FMath::Min(S.Hp + FMath::Max(0.0f, Amount), S.MaxHp);
+	}
+}
+
+void FDTHeroSim::RefillDash(int32 OwnerId)
+{
+	if (States.IsValidIndex(OwnerId))
+	{
+		FDTHeroState& S = States[OwnerId];
+		S.DashCharges = FMath::Max(S.DashCharges, S.DashChargesMax);
+		S.DashRefillLeft = 0.0f;
+	}
+}
+
 void FDTHeroSim::Emit(FDTHeroEvent Event, int32 OwnerId, int64 StepIndex)
 {
 	Event.OwnerId = OwnerId;

@@ -60,6 +60,8 @@ public:
 	EDTAimMode GetAimMode(int32 OwnerId) const { return Hero.GetAimMode(OwnerId); }
 	void SetAimMode(int32 OwnerId, EDTAimMode Mode) { Hero.SetAimMode(OwnerId, Mode); }
 	void SetStats(int32 OwnerId, const FDTHeroStats& Stats) { Hero.SetStats(OwnerId, Stats); }
+	void Heal(int32 OwnerId, float Amount) { Hero.Heal(OwnerId, Amount); }
+	void RefillDash(int32 OwnerId) { Hero.RefillDash(OwnerId); }
 	void SetNoDamage(bool bInNoDamage) { Hero.SetNoDamage(bInNoDamage); }
 	bool GetNoDamage() const { return Hero.GetNoDamage(); }
 

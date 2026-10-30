@@ -77,6 +77,15 @@ struct FDTEnemyAux
 	int32 NumBurnStacks() const;
 };
 
+/** What a death left behind for the effects of this step (keepers.md: burning explosions, spread): the status mask is gone with the slot. */
+struct FDTEnemyDeath
+{
+	uint32 Serial = 0;
+	uint8 StatusMask = 0;
+	/** Strongest live Burn stack, damage per second. */
+	float BurnDps = 0.0f;
+};
+
 /** An arrival's attack that outlives its unit (R-ENM-13, D-013 §6): resolves from its telegraph at the step it lands. */
 struct FDTOrphanAttack
 {
@@ -213,6 +222,8 @@ public:
 	const FDTEnemyAux& GetAux(int32 Index) const { return Aux[Index]; }
 	/** Bitmask of EDTStatus currently on the enemy. */
 	uint8 GetStatusMask(int32 Index) const;
+	/** Deaths of the last ResolveHits, in the order of its FDTKill list. */
+	TConstArrayView<FDTEnemyDeath> GetStepDeaths() const { return StepDeaths; }
 	/** Run-unique, never zero, kept through swap-removal (R-ENM-23). */
 	TConstArrayView<uint32> GetSerials() const { return Serial; }
 	/** True while Handle still names the same enemy (its serial at its index matches). */
@@ -234,6 +245,9 @@ public:
 	void SetHp(int32 Index, float Value) { Hp[Index] = Value; }
 	void SetFacing(int32 Index, const FVector2f& Dir);
 	void SetPattern(int32 Index, EDTFirePattern InPattern) { Aux[Index].Pattern = InPattern; }
+
+	/** keepers.md R-KEE-21: true when Handle may be pulled at StepIndex, and holds it for IntervalSteps; false for a stale handle or one still held. */
+	bool TryPull(const FDTEnemyHandle& Handle, int64 StepIndex, int64 IntervalSteps);
 
 private:
 	void SwapRemove(int32 Index);
@@ -269,12 +283,14 @@ private:
 	TArray<uint8> Dead;
 	TArray<uint32> Serial;
 	TArray<FDTEnemyAux> Aux;
+	TArray<int64> PullReadyStep; // first step a Pull may reach this enemy again (R-KEE-21)
 	uint32 NextSerial = 1; // never zero; reset only with the counters (a new run)
 	uint32 NextBurnOrder = 1;
 
 	FDTEnemyBulletPool Rounds;
 	TArray<FDTOrphanAttack> Orphans;
 	TArray<FDTThreatAction> StepThreats;
+	TArray<FDTEnemyDeath> StepDeaths;
 	bool bFireEnabled = true;
 
 	FDTSpatialHash NeighbourHash;

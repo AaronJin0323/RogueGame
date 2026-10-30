@@ -20,6 +20,8 @@
 #include "Offers/DTOfferScreen.h"
 #include "Offers/DTOfferStyle.h"
 #include "Offers/DTOfferSubsystem.h"
+#include "Player/DTHeroSubsystem.h"
+#include "Progression/DTGemSubsystem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -914,6 +916,38 @@ bool FDTOfferReserveTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Spare Terms applies"), Spare.bValid);
 	TestEqual(TEXT("Spare Terms adds its rerolls"), Sim.P().Offer.RerollsLeft, Before + DTConst::OFFER_RESERVE_SPARE_REROLLS);
 	TestEqual(TEXT("Reserve carries no Keeper or archetype"), DTOffers::FindBlessing(DTOffers::ReserveId(EDTReserveKind::Hone)).Archetype, static_cast<int32>(INDEX_NONE));
+	return true;
+}
+
+// T-OFF-16
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferReserveEffectsTest, "Dusktracer.Offers.ReserveEffects", DTOfferTest::Flags)
+bool FDTOfferReserveEffectsTest::RunTest(const FString& Parameters)
+{
+	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), TEXT("DTOfferReserveWorld")));
+	Context.SetCurrentWorld(World);
+	World->InitializeActorsForPlay(FURL());
+	World->BeginPlay();
+	UDTOfferSubsystem* Offers = World->GetSubsystem<UDTOfferSubsystem>();
+	UDTGemSubsystem* Gems = World->GetSubsystem<UDTGemSubsystem>();
+	const UDTHeroSubsystem* Hero = World->GetSubsystem<UDTHeroSubsystem>();
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	if (TestTrue(TEXT("subsystems"), Offers && Gems && Hero && Sim))
+	{
+		Sim->StartRun(3, 1);
+		Offers->UpdateFlow();
+		const float Ratio = 1.0f + DTConst::OFFER_RESERVE_SALVAGE_RADIUS_RATIO;
+		TestEqual(TEXT("no Salvage: the base radius"), Gems->GetStats(0).PickupRadiusMul, 1.0f);
+		Offers->ApplyReserve(0, EDTReserveKind::Salvage);
+		TestEqual(TEXT("Salvage widens the pickup radius"), Gems->GetStats(0).PickupRadiusMul, Ratio);
+		Offers->ApplyReserve(0, EDTReserveKind::Salvage);
+		TestEqual(TEXT("Salvage stacks"), Gems->GetStats(0).PickupRadiusMul, Ratio * Ratio, 1.0e-5f);
+		const float Hp = Hero->GetState(0)->Hp;
+		Offers->ApplyReserve(0, EDTReserveKind::Restore);
+		TestEqual(TEXT("Restore at full HP changes nothing"), Hero->GetState(0)->Hp, Hp);
+	}
+	GEngine->DestroyWorldContext(World);
+	World->DestroyWorld(false);
 	return true;
 }
 

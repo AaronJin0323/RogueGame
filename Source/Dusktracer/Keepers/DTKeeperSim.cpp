@@ -7,6 +7,7 @@ namespace DTKeeperSimLocal
 {
 	static const FName ParamFrozenVuln(TEXT("frozen_vuln"));
 	static const FName ParamBurnStacksMax(TEXT("burn_stacks_max"));
+	static const FName ParamBurnTickRate(TEXT("burn_tick_rate"));
 	static const FName ParamFreezeStacks(TEXT("freeze_stacks"));
 	static const FName ParamFreezeDurationScale(TEXT("freeze_duration_scale"));
 	static const FName ParamChildDmg(TEXT("child_dmg"));
@@ -30,6 +31,7 @@ namespace DTKeeperSimLocal
 	static const FName ParamChargeS(TEXT("charge_s"));
 	static const FName ParamBurnToCap(TEXT("burn_to_cap"));
 	static const FName ParamGrantCharge(TEXT("grant_charge"));
+	static const FName ParamDashCooldownReset(TEXT("dash_cooldown_reset"));
 	static const FName WordPattern(TEXT("pattern"));
 	static const FName WordFan(TEXT("Fan"));
 	static const FName WordOn(TEXT("on"));
@@ -158,6 +160,7 @@ void FDTKeeperSim::ResetRun()
 {
 	Captured.Reset();
 	Finished.Reset();
+	DashResets.Reset();
 	for (FPlayer& Player : Players)
 	{
 		Player.Cast = FCast();
@@ -242,6 +245,7 @@ void FDTKeeperSim::AppendStatus(FDTWorldView& View, FPlayer& Player, EDTStatus S
 	Apply.SourceId = DTKeepers::KeeperSource(Path);
 	// Riders travel with every application of this owner (R-KEE-11, R-KEE-12); enemies.md owns what they do.
 	float StackBonus = 0.0f;
+	float BurnRate = 0.0f;
 	float FreezeAt = 0.0f;
 	float FreezeScale = 0.0f;
 	for (const FDTWeaponFlags& Built : Player.Built)
@@ -249,6 +253,7 @@ void FDTKeeperSim::AppendStatus(FDTWorldView& View, FPlayer& Player, EDTStatus S
 		for (const FDTFlagEntry& Entry : Built.Entries)
 		{
 			StackBonus = FMath::Max(StackBonus, Entry.Params.Get(ParamBurnStacksMax));
+			BurnRate = FMath::Max(BurnRate, Entry.Params.Get(ParamBurnTickRate));
 			if (Entry.Flag == DTCat::EFlag::StatusApply)
 			{
 				const float At = Entry.Params.Get(ParamFreezeStacks);
@@ -260,7 +265,7 @@ void FDTKeeperSim::AppendStatus(FDTWorldView& View, FPlayer& Player, EDTStatus S
 	switch (Status)
 	{
 	case EDTStatus::Burn:
-		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage;
+		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage * (1.0f + BurnRate);
 		Apply.StackBonus = FMath::RoundToInt(StackBonus);
 		break;
 	case EDTStatus::Chill:
@@ -570,6 +575,10 @@ void FDTKeeperSim::StepCast(const FDTSimContext& Context, int32 OwnerId, FPlayer
 		{
 			HitCircle(Context, OwnerId, Player, Hero, SlamVariant->GetNum(ParamRadiusUu, DTConst::INTERCESSION_FORGE_RING_RADIUS_UU),
 				Damage, EDTPath::Forge, Knockback, true, BurnApplications);
+			if (SlamVariant->GetNum(ParamDashCooldownReset) > 0.0f)
+			{
+				DashResets.Add(OwnerId);
+			}
 		}
 	}
 	if (Plan.Base == EDTPath::Storm)

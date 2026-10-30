@@ -10,6 +10,7 @@
 #include "Combat/DTWeaponFlags.h"
 
 class FDTBulletPool;
+class FDTEnemyPool;
 struct FDTBulletSpawn;
 
 /** Result of an inventory change (offers and debug commands read it). */
@@ -74,6 +75,9 @@ public:
 	/** combat_core.md R-CMB-04 aim mode: Manual makes Nearest weapons fire along HeroAimDirs (R-WPN-12). */
 	void SetAimManual(int32 OwnerId, bool bManual);
 
+	/** The read side of enemy state: statuses, elite and role, death records (R-KEE-10: read in Effects, never written). */
+	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
+
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
 	FDTWeaponSpec ComposeSlot(FDTRunState& Run, int32 OwnerId, int32 Slot) const;
@@ -115,6 +119,7 @@ private:
 		int32 TicksDone = 0;
 		float Damage = 0.0f;
 		uint16 SourceId = 0;
+		bool bCharged = false;
 	};
 
 	struct FWeaponRuntime
@@ -143,6 +148,18 @@ private:
 		float StillTime = 0.0f;
 		bool bHasAnchor = false;
 		bool bWasIntangible = false;
+		/** pulled_vuln: serial -> step the mark ends (Pull, keepers.md). */
+		TMap<uint32, int64> PulledUntilStep;
+		float SpreadReadyIn = 0.0f;
+		/** freeze_until_hit: enemies whose Freeze is being held, oldest first, and those struck since they froze. */
+		TArray<uint32> HeldFrozen;
+		TSet<uint32> FrozenStruck;
+		/** charged_aura_uu: seconds until the aura may pulse again. */
+		float AuraReadyIn = 0.0f;
+		/** after_hit_taken_mult: a hit was taken since the last slam. */
+		bool bSlamBoosted = false;
+		/** every_n: sky strikes so far. */
+		int32 SkyStrikes = 0;
 	};
 
 	/** What kind of contact an impact was; decides which reactions run (see DTWeaponSim.cpp). */
@@ -170,6 +187,12 @@ private:
 		int32 BouncesLeft = 0;
 		bool bSpent = false;
 		bool bCleave = false;
+		/** Bitmask of EDTStatus on the struck enemy when the hit landed (a lethal hit still reads it). */
+		uint8 StatusMask = 0;
+		/** The emission came from a Stillness-charged volley. */
+		bool bCharged = false;
+		/** A slam's ember (keepers.md §2): applies ember_status and runs no other reaction. */
+		bool bEmber = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -187,6 +210,8 @@ private:
 		int32 PierceLeft = 1;
 		int32 Generation = 0;
 		int32 BouncesLeft = 0;
+		bool bCharged = false;
+		bool bEmber = false;
 	};
 
 	struct FField
@@ -198,6 +223,9 @@ private:
 		float Radius = 0.0f;
 		float TimeLeft = 0.0f;
 		float DamagePerSecond = 0.0f;
+		/** The emission's damage (a Burn scales with it, R-KEE-11) and the flag's params, for the status it names. */
+		float BaseDamage = 0.0f;
+		FDTFlagParams Params;
 	};
 
 	struct FEcho
@@ -210,6 +238,8 @@ private:
 		float Damage = 0.0f;
 		float Radius = 0.0f;
 		bool bLeaveField = false;
+		/** every_n: this strike falls on the whole screen around the hero. */
+		bool bScreen = false;
 	};
 
 	struct FArcFlash
@@ -232,6 +262,16 @@ private:
 		FDTFlagParams Params;
 	};
 
+	/** An arc that struck Serial; if that blow kills, it forks (fork_on_kill, read at the step's kills). */
+	struct FArcMark
+	{
+		uint32 Serial = 0;
+		int32 OwnerId = INDEX_NONE;
+		int8 Slot = INDEX_NONE;
+		uint16 SourceId = 0;
+		float Damage = 0.0f;
+	};
+
 	/** One firing context: who fires, from where, with what source. */
 	struct FShot
 	{
@@ -247,6 +287,8 @@ private:
 		bool bTrack = false;
 		int32 Generation = 0;
 		int32 Bounces = 0;
+		bool bCharged = false;
+		bool bEmber = false;
 	};
 
 	/** A shot of Slot's own rounds (spec speed, radius, life, pierce, damage, weapon source). */
@@ -278,7 +320,7 @@ private:
 	void StepDrones(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, bool bFreeVolley);
 	void PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
-		float Damage, uint16 SourceId);
+		float Damage, uint16 SourceId, bool bCharged);
 	void StepMines(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
 	void Detonate(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FMine& Mine);
 
@@ -286,8 +328,12 @@ private:
 	void OnActivation(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot,
 		FWeaponRuntime& Runtime, bool bMelee);
 	void StepStillness(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
-	void StepSlamTriggers(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
-	void EmitSlam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam);
+	/** Spends one Stillness charge on Shot (keepers.md §2); charged_freeze_ring_uu queues its Freeze for Effects. */
+	void SpendCharge(const FDTSimContext& Context, int32 OwnerId, FWeaponRuntime& Runtime, const FDTResolvedFlag& Still, FShot& Shot);
+	/** Effects: Frost's frozen_blocks_enemies and freeze_until_hit, Stillness's charged aura. */
+	void StepHeldControl(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
+	void StepSlamTriggers(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player);
+	void EmitSlam(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam);
 
 	void StepDeferred(const FDTSimContext& Context);
 	void SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage);
@@ -299,6 +345,32 @@ private:
 		const FDTFlagEntry& Entry, bool bRing, const FVector2f& From);
 	void ApplyStatus(const FDTSimContext& Context, const FDTFlagParams& Params, const FDTEnemyHandle& Handle,
 		float HitDamage, int32 OwnerId, uint16 SourceId);
+	/** Bitmask of EDTStatus on an enemy (0 without an enemy pool or for a stale handle). */
+	uint8 StatusMaskOf(int32 Enemy, uint32 Serial) const;
+	/** One arc jump onto Enemy: a hit of Damage (dmg_vs_shocked applied), plus every on=ChainHit status. Returns false at the spawn cap. */
+	bool ArcJump(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FDTFlagEntry& Chain, const TArray<FDTResolvedFlag>& Flags,
+		int32 OwnerId, int8 Slot, int32 Enemy, float Damage, bool bMark);
+	/** Pulled enemies whose final positions touch take crush_dmg x the triggering hit as the Keeper (keepers.md §2). */
+	void CrushContacts(const FDTSimContext& Context, const FDTFlagEntry& Pull, const TArray<TPair<int32, FVector2f>>& Moved, float HitDamage, int32 OwnerId);
+	/** Kill-time reactions: arc forks, burning explosions, Burn spread. */
+	void ReactToKills(const FDTSimContext& Context, TConstArrayView<FArcMark> Marks);
+	void ForkArcs(const FDTSimContext& Context, const FDTKill& Kill, const FArcMark& Mark);
+	/** An area burst of shatter_dmg x the strongest weapon around Center, as the Keeper, applying shatter_status. */
+	void ShatterAt(const FDTSimContext& Context, const FDTFlagEntry& Entry, int32 OwnerId, int32 Slot, const FVector2f& Center, float Radius);
+	/** cluster_freeze_min: enough touching pulled enemies Freeze together and, with shatter, burst (keepers.md §2). */
+	void FreezeCluster(const FDTSimContext& Context, const FDTFlagEntry& Pull, const TArray<TPair<int32, FVector2f>>& Moved, const FImpact& Impact);
+	/** Enemies within Radius of Center, lowest index first. */
+	void EnemiesInCircle(const FDTWorldView& View, const FVector2f& Center, float Radius, TArray<int32>& Out) const;
+	/** The status word with this owner's Frost riders (freeze_stacks, freeze_duration_scale), as hits carry them. */
+	FDTFlagParams StatusParams(const FDTWeaponSpec& Spec, FName StatusWord) const;
+	void ExplodeBurning(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius);
+	void SpreadBurn(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius, float BurnDps);
+	/** burn_tick_rate of OwnerId's flags: Burn applications carry that much more damage per second (R-KEE-11). */
+	float BurnRate(int32 OwnerId) const;
+	/** The strongest per-hit damage among OwnerId's composed weapons (the explosion's basis, as Slam's dmg_ratio). */
+	float StrongestDamage(int32 OwnerId) const;
+	/** Live elites and the boss, nearest to the query first (retarget=EliteOrBoss); collected once per Effects phase. */
+	const TArray<int32>& PriorityTargets(const FDTWorldView& View);
 
 	TArray<FPlayerRuntime> Players;
 	TArray<FRound> Rounds;
@@ -307,7 +379,16 @@ private:
 	TArray<FArcFlash> Arcs;
 	TArray<FImpact> Impacts;
 	TArray<FPendingStatus> PendingStatuses;
+	TArray<FArcMark> ArcMarks;
+	/** Enemies struck this step by a melee arc or a slam whose flag carries burning_explode_on_death_uu. */
+	TSet<uint32> StepCleaved;
+	TSet<uint32> StepSlammed;
+	/** Enemies already taken by a cluster this step (statuses land next step, so the mask cannot tell). */
+	TSet<uint32> StepClustered;
 	TArray<int32> Candidates;
+	TArray<int32> Priority;
+	bool bPriorityBuilt = false;
+	FDTEnemyPool* Enemies = nullptr;
 	int32 WeaponsHitsEnd = 0;
 	int32 MaxGeneration = 0;
 	int64 LastStep = -1;

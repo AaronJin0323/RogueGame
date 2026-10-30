@@ -17,6 +17,7 @@ public:
 		LOCTABLE_FROMFILE_GAME("ST_Weapons", "ST_Weapons", "DT/Text/Generated/ST_Weapons.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Modifiers", "ST_Modifiers", "DT/Text/Generated/ST_Modifiers.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Keepers", "ST_Keepers", "DT/Text/Generated/ST_Keepers.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Keywords", "ST_Keywords", "DT/Text/Generated/ST_Keywords.csv");
 	}
 };
 

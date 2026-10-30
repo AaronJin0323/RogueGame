@@ -149,6 +149,15 @@ void FDTDirectorCore::ForceBlock(EDTDirBlock Wanted)
 	Forced = Wanted;
 }
 
+EDTDirBanner FDTDirectorCore::GetBanner() const
+{
+	if (Time - Open.StartSeconds >= DTConst::HUD_BANNER_S)
+	{
+		return EDTDirBanner::None;
+	}
+	return Block == EDTDirBlock::Threat ? EDTDirBanner::Threat : Block == EDTDirBlock::Boss ? EDTDirBanner::BossIncoming : EDTDirBanner::None;
+}
+
 void FDTDirectorCore::OpenBlock(EDTDirBlock State, float RowStart)
 {
 	Block = State;

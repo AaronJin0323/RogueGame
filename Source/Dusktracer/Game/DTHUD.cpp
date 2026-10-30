@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "Boss/DTBossSubsystem.h"
 #include "Core/DTSimSubsystem.h"
+#include "Director/DTDirector.h"
 #include "Game/DTGameMode.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
@@ -235,6 +236,23 @@ void ADTHUD::DrawHUD()
 		Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
+	}
+
+	// Director banners, top centre (director.md R-DIR-17).
+	if (const UDTDirector* Director = GetWorld() ? GetWorld()->GetSubsystem<UDTDirector>() : nullptr)
+	{
+		const EDTDirBanner Banner = Director->GetCore().GetBanner();
+		if (Banner != EDTDirBanner::None)
+		{
+			const FText Line = FText::FromStringTable(TEXT("ST_UI"), Banner == EDTDirBanner::Threat ? TEXT("Hud.Threat") : TEXT("Hud.BossIncoming"));
+			float Width = 0.0f;
+			float Height = 0.0f;
+			Canvas->TextSize(Font, Line.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx), Line, Font, DTHUDLocal::UIText);
+			Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+			Item.EnableShadow(FLinearColor::Black);
+			Canvas->DrawItem(Item);
+		}
 	}
 
 	// Victory banner once the boss falls (the death banner is drawn with the hero block).

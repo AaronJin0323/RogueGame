@@ -23,15 +23,20 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 
 | Flag | What the blessing makes happen |
 |---|---|
-| `Split` | on hit or expiry a round becomes children (fan); generations above one only from a Trait or an Intercession, capped by `modifiers.md` |
-| `Chain` | a hit jumps to further enemies in range for a share of its damage |
-| `Echo` | a delayed strike falls from the sky on the impact point (not a repeat of the volley) |
-| `ConvertMelee` | the first rounds of each volley become a cleave around the hero; cool Keeper colours, never red (R-PRE-01) |
-| `Field` | the impact (or slam) leaves a zone that ticks damage and a status |
-| `Slam` | a ground ring around the hero on its triggers (dash landing, every Nth melee hit, hit taken) |
-| `Pull` | the impact draws enemies toward it; colliding pulled enemies take crush damage |
-| `StatusApply` | hits apply the Keeper status at a chance; for Frost it also changes the Chill → Freeze threshold |
-| `Stillness` | standing still charges the next volley of every weapon; dashing keeps the charge, walking spends it |
+| `Split` | on hit or expiry a round becomes children (fan); generations above one only from a Trait or an Intercession, capped by `modifiers.md`; `retarget=EliteOrBoss` sends the children at the elites and the boss within their reach, nearest first, before any fan |
+| `Chain` | a hit jumps to further enemies in range for a share of its damage; a Shocked target takes `dmg_vs_shocked` more; each jump has `return_same_target` chance to leap back onto the enemy it left; an arc that kills forks into `fork_on_kill` one-jump arcs from the death point, and forks never fork; `kill_shocks_neighbours_uu` Shocks everything in reach of that death |
+| `Echo` | a delayed strike falls from the sky on the impact point (not a repeat of the volley); every `every_n`th strike of the player falls on the whole screen around the hero instead |
+| `ConvertMelee` | the first rounds of each volley become a cleave around the hero; cool Keeper colours, never red (R-PRE-01); `apply_modifier_on_hit` bounces a live Ricochet off each enemy a cleave strikes (the other live modifiers already reach cleaves; Split is dormant under a conversion) |
+| `Field` | the impact (or slam) leaves a zone that ticks damage and applies the `status` it names (R-KEE-22); `trigger=HitOnBurning` needs the struck enemy to Burn when the hit lands; `spread_burn_on_kill_uu` makes a Burning death pass its strongest Burn to everything in reach, at most once per `spread_burn_interval_s` |
+| `Slam` | a ground ring around the hero on its triggers (dash landing, every Nth melee hit, hit taken); the first slam after a hit deals × `after_hit_taken_mult`; `embers` rounds of the shared child kind fly out for `ember_dmg` of the slam and apply `ember_status`; `detonate_burning` deals what each Burning enemy's Burn still owes at once, as a Keeper hit, and the Burn runs on |
+| `Pull` | the impact draws enemies toward it, each enemy at most once per `C.KEEPER.PULL_INTERVAL_S` (R-KEE-21); pulled enemies whose pulled positions touch take `crush_dmg` of the triggering hit as Keeper damage (the Key carries it); `pulled_vuln` adds that share of every hit on an enemy pulled in the last `pulled_vuln_s`; at `cluster_freeze_min` touching pulled enemies not yet Frozen, they Freeze together and with `shatter` burst once around their centre (a shatter, below); `on=ChargedVolley` is Stillness's Pull: only a charged volley's impact, within `charged_pull_uu` |
+| `StatusApply` | hits apply the Keeper status at a chance; for Frost it also changes the Chill → Freeze threshold. A Frozen death with `shatter_on_frozen_kill_uu` is a shatter there; `frozen_hit_chills_neighbours_uu` Chills around a Frozen enemy that is hit; with `frozen_blocks_enemies` other enemies overlapping a Frozen one are pushed back to its rim; `freeze_until_hit` holds up to `held_max` Freezes past their end until a weapon strikes the enemy (a strike ends the hold, it never shortens a Freeze still running) |
+| `Stillness` | standing still charges the next volley of every weapon; dashing keeps the charge, walking spends it. A charged volley applies the Key's `status` to what it hits; `charged_freeze_ring_uu` Freezes around the hero as it fires; while any weapon holds a charge the hero pulses `aura_status` within `charged_aura_uu` every `aura_interval_s` |
+
+A Burning enemy that dies explodes for `explode_dmg` × the strongest owned weapon's per-hit damage within `burning_explode_on_death_uu` and Burns what it hits: Hammer's line (on `ConvertMelee`) needs a melee arc's kill, Slam's a slam's kill, Furnace's (on `Field`) any death and leaves that Field. Slam's Intercession variant `dash_cooldown_reset` refills every dash charge on a dash landing during the cast. A shatter is one burst of `shatter_dmg` × the strongest owned weapon's per-hit damage that applies `shatter_status`. Crush, `pulled_vuln`, explosion and shatter hits carry no weapon slot, so no proc feeds on them.
+
+- **R-KEE-21** A `Flag.Pull` moves a given enemy at most once per `C.KEEPER.PULL_INTERVAL_S`, counted in sim steps, whichever player or entry pulls (`PullReadyStep`, `enemies.md` Data). An impact skips an enemy still held: no displacement and nothing that rides on the pull (crush, the `pulled_vuln` mark, `on=Pulled` statuses, the cluster count). A `pulled_vuln` mark already running still pays. Direction and `distance_uu` are unchanged. This covers every `Flag.Pull`, Stillness's and `Mod.Backwash` included; the mine's own pull and the Tide Intercession's line are not `Flag.Pull` and are not held (D-016).
+- **R-KEE-22** A field that names a `status` applies it every `C.STATUS.BURN_TICK_S` of sim time to the enemies within its damage reach, once per enemy per source however many of that source's fields overlap, so a Burn stack lives to its first tick. A Burn from a field scales with the emission that left the field (R-KEE-11). The application is not a hit (R-KEE-16) (D-016).
 
 ### 3. Primary, second and leading archetype
 - **R-KEE-05** The **primary Keeper** (Patron) is the Keeper the player picks in the run-start Patron hand (`offers.md` R-OFF-08); it never changes in the run. Until the L8 commitment (`offers.md`) only primary blessings are granted. At the L8 commitment the player picks one **second Keeper** from the other S1 Keepers; it never changes after. The third S1 Keeper's blessings are never granted to that player.
@@ -45,7 +50,7 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 ### 5. Enchantment (look + status)
 - **R-KEE-09** From the first blessing, every player round carries the primary Keeper's trail colour (`Pal.Keeper.<Path>`) and each player hit applies the primary status with chance `C.ENCHANT.STATUS_CHANCE_PRIMARY`. From the commitment, the second Keeper tints the trail tip only and applies its status with chance `C.ENCHANT.STATUS_CHANCE_SECOND`. No enchantment ever changes the round's core or head colour (R-PRE-01). Status rolls draw only from the `Combat` stream (R-TEC-02).
 - **R-KEE-10** Keepers decide *when* a status lands, `enemies.md` owns *what* it does: status state, durations, stacking and effects are R-ENM-21 and R-ENM-22 with `C.STATUS.*`, never redefined here. Every proc (enchantment, `Flag.StatusApply`, a flag's own status, Intercession) is rolled in `EDTSimPhase::Effects` on that step's hits and kills and appends one `FDTStatusApply` (`enemies.md` §Data) with the hit's owner and the granting Keeper's source; it takes effect at the next Enemies phase (`07_Technical §4`).
-- **R-KEE-11** A Burn application's damage per second is `C.STATUS.BURN_DPS_RATIO` × the applying hit's damage; a Furnace stack-cap bonus (`burn_stacks_max`, `expression.csv`) travels in the application's `StackBonus`.
+- **R-KEE-11** A Burn application's damage per second is `C.STATUS.BURN_DPS_RATIO` × the applying hit's damage, raised by the owner's Furnace `burn_tick_rate` (the tick itself is `C.STATUS.BURN_TICK_S`, `enemies.md`); a Furnace stack-cap bonus (`burn_stacks_max`, `expression.csv`) travels in the application's `StackBonus`.
 - **R-KEE-12** A Chill application adds its stacks (one, or a flag's `chill_stacks_*`); Frost's lower Freeze threshold (`freeze_stacks`) and longer Freeze (`freeze_duration_scale`) travel in the application's `FreezeAt` and `FreezeScale`; otherwise `C.STATUS.FREEZE_STACKS` and `C.STATUS.FREEZE_S` apply.
 - **R-KEE-13** Every hit or tick that exists because of a Keeper (flag children, chain jumps, echo strikes, cleaves, slams, field ticks, crush, status damage, Intercession) carries telemetry source `Keeper.<Path>` of the Keeper that granted it (R-TEL-05); layer hits carry the second Keeper's source.
 
@@ -81,6 +86,7 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 | Status chance, primary / second | C.ENCHANT.STATUS_CHANCE_PRIMARY / SECOND | GATED(S1) | R-KEE-09 |
 | Burn magnitude | C.STATUS.BURN_DPS_RATIO | GATED(S1) | R-KEE-11 (status numbers: `enemies.md`) |
 | Default Freeze threshold and length | C.STATUS.FREEZE_STACKS, C.STATUS.FREEZE_S | GATED(S1) | R-KEE-12 |
+| Pull interval | C.KEEPER.PULL_INTERVAL_S | GATED(S1) | R-KEE-21 |
 | Intercession bases | C.INTERCESSION.STORM_* / FORGE_* / TIDE_* | GATED(S1) | R-KEE-14 |
 | Intercession band | C.INTERCESSION.BAND | CORE | R-KEE-15 |
 | Retune step per pass | C.INTERCESSION.RETUNE_STEP_MAX | GATED(S1) | R-KEE-15 |
@@ -96,7 +102,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `Path` / `Archetype` | `Keeper.<Path>` / `Archetype.<Path>.<Name>` tags | |
 | `KeyFlag` | `Flag.*` tag | R-KEE-02 |
 | `Key` `Amp1` `Amp2` `Trait` | effect spec (every `Key` is a starter card, R-OFF-07) | `Flag.<Name>{param=value;…}`, several joined by ` + `; `+x` adds to the Key's param; blessing id is `Blessing.<Path>.<Archetype>.<column>` |
-| Param units | in the spec | `_uu` distance, `_s` time, `dmg` `dps` `crush_dmg` ratios of the triggering hit, `dmg_ratio` (Slam) a ratio of the strongest owned weapon's per-hit damage |
+| Param units | in the spec | `_uu` distance, `_s` time, `dmg` `dps` `crush_dmg` `pulled_vuln` ratios of the triggering hit, `ember_dmg` of the slam, `dmg_ratio` (Slam), `explode_dmg` and `shatter_dmg` ratios of the strongest owned weapon's per-hit damage |
 | `Tier1` `Tier2` `Tier3` | effect spec | applied while the archetype leads (R-KEE-07) |
 | `EnchantLook` / `EnchantStatus` | palette token / `Status.*` | per Keeper, repeated per row |
 | `IntercessionVariant` / `SecondKeeperLayer` | effect spec | variant shapes the primary's base; layer is what this archetype adds as the second Keeper |
@@ -126,6 +132,8 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - T-KEE-17 `Dusktracer.Keepers.NoFitMultiplier`: the same blessing set gives identical flag parameters on fit and off-fit weapons.
 - T-KEE-18 `Dusktracer.Keepers.Budget` (bot ablation, `Tools/power_split.py`): Keeper share, package gain and archetype band hold for the nine showcase builds. PLANNED(S1)
 - T-KEE-19 `Dusktracer.Keepers.PerPlayer`: two owners with different Keepers never affect each other's weapons, procs or offers.
+- T-KEE-21 `Dusktracer.Keepers.Param.*`: pull interval (R-KEE-21), field status (R-KEE-22), Whirlpool's layer, crush, pulled_vuln, arcs (dmg_vs_shocked, return_same_target), fork_on_kill, retarget, HitOnBurning, burning deaths (explosion, spread), dash_cooldown_reset, Frost's shatter, wall, hold and neighbour Chill, Whirlpool's cluster and pull stacks, Stillness's charged status, pull, aura, ring and cast, Slam's after-hit, embers and detonation, Furnace's Burn rate, Hammer's Ricochet, Downpour's screen strike and Arc Grid's kill Shock each change behaviour exactly when their condition holds; the Whirlpool Key has a non-zero Keeper damage share (`Dusktracer.Keepers.Key.Whirlpool`).
+- T-KEE-22 `Dusktracer.Keepers.Keywords`: every status and every flag an S1 card or `Kw` column names has `.Name` and `.Desc` in `ST_Keywords`, and "god" never appears (`Tools/loc_build.py`).
 - T-KEE-20 `Dusktracer.Keepers.ExpressionCsv`: the generator rejects a missing row, an unknown tag and an asymmetric incompatibility, and builds headless.
 - HUMAN: after one run, ≥ two of three validators name their archetype in their own words (`00_Vision §4`); the trail shows the primary colour from the first blessing and the second only at the tip.
 
@@ -153,7 +161,10 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - Implemented in `Source/Dusktracer/Keepers/` (S1 keepers package). Notes from that build, for the next spec pass:
   - Tier lines and Intercession overlays fold into one flag source per Keeper (`Keeper.<Path>`): a `+x` adds, a plain value replaces. A tier clause with `every_n_volley` and its own `pattern` is a separate per-volley entry (Tempest's ring); the others (Downpour, Whirlpool) change the per-hit entry because the weapon system has no per-volley Echo or Pull.
   - The Intercession bases name mechanics without every number: child damage, chain range and damage, ring damage and knockback, and the Tide line's gap are read from the Path's own cards in `expression.csv` (first card naming the parameter); a screen-wide scope is `C.ARENA.CAMERA_FRAME_RADIUS_UU`.
-  - Frost's `frozen_vuln` is expressed by the Keeper layer as an extra `Keeper.Tide` hit on Frozen enemies (no other system owns it). The Whirlpool Key has no damage term (pull and Chill), so its Keeper damage share is zero until `crush_dmg`.
-  - Not yet expressed by any system: `crush_dmg`, `pulled_vuln`, `dmg_vs_shocked`, `return_same_target`, `fork_on_kill`, `retarget`, `burning_explode_on_death_uu`, `spread_burn_*`, Slam's `dash_cooldown_reset`, Stillness's `time_scale`. Each is a Keeper parameter, so the owner is this page plus `weapons.md`.
+  - Frost's `frozen_vuln` is expressed by the Keeper layer as an extra `Keeper.Tide` hit on Frozen enemies (no other system owns it).
+  - Stillness's `time_scale` stays unexpressed: a global scale changes the fixed-step clock (R-TEC-03), and an enemy-only scale stretches telegraphs, which never scale (R-DIR-10).
+  - Parameters no reader names, on purpose: `counts_still`, `window_s`, `dash_keeps`, `weapons` (Stillness; defaults the code already honours: a walking hero's anchor, `charge_s`, and every weapon carrying the flag). Each is a Keeper parameter, so the owner is this page plus `weapons.md`.
+  - `all_volleys_charged` has no reader of its own: the cast's overlay charges in one step, so every volley is charged (`Param.StillnessAllVolleysCharged` pins it). `freeze_until_hit` is a re-applied Freeze because `enemies.md` owns the status; `frozen_blocks_enemies` is the displacement queue, so a wall holds to within a step of movement.
+  - `S1_tide_expression.md` holds the arms after every card above was expressed. Pull at full `distance_uu` killed Whirlpool early (enemies near an impact moved toward a point next to the hero several times a second), which R-KEE-21 answers; `S1_pull_rule.md` holds the reading.
   - Intercession state is per player inside the Keeper system (keyed by `OwnerId`), not in `FDTPlayerRunState`; moving it there is a `Core/` change.
-  - Keyword notes (`ST_Keywords`) are not written yet: that table is outside this package's files.
+  - `ST_Keywords` holds the status notes and the flags S1 cards name (`Status.*`; `Flag.Split Chain Echo ConvertMelee Field Slam Pull StatusApply Stillness Ricochet`); the offer screen does not draw `<kw>` notes yet.

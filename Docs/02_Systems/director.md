@@ -19,6 +19,7 @@ The director turns one run of `C.RUN.LENGTH_TO_BOSS` into a rhythm the player ca
 - **R-DIR-13** Boss hand-off: at `C.RUN.LENGTH_TO_BOSS` regular spawns, beats and drop-ins stop, live markers are cancelled, and the director requests the boss (`Enemy.Boss.Warden`, `boss.md`). Enemies already alive stay unless `boss.md` clears them.
 - **R-DIR-14** Randomness: every director draw (role, ring angle and radius, hero choice, drop-in role and point) comes from its own stream `EDTRngStream::Director`, appended to the enum so existing stream seeds are unchanged (R-TEC-02). The same seed and the same per-step hero inputs give an identical spawn and drop-in sequence.
 - **R-DIR-15** Telemetry per block: when a Harvest row, beat or Breath ends, the director writes one `dir_block` record (§Telemetry); it never writes one line per spawn.
+- **R-DIR-17** Banners: the first `C.HUD.BANNER_S` of a Threat block shows `Hud.Threat`, the first `C.HUD.BANNER_S` of the Boss block shows `Hud.BossIncoming` (`FDTDirectorCore::GetBanner`, drawn by `ADTHUD`). They carry no number and no rule.
 - **R-DIR-16** Chests: every Threat beat yields exactly one chest (`offers.md` R-OFF-14). An `EliteWave` beat whose elites all die drops it at the death position of the last; any other beat (or an `EliteWave` that ends by its duration) places it at the start of its Breath, `C.DIR.CHEST_DROP_UU` from a living hero at a `Director`-stream angle, moved inside the arena. The shipped timeline's Threat rows therefore number `C.OFFER.BUDGET_CHEST_HANDS` (checked on the data). Chests are pickups (`progression.md` R-PRG-09).
 
 ## Numbers
@@ -46,6 +47,7 @@ The director turns one run of `C.RUN.LENGTH_TO_BOSS` into a rhythm the player ca
 | XP per role and elite factor | C.DROP.XP_SWARM, C.DROP.XP_TANK, C.DROP.XP_RUSHER, C.DROP.XP_TURRET, C.DROP.XP_ELITE_MULT | GATED(S1) | R-DIR-12, progression.md |
 | Chest distance from a hero | C.DIR.CHEST_DROP_UU | GATED(S1) | R-DIR-16, T-DIR-16 |
 | Chests per run | C.OFFER.BUDGET_CHEST_HANDS | GATED(S1) | R-DIR-16 |
+| Banner length | C.HUD.BANNER_S | GATED(S1) | R-DIR-17, T-DIR-17 |
 
 Sources: slopes, rings, Breath, drop-in cadence and fairness are the previous project's 15-minute values (`01_GameDesign §3.5` and §7, D-71 step two; `balance/pressure_proposal.md` P1 and P3); share caps follow `balance/playtest5_verification.md` (pile-ups at minute twelve were an HP wall); the no-pick band restates "overrun around minute ten" against the old bot's median (`balance/sims.md §0`). Timeline rates, caps, mixes and drop-in intervals live in `timeline_arena1.csv`, all GATED(S1).
 
@@ -91,6 +93,7 @@ Code: `UDTDirector` (`Director/`, a world subsystem idle until `ADTGameMode` cal
 - T-DIR-11 `Dusktracer.Director.Events`: each event spawns its count with the beat tag; killing them all ends the beat early.
 - T-DIR-12 `Dusktracer.Director.GemDrops`: one gem per director kill with the role value (elite factor applied); none for debug spawns.
 - T-DIR-16 `Dusktracer.Director.Chests`: each beat yields one chest: at the last elite's death when the elites all die, else at the Breath start at the stated distance inside the arena; the shipped timeline has `C.OFFER.BUDGET_CHEST_HANDS` Threat rows.
+- T-DIR-17 `Dusktracer.Director.Banners`: `Hud.Threat` shows only in the first `C.HUD.BANNER_S` of a beat and `Hud.BossIncoming` only in the first `C.HUD.BANNER_S` of the Boss block; both keys exist in `ST_UI`.
 - T-DIR-13 `Dusktracer.Director.BossHandoff`: at boss time spawns, beats and drop-ins stop, markers clear, one boss request is made.
 - T-DIR-14 `Dusktracer.Director.Determinism`: same seed and inputs give the same spawn and drop-in sequence; another seed differs; drawing from the director stream leaves the `Spawn` stream's sequence unchanged.
 - T-DIR-15 `Dusktracer.Director.BlockTelemetry`: one `dir_block` record per ended block with counts that sum to the run totals.
@@ -112,8 +115,7 @@ Code: `UDTDirector` (`Director/`, a world subsystem idle until `ADTGameMode` cal
 ## Open
 - Timeline numbers are the old 15-minute timeline reshaped to four roles and unmeasured here → resolved by Bot v1 runs (T-DIR-01, T-DIR-09) and the first S1 sessions (T-DIR-02).
 - T-DIR-01 is live: the first reading missed `C.DIR.NOPICK_DEATH_BAND_S` low; it lies inside the band once director drops stopped wiping the gem floor (`Docs/Validation/S1_balance_pass1.md`). The reading depends on the bot's movement (gem chasing alone moved the median by more than the band's margin), so the bot is calibrated against the first human no-pick sessions before the timeline is tuned against it.
-- The alive share caps redraw most Turret and many Tank and Rusher spawns as Swarm when a build keeps the field small, so real XP income stays well below the timeline's full-pickup model (`S1_balance_pass1.md` §2) → weigh with the drop values when the human pickup ratio is known.
-- T-DIR-02 tool is live (`Tools/pressure.py`, reading the hero records that now reach telemetry); bot readings are bounds until the first human sessions (O-008).
+- The alive share caps redraw most Turret and many Tank and Rusher spawns as Swarm when a build keeps the field small, so real XP income stays well below the timeline's full-pickup model and clearing builds meet few Turrets. Raising the caps fails T-DIR-01 (`S1_balance_pass2.md` §6): the same small field holds no-pick and weak builds early in the run → a cap that binds only above a floor of alive enemies is a RULE candidate.
+- T-DIR-02 tool is live (`Tools/pressure.py`, judging each arm on its own, reading the hero records that now reach telemetry); bot readings are bounds until the first human sessions (O-008). S1 has no heal, so `C.DMG_TAKEN.BAND_MIN10_13` over `C.DIR.BAND_WINDOW_S` costs about a whole HP bar: the band and a run that reaches the boss cannot both hold (`S1_balance_pass2.md` §3).
 - Whether drop-in cadence should adapt to the measured kill horizon instead of the timeline → decided after T-DIR-02 data; the fixed cadence stays the floor.
 - Implementation calls (S1 code, not yet validated): share caps compare a role's alive count with the cap times all alive enemies (an empty field excludes nothing); event enemies are queued only up to `C.ENEMIES.CAP` so a beat's clear stays exact (the rest count as `skipped_at_cap`); live drop-in markers are cancelled when a beat ends (Breath) and at boss time, never landed; a due drop-in restarts the cadence when it is published (no backlog). Revisit after the first S1 session if any of these reads wrong.
-- `Hud.Threat` / `Hud.BossIncoming` banners are not drawn yet (HUD is the offers package's file in S1); `OnBossTime` and `bThreatBlock` carry what they need.

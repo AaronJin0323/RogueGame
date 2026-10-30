@@ -11,7 +11,11 @@ Source: the JSONL `hero_damaged` (amount / max_hp), `dash`, `hero_down` and `run
 exactly; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows weighted by their overlap with the
 window. One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)
-With --check, one verdict over every reading (means across runs; T-DIR-02 is HUMAN-measured, a bot reading is a bound):
+  SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
+With --check, one verdict per arm and one overall (T-DIR-02 is HUMAN-measured, a bot reading is a bound). An arm is a run
+folder's label (<arm>_s<seed>, Tools/BotRuns.ps1); runs outside such a folder form one arm. A pooled mean hides builds that
+miss in opposite directions, so the overall verdict passes only when every arm passes on its own:
+  T-DIR-02 <arm>: PASS|FAIL (...)
   T-DIR-02: PASS|FAIL|n/a (...)      exit 1 on FAIL or n/a, else 0
 """
 
@@ -19,6 +23,7 @@ import csv
 import glob
 import json
 import os
+import re
 import statistics
 import sys
 
@@ -99,6 +104,33 @@ def window_from_csv(path, lo, hi):
 	return out
 
 
+def sources_from_jsonl(path, lo, hi, owner=0):
+	"""{"<kind>/<role>": damage share of max HP} of `owner` inside the window, with the attack id when there is one."""
+	out = {}
+	with open(path, encoding="utf-8") as f:
+		for line in f:
+			if '"hero_damaged"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=lambda pairs: [*pairs])
+			except ValueError:
+				continue
+			fields = {}
+			hit_kind = None
+			for key, value in rec:
+				if key == "kind":
+					hit_kind = value  # the second `kind` is the hit kind
+				else:
+					fields[key] = value
+			t = float(fields.get("t", 0.0))
+			max_hp = float(fields.get("max_hp") or 0.0)
+			if fields.get("owner", -1) != owner or not lo <= t < hi or max_hp <= 0:
+				continue
+			key = f"{hit_kind}/{fields.get('role')}"
+			out[key] = out.get(key, 0.0) + max(0.0, float(fields.get("amount", 0.0))) / max_hp
+	return out
+
+
 def window_rates(jsonl_path=None, csv_path=None, consts=None):
 	"""{owner: (dmg_share_per_min, dashes_per_min, alive_min)} and the source used ("jsonl", "csv" or None)."""
 	consts = consts or dtconst.load()
@@ -145,6 +177,13 @@ def fmt(v, digits):
 	return "-" if v is None else f"{v:.{digits}f}"
 
 
+def arm_of(name):
+	"""The arm label of a run: its folder's name without the seed suffix (BotRuns), or "all"."""
+	folder = os.path.basename(os.path.dirname(name.replace("\\", "/")))
+	m = re.match(r"(.+)_s\d+$", folder)
+	return m.group(1) if m else "all"
+
+
 def main(argv):
 	check = "--check" in argv
 	args = [a for a in argv[1:] if a != "--check"]
@@ -165,18 +204,32 @@ def main(argv):
 			print(f"PRESSURE: {name} p{owner} dmg {fmt(dmg, 3)}/min [{grade(dmg, dmg_band)}] dashes {fmt(dashes, 2)}/min "
 				f"[{grade(dashes, dash_band)}] alive {alive:.2f} min ({source})")
 			if dmg is not None:
-				readings.append((dmg, dashes))
+				readings.append((arm_of(name), dmg, dashes))
+				if jsonl and alive > 0:
+					lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
+					src = sources_from_jsonl(jsonl, lo, hi, owner)
+					detail = " ".join(f"{k} {v / alive:.3f}/min" for k, v in sorted(src.items(), key=lambda kv: -kv[1]))
+					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
 	if check:
 		lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
 		if not readings:
 			print(f"T-DIR-02: n/a (no hero alive in {lo}-{hi} s)")
 			return 1
-		d = statistics.mean(r[0] for r in readings)
-		s = statistics.mean(r[1] for r in readings)
-		ok = grade(d, dmg_band) == "IN" and grade(s, dash_band) == "IN"
-		print(f"T-DIR-02: {'PASS' if ok else 'FAIL'} (mean over {len(readings)} reading(s) in {lo}-{hi} s: damage taken {d:.3f}/min "
-			f"band {dmg_band[0]}-{dmg_band[1]}, dashes {s:.2f}/min band {dash_band[0]}-{dash_band[1]})")
-		return 0 if ok else 1
+		arms = {}
+		for arm, d, s in readings:
+			arms.setdefault(arm, []).append((d, s))
+		failed = []
+		for arm in sorted(arms):
+			d = statistics.mean(r[0] for r in arms[arm])
+			s = statistics.mean(r[1] for r in arms[arm])
+			ok = grade(d, dmg_band) == "IN" and grade(s, dash_band) == "IN"
+			if not ok:
+				failed.append(arm)
+			print(f"T-DIR-02 {arm}: {'PASS' if ok else 'FAIL'} (mean over {len(arms[arm])} reading(s) in {lo}-{hi} s: damage taken {d:.3f}/min "
+				f"[{grade(d, dmg_band)}] band {dmg_band[0]}-{dmg_band[1]}, dashes {s:.2f}/min [{grade(s, dash_band)}] band {dash_band[0]}-{dash_band[1]})")
+		print(f"T-DIR-02: {'FAIL' if failed else 'PASS'} ({len(arms) - len(failed)}/{len(arms)} arm(s) inside both bands"
+			+ (f"; out: {', '.join(failed)}" if failed else "") + ")")
+		return 1 if failed else 0
 	return 0
 
 

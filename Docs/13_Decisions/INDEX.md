@@ -17,3 +17,5 @@
 | D-013 | S1 spec set integration calls (Patron at run start, S1 Reforging, starters, one owner per number) | SYSTEM | applied |
 | D-014 | Catalogs compile into generated C++ tables and native tags | RULE | applied |
 | D-015 | Pulse Rifle start; Keeper-caused reshaping is Keeper damage | RULE | applied |
+| D-016 | Pull holds each enemy for an interval; fields apply their status | RULE | applied |
+| D-017 | Owner waives the S1 playtest hold on merging | PROCESS | applied |

@@ -28,6 +28,7 @@ sim:
   HASH.CELL_UU:                { value: 200,  unit: uu,    tag: GATED(S0),  dependents: [07_Technical.md, Core/DTSpatialHash, T-TEC-13] }
   SIM.PLANE_Z_UU:              { value: 50,   unit: uu,    tag: CORE,       dependents: [07_Technical.md] }
 presentation:
+  HUD.BANNER_S:                { value: 2.5, unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-17] }
   PRE.CONTRAST_MIN:            { value: 3.0,  unit: ratio, tag: CORE,       dependents: [04_Presentation.md, T-PRE-05] }
   PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
 budget:
@@ -152,6 +153,7 @@ keepers:
   KEEPER.BLESSINGS_PER_ARCHETYPE: { value: 4,  unit: n,     tag: CORE,       dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-01] }
   KEEPER.TRAIT_PREREQ_CARDS:   { value: 2,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 02_Systems/offers.md, T-KEE-04] }
   KEEPER.PACKAGE_GAIN_BAND:    { value: [2.0, 2.4], unit: x, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-18] }
+  KEEPER.PULL_INTERVAL_S:      { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, R-KEE-21, T-KEE-21] }
   TIER.FAVOR_PER_BLESSING:     { value: 1,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T1:               { value: 3,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T2:               { value: 6,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }

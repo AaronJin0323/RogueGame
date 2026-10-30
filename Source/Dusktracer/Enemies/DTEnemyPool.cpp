@@ -156,6 +156,7 @@ FDTEnemyPool::FDTEnemyPool()
 	Dead.Reserve(Capacity);
 	Serial.Reserve(Capacity);
 	Aux.Reserve(Capacity);
+	PullReadyStep.Reserve(Capacity);
 	NextVel.Reserve(Capacity);
 }
 
@@ -178,6 +179,7 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 	Dead.Reset();
 	Serial.Reset();
 	Aux.Reset();
+	PullReadyStep.Reset();
 	Orphans.Reset();
 	StepThreats.Reset();
 	if (bResetCounters)
@@ -241,6 +243,8 @@ int32 FDTEnemyPool::Spawn(const FDTEnemySpawn& Spec, FRandomStream* Rng, bool bD
 	Dead.Add(0);
 	Serial.Add(NextSerial);
 	NextSerial = NextSerial == MAX_uint32 ? 1u : NextSerial + 1u; // 4e9 spawns: wrap past zero, never hand it out
+
+	PullReadyStep.Add(0);
 
 	FDTEnemyAux& State = Aux.AddDefaulted_GetRef();
 	State.State = Spec.Role == EDTEnemyRole::Boss ? EDTEnemyState::Scripted : EDTEnemyState::Init;
@@ -464,6 +468,16 @@ bool FDTEnemyPool::ApplyStatus(const FDTStatusApply& Apply)
 		return false;
 	}
 	++Counters.StatusesApplied[static_cast<int32>(Apply.Status)];
+	return true;
+}
+
+bool FDTEnemyPool::TryPull(const FDTEnemyHandle& Handle, int64 StepIndex, int64 IntervalSteps)
+{
+	if (!IsHandleValid(Handle) || StepIndex < PullReadyStep[Handle.Index])
+	{
+		return false;
+	}
+	PullReadyStep[Handle.Index] = StepIndex + IntervalSteps;
 	return true;
 }
 
@@ -1177,6 +1191,13 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 			Dead[Index] = 1;
 			++Kills;
 			Run.ApplyEvent({ EDTGameEventKind::Kill, Hit.OwnerId, 0 });
+			FDTEnemyDeath& Death = StepDeaths.AddDefaulted_GetRef();
+			Death.Serial = Serial[Index];
+			Death.StatusMask = GetStatusMask(Index);
+			for (const FDTBurnStack& Stack : Aux[Index].Burn)
+			{
+				Death.BurnDps = Stack.Left > 0.0f ? FMath::Max(Death.BurnDps, Stack.Dps) : Death.BurnDps;
+			}
 			if (OutKills)
 			{
 				FDTKill& Kill = OutKills->AddDefaulted_GetRef();
@@ -1201,6 +1222,7 @@ int32 FDTEnemyPool::ResolveHits(const FDTSimContext& Context)
 	check(Context.View && Context.Run);
 	FDTWorldView& View = *Context.View;
 	View.Kills.Reset();
+	StepDeaths.Reset();
 	const int32 Kills = ApplyHits(View.Hits, *Context.Run, &View.Kills);
 	View.Hits.Reset();
 	Compact();
@@ -1228,6 +1250,7 @@ void FDTEnemyPool::SwapRemove(int32 Index)
 	Dead.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Serial.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Aux.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+	PullReadyStep.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 }
 
 int32 FDTEnemyPool::Compact()
