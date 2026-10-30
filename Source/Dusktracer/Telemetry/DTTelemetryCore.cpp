@@ -1,5 +1,6 @@
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetrySources.h"
+#include "Telemetry/DTTelemetryJson.h"
 
 namespace DTTelemetryCoreLocal
 {
@@ -26,39 +27,25 @@ namespace DTTelemetryCoreLocal
 		return Out;
 	}
 
-	/** A JSON string literal (quoted, escaped). */
 	static FString JsonText(const FString& In)
 	{
-		FString Out;
-		Out.Reserve(In.Len() + 2);
-		Out += TEXT('"');
-		for (const TCHAR Ch : In)
-		{
-			if (Ch == TEXT('"') || Ch == TEXT('\\'))
-			{
-				Out += TEXT('\\');
-				Out += Ch;
-			}
-			else if (Ch < TEXT(' '))
-			{
-				Out += FString::Printf(TEXT("\\u%04x"), static_cast<int32>(Ch));
-			}
-			else
-			{
-				Out += Ch;
-			}
-		}
-		Out += TEXT('"');
-		return Out;
+		return FDTTelJson::Quote(In);
 	}
 
-	/** {"Name":value,...} in source-id order, so the output is deterministic. */
+	/** Source ids ordered by name, so the output never depends on registration order. */
+	static TArray<uint16> IdsByName(TArray<uint16> Ids)
+	{
+		Ids.Sort([](uint16 A, uint16 B) { return FDTTelemetrySources::GetName(A) < FDTTelemetrySources::GetName(B); });
+		return Ids;
+	}
+
+	/** {"Name":value,...} in source-name order, so the output is deterministic. */
 	template <typename TGet>
 	static FString JsonBySource(const TMap<uint16, FDTTelemetrySourceTotals>& Map, TGet Get)
 	{
 		TArray<uint16> Ids;
 		Map.GetKeys(Ids);
-		Ids.Sort();
+		Ids = IdsByName(MoveTemp(Ids));
 		FString Out = TEXT("{");
 		for (int32 Index = 0; Index < Ids.Num(); ++Index)
 		{
@@ -68,12 +55,12 @@ namespace DTTelemetryCoreLocal
 		return Out + TEXT("}");
 	}
 
-	/** {"Name":value,...} of a per-step source map, in source-id order. */
+	/** {"Name":value,...} of a per-step source map, in source-name order. */
 	static FString JsonStepBySource(const TMap<uint16, int64>& Map)
 	{
 		TArray<uint16> Ids;
 		Map.GetKeys(Ids);
-		Ids.Sort();
+		Ids = IdsByName(MoveTemp(Ids));
 		FString Out = TEXT("{");
 		for (int32 Index = 0; Index < Ids.Num(); ++Index)
 		{
@@ -86,6 +73,12 @@ namespace DTTelemetryCoreLocal
 	static FString Rate(double Count, double Elapsed)
 	{
 		return FString::Printf(TEXT("%.3f"), Elapsed > 0.0 ? Count * DTConst::TEL_RATE_UNIT_S / Elapsed : 0.0);
+	}
+
+	/** A rate of shares (damage_taken_per_min): one more digit, since a hit is a few percent of max HP. */
+	static FString ShareRate(double Share, double Elapsed)
+	{
+		return FString::Printf(TEXT("%.4f"), Elapsed > 0.0 ? Share * DTConst::TEL_RATE_UNIT_S / Elapsed : 0.0);
 	}
 }
 
@@ -120,6 +113,12 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	bInResolve = false;
 	MirrorDesyncs = 0;
 	UnownedEvents = 0;
+	ResolveSerials.Reset();
+	StepThreatOrigins.Reset();
+	StepGemsMerged = 0;
+	GemsSpawned = 0;
+	GemsCollected = 0;
+	GemsLive = 0;
 	CsvOut.Reset();
 	JsonlOut.Reset();
 	bHeaderWritten = false;
@@ -145,8 +144,9 @@ void FDTTelemetryCore::End(const FString& Reason)
 		ResetInterval();
 	}
 	JsonlOut += JsonHead(TEXT("run_end"), INDEX_NONE) + FString::Printf(
-		TEXT(",\"reason\":%s,\"steps\":%lld,\"unowned_events\":%lld,\"mirror_desyncs\":%lld}\n"),
-		*JsonText(Reason), static_cast<long long>(StepsDone), static_cast<long long>(UnownedEvents), static_cast<long long>(MirrorDesyncs));
+		TEXT(",\"reason\":%s,\"steps\":%lld,\"unowned_events\":%lld,\"mirror_desyncs\":%lld%s}\n"),
+		*JsonText(Reason), static_cast<long long>(StepsDone), static_cast<long long>(UnownedEvents), static_cast<long long>(MirrorDesyncs),
+		*RunEndExtras());
 	bActive = false;
 }
 
@@ -255,7 +255,7 @@ void FDTTelemetryCore::ResyncMirror(int32 PoolNum)
 	MirrorDead.Init(0, MirrorSpawnStep.Num());
 }
 
-void FDTTelemetryCore::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits)
+void FDTTelemetryCore::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits, TConstArrayView<uint32> Serials)
 {
 	if (!bActive)
 	{
@@ -263,6 +263,7 @@ void FDTTelemetryCore::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hit
 	}
 	CurrentStep = StepIndex;
 	ResolveHits = Hits;
+	ResolveSerials = Serials;
 	Pending.Reset();
 	MirrorDead.Init(0, MirrorSpawnStep.Num());
 	bInResolve = true;
@@ -285,6 +286,10 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum)
 		if (!MirrorSpawnStep.IsValidIndex(Slot) || MirrorDead[Slot])
 		{
 			continue;
+		}
+		if (Hit.EnemySerial != 0 && ResolveSerials.IsValidIndex(Slot) && ResolveSerials[Slot] != Hit.EnemySerial)
+		{
+			continue; // stale handle: the pool ignores it and emits nothing (R-ENM-23)
 		}
 		if (!Pending.IsValidIndex(Next) || Pending[Next].Event.Kind != EDTGameEventKind::Hit)
 		{
@@ -317,6 +322,7 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum)
 	}
 	Pending.Reset();
 	ResolveHits.Reset();
+	ResolveSerials.Reset();
 	if (bDesync)
 	{
 		++MirrorDesyncs;
@@ -360,6 +366,19 @@ void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample
 	{
 		FPlayerInterval& P = Players[Player];
 		P.Level = Sample.Levels.IsValidIndex(Player) ? Sample.Levels[Player] : 1;
+		if (Sample.XpTotals.IsValidIndex(Player))
+		{
+			P.XpTotal = Sample.XpTotals[Player];
+		}
+		// Threat actions that started this step within the threat ring of this player's hero (director.md, enemies.md).
+		if (Sample.Heroes.IsValidIndex(Player))
+		{
+			const float RingSq = FMath::Square(static_cast<float>(DTConst::DIR_THREAT_RING_MAX_UU));
+			for (const FVector2f& Origin : StepThreatOrigins)
+			{
+				P.ThreatActions += FVector2f::DistSquared(Sample.Heroes[Player], Origin) <= RingSq ? 1 : 0;
+			}
+		}
 		if (Sample.Heroes.IsValidIndex(Player) && Sample.Enemies.Num() > 0)
 		{
 			const FVector2f Hero = Sample.Heroes[Player];
@@ -372,6 +391,7 @@ void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample
 		}
 	}
 
+	StepThreatOrigins.Reset();
 	WriteStepRecords();
 	++StepsDone;
 	CurrentStep = StepIndex + 1;
@@ -413,6 +433,17 @@ void FDTTelemetryCore::WriteStepRecords()
 			P.StepTtkMin = 0.0f;
 			P.StepTtkMax = 0.0f;
 		}
+		if (P.StepGems > 0 || P.StepXp > 0)
+		{
+			JsonlOut += FDTTelJson(JsonHead(TEXT("xp"), Player)).Int(TEXT("gems"), P.StepGems).Int(TEXT("xp"), P.StepXp).Line();
+			P.StepGems = 0;
+			P.StepXp = 0;
+		}
+	}
+	if (StepGemsMerged > 0)
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("gems_merged"), INDEX_NONE)).Int(TEXT("count"), StepGemsMerged).Line();
+		StepGemsMerged = 0;
 	}
 }
 
@@ -432,7 +463,8 @@ FDTTelemetryRow FDTTelemetryCore::ComputeRow(int32 Player) const
 	Row.Kills = P.Kills;
 	Row.Hits = P.Hits;
 	Row.DamageDealt = P.DamageDealt;
-	Row.DamageTaken = P.DamageTaken;
+	Row.DamageTakenShare = P.DamageTakenShare;
+	Row.InputDevice = P.bHasInputDevice ? P.InputDevice : EDTTelInputDevice::Unknown;
 	Row.Dashes = P.Dashes;
 	Row.ThreatActions = P.ThreatActions;
 	Row.Level = P.Level;
@@ -470,11 +502,12 @@ void FDTTelemetryCore::WriteInterval()
 		CsvOut += FString::Printf(TEXT("%d,%.3f,%d,%s,%s,%s,%s,%d,%d,%d,%lld,%lld,%s,%s,%s,%s,%d,%s,%s,%s\n"),
 			R.Interval, R.RunTimeSeconds, R.Player, *Rate(R.Kills, E),
 			R.bHasTtk ? *FString::Printf(TEXT("%.4f"), R.SwarmTtkSeconds) : TEXT(""),
-			*Rate(static_cast<double>(R.DamageTaken), E), *Rate(R.Dashes, E), R.Level, R.LiveBullets, R.LiveEnemies,
+			*ShareRate(R.DamageTakenShare, E), *Rate(R.Dashes, E), R.Level, R.LiveBullets, R.LiveEnemies,
 			static_cast<long long>(R.RecycledBullets), static_cast<long long>(R.RefusedSpawns), *Rate(R.ThreatActions, E),
 			R.bHasNearest ? *FString::Printf(TEXT("%.1f"), R.NearestEnemyUU) : TEXT(""),
 			*Rate(R.Hits, E), *Rate(static_cast<double>(R.DamageDealt), E), Config.Seed, *CsvText(Config.Build),
-			*CsvText(Config.Culture), *CsvText(Config.InputDevice));
+			*CsvText(Config.Culture),
+			*CsvText(Players[Player].bHasInputDevice ? FString(DTTelNames::InputDevice(R.InputDevice)) : Config.InputDevice));
 
 		const FPlayerInterval& P = Players[Player];
 		if (P.BySource.Num() > 0)
@@ -485,6 +518,7 @@ void FDTTelemetryCore::WriteInterval()
 				*JsonBySource(P.BySource, [](const FDTTelemetrySourceTotals& T) { return static_cast<int64>(T.Kills); }),
 				*JsonBySource(P.BySource, [](const FDTTelemetrySourceTotals& T) { return static_cast<int64>(T.Hits); }));
 		}
+		WriteIntervalRecords(Player);
 	}
 }
 
@@ -495,9 +529,16 @@ void FDTTelemetryCore::ResetInterval()
 		P.Kills = 0;
 		P.Hits = 0;
 		P.DamageDealt = 0;
-		P.DamageTaken = 0;
+		P.DamageTakenShare = 0.0;
 		P.Dashes = 0;
 		P.ThreatActions = 0;
+		P.IntercessionDenied = 0;
+		FMemory::Memzero(P.StatusApplied);
+		for (TPair<uint16, FWeaponInterval>& Weapon : P.Weapons)
+		{
+			Weapon.Value.Spawned = 0;
+			Weapon.Value.Throttled = 0;
+		}
 		P.TtkSamples.Reset();
 		P.NearestSquaredSamples.Reset();
 		P.BySource.Reset();

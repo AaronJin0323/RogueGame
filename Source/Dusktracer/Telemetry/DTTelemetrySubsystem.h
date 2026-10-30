@@ -38,10 +38,21 @@ public:
 
 	// Enemy-system hooks (kill attribution and swarm TTK; see FDTTelemetryCore).
 	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum) { Core.OnEnemiesSpawned(StepIndex, bCleared, PoolNum); }
-	void BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits) { Core.BeginResolve(StepIndex, Hits); }
+	/** Also passes the published enemy serials (FDTWorldView::EnemySerials) so stale hits are skipped like the pool does. */
+	void BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits);
 	void EndResolve(int32 PoolNum) { Core.EndResolve(PoolNum); }
 
 	const FDTTelemetryCore& GetCore() const { return Core; }
+
+	/**
+	 * The record API every S1 producer calls (FDTTelemetryCore::Record*, Set*; see DTTelemetryRecords.h). Every call is a
+	 * no-op without a session, so producers never check. Game thread (the sim step or a paused hand).
+	 *   if (UDTTelemetrySubsystem* T = UDTTelemetrySubsystem::Find(this)) { T->Records().RecordDash(Owner, Dir, Charges); }
+	 */
+	FDTTelemetryCore& Records() { return Core; }
+
+	/** The telemetry subsystem of WorldContext's world, or nullptr (editor worlds, tests without a world). */
+	static UDTTelemetrySubsystem* Find(const UObject* WorldContext);
 	const FDTTelemetryWriter& GetWriter() const { return Writer; }
 
 	/** Build hash baked at compile time (DT_BUILD_HASH), else "unknown". */
@@ -52,4 +63,5 @@ private:
 	FDTTelemetryWriter Writer;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
 	TArray<int32> LevelScratch;
+	TArray<int64> XpScratch;
 };
