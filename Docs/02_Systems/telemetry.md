@@ -44,7 +44,7 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt; an event holds whole points and the fraction carries per owner and source, so ticks below one point add up |
 | `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` (`Dusktracer.Build.cs`: short git hash, `+dirty` with local changes) or `unknown` without git; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
 
-JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run).
+JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run). A key appears once per object: a record's own sort of thing is `hit_kind`, `hand_kind` or `card_kind`, never a second `kind`. Runs from before the renames repeat `kind` in `hero_damaged` (hit kind) and `offer_pick` (card kind); the record kind comes first, so tools read old runs through `pressure.first_wins`.
 
 | Kind | Fields | When |
 |---|---|---|

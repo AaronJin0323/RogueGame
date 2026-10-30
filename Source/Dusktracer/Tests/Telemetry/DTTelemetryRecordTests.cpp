@@ -169,7 +169,12 @@ bool FDTTelRecOffers::RunTest(const FString& Parameters)
 
 	const TArray<FString> Picks = OfKind(Jsonl, TEXT("offer_pick"));
 	TestTrue(TEXT("offer_pick line"), Picks.IsValidIndex(1) && Picks[1] == Head(TEXT("offer_pick"), 0)
-		+ TEXT(",\"hand_id\":4,\"slot\":2,\"kind\":\"Reserve\",\"id\":\"Reserve.Mend\",\"target\":null,\"rarity\":\"Common\",\"wall_decide_s\":1.5000}"));
+		+ TEXT(",\"hand_id\":4,\"slot\":2,\"card_kind\":\"Reserve\",\"id\":\"Reserve.Mend\",\"target\":null,\"rarity\":\"Common\",\"wall_decide_s\":1.5000}"));
+	for (const FString& Pick : Picks)
+	{
+		// The key the record head owns is written once, so a JSON reader keeps both the record kind and the card kind.
+		TestEqual(TEXT("offer_pick repeats no key"), Pick.Replace(TEXT("\"kind\":"), TEXT("")).Len(), Pick.Len() - FString(TEXT("\"kind\":")).Len());
+	}
 	const TArray<FString> Tool = OfKind(Jsonl, TEXT("offer_tool"));
 	TestTrue(TEXT("offer_tool banish line"), Tool.IsValidIndex(0) && Tool[0] == Head(TEXT("offer_tool"), 0)
 		+ TEXT(",\"hand_id\":3,\"tool\":\"banish\",\"slot\":1,\"id\":\"Mod.Split\"}"));

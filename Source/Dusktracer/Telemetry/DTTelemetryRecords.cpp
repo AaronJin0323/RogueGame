@@ -191,7 +191,7 @@ void FDTTelemetryCore::RecordOfferPick(int32 Owner, int32 HandId, int32 Slot, co
 		return;
 	}
 	JsonlOut += FDTTelJson(JsonHead(TEXT("offer_pick"), Owner)).Int(TEXT("hand_id"), HandId).Int(TEXT("slot"), Slot)
-		.Str(TEXT("kind"), DTTelNames::CardKind(Card.Kind)).Name(TEXT("id"), Card.ContentId).Name(TEXT("target"), Card.TargetWeapon)
+		.Str(TEXT("card_kind"), DTTelNames::CardKind(Card.Kind)).Name(TEXT("id"), Card.ContentId).Name(TEXT("target"), Card.TargetWeapon)
 		.Str(TEXT("rarity"), DTTelNames::Rarity(Card.Rarity)).Num(TEXT("wall_decide_s"), WallDecideSeconds).Line();
 	const EDTHandKind* Kind = P->HandKinds.Find(HandId);
 	if (!Kind || *Kind != EDTHandKind::Patron)
