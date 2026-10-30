@@ -59,7 +59,7 @@ def render(constants):
 
 PALETTE_DOC = os.path.join(dtconst.ROOT, "Docs", "04_Presentation.md")
 PALETTE_HEADER = os.path.join(dtconst.ROOT, "Source", "Dusktracer", "Core", "DTPaletteGen.h")
-_TOKEN_ROW = re.compile(r"^\|\s*`Pal\.([A-Za-z]+(?:\.[A-Za-z]+)+)`\s*\|\s*#([0-9A-Fa-f]{6})\s*\|")
+_TOKEN_ROW = re.compile(r"^\|\s*`Pal\.([A-Za-z]+(?:\.[A-Za-z]+)*)`\s*\|\s*#([0-9A-Fa-f]{6})\s*\|")
 # Colour literals that bypass the palette (T-PRE-09): FromHex calls, 6-digit hex strings, and FColor/FLinearColor
 # built from numeric channels.
 _COLOUR_LITERAL = re.compile(r"FromHex\s*\(|TEXT\(\s*\"#?[0-9A-Fa-f]{6}\"\s*\)|\"#[0-9A-Fa-f]{6}\""
