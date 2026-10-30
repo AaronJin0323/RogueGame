@@ -1964,6 +1964,248 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamAllVolleysCharged, "StillnessAllVolleysCharge
 	return true;
 }
 
+// ---- the other Keepers' cards ----------------------------------------------------------------------------------------------------
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamAfterHit, "AfterHitTakenMult")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	const auto Run = [](bool bAmp, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(200.0f, 0.0f));
+		H.Patron(EDTPath::Forge);
+		H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Key")));
+		if (bAmp)
+		{
+			H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Amp1")));
+		}
+		FDTHeroHit& Taken = H.View.HeroHits.AddDefaulted_GetRef();
+		Taken.PlayerId = 0;
+		H.StepOnce();
+		H.View.HeroHits.Reset();
+	};
+	const float Ratio = DTKeepers::PathParam(EDTPath::Forge, DTCat::EFlag::Slam, DTFlagParam::DmgRatio, 0.0f);
+	{
+		FDTKeeperHarness H;
+		Run(true, H);
+		TestEqual(TEXT("the slam after a hit deals x after_hit_taken_mult"), BiggestHit(H, Forge), 2.0f * Ratio * PlainDamage(), 0.01f);
+		H.HitLog.Reset();
+		H.View.HeroIntangible[0] = true;
+		H.StepOnce();
+		H.View.HeroIntangible[0] = false;
+		H.StepOnce();
+		TestEqual(TEXT("only that slam: the next one is plain"), BiggestHit(H, Forge), Ratio * PlainDamage(), 0.01f);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(false, H);
+		TestEqual(TEXT("without the card the slam is plain"), BiggestHit(H, Forge), Ratio * PlainDamage(), 0.01f);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamEmbers, "Embers")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	const auto Run = [](bool bAmp, FDTKeeperHarness& H)
+	{
+		// Just past the slam's reach, on the first ember's line.
+		const int32 Enemy = H.AddEnemy(FVector2f(440.0f, 0.0f));
+		H.Patron(EDTPath::Forge, 0, false);
+		H.Weapons.Give(H.Run, 0, ArcBlade, 1); // reaches nothing here, so only an ember can touch the enemy
+		H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Key")));
+		if (bAmp)
+		{
+			H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Amp2")));
+		}
+		H.View.HeroIntangible[0] = true;
+		H.StepOnce();
+		H.View.HeroIntangible[0] = false;
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		H.StepMany(60);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(true, H);
+		TestEqual(TEXT("an ember strikes past the ring"), HitsOn(H, Serial, Forge), 1);
+		TestEqual(TEXT("and Burns what it hits"), StatusesOn(H, Serial, EDTStatus::Burn), 1);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(false, H);
+		TestEqual(TEXT("without the card nothing passes the ring"), HitsOn(H, Serial, Forge), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamDetonate, "DetonateBurning")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	const auto Run = [](bool bBurning, bool bTrait, FDTKeeperHarness& H)
+	{
+		const int32 Enemy = H.AddEnemy(FVector2f(200.0f, 0.0f));
+		H.Patron(EDTPath::Forge);
+		H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Key")));
+		if (bTrait)
+		{
+			H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Trait")));
+		}
+		if (bBurning)
+		{
+			Burn(H, Enemy);
+		}
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		H.View.HeroIntangible[0] = true;
+		H.StepOnce();
+		H.View.HeroIntangible[0] = false;
+		H.StepOnce();
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(true, true, H);
+		TestEqual(TEXT("the slam and the detonation"), HitsOn(H, Serial, Forge), 2);
+		double Smallest = 1.0e12;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Smallest = Hit.SourceId == Forge ? FMath::Min(Smallest, static_cast<double>(Hit.Damage)) : Smallest;
+		}
+		TestEqual(TEXT("the detonation is what the Burn still owes"), Smallest, static_cast<double>(DTConst::STATUS_BURN_S), 0.01);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(false, true, H);
+		TestEqual(TEXT("nothing Burning, nothing to detonate"), HitsOn(H, Serial, Forge), 1);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(true, false, H);
+		TestEqual(TEXT("without the card a slam only strikes"), HitsOn(H, Serial, Forge), 1);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamBurnTickRate, "BurnTickRate")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Strongest = [](bool bAmp)
+	{
+		FDTKeeperHarness H;
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Patron(EDTPath::Forge);
+		H.Bless(Blessing(TEXT("Forge.Furnace"), TEXT("Key")));
+		if (bAmp)
+		{
+			H.Bless(Blessing(TEXT("Forge.Furnace"), TEXT("Amp1")));
+		}
+		H.StepMany(FireSteps);
+		float Most = 0.0f;
+		for (const FDTStatusApply& Apply : H.StatusLog)
+		{
+			Most = Apply.Status == EDTStatus::Burn ? FMath::Max(Most, Apply.Magnitude) : Most;
+		}
+		return Most;
+	};
+	const float Plain = Strongest(false);
+	TestEqual(TEXT("a Burn is the ratio of its hit"), Plain, DTConst::STATUS_BURN_DPS_RATIO * PlainDamage(), 0.01f);
+	TestEqual(TEXT("burn_tick_rate raises it"), Strongest(true), 1.25f * Plain, 0.01f);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamCleaveModifiers, "ApplyModifierOnHit")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Hits = [](const TCHAR* Mod, bool bTrait)
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		H.Patron(EDTPath::Forge, 0, false);
+		H.Weapons.Give(H.Run, 0, PulseRifle, 3); // three rounds: two fold into the cleave, one still flies, so the modifier stays live
+		H.Weapons.Socket(H.Run, 0, 0, FName(Mod));
+		H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Key")));
+		if (bTrait)
+		{
+			H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Trait")));
+		}
+		H.StepMany(120);
+		return H.CountHits(DTWeapons::ModifierSource(DTWeapons::FindModifier(FName(Mod))));
+	};
+	const TCHAR* Mod = TEXT("Mod.Ricochet");
+	const int32 Plain = Hits(Mod, false);
+	const int32 Carried = Hits(Mod, true);
+	TestTrue(FString::Printf(TEXT("a cleave carries the modifier (%d > %d)"), Carried, Plain), Carried > Plain);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamEveryN, "EveryNSkyStrike")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Storm = DTKeepers::KeeperSource(EDTPath::Storm);
+	const auto Run = [](bool bTrait, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const int32 Far = H.AddEnemy(FVector2f(-1200.0f, 0.0f)); // on screen, past the rifle's reach
+		H.Patron(EDTPath::Storm);
+		H.Bless(Blessing(TEXT("Storm.Downpour"), TEXT("Key")));
+		if (bTrait)
+		{
+			H.Bless(Blessing(TEXT("Storm.Downpour"), TEXT("Trait")));
+		}
+		const uint32 Serial = H.Enemies.GetSerials()[Far];
+		H.StepMany(FireSteps);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(true, H);
+		const int32 Echoes = H.CountHits(Storm) - HitsOn(H, Serial, Storm);
+		const int32 Screen = HitsOn(H, Serial, Storm);
+		TestTrue(FString::Printf(TEXT("every Nth strike hits the screen (%d of %d)"), Screen, Echoes), Screen > 0 && Screen >= Echoes / 8 - 1 && Screen <= Echoes / 8 + 1);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(false, H);
+		TestEqual(TEXT("without the card a strike stays at its impact"), HitsOn(H, Serial, Storm), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamKillShocks, "KillShocksNeighbours")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](float Reach, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.AddEnemy(FVector2f(300.0f, 150.0f), 1.0f); // the arc's victim
+		const int32 Near = H.AddEnemy(FVector2f(300.0f, 480.0f));
+		H.Patron(EDTPath::Storm);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Chain = AddFlag(Flags, DTCat::EFlag::Chain, EDTPath::Storm);
+		Chain.Params.Set(DTFlagParam::Jumps, 1.0f);
+		Chain.Params.Set(DTFlagParam::RangeUu, 160.0f);
+		Chain.Params.Set(DTFlagParam::Dmg, 1.0f);
+		Chain.Params.Set(DTFlagParam::KillShocksNeighboursUu, Reach);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		const uint32 Serial = H.Enemies.GetSerials()[Near];
+		H.StepMany(120);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(400.0f, H);
+		TestEqual(TEXT("an arc's kill Shocks what is in reach of the death"), StatusesOn(H, Serial, EDTStatus::Shock), 1);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(0.0f, H);
+		TestEqual(TEXT("without the tier it does not"), StatusesOn(H, Serial, EDTStatus::Shock), 0);
+	}
+	return true;
+}
+
 #undef DT_KEEPER_PARAM_TEST
 
 #endif // WITH_DEV_AUTOMATION_TESTS

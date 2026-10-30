@@ -100,4 +100,6 @@ namespace DTFlagParam
 	DUSKTRACER_API extern const FName ShatterOnFrozenKillUu, ShatterUu, ShatterDmg, ShatterStatus, Shatter, ClusterFreezeMin;
 	DUSKTRACER_API extern const FName FrozenBlocksEnemies, FreezeUntilHit, HeldMax, FrozenHitChillsNeighboursUu;
 	DUSKTRACER_API extern const FName ChargedPullUu, ChargedAuraUu, AuraStatus, AuraIntervalS, ChargedFreezeRingUu, Around;
+	DUSKTRACER_API extern const FName AfterHitTakenMult, Embers, EmberStatus, EmberDmg, DetonateBurning, BurnTickRate;
+	DUSKTRACER_API extern const FName ApplyModifierOnHit, EveryN, KillShocksNeighboursUu;
 }

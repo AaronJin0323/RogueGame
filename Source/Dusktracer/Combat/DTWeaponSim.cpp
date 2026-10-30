@@ -4,6 +4,7 @@
 #include "Enemies/DTEnemyPool.h"
 #include "Telemetry/DTTelemetrySources.h"
 
+// A cleave with apply_modifier_on_hit also bounces a modifier's Ricochet off each enemy it strikes (Split is dormant under a conversion).
 // Which reactions an impact runs (R-WPN-08 native expressions; fallbacks run at activation, OnActivation):
 //   RoundHit   (a pool round hit an enemy):  Split on=Hit, Field, Pull, StatusApply, Chain, Echo, Ricochet when spent
 //   ArcHit     (one enemy inside a sweep):    StatusApply (on=Cleave for converted cleaves), Chain, Backwash pull
@@ -97,6 +98,7 @@ namespace DTWeaponSimLocal
 	static const FName WordEliteOrBoss(TEXT("EliteOrBoss"));
 	static const FName WordBurn(TEXT("Status.Burn"));
 	static const FName WordFreeze(TEXT("Status.Freeze"));
+	static const FName WordShock(TEXT("Status.Shock"));
 	static const FName WordChargedVolley(TEXT("ChargedVolley"));
 	static const FName WordHero(TEXT("Hero"));
 	constexpr uint8 BurnBit = 1 << static_cast<int32>(EDTStatus::Burn);
@@ -355,6 +357,8 @@ void FDTWeaponSim::ResetTransient()
 		Player.HeldFrozen.Reset();
 		Player.FrozenStruck.Reset();
 		Player.AuraReadyIn = 0.0f;
+		Player.bSlamBoosted = false;
+		Player.SkyStrikes = 0;
 	}
 	Rounds.Reset();
 	Fields.Reset();
@@ -470,6 +474,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.Generation = Shot.Generation;
 		Round.BouncesLeft = Shot.Bounces;
 		Round.bCharged = Shot.bCharged;
+		Round.bEmber = Shot.bEmber;
 	}
 }
 
@@ -1128,7 +1133,7 @@ void FDTWeaponSim::OnActivation(const FDTSimContext& Context, FDTBulletPool* Bul
 			const int32 N = FMath::Max(1, FMath::RoundToInt(Params.Get(DTFlagParam::N, 1.0f)));
 			if (Runtime.MeleeActivations % N == 0)
 			{
-				EmitSlam(Context, OwnerId, Slot, Runtime, Flag);
+				EmitSlam(Context, Bullets, OwnerId, Slot, Runtime, Flag);
 			}
 		}
 	}
@@ -1215,13 +1220,14 @@ void FDTWeaponSim::SpendCharge(const FDTSimContext& Context, int32 OwnerId, FWea
 	}
 }
 
-void FDTWeaponSim::StepSlamTriggers(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player)
+void FDTWeaponSim::StepSlamTriggers(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player)
 {
 	const FDTWorldView& View = *Context.View;
 	const bool bIntangible = View.HeroIntangible.IsValidIndex(OwnerId) && View.HeroIntangible[OwnerId];
 	const bool bDashLanding = Player.bWasIntangible && !bIntangible;
 	Player.bWasIntangible = bIntangible;
 	const bool bHitTaken = View.HeroHits.ContainsByPredicate([OwnerId](const FDTHeroHit& Hit) { return Hit.PlayerId == OwnerId; });
+	Player.bSlamBoosted |= bHitTaken;
 	if (!bDashLanding && !bHitTaken)
 	{
 		return;
@@ -1246,11 +1252,11 @@ void FDTWeaponSim::StepSlamTriggers(const FDTSimContext& Context, int32 OwnerId,
 	if (BestSlot != INDEX_NONE)
 	{
 		FWeaponRuntime& Runtime = Player.Weapons[BestSlot];
-		EmitSlam(Context, OwnerId, BestSlot, Runtime, *Runtime.Spec.FindFlag(DTCat::EFlag::Slam));
+		EmitSlam(Context, Bullets, OwnerId, BestSlot, Runtime, *Runtime.Spec.FindFlag(DTCat::EFlag::Slam));
 	}
 }
 
-void FDTWeaponSim::EmitSlam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam)
+void FDTWeaponSim::EmitSlam(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam)
 {
 	if (!TryEmit(Runtime))
 	{
@@ -1261,8 +1267,63 @@ void FDTWeaponSim::EmitSlam(const FDTSimContext& Context, int32 OwnerId, int32 S
 	const float Radius = Params.Get(DTFlagParam::RadiusUu) * (1.0f + Params.Get(DTFlagParam::RadiusScale));
 	float Damage = Runtime.Spec.Damage * Params.Get(DTFlagParam::DmgRatio, 1.0f);
 	RollCrit(Context, Runtime.Spec, Damage);
+	// after_hit_taken_mult: the first slam after a hit, which is usually the retaliation that hit set off.
+	FPlayerRuntime& Player = Players[OwnerId];
+	if (Player.bSlamBoosted && Params.Has(DTFlagParam::AfterHitTakenMult))
+	{
+		Damage *= Params.Get(DTFlagParam::AfterHitTakenMult);
+		Player.bSlamBoosted = false;
+	}
 	TArray<FDTEnemyHandle> Hit;
 	HitCircle(Context, OwnerId, Slot, Slam.Entry.SourceId, Hero, Radius, Damage, false, nullptr, &Hit);
+	// detonate_burning: every Burning enemy in the ring takes what its Burn still owes, now, as the Keeper. The Burn runs on
+	// (enemies.md owns its state and weapons never write it), so the detonation is that damage once more, ahead of time.
+	if (Params.Get(DTFlagParam::DetonateBurning) > 0.0f && Enemies)
+	{
+		FDTWorldView& View = *Context.View;
+		for (const FDTEnemyHandle& Handle : Hit)
+		{
+			if (!Enemies->IsHandleValid(Handle))
+			{
+				continue;
+			}
+			float Owed = 0.0f;
+			for (const FDTBurnStack& Stack : Enemies->GetAux(Handle.Index).Burn)
+			{
+				Owed += Stack.Left > 0.0f ? Stack.Left * Stack.Dps : 0.0f;
+			}
+			if (Owed > 0.0f)
+			{
+				FDTHit& Out = View.Hits.AddDefaulted_GetRef();
+				Out.EnemyIndex = Handle.Index;
+				Out.EnemySerial = Handle.Serial;
+				Out.OwnerId = OwnerId;
+				Out.Damage = Owed;
+				Out.Position = View.EnemyPositions[Handle.Index];
+				Out.SourceId = Slam.Entry.SourceId;
+			}
+		}
+	}
+	// embers: a ring of the shared child kind; each applies ember_status on its hit (ReactToImpact).
+	const int32 Embers = FMath::RoundToInt(Params.Get(DTFlagParam::Embers));
+	if (Embers > 0)
+	{
+		FShot Ember = MakeShot(OwnerId, Slot, Runtime, Slam.Entry.SourceId, Hero);
+		Ember.Damage = Damage * Params.Get(DTFlagParam::EmberDmg);
+		Ember.Pierce = 1;
+		Ember.bTrack = true;
+		Ember.bEmber = true;
+		Ember.Generation = 1;
+		Ember.Bounces = 0;
+		Ember.Speed = static_cast<float>(DTConst::WEAPON_CHILD_SPEED_UU_S);
+		Ember.Radius = static_cast<float>(DTConst::WEAPON_CHILD_RADIUS_UU);
+		Ember.Life = static_cast<float>(DTConst::WEAPON_CHILD_RANGE_UU) / Ember.Speed;
+		for (int32 Index = 0; Index < Embers; ++Index)
+		{
+			const FVector2f Dir = DTWeaponSimLocal::Rotate(FVector2f(1.0f, 0.0f), 360.0f * static_cast<float>(Index) / static_cast<float>(Embers));
+			SpawnRound(Context, Bullets, Runtime, Ember, Hero, Dir);
+		}
+	}
 	if (Params.Has(DTFlagParam::BurningExplodeOnDeathUu))
 	{
 		for (const FDTEnemyHandle& Handle : Hit)
@@ -1350,7 +1411,15 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 			++Index;
 			continue;
 		}
-		HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, Echo.Position, Echo.Radius, Echo.Damage, false, nullptr);
+		if (Echo.bScreen)
+		{
+			HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, DTWeaponSimLocal::HeroOf(*Context.View, Echo.OwnerId),
+				static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), Echo.Damage, false, nullptr);
+		}
+		else
+		{
+			HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, Echo.Position, Echo.Radius, Echo.Damage, false, nullptr);
+		}
 		if (Echo.bLeaveField)
 		{
 			if (FWeaponRuntime* Runtime = FindRuntime(Echo.OwnerId, Echo.Slot))
@@ -1443,7 +1512,7 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 			}
 		}
 		StepStillness(Context, Owner, PlayerRt);
-		StepSlamTriggers(Context, Owner, PlayerRt);
+		StepSlamTriggers(Context, Bullets, Owner, PlayerRt);
 		for (int32 Slot = 0; Slot < Player.Weapons.Num(); ++Slot)
 		{
 			FWeaponRuntime& Runtime = PlayerRt.Weapons[Slot];
@@ -1576,6 +1645,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.Generation = Round.Generation;
 			Impact.BouncesLeft = Round.BouncesLeft;
 			Impact.bCharged = Round.bCharged;
+			Impact.bEmber = Round.bEmber;
 			Impact.bSpent = --Round.PierceLeft <= 0;
 			if (Impact.bSpent)
 			{
@@ -1845,6 +1915,22 @@ uint8 FDTWeaponSim::StatusMaskOf(int32 Enemy, uint32 Serial) const
 	return Enemies && Enemies->IsHandleValid(FDTEnemyHandle{ Enemy, Serial }) ? Enemies->GetStatusMask(Enemy) : 0;
 }
 
+float FDTWeaponSim::BurnRate(int32 OwnerId) const
+{
+	float Rate = 0.0f;
+	if (Players.IsValidIndex(OwnerId))
+	{
+		for (const FFlagSource& Source : Players[OwnerId].Sources)
+		{
+			for (const FDTFlagEntry& Entry : Source.Flags.Entries)
+			{
+				Rate = FMath::Max(Rate, Entry.Params.Get(DTFlagParam::BurnTickRate));
+			}
+		}
+	}
+	return Rate;
+}
+
 float FDTWeaponSim::StrongestDamage(int32 OwnerId) const
 {
 	float Best = 0.0f;
@@ -1965,6 +2051,19 @@ void FDTWeaponSim::ForkArcs(const FDTSimContext& Context, const FDTKill& Kill, c
 	}
 	const FDTWorldView& View = *Context.View;
 	const int32 Num = DTWeaponSimLocal::NumEnemies(View);
+	// kill_shocks_neighbours_uu: the arc's kill Shocks everything in reach of the death.
+	const float ShockReach = Chain->Entry.Params.Get(DTFlagParam::KillShocksNeighboursUu);
+	if (ShockReach > 0.0f)
+	{
+		FDTFlagParams Shock;
+		Shock.SetWord(DTFlagParam::Status, DTWeaponSimLocal::WordShock);
+		TArray<int32> Near;
+		EnemiesInCircle(View, Kill.Position, ShockReach, Near);
+		for (const int32 Enemy : Near)
+		{
+			ApplyStatus(Context, Shock, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, Mark.Damage, Mark.OwnerId, Mark.SourceId);
+		}
+	}
 	const int32 Forks = FMath::RoundToInt(Chain->Entry.Params.Get(DTFlagParam::ForkOnKill));
 	const float Range = Chain->Entry.Params.Get(DTFlagParam::RangeUu);
 	TArray<int32> Local;
@@ -2105,7 +2204,8 @@ void FDTWeaponSim::SpreadBurn(const FDTSimContext& Context, const FDTKill& Kill,
 	Local.Sort();
 	FDTFlagParams Burn;
 	Burn.SetWord(DTFlagParam::Status, DTWeaponSimLocal::WordBurn);
-	const float HitDamage = BurnDps / DTConst::STATUS_BURN_DPS_RATIO; // ApplyStatus turns it back into the same damage per second
+	// ApplyStatus turns it back into the same damage per second.
+	const float HitDamage = BurnDps / (DTConst::STATUS_BURN_DPS_RATIO * (1.0f + BurnRate(Kill.OwnerId)));
 	for (const int32 Enemy : Local)
 	{
 		if (Enemy >= 0 && Enemy < Num && FVector2f::DistSquared(Kill.Position, View.EnemyPositions[Enemy]) <= Radius * Radius)
@@ -2220,7 +2320,7 @@ void FDTWeaponSim::ApplyStatus(const FDTSimContext& Context, const FDTFlagParams
 	switch (Status)
 	{
 	case EDTStatus::Burn:
-		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage; // keepers.md R-KEE-11
+		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage * (1.0f + BurnRate(OwnerId)); // keepers.md R-KEE-11
 		Apply.StackBonus = FMath::RoundToInt(Params.Get(DTFlagParam::BurnStacksMax));
 		break;
 	case EDTStatus::Chill:
@@ -2321,6 +2421,31 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 	{
 		Players[Impact.OwnerId].FrozenStruck.Add(Impact.EnemySerial);
 	}
+	if (Impact.bEmber)
+	{
+		const FDTResolvedFlag* Slam = Spec.FindFlag(DTCat::EFlag::Slam);
+		if (Slam && HitEnemy != INDEX_NONE)
+		{
+			FDTFlagParams Ember;
+			Ember.SetWord(DTFlagParam::Status, Slam->Entry.Params.GetWord(DTFlagParam::EmberStatus));
+			ApplyStatus(Context, Ember, FDTEnemyHandle{ HitEnemy, Impact.EnemySerial }, Impact.HitDamage, Impact.OwnerId, Slam->Entry.SourceId);
+		}
+		return;
+	}
+	// apply_modifier_on_hit: a cleave's hit counts as a round's hit for the modifiers the weapon carries.
+	const FDTResolvedFlag* Melee = Impact.Kind == EImpact::ArcHit && Impact.bCleave ? Spec.FindFlag(DTCat::EFlag::ConvertMelee) : nullptr;
+	const bool bCarries = Melee && !Melee->Entry.Params.GetWord(DTFlagParam::ApplyModifierOnHit).IsNone();
+	auto FromModifier = [](uint16 Source)
+	{
+		for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+		{
+			if (Source == DTWeapons::KeeperSource(static_cast<EDTPath>(Path)))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
 
 	// Reactions spawn rounds and hits but never recompose: the spec is fixed for the step.
 	const TArray<FDTResolvedFlag>& Flags = Spec.Flags;
@@ -2540,7 +2665,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			const float Range = Params.Get(DTFlagParam::RangeUu);
 			const float Damage = Impact.HitDamage * Params.Get(DTFlagParam::Dmg, 1.0f);
 			const float ReturnChance = Params.Get(DTFlagParam::ReturnSameTarget);
-			const bool bMark = Params.Get(DTFlagParam::ForkOnKill) > 0.0f;
+			const bool bMark = Params.Get(DTFlagParam::ForkOnKill) > 0.0f || Params.Get(DTFlagParam::KillShocksNeighboursUu) > 0.0f;
 			TArray<uint32, TInlineAllocator<8>> Visited;
 			Visited.Add(Impact.EnemySerial);
 			FVector2f From = Impact.EnemyPosition;
@@ -2588,6 +2713,8 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				break;
 			}
 			const int32 Count = FMath::Max(1, FMath::RoundToInt(Params.Get(DTFlagParam::Count, 1.0f)));
+			const int32 EveryN = FMath::RoundToInt(Params.Get(DTFlagParam::EveryN));
+			int32& SkyStrikes = Players[Impact.OwnerId].SkyStrikes;
 			for (int32 Strike = 0; Strike < Count; ++Strike)
 			{
 				if (!TryEmit(*Runtime))
@@ -2603,6 +2730,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				Echo.Damage = Impact.BaseDamage * Params.Get(DTFlagParam::Dmg, 1.0f);
 				Echo.Radius = Impact.Area * (1.0f + Params.Get(DTFlagParam::RadiusScale));
 				Echo.bLeaveField = Params.GetWord(DTFlagParam::Leave) == WordField;
+				Echo.bScreen = EveryN > 0 && ++SkyStrikes % EveryN == 0;
 			}
 			break;
 		}
@@ -2615,7 +2743,9 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			break;
 		case DTCat::EFlag::Ricochet:
 		{
-			if (!Flag.IsNative() || Impact.Kind != EImpact::RoundHit || !Impact.bSpent || Impact.BouncesLeft <= 0)
+			const bool bFromCleave = bCarries && FromModifier(Flag.Entry.SourceId);
+			const int32 Bounces = bFromCleave ? FMath::RoundToInt(Params.Get(DTFlagParam::Bounces)) : Impact.BouncesLeft;
+			if (!Flag.IsNative() || (!bFromCleave && (Impact.Kind != EImpact::RoundHit || !Impact.bSpent)) || Bounces <= 0)
 			{
 				break;
 			}
@@ -2629,7 +2759,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			Bounce.Pierce = 1;
 			Bounce.bTrack = true;
 			Bounce.Generation = Impact.Generation;
-			Bounce.Bounces = Impact.BouncesLeft - 1;
+			Bounce.Bounces = Bounces - 1;
 			const FVector2f Dir = SafeDir(View.EnemyPositions[Next] - Impact.Position, Impact.Dir);
 			const FVector2f From = Impact.EnemySerial != 0 ? Impact.EnemyPosition + Dir * (Impact.EnemyRadius + Bounce.Radius) : Impact.Position;
 			SpawnRound(Context, Bullets, *Runtime, Bounce, From, Dir);

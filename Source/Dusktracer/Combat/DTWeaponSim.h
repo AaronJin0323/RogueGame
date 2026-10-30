@@ -156,6 +156,10 @@ private:
 		TSet<uint32> FrozenStruck;
 		/** charged_aura_uu: seconds until the aura may pulse again. */
 		float AuraReadyIn = 0.0f;
+		/** after_hit_taken_mult: a hit was taken since the last slam. */
+		bool bSlamBoosted = false;
+		/** every_n: sky strikes so far. */
+		int32 SkyStrikes = 0;
 	};
 
 	/** What kind of contact an impact was; decides which reactions run (see DTWeaponSim.cpp). */
@@ -187,6 +191,8 @@ private:
 		uint8 StatusMask = 0;
 		/** The emission came from a Stillness-charged volley. */
 		bool bCharged = false;
+		/** A slam's ember (keepers.md §2): applies ember_status and runs no other reaction. */
+		bool bEmber = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -205,6 +211,7 @@ private:
 		int32 Generation = 0;
 		int32 BouncesLeft = 0;
 		bool bCharged = false;
+		bool bEmber = false;
 	};
 
 	struct FField
@@ -228,6 +235,8 @@ private:
 		float Damage = 0.0f;
 		float Radius = 0.0f;
 		bool bLeaveField = false;
+		/** every_n: this strike falls on the whole screen around the hero. */
+		bool bScreen = false;
 	};
 
 	struct FArcFlash
@@ -276,6 +285,7 @@ private:
 		int32 Generation = 0;
 		int32 Bounces = 0;
 		bool bCharged = false;
+		bool bEmber = false;
 	};
 
 	/** A shot of Slot's own rounds (spec speed, radius, life, pierce, damage, weapon source). */
@@ -319,8 +329,8 @@ private:
 	void SpendCharge(const FDTSimContext& Context, int32 OwnerId, FWeaponRuntime& Runtime, const FDTResolvedFlag& Still, FShot& Shot);
 	/** Effects: Frost's frozen_blocks_enemies and freeze_until_hit, Stillness's charged aura. */
 	void StepHeldControl(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
-	void StepSlamTriggers(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
-	void EmitSlam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam);
+	void StepSlamTriggers(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player);
+	void EmitSlam(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam);
 
 	void StepDeferred(const FDTSimContext& Context);
 	void SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage);
@@ -352,6 +362,8 @@ private:
 	FDTFlagParams StatusParams(const FDTWeaponSpec& Spec, FName StatusWord) const;
 	void ExplodeBurning(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius);
 	void SpreadBurn(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius, float BurnDps);
+	/** burn_tick_rate of OwnerId's flags: Burn applications carry that much more damage per second (R-KEE-11). */
+	float BurnRate(int32 OwnerId) const;
 	/** The strongest per-hit damage among OwnerId's composed weapons (the explosion's basis, as Slam's dmg_ratio). */
 	float StrongestDamage(int32 OwnerId) const;
 	/** Live elites and the boss, nearest to the query first (retarget=EliteOrBoss); collected once per Effects phase. */

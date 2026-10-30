@@ -68,6 +68,15 @@ namespace DTFlagParam
 	const FName AuraIntervalS(TEXT("aura_interval_s"));
 	const FName ChargedFreezeRingUu(TEXT("charged_freeze_ring_uu"));
 	const FName Around(TEXT("around"));
+	const FName AfterHitTakenMult(TEXT("after_hit_taken_mult"));
+	const FName Embers(TEXT("embers"));
+	const FName EmberStatus(TEXT("ember_status"));
+	const FName EmberDmg(TEXT("ember_dmg"));
+	const FName DetonateBurning(TEXT("detonate_burning"));
+	const FName BurnTickRate(TEXT("burn_tick_rate"));
+	const FName ApplyModifierOnHit(TEXT("apply_modifier_on_hit"));
+	const FName EveryN(TEXT("every_n"));
+	const FName KillShocksNeighboursUu(TEXT("kill_shocks_neighbours_uu"));
 }
 
 EDTParamOp FDTFlagParams::DefaultOp(FName Name)
