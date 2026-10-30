@@ -116,7 +116,7 @@ enemies:
   ENEMY_FIRE.FAN_SPREAD_DEG:   { value: 14, unit: deg, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-20, T-ENM-20] }
   ENEMY_FIRE.EMISSIVE:         { value: 3.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, 04_Presentation.md] }
   ENEMY_FIRE.CORE_RADIUS_RATIO: { value: 0.6, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, Tools/create_arena.py] }
-  ENEMY_FIRE.DRAW_RADIUS_RATIO: { value: 1.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, Enemies/DTEnemySubsystem] }
+  ENEMY_FIRE.DRAW_RADIUS_RATIO: { value: 1.8, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, T-PRE-05, Enemies/DTEnemySubsystem] }
   AIM.TOKENS:                  { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.TOKENS_THREAT:           { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.FAN_MIN_RANGE_UU:        { value: 600, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-19, T-ENM-19] }
@@ -146,7 +146,7 @@ bullets:
 arena:
   ARENA.SUN_ELEVATION_DEG:     { value: 20,   unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
   ARENA.SUN_YAW_DEG:           { value: -60,  unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py] }
-  ARENA.SUN_LUX:               { value: 10,   unit: lux,   tag: GATED(S0),  dependents: [Tools/create_arena.py] }
+  ARENA.SUN_LUX:               { value: 11,   unit: lux,   tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md, T-PRE-05] }
   ARENA.SKY_LIGHT_INTENSITY:   { value: 1.0,  unit: scale, tag: GATED(S0),  dependents: [Tools/create_arena.py] }
   ARENA.EXPOSURE_EV100:        { value: 0.0,  unit: ev100, tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
   ARENA.BLOOM_THRESHOLD:       { value: 1.0,  unit: scale, tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }

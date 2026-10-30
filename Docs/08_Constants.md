@@ -147,7 +147,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENEMY_FIRE.FAN_SPREAD_DEG | 14 | deg | GATED(S1) | enemies.md, R-ENM-20, T-ENM-20 |
 | C.ENEMY_FIRE.EMISSIVE | 3.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, 04_Presentation.md |
 | C.ENEMY_FIRE.CORE_RADIUS_RATIO | 0.6 | ratio | GATED(S1) | enemies.md, R-ENM-17, Tools/create_arena.py |
-| C.ENEMY_FIRE.DRAW_RADIUS_RATIO | 1.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, Enemies/DTEnemySubsystem |
+| C.ENEMY_FIRE.DRAW_RADIUS_RATIO | 1.8 | ratio | GATED(S1) | enemies.md, R-ENM-17, T-PRE-05, Enemies/DTEnemySubsystem |
 | C.AIM.TOKENS | 3 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.TOKENS_THREAT | 4 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.FAN_MIN_RANGE_UU | 600 | uu | GATED(S1) | enemies.md, R-ENM-19, T-ENM-19 |
@@ -187,7 +187,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 |---|---|---|---|---|
 | C.ARENA.SUN_ELEVATION_DEG | 20 | deg | GATED(S0) | Tools/create_arena.py, 04_Presentation §4 |
 | C.ARENA.SUN_YAW_DEG | -60 | deg | GATED(S0) | Tools/create_arena.py |
-| C.ARENA.SUN_LUX | 10 | lux | GATED(S0) | Tools/create_arena.py |
+| C.ARENA.SUN_LUX | 11 | lux | GATED(S0) | Tools/create_arena.py, 04_Presentation.md, T-PRE-05 |
 | C.ARENA.SKY_LIGHT_INTENSITY | 1.0 | scale | GATED(S0) | Tools/create_arena.py |
 | C.ARENA.EXPOSURE_EV100 | 0.0 | EV100 | GATED(S0) | Tools/create_arena.py, 04_Presentation §4 (fixed: min = max) |
 | C.ARENA.BLOOM_THRESHOLD | 1.0 | scale | GATED(S0) | Tools/create_arena.py, 04_Presentation §4 |

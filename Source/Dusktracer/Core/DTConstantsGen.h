@@ -121,7 +121,7 @@ namespace DTConst
 	inline constexpr int32 ENEMY_FIRE_FAN_SPREAD_DEG = 14; // deg, GATED(S1)
 	inline constexpr float ENEMY_FIRE_EMISSIVE = 3.5f; // ratio, GATED(S1)
 	inline constexpr float ENEMY_FIRE_CORE_RADIUS_RATIO = 0.6f; // ratio, GATED(S1)
-	inline constexpr float ENEMY_FIRE_DRAW_RADIUS_RATIO = 1.5f; // ratio, GATED(S1)
+	inline constexpr float ENEMY_FIRE_DRAW_RADIUS_RATIO = 1.8f; // ratio, GATED(S1)
 	inline constexpr int32 AIM_TOKENS = 3; // n, GATED(S1)
 	inline constexpr int32 AIM_TOKENS_THREAT = 4; // n, GATED(S1)
 	inline constexpr int32 AIM_FAN_MIN_RANGE_UU = 600; // uu, GATED(S1)
@@ -152,7 +152,7 @@ namespace DTConst
 	// arena
 	inline constexpr int32 ARENA_SUN_ELEVATION_DEG = 20; // deg, GATED(S0)
 	inline constexpr int32 ARENA_SUN_YAW_DEG = -60; // deg, GATED(S0)
-	inline constexpr int32 ARENA_SUN_LUX = 10; // lux, GATED(S0)
+	inline constexpr int32 ARENA_SUN_LUX = 11; // lux, GATED(S0)
 	inline constexpr float ARENA_SKY_LIGHT_INTENSITY = 1.0f; // scale, GATED(S0)
 	inline constexpr float ARENA_EXPOSURE_EV100 = 0.0f; // ev100, GATED(S0)
 	inline constexpr float ARENA_BLOOM_THRESHOLD = 1.0f; // scale, GATED(S0)
