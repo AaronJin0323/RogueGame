@@ -126,6 +126,7 @@ struct FDTEliteBlast
 	float Left = 0.0f; // seconds until it lands
 	EDTEnemyRole Role = EDTEnemyRole::Swarm;
 	uint32 EnemySerial = 0;
+	bool bCounted = false; // its threat action is counted on its first Enemies step
 };
 
 /** Splitter children owed by a death, spawned at the start of the next Enemies phase (elites.md R-ELT-06). */
@@ -308,13 +309,13 @@ private:
 	void TickStatuses(float Dt, TArray<FDTHit>* OutHits);
 	void AssignTokens(TConstArrayView<FVector2f> Heroes, bool bThreatBlock);
 	void StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2f> Heroes);
-	void PublishTelegraphs(TArray<FDTTelegraph>& Out) const;
+	void PublishTelegraphs(TArray<FDTTelegraph>& Out, TConstArrayView<FVector2f> Heroes) const;
 	void FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFirePattern InPattern, bool bClose, int32 Volley,
 		int32 Target, float InDmgScale, uint32 InSerial);
 	void StepOrphans(float Dt, FDTWorldView& View);
 	void StepElites(float Dt, FDTWorldView& View);
 	void StepBlasts(float Dt, FDTWorldView& View);
-	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin);
+	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin, FName AttackId = NAME_None);
 	void AppendContacts(FDTWorldView& View) const;
 	int32 NearestHero(const FVector2f& At, TConstArrayView<FVector2f> Heroes, FVector2f* OutDelta = nullptr) const;
 	float ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius) const;

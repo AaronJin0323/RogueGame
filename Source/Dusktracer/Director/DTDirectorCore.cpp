@@ -1,5 +1,6 @@
 #include "Director/DTDirectorCore.h"
 #include "Core/DTConstantsGen.h"
+#include "Enemies/DTElite.h"
 
 namespace DTDirectorCoreLocal
 {
@@ -374,6 +375,10 @@ void FDTDirectorCore::SpawnEvent(const DTCat::FTimelineRow& Row, const FDTDirect
 			DrawRole(Row.Weights, false, Rng, Role);
 			FDTEnemySpawn Spawn = MakeSpawn(Role, OnRing(Center, RingMin, RingMax, Rng));
 			Spawn.bElite = true;
+			if (In.EliteRng)
+			{
+				Spawn.AffixMask = DTElite::Roll(Role, Row.EventAffixes, Row.EventFavor, *In.EliteRng); // R-ELT-02
+			}
 			Queue(Spawn);
 		}
 		break;

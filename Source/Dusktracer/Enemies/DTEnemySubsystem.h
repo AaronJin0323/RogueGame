@@ -131,6 +131,7 @@ private:
 	TArray<FTransform> HullTransforms;
 	TArray<FTransform> OpticTransforms;
 	TArray<FTransform> RoundTransforms;
+	TArray<FDTElitePart> EliteParts;
 	TArray<FDTEnemySpawn> QueuedSpawns;
 	TArray<FRoleRequest> RoleRequests;
 	TArray<FStatusRequest> StatusRequests;

@@ -1,5 +1,6 @@
 // S1 record writers of FDTTelemetryCore (02_Systems/telemetry.md §Data). Field names and order follow each owning spec's
 // §Telemetry: offers.md, keepers.md, combat_core.md, progression.md, weapons.md, modifiers.md, director.md, boss.md.
+#include "Enemies/DTElite.h"
 #include "Telemetry/DTTelemetryRecords.h"
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetryJson.h"
@@ -357,6 +358,21 @@ void FDTTelemetryCore::RecordBossStart(FName Form, int32 Wins, int32 NumPlayers)
 
 void FDTTelemetryCore::RecordEliteDeath(const FDTTelElite& Elite)
 {
+	if (!RecordOwner(Elite.OwnerId))
+	{
+		return;
+	}
+	TArray<FString> Names;
+	DTElite::MaskNames(Elite.AffixMask).ParseIntoArray(Names, TEXT(","));
+	FString Affixes;
+	for (const FString& Name : Names)
+	{
+		Affixes += (Affixes.IsEmpty() ? TEXT("\"") : TEXT(",\"")) + Name + TEXT("\"");
+	}
+	JsonlOut += FDTTelJson(JsonHead(TEXT("elite"), Elite.OwnerId)).Int(TEXT("serial"), Elite.Serial).Str(TEXT("role"), DTTelNames::EnemyRole(Elite.Role))
+		.Raw(TEXT("affixes"), TEXT("[") + Affixes + TEXT("]")).Int(TEXT("source"), Elite.SourceId).Num(TEXT("alive_s"), Elite.AliveSeconds)
+		.Int(TEXT("shield_absorbed"), Elite.ShieldAbsorbed).Int(TEXT("shield_left"), Elite.ShieldLeft).Num(TEXT("drained"), Elite.Drained)
+		.Num(TEXT("healed"), Elite.Healed).Int(TEXT("beat"), Elite.BeatId).Line();
 }
 
 void FDTTelemetryCore::RecordBossPhase(int32 Phase, float FightTimeSeconds, float HpFrac, bool bByTime)

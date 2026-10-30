@@ -111,6 +111,26 @@ void ADTEnemyRenderer::Sync(UInstancedStaticMeshComponent* Part, TConstArrayView
 
 void ADTEnemyRenderer::UpdateParts(TConstArrayView<FDTElitePart> InParts)
 {
+	PartTransforms.Reset();
+	for (const FDTElitePart& Part : InParts)
+	{
+		PartTransforms.Add(Part.Transform);
+	}
+	PartData.SetNumZeroed(NumCustomData);
+	Sync(Parts, PartTransforms, PartData);
+	for (int32 Index = 0; Index < InParts.Num(); ++Index)
+	{
+		const FDTElitePart& Part = InParts[Index];
+		PartData[0] = Part.Color.R;
+		PartData[1] = Part.Color.G;
+		PartData[2] = Part.Color.B;
+		PartData[3] = Part.Emissive;
+		Parts->SetCustomData(Index, PartData, false);
+	}
+	if (InParts.Num() > 0)
+	{
+		Parts->MarkRenderStateDirty();
+	}
 }
 
 void ADTEnemyRenderer::UpdateInstances(TConstArrayView<FTransform> HullTransforms, TConstArrayView<FTransform> OpticTransforms)

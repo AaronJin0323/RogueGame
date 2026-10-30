@@ -277,10 +277,28 @@ bool FDTEnmOpticPart::RunTest(const FString& Parameters)
 	TestEqual(TEXT("one hull per live enemy"), Renderer->GetHull()->GetInstanceCount(), Live);
 	TestEqual(TEXT("one optic per live enemy that is not an elite"), Renderer->GetOptic()->GetInstanceCount(), Live);
 	TestEqual(TEXT("no actor per enemy"), W.CountActors(), ActorsBefore);
+	TestEqual(TEXT("no elite, no parts"), Renderer->GetParts()->GetInstanceCount(), 0);
 	TestEqual(TEXT("hull colour token"), UDTEnemySubsystem::GetHullColor(), DTPal::Linear(DTPal::Enemy_Body));
 	TestEqual(TEXT("optic colour token"), UDTEnemySubsystem::GetOpticColor(), DTPal::Linear(DTPal::Enemy_Optic));
 	TestTrue(TEXT("hull = Pal.Enemy.Body with zero emissive"), InstancesCarry(Renderer->GetHull(), DTPal::Linear(DTPal::Enemy_Body), 0.0f));
 	TestTrue(TEXT("optic = Pal.Enemy.Optic at the optic emissive"), InstancesCarry(Renderer->GetOptic(), DTPal::Linear(DTPal::Enemy_Optic), DTConst::ENEMIES_OPTIC_EMISSIVE));
+
+	// T-ELT-11: an elite is drawn scaled; its optic moves to the elite parts.
+	FDTEnemySpawn Elite;
+	Elite.Role = EDTEnemyRole::Tank;
+	Elite.Position = FVector2f(0.0f, -900.0f);
+	Elite.bElite = true;
+	Elite.AffixMask = DTElite::Bit(EDTAffix::Volatile);
+	Enemies->GetPool().Spawn(Elite, nullptr, false);
+	Enemies->SimRender(0.0f);
+	TestEqual(TEXT("one hull more"), Renderer->GetHull()->GetInstanceCount(), Live + 1);
+	TestEqual(TEXT("no optic more"), Renderer->GetOptic()->GetInstanceCount(), Live);
+	TestEqual(TEXT("light and reactor"), Renderer->GetParts()->GetInstanceCount(), 2);
+	FTransform EliteHull;
+	Renderer->GetHull()->GetInstanceTransform(Live, EliteHull, true);
+	TestEqual(TEXT("the hull is drawn at the elite scale"), static_cast<float>(EliteHull.GetScale3D().X),
+		2.0f * FDTEnemyRoleDef::Get(EDTEnemyRole::Tank).Radius * static_cast<float>(DTConst::ELITE_DRAW_SCALE) / Renderer->GetMeshSizeUU(), 0.001f);
+	TestEqual(TEXT("elites keep their hit radius"), Enemies->GetPool().GetRadii()[Live], FDTEnemyRoleDef::Get(EDTEnemyRole::Tank).Radius);
 	return true;
 }
 

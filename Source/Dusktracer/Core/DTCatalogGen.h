@@ -285,8 +285,8 @@ namespace DTCat
 		{ TEXT("Swift"), TEXT("Enemy.Affix.Swift"), TEXT("ST_Enemies.Affix.Swift.Name"), TEXT(""), TEXT(""), 0.0f, 2, true, (1u << static_cast<uint32>(EDTEnemyRole::Turret)), TEXT("909090909090") },
 		{ TEXT("Volatile"), TEXT("Enemy.Affix.Volatile"), TEXT("ST_Enemies.Affix.Volatile.Name"), TEXT("Affix.Volatile"), TEXT("Ring"), static_cast<float>(DTConst::AFFIX_VOLATILE_LEAD_S), 6, true, 0u, TEXT("907090009500") },
 		{ TEXT("Splitter"), TEXT("Enemy.Affix.Splitter"), TEXT("ST_Enemies.Affix.Splitter.Name"), TEXT(""), TEXT(""), 0.0f, 3, false, 0u, TEXT("909000000000") },
-		{ TEXT("Vampiric"), TEXT("Enemy.Affix.Vampiric"), TEXT("ST_Enemies.Affix.Vampiric.Name"), TEXT("Affix.Vampiric"), TEXT("AimLine"), static_cast<float>(DTConst::AFFIX_VAMPIRIC_LINK_S), 5, false, 0u, TEXT("123456765432") },
-		{ TEXT("Shielded"), TEXT("Enemy.Affix.Shielded"), TEXT("ST_Enemies.Affix.Shielded.Name"), TEXT(""), TEXT(""), 0.0f, 4, true, 0u, TEXT("012345678900") },
+		{ TEXT("Vampiric"), TEXT("Enemy.Affix.Vampiric"), TEXT("ST_Enemies.Affix.Vampiric.Name"), TEXT("Affix.Vampiric"), TEXT("AimLine"), static_cast<float>(DTConst::AFFIX_VAMPIRIC_LINK_S), 5, false, 0u, TEXT("135799975310") },
+		{ TEXT("Shielded"), TEXT("Enemy.Affix.Shielded"), TEXT("ST_Enemies.Affix.Shielded.Name"), TEXT(""), TEXT(""), 0.0f, 4, true, 0u, TEXT("012345678999") },
 	};
 
 	// --- boss_warden.csv ---

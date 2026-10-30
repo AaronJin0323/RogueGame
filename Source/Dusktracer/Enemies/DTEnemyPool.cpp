@@ -2,6 +2,7 @@
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTRunState.h"
+#include "Enemies/DTElite.h"
 
 namespace DTEnemyPoolImpl
 {
@@ -57,6 +58,8 @@ namespace DTEnemyPoolImpl
 		const float T = FMath::Clamp(FVector2f::DotProduct(P - A, Dir), 0.0f, Length);
 		return FVector2f::Distance(P, A + Dir * T);
 	}
+
+	static FName AffixAttack(EDTAffix Affix) { return FName(DTCat::Affixes[static_cast<int32>(Affix)].Attack); }
 
 	static float AimLineLength() { return static_cast<float>(DTConst::ENEMY_FIRE_SHOT_SPEED_UU_S) * DTConst::ENEMY_FIRE_SHOT_LIFE_S; }
 	static float AimLineWidth() { return 2.0f * static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU); }
@@ -181,6 +184,9 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 	Aux.Reset();
 	PullReadyStep.Reset();
 	Orphans.Reset();
+	Blasts.Reset();
+	PendingChildren.Reset();
+	StepEliteDeaths.Reset();
 	StepThreats.Reset();
 	if (bResetCounters)
 	{
@@ -226,6 +232,7 @@ int32 FDTEnemyPool::Spawn(const FDTEnemySpawn& Spec, FRandomStream* Rng, bool bD
 	const float InHpScale = FMath::Max(0.0f, Spec.HpScale);
 	const float InDmgScale = FMath::Max(0.0f, Spec.DmgScale);
 	const float Life = Def.MaxHp * InHpScale * (Spec.bElite ? static_cast<float>(DTConst::ROLE_ELITE_HP_MULT) : 1.0f);
+	const uint8 Affixes = Spec.bElite ? Spec.AffixMask : 0; // R-ELT-01
 
 	Pos.Add(Clamped);
 	PrevPos.Add(Clamped);
@@ -234,7 +241,7 @@ int32 FDTEnemyPool::Spawn(const FDTEnemySpawn& Spec, FRandomStream* Rng, bool bD
 	Radius.Add(Def.Radius);
 	Hp.Add(Life);
 	MaxHp.Add(Life);
-	Speed.Add(Def.Speed);
+	Speed.Add(Def.Speed * (DTElite::Has(Affixes, EDTAffix::Swift) ? static_cast<float>(DTConst::AFFIX_SWIFT_SPEED_MULT) : 1.0f));
 	ContactDamage.Add(Def.ContactDamage);
 	HpScale.Add(InHpScale);
 	DmgScale.Add(InDmgScale);
@@ -249,6 +256,8 @@ int32 FDTEnemyPool::Spawn(const FDTEnemySpawn& Spec, FRandomStream* Rng, bool bD
 
 	FDTEnemyAux& State = Aux.AddDefaulted_GetRef();
 	State.State = Spec.Role == EDTEnemyRole::Boss ? EDTEnemyState::Scripted : EDTEnemyState::Init;
+	State.AffixMask = Affixes;
+	State.ShieldHitsLeft = DTElite::Has(Affixes, EDTAffix::Shielded) ? DTConst::AFFIX_SHIELD_HITS : 0;
 	if (Def.Patterns.Num() > 0)
 	{
 		State.Pattern = Def.Patterns[PatternIndex];
@@ -941,23 +950,133 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 
 void FDTEnemyPool::SpawnEliteChildren(FRandomStream* Rng)
 {
+	const int32 Count = DTConst::AFFIX_SPLITTER_COUNT;
+	const float Spread = static_cast<float>(DTConst::ENM_SEPARATION_RADIUS_UU);
+	for (const FDTEliteChildren& Children : PendingChildren)
+	{
+		for (int32 Child = 0; Child < Count; ++Child)
+		{
+			const float Angle = UE_TWO_PI * static_cast<float>(Child) / static_cast<float>(Count);
+			FDTEnemySpawn Spec;
+			Spec.Role = EDTEnemyRole::Swarm;
+			Spec.Position = Children.Origin + FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * Spread;
+			Spec.HpScale = Children.HpScale;
+			Spec.DmgScale = Children.DmgScale;
+			Spawn(Spec, Rng, Children.bDirector); // refused and counted at the cap (R-ENM-01)
+		}
+	}
+	PendingChildren.Reset();
 }
 
 void FDTEnemyPool::StepElites(float Dt, FDTWorldView& View)
 {
+	using namespace DTEnemyPoolImpl;
+	const float RangeSq = FMath::Square(static_cast<float>(DTConst::AFFIX_VAMPIRIC_RANGE_UU));
+	for (int32 Index = 0; Index < Num(); ++Index)
+	{
+		if ((Flags[Index] & DTEnemyFlags::Elite) == 0)
+		{
+			continue;
+		}
+		FDTEnemyAux& A = Aux[Index];
+		A.AliveSeconds += Dt;
+		if (!DTElite::Has(A.AffixMask, EDTAffix::Vampiric) || A.IsFrozen())
+		{
+			continue; // a frozen elite holds its timers (R-ENM-22)
+		}
+		FVector2f ToHero;
+		const int32 Hero = NearestHero(Pos[Index], View.HeroPositions, &ToHero);
+		if (Hero == INDEX_NONE || ToHero.SizeSquared() > RangeSq)
+		{
+			A.DrainTarget = INDEX_NONE;
+			A.DrainLinkLeft = 0.0f;
+			continue;
+		}
+		if (Hero != A.DrainTarget)
+		{
+			A.DrainTarget = Hero;
+			A.DrainLinkLeft = DTConst::AFFIX_VAMPIRIC_LINK_S;
+			CountThreat(Role[Index], Pos[Index], AffixAttack(EDTAffix::Vampiric));
+		}
+		if (A.DrainLinkLeft > 0.0f)
+		{
+			A.DrainLinkLeft -= Dt;
+			if (A.DrainLinkLeft > TimerEps)
+			{
+				continue;
+			}
+			A.DrainLinkLeft = 0.0f;
+		}
+		else
+		{
+			A.DrainTickLeft -= Dt;
+			if (A.DrainTickLeft > TimerEps)
+			{
+				continue;
+			}
+		}
+		A.DrainTickLeft = DTConst::AFFIX_VAMPIRIC_TICK_S;
+		if (View.HeroIntangible.IsValidIndex(Hero) && View.HeroIntangible[Hero])
+		{
+			continue; // a dash starves the drain and the heal
+		}
+		FDTHeroHit& Hit = View.HeroHits.AddDefaulted_GetRef();
+		Hit.PlayerId = Hero;
+		Hit.Damage = static_cast<float>(DTConst::AFFIX_VAMPIRIC_DRAIN_DPS) * DTConst::AFFIX_VAMPIRIC_TICK_S * DmgScale[Index];
+		Hit.Kind = EDTHeroHitKind::Drain;
+		Hit.SourceRole = Role[Index];
+		Hit.AttackId = AffixAttack(EDTAffix::Vampiric);
+		Hit.EnemySerial = Serial[Index];
+		Hit.Position = View.HeroPositions[Hero];
+		const float Before = Hp[Index];
+		Hp[Index] = FMath::Min(MaxHp[Index], Hp[Index] + DTConst::AFFIX_VAMPIRIC_HEAL_RATIO * MaxHp[Index]);
+		A.Drained += Hit.Damage;
+		A.Healed += Hp[Index] - Before;
+	}
 }
 
 void FDTEnemyPool::StepBlasts(float Dt, FDTWorldView& View)
 {
+	using namespace DTEnemyPoolImpl;
+	const float Reach = static_cast<float>(DTConst::AFFIX_VOLATILE_RADIUS_UU) + static_cast<float>(DTConst::HERO_RADIUS_UU);
+	for (int32 Index = Blasts.Num() - 1; Index >= 0; --Index)
+	{
+		FDTEliteBlast& B = Blasts[Index];
+		if (!B.bCounted)
+		{
+			B.bCounted = true;
+			CountThreat(B.Role, B.Origin, AffixAttack(EDTAffix::Volatile));
+		}
+		B.Left -= Dt;
+		if (B.Left > TimerEps)
+		{
+			continue;
+		}
+		for (int32 Hero = 0; Hero < View.HeroPositions.Num(); ++Hero)
+		{
+			if (FVector2f::DistSquared(View.HeroPositions[Hero], B.Origin) <= Reach * Reach)
+			{
+				FDTHeroHit& Hit = View.HeroHits.AddDefaulted_GetRef();
+				Hit.PlayerId = Hero;
+				Hit.Damage = static_cast<float>(DTConst::AFFIX_VOLATILE_DAMAGE); // unscaled (R-ELT-05)
+				Hit.Kind = EDTHeroHitKind::Blast;
+				Hit.SourceRole = B.Role;
+				Hit.AttackId = AffixAttack(EDTAffix::Volatile);
+				Hit.EnemySerial = B.EnemySerial;
+				Hit.Position = View.HeroPositions[Hero];
+			}
+		}
+		Blasts.RemoveAt(Index, 1, EAllowShrinking::No);
+	}
 }
 
-void FDTEnemyPool::CountThreat(EDTEnemyRole InRole, const FVector2f& Origin)
+void FDTEnemyPool::CountThreat(EDTEnemyRole InRole, const FVector2f& Origin, FName AttackId)
 {
 	++Counters.ThreatActions[static_cast<int32>(InRole)];
 	FDTThreatAction& Action = StepThreats.AddDefaulted_GetRef();
 	Action.Origin = Origin;
 	Action.Role = InRole;
-	Action.AttackId = FDTEnemyRoleDef::Get(InRole).AttackId;
+	Action.AttackId = AttackId.IsNone() ? FDTEnemyRoleDef::Get(InRole).AttackId : AttackId;
 }
 
 void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
@@ -1020,7 +1139,7 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 	}
 }
 
-void FDTEnemyPool::PublishTelegraphs(TArray<FDTTelegraph>& Out) const
+void FDTEnemyPool::PublishTelegraphs(TArray<FDTTelegraph>& Out, TConstArrayView<FVector2f> Heroes) const
 {
 	using namespace DTEnemyPoolImpl;
 	Out.Reset();
@@ -1071,6 +1190,27 @@ void FDTEnemyPool::PublishTelegraphs(TArray<FDTTelegraph>& Out) const
 			AddAimLines(Pos[Index], Facing[Index], A.Pattern, A.bCloseFan,
 				FMath::Clamp(1.0f - A.StateLeft / DTConst::ROLE_TURRET_TELL_S, 0.0f, 1.0f));
 		}
+		if (A.DrainTarget != INDEX_NONE && Heroes.IsValidIndex(A.DrainTarget))
+		{
+			// R-ELT-07: the cable is on the ground for the whole link and for as long as it drains.
+			const FVector2f ToHero = Heroes[A.DrainTarget] - Pos[Index];
+			FDTTelegraph& T = Out.AddDefaulted_GetRef();
+			T.Shape = EDTTelegraphShape::AimLine;
+			T.Origin = Pos[Index];
+			T.Dir = ToHero.GetSafeNormal();
+			T.Length = ToHero.Size();
+			T.Width = static_cast<float>(DTConst::AFFIX_VAMPIRIC_CABLE_UU);
+			T.Progress = FMath::Clamp(1.0f - A.DrainLinkLeft / DTConst::AFFIX_VAMPIRIC_LINK_S, 0.0f, 1.0f);
+		}
+	}
+	for (const FDTEliteBlast& B : Blasts)
+	{
+		FDTTelegraph& T = Out.AddDefaulted_GetRef();
+		T.Shape = EDTTelegraphShape::Ring;
+		T.Origin = B.Origin;
+		T.Length = static_cast<float>(DTConst::AFFIX_VOLATILE_RADIUS_UU);
+		T.Width = 0.0f; // filled
+		T.Progress = FMath::Clamp(1.0f - B.Left / DTConst::AFFIX_VOLATILE_LEAD_S, 0.0f, 1.0f);
 	}
 	for (const FDTOrphanAttack& O : Orphans)
 	{
@@ -1125,6 +1265,7 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 	check(Context.View);
 	FDTWorldView& View = *Context.View;
 	const float Dt = Context.StepSeconds;
+	SpawnEliteChildren(nullptr); // the subsystem has already flushed these with the Spawn stream; tests come here
 	PrevPos = Pos;
 
 	// The hero read last step's hits in the Hero phase; the list holds only this step's from here (bounded with no hero).
@@ -1143,9 +1284,11 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 	AssignTokens(View.HeroPositions, View.bThreatBlock);
 	StepRoles(Dt, Context.StepIndex, View.HeroPositions);
 	StepOrphans(Dt, View);
+	StepElites(Dt, View);
+	StepBlasts(Dt, View);
 
 	Publish(View);
-	PublishTelegraphs(View.Telegraphs);
+	PublishTelegraphs(View.Telegraphs, View.HeroPositions);
 	Rounds.Step(Dt, View);
 	AppendContacts(View);
 }
@@ -1192,6 +1335,21 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 				Damage *= DTConst::ROLE_TANK_FRONT_DAMAGE_MULT;
 			}
 		}
+		if ((Flags[Index] & DTEnemyFlags::Elite) != 0)
+		{
+			FDTEnemyAux& Elite = Aux[Index];
+			if (Elite.ShieldHitsLeft > 0 && Hit.WeaponSlot != INDEX_NONE)
+			{
+				// R-ELT-08: the Hit event still goes out, of zero, so telemetry's hit order holds.
+				--Elite.ShieldHitsLeft;
+				++Elite.ShieldAbsorbed;
+				Damage = 0.0f;
+			}
+			if (DTElite::Has(Elite.AffixMask, EDTAffix::Armored))
+			{
+				Damage *= DTConst::AFFIX_ARMORED_DAMAGE_TAKEN; // R-ELT-03
+			}
+		}
 		if (Aux[Index].ShockLeft > 0.0f)
 		{
 			Damage *= 1.0f + DTConst::STATUS_SHOCK_DAMAGE_TAKEN; // R-ENM-22
@@ -1215,6 +1373,22 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 			for (const FDTBurnStack& Stack : Aux[Index].Burn)
 			{
 				Death.BurnDps = Stack.Left > 0.0f ? FMath::Max(Death.BurnDps, Stack.Dps) : Death.BurnDps;
+			}
+			if ((Flags[Index] & DTEnemyFlags::Elite) != 0)
+			{
+				const FDTEnemyAux& Elite = Aux[Index];
+				FDTEliteDeath& End = StepEliteDeaths.AddDefaulted_GetRef();
+				End.Serial = Serial[Index];
+				End.Role = Role[Index];
+				End.AffixMask = Elite.AffixMask;
+				End.OwnerId = Hit.OwnerId;
+				End.SourceId = Hit.SourceId;
+				End.AliveSeconds = Elite.AliveSeconds;
+				End.ShieldAbsorbed = Elite.ShieldAbsorbed;
+				End.ShieldLeft = Elite.ShieldHitsLeft;
+				End.Drained = Elite.Drained;
+				End.Healed = Elite.Healed;
+				End.BeatId = BeatId[Index];
 			}
 			if (OutKills)
 			{
@@ -1241,6 +1415,7 @@ int32 FDTEnemyPool::ResolveHits(const FDTSimContext& Context)
 	FDTWorldView& View = *Context.View;
 	View.Kills.Reset();
 	StepDeaths.Reset();
+	StepEliteDeaths.Reset();
 	const int32 Kills = ApplyHits(View.Hits, *Context.Run, &View.Kills);
 	View.Hits.Reset();
 	Compact();
@@ -1282,6 +1457,22 @@ int32 FDTEnemyPool::Compact()
 			continue;
 		}
 		const FDTEnemyAux& A = Aux[Index];
+		if (DTElite::Has(A.AffixMask, EDTAffix::Volatile))
+		{
+			FDTEliteBlast& B = Blasts.AddDefaulted_GetRef();
+			B.Origin = Pos[Index];
+			B.Left = DTConst::AFFIX_VOLATILE_LEAD_S;
+			B.Role = Role[Index];
+			B.EnemySerial = Serial[Index];
+		}
+		if (DTElite::Has(A.AffixMask, EDTAffix::Splitter))
+		{
+			FDTEliteChildren& Children = PendingChildren.AddDefaulted_GetRef();
+			Children.Origin = Pos[Index];
+			Children.HpScale = HpScale[Index];
+			Children.DmgScale = DmgScale[Index];
+			Children.bDirector = (Flags[Index] & DTEnemyFlags::Director) != 0;
+		}
 		if ((Flags[Index] & DTEnemyFlags::Arrival) != 0)
 		{
 			// An arrival's attack whose telegraph is showing completes even if the unit dies (R-ENM-13, D-013 §6).
