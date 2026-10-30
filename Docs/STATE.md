@@ -4,7 +4,7 @@
 - Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance passes merged under D-017; exit test not booked (O-008)
 - Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `OPEN.md` holds human-only items
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (227, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (233, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
 - Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Docs/Validation/S1_bot_baseline.md`). Tool runs open no window: `-nullrhi` or `-RenderOffScreen`
 
@@ -20,11 +20,12 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- Keeper package and Intercession trace on a branch off `main`
+- Tide Frost/Stillness cast line (D-019 reserved) and the round 1 number set on a branch off `main`
+- `offer_pick` duplicate key, `S1_probes.md` §3 tracer note, Tide/Stillness:Storm seed 6 cause on a branch off `main`
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
-2. Intercession casts lose damage in 23 of 57 combinations and package gain sits near 1.0 on Furnace, Frost and Whirlpool (`S1_probes.md`): trace. Slow Tide/Stillness:Storm seed 6 misses T-OFF-15 at 24 decisions
+2. After the two branches: S2 on a branch, `main` stays the S1 build until the exit test
 3. Share cap floor tried and reverted (D-018): income above about 0.85 of the model pushes fast arms past the decision budget, so closing the XP gap moves the XP curve or hand budget too
 4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
@@ -36,9 +37,9 @@
 - O-008 (book S1 validation sessions)
 
 ## Numbers at risk
-- Probes (`S1_probes.md`, bounds): T-KEE-15 FAIL 3/57 in band; T-KEE-18 FAIL (Keeper share mean 0.683, 5/9 arms; package gain 0/9; archetype 2/9)
-- Bot at skill 1.0 (`Docs/Validation/S1_probes.md`, 19 arms, 15 seeds): 201 steered runs reach the boss, 164 win; the Warden barely kills the bot, and win counts in earlier docs carry the bot's hazard-ring blind spot. T-DIR-01 PASS (630.5 s on 10 seeds, 588.6 s on 15); T-OFF-15 FAIL 200/201 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
-- Primary Whirlpool and Stillness are the weakest Keeper arms (4–7 of 15 at the boss). Pass 2 numbers were all reverted (logged). With no heal in S1 the band and boss reach cannot both hold
+- Probes (`S1_keeper_power.md`, bounds, 40× field): T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.573, 4/9 arms; package gain 1/9; archetype 5/9). The share formula cannot pass Storm. Pass criteria stay until human readings
+- Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 196 steered runs reach the boss, 153 win, after the free-Slam bug went. T-DIR-01 PASS (588.6 s on 15 seeds); T-OFF-15 FAIL 195/196 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
+- Primary Whirlpool and Stillness are the weakest Keeper arms (5–6 of 15 at the boss); Slam arms lost wins. With no heal in S1 the band and boss reach cannot both hold
 - Contrast gate 7/7 on the rendered lit ground (Y 0.112) and shadow; telegraph (3.22) and round (3.14) pass through their dark tones with thin margins. Against the `Pal.Ground.Bright` token gem, tracer core and chest are under 3; the second weather does not exist
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
