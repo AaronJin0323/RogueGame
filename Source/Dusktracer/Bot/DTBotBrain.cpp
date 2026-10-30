@@ -45,6 +45,18 @@ namespace DTBotTuning
 	constexpr float MaxAimNoiseDeg = 20.0f;
 	constexpr int32 SeedSalt = 0x0B07;
 
+	/** The wall band's share of FDTBotBrain::DangerAt. */
+	static float WallDanger(const FVector2f& P)
+	{
+		const float Edge = static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU - DTConst::HERO_RADIUS_UU) - FMath::Max(FMath::Abs(P.X), FMath::Abs(P.Y));
+		if (Edge >= WallBandUU)
+		{
+			return 0.0f;
+		}
+		const float W = (WallBandUU - Edge) / WallBandUU;
+		return WallWeight * W * W;
+	}
+
 	static FVector2f DirAt(int32 Index)
 	{
 		const float A = 2.0f * UE_PI * static_cast<float>(Index) / static_cast<float>(NumDirs);
@@ -287,13 +299,7 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 			Score += CrowdWeight * W * W;
 		}
 	}
-	const float Edge = Limit() - FMath::Max(FMath::Abs(P.X), FMath::Abs(P.Y));
-	if (Edge < WallBandUU)
-	{
-		const float W = (WallBandUU - Edge) / WallBandUU;
-		Score += WallWeight * W * W;
-	}
-	return Score;
+	return Score + WallDanger(P);
 }
 
 float FDTBotBrain::ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, float Speed) const
@@ -416,7 +422,15 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 		for (int32 Index = 0; Index < NumDirs; ++Index)
 		{
 			const FVector2f Dir = DirAt(Index);
-			const float Danger = ScoreMove(World, Dir, Speed);
+			float Danger = ScoreMove(World, Dir, Speed);
+			if (PickupWeight == ChestWeight)
+			{
+				// R-DIR-16 can leave a chest against a wall: the wall band gives way for one, nothing else does.
+				for (const float T : { HorizonS * 0.5f, HorizonS })
+				{
+					Danger -= WallDanger(Clamp(S.Pos + Dir * Speed * T));
+				}
+			}
 			float Score = Danger - KiteWeight * FVector2f::DotProduct(Dir, Away) - InertiaWeight * FVector2f::DotProduct(Dir, LastDir);
 			if (PickupWeight > 0.0f && Danger < GemSafeDanger)
 			{

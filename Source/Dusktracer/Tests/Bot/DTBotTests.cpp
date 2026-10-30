@@ -238,6 +238,38 @@ bool FDTBotHazardRingInward::RunTest(const FString& Parameters)
 	return true;
 }
 
+// R-DIR-16 clamps a chest to the arena, so it can lie against a wall. The wall band must not stop the bot fetching it, or
+// a run misses its chest hand and the magnet with it (S1_boss_after_fields.md, T-OFF-15).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotChestAtWall, "Dusktracer.Bot.ChestAtWall", DTBotTest::Flags)
+bool FDTBotChestAtWall::RunTest(const FString& Parameters)
+{
+	FDTHeroState Hero;
+	Hero.Pos = FVector2f(3350.0f, 0.0f);
+	Hero.Hp = Hero.MaxHp = 100.0f;
+	const FVector2f Chest[] = { FVector2f(3900.0f, 0.0f) };
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.Chests = Chest;
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::None;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	TestTrue(TEXT("walks through the wall band to a chest"), Brain.Decide(World).Move.X > 0.5f);
+
+	// Only the wall gives way: a chest behind a landing telegraph still waits.
+	FDTTelegraph Band;
+	Band.Shape = EDTTelegraphShape::Band;
+	Band.Origin = FVector2f(3500.0f, -500.0f);
+	Band.Dir = FVector2f(0.0f, 1.0f);
+	Band.Length = 1000.0f;
+	Band.Width = 300.0f;
+	Band.Progress = 1.0f;
+	World.Telegraphs = MakeArrayView(&Band, 1);
+	Brain.Reset(Config);
+	TestTrue(TEXT("not through a telegraph"), Brain.Decide(World).Move.X <= 0.5f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotDodge, "Dusktracer.Bot.Dodge", DTBotTest::Flags)
 bool FDTBotDodge::RunTest(const FString& Parameters)
 {
