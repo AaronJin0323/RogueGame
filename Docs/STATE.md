@@ -20,23 +20,25 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- none
+- `dev/s1-pass2` (local, not pushed): Part A gaps + balance pass 2, gate PASS at `91aa600` (197 tests). Holds feel-changing work until the owner plays `main`. Evidence: `Docs/Validation/S1_balance_pass2.md` on that branch
+- Express Tide's unread params on a branch off `dev/s1-pass2`
 
 ## Queue (next 5)
-1. Re-baseline smoke goldens once (HUD grew: XP bar, timer) with a viewed image
-2. Owner playtest of the slice (feel check before validators; `Harness/H03 §4`: no feel-changing merge past an unplayed checkpoint)
-3. Balance pass 2 from bot + owner data: pressure split by build (Storm dies, Forge untouched), Keeper share at L16 (3 of 9), share caps cut XP income to ~0.79 of the model
-4. Gaps listed in specs' Open: unexpressed flag params (keepers.md), Reserve Restore/Salvage no-ops, `ST_Keywords`, two-tone enemy rounds
+1. Owner playtest of `main` (feel check before validators; `Harness/H03 §4`: no feel-changing merge past an unplayed checkpoint), then merge `dev/s1-pass2`
+2. Re-run the `:Tide` arms after the params are expressed; the Tide split decides pressure and Keeper share readings
+3. RULE candidates from pass 2: Pull at Key level, share caps on a floor of alive enemies
+4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
 
 ## Holds
-- none; automated launches: on (bot runs) — stop them during human sessions
+- Nothing from `dev/s1-pass2` merges to `main` before the owner plays; automated launches: on (bot runs) — stop them during human sessions
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
 
 ## Numbers at risk
-- After pass 1 (`Docs/Validation/S1_balance_pass1.md`; gem-floor wipe bug fixed, no number changed): T-DIR-01 PASS (no-pick median death 592.9 s), T-OFF-15 PASS; 9/15 steered runs reach L16, 7/15 reach the boss; damage-taken band met only as a pooled mean
+- `main` after pass 1 (`Docs/Validation/S1_balance_pass1.md`): T-DIR-01 PASS (no-pick median death 592.9 s), T-OFF-15 PASS; 7/15 steered runs reach the boss; damage-taken band met only as a pooled mean
+- `dev/s1-pass2`: no tuned number survived (all reverted, logged); T-DIR-02 per arm FAIL. Tide is the split: arms with it reach the boss 0–2 of 15, arms without it 13–15. With no heal in S1 the band and boss reach cannot both hold
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
