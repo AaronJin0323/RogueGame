@@ -217,8 +217,6 @@ bool FDTEnemyFireNoActors::RunTest(const FString& Parameters)
 	TestEqual(TEXT("round colour is the Pal.Enemy.Bullet token"), Color, DTPal::Linear(DTPal::Enemy_Bullet));
 	const FLinearColor CoreColor = UDTEnemySubsystem::GetRoundCoreColor();
 	TestEqual(TEXT("round core is the Pal.Enemy.BulletCore token"), CoreColor, DTPal::Linear(DTPal::Enemy_BulletCore));
-	TestEqual(TEXT("every instance carries the core colour"), Renderer->GetInstances()->NumCustomDataFloats, ADTEnemyBulletRenderer::NumCustomData);
-	TestEqual(TEXT("core red in the instance data"), Renderer->GetInstances()->PerInstanceSMCustomData[4], CoreColor.R, 0.0001f);
 	for (const int32 PlayerBullets : { 0, DTConst::BULLETS_CAP })
 	{
 		// Density: with no player fire and with player fire at its cap, enemy rounds draw the same.
@@ -236,6 +234,13 @@ bool FDTEnemyFireNoActors::RunTest(const FString& Parameters)
 		TestEqual(TEXT("rounds at the cap"), Enemies->GetPool().GetRounds().Num(), DTConst::ENEMY_FIRE_CAP);
 		TestEqual(TEXT("one instance per round"), Renderer->GetInstanceCount(), DTConst::ENEMY_FIRE_CAP);
 		TestTrue(TEXT("instance colours are the enemy tokens at full emissive"), InstancesCarry(Renderer->GetInstances(), Color, DTConst::ENEMY_FIRE_EMISSIVE));
+		const TArray<float>& Data = Renderer->GetInstances()->PerInstanceSMCustomData;
+		const int32 Stride = ADTEnemyBulletRenderer::NumCustomData;
+		TestEqual(TEXT("every instance carries the core colour"), Data.Num(), DTConst::ENEMY_FIRE_CAP * Stride);
+		if (Data.Num() >= Stride)
+		{
+			TestEqual(TEXT("the last instance's core is the token"), Data[Data.Num() - 1], CoreColor.B, 0.0001f);
+		}
 	}
 	TestEqual(TEXT("no actor per round"), W.CountActors(), ActorsBefore);
 	Enemies->GetPool().GetRounds().Reset();
