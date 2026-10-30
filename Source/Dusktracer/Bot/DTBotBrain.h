@@ -1,9 +1,11 @@
-// Bot v1 decisions (S1 tool, AGENTS queue item 5): plain C++, no engine state, so the same snapshot and seed give the same
-// input and the same card choice. The bot drives player 0 only through FDTHeroInput (combat_core.md R-CMB-12) and the
-// offer API (offers.md); it never touches private setters.
+// Bot decisions (Docs/02_Systems/bot.md): plain C++, no engine state, so the same snapshot and seed give the same input and
+// the same card choice. The bot drives player 0 only through FDTHeroInput (combat_core.md R-CMB-12) and the offer API
+// (offers.md); it never touches private setters. Version 1 is the S1 bot, frozen (R-BOT-01); version 2 adds the card rules and
+// the skill knob, and at skill 1.0 moves as version 1 does (R-BOT-03).
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Bot/DTBotPerception.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
 #include "Math/RandomStream.h"
@@ -29,7 +31,9 @@ struct DUSKTRACER_API FDTBotConfig
 	FName Archetype;
 	/** Steered: the second Keeper; None = DefaultSecond(Path). */
 	EDTPath SecondPath = EDTPath::None;
-	/** 1 = no reaction delay and no noise; 0 = the largest delay and noise. */
+	/** 1 = the S1 bot, frozen (R-BOT-01); 2 = bot v2. */
+	int32 Version = 1;
+	/** 1 = the bound: no reaction delay and no error; 0 = the largest. V1 and v2 read it differently (R-BOT-08). */
 	float Skill = 1.0f;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
@@ -46,26 +50,11 @@ struct DUSKTRACER_API FDTBotConfig
 	static const TCHAR* PolicyName(EDTBotPolicy Policy);
 	static EDTBotPolicy ParsePolicy(const FString& Text);
 	static EDTPath ParsePath(const FString& Text);
+	/** A version the bot knows; anything else is the default, 1. */
+	static int32 KnownVersion(int32 Version);
 	/** Storm -> Tide, Forge -> Storm, Tide -> Forge (any fixed choice; recorded in Docs/Validation/S1_bot_baseline.md). */
 	static EDTPath DefaultSecond(EDTPath Primary);
 	FString Describe() const;
-};
-
-/** What the bot sees at a step end: views into the sim's published data (07_Technical §4) plus the hero state. */
-struct FDTBotWorld
-{
-	const FDTHeroState* Hero = nullptr;
-	float StepSeconds = 1.0f / 60.0f;
-	int64 StepIndex = 0;
-	TConstArrayView<FVector2f> EnemyPos;
-	TConstArrayView<FVector2f> EnemyVel;
-	TConstArrayView<float> EnemyRadius;
-	TConstArrayView<FVector2f> RoundPos;
-	TConstArrayView<FVector2f> RoundVel;
-	TConstArrayView<float> RoundRadius;
-	TConstArrayView<FDTTelegraph> Telegraphs;
-	TConstArrayView<FVector2f> Gems;
-	TConstArrayView<FVector2f> Chests;
 };
 
 /** Counters for DT.Bot.Stats and the run summary. */
@@ -98,21 +87,44 @@ public:
 	/** True if P lies in the telegraph's footprint grown by Margin. */
 	static bool InTelegraph(const FDTTelegraph& Tele, const FVector2f& P, float Margin);
 
+	/** Bot v2 only (R-BOT-09): the card's reach in uu at the level Player owns it (level 1 if not owned), 0 for an unknown id. */
+	static float WeaponReach(FName WeaponId, const FDTPlayerRunState& Player);
+	/** Bot v2 only (R-BOT-09): the share of the recent range samples that Reach covers. */
+	float ReachUse(float Reach) const;
+	const FDTBotSkillProfile& GetProfile() const { return Profile; }
+	const FDTBotPerception& GetPerception() const { return Perception; }
+	/** Bot v2 only (R-BOT-11): the fixed score offset of this card for this run. */
+	float CardTaste(FName ContentId) const;
+	/** The score a Steered bot gives a card (exposed for tests). */
+	float ScoreCard(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
+
 private:
 	float ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, float Speed) const;
 	float ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, float Horizon, float* OutSoonest) const;
 	FVector2f ChooseDash(const FDTBotWorld& World) const;
+	/** The kite, pickup and danger scoring shared by both versions: the best direction and the enemies within the cast radius. */
+	void ChooseMove(const FDTBotWorld& World, float Speed, FVector2f& OutDir, int32& OutCrowd) const;
+	FDTHeroInput DecideV2(const FDTBotWorld& Now);
+	void SampleReach(const FDTBotWorld& Now);
 	/** One step of the probe route (FDTBotConfig::bProbeRoute). */
 	FDTHeroInput ProbeInput(const FDTBotWorld& World);
 	float CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
+	float CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
 	int32 ReactionSteps() const;
 
 	FDTBotConfig Config;
+	/** Skill 1.0 for v1, which reads only its heuristics here; the config's skill for v2. */
+	FDTBotSkillProfile Profile;
+	FDTBotPerception Perception;
 	FRandomStream MoveRng;
 	FRandomStream CardRng;
 	FVector2f LastDir = FVector2f::ZeroVector;
 	FDTHeroInput Held;
 	int64 NextDecideStep = 0;
 	int32 ImminentSteps = 0;
+	float StickErr = 0.0f;
+	/** Ring of nearest-enemy rim distances (R-BOT-09). */
+	TArray<float> ReachSamples;
+	int32 ReachNext = 0;
 	FDTBotStats Stats;
 };

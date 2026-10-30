@@ -20,26 +20,29 @@
 #include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTGemSubsystem.h"
+#include "Telemetry/DTTelemetryRecords.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
 
 namespace DTBotSubsystemLocal
 {
 	static TAutoConsoleVariable<FString> CVarBotPolicy(TEXT("dt.Bot.Policy"), TEXT("Off"),
-		TEXT("Bot v1 offer policy for player 0: Off (no bot), None (no-pick arm), Random, Steered. Read at world begin play (-DTBot=)."), ECVF_Default);
+		TEXT("Bot offer policy for player 0: Off (no bot), None (no-pick arm), Random, Steered. Read at world begin play (-DTBot=)."), ECVF_Default);
 	static TAutoConsoleVariable<FString> CVarBotPath(TEXT("dt.Bot.Path"), TEXT("Storm"),
-		TEXT("Bot v1 Steered: Patron Path (Storm, Forge, Tide)."), ECVF_Default);
+		TEXT("Bot Steered: Patron Path (Storm, Forge, Tide)."), ECVF_Default);
 	static TAutoConsoleVariable<FString> CVarBotArchetype(TEXT("dt.Bot.Archetype"), TEXT("Tempest"),
-		TEXT("Bot v1 Steered: preferred archetype name of the Path (Tempest, ArcGrid, Downpour, Hammer, Furnace, Slam, Whirlpool, Frost, Stillness)."), ECVF_Default);
+		TEXT("Bot Steered: preferred archetype name of the Path (Tempest, ArcGrid, Downpour, Hammer, Furnace, Slam, Whirlpool, Frost, Stillness)."), ECVF_Default);
 	static TAutoConsoleVariable<FString> CVarBotSecond(TEXT("dt.Bot.Second"), TEXT(""),
-		TEXT("Bot v1 Steered: second Keeper Path (empty = the fixed default for the Patron)."), ECVF_Default);
+		TEXT("Bot Steered: second Keeper Path (empty = the fixed default for the Patron)."), ECVF_Default);
+	static TAutoConsoleVariable<int32> CVarBotVersion(TEXT("dt.Bot.Version"), 1,
+		TEXT("Bot version: 1 = the S1 bot, frozen (bot.md R-BOT-01); 2 = bot v2. Read at world begin play (-DTBotVersion=)."), ECVF_Default);
 	static TAutoConsoleVariable<float> CVarBotSkill(TEXT("dt.Bot.Skill"), 1.0f,
-		TEXT("Bot v1 skill 0..1: below 1 adds reaction delay and movement / aim noise."), ECVF_Default);
+		TEXT("Bot skill 0..1. 1 = no reaction delay, no error. Below 1: v1 adds delay and noise, v2 is the profile of bot.md R-BOT-04..11."), ECVF_Default);
 	static TAutoConsoleVariable<int32> CVarBotFast(TEXT("dt.Bot.Fast"), 0,
-		TEXT("Bot v1: fixed steps run per frame (accelerated time, headless runs); 0 = real time."), ECVF_Default);
+		TEXT("Bot: fixed steps run per frame (accelerated time, headless runs); 0 = real time."), ECVF_Default);
 	static TAutoConsoleVariable<float> CVarBotMaxSeconds(TEXT("dt.Bot.MaxSeconds"), 0.0f,
-		TEXT("Bot v1: end the run (telemetry reason bot_timeout) at this sim time; 0 = no cap."), ECVF_Default);
+		TEXT("Bot: end the run (telemetry reason bot_timeout) at this sim time; 0 = no cap."), ECVF_Default);
 	static TAutoConsoleVariable<int32> CVarBotQuit(TEXT("dt.Bot.Quit"), 0,
-		TEXT("Bot v1: 1 = quit the process once the run is over and its telemetry is written."), ECVF_Default);
+		TEXT("Bot: 1 = quit the process once the run is over and its telemetry is written."), ECVF_Default);
 
 	/** Default steps per frame for a bare -DTBotFast (ten sim seconds a frame at 60 Hz). */
 	constexpr int32 DefaultFastSteps = 600;
@@ -97,6 +100,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	if (FParse::Value(Cmd, TEXT("DTBotPath="), Text)) { SetCVar(TEXT("dt.Bot.Path"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotArchetype="), Text)) { SetCVar(TEXT("dt.Bot.Archetype"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotSecond="), Text)) { SetCVar(TEXT("dt.Bot.Second"), Text); }
+	if (FParse::Value(Cmd, TEXT("DTBotVersion="), Text)) { SetCVar(TEXT("dt.Bot.Version"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotSkill="), Text)) { SetCVar(TEXT("dt.Bot.Skill"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotFast="), Text)) { SetCVar(TEXT("dt.Bot.Fast"), Text); }
 	else if (FParse::Param(Cmd, TEXT("DTBotFast"))) { SetCVar(TEXT("dt.Bot.Fast"), FString::FromInt(DefaultFastSteps)); }
@@ -109,6 +113,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	Config.Path = Path == EDTPath::None ? EDTPath::Storm : Path;
 	Config.Archetype = FName(*CVarBotArchetype.GetValueOnGameThread());
 	Config.SecondPath = FDTBotConfig::ParsePath(CVarBotSecond.GetValueOnGameThread());
+	Config.Version = FDTBotConfig::KnownVersion(CVarBotVersion.GetValueOnGameThread());
 	Config.Skill = CVarBotSkill.GetValueOnGameThread();
 	Config.Seed = ADTGameMode::GetCommandLineSeed();
 	return Config;
@@ -245,6 +250,7 @@ void UDTBotSubsystem::Activate(const FDTBotConfig& Config)
 	bDead = bVictory = bTimedOut = bExitRequested = false;
 	bPawnMuted = false;
 	Minutes.Reset();
+	LastHit.Reset();
 	bProbe = bProbeApplied = bSnapshotDone = false;
 	Level630 = 0;
 	EndSeconds = 0.0;
@@ -332,6 +338,7 @@ void UDTBotSubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 	{
 		++Minutes[Minute].Hits;
 		Minutes[Minute].DamageShare += Event.MaxHp > 0.0f ? Event.Amount / Event.MaxHp : 0.0f;
+		LastHit = FString::Printf(TEXT("%s/%s/%s"), DTTelNames::HeroHitKind(Event.HitKind), DTTelNames::EnemyRole(Event.SourceRole), *Event.AttackId.ToString());
 		const FDTHeroState* State = Heroes.IsValid() ? Heroes->GetState(0) : nullptr;
 		UE_LOG(LogDT, Verbose, TEXT("Bot: hit t=%.2f kind=%d role=%d attack=%s amount=%.1f hp=%.1f pos=(%.0f,%.0f) charges=%d"), T,
 			static_cast<int32>(Event.HitKind), static_cast<int32>(Event.SourceRole), *Event.AttackId.ToString(), Event.Amount, Event.HpAfter,
@@ -352,9 +359,9 @@ void UDTBotSubsystem::WriteRecord() const
 		Csv += FString::Printf(TEXT("%d,%.4f,%.6f,%d,%d,%d,%.2f,%d\n"), Minute, M.EndSeconds, M.DamageShare, M.Dashes, M.Hits, M.Level, M.Hp, M.Alive);
 	}
 	const FDTBotStats& Stats = Brain.GetStats();
-	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nconfig=%s\n"),
+	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nconfig=%s\n"),
 		bVictory ? TEXT("victory") : (bDead ? TEXT("death") : TEXT("timeout")), EndSeconds, Level630, Sim.IsValid() ? Sim->GetStepIndex() : -1,
-		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *Brain.GetConfig().Describe());
+		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, *Brain.GetConfig().Describe());
 	FFileHelper::SaveStringToFile(Csv, *OutPath);
 	FFileHelper::SaveStringToFile(Summary, *(OutPath + TEXT(".txt")));
 	UE_LOG(LogDT, Log, TEXT("Bot: record written to %s"), *OutPath);
@@ -391,9 +398,9 @@ void UDTBotSubsystem::LatchNext()
 		View.Chests = Gems->GetPool().GetChestPositions();
 	}
 	const FDTHeroInput Input = Brain.Decide(View);
-	if (Brain.GetConfig().Skill < 1.0f)
+	if (Brain.GetConfig().Version == 1 && Brain.GetConfig().Skill < 1.0f)
 	{
-		HeroSys->SetAimMode(0, EDTAimMode::Manual);
+		HeroSys->SetAimMode(0, EDTAimMode::Manual); // v1 only: a player opts into Manual, so v2 stays in Auto (bot.md R-BOT-08)
 	}
 	HeroSys->LatchInput(0, Input);
 

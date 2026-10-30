@@ -1,4 +1,4 @@
-﻿// Bot v1 in a game world: drives player 0 through UDTHeroSubsystem::LatchInput (the pawn's path, combat_core.md R-CMB-12)
+﻿// The bot in a game world (Docs/02_Systems/bot.md): drives player 0 through UDTHeroSubsystem::LatchInput (the pawn's path, combat_core.md R-CMB-12)
 // and answers offer hands through UDTOfferSubsystem (offers.md). Off by default; a tool, never a player-facing feature.
 //
 // Switches (command line, mirrored to cvars at world begin play; the cvars also work from the console or -ExecCmds):
@@ -6,7 +6,8 @@
 //   -DTBotPath=<Storm|Forge|Tide>       dt.Bot.Path        Steered: Patron Path
 //   -DTBotArchetype=<Tempest|...>       dt.Bot.Archetype   Steered: preferred archetype of that Path
 //   -DTBotSecond=<Path>                 dt.Bot.Second      Steered: second Keeper (default FDTBotConfig::DefaultSecond)
-//   -DTBotSkill=<0..1>                  dt.Bot.Skill       1 = no reaction delay, no movement or aim noise (default 1)
+//   -DTBotVersion=<1|2>                 dt.Bot.Version     1 = the S1 bot, frozen (the default, R-BOT-01); 2 = bot v2
+//   -DTBotSkill=<0..1>                  dt.Bot.Skill       1 = no reaction delay, no error (default 1); below it, R-BOT-04..11 for v2
 //   -DTBotFast[=<steps>]                dt.Bot.Fast        steps run per frame through UDTSimSubsystem::StepNow (0 = real time)
 //   -DTBotMaxSeconds=<s>                dt.Bot.MaxSeconds  ends the telemetry session ("bot_timeout") at this sim time
 //   -DTBotQuit                          dt.Bot.Quit        quits the process once the run is over and telemetry is written
@@ -16,7 +17,7 @@
 // Bot record (Tools/BotRuns.ps1 reads it): hero events are counted from UDTHeroSubsystem::OnHeroEvent per sim minute,
 // because the telemetry CSV does not receive hero events yet (damage_taken_per_min, dashes_per_min stay 0 on main):
 //   <file.csv>      minute,t_end_s,dmg_share,dashes,hits,level,hp,alive   (dmg_share = sum of Amount / MaxHp at the hit)
-//   <file.csv>.txt  key=value: outcome end_s level_630 steps dash_presses intercession_presses picks declines input_hash
+//   <file.csv>.txt  key=value: outcome end_s level_630 steps dash_presses intercession_presses picks declines input_hash last_hit config
 //   <file.csv>.L16  the build at C.TEL.POWER_CHECK_LEVEL as a probe script (Tools/probe.py ablates it)
 // While active: dt.Offer.AutoPick is forced to 0 (the bot answers the hands), and player 0's pawn stops latching input.
 #pragma once
@@ -95,6 +96,8 @@ private:
 	int32 Level630 = 0;
 	double EndSeconds = 0.0;
 	FString OutPath;
+	/** The last hit taken, kind/role/attack (R-BOT-12). */
+	FString LastHit;
 	FDelegateHandle HeroEventHandle;
 
 	FDTProbeScript Probe;

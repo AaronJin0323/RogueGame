@@ -1,6 +1,7 @@
 #include "Bot/DTBotBrain.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
+#include "Misc/Crc.h"
 #include "Offers/DTOfferGenerator.h"
 
 // The bot's own heuristics. They are tool parameters of the measuring instrument, not game tuning: no gameplay value is
@@ -8,10 +9,6 @@
 namespace DTBotTuning
 {
 	constexpr int32 NumDirs = 16;
-	/** Look-ahead for moving threats (rounds, bodies). */
-	constexpr float HorizonS = 0.6f;
-	/** A threat this close in time asks for a dash. */
-	constexpr float ImminentS = 0.22f;
 	/** Clearance added to every collision radius. */
 	constexpr float MarginUU = 18.0f;
 	constexpr float RoundWeight = 1000.0f;
@@ -36,16 +33,24 @@ namespace DTBotTuning
 	/** A move toward pickups is rewarded only while its danger is below this (bodies and telegraphs come first). */
 	constexpr float GemSafeDanger = 60.0f;
 	constexpr float InertiaWeight = 2.0f;
-	/** Only threats within this distance are considered. */
-	constexpr float ThreatRangeUU = 1400.0f;
-	/** Intercession when the meter is full and this many enemies are near. */
-	constexpr int32 IntercessionCrowd = 12;
+	/** Intercession counts the enemies this near (how many: FDTBotSkillProfile::CastCrowd). */
 	constexpr float IntercessionRadiusUU = 700.0f;
-	/** Skill 0: a decision every this many seconds of reaction delay; movement and aim noise in degrees. */
+	/** Bot v1, skill 0: a decision every this many seconds of reaction delay; movement and aim noise in degrees. */
 	constexpr float MaxReactionS = 0.25f;
 	constexpr float MaxMoveNoiseDeg = 35.0f;
 	constexpr float MaxAimNoiseDeg = 20.0f;
 	constexpr int32 SeedSalt = 0x0B07;
+	/** Bot v2 (bot.md): how fast the stick error drifts; the range samples; what an unusable weapon loses; the second Keeper's scores. */
+	constexpr float StickTauS = 0.5f;
+	constexpr float ReachSampleS = 0.25f;
+	constexpr float ReachWindowS = 60.0f;
+	constexpr int32 ReachMinSamples = 20;
+	/** The widest range the bot kites at (S1: nearest enemy 214-407 uu): reach over this stands in until samples exist. */
+	constexpr float ReachPriorUU = 400.0f;
+	constexpr float ReachPenalty = 60.0f;
+	constexpr float ModReachShare = 0.5f;
+	constexpr float SecondFirstScore = 94.0f;
+	constexpr float SecondNextScore = 65.0f;
 	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
 	constexpr int32 ProbeLegS = 1;
 	constexpr int32 ProbeDashS = 6;
@@ -156,8 +161,13 @@ FString FDTBotConfig::Describe() const
 	static const TCHAR* Names[] = { TEXT("Storm"), TEXT("Forge"), TEXT("Tide"), TEXT("Shade"), TEXT("Radiance"), TEXT("Quicksilver") };
 	const int32 P = static_cast<int32>(Path);
 	const int32 S = static_cast<int32>(SecondPath == EDTPath::None ? DefaultSecond(Path) : SecondPath);
-	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d"), PolicyName(Policy),
-		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed);
+	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d"), PolicyName(Policy),
+		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed, Version);
+}
+
+int32 FDTBotConfig::KnownVersion(int32 Version)
+{
+	return Version == 2 ? 2 : 1;
 }
 
 // ---- brain ------------------------------------------------------------------------------------------------------------
@@ -166,6 +176,12 @@ void FDTBotBrain::Reset(const FDTBotConfig& InConfig)
 {
 	Config = InConfig;
 	Config.Skill = FMath::Clamp(Config.Skill, 0.0f, 1.0f);
+	Config.Version = FDTBotConfig::KnownVersion(Config.Version);
+	Profile = Config.Version >= 2 ? FDTBotSkillProfile::FromSkill(Config.Skill) : FDTBotSkillProfile();
+	Perception.Reset(Profile, Config.Seed);
+	StickErr = 0.0f;
+	ReachSamples.Reset();
+	ReachNext = 0;
 	MoveRng.Initialize(Config.Seed ^ DTBotTuning::SeedSalt);
 	CardRng.Initialize((Config.Seed * 31) ^ (DTBotTuning::SeedSalt << 4));
 	LastDir = FVector2f::ZeroVector;
@@ -237,7 +253,7 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 	for (int32 Index = 0; Index < World.RoundPos.Num(); ++Index)
 	{
 		const FVector2f Rel = World.RoundPos[Index] - P;
-		if (Rel.SizeSquared() > ThreatRangeUU * ThreatRangeUU)
+		if (Rel.SizeSquared() > Profile.ThreatRangeUU * Profile.ThreatRangeUU)
 		{
 			continue;
 		}
@@ -254,7 +270,7 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 	for (int32 Index = 0; Index < World.EnemyPos.Num(); ++Index)
 	{
 		const FVector2f Rel = World.EnemyPos[Index] - P;
-		if (Rel.SizeSquared() > ThreatRangeUU * ThreatRangeUU)
+		if (Rel.SizeSquared() > Profile.ThreatRangeUU * Profile.ThreatRangeUU)
 		{
 			continue;
 		}
@@ -315,9 +331,9 @@ float FDTBotBrain::ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, flo
 {
 	using namespace DTBotTuning;
 	const FVector2f Vel = Dir * Speed;
-	float Score = ThreatAlong(World, Vel, HorizonS, nullptr);
+	float Score = ThreatAlong(World, Vel, Profile.HorizonS, nullptr);
 	// Static danger at two look-ahead points (telegraphs land, the crowd closes in).
-	for (const float T : { HorizonS * 0.5f, HorizonS })
+	for (const float T : { Profile.HorizonS * 0.5f, Profile.HorizonS })
 	{
 		Score += DangerAt(World, Clamp(World.Hero->Pos + Vel * T), T);
 	}
@@ -341,7 +357,7 @@ FVector2f FDTBotBrain::ChooseDash(const FDTBotWorld& World) const
 		Probe.Pos = End;
 		FDTBotWorld After = World;
 		After.Hero = &Probe;
-		Score += ThreatAlong(After, FVector2f::ZeroVector, ImminentS, nullptr) * 0.5f;
+		Score += ThreatAlong(After, FVector2f::ZeroVector, Profile.ImminentS, nullptr) * 0.5f;
 		if (FVector2f::Distance(End, World.Hero->Pos) < Dist * 0.5f)
 		{
 			Score += WallWeight * 4.0f; // a wall eats most of the dash
@@ -393,6 +409,89 @@ FDTHeroInput FDTBotBrain::ProbeInput(const FDTBotWorld& World)
 	return In;
 }
 
+void FDTBotBrain::ChooseMove(const FDTBotWorld& World, float Speed, FVector2f& OutDir, int32& OutCrowd) const
+{
+	using namespace DTBotTuning;
+	const FDTHeroState& S = *World.Hero;
+	OutCrowd = 0;
+
+	// Kite direction: away from the centroid of nearby enemies.
+	FVector2f Centroid = FVector2f::ZeroVector;
+	int32 Near = 0;
+	for (const FVector2f& E : World.EnemyPos)
+	{
+		const float D2 = FVector2f::DistSquared(E, S.Pos);
+		if (D2 < KiteRadiusUU * KiteRadiusUU)
+		{
+			Centroid += E;
+			++Near;
+		}
+		OutCrowd += D2 < IntercessionRadiusUU * IntercessionRadiusUU ? 1 : 0;
+	}
+	const FVector2f Away = Near > 0 ? (S.Pos - Centroid / static_cast<float>(Near)).GetSafeNormal() : FVector2f::ZeroVector;
+
+	// Nearest pickup: a chest first, else a gem.
+	FVector2f ToPickup = FVector2f::ZeroVector;
+	float PickupWeight = 0.0f;
+	float BestD2 = GemRadiusUU * GemRadiusUU;
+	for (const FVector2f& C : World.Chests)
+	{
+		const float D2 = FVector2f::DistSquared(C, S.Pos);
+		if (D2 < BestD2)
+		{
+			BestD2 = D2;
+			ToPickup = (C - S.Pos).GetSafeNormal();
+			PickupWeight = ChestWeight;
+		}
+	}
+	if (PickupWeight == 0.0f)
+	{
+		// Gems: the pull of every gem in range, nearer ones weighing more (sweeps clusters, not one gem at a time).
+		FVector2f Pull = FVector2f::ZeroVector;
+		for (const FVector2f& G : World.Gems)
+		{
+			const FVector2f To = G - S.Pos;
+			const float D = To.Size();
+			if (D < GemRadiusUU && D > UE_KINDA_SMALL_NUMBER)
+			{
+				Pull += To / (D * FMath::Max(D, GemNearUU));
+			}
+		}
+		if (!Pull.IsNearlyZero())
+		{
+			ToPickup = Pull.GetSafeNormal();
+			PickupWeight = GemWeight;
+		}
+	}
+
+	// Candidates: 16 directions and standing still; the lowest score wins (ties: the lower index).
+	OutDir = FVector2f::ZeroVector;
+	float BestScore = ScoreMove(World, FVector2f::ZeroVector, Speed);
+	for (int32 Index = 0; Index < NumDirs; ++Index)
+	{
+		const FVector2f Dir = DirAt(Index);
+		float Danger = ScoreMove(World, Dir, Speed);
+		if (PickupWeight == ChestWeight)
+		{
+			// R-DIR-16 can leave a chest against a wall: the wall band gives way for one, nothing else does.
+			for (const float T : { Profile.HorizonS * 0.5f, Profile.HorizonS })
+			{
+				Danger -= WallDanger(Clamp(S.Pos + Dir * Speed * T));
+			}
+		}
+		float Score = Danger - KiteWeight * FVector2f::DotProduct(Dir, Away) - InertiaWeight * FVector2f::DotProduct(Dir, LastDir);
+		if (PickupWeight > 0.0f && Danger < GemSafeDanger)
+		{
+			Score -= PickupWeight * FVector2f::DotProduct(Dir, ToPickup);
+		}
+		if (Score < BestScore)
+		{
+			BestScore = Score;
+			OutDir = Dir;
+		}
+	}
+}
+
 FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 {
 	using namespace DTBotTuning;
@@ -406,6 +505,10 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 	{
 		return ProbeInput(World);
 	}
+	if (Config.Version >= 2)
+	{
+		return DecideV2(World);
+	}
 	FDTHeroInput In = Held;
 	In.bDashPress = false;
 	In.bIntercessionPress = false;
@@ -417,82 +520,9 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 		++Stats.Decisions;
 		const float Speed = static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) * S.Stats.MoveSpeedMul;
 
-		// Kite direction: away from the centroid of nearby enemies.
-		FVector2f Centroid = FVector2f::ZeroVector;
-		int32 Near = 0;
-		int32 Crowd = 0;
-		for (const FVector2f& E : World.EnemyPos)
-		{
-			const float D2 = FVector2f::DistSquared(E, S.Pos);
-			if (D2 < KiteRadiusUU * KiteRadiusUU)
-			{
-				Centroid += E;
-				++Near;
-			}
-			Crowd += D2 < IntercessionRadiusUU * IntercessionRadiusUU ? 1 : 0;
-		}
-		const FVector2f Away = Near > 0 ? (S.Pos - Centroid / static_cast<float>(Near)).GetSafeNormal() : FVector2f::ZeroVector;
-
-		// Nearest pickup: a chest first, else a gem.
-		FVector2f ToPickup = FVector2f::ZeroVector;
-		float PickupWeight = 0.0f;
-		float BestD2 = GemRadiusUU * GemRadiusUU;
-		for (const FVector2f& C : World.Chests)
-		{
-			const float D2 = FVector2f::DistSquared(C, S.Pos);
-			if (D2 < BestD2)
-			{
-				BestD2 = D2;
-				ToPickup = (C - S.Pos).GetSafeNormal();
-				PickupWeight = ChestWeight;
-			}
-		}
-		if (PickupWeight == 0.0f)
-		{
-			// Gems: the pull of every gem in range, nearer ones weighing more (sweeps clusters, not one gem at a time).
-			FVector2f Pull = FVector2f::ZeroVector;
-			for (const FVector2f& G : World.Gems)
-			{
-				const FVector2f To = G - S.Pos;
-				const float D = To.Size();
-				if (D < GemRadiusUU && D > UE_KINDA_SMALL_NUMBER)
-				{
-					Pull += To / (D * FMath::Max(D, GemNearUU));
-				}
-			}
-			if (!Pull.IsNearlyZero())
-			{
-				ToPickup = Pull.GetSafeNormal();
-				PickupWeight = GemWeight;
-			}
-		}
-
-		// Candidates: 16 directions and standing still; the lowest score wins (ties: the lower index).
 		FVector2f BestDir = FVector2f::ZeroVector;
-		float BestScore = ScoreMove(World, FVector2f::ZeroVector, Speed);
-		for (int32 Index = 0; Index < NumDirs; ++Index)
-		{
-			const FVector2f Dir = DirAt(Index);
-			float Danger = ScoreMove(World, Dir, Speed);
-			if (PickupWeight == ChestWeight)
-			{
-				// R-DIR-16 can leave a chest against a wall: the wall band gives way for one, nothing else does.
-				for (const float T : { HorizonS * 0.5f, HorizonS })
-				{
-					Danger -= WallDanger(Clamp(S.Pos + Dir * Speed * T));
-				}
-			}
-			float Score = Danger - KiteWeight * FVector2f::DotProduct(Dir, Away) - InertiaWeight * FVector2f::DotProduct(Dir, LastDir);
-			if (PickupWeight > 0.0f && Danger < GemSafeDanger)
-			{
-				Score -= PickupWeight * FVector2f::DotProduct(Dir, ToPickup);
-			}
-			if (Score < BestScore)
-			{
-				BestScore = Score;
-				BestDir = Dir;
-			}
-		}
+		int32 Crowd = 0;
+		ChooseMove(World, Speed, BestDir, Crowd);
 		if (Config.Skill < 1.0f && !BestDir.IsNearlyZero())
 		{
 			BestDir = Rotate(BestDir, MoveRng.FRandRange(-1.0f, 1.0f) * (1.0f - Config.Skill) * MaxMoveNoiseDeg);
@@ -523,14 +553,14 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 
 		// Dash when a hit is imminent on the chosen path (after the reaction delay), a charge is ready and no dash runs.
 		float Soonest = TNumericLimits<float>::Max();
-		ThreatAlong(World, BestDir * Speed, ImminentS, &Soonest);
-		bool bImminent = Soonest <= ImminentS;
+		ThreatAlong(World, BestDir * Speed, Profile.ImminentS, &Soonest);
+		bool bImminent = Soonest <= Profile.ImminentS;
 		for (const FDTTelegraph& Tele : World.Telegraphs)
 		{
-			bImminent |= Tele.Progress >= 0.75f && InTelegraph(Tele, Clamp(S.Pos + BestDir * Speed * ImminentS), static_cast<float>(DTConst::HERO_RADIUS_UU));
+			bImminent |= Tele.Progress >= 0.75f && InTelegraph(Tele, Clamp(S.Pos + BestDir * Speed * Profile.ImminentS), static_cast<float>(DTConst::HERO_RADIUS_UU));
 		}
 		ImminentSteps = bImminent ? ImminentSteps + 1 + Reaction : 0;
-		if (bImminent && ImminentSteps > Reaction && S.DashCharges > 0 && S.DashLeft <= 0.0f && S.HurtIFramesLeft < ImminentS)
+		if (bImminent && ImminentSteps > Reaction && S.DashCharges > 0 && S.DashLeft <= 0.0f && S.HurtIFramesLeft < Profile.ImminentS)
 		{
 			In.Move = ChooseDash(World);
 			In.bDashPress = true;
@@ -538,8 +568,121 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 			ImminentSteps = 0;
 		}
 
-		const bool bCast = Config.CastStep == FDTBotConfig::CastAuto ? S.Intercession01 >= 1.0f && Crowd >= IntercessionCrowd
+		const bool bCast = Config.CastStep == FDTBotConfig::CastAuto ? S.Intercession01 >= 1.0f && Crowd >= Profile.CastCrowd
 			: Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0;
+		if (bCast)
+		{
+			In.bIntercessionPress = true;
+			++Stats.IntercessionPresses;
+		}
+	}
+	Held = In;
+	Held.bDashPress = false;
+	Held.bIntercessionPress = false;
+	return In;
+}
+
+void FDTBotBrain::SampleReach(const FDTBotWorld& Now)
+{
+	using namespace DTBotTuning;
+	const int32 Every = FMath::Max(1, FMath::RoundToInt32(ReachSampleS * static_cast<float>(DTConst::SIM_FIXED_HZ)));
+	if (Now.StepIndex % Every != 0)
+	{
+		return;
+	}
+	float Nearest = TNumericLimits<float>::Max();
+	for (int32 Index = 0; Index < Now.EnemyPos.Num(); ++Index)
+	{
+		const float Rim = FVector2f::Distance(Now.EnemyPos[Index], Now.Hero->Pos) - (Now.EnemyRadius.IsValidIndex(Index) ? Now.EnemyRadius[Index] : 0.0f);
+		Nearest = FMath::Min(Nearest, FMath::Max(0.0f, Rim));
+	}
+	if (Nearest > KiteRadiusUU)
+	{
+		return; // nothing near: this sample says nothing about the range the bot fights at
+	}
+	const int32 Capacity = FMath::RoundToInt32(ReachWindowS / ReachSampleS);
+	if (ReachSamples.Num() < Capacity)
+	{
+		ReachSamples.Add(Nearest);
+	}
+	else
+	{
+		ReachSamples[ReachNext] = Nearest;
+		ReachNext = (ReachNext + 1) % Capacity;
+	}
+}
+
+float FDTBotBrain::ReachUse(float Reach) const
+{
+	using namespace DTBotTuning;
+	if (ReachSamples.Num() < ReachMinSamples)
+	{
+		return FMath::Min(1.0f, Reach / ReachPriorUU);
+	}
+	int32 Covered = 0;
+	for (const float Sample : ReachSamples)
+	{
+		Covered += Sample <= Reach ? 1 : 0;
+	}
+	return static_cast<float>(Covered) / static_cast<float>(ReachSamples.Num());
+}
+
+FDTHeroInput FDTBotBrain::DecideV2(const FDTBotWorld& Now)
+{
+	using namespace DTBotTuning;
+	const FDTHeroState& S = *Now.Hero;
+	SampleReach(Now);
+	Perception.Push(Now);
+	FDTHeroInput In = Held;
+	In.bDashPress = false;
+	In.bIntercessionPress = false;
+
+	if (Now.StepIndex >= NextDecideStep)
+	{
+		const int32 Hold = FMath::RoundToInt32(Profile.HoldS * static_cast<float>(DTConst::SIM_FIXED_HZ));
+		NextDecideStep = Now.StepIndex + 1 + Hold;
+		++Stats.Decisions;
+		const FDTBotWorld World = Perception.Perceive(Now);
+		const float Speed = static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) * S.Stats.MoveSpeedMul;
+
+		FVector2f BestDir = FVector2f::ZeroVector;
+		int32 Crowd = 0;
+		ChooseMove(World, Speed, BestDir, Crowd);
+		if (Profile.StickErrDeg > 0.0f)
+		{
+			// R-BOT-07: a slow drift of unit spread times StickErrDeg (an Ornstein-Uhlenbeck step), so the stick is off for a while, not jittering.
+			const float Rho = FMath::Exp(-static_cast<float>(1 + Hold) / (static_cast<float>(DTConst::SIM_FIXED_HZ) * StickTauS));
+			const float Gauss = FMath::Sqrt(-2.0f * FMath::Loge(FMath::Max(MoveRng.FRand(), UE_KINDA_SMALL_NUMBER))) * FMath::Cos(2.0f * UE_PI * MoveRng.FRand());
+			StickErr = Rho * StickErr + FMath::Sqrt(1.0f - Rho * Rho) * Profile.StickErrDeg * Gauss;
+			if (!BestDir.IsNearlyZero())
+			{
+				BestDir = Rotate(BestDir, StickErr);
+			}
+		}
+		LastDir = BestDir;
+		In.Move = BestDir;
+		In.AimStick = FVector2f::ZeroVector; // R-BOT-08: Auto aim at every skill
+
+		float Soonest = TNumericLimits<float>::Max();
+		ThreatAlong(World, BestDir * Speed, Profile.ImminentS, &Soonest);
+		bool bImminent = Soonest <= Profile.ImminentS;
+		for (const FDTTelegraph& Tele : World.Telegraphs)
+		{
+			bImminent |= Tele.Progress >= 0.75f && InTelegraph(Tele, Clamp(S.Pos + BestDir * Speed * Profile.ImminentS), static_cast<float>(DTConst::HERO_RADIUS_UU));
+		}
+		if (bImminent && S.DashCharges > 0 && S.DashLeft <= 0.0f && S.HurtIFramesLeft < Profile.ImminentS)
+		{
+			// R-BOT-07: without the plan roll the dash goes where the hero was heading.
+			if (Profile.DashPlanP >= 1.0f || MoveRng.FRand() < Profile.DashPlanP)
+			{
+				In.Move = ChooseDash(World);
+			}
+			In.bDashPress = true;
+			++Stats.DashPresses;
+		}
+
+		const bool bCast = Config.CastStep == FDTBotConfig::CastAuto ? S.Intercession01 >= 1.0f && Crowd >= Profile.CastCrowd
+			: Config.CastStep >= 0 && Now.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0;
 		if (bCast)
 		{
 			In.bIntercessionPress = true;
@@ -602,6 +745,77 @@ float FDTBotBrain::CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 	}
 }
 
+float FDTBotBrain::WeaponReach(FName WeaponId, const FDTPlayerRunState& Player)
+{
+	for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+	{
+		const DTCat::FWeaponRow& Weapon = DTCat::Weapons[Row];
+		if (WeaponId != FName(Weapon.Id) || Weapon.NumLevels == 0)
+		{
+			continue;
+		}
+		const FDTWeaponInstance* Owned = Player.Weapons.FindByPredicate([WeaponId](const FDTWeaponInstance& W) { return W.Id == WeaponId; });
+		const int32 Level = FMath::Clamp(Owned ? Owned->Level : 1, 1, Weapon.NumLevels);
+		const DTCat::FWeaponLevelRow& Row2 = DTCat::WeaponLevels[Weapon.FirstLevel + Level - 1];
+		return FCString::Strcmp(Weapon.Pattern, TEXT("MeleeArc")) == 0 ? Row2.Radius_uu : Row2.Range_uu;
+	}
+	return 0.0f;
+}
+
+float FDTBotBrain::CardTaste(FName ContentId) const
+{
+	if (Profile.TasteScore <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const uint32 Crc = FCrc::StrCrc32(*ContentId.ToString());
+	const FRandomStream Taste(static_cast<int32>(Crc ^ (static_cast<uint32>(Config.Seed) * 2654435761u)));
+	return Taste.FRandRange(-1.0f, 1.0f) * Profile.TasteScore;
+}
+
+float FDTBotBrain::CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const
+{
+	using namespace DTBotTuning;
+	float Score = CardScore(Card, Hand, Player);
+	const float Aware = Profile.FitAwareness;
+	switch (Card.Kind)
+	{
+	case EDTCardKind::Keeper:
+		return Score; // the arm's identity (R-BOT-11)
+	case EDTCardKind::Weapon:
+		Score -= Aware * ReachPenalty * (1.0f - ReachUse(WeaponReach(Card.ContentId, Player)));
+		break;
+	case EDTCardKind::WeaponUpgrade:
+		Score -= Aware * ReachPenalty * (1.0f - ReachUse(WeaponReach(Card.TargetWeapon.IsNone() ? Card.ContentId : Card.TargetWeapon, Player)));
+		break;
+	case EDTCardKind::Mod:
+		Score -= Aware * ReachPenalty * ModReachShare * (1.0f - ReachUse(WeaponReach(Card.TargetWeapon, Player)));
+		break;
+	case EDTCardKind::Blessing:
+	case EDTCardKind::Reforging:
+	{
+		const FDTBlessingInfo Info = DTOffers::FindBlessing(Card.ContentId);
+		const EDTPath Second = Player.Keepers.Second != EDTPath::None ? Player.Keepers.Second
+			: (Config.SecondPath == EDTPath::None ? FDTBotConfig::DefaultSecond(Config.Path) : Config.SecondPath);
+		if (Info.IsValid() && Info.Path == Second && Info.Path != Config.Path)
+		{
+			const bool bFirst = !Player.Keepers.Owned.ContainsByPredicate([Second](const FName& Id) { return DTOffers::FindBlessing(Id).Path == Second; });
+			const float Floor = bFirst ? SecondFirstScore : SecondNextScore - static_cast<float>(Info.Column);
+			Score += Aware * FMath::Max(0.0f, Floor - Score);
+		}
+		break;
+	}
+	default:
+		break;
+	}
+	return Score + CardTaste(Card.ContentId);
+}
+
+float FDTBotBrain::ScoreCard(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const
+{
+	return Config.Version >= 2 ? CardScoreV2(Card, Hand, Player) : CardScore(Card, Hand, Player);
+}
+
 int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player)
 {
 	if (Hand.Cards.Num() == 0)
@@ -622,7 +836,7 @@ int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState&
 		float Best = -TNumericLimits<float>::Max();
 		for (int32 Index = 0; Index < Hand.Cards.Num(); ++Index)
 		{
-			const float Score = CardScore(Hand.Cards[Index], Hand, Player);
+			const float Score = ScoreCard(Hand.Cards[Index], Hand, Player);
 			if (Score > Best)
 			{
 				Best = Score;
