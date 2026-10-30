@@ -12,6 +12,9 @@ Exit 1 when a requested check fails (or cannot run), else 0.
 Window metrics (damage-taken share per minute, dashes per minute) are the run's telemetry read by Tools/pressure.py
 (T-DIR-02): JSONL hero_damaged / dash records inside C.DIR.BAND_WINDOW_S over the time the hero was alive in it; a run
 that ended before the window has none. The bot's own per-minute record (bot.csv) is kept for debugging only.
+Per arm it also reports the pressure sources in that window (damage by hit kind and role, threat actions, the kill horizon),
+the boss reach, the Keeper share at C.TEL.POWER_CHECK_LEVEL (`sources` records up to the level-up), and damage per Intercession
+cast, each read per arm because a pooled mean hides builds that miss in opposite directions.
 """
 
 import csv
@@ -156,6 +159,67 @@ def read_economy(jsonl, consts, t_cut):
 	return {"collected": collected, "spawned": spawned, "kills": kills, "level_t": level_t}
 
 
+def read_blocks(jsonl, lo, hi):
+	"""Threat actions in [lo, hi) (dir_block, prorated by overlap), per minute of overlap, and the overlap-weighted median kill horizon."""
+	actions, minutes, horizon = 0.0, 0.0, []
+	if not jsonl:
+		return None, None
+	with open(jsonl, encoding="utf-8") as f:
+		for line in f:
+			if '"kind":"dir_block"' not in line:
+				continue
+			rec = json.loads(line, object_pairs_hook=pressure.first_wins)
+			s, e = float(rec["start_s"]), float(rec["end_s"])
+			overlap = max(0.0, min(hi, e) - max(lo, s))
+			if overlap <= 0 or e <= s:
+				continue
+			actions += rec.get("threat_actions", 0) * overlap / (e - s)
+			minutes += overlap / 60.0
+			if rec.get("kill_horizon_p50_uu") is not None:
+				horizon.append((rec["kill_horizon_p50_uu"], overlap))
+	if minutes <= 0:
+		return None, None
+	h = None
+	if horizon:
+		horizon.sort()
+		half, seen = sum(w for _, w in horizon) / 2.0, 0.0
+		for v, w in horizon:
+			seen += w
+			if seen >= half:
+				h = v
+				break
+	return actions / minutes, h
+
+
+def keeper_share_until(jsonl, t_cut):
+	"""Damage share of Keeper.* over the `sources` records up to t_cut (player 0); None when none."""
+	totals = {}
+	with open(jsonl, encoding="utf-8") as f:
+		for line in f:
+			if '"kind":"sources"' not in line:
+				continue
+			rec = json.loads(line, object_pairs_hook=pressure.first_wins)
+			if rec.get("owner") != 0 or float(rec.get("t", 0.0)) > t_cut:
+				continue
+			for src, v in (rec.get("damage") or {}).items():
+				totals[src] = totals.get(src, 0) + v
+	total, sh = power_split.shares(totals)
+	return sh["Keeper"] if total else None
+
+
+def read_casts(jsonl):
+	"""(casts, mean damage per cast, variant) of player 0's Intercession records."""
+	damage, variant = [], ""
+	with open(jsonl, encoding="utf-8") as f:
+		for line in f:
+			if '"kind":"intercession"' in line:
+				rec = json.loads(line, object_pairs_hook=pressure.first_wins)
+				if rec.get("owner") == 0 and "damage" in rec:
+					damage.append(float(rec["damage"]))
+					variant = rec.get("variant") or variant
+	return len(damage), (statistics.mean(damage) if damage else None), variant
+
+
 def summarise_run(folder, consts):
 	name = os.path.basename(folder)
 	label, _, seed = name.rpartition("_s")
@@ -177,12 +241,21 @@ def summarise_run(folder, consts):
 		total, shares = power_split.shares(data["damage"])
 		keeper = shares["Keeper"] if total else None
 		level = levels.get(0)
+	lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
+	sources = {}
+	if jsonl and alive > 0:
+		sources = {k: v / alive for k, v in pressure.sources_from_jsonl(jsonl, lo, hi).items()}
+	threat_per_min, horizon = read_blocks(jsonl, lo, hi)
 	t_cut = min(ECON_T, end_s) if end_s > 0 else ECON_T
 	econ = read_economy(jsonl, consts, t_cut) or {"collected": 0.0, "spawned": {r: 0.0 for r in ROLES}, "kills": 0.0, "level_t": {}}
 	spawned_xp = sum(econ["spawned"].values())
 	model_xp = timeline_model_xp(consts, t_cut)
 	ref_ratio = consts["XP.REFERENCE_PICKUP_RATIO"]["value"]
 	curve = curve_cumulative(consts)
+	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
+	t_check = econ["level_t"].get(check_level)
+	casts, cast_damage, _ = read_casts(jsonl) if jsonl else (0, None, "")
+	to_boss = consts["RUN.LENGTH_TO_BOSS"]["value"]
 	return {
 		"label": label,
 		"seed": int(seed) if seed.isdigit() else seed,
@@ -196,6 +269,19 @@ def summarise_run(folder, consts):
 		"dashes_per_min_window": "" if dashes is None else round(dashes, 2),
 		"window_alive_min": round(alive, 2),
 		"keeper_share": "" if keeper is None else round(keeper, 3),
+		"keeper_share_l16": "" if t_check is None or not jsonl else round(keeper_share_until(jsonl, t_check) or 0.0, 3),
+		"reached_boss": int(kv.get("outcome") == "victory" or end_s >= to_boss),
+		"casts": casts,
+		"cast_damage": "" if cast_damage is None else round(cast_damage),
+		"threat_per_min_window": "" if threat_per_min is None else round(threat_per_min, 1),
+		"kill_horizon_window": "" if horizon is None else round(horizon),
+		"dmg_contact_window": round(sum(v for k, v in sources.items() if k.startswith("Contact/")), 3) if sources else "",
+		"dmg_bullet_window": round(sum(v for k, v in sources.items() if k.startswith("Bullet/")), 3) if sources else "",
+		"dmg_hazard_window": round(sum(v for k, v in sources.items() if k.startswith("Hazard/")), 3) if sources else "",
+		"dmg_rusher_window": round(sum(v for k, v in sources.items() if k.endswith("/Rusher")), 3) if sources else "",
+		"dmg_tank_window": round(sum(v for k, v in sources.items() if k.endswith("/Tank")), 3) if sources else "",
+		"dmg_turret_window": round(sum(v for k, v in sources.items() if k.endswith("/Turret")), 3) if sources else "",
+		"dmg_swarm_window": round(sum(v for k, v in sources.items() if k.endswith("/Swarm")), 3) if sources else "",
 		"gem_pickup_ratio": round(run_end["gems_collected"] / run_end["gems_spawned"], 3) if run_end.get("gems_spawned") else "",
 		"t_l8": round(econ["level_t"][8], 1) if 8 in econ["level_t"] else "",
 		"t_l16": round(econ["level_t"][16], 1) if 16 in econ["level_t"] else "",
@@ -282,6 +368,46 @@ def main(argv):
 			"/".join(str(round(mean(r[f"xp_spawned_{x.lower()}"] for r in rs) or 0)) for x in ROLES), mean(r["xp_model"] for r in rs),
 			mean(r["kills_per_min"] for r in rs), mean(r["xp_pickup_of_spawned"] for r in rs), mean(r["xp_pickup_of_model"] for r in rs),
 			mean(r["level_ref_ratio_spawned"] for r in rs)))
+	lines += ["", f"Pressure sources in {fmt_band(consts['DIR.BAND_WINDOW_S']['value'])} s (share of max HP per alive minute; threat actions per minute; kill horizon uu), and boss reach:", "",
+		"| Arm | n in window | Dmg | Dashes | Contact | Rounds | Hazard | Swarm | Tank | Rusher | Turret | Threat/min | Horizon | Reached boss | Wins |",
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+	for label in labels:
+		rs = [r for r in runs if r["label"] == label]
+		lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+			label, sum(r["dmg_share_per_min_window"] != "" for r in rs), mean(r["dmg_share_per_min_window"] for r in rs),
+			mean(r["dashes_per_min_window"] for r in rs), mean(r["dmg_contact_window"] for r in rs), mean(r["dmg_bullet_window"] for r in rs),
+			mean(r["dmg_hazard_window"] for r in rs), mean(r["dmg_swarm_window"] for r in rs), mean(r["dmg_tank_window"] for r in rs),
+			mean(r["dmg_rusher_window"] for r in rs), mean(r["dmg_turret_window"] for r in rs), mean(r["threat_per_min_window"] for r in rs),
+			mean(r["kill_horizon_window"] for r in rs), sum(r["reached_boss"] for r in rs), len(rs), sum(r["outcome"] == "victory" for r in rs)))
+	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
+	arch_band = consts["POWER.ARCHETYPE_BAND"]["value"]
+	cast_band = consts["INTERCESSION.BAND"]["value"]
+	power = {}
+	for label in labels:
+		v = mean(r["keeper_share_l16"] for r in runs if r["label"] == label)
+		if v != "" and label.lower().startswith("steered"):
+			power[label] = v
+	arm_mean = statistics.mean(power.values()) if power else 0.0
+	per_keeper = {}
+	for label in labels:
+		v = mean(r["cast_damage"] for r in runs if r["label"] == label)
+		parts = label.split("-")
+		if v != "" and len(parts) > 1:
+			per_keeper.setdefault(parts[1], {})[label] = v
+	lines += ["", f"Keeper share at L{check_level} (need >= {keeper_need}; archetypes within +-{arch_band} of the arm mean {arm_mean:.3f}) and damage per Intercession cast "
+		f"(within +-{cast_band} of its Keeper's arm mean; attribution, not the marginal R-KEE-15 reading):", "",
+		"| Arm | Runs at L16 | Keeper share at L16 | Pass | Archetype band | Casts/run | Damage/cast | Cast band |", "|---|---|---|---|---|---|---|---|"]
+	for label in labels:
+		rs = [r for r in runs if r["label"] == label]
+		l16 = [r["keeper_share_l16"] for r in rs if r["keeper_share_l16"] != ""]
+		share = mean(l16)
+		cast = mean(r["cast_damage"] for r in rs)
+		keeper_arms = per_keeper.get(label.split("-")[1], {}) if len(label.split("-")) > 1 else {}
+		keeper_mean = statistics.mean(keeper_arms.values()) if keeper_arms else 0.0
+		lines.append("| {} | {} | {} | {}/{} | {} | {} | {} | {} |".format(label, len(l16), share, sum(x >= keeper_need for x in l16), len(l16),
+			"" if share == "" or label not in power else ("IN" if abs(share - arm_mean) <= arch_band else "OUT"),
+			mean(r["casts"] for r in rs), cast,
+			"" if cast == "" or not keeper_mean else ("IN" if abs(cast / keeper_mean - 1.0) <= cast_band else f"OUT ({cast / keeper_mean:.2f}x)")))
 	lines += ["", "Per run: `summary.csv`."]
 
 	verdicts = []
