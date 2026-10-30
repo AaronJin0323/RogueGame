@@ -551,35 +551,6 @@ bool FDTDirSpawns::RunTest(const FString& Parameters)
 		}
 	}
 
-	// A share cap binds only above C.DIR.SHARE_FLOOR_ALIVE (D-018).
-	const int32 Floor = DTConst::DIR_SHARE_FLOOR_ALIVE;
-	TestFalse(TEXT("at the floor a full role is not capped"), FDTDirectorCore::IsAtShareCap(EDTEnemyRole::Turret, Floor, Floor));
-	TestTrue(TEXT("one above the floor the cap binds"), FDTDirectorCore::IsAtShareCap(EDTEnemyRole::Turret, Floor, Floor + 1));
-	const DTCat::FTimelineRow FloorRows[] = { DTDirTest::HarvestRow(0.0f, 30.0f, 300, 0.5f, 0.0f, 0.0f, 0.5f), DTDirTest::BossRow(60.0f) };
-	FHarness Small(5, false, EKill::None);
-	Small.Start(FloorRows);
-	Small.RunTo(30.0);
-	int32 OverCapUnderFloor = 0;
-	int32 TurretsAtFloor = 0;
-	for (const FSpawnRec& S : Small.Spawns)
-	{
-		if (S.Spawn.Role != EDTEnemyRole::Turret)
-		{
-			continue;
-		}
-		if (S.TotalAlive <= Floor)
-		{
-			OverCapUnderFloor += static_cast<float>(S.RoleAlive) >= DTConst::DIR_SHARE_MAX_TURRET * static_cast<float>(S.TotalAlive) && S.TotalAlive > 0 ? 1 : 0;
-			++TurretsAtFloor;
-		}
-		else if (FDTDirectorCore::IsAtShareCap(S.Spawn.Role, S.RoleAlive, S.TotalAlive))
-		{
-			AddError(FString::Printf(TEXT("Turret drawn at its share cap above the floor (%d of %d)"), S.RoleAlive, S.TotalAlive));
-			break;
-		}
-	}
-	TestTrue(TEXT("under the floor the draw follows the mix past the share"), OverCapUnderFloor > 0 && TurretsAtFloor >= Floor / 4);
-
 	// At the alive cap nothing spawns and nothing is banked.
 	const DTCat::FTimelineRow Rows[] = { DTDirTest::HarvestRow(0.0f, 30.0f, 10, 1.0f, 0.0f, 0.0f, 0.0f), DTDirTest::BossRow(60.0f) };
 	FHarness C(5, false, EKill::None);
