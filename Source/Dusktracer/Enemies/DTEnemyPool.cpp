@@ -179,6 +179,7 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 	Serial.Reset();
 	Aux.Reset();
 	Orphans.Reset();
+	StepThreats.Reset();
 	if (bResetCounters)
 	{
 		Rounds.Reset(true);
@@ -785,7 +786,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 				}
 				A.State = EDTEnemyState::Charge;
 				A.ChargeLeft = A.ChargeLength;
-				++Counters.ThreatActions[static_cast<int32>(EDTEnemyRole::Rusher)];
+				CountThreat(EDTEnemyRole::Rusher, Pos[Index]);
 				// The charge starts this step.
 				[[fallthrough]];
 			case EDTEnemyState::Charge:
@@ -876,7 +877,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 				A.VolleysLeft = DTConst::ENEMY_FIRE_BURST_SHOTS;
 				A.VolleyIndex = 0;
 				A.LastFireStep = StepIndex;
-				++Counters.ThreatActions[static_cast<int32>(EDTEnemyRole::Turret)];
+				CountThreat(EDTEnemyRole::Turret, Pos[Index]);
 			}
 			else
 			{
@@ -923,6 +924,15 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 	}
 }
 
+void FDTEnemyPool::CountThreat(EDTEnemyRole InRole, const FVector2f& Origin)
+{
+	++Counters.ThreatActions[static_cast<int32>(InRole)];
+	FDTThreatAction& Action = StepThreats.AddDefaulted_GetRef();
+	Action.Origin = Origin;
+	Action.Role = InRole;
+	Action.AttackId = FDTEnemyRoleDef::Get(InRole).AttackId;
+}
+
 void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 {
 	using namespace DTEnemyPoolImpl;
@@ -956,13 +966,13 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 						Hit.Position = View.HeroPositions[Hero];
 					}
 				}
-				++Counters.ThreatActions[static_cast<int32>(EDTEnemyRole::Rusher)];
+				CountThreat(EDTEnemyRole::Rusher, O.Origin);
 				bDone = true;
 			}
 			else
 			{
 				O.GapLeft = 0.0f; // fires the pattern its telegraph showed
-				++Counters.ThreatActions[static_cast<int32>(EDTEnemyRole::Turret)];
+				CountThreat(EDTEnemyRole::Turret, O.Origin);
 			}
 		}
 		else
@@ -1092,6 +1102,7 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 
 	// The hero read last step's hits in the Hero phase; the list holds only this step's from here (bounded with no hero).
 	View.HeroHits.Reset();
+	StepThreats.Reset();
 
 	for (const FDTStatusApply& Apply : View.StatusApplies)
 	{
@@ -1115,6 +1126,7 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 void FDTEnemyPool::Move(float Dt, TConstArrayView<FVector2f> Heroes)
 {
 	PrevPos = Pos;
+	StepThreats.Reset();
 	ResolveInit(Heroes);
 	StepRoles(Dt, 0, Heroes);
 }

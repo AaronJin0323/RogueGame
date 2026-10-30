@@ -83,12 +83,11 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENM.SEPARATION_STRENGTH | 1.5 | ratio | GATED(S0) | enemies.md, T-ENM-03 |
 | C.ENM.MAX_NEIGHBOURS | 8 | n | GATED(S0) | enemies.md, T-PERF-01 |
 | C.ENM.SPAWN_RING_RADIUS_UU | 1600 | uu | GATED(S1) | enemies.md, Debug/DTDebugEnemies |
-| C.ENM.OPTIC_TINT | 0.35 | ratio | GATED(S1) | enemies.md, 04_Presentation §3 |
-| C.ENM.EMISSIVE_STRENGTH | 2.0 | ratio | GATED(S1) | enemies.md, 04_Presentation §2 |
 | C.ENM.KILL_RATE_WINDOW_S | 1.0 | s | GATED(S0) | enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S |
 | C.ENEMIES.OPTIC_EMISSIVE | 14.0 | ratio | GATED(S1) | enemies.md, R-ENM-24, T-ENM-24 |
 | C.ENEMIES.OPTIC_SCALE | 0.35 | ratio | GATED(S1) | enemies.md R-ENM-24 (optic size as a fraction of the hull; grey box) |
 | C.ENEMIES.TELEGRAPH_EMISSIVE | 12.0 | ratio | GATED(S1) | enemies.md, R-ENM-13, 04_Presentation.md |
+| C.ENEMIES.TELEGRAPH_Z_UU | 2 | uu | GATED(S1) | enemies.md R-ENM-13 (telegraph quads above the floor, below hulls and rounds at C.SIM.PLANE_Z_UU) |
 | C.ENEMIES.TELEGRAPH_LEAD_MIN_S | 0.75 | s | GATED(S1) | enemies.md, boss.md, R-ENM-13, T-ENM-13, R-BOS-05 |
 | C.ROLE.SWARM_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
 | C.ROLE.TANK_HP | 90 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |

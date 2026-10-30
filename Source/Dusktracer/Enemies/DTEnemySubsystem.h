@@ -9,9 +9,11 @@
 #include "Enemies/DTEnemyPool.h"
 #include "Enemies/DTEnemyRenderer.h"
 #include "Enemies/DTEnemyTypes.h"
+#include "Enemies/DTTelegraphRenderer.h"
 #include "DTEnemySubsystem.generated.h"
 
 class UDTEnemySubsystem;
+class FDTTelemetryCore;
 
 /** Forwards EDTSimPhase::ResolveHits to the enemy subsystem (a system registers for one phase per object). */
 class FDTEnemyResolveHitsPhase : public IDTSimSystem
@@ -77,11 +79,16 @@ public:
 	int32 GetPendingSpawns() const { return PendingSpawns; }
 	ADTEnemyRenderer* GetRenderer() const { return Renderer; }
 	ADTEnemyBulletRenderer* GetRoundRenderer() const { return RoundRenderer; }
+	ADTTelegraphRenderer* GetTelegraphRenderer() const { return TelegraphRenderer; }
 
 	/** Instance colours (04_Presentation §3, R-ENM-17, R-ENM-24): palette tokens, never literals. */
 	static FLinearColor GetHullColor();
 	static FLinearColor GetOpticColor();
 	static FLinearColor GetRoundColor();
+	static FLinearColor GetTelegraphColor();
+
+	/** Sends every threat action Pool started in its last step to Records (ThreatAction{Role, AttackId}, threat_actions_per_min). */
+	static void ForwardThreatActions(const FDTEnemyPool& InPool, FDTTelemetryCore& Records);
 
 private:
 	struct FRoleRequest
@@ -110,6 +117,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ADTEnemyBulletRenderer> RoundRenderer;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ADTTelegraphRenderer> TelegraphRenderer;
 
 	TArray<FTransform> HullTransforms;
 	TArray<FTransform> OpticTransforms;

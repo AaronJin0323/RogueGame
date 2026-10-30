@@ -99,6 +99,14 @@ struct FDTOrphanAttack
 	uint32 EnemySerial = 0;
 };
 
+/** One threat action started this step (enemies.md Telemetry ThreatAction{Role, AttackId}); the subsystem forwards it to telemetry. */
+struct FDTThreatAction
+{
+	FVector2f Origin = FVector2f::ZeroVector;
+	EDTEnemyRole Role = EDTEnemyRole::Swarm;
+	FName AttackId;
+};
+
 /** Counters for DT.Enemies.Stats and DT.EnemyFire.Stats (enemies.md Telemetry). */
 struct FDTEnemyCounters
 {
@@ -182,6 +190,8 @@ public:
 	int64 GetTotalKills() const { return TotalKills; }
 	const FDTKillRateCounter& GetKillRate() const { return KillRate; }
 	const FDTEnemyCounters& GetCounters() const { return Counters; }
+	/** Threat actions started in the last StepEnemies / Move (charges started, bursts fired, orphan attacks landing). */
+	TConstArrayView<FDTThreatAction> GetStepThreatActions() const { return StepThreats; }
 	int32 CountRole(EDTEnemyRole InRole) const;
 
 	// Read access to the arrays (render, tests).
@@ -236,6 +246,7 @@ private:
 	void FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFirePattern InPattern, bool bClose, int32 Volley,
 		int32 Target, float InDmgScale, uint32 InSerial);
 	void StepOrphans(float Dt, FDTWorldView& View);
+	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin);
 	void AppendContacts(FDTWorldView& View) const;
 	int32 NearestHero(const FVector2f& At, TConstArrayView<FVector2f> Heroes, FVector2f* OutDelta = nullptr) const;
 	float ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius) const;
@@ -263,6 +274,7 @@ private:
 
 	FDTEnemyBulletPool Rounds;
 	TArray<FDTOrphanAttack> Orphans;
+	TArray<FDTThreatAction> StepThreats;
 	bool bFireEnabled = true;
 
 	FDTSpatialHash NeighbourHash;
