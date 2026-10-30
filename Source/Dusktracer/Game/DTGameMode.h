@@ -36,6 +36,9 @@ public:
 	/** True once every player's hero is down (R-CMB-10). */
 	bool IsRunOver() const { return bRunOver; }
 
+	/** True once the boss is defeated (boss.md R-BOS; the run ends in victory). */
+	bool IsVictory() const { return bVictory; }
+
 	/** The run seed from the command line (-DTSeed=<n>), 0 when absent. */
 	static int32 GetCommandLineSeed();
 
@@ -57,5 +60,7 @@ private:
 	TObjectPtr<class ADTCameraPawn> FollowCamera;
 
 	FDelegateHandle AllDownHandle;
+	FDelegateHandle BossDefeatedHandle;
 	bool bRunOver = false;
+	bool bVictory = false;
 };

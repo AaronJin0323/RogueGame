@@ -12,6 +12,8 @@
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
 #include "Boss/DTBossSubsystem.h"
+#include "Core/DTSimSubsystem.h"
+#include "Game/DTGameMode.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTXPBar.h"
@@ -219,6 +221,33 @@ void ADTHUD::DrawHUD()
 	if (const UDTBossSubsystem* Boss = GetWorld() ? GetWorld()->GetSubsystem<UDTBossSubsystem>() : nullptr)
 	{
 		Boss->DrawBossBar(Canvas);
+	}
+
+	// Run timer, top right: sim time since run start (validators note moments against it; S1_kit.md).
+	if (const UDTSimSubsystem* Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr)
+	{
+		const int32 Seconds = static_cast<int32>(Sim->GetStepIndex() / DTConst::SIM_FIXED_HZ);
+		const FText Clock = FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d"), Seconds / 60, Seconds % 60));
+		float Width = 0.0f;
+		float Height = 0.0f;
+		Canvas->TextSize(Font, Clock.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		FCanvasTextItem Item(FVector2D(Canvas->ClipX - Width - DTHUDLocal::MarginPx, DTHUDLocal::MarginPx), Clock, Font, DTHUDLocal::UIText);
+		Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Item.EnableShadow(FLinearColor::Black);
+		Canvas->DrawItem(Item);
+	}
+
+	// Victory banner once the boss falls (the death banner is drawn with the hero block).
+	if (const ADTGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr; Mode && Mode->IsVictory())
+	{
+		const FText Victory = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Victory"));
+		float Width = 0.0f;
+		float Height = 0.0f;
+		Canvas->TextSize(Font, Victory.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f), Victory, Font, DTHUDLocal::UIText);
+		Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Item.EnableShadow(FLinearColor::Black);
+		Canvas->DrawItem(Item);
 	}
 
 	// The offer screen draws over everything while a hand is open (offers.md R-OFF-13).

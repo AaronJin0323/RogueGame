@@ -52,3 +52,4 @@ Offer.Reserve.Salvage.Rules,Pickup radius +{Percent}%. Stacks.,拾取范围 +{Pe
 Offer.Reserve.Mend.Name,Mend,补强,Reserve card name (R-OFF-12).,
 Offer.Reserve.Mend.Rules,Max HP +{Hp}. Stacks.,生命上限 +{Hp}，可叠加。,Reserve card rules. {Hp} = C.OFFER.RESERVE_MEND_MAX_HP.,
 Hud.BossName,The Warden,守望者,"HUD, above the boss HP bar at the bottom centre during the boss fight (02_Systems/boss.md). The boss of the first arena; never names its form.",
+Hud.Victory,The Warden has fallen. The run is won.,守望者倒下了。本局胜利。,"Shown in the middle of the screen when the boss is defeated.",

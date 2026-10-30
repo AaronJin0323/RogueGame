@@ -2,6 +2,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
+#include "Boss/DTBossSubsystem.h"
 #include "Director/DTDirector.h"
 #include "Dusktracer.h"
 #include "Engine/World.h"
@@ -67,6 +68,18 @@ void ADTGameMode::BeginPlay()
 	{
 		AllDownHandle = Hero->OnAllHeroesDown.AddUObject(this, &ADTGameMode::HandleAllHeroesDown);
 	}
+	if (UDTBossSubsystem* const Boss = MyWorld->GetSubsystem<UDTBossSubsystem>())
+	{
+		// The boss system logs the victory and closes the telemetry session itself (boss.md); the run is over here.
+		BossDefeatedHandle = Boss->OnBossDefeated.AddWeakLambda(this, [this](int64)
+		{
+			if (!bRunOver)
+			{
+				bRunOver = true;
+				bVictory = true;
+			}
+		});
+	}
 	StartMeasurementHooks();
 }
 
@@ -97,6 +110,10 @@ void ADTGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UDTHeroSubsystem* const Hero = MyWorld ? MyWorld->GetSubsystem<UDTHeroSubsystem>() : nullptr)
 	{
 		Hero->OnAllHeroesDown.Remove(AllDownHandle);
+	}
+	if (UDTBossSubsystem* const Boss = GetWorld() ? GetWorld()->GetSubsystem<UDTBossSubsystem>() : nullptr)
+	{
+		Boss->OnBossDefeated.Remove(BossDefeatedHandle);
 	}
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld ? MyWorld->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
 	{
