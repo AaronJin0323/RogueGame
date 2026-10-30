@@ -510,6 +510,21 @@ bool UDTOfferSubsystem::Pick(int32 OwnerId, int32 Slot)
 	return true;
 }
 
+bool UDTOfferSubsystem::Decline(int32 OwnerId)
+{
+	const FDTOfferHand* Open = GetOpenHand(OwnerId);
+	if (!Open || Open->HandKind == EDTHandKind::Patron)
+	{
+		return false;
+	}
+	const int32 HandId = Open->HandId;
+	GetRun()->GetPlayer(OwnerId).Offer.PendingHands.RemoveAt(0);
+	Flows[OwnerId].bOpen = false;
+	UE_LOG(LogDT, Log, TEXT("Offer p%d: hand %d declined (no pick)"), OwnerId, HandId);
+	UpdateFlow();
+	return true;
+}
+
 void UDTOfferSubsystem::ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome)
 {
 	UWorld* World = GetWorld();
