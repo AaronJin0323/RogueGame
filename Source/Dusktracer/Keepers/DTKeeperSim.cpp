@@ -777,6 +777,8 @@ void FDTKeeperSim::TidePull(const FDTSimContext& Context, int32 OwnerId, FPlayer
 	const float Gap = DTKeepers::PathParam(EDTPath::Tide, DTCat::EFlag::Pull, ParamRadiusUu, 0.0f);
 	const FDTSpecClause* PullVariant = FindClause(Plan.VariantSpec, DTCat::EFlag::Pull);
 	const bool bSinglePoint = PullVariant && PullVariant->GetWord(WordTarget) == WordSinglePoint;
+	// D-019: the base line, or a variant naming Flag.Pull, moves the crowd. Frost and Stillness Freeze it where it stands.
+	const bool bMoves = Plan.VariantSpec.Clauses.IsEmpty() || PullVariant != nullptr;
 	float FreezeSeconds = DTConst::INTERCESSION_TIDE_FREEZE_S;
 	if (const FDTSpecClause* Freeze = FindClause(Plan.VariantSpec, DTCat::EFlag::StatusApply))
 	{
@@ -803,26 +805,29 @@ void FDTKeeperSim::TidePull(const FDTSimContext& Context, int32 OwnerId, FPlayer
 	for (const TPair<float, int32>& Item : Order)
 	{
 		const int32 Enemy = Item.Value;
-		const float R = View.EnemyRadii[Enemy];
-		FVector2f Target = Hero + Dir * Gap;
-		if (!bSinglePoint)
-		{
-			if (Along + R > Gap + Radius)
-			{
-				Along = Gap;
-				++Rank;
-			}
-			const float Sign = (Rank % 2 == 1) ? 1.0f : -1.0f;
-			const float Offset = Sign * static_cast<float>((Rank + 1) / 2) * 2.0f * Widest;
-			Target = Hero + Dir * (Along + R) + Side * Offset;
-			Along += 2.0f * R;
-		}
 		const uint32 Serial = View.EnemySerials[Enemy];
-		FDTDisplacement& Move = View.Displacements.AddDefaulted_GetRef();
-		Move.EnemyIndex = Enemy;
-		Move.EnemySerial = Serial;
-		Move.Delta = Target - View.EnemyPositions[Enemy];
-		Move.OwnerId = OwnerId;
+		if (bMoves)
+		{
+			const float R = View.EnemyRadii[Enemy];
+			FVector2f Target = Hero + Dir * Gap;
+			if (!bSinglePoint)
+			{
+				if (Along + R > Gap + Radius)
+				{
+					Along = Gap;
+					++Rank;
+				}
+				const float Sign = (Rank % 2 == 1) ? 1.0f : -1.0f;
+				const float Offset = Sign * static_cast<float>((Rank + 1) / 2) * 2.0f * Widest;
+				Target = Hero + Dir * (Along + R) + Side * Offset;
+				Along += 2.0f * R;
+			}
+			FDTDisplacement& Move = View.Displacements.AddDefaulted_GetRef();
+			Move.EnemyIndex = Enemy;
+			Move.EnemySerial = Serial;
+			Move.Delta = Target - View.EnemyPositions[Enemy];
+			Move.OwnerId = OwnerId;
+		}
 		AppendStatus(View, Player, EDTStatus::Freeze, Enemy, Serial, 0.0f, OwnerId, EDTPath::Tide,
 			FreezeSeconds / FMath::Max(DTConst::STATUS_FREEZE_S, KINDA_SMALL_NUMBER));
 		Player.Cast.EnemiesHit.Add(Serial);
