@@ -20,7 +20,7 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- S2 bot v2 + skill knob on a branch that stays unmerged until the S1 exit test
+- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites landed (gate 270 tests, perf PASS). Keepers 4–6 and the bot's early-death trace on branches off it
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
