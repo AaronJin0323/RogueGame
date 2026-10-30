@@ -20,11 +20,12 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- S1 probes and telegraph contrast on branches off `main`
+- Telegraph contrast on a branch off `main`
+- Keeper package and Intercession trace on a branch off `main`
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
-2. Slow Tide/Stillness:Storm seed 6 misses T-OFF-15 at 24 decisions; 4 of 12 boss deaths still ring damage, untraced
+2. Intercession casts lose damage in 23 of 57 combinations and package gain sits near 1.0 on Furnace, Frost and Whirlpool (`S1_probes.md`): trace. Slow Tide/Stillness:Storm seed 6 misses T-OFF-15 at 24 decisions
 3. Share cap floor tried and reverted (D-018): income above about 0.85 of the model pushes fast arms past the decision budget, so closing the XP gap moves the XP curve or hand budget too
 4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
@@ -36,7 +37,8 @@
 - O-008 (book S1 validation sessions)
 
 ## Numbers at risk
-- Bot at skill 1.0 (`Docs/Validation/S1_boss_after_fields.md`, 19 arms, 15 seeds): 201 steered runs reach the boss, 153 win; the Warden barely kills the bot, and win counts in earlier docs carry the bot's hazard-ring blind spot. T-DIR-01 PASS (630.5 s on 10 seeds, 588.6 s on 15); T-OFF-15 FAIL 200/201 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
+- Probes (`S1_probes.md`, bounds): T-KEE-15 FAIL 3/57 in band; T-KEE-18 FAIL (Keeper share mean 0.683, 5/9 arms; package gain 0/9; archetype 2/9); T-PRE-05 telegraph and enemy round excused in `Docs/Validation/contrast_debts.txt`, not passing
+- Bot at skill 1.0 (`Docs/Validation/S1_probes.md`, 19 arms, 15 seeds): 201 steered runs reach the boss, 164 win; the Warden barely kills the bot, and win counts in earlier docs carry the bot's hazard-ring blind spot. T-DIR-01 PASS (630.5 s on 10 seeds, 588.6 s on 15); T-OFF-15 FAIL 200/201 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
 - Primary Whirlpool and Stillness are the weakest Keeper arms (4–7 of 15 at the boss). Pass 2 numbers were all reverted (logged). With no heal in S1 the band and boss reach cannot both hold
 - Telegraph red now on hue (#F32F27) reads about 1.8:1 against the floor, under `C.PRE.CONTRAST_MIN` (R-PRE-05; `04_Presentation` §7 Open); to fix next
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
