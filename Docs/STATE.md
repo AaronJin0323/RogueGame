@@ -4,7 +4,7 @@
 - Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance passes merged under D-017; exit test not booked (O-008)
 - Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `OPEN.md` holds human-only items
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tests (222, every test found must complete, floor 30), smoke en + zh-Hans. Not run: pad (S3), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (227, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
 - Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Docs/Validation/S1_bot_baseline.md`). Tool runs open no window: `-nullrhi` or `-RenderOffScreen`
 
@@ -20,7 +20,6 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- Telegraph contrast on a branch off `main`
 - Keeper package and Intercession trace on a branch off `main`
 
 ## Queue (next 5)
@@ -37,10 +36,10 @@
 - O-008 (book S1 validation sessions)
 
 ## Numbers at risk
-- Probes (`S1_probes.md`, bounds): T-KEE-15 FAIL 3/57 in band; T-KEE-18 FAIL (Keeper share mean 0.683, 5/9 arms; package gain 0/9; archetype 2/9); T-PRE-05 telegraph and enemy round excused in `Docs/Validation/contrast_debts.txt`, not passing
+- Probes (`S1_probes.md`, bounds): T-KEE-15 FAIL 3/57 in band; T-KEE-18 FAIL (Keeper share mean 0.683, 5/9 arms; package gain 0/9; archetype 2/9)
 - Bot at skill 1.0 (`Docs/Validation/S1_probes.md`, 19 arms, 15 seeds): 201 steered runs reach the boss, 164 win; the Warden barely kills the bot, and win counts in earlier docs carry the bot's hazard-ring blind spot. T-DIR-01 PASS (630.5 s on 10 seeds, 588.6 s on 15); T-OFF-15 FAIL 200/201 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
 - Primary Whirlpool and Stillness are the weakest Keeper arms (4–7 of 15 at the boss). Pass 2 numbers were all reverted (logged). With no heal in S1 the band and boss reach cannot both hold
-- Telegraph red now on hue (#F32F27) reads about 1.8:1 against the floor, under `C.PRE.CONTRAST_MIN` (R-PRE-05; `04_Presentation` §7 Open); to fix next
+- Contrast gate 7/7 on the rendered lit ground (Y 0.112) and shadow; telegraph (3.22) and round (3.14) pass through their dark tones with thin margins. Against the `Pal.Ground.Bright` token gem, tracer core and chest are under 3; the second weather does not exist
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
