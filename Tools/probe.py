@@ -36,7 +36,7 @@ import dtconst  # noqa: E402
 EXPRESSION = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "expression.csv")
 
 FIELD = 120
-FIELD_HP_MULT = 10.0  # the Handoff's field: at 1x a strong build wipes it every frame and every ablation reads the same
+FIELD_HP_MULT = 40.0  # at the Handoff's 10x a level 16 build still reaches the refill's kill ceiling (S1_keeper_power.md §3)
 FIELD_MINUTE = 10.5  # C.LEVEL.L16_MIN in minutes: the swarm a level 16 build meets
 CAST_WINDOW_S = 12.0  # long enough for every variant's window and the Freeze after it
 CAST_DASH_S = 1.0  # Slam's variant refills the dash on every landing: its cast is as many dashes as a player presses
