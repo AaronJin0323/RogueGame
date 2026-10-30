@@ -6,6 +6,10 @@
 #include "Game/DTCameraPawn.h"
 #include "Game/DTHUD.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
+#include "Player/DTHero.h"
+#include "Player/DTHeroSubsystem.h"
+#include "TimerManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
@@ -15,7 +19,6 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "TimerManager.h"
 #include "UnrealClient.h"
 
 namespace DTGameModeLocal
@@ -27,7 +30,7 @@ namespace DTGameModeLocal
 
 ADTGameMode::ADTGameMode()
 {
-	DefaultPawnClass = ADTCameraPawn::StaticClass();
+	DefaultPawnClass = ADTHero::StaticClass();
 	HUDClass = ADTHUD::StaticClass();
 }
 
@@ -54,12 +57,41 @@ void ADTGameMode::BeginPlay()
 	{
 		Telemetry->StartSession(Seed, Sim->GetRun().GetNumPlayers());
 	}
+	if (UDTHeroSubsystem* const Hero = MyWorld->GetSubsystem<UDTHeroSubsystem>())
+	{
+		AllDownHandle = Hero->OnAllHeroesDown.AddUObject(this, &ADTGameMode::HandleAllHeroesDown);
+	}
 	StartMeasurementHooks();
+}
+
+void ADTGameMode::HandleAllHeroesDown(int64 StepIndex)
+{
+	if (bRunOver)
+	{
+		return;
+	}
+	bRunOver = true;
+	UE_LOG(LogDT, Log, TEXT("Run end reason=death step=%lld"), StepIndex);
+	// Called from inside the step: the telemetry session closes on the next tick, after the step's own records.
+	GetWorldTimerManager().SetTimerForNextTick(this, &ADTGameMode::EndRunSession);
+}
+
+void ADTGameMode::EndRunSession()
+{
+	UWorld* const MyWorld = GetWorld();
+	if (UDTTelemetrySubsystem* const Telemetry = MyWorld ? MyWorld->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
+	{
+		Telemetry->EndSession(TEXT("death"));
+	}
 }
 
 void ADTGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UWorld* const MyWorld = GetWorld();
+	if (UDTHeroSubsystem* const Hero = MyWorld ? MyWorld->GetSubsystem<UDTHeroSubsystem>() : nullptr)
+	{
+		Hero->OnAllHeroesDown.Remove(AllDownHandle);
+	}
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld ? MyWorld->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
 	{
 		const TCHAR* Reason = TEXT("end_play");
@@ -82,7 +114,31 @@ void ADTGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		return;
 	}
+	APlayerController* const PC = Cast<APlayerController>(NewPlayer);
+	if (PC)
+	{
+		// The follow camera is the view target, not the possessed hero.
+		PC->bAutoManageActiveCameraTarget = false;
+	}
 	RestartPlayerAtTransform(NewPlayer, FTransform::Identity);
+	ADTHero* const Hero = Cast<ADTHero>(NewPlayer->GetPawn());
+	if (!PC || !Hero || Hero->GetPlayerIndex() != 0)
+	{
+		return;
+	}
+	UWorld* const MyWorld = GetWorld();
+	if (!FollowCamera && MyWorld)
+	{
+		FActorSpawnParameters Params;
+		Params.ObjectFlags |= RF_Transient;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		FollowCamera = MyWorld->SpawnActor<ADTCameraPawn>(ADTCameraPawn::StaticClass(), FTransform::Identity, Params);
+	}
+	if (FollowCamera)
+	{
+		FollowCamera->AttachToActor(Hero, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		PC->SetViewTarget(FollowCamera);
+	}
 }
 
 #if !UE_BUILD_SHIPPING
