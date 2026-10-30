@@ -40,6 +40,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - Tests live inside `WITH_DEV_AUTOMATION_TESTS`; file-local constants get a prefix to avoid unity collisions.
 - Launch the editor with `-LiveCoding=false` for command-line builds.
 - Kill stray processes by PID, never by image name.
+- In a fresh git worktree run `git lfs checkout` before the gate: `.uasset`/`.umap` files start as LFS pointer text and tests fail on missing materials.
 - Never union-merge generated files (`.po`, `.locres`, matrices, constants headers): regenerate them.
 
 ## Brief tolerances (`Docs/Harness/H06 §5`)
