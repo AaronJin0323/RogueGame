@@ -60,7 +60,7 @@ namespace DTDebugEnemies
 
 	static bool ParseStatus(const FString& Text, EDTStatus& Out)
 	{
-		static const TCHAR* Names[] = { TEXT("Shock"), TEXT("Burn"), TEXT("Chill"), TEXT("Freeze") };
+		static const TCHAR* Names[] = { TEXT("Shock"), TEXT("Burn"), TEXT("Chill"), TEXT("Freeze"), TEXT("Mark"), TEXT("Blind") };
 		static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EDTStatus::Count), "one name per status");
 		FString Key = Text;
 		Key.RemoveFromStart(TEXT("Status."), ESearchCase::IgnoreCase);

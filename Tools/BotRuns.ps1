@@ -1,9 +1,10 @@
 # Bot run harness (Docs/02_Systems/bot.md; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
-#   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-Seeds 10] [-FirstSeed 1] [-BotVersion 1] [-Skill 1] [-MaxSeconds 1100]
+#   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-ArmSet S2Keepers] [-Seeds 10] [-FirstSeed 1] [-BotVersion 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
 #                       [-Jobs <jobs.csv>] [-Stagger 1.5]
 # -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
-# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. Each run launches the game headless
+# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
+# R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
 # A run still alive after -Timeout wall seconds is killed by its own PID only. -Parallel runs that many processes at once
@@ -16,6 +17,7 @@
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
 param(
 	[string[]]$Arms = @(),
+	[string]$ArmSet = "",
 	[int]$Seeds = 0,
 	[int]$FirstSeed = 1,
 	[int]$BotVersion = 1,
@@ -48,6 +50,12 @@ function Get-Constant([string]$Key) {
 }
 
 $Arms = @($Arms | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$S2Keepers = @("Shade", "Radiance", "Quicksilver")
+if ($ArmSet -eq "S2Keepers") {
+	$Arms += @("Steered:Shade:Hound:Storm", "Steered:Shade:Hunters:Forge", "Steered:Shade:Economy:Storm",
+		"Steered:Radiance:Lance:Storm", "Steered:Radiance:Prism:Storm", "Steered:Radiance:Solar:Tide",
+		"Steered:Quicksilver:Vector:Forge", "Steered:Quicksilver:Momentum:Storm", "Steered:Quicksilver:Rebound:Storm")
+}
 if ($Arms.Count -eq 0) { $Arms = @("None") }
 if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant "DIR.BOT_RUNS") } else { 1 } }
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
@@ -133,6 +141,8 @@ foreach ($Arm in $Arms) {
 		if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
 		if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
 		if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
+		$Keepers = @($Parts | Select-Object -Skip 1 | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
+		if ($Keepers.Count) { $Extra += "-DTUnlock=" + ($Keepers -join ',') }
 		$null = Start-Run $Label $Seed $Extra
 	}
 }

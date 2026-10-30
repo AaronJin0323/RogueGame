@@ -38,7 +38,7 @@ struct FDTWeaponCounters
 /** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
 struct FDTWeaponVisual
 {
-	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, StillCharge, FrozenWall, FrozenHold, FrozenPlain };
+	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, StillCharge, FrozenWall, FrozenHold, FrozenPlain, Marked };
 	EKind Kind = EKind::Drone;
 	FVector2f Position = FVector2f::ZeroVector;
 	FVector2f Dir = FVector2f(1.0f, 0.0f);
@@ -83,6 +83,41 @@ public:
 	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 	/** Non-starter ids in the run pool (DT.Unlock): Mod.Refit draws only from the pool. */
 	void Unlock(FName Id) { Unlocked.Add(Id); }
+
+	// --- S2 Keeper state the weapons read (keepers.md §9) ----------------------------------------------------------
+	/** Marks an enemy for OwnerId for C.STATUS.MARK_S plus the owner's mark_s, from StepIndex on (R-KEE-24). */
+	void ApplyMark(int32 OwnerId, uint32 Serial, int64 StepIndex);
+	bool IsMarked(int32 OwnerId, uint32 Serial) const;
+	bool IsBlinded(int32 OwnerId, uint32 Serial) const;
+	/** Effects: records every Mark and Blind application of the step in the owner's state (the enchantment writes them too). */
+	void AbsorbStatuses(const FDTSimContext& Context);
+	/** Marks every enemy within Radius of Center. */
+	void MarkCircle(const FDTSimContext& Context, int32 OwnerId, const FVector2f& Center, float Radius, uint16 SourceId);
+	/** Kills every non-boss enemy OwnerId marked at or below Below of its HP, as SourceId. Returns how many. */
+	int32 ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId);
+	int32 GetLiveHunters(int32 OwnerId) const;
+	/** Raises Count hunters at At with this life and share of the best weapon's damage, under max_live (R-KEE-27). */
+	void RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio);
+	int32 GetDebt(int32 OwnerId) const;
+	/** Adds Debt; at debt_max it resets and the owner's next volley is a payday (R-KEE-29). */
+	void AddDebt(int32 OwnerId, int32 Debt);
+	bool IsPaydayReady(int32 OwnerId) const;
+	/** Makes the next volley a payday at Mult, executing at or below ExecuteBelow. */
+	void ForcePayday(int32 OwnerId, float Mult, float ExecuteBelow);
+	float GetMomentum(int32 OwnerId) const;
+	/** Raises Momentum to at least Stacks; bHold stops it fading until the next call (R-KEE-34). */
+	void GrantMomentum(int32 OwnerId, float Stacks, bool bHold);
+	/** Seconds of dash cooldown earned since the last call. */
+	float TakeDashRefund(int32 OwnerId);
+	/** Dash refills earned since the last call (free_every). */
+	int32 TakeDashRefills(int32 OwnerId);
+	/** Enemy's HP now, 0 without a pool. */
+	float HpOf(int32 Enemy) const;
+	/** The most crit damage any of OwnerId's weapons has (the beam's crit). */
+	float BestCritMult(int32 OwnerId) const;
+	bool GetDensestLine(const FDTWorldView& View, const FVector2f& Hero, float Range, FVector2f& OutDir) const { return FindDensestLine(View, Hero, Range, OutDir); }
+	/** A narrow flash along Dir (a beam's cue, R-KEE-36). */
+	void AddFlash(int32 OwnerId, const FVector2f& Position, const FVector2f& Dir, float Reach, float ArcDeg, float Seconds);
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
@@ -217,6 +252,44 @@ private:
 		TArray<FPillar> Pillars;
 		/** Shattered, still Frozen: not a pillar again until it thaws. */
 		TSet<uint32> Shattered;
+		// S2 Keepers (keepers.md §9).
+		/** Status.Mark, Status.Blind: serial -> step they end. */
+		TMap<uint32, int64> MarkedUntilStep;
+		TMap<uint32, int64> BlindedUntilStep;
+		int32 Debt = 0;
+		/** Above zero: the next volley is a payday. */
+		float PaydayMult = 0.0f;
+		float PaydayExecute = 0.0f;
+		int32 LastingKills = 0;
+		int32 LastingLive = 0;
+		uint32 LastCritSerial = 0;
+		int32 FocalStacks = 0;
+		int32 CritCount = 0;
+		float SunStored = 0.0f;
+		float SunReadyIn = 0.0f;
+		float Momentum = 0.0f;
+		bool bMomentumHold = false;
+		float WaveDistance = 0.0f;
+		FVector2f LastHeroPos = FVector2f::ZeroVector;
+		bool bHasHeroPos = false;
+		bool bDashWas = false;
+		FVector2f LastDashLine = FVector2f(1.0f, 0.0f);
+		float TailwindLeft = 0.0f;
+		int32 DashesDone = 0;
+		float DashRefund = 0.0f;
+		float DashRefundUsed = 0.0f;
+		int32 DashRefills = 0;
+	};
+
+	/** A hunter (keepers.md R-KEE-27): data, no Actor; drawn as a drone core. */
+	struct FHunter
+	{
+		int32 OwnerId = INDEX_NONE;
+		FVector2f Position = FVector2f::ZeroVector;
+		float Left = 0.0f;
+		float Timer = 0.0f;
+		float DmgRatio = 0.0f;
+		bool bLasting = false;
 	};
 
 	/** What kind of contact an impact was; decides which reactions run (see DTWeaponSim.cpp). */
@@ -250,6 +323,10 @@ private:
 		bool bCharged = false;
 		/** A slam's ember (keepers.md §2): applies ember_status and runs no other reaction. */
 		bool bEmber = false;
+		/** A CritSplit lance: applies lance_status and runs no other reaction. */
+		bool bLance = false;
+		/** The hit was a crit. */
+		bool bCrit = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -269,6 +346,7 @@ private:
 		int32 BouncesLeft = 0;
 		bool bCharged = false;
 		bool bEmber = false;
+		bool bLance = false;
 		/** Non-zero: a moving round; the pool reports its moves (R-BUL-09). */
 		uint32 RoundId = 0;
 		int32 Pierce = 1;
@@ -363,6 +441,10 @@ private:
 		int32 Bounces = 0;
 		bool bCharged = false;
 		bool bEmber = false;
+		bool bLance = false;
+		/** A Charge shot: always a crit, or this much more chance. */
+		bool bForceCrit = false;
+		float CritBonus = 0.0f;
 		FDTBulletMotion Motion;
 	};
 
@@ -388,6 +470,9 @@ private:
 
 	bool TryEmit(FWeaponRuntime& Runtime);
 	bool RollCrit(const FDTSimContext& Context, const FDTWeaponSpec& Spec, float& InOutDamage) const;
+	/** Flag.Charge on this shot of the weapon (keepers.md R-KEE-31). */
+	void ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const;
+	int32 IndexOfSerialIn(const FDTWorldView& View, uint32 Serial) const;
 	void SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FShot& Shot,
 		const FVector2f& Position, const FVector2f& Dir);
 	/** One sweep: one FDTHit per enemy inside the arc (R-WPN-06), plus an ArcSweep impact. Returns enemies hit. */
@@ -453,6 +538,26 @@ private:
 	void EmitSlam(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FDTResolvedFlag& Slam);
 
 	void StepDeferred(const FDTSimContext& Context);
+
+	// S2 Keepers (DTWeaponSimKeepers.cpp).
+	/** The first flag entry of OwnerId's Keeper sources, the per-hit one (no `on` word). */
+	const FDTFlagEntry* KeeperEntry(int32 OwnerId, DTCat::EFlag Flag) const;
+	void KeeperHit(const FDTWorldView& View, int32 Enemy, int32 OwnerId, float Damage, uint16 SourceId, FDTWorldView& Out) const;
+	bool CanExecute(int32 Enemy, float Below) const;
+	void ReactSeek(const FDTSimContext& Context, const FDTResolvedFlag& Flag, const FImpact& Impact, int32 HitEnemy);
+	/** The Marked enemy nearest From within Range; 0 when none. */
+	uint32 NearestMarked(int32 OwnerId, const FVector2f& From, float Range, const FDTWorldView& View) const;
+	void StepHunters(const FDTSimContext& Context, FDTBulletPool* Bullets);
+	void FirePayday(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player);
+	void ReactKeeperKills(const FDTSimContext& Context, FDTBulletPool* Bullets);
+	bool RollShot(const FDTSimContext& Context, const FDTWeaponSpec& Spec, const FShot& Shot, float& InOutDamage) const;
+	void ReactToCrit(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FImpact& Impact, int32 HitEnemy);
+	void NoteNova(const FDTHit& Hit, const FDTWeaponSpec& Spec, float Overkill);
+	void StepNovas(const FDTSimContext& Context);
+	void AccrueSun(const FDTWorldView& View);
+	/** Momentum, tailwind and dash volleys: reads hero motion, rewrites this step's composed specs. */
+	void StepKeeperHero(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player, FDTPlayerRunState& RunPlayer);
+	void StepKeeperState(const FDTSimContext& Context);
 	void SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage);
 	int32 HitCircle(const FDTSimContext& Context, int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& Center,
 		float Radius, float Damage, bool bRollCrit, const FDTWeaponSpec* Spec, TArray<FDTEnemyHandle>* OutHit = nullptr);
@@ -512,6 +617,12 @@ private:
 	TArray<FPendingStatus> PendingStatuses;
 	TArray<FArcMark> ArcMarks;
 	TArray<FOverkill> Overkills;
+	TArray<FOverkill> NovaOverkills;
+	TArray<FHunter> Hunters;
+	/** A dash volley fires along VolleyDir at VolleyMult. */
+	bool bVolleyForced = false;
+	FVector2f VolleyDir = FVector2f(1.0f, 0.0f);
+	float VolleyMult = 1.0f;
 	TSet<FName> Unlocked;
 	const FDTBulletPool* LastBullets = nullptr;
 	uint32 NextRoundId = 0;

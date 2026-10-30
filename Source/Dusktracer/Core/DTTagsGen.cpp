@@ -6,6 +6,9 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Keeper_Storm, "Keeper.Storm");
 	UE_DEFINE_GAMEPLAY_TAG(Keeper_Forge, "Keeper.Forge");
 	UE_DEFINE_GAMEPLAY_TAG(Keeper_Tide, "Keeper.Tide");
+	UE_DEFINE_GAMEPLAY_TAG(Keeper_Shade, "Keeper.Shade");
+	UE_DEFINE_GAMEPLAY_TAG(Keeper_Radiance, "Keeper.Radiance");
+	UE_DEFINE_GAMEPLAY_TAG(Keeper_Quicksilver, "Keeper.Quicksilver");
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Storm_Tempest, "Archetype.Storm.Tempest");
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Storm_ArcGrid, "Archetype.Storm.ArcGrid");
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Storm_Downpour, "Archetype.Storm.Downpour");
@@ -15,6 +18,15 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Tide_Whirlpool, "Archetype.Tide.Whirlpool");
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Tide_Frost, "Archetype.Tide.Frost");
 	UE_DEFINE_GAMEPLAY_TAG(Archetype_Tide_Stillness, "Archetype.Tide.Stillness");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Shade_Hound, "Archetype.Shade.Hound");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Shade_Hunters, "Archetype.Shade.Hunters");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Shade_Economy, "Archetype.Shade.Economy");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Radiance_Lance, "Archetype.Radiance.Lance");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Radiance_Prism, "Archetype.Radiance.Prism");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Radiance_Solar, "Archetype.Radiance.Solar");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Quicksilver_Vector, "Archetype.Quicksilver.Vector");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Quicksilver_Momentum, "Archetype.Quicksilver.Momentum");
+	UE_DEFINE_GAMEPLAY_TAG(Archetype_Quicksilver_Rebound, "Archetype.Quicksilver.Rebound");
 	UE_DEFINE_GAMEPLAY_TAG(Flag_Split, "Flag.Split");
 	UE_DEFINE_GAMEPLAY_TAG(Flag_Echo, "Flag.Echo");
 	UE_DEFINE_GAMEPLAY_TAG(Flag_ConvertOrbit, "Flag.ConvertOrbit");
@@ -33,6 +45,8 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Flag_Ricochet, "Flag.Ricochet");
 	UE_DEFINE_GAMEPLAY_TAG(Flag_Chain, "Flag.Chain");
 	UE_DEFINE_GAMEPLAY_TAG(Flag_StatusApply, "Flag.StatusApply");
+	UE_DEFINE_GAMEPLAY_TAG(Flag_Debt, "Flag.Debt");
+	UE_DEFINE_GAMEPLAY_TAG(Flag_CritSplit, "Flag.CritSplit");
 	UE_DEFINE_GAMEPLAY_TAG(Cap_Projectile, "Cap.Projectile");
 	UE_DEFINE_GAMEPLAY_TAG(Cap_Beam, "Cap.Beam");
 	UE_DEFINE_GAMEPLAY_TAG(Cap_Orbit, "Cap.Orbit");
@@ -49,6 +63,8 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Status_Burn, "Status.Burn");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Chill, "Status.Chill");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Freeze, "Status.Freeze");
+	UE_DEFINE_GAMEPLAY_TAG(Status_Mark, "Status.Mark");
+	UE_DEFINE_GAMEPLAY_TAG(Status_Blind, "Status.Blind");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Swarm, "Enemy.Swarm");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Tank, "Enemy.Tank");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Rusher, "Enemy.Rusher");

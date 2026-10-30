@@ -210,6 +210,14 @@ void FDTHeroSim::Heal(int32 OwnerId, float Amount)
 	}
 }
 
+void FDTHeroSim::RefundDash(int32 OwnerId, float Seconds)
+{
+	if (States.IsValidIndex(OwnerId) && States[OwnerId].DashRefillLeft > 0.0f)
+	{
+		States[OwnerId].DashRefillLeft = FMath::Max(States[OwnerId].DashRefillLeft - Seconds, KINDA_SMALL_NUMBER);
+	}
+}
+
 void FDTHeroSim::RefillDash(int32 OwnerId)
 {
 	if (States.IsValidIndex(OwnerId))

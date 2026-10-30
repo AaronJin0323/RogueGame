@@ -83,9 +83,9 @@ namespace DTKeeperSpecLocal
 		TArray<bool> Accepted; // NumArchetypes x NumCardColumns
 		FCatalogCache()
 		{
-			Accepted.Init(true, DTCat::NumArchetypes * NumCardColumns);
-			DTKeepers::ValidateCatalog(TConstArrayView<DTCat::FArchetypeRow>(DTCat::Archetypes, DTCat::NumArchetypes), Errors);
-			for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+			Accepted.Init(true, DTCat::NumAllArchetypes * NumCardColumns);
+			DTKeepers::ValidateCatalog(TConstArrayView<DTCat::FArchetypeRow>(DTCat::Archetypes, DTCat::NumAllArchetypes), Errors);
+			for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 			{
 				for (int32 Column = 0; Column < NumCardColumns; ++Column)
 				{
@@ -165,7 +165,7 @@ FColor DTKeepers::TrailToken(EDTPath Path)
 
 bool DTKeepers::ParseStatus(FName Word, EDTStatus& OutStatus)
 {
-	static const TCHAR* const Names[] = { TEXT("Status.Shock"), TEXT("Status.Burn"), TEXT("Status.Chill"), TEXT("Status.Freeze") };
+	static const TCHAR* const Names[] = { TEXT("Status.Shock"), TEXT("Status.Burn"), TEXT("Status.Chill"), TEXT("Status.Freeze"), TEXT("Status.Mark"), TEXT("Status.Blind") };
 	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EDTStatus::Count), "one name per EDTStatus");
 	const FString Text = Word.ToString();
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
@@ -203,7 +203,7 @@ bool DTKeepers::EnchantStatus(EDTPath Path, EDTStatus& OutStatus)
 
 bool DTKeepers::EnchantStatusUncached(EDTPath Path, EDTStatus& OutStatus)
 {
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		if (DTCat::Archetypes[Row].Path != Path)
 		{
@@ -227,7 +227,7 @@ int32 DTKeepers::FindArchetype(FName ArchetypeId)
 	{
 		return INDEX_NONE;
 	}
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		if (ArchetypeId == FName(DTCat::Archetypes[Row].Id))
 		{
@@ -433,7 +433,7 @@ bool DTKeepers::ValidateCatalog(TConstArrayView<DTCat::FArchetypeRow> Rows, TArr
 		for (const FString& One : Statuses)
 		{
 			EDTStatus Parsed;
-			if (!ParseStatus(FName(*One.TrimStartAndEnd()), Parsed))
+			if (One != TEXT("none") && !ParseStatus(FName(*One.TrimStartAndEnd()), Parsed))
 			{
 				OutErrors.Add(FString::Printf(TEXT("%s: unknown EnchantStatus '%s'"), *Id, *One));
 			}
@@ -521,7 +521,7 @@ int32 DTKeepers::OwnedOfPath(const FDTKeeperRunState& Keepers, EDTPath Path)
 	int32 Count = 0;
 	for (const FName& Id : Keepers.Owned)
 	{
-		for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+		for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 		{
 			const DTCat::FArchetypeRow& R = DTCat::Archetypes[Row];
 			for (int32 Column = 0; R.Path == Path && Column < DTKeeperSpecLocal::NumCardColumns; ++Column)
@@ -545,7 +545,7 @@ FDTWeaponFlags DTKeepers::BuildKeeperFlags(const FDTKeeperRunState& Keepers, EDT
 	// 1. Owned blessings in pick order (R-KEE-03: each exactly once; rejected ones never apply, R-KEE-02).
 	for (const FName& Id : Keepers.Owned)
 	{
-		for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+		for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 		{
 			const DTCat::FArchetypeRow& R = DTCat::Archetypes[Row];
 			if (R.Path != Path)
@@ -597,7 +597,7 @@ FDTWeaponFlags DTKeepers::BuildKeeperFlags(const FDTKeeperRunState& Keepers, EDT
 
 float DTKeepers::PathParam(EDTPath Path, DTCat::EFlag Flag, FName Param, float Default)
 {
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		const DTCat::FArchetypeRow& R = DTCat::Archetypes[Row];
 		if (R.Path != Path)

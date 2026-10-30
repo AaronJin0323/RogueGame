@@ -82,6 +82,10 @@ namespace DTOffers
 	// --- catalog reads -------------------------------------------------------------------------------------------------
 	/** The Keepers of the run (every Path with an expression.csv row), in Path order. */
 	DUSKTRACER_API TArray<EDTPath> RunKeepers();
+	/** The Keepers of a run with this pool: the unlocked ones first (R-KEE-23), then RunKeepers(). */
+	DUSKTRACER_API TArray<EDTPath> RunKeepers(const FDTOfferPool& Pool);
+	/** Every Keeper of the catalog, in Path order (S2 included). */
+	DUSKTRACER_API TArray<EDTPath> AllKeepers();
 	DUSKTRACER_API FDTBlessingInfo FindBlessing(FName Id);
 	/** Flag.* tokens named in an effect spec, as a FlagBit mask. */
 	DUSKTRACER_API uint32 SpecFlags(const TCHAR* Spec);

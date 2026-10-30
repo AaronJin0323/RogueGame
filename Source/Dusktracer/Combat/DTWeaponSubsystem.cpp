@@ -5,6 +5,8 @@
 #include "Dusktracer.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 int32 DTWeaponPalette::NumBuckets()
 {
@@ -218,6 +220,17 @@ void UDTWeaponSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	BulletsPhase.Phase = EDTSimPhase::Bullets;
 	EffectsPhase.Owner = this;
 	EffectsPhase.Phase = EDTSimPhase::Effects;
+	// keepers.md R-KEE-23: the Patron hand opens before any console command runs, so a launch names its Keepers up front.
+	FString UnlockArg;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-DTUnlock="), UnlockArg))
+	{
+		TArray<FString> Ids;
+		UnlockArg.ParseIntoArray(Ids, TEXT(","));
+		for (const FString& Id : Ids)
+		{
+			Unlock(FName(*Id));
+		}
+	}
 }
 
 void UDTWeaponSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -323,7 +336,7 @@ bool UDTWeaponSubsystem::IsInPool(FName Id) const
 	{
 		return DTCat::Modifiers[Mod].bStarter || Unlocked.Contains(DTWeapons::ModifierId(Mod));
 	}
-	return false;
+	return Unlocked.Contains(Id); // a Keeper.<Path> (keepers.md R-KEE-23)
 }
 
 int32 UDTWeaponSubsystem::GetRendererCount() const
@@ -434,6 +447,12 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 			// A flat disc on the ground, under the cues and telegraphs (R-PRE-11).
 			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Visual.Radius, Visual.Radius, ZoneHalf)));
 			break;
+		case FDTWeaponVisual::EKind::Marked:
+		{
+			const float Plate = Visual.Radius * DTConst::PRE_WALL_PLATE_RATIO;
+			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Plate, Plate, ZoneHalf)));
+			break;
+		}
 		case FDTWeaponVisual::EKind::FrozenWall:
 		{
 			// A plate in the Tide zone colour under the hull: the same flat disc as a field, wider than the hull's corners.

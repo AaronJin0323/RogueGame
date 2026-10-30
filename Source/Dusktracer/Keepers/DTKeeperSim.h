@@ -69,6 +69,14 @@ public:
 
 	const FDTKeeperCounters& GetCounters(int32 OwnerId) const;
 
+	/** What Keeper flags ask of the hero (keepers.md R-KEE-34): the subsystem writes them into FDTHeroStats. */
+	struct FHeroRiders
+	{
+		float DashCooldownMul = 1.0f;
+		int32 DashCharges = 0;
+	};
+	FHeroRiders GetHeroRiders(int32 OwnerId) const;
+
 private:
 	struct FCapturedHit
 	{
@@ -89,6 +97,12 @@ private:
 		float LayerTimer = 0.0f;
 		int32 LayerChargeSteps = 0;
 		bool bWasIntangible = false;
+		/** Sun Lance: charge, beams to run, the beam running (R-KEE-35). */
+		float ChargeLeft = 0.0f;
+		float BeamLeft = 0.0f;
+		float BeamTimer = 0.0f;
+		int32 BeamsLeft = 0;
+		FVector2f BeamDir = FVector2f(1.0f, 0.0f);
 		TSet<uint32> EnemiesHit;
 		double Damage = 0.0;
 	};
@@ -119,6 +133,10 @@ private:
 		float Damage, EDTPath Path, float KnockbackUu, bool bBurn, int32 BurnApplications);
 	void ApplyLayerStatus(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, int32 Enemy, float HitDamage);
 	void TidePull(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player);
+	/** on_cast hunters, paydays, Debt, Momentum of a variant or layer (R-KEE-35). */
+	void ApplyCastGrants(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, FDTWeaponSim& Weapons, const FDTEffectSpec& Spec, EDTPath Path);
+	void StepBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, FDTWeaponSim* Weapons);
+	void HitBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, const FVector2f& Origin, const FVector2f& Dir, float Length, float Damage, FDTWeaponSim* Weapons);
 	/** The strongest per-hit damage among OwnerId's weapons (Slam's dmg_ratio basis, keepers.md Data). */
 	float StrongestDamage(const FDTSimContext& Context, int32 OwnerId, const FDTWeaponSim* Weapons) const;
 

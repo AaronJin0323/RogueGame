@@ -149,3 +149,153 @@ Tide.Stillness.Tier3,Charged volleys Freeze enemies within {charged_freeze_ring_
 Tide.Stillness.Ult.Desc,For {duration_s} s you may move within {pool_radius_uu_m} m and every volley is charged.,{duration_s} 秒内在 {pool_radius_uu_m} 米内移动也算站定，齐射都蓄满。,"Archetype.Tide.Stillness Intercession variant (IntercessionVariant column, R-KEE-14) while it leads the primary. <= 90 en / 40 zh.",Flag.Stillness
 Tide.Stillness.Layer.Name,Held Breath,屏息,Archetype.Tide.Stillness Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Status.Chill;Status.Freeze
 Tide.Stillness.Layer.Desc,As second Keeper: Intercession grants every weapon a charged volley.,作为第二位司者：神临让每件武器获得一次蓄力齐射。,"Archetype.Tide.Stillness Intercession layer (SecondKeeperLayer column, R-KEE-14) as the second Keeper. <= 90 en / 40 zh.",Flag.Stillness
+Shade.Name,Keeper of the Dead,司幽,Keeper.Shade card name (Patron and L8 hands). Honorific; never 'god'.,
+Shade.Desc,"Rounds hunt Marked enemies, Shades rise from the dead, debts come due. Hits can Mark.",弹体追猎被标记的敌人，亡影从死者中升起，债务到期。命中可标记敌人。,Keeper.Shade card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Flag.Seek;Flag.Hunter;Flag.Debt;Status.Mark
+Shade.Enchant.Desc,Your rounds trail ledger-violet. Hits Mark {chance_pct}% of the time.,弹体拖出幽紫尾迹，命中有 {chance_pct}% 几率标记敌人。,Keeper.Shade enchantment line (R-KEE-09): trail colour and status proc chance.,
+Shade.Ult.Name,Closing,清算,"Keeper.Shade Intercession name (its base, R-KEE-14). <= 18 chars en / 6 zh.",Status.Mark;Flag.Seek
+Shade.Ult.Desc,For {duration_s} s every enemy is Marked and every round hunts. Then the weak are executed.,{duration_s} 秒内所有敌人被标记，弹体全部追踪，随后弱者被斩杀。,"Keeper.Shade Intercession base (R-KEE-14, R-KEE-35). <= 90 chars en / 40 zh.",Status.Mark;Flag.Seek
+Radiance.Name,Keeper of Light,司曜,Keeper.Radiance card name (Patron and L8 hands). Honorific; never 'god'.,
+Radiance.Desc,"Shots charge, crits split into light, overkill bursts. Hits can Blind.",射击蓄能，暴击裂成光矛，过量伤害炸开。命中可致盲敌人。,Keeper.Radiance card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Flag.Charge;Flag.CritSplit;Flag.Nova;Status.Blind
+Radiance.Enchant.Desc,Your rounds trail lamp-gold. Hits Blind {chance_pct}% of the time.,弹体拖出曜金尾迹，命中有 {chance_pct}% 几率致盲敌人。,Keeper.Radiance enchantment line (R-KEE-09): trail colour and status proc chance.,
+Radiance.Ult.Name,Sun Lance,贯日,"Keeper.Radiance Intercession name (its base, R-KEE-14). <= 18 chars en / 6 zh.",Flag.Nova
+Radiance.Ult.Desc,"Charge, then a beam for {duration_s} s that always crits and bursts on overkill.",蓄力后发射 {duration_s} 秒光束，必定暴击，过量伤害炸开。,"Keeper.Radiance Intercession base (R-KEE-14, R-KEE-35). <= 90 chars en / 40 zh.",Flag.Nova
+Quicksilver.Name,Keeper of Ways,司驰,Keeper.Quicksilver card name (Patron and L8 hands). Honorific; never 'god'.,
+Quicksilver.Desc,"Dashes fire your weapons, motion builds power, rounds ricochet. Standing still earns nothing.",冲刺时武器齐射，移动积蓄力量，子弹弹射。站着不动一无所获。,Keeper.Quicksilver card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Flag.VolleyOnDash;Flag.SpeedScale;Flag.Ricochet
+Quicksilver.Enchant.Desc,Your rounds trail signal-green. Its hits apply no status.,弹体拖出驰绿尾迹，命中不附加状态。,Keeper.Quicksilver enchantment line (R-KEE-09): trail colour and status proc chance.,
+Quicksilver.Ult.Name,Time Dilation,急递,"Keeper.Quicksilver Intercession name (its base, R-KEE-14). <= 18 chars en / 6 zh.",Flag.VolleyOnDash
+Quicksilver.Ult.Desc,For {duration_s} s every dash fires all your weapons.,{duration_s} 秒内每次冲刺都让所有武器齐射。,"Keeper.Quicksilver Intercession base (R-KEE-14, R-KEE-35). <= 90 chars en / 40 zh.",Flag.VolleyOnDash
+Shade.Hound.Name,Hound,猎犬,Archetype.Shade.Hound display name (card binding line).,
+Shade.Hound.Key.Name,Lien,入簿,Blessing.Shade.Hound.Key card name. <= 18 chars en / 6 zh.,
+Shade.Hound.Key.Desc,"Rounds bend toward Marked enemies, pierce {pierce_add} more, and Mark what they hit.",弹体转向被标记的敌人，多穿透 {pierce_add} 个，并标记命中目标。,"Blessing.Shade.Hound.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Seek;Status.Mark
+Shade.Hound.Amp1.Name,Foreclosure,宽限,Blessing.Shade.Hound.Amp1 card name. <= 18 chars en / 6 zh.,
+Shade.Hound.Amp1.Desc,Rounds turn {turn_deg_s}°/s harder. Marks last {mark_s} s longer.,弹体转向再快 {turn_deg_s}°/秒，标记延长 {mark_s} 秒。,"Blessing.Shade.Hound.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Seek;Status.Mark
+Shade.Hound.Amp2.Name,Garnish,扣押,Blessing.Shade.Hound.Amp2 card name. <= 18 chars en / 6 zh.,
+Shade.Hound.Amp2.Desc,Marked enemies take +{marked_vuln_pct}% from your weapons.,被标记的敌人受到的武器伤害 +{marked_vuln_pct}%。,"Blessing.Shade.Hound.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Mark
+Shade.Hound.Trait.Name,Final Notice,最后通牒,Blessing.Shade.Hound.Trait card name. <= 18 chars en / 6 zh.,
+Shade.Hound.Trait.Desc,Hits execute Marked enemies below {execute_below_pct}% more HP.,命中时斩杀线再提高 {execute_below_pct}%（仅被标记的敌人）。,"Blessing.Shade.Hound.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Mark;Flag.Seek
+Shade.Hound.Tier1,Rounds turn {turn_deg_s}°/s harder.,弹体转向再快 {turn_deg_s}°/秒。,Tier 1 line of Archetype.Shade.Hound while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hound.Tier2,Tracking rounds pierce {pierce_add} more.,追踪弹体多穿透 {pierce_add} 个。,Tier 2 line of Archetype.Shade.Hound while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hound.Tier3,Hits execute Marked enemies below {execute_below_pct}% HP.,命中斩杀生命低于 {execute_below_pct}% 的标记敌人。,Tier 3 line of Archetype.Shade.Hound while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hound.Ult.Desc,Intercession rounds turn at will and pierce {pierce_add} more.,神临时弹体随意转向，多穿透 {pierce_add} 个。,Archetype.Shade.Hound Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Seek;Status.Mark
+Shade.Hound.Layer.Name,Scent,寻迹,Archetype.Shade.Hound Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Seek;Status.Mark
+Shade.Hound.Layer.Desc,As second Keeper: during Intercession rounds hunt and its hits Mark.,作为第二位司者：神临时弹体追踪，其命中会标记敌人。,Archetype.Shade.Hound Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Seek;Status.Mark
+Shade.Hunters.Name,Collectors,收债人,Archetype.Shade.Hunters display name (card binding line).,
+Shade.Hunters.Key.Name,Dividend,收讫,Blessing.Shade.Hunters.Key card name. <= 18 chars en / 6 zh.,
+Shade.Hunters.Key.Desc,"Marked and elite kills raise a Shade for {life_s} s, firing your best weapon at {dmg_pct}%.",击杀标记或精英敌人时升起亡影 {life_s} 秒，以 {dmg_pct}% 使用最强武器。,"Blessing.Shade.Hunters.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Hunter;Status.Mark
+Shade.Hunters.Amp1.Name,Debt Collectors,讨债人,Blessing.Shade.Hunters.Amp1 card name. <= 18 chars en / 6 zh.,
+Shade.Hunters.Amp1.Desc,Shades last {life_s} s longer and deal +{dmg_pct}%.,亡影多存在 {life_s} 秒，伤害 +{dmg_pct}%。,"Blessing.Shade.Hunters.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Hunter
+Shade.Hunters.Amp2.Name,Escrow,托管,Blessing.Shade.Hunters.Amp2 card name. <= 18 chars en / 6 zh.,
+Shade.Hunters.Amp2.Desc,"When a Shade kills, every Shade lasts {kill_extends_s} s longer.",亡影击杀时，所有亡影延长 {kill_extends_s} 秒。,"Blessing.Shade.Hunters.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Hunter
+Shade.Hunters.Trait.Name,Arrears,滞纳,Blessing.Shade.Hunters.Trait card name. <= 18 chars en / 6 zh.,
+Shade.Hunters.Trait.Desc,"Every {lasting_every} kills raise a lasting Shade at {lasting_dmg_pct}%, up to {lasting_max}.",每 {lasting_every} 次击杀升起一个常驻亡影，{lasting_dmg_pct}% 伤害，至多 {lasting_max} 个。,"Blessing.Shade.Hunters.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Hunter
+Shade.Hunters.Tier1,Shades last {life_s} s longer.,亡影多存在 {life_s} 秒。,Tier 1 line of Archetype.Shade.Hunters while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hunters.Tier2,Any kill may raise a Shade: {any_kill_chance_pct}%.,任何击杀有 {any_kill_chance_pct}% 几率升起亡影。,Tier 2 line of Archetype.Shade.Hunters while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hunters.Tier3,Shades explode within {explode_uu_m} m when they fade.,亡影消散时炸开 {explode_uu_m} 米。,Tier 3 line of Archetype.Shade.Hunters while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Hunters.Ult.Desc,"Intercession raises {on_cast} Shades at once, each lasting ×{life_scale}.",神临立刻升起 {on_cast} 个亡影，存在时间 ×{life_scale}。,Archetype.Shade.Hunters Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Hunter
+Shade.Hunters.Layer.Name,Summons,传唤,Archetype.Shade.Hunters Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Hunter
+Shade.Hunters.Layer.Desc,As second Keeper: Intercession raises {on_cast} Shades.,作为第二位司者：神临升起 {on_cast} 个亡影。,Archetype.Shade.Hunters Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Hunter
+Shade.Economy.Name,Ledger,账簿,Archetype.Shade.Economy display name (card binding line).,
+Shade.Economy.Key.Name,Interest,生息,Blessing.Shade.Economy.Key card name. <= 18 chars en / 6 zh.,
+Shade.Economy.Key.Desc,"Marked kills add Debt. At {debt_max}, your next volley hunts the screen at ×{payday_mult}.",击杀标记敌人累积债务。满 {debt_max} 点时下次齐射追猎全屏，伤害 ×{payday_mult}。,"Blessing.Shade.Economy.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt;Status.Mark
+Shade.Economy.Amp1.Name,Long Arm,追讨,Blessing.Shade.Economy.Amp1 card name. <= 18 chars en / 6 zh.,
+Shade.Economy.Amp1.Desc,Elites add {elite_debt} more Debt.,精英额外增加 {elite_debt} 点债务。,"Blessing.Shade.Economy.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt
+Shade.Economy.Amp2.Name,Compound,复利,Blessing.Shade.Economy.Amp2 card name. <= 18 chars en / 6 zh.,
+Shade.Economy.Amp2.Desc,Payday rounds pierce every enemy.,发薪弹体穿透所有敌人。,"Blessing.Shade.Economy.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt
+Shade.Economy.Trait.Name,Audit,审计,Blessing.Shade.Economy.Trait card name. <= 18 chars en / 6 zh.,
+Shade.Economy.Trait.Desc,Payday also executes Marked enemies below {payday_execute_below_pct}% HP.,发薪时同时斩杀生命低于 {payday_execute_below_pct}% 的标记敌人。,"Blessing.Shade.Economy.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt;Status.Mark
+Shade.Economy.Tier1,A payday needs less Debt.,发薪所需债务减少。,Tier 1 line of Archetype.Shade.Economy while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Economy.Tier2,Paydays deal ×{payday_mult} more.,发薪伤害再 ×{payday_mult}。,Tier 2 line of Archetype.Shade.Economy while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Economy.Tier3,Paydays execute {payday_execute_below_pct}% more HP.,发薪斩杀线再提高 {payday_execute_below_pct}%。,Tier 3 line of Archetype.Shade.Economy while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Shade.Economy.Ult.Desc,"Intercession pays out now at ×{payday_mult}, executing below {payday_execute_below_pct}% HP.",神临立刻发薪，伤害 ×{payday_mult}，斩杀生命低于 {payday_execute_below_pct}% 的敌人。,Archetype.Shade.Economy Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Debt
+Shade.Economy.Layer.Name,Foreclose,清偿,Archetype.Shade.Economy Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Debt
+Shade.Economy.Layer.Desc,As second Keeper: Intercession adds {cast_debt} Debt.,作为第二位司者：神临增加 {cast_debt} 点债务。,Archetype.Shade.Economy Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Debt
+Radiance.Lance.Name,Lance,光矛,Archetype.Radiance.Lance display name (card binding line).,
+Radiance.Lance.Key.Name,Perfect Sight,明察,Blessing.Radiance.Lance.Key card name. <= 18 chars en / 6 zh.,
+Radiance.Lance.Key.Desc,Every {every_n}th shot of each weapon is a charged lance for ×{mult}.,每把武器每第 {every_n} 发为蓄能光矛，伤害 ×{mult}。,"Blessing.Radiance.Lance.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Charge
+Radiance.Lance.Amp1.Name,Keen Edge,锋芒,Blessing.Radiance.Lance.Amp1 card name. <= 18 chars en / 6 zh.,
+Radiance.Lance.Amp1.Desc,Charged shots gain +{charged_crit_pct}% crit chance.,蓄能弹暴击率 +{charged_crit_pct}%。,"Blessing.Radiance.Lance.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Charge
+Radiance.Lance.Amp2.Name,Focal Point,焦点,Blessing.Radiance.Lance.Amp2 card name. <= 18 chars en / 6 zh.,
+Radiance.Lance.Amp2.Desc,"Crits on one enemy stack +{focal_stack_pct}% damage, up to {focal_max} times.",连续暴击同一敌人时伤害叠加 +{focal_stack_pct}%，至多 {focal_max} 次。,"Blessing.Radiance.Lance.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Charge
+Radiance.Lance.Trait.Name,Glint,锋光,Blessing.Radiance.Lance.Trait card name. <= 18 chars en / 6 zh.,
+Radiance.Lance.Trait.Desc,Charged shots always crit.,蓄能弹必定暴击。,"Blessing.Radiance.Lance.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Charge
+Radiance.Lance.Tier1,Charged shots gain +{charged_crit_pct}% crit chance.,蓄能弹暴击率 +{charged_crit_pct}%。,Tier 1 line of Archetype.Radiance.Lance while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Lance.Tier2,Crits pulse within {crit_pulse_uu_m} m.,暴击在 {crit_pulse_uu_m} 米内迸发光脉冲。,Tier 2 line of Archetype.Radiance.Lance while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Lance.Tier3,"Crits Blind, and crit damage rises.",暴击致盲，暴击伤害提高。,Tier 3 line of Archetype.Radiance.Lance while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Lance.Ult.Desc,Intercession fires {beams} lances in turn along the densest line.,神临沿敌人最密的一线连发 {beams} 道光矛。,Archetype.Radiance.Lance Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Charge
+Radiance.Lance.Layer.Name,Ice Lens,冰透镜,Archetype.Radiance.Lance Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Charge
+Radiance.Lance.Layer.Desc,As second Keeper: during Intercession every {every_n}th shot is charged for ×{mult}.,作为第二位司者：神临时每第 {every_n} 发蓄能，伤害 ×{mult}。,Archetype.Radiance.Lance Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Charge
+Radiance.Prism.Name,Prism,棱镜,Archetype.Radiance.Prism display name (card binding line).,
+Radiance.Prism.Key.Name,Flashpoint,炫目,Blessing.Radiance.Prism.Key card name. <= 18 chars en / 6 zh.,
+Radiance.Prism.Key.Desc,+{crit_add_pct}% crit. Crits split into {children} lances for {child_dmg_pct}%. Lances never split.,暴击率 +{crit_add_pct}%。暴击裂成 {children} 道光矛，{child_dmg_pct}% 伤害，不再分裂。,"Blessing.Radiance.Prism.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.CritSplit
+Radiance.Prism.Amp1.Name,Afterimage,残像,Blessing.Radiance.Prism.Amp1 card name. <= 18 chars en / 6 zh.,
+Radiance.Prism.Amp1.Desc,Lances Blind what they hit.,光矛致盲命中目标。,"Blessing.Radiance.Prism.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Blind
+Radiance.Prism.Amp2.Name,Corona,日冕,Blessing.Radiance.Prism.Amp2 card name. <= 18 chars en / 6 zh.,
+Radiance.Prism.Amp2.Desc,Every {pulse_every} crits a pulse hits within {pulse_uu_m} m.,每 {pulse_every} 次暴击在 {pulse_uu_m} 米内迸发脉冲。,"Blessing.Radiance.Prism.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.CritSplit
+Radiance.Prism.Trait.Name,Whiteout,雪盲,Blessing.Radiance.Prism.Trait card name. <= 18 chars en / 6 zh.,
+Radiance.Prism.Trait.Desc,Blinded enemies Blind those within {blind_spread_uu_m} m on death.,被致盲的敌人死亡时致盲 {blind_spread_uu_m} 米内的敌人。,"Blessing.Radiance.Prism.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Blind
+Radiance.Prism.Tier1,Crit chance +{crit_add_pct}%.,暴击率 +{crit_add_pct}%。,Tier 1 line of Archetype.Radiance.Prism while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Prism.Tier2,Crits pulse within {crit_pulse_uu_m} m.,暴击在 {crit_pulse_uu_m} 米内迸发光脉冲。,Tier 2 line of Archetype.Radiance.Prism while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Prism.Tier3,"Crits Blind, and crit damage rises.",暴击致盲，暴击伤害提高。,Tier 3 line of Archetype.Radiance.Prism while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Prism.Ult.Desc,Intercession splits the beam into a fan of {beam_fan}.,神临光束分裂成 {beam_fan} 道扇形。,Archetype.Radiance.Prism Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.CritSplit
+Radiance.Prism.Layer.Name,Refraction,折射,Archetype.Radiance.Prism Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.CritSplit
+Radiance.Prism.Layer.Desc,"As second Keeper: during Intercession +{crit_add_pct}% crit, and crits split.",作为第二位司者：神临时暴击率 +{crit_add_pct}%，暴击分裂。,Archetype.Radiance.Prism Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.CritSplit
+Radiance.Solar.Name,Solar,烈日,Archetype.Radiance.Solar display name (card binding line).,
+Radiance.Solar.Key.Name,Radiant Burst,光爆,Blessing.Radiance.Solar.Key card name. <= 18 chars en / 6 zh.,
+Radiance.Solar.Key.Desc,Overkill damage bursts in light within {radius_uu_m} m for {dmg_pct}%.,过量伤害在 {radius_uu_m} 米内炸成光，造成其 {dmg_pct}%。,"Blessing.Radiance.Solar.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Nova
+Radiance.Solar.Amp1.Name,Wide Aperture,广角,Blessing.Radiance.Solar.Amp1 card name. <= 18 chars en / 6 zh.,
+Radiance.Solar.Amp1.Desc,Bursts reach {radius_uu_m} m farther.,光爆范围 +{radius_uu_m} 米。,"Blessing.Radiance.Solar.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Nova
+Radiance.Solar.Amp2.Name,Radiant Wake,光痕,Blessing.Radiance.Solar.Amp2 card name. <= 18 chars en / 6 zh.,
+Radiance.Solar.Amp2.Desc,Impacts leave light that burns {dps_pct}% per second for {duration_s} s.,命中点留下光痕，每秒 {dps_pct}% 伤害，持续 {duration_s} 秒。,"Blessing.Radiance.Solar.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Field
+Radiance.Solar.Trait.Name,Halo Ring,光轮,Blessing.Radiance.Solar.Trait card name. <= 18 chars en / 6 zh.,
+Radiance.Solar.Trait.Desc,Kills near you burst ×{ring_mult}. Damage to elites charges a sun every {sun_interval_s} s.,身边的击杀光爆 ×{ring_mult}。对精英的伤害每 {sun_interval_s} 秒蓄成烈日。,"Blessing.Radiance.Solar.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Nova
+Radiance.Solar.Tier1,Crit chance +{crit_add_pct}%.,暴击率 +{crit_add_pct}%。,Tier 1 line of Archetype.Radiance.Solar while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Solar.Tier2,Crits pulse within {crit_pulse_uu_m} m.,暴击在 {crit_pulse_uu_m} 米内迸发光脉冲。,Tier 2 line of Archetype.Radiance.Solar while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Solar.Tier3,"Crits Blind, and crit damage rises.",暴击致盲，暴击伤害提高。,Tier 3 line of Archetype.Radiance.Solar while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Radiance.Solar.Ult.Desc,Intercession beam bursts every {beam_nova_s} s along its length.,神临光束沿途每 {beam_nova_s} 秒炸开一次。,Archetype.Radiance.Solar Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Nova
+Radiance.Solar.Layer.Name,Stored Sky,藏天,Archetype.Radiance.Solar Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Nova
+Radiance.Solar.Layer.Desc,As second Keeper: during Intercession overkill bursts within {radius_uu_m} m.,作为第二位司者：神临时过量伤害在 {radius_uu_m} 米内炸开。,Archetype.Radiance.Solar Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Nova
+Quicksilver.Vector.Name,Vector,矢量,Archetype.Quicksilver.Vector display name (card binding line).,
+Quicksilver.Vector.Key.Name,Blink Strike,瞬击,Blessing.Quicksilver.Vector.Key card name. <= 18 chars en / 6 zh.,
+Quicksilver.Vector.Key.Desc,Dashing fires every weapon along the dash at ×{dmg_mult}. Kills refund {kill_refund_s} s of dash.,冲刺时所有武器沿线齐射，伤害 ×{dmg_mult}。击杀返还 {kill_refund_s} 秒冲刺冷却。,"Blessing.Quicksilver.Vector.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.VolleyOnDash
+Quicksilver.Vector.Amp1.Name,Light Step,换马,Blessing.Quicksilver.Vector.Amp1 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Vector.Amp1.Desc,Dash cooldown {dash_cooldown_scale_pct}%.,冲刺冷却 {dash_cooldown_scale_pct}%。,"Blessing.Quicksilver.Vector.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.VolleyOnDash
+Quicksilver.Vector.Amp2.Name,Tailwind,顺风,Blessing.Quicksilver.Vector.Amp2 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Vector.Amp2.Desc,"After a dash, fire rate ×{tailwind_rate} for {tailwind_s} s.",冲刺后 {tailwind_s} 秒内射速 ×{tailwind_rate}。,"Blessing.Quicksilver.Vector.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.VolleyOnDash
+Quicksilver.Vector.Trait.Name,Second Wind,回气,Blessing.Quicksilver.Vector.Trait card name. <= 18 chars en / 6 zh.,
+Quicksilver.Vector.Trait.Desc,Every {free_every}rd dash refills your charges.,每第 {free_every} 次冲刺填满冲刺次数。,"Blessing.Quicksilver.Vector.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.VolleyOnDash
+Quicksilver.Vector.Tier1,Tailwind fire rate rises by {tailwind_rate_pct}%.,顺风射速再 +{tailwind_rate_pct}%。,Tier 1 line of Archetype.Quicksilver.Vector while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Vector.Tier2,{dash_charges} more dash charge.,冲刺次数 +{dash_charges}。,Tier 2 line of Archetype.Quicksilver.Vector while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Vector.Tier3,Motion adds power: +{per_stack_pct}% per Momentum.,移动增加力量：每点动量 +{per_stack_pct}%。,Tier 3 line of Archetype.Quicksilver.Vector while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Vector.Ult.Desc,Intercession drops dash cooldown to {dash_cooldown_s} s.,神临把冲刺冷却降至 {dash_cooldown_s} 秒。,Archetype.Quicksilver.Vector Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.VolleyOnDash
+Quicksilver.Vector.Layer.Name,Chasing Storm,追身,Archetype.Quicksilver.Vector Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.VolleyOnDash
+Quicksilver.Vector.Layer.Desc,As second Keeper: during Intercession dashes fire your weapons.,作为第二位司者：神临时冲刺让武器齐射。,Archetype.Quicksilver.Vector Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.VolleyOnDash
+Quicksilver.Momentum.Name,Momentum,动量,Archetype.Quicksilver.Momentum display name (card binding line).,
+Quicksilver.Momentum.Key.Name,Fleet,健步,Blessing.Quicksilver.Momentum.Key card name. <= 18 chars en / 6 zh.,
+Quicksilver.Momentum.Key.Desc,"Moving builds Momentum, up to {stacks_max}. Each: +{per_stack_pct}% damage and fire rate.",移动积累动量，至多 {stacks_max} 点。每点伤害和射速 +{per_stack_pct}%。,"Blessing.Quicksilver.Momentum.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.SpeedScale
+Quicksilver.Momentum.Amp1.Name,Drafting,借势,Blessing.Quicksilver.Momentum.Amp1 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Momentum.Amp1.Desc,Dashing adds {dash_stacks} more Momentum. Momentum fades slower.,冲刺多加 {dash_stacks} 点动量。动量消退得更慢。,"Blessing.Quicksilver.Momentum.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.SpeedScale
+Quicksilver.Momentum.Amp2.Name,Wayfare,驿程,Blessing.Quicksilver.Momentum.Amp2 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Momentum.Amp2.Desc,"Every {wave_every_uu_m} m you move, a wave hits within {wave_uu_m} m.",每移动 {wave_every_uu_m} 米，在 {wave_uu_m} 米内释放气浪。,"Blessing.Quicksilver.Momentum.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.SpeedScale
+Quicksilver.Momentum.Trait.Name,Terminal Velocity,极速,Blessing.Quicksilver.Momentum.Trait card name. <= 18 chars en / 6 zh.,
+Quicksilver.Momentum.Trait.Desc,"At full Momentum, rounds pierce {max_pierce} more and echo once.",动量满时弹体多穿透 {max_pierce} 个并回响一次。,"Blessing.Quicksilver.Momentum.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.SpeedScale;Flag.Echo
+Quicksilver.Momentum.Tier1,Each Momentum gives +{per_stack_pct}% more.,每点动量再 +{per_stack_pct}%。,Tier 1 line of Archetype.Quicksilver.Momentum while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Momentum.Tier2,{dash_charges} more dash charge.,冲刺次数 +{dash_charges}。,Tier 2 line of Archetype.Quicksilver.Momentum while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Momentum.Tier3,Each Momentum gives +{per_stack_pct}% more.,每点动量再 +{per_stack_pct}%。,Tier 3 line of Archetype.Quicksilver.Momentum while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Momentum.Ult.Desc,Intercession sets {grant_stacks} Momentum and holds it; moving releases waves.,神临把动量设为 {grant_stacks} 并保持；移动时释放气浪。,Archetype.Quicksilver.Momentum Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.SpeedScale
+Quicksilver.Momentum.Layer.Name,Walking Anvil,行砧,Archetype.Quicksilver.Momentum Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.SpeedScale
+Quicksilver.Momentum.Layer.Desc,As second Keeper: Intercession grants {grant_stacks} Momentum.,作为第二位司者：神临给予 {grant_stacks} 点动量。,Archetype.Quicksilver.Momentum Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.SpeedScale
+Quicksilver.Rebound.Name,Rebound,弹射,Archetype.Quicksilver.Rebound display name (card binding line).,
+Quicksilver.Rebound.Key.Name,Slipstream,尾流,Blessing.Quicksilver.Rebound.Key card name. <= 18 chars en / 6 zh.,
+Quicksilver.Rebound.Key.Desc,"Rounds ricochet {bounces} more time and find a new target, or return to the last.",子弹多弹射 {bounces} 次，寻找新目标，或回到上一个目标。,"Blessing.Quicksilver.Rebound.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Ricochet
+Quicksilver.Rebound.Amp1.Name,Bank Shot,斜击,Blessing.Quicksilver.Rebound.Amp1 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Rebound.Amp1.Desc,Rounds ricochet {bounces} more time.,子弹多弹射 {bounces} 次。,"Blessing.Quicksilver.Rebound.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Ricochet
+Quicksilver.Rebound.Amp2.Name,Carom,连弹,Blessing.Quicksilver.Rebound.Amp2 card name. <= 18 chars en / 6 zh.,
+Quicksilver.Rebound.Amp2.Desc,Each bounce deals +{bounce_dmg_pct}% more.,每次弹射伤害 +{bounce_dmg_pct}%。,"Blessing.Quicksilver.Rebound.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Ricochet
+Quicksilver.Rebound.Trait.Name,Relay Chain,接力,Blessing.Quicksilver.Rebound.Trait card name. <= 18 chars en / 6 zh.,
+Quicksilver.Rebound.Trait.Desc,A bounce that kills fires a free round at the next enemy.,弹射击杀时向下一个敌人免费射出一发。,"Blessing.Quicksilver.Rebound.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Ricochet
+Quicksilver.Rebound.Tier1,Bounces reach {seek_range_uu_m} m farther.,弹射距离 +{seek_range_uu_m} 米。,Tier 1 line of Archetype.Quicksilver.Rebound while it leads (R-KEE-07); args are expression.csv Tier1 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Rebound.Tier2,{dash_charges} more dash charge.,冲刺次数 +{dash_charges}。,Tier 2 line of Archetype.Quicksilver.Rebound while it leads (R-KEE-07); args are expression.csv Tier2 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Rebound.Tier3,Motion adds power: +{per_stack_pct}% per Momentum.,移动增加力量：每点动量 +{per_stack_pct}%。,Tier 3 line of Archetype.Quicksilver.Rebound while it leads (R-KEE-07); args are expression.csv Tier3 parameters. <= 12 words en / 20 chars zh (R-KEE-08).,
+Quicksilver.Rebound.Ult.Desc,"Intercession rounds ricochet {bounces} times, seeking.",神临时子弹弹射 {bounces} 次并追踪。,Archetype.Quicksilver.Rebound Intercession variant (IntercessionVariant column). <= 90 en / 40 zh.,Flag.Ricochet
+Quicksilver.Rebound.Layer.Name,Rebound Rail,回弹,Archetype.Quicksilver.Rebound Intercession layer name (SecondKeeperLayer column) as the second Keeper. <= 18 chars en / 6 zh.,Flag.Ricochet
+Quicksilver.Rebound.Layer.Desc,As second Keeper: during Intercession rounds ricochet {bounces} times.,作为第二位司者：神临时子弹弹射 {bounces} 次。,Archetype.Quicksilver.Rebound Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Ricochet

@@ -98,6 +98,8 @@ namespace DTTelNames
 		case EDTStatus::Shock: return TEXT("Shock");
 		case EDTStatus::Burn: return TEXT("Burn");
 		case EDTStatus::Chill: return TEXT("Chill");
+		case EDTStatus::Mark: return TEXT("Mark");
+		case EDTStatus::Blind: return TEXT("Blind");
 		default: return TEXT("Freeze");
 		}
 	}

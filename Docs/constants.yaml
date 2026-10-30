@@ -215,6 +215,20 @@ keepers:
   INTERCESSION.TIDE_RADIUS_UU: { value: 2000, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.TIDE_FREEZE_S:  { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.RETUNE_STEP_MAX: { value: 2.0, unit: x,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-15] }
+  STATUS.MARK_S:               { value: 5.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-24, T-KEE-24] }
+  STATUS.BLIND_S:              { value: 0.3, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-25, T-KEE-25] }
+  KEEPER.SEEK_FALLBACK_DMG:    { value: 0.25, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-26, T-KEE-26] }
+  KEEPER.RICOCHET_FALLBACK_RATE:{ value: 0.15, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-34, T-KEE-34] }
+  INTERCESSION.SHADE_DURATION_S:{ value: 6.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.SHADE_TURN_DEG_S:{ value: 90, unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.SHADE_EXECUTE_BELOW:{ value: 0.3, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_CHARGE_S:{ value: 0.5, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_BEAM_S:{ value: 2.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_BEAM_TICK_S:{ value: 0.1, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_BEAM_WIDTH_UU:{ value: 120, unit: uu, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_BEAM_DMG:{ value: 0.5, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.RADIANCE_FAN_DEG:{ value: 60, unit: deg, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
+  INTERCESSION.QUICKSILVER_DURATION_S:{ value: 4.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
 
 offers:
   OFFER.KEYWORD_NOTES_MAX:     { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, R-OFF-13, T-OFF-17] }

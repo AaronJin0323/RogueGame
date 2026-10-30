@@ -177,6 +177,13 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 			Pool.Unlocked.Add(DTWeapons::ModifierId(Mod));
 		}
 	}
+	for (const EDTPath Path : DTOffers::AllKeepers())
+	{
+		if (Weapons->IsInPool(DTOffers::KeeperId(Path)) && !DTOffers::RunKeepers().Contains(Path))
+		{
+			Pool.Unlocked.Add(DTOffers::KeeperId(Path));
+		}
+	}
 	// Sockets are checked against the caps the weapon expresses now (conversions included), as UDTWeaponSubsystem::Socket does.
 	for (int32 Slot = 0; Slot < Run->GetPlayer(OwnerId).Weapons.Num(); ++Slot)
 	{

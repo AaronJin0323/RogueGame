@@ -17,3 +17,5 @@ Flag.SpeedScale,native,native,native,native,native,native,native,none,none,none,
 Flag.Ricochet,native,fallback:+pierce,fallback:+orbit speed,fallback:+sweep speed,fallback:the shell bounces once before bursting,fallback:the mine hops once to the next cluster,native,native,none,none,none,none
 Flag.Chain,native,native,native,native,native,native,native,none,none,none,none,none
 Flag.StatusApply,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Debt,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.CritSplit,native,native,native,native,native,native,native,none,none,none,none,none

@@ -62,6 +62,8 @@ public:
 	void Heal(int32 OwnerId, float Amount);
 	/** Slam's dash_cooldown_reset (keepers.md): every dash charge back, the refill timer cleared. */
 	void RefillDash(int32 OwnerId);
+	/** Takes Seconds off the running dash refill (keepers.md R-KEE-34). */
+	void RefundDash(int32 OwnerId, float Seconds);
 
 	/** Debug (DT.God): every hit is discarded. */
 	void SetNoDamage(bool bInNoDamage) { bNoDamage = bInNoDamage; }
