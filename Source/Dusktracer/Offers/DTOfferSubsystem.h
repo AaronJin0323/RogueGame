@@ -10,7 +10,9 @@
 //   - The run-start Patron hand is queued for every player without a Patron; the world is paused from OnWorldBeginPlay,
 //     so it opens before the first sim step (D-013, R-OFF-08).
 //   - While any hand is open the game is paused through AGameModeBase::SetPause with a CanUnpause guard (the pause
-//     menu cannot unpause an open hand); the sim's tickable stops at a step boundary.
+//     menu cannot unpause an open hand). A hand that becomes pending inside a step requests the sim pause at that step's
+//     end (UDTSimSubsystem::OnStepEnd -> RequestPause), so no later step of the same frame runs before the hand opens;
+//     the request is cleared once no hand is open or pending.
 //   - dt.Offer.AutoPick (default -1 = on when the process runs -unattended, e.g. Tools/Smoke.ps1 and Perf.ps1; 0 off;
 //     1 on; also -DTOfferAutoPick) picks slot 0 of every hand at once, so unattended runs never wait on a hand.
 //
@@ -109,11 +111,15 @@ private:
 	void HandleLocalInput();
 	void SetPaused(bool bWanted);
 	bool CanUnpause() const;
+	/** UDTSimSubsystem::OnStepEnd: requests the sim pause when any player has a hand pending (07_Technical R-TEC-14). */
+	void HandleStepEnd();
+	bool IsAnyHandPending() const;
 	void SetCursor(bool bShow);
 
 	TArray<FPlayerFlow> Flows;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
 	int64 LastStep = -1;
+	FDelegateHandle StepEndHandle;
 	bool bPausedByOffers = false;
 	bool bCursorShown = false;
 	bool bCursorWasShown = false;

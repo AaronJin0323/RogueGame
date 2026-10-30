@@ -31,6 +31,7 @@ The run ends in one fight of pure pattern reading: telegraphed charges, then bul
 | HP formula | C.BOSS.HP_BASE, C.BOSS.CALIBRATE_S, C.BOSS.TARGET_FIGHT_S, C.BOSS.HP_MIN_MULT, C.BOSS.HP_MAX_MULT | GATED(S1) | R-BOS-09, T-BOS-09 |
 | Telegraph lead | C.ENEMIES.TELEGRAPH_LEAD_MIN_S | GATED(S1) | R-BOS-05 |
 | Boss Chill cap | C.STATUS.BOSS_CHILL_STACK_MAX | GATED(S1) | R-BOS-11 |
+| Form I behaviour (from the catalogue notes; walk speed and round life ours) | C.BOSS.WALK_SPEED_UU_S, C.BOSS.OPENING_WALK_S, C.BOSS.CHARGE_RECOVER_S, C.BOSS.STANDOFF_HULL_RADII, C.BOSS.SWEEP_RANGE_UU, C.BOSS.SPIRAL_LANE_RATE_RATIO, C.BOSS.ADDS_ALIVE_MAX, C.BOSS.HAZARD_MIN_RADIUS_UU, C.BOSS.HAZARD_GRACE_S, C.BOSS.ROUND_LIFE_S | GATED(S1) | R-BOS-02, R-BOS-03, R-BOS-07, R-BOS-10, T-BOS-08 |
 
 Per-phase and per-attack numbers (thresholds, latest starts, wind-ups, intervals, slots, speeds, damage, extents) are rows of `09_Catalog/boss_warden.csv`, not prose.
 
@@ -55,18 +56,19 @@ Phase table (form I; numbers in `09_Catalog/boss_warden.csv`):
 Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` jumps, `DT.Boss.Stats` logs phase, effective HP and attack counts.
 
 ## Acceptance
-- T-BOS-01 PLANNED(S1) `Dusktracer.Boss.FormByWins`: wins below, at and above each threshold pick the right form; Heat never changes it; a form without rows plays form I and is counted.
-- T-BOS-02 PLANNED(S1) `Dusktracer.Boss.Identify`: the signature attack fires within the identification window from fight start in every phase-I opening the seed set produces.
-- T-BOS-03 PLANNED(S1) `Dusktracer.Boss.HullInPool`: the hull is one pool slot with no actor; bullets damage it; its death is one kill to the killing owner; it stays inside the hazard ring.
-- T-BOS-04 PLANNED(S1) `Dusktracer.Boss.Phases`: thresholds and latest starts advance phases in order, never back; a burst through two thresholds reports both; no attack starts during a shift.
-- T-BOS-05 PLANNED(S1) `Dusktracer.Boss.Telegraphs`: every attack row in `boss_warden.csv` names a telegraph; every attack shows it at least the minimum lead before damage with a matching footprint.
-- T-BOS-06 PLANNED(S1) `Dusktracer.Boss.RingSlots`: a ring spawns its count of rounds at equal angles minus its lane; two runs with the same seed and inputs give the same slots.
-- T-BOS-07 PLANNED(S1) `Dusktracer.Boss.DodgeLane`: for every ring and spiral the free chord at the measure distance is at least the lane width, the lane is within the bearing limit of the target hero, and the telegraph gap matches it.
-- T-BOS-08 PLANNED(S1) `Dusktracer.Boss.NoSafeSpot`: a stationary hero at any bearing and distance inside the arena is hit by a crossing pair; the crossing lane's offset is within its range.
-- T-BOS-09 PLANNED(S1) `Dusktracer.Boss.Calibrate`: with a constant incoming DPS the effective max equals the formula; very low and very high DPS clamp; dealt damage carries over; calibration happens once.
-- T-BOS-10 PLANNED(S1) `Dusktracer.Boss.FightBound`: with zero incoming damage every phase starts before `C.RUN.BOSS_MAX` and the hazard ring is at its minimum then.
-- T-BOS-11 PLANNED(S1) `Dusktracer.Boss.Statuses`: Freeze refused; Chill stops at its cap; Shock and Burn apply.
-- T-BOS-12 PLANNED(S1) `Dusktracer.Boss.Determinism`: same seed and scripted hero give bit-identical boss positions, rounds and HP.
+- T-BOS-01 `Dusktracer.Boss.FormByWins`: wins below, at and above each threshold pick the right form; Heat never changes it; a form without rows plays form I and is counted.
+- T-BOS-02 `Dusktracer.Boss.Identify`: the signature attack fires within the identification window from fight start in every phase-I opening the seed set produces.
+- T-BOS-03 `Dusktracer.Boss.HullInPool`: the hull is one pool slot with no actor; bullets damage it; its death is one kill to the killing owner; it stays inside the hazard ring.
+- T-BOS-04 `Dusktracer.Boss.Phases`: thresholds and latest starts advance phases in order, never back; a burst through two thresholds reports both; no attack starts during a shift.
+- T-BOS-05 `Dusktracer.Boss.Telegraphs`: every attack row in `boss_warden.csv` names a telegraph; every attack shows it at least the minimum lead before damage with a matching footprint.
+- T-BOS-06 `Dusktracer.Boss.RingSlots`: a ring spawns its count of rounds at equal angles minus its lane; two runs with the same seed and inputs give the same slots.
+- T-BOS-07 `Dusktracer.Boss.DodgeLane`: for every ring and spiral the free chord at the measure distance is at least the lane width, the lane is within the bearing limit of the target hero, and the telegraph gap matches it.
+- T-BOS-08 `Dusktracer.Boss.NoSafeSpot`: a stationary hero at any bearing and distance inside the arena is hit by a crossing pair; the crossing lane's offset is within its range.
+- T-BOS-09 `Dusktracer.Boss.Calibrate`: with a constant incoming DPS the effective max equals the formula; very low and very high DPS clamp; dealt damage carries over; calibration happens once.
+- T-BOS-10 `Dusktracer.Boss.FightBound`: with zero incoming damage every phase starts before `C.RUN.BOSS_MAX` and the hazard ring is at its minimum then.
+- T-BOS-11 `Dusktracer.Boss.Statuses`: Freeze refused; Chill stops at its cap; Shock and Burn apply.
+- T-BOS-12 `Dusktracer.Boss.Determinism`: same seed and scripted hero give bit-identical boss positions, rounds and HP.
+- Also `Dusktracer.Boss.FullFight` (a headless fight at a fixed DPS: calibrated HP within the clamp, phases in order, every ring's lane at least the rule, the fight ends before `C.RUN.BOSS_MAX`, same seed same fight) and `Dusktracer.Boss.World` (the boss steps after the enemy pool in a game world; its telegraphs are published).
 - HUMAN: a validator who has never seen the Warden names its phase-II and phase-III skill checks after one fight, says every ring had a way through, and does not describe the fight as a damage sponge.
 
 ## Telemetry
@@ -86,3 +88,11 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 - The boss kills too few players in the reference (every build that reached it won) → first S1 sessions set the target share of boss deaths; tune ring interval and damage rows, never HP.
 - Two heroes: the lane follows one target hero → co-op rule when `coop.md` is written.
 - `C.BOSS.HP_BASE` is the reference project's value, not ours → re-measured from S1 bot fights once weapons land.
+- Built (S1): ring slots put `slot 0` exactly on the target hero's position at telegraph time (the slot phase is the target bearing); a first ring's lane takes a grid position inside the bearing limit chosen by a hash of the fight step (pure, R-BOS-06); the Boss stream draws only the crossing offset and the adds' angles. The first ring of a pair comes from one shoulder head, its crossing ring from the other.
+- R-BOS-07 versus R-BOS-08: the crossing ring's lane is placed from the first ring's lane, so it is never within `C.BOSS.LANE_BEARING_MAX_DEG` of a hero standing in the first lane; the code applies the bearing limit to first rings and spirals only → reword R-BOS-07 to say so.
+- T-BOS-08 holds because `slot 0` of every crossing ring flies at the target; "any distance" is bounded by the round range (`C.BOSS.ROUND_LIFE_S` times the ring speed), which covers the hazard arena; tested on eight bearings at three distances.
+- The behaviour numbers of the catalogue `notes` column (doc-only, D-014) became `C.BOSS.*` constants; `C.BOSS.WALK_SPEED_UU_S` and `C.BOSS.ROUND_LIFE_S` are ours and unmeasured → first S1 sessions.
+- Text: the boss name is `ST_UI` `Hud.BossName` (HUD text) until an `ST_Enemies` table exists → move it to `Enemy.Boss.Name` then.
+- `boss_end` `damage_taken_by_attack` sums `FDTHeroHit` damage before the hero's own reductions (the boss cannot see them).
+- The hazard ring is centred on the arena centre; a phase change does not cancel attacks already telegraphed, and a crossing ring completes its pair through a shift.
+- Run end on the boss's death: `UDTBossSubsystem` logs `Run end reason=victory`, broadcasts `OnBossDefeated` and ends the telemetry session; `ADTGameMode` (run over) and `ADTHUD` (`DrawBossBar`) hook it. Wins come from the meta save (S3), zero until then.

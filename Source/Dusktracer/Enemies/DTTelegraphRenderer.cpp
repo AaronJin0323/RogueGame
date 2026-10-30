@@ -29,6 +29,16 @@ namespace DTTelegraphRender
 		const float Degrees = FMath::Clamp(T.Width, 0.0f, 360.0f);
 		return FMath::Max(1, FMath::CeilToInt32(ADTTelegraphRenderer::RingSegments * Degrees / 360.0f));
 	}
+
+	static bool IsLaneShape(const FDTTelegraph& T) { return T.Shape == EDTTelegraphShape::RingGap || T.Shape == EDTTelegraphShape::SpiralLane; }
+
+	/** Degrees a lane shape draws: the full turn minus its lane. */
+	static float LaneShapeSpan(const FDTTelegraph& T) { return 360.0f - FMath::Clamp(T.Width, 0.0f, 360.0f); }
+
+	static int32 LaneShapeSegments(const FDTTelegraph& T)
+	{
+		return FMath::Max(1, FMath::CeilToInt32(ADTTelegraphRenderer::RingSegments * LaneShapeSpan(T) / 360.0f));
+	}
 }
 
 ADTTelegraphRenderer::ADTTelegraphRenderer()
@@ -94,6 +104,11 @@ int32 ADTTelegraphRenderer::InstancesFor(const FDTTelegraph& Telegraph)
 		return RingSegments;
 	case EDTTelegraphShape::Arc:
 		return DTTelegraphRender::ArcSegments(Telegraph);
+	case EDTTelegraphShape::RingGap:
+	case EDTTelegraphShape::SpiralLane:
+		return DTTelegraphRender::LaneShapeSegments(Telegraph);
+	case EDTTelegraphShape::HazardRing:
+		return RingSegments;
 	default: // Band, AimLine
 		return 1;
 	}
@@ -107,6 +122,39 @@ void ADTTelegraphRenderer::AppendTransforms(const FDTTelegraph& T, float MeshSiz
 	{
 		// The charge corridor or the aim line: from the origin along the direction, its full length and width.
 		Out.Add(Quad(T.Origin + Dir * (0.5f * T.Length), Dir, T.Length, T.Width, MeshSize, Z));
+		return;
+	}
+
+	if (IsLaneShape(T))
+	{
+		// The disc minus the lane: filled sectors from the far edge of the lane round to its near edge.
+		const int32 Segments = InstancesFor(T);
+		const float Span = FMath::DegreesToRadians(LaneShapeSpan(T));
+		const float Step = Span / static_cast<float>(Segments);
+		const float Tangent = 2.0f * T.Length * FMath::Tan(0.5f * Step);
+		const float Start = FMath::Atan2(Dir.Y, Dir.X) + 0.5f * FMath::DegreesToRadians(FMath::Clamp(T.Width, 0.0f, 360.0f));
+		for (int32 Segment = 0; Segment < Segments; ++Segment)
+		{
+			const float Angle = Start + (static_cast<float>(Segment) + 0.5f) * Step;
+			const FVector2f Radial(FMath::Cos(Angle), FMath::Sin(Angle));
+			Out.Add(Quad(T.Origin + Radial * (0.5f * T.Length), Radial, T.Length, Tangent, MeshSize, Z));
+		}
+		return;
+	}
+	if (T.Shape == EDTTelegraphShape::HazardRing)
+	{
+		// Outside the circle: each quad runs from the circle (its inner edge tangent to it, so nothing is drawn inside)
+		// out past the arena corners, as wide as the outer rim's tangent so neighbours meet.
+		const float Outer = FMath::Max(T.Length, static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU) * UE_SQRT_2);
+		const float Thickness = Outer - T.Length;
+		const float Step = UE_TWO_PI / static_cast<float>(RingSegments);
+		const float Tangent = 2.0f * Outer * FMath::Tan(0.5f * Step);
+		for (int32 Segment = 0; Segment < RingSegments; ++Segment)
+		{
+			const float Angle = (static_cast<float>(Segment) + 0.5f) * Step;
+			const FVector2f Radial(FMath::Cos(Angle), FMath::Sin(Angle));
+			Out.Add(Quad(T.Origin + Radial * (T.Length + 0.5f * Thickness), Radial, Thickness, Tangent, MeshSize, Z));
+		}
 		return;
 	}
 

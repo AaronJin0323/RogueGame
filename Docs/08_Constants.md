@@ -331,6 +331,16 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.BOSS.TARGET_FIGHT_S | 80 | s | GATED(S1) | boss.md, R-BOS-09, R-BOS-10, C.RUN.BOSS_MAX |
 | C.BOSS.HP_MIN_MULT | 0.6 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
 | C.BOSS.HP_MAX_MULT | 4.0 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
+| C.BOSS.WALK_SPEED_UU_S | 260 | uu/s | GATED(S1) | boss.md, R-BOS-03 |
+| C.BOSS.OPENING_WALK_S | 1.2 | s | GATED(S1) | boss.md, boss_warden.csv, R-BOS-02, T-BOS-02 |
+| C.BOSS.CHARGE_RECOVER_S | 0.9 | s | GATED(S1) | boss.md, boss_warden.csv |
+| C.BOSS.STANDOFF_HULL_RADII | 2.6 | ratio | GATED(S1) | boss.md, boss_warden.csv, R-BOS-03 |
+| C.BOSS.SWEEP_RANGE_UU | 900 | uu | GATED(S1) | boss.md, boss_warden.csv |
+| C.BOSS.SPIRAL_LANE_RATE_RATIO | 0.25 | ratio | GATED(S1) | boss.md, boss_warden.csv, R-BOS-07 |
+| C.BOSS.ADDS_ALIVE_MAX | 4 | n | GATED(S1) | boss.md, boss_warden.csv |
+| C.BOSS.HAZARD_MIN_RADIUS_UU | 1300 | uu | GATED(S1) | boss.md, boss_warden.csv, R-BOS-10, T-BOS-10 |
+| C.BOSS.HAZARD_GRACE_S | 0.25 | s | GATED(S1) | boss.md, boss_warden.csv |
+| C.BOSS.ROUND_LIFE_S | 9.0 | s | GATED(S1) | boss.md, R-BOS-05, T-BOS-08 |
 
 ## Weapons and modifiers (02_Systems/weapons.md, modifiers.md)
 

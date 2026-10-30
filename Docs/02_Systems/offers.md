@@ -119,7 +119,6 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 - Co-op hands (non-pausing slow time, auto-pick): the co-op release (D-004); the state is already per player.
 
 ## Open
-- The pause stops the sim at the frame boundary after a hand is queued (`AGameModeBase::SetPause` with a guard the pause menu cannot clear); when a frame runs more than one fixed step, the steps after the level-up step still run before the hand opens → smallest fix: a pause request on `UDTSimSubsystem` checked between steps in `StepNow` (Core change, not made by the offers package).
 - `Reserve.Restore` and `Reserve.Salvage` are logged no-ops until the hero has a heal entry point and progression has a pickup-radius stat; `Reserve.Hone` writes `FDTWeaponHeroStats` directly until `FDTStatSet` owns the damage slice.
 - Unattended runs (`-unattended`, `dt.Offer.AutoPick`) take the first card of every hand, so smoke and perf runs never wait on a hand; the run-start Patron is then the first Keeper in Path order.
 - Weight values come from a 20-minute run with more content → re-tuned from bot telemetry once the S1 pool exists (`10_Tuning`).
