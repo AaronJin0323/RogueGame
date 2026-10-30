@@ -1,9 +1,11 @@
 # Smoke test (gate step `smoke`, 11_Quality s1): a rendered run on the stress arena, judged from its log and a screenshot.
 #   & Tools\Smoke.ps1 [-Culture en|zh-Hans] [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-Seconds <s>] [-Name arena_empty]
-#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Update]
+#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update]
 # Launches the game (UnrealEditor -game, 1280x720 window) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
+# The run director is off (-DTNoDirector, director.md) so the goldens stay deterministic; -Director turns it on (pair it
+# with a -Name that has no golden, e.g. -Director -Seconds 60 -Name arena_director: the image check then fails by design).
 # Verdict: no crash, no ensure, no Error/Fatal line from LogDT, "Run start" seen, the drawn Test.LocRoundTrip equals
 # ST_UI.csv for the culture, screenshot present, and
 # Tools/image_check.py PASS against Docs/Validation/goldens/<Name>_<Culture>.png (-Update re-baselines the golden).
@@ -16,6 +18,7 @@ param(
 	[string]$Name = "arena_empty",
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[int]$LoadTimeout = 900,  # the first launch after render changes compiles shaders
+	[switch]$Director,
 	[switch]$Update
 )
 
@@ -56,6 +59,7 @@ if (Test-Path $Log) { Remove-Item $Log -Force }
 if (Test-Path $Shot) { Remove-Item $Shot -Force }
 $ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-ResX=1280", "-ResY=720", "-LiveCoding=false", "-nosplash",
 	"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))
+if (-not $Director) { $ArgList += "-DTNoDirector" }
 if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
 $Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru
 Write-Host ("smoke: {0} culture={1} cmds='{2}' shot after {3} s (PID {4})" -f $Map, $Culture, $Cmds, $Seconds, $Proc.Id)

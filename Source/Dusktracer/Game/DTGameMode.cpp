@@ -1,6 +1,7 @@
 #include "Game/DTGameMode.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
+#include "Director/DTDirector.h"
 #include "Dusktracer.h"
 #include "Engine/World.h"
 #include "Game/DTCameraPawn.h"
@@ -56,6 +57,10 @@ void ADTGameMode::BeginPlay()
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld->GetSubsystem<UDTTelemetrySubsystem>())
 	{
 		Telemetry->StartSession(Seed, Sim->GetRun().GetNumPlayers());
+	}
+	if (UDTDirector* const Director = MyWorld->GetSubsystem<UDTDirector>())
+	{
+		Director->StartRun(); // director.md R-DIR-03: the timeline runs from run start (-DTNoDirector: off)
 	}
 	if (UDTHeroSubsystem* const Hero = MyWorld->GetSubsystem<UDTHeroSubsystem>())
 	{
