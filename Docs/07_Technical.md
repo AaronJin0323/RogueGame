@@ -21,7 +21,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 - **R-TEC-01** Run state is per player. Everything a run owns (weapons, blessings, favour, offer state, XP) lives in `FDTPlayerRunState`, indexed by player; there is no single-player shortcut. Every hit, kill and pickup event carries an `OwnerId`.
   - T-TEC-01 `Dusktracer.Tec.RunState.PerPlayer`: two players' states are independent; events route to their owner.
-- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot, Director; new streams are appended so existing seeds never change) derived from the run seed. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
+- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot, Director; new streams are appended so existing seeds never change) derived from the run seed. S1 users: Spawn (enemies), Offer (offers, per player), Combat (weapon crits in Weapons, Keeper procs in Effects, in phase order), Boss, Director. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
   - T-TEC-02 `Dusktracer.Tec.Rng.Streams`: same seed → same sequences; streams are independent; different seeds differ.
 - **R-TEC-03** The whole simulation (hero, enemies, bullets, director, bot) advances in fixed steps of `1 / C.SIM.FIXED_HZ` from an accumulator, at most `C.SIM.MAX_SUBSTEPS` per frame. Time beyond that cap is dropped and counted (a hitch slows the game instead of spiralling); the leftover fraction of a step is carried, and rendering interpolates with it.
   - T-TEC-03 `Dusktracer.Tec.FixedStep.Accumulator`: step counts and remainder for slow, exact, fast and hitching frames.
@@ -46,7 +46,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 - **R-TEC-13** Proximity queries go through `FDTSpatialHash` (uniform grid of `C.HASH.CELL_UU` over `±C.ARENA.HALF_EXTENT_UU`, rebuilt every step by counting sort); a query never misses a point inside its circle, and points outside the arena clamp into edge cells.
   - T-TEC-13 `Dusktracer.Tec.SpatialHash.Query`: brute-force oracle over random points, including points outside the arena.
-- **R-TEC-14** Gameplay systems never tick themselves: they implement `IDTSimSystem` and register with `UDTSimSubsystem` for one `EDTSimPhase`; within a step, phases run in enum order. Systems exchange data only through `FDTWorldView` (enemy positions and hash, hits, hero positions; from S1 also hero hits, hero aim directions and drop-in markers — `combat_core.md`, `director.md`).
+- **R-TEC-14** Gameplay systems never tick themselves: they implement `IDTSimSystem` and register with `UDTSimSubsystem` for one `EDTSimPhase` (`Input Hero Enemies Weapons Bullets ResolveHits Effects Pickups Director`); within a step, phases run in enum order. Systems exchange data only through `FDTWorldView`, whose fields, writers, readers and shared structs are listed once in §4; a spec names a field and cites §4, never redefines it. A pause (an open hand in solo, the pause menu) stops the accumulator at a step boundary: no phase runs and sim time does not pass.
   - T-TEC-14 `Dusktracer.Tec.Sim.PhaseOrder`: phase order beats registration order; unregistered systems stop.
 
 ## 3. Folders and naming
@@ -84,7 +84,27 @@ World
   UDTEffectManager      batched hook dispatch (OnHit/OnKill/OnDash/OnLevel/OnStep), every event with OwnerId
   UDTOfferGenerator     five-card offers per player
 ```
-Step order (one fixed step): input → hero → enemies (hash rebuild, steer, statuses) → weapons fire → bullets (integrate, collide → hit buffer) → resolve hits → kill buffer → effects → director. Rendering reads the last two steps and interpolates.
+Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) → **Hero** (reads last step's `HeroHits`, moves, dashes, aims) → **Enemies** (applies queued spawns, `StatusApplies` and `Displacements`; statuses tick (Burn appends hits); role machines and movement; publish and hash rebuild; enemy fire and contact append `HeroHits`; boss) → **Weapons** (fire: rounds, arc and mine hits, mine displacements) → **Bullets** (integrate, collide → `Hits`) → **ResolveHits** (apply `Hits`, emit `Hit`/`Kill`, fill `Kills`, compact, republish) → **Effects** (`UDTEffectManager` hooks: Keeper flags, modifiers, enchantment procs, Intercession) → **Pickups** (gems and chests, XP, level-ups) → **Director** (pacing, drops, markers; telemetry closes the step). Hits appended after `ResolveHits` (Effects) resolve in the next step's `ResolveHits`. Rendering reads the last two steps and interpolates.
+
+`FDTWorldView` (R-TEC-14; S0 fields kept, S1 fields added). "Next" = consumed in the next step.
+
+| Field | Written by (phase) | Read by | Cleared |
+|---|---|---|---|
+| `HeroPositions`, `HeroAimDirs`, `HeroIntangible` | hero (Hero) | all; weapons; enemy fire | overwritten each step |
+| `HeroHits` (`FDTHeroHit[]`) | enemies: contact, enemy rounds; boss hazards (Enemies) | hero, next step | by the hero after reading |
+| `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
+| `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
+| `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends) | at the next `ResolveHits` |
+| `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step | after applying |
+| `Displacements` (`FDTDisplacement[]`) | weapons (mine pull), effects (`Flag.Pull`/`Push`, `Mod.Backwash`, Intercession) | enemies, next step, before movement | after applying |
+| `Telegraphs` (`FDTTelegraph[]`, `enemies.md`) | enemies, boss | render | overwritten |
+| `DropInMarkers` (`FDTDropInMarker[]`), `bThreatBlock` | director (Director) | render; enemies next step (aim tokens) | overwritten |
+
+Shared structs (`Core/DTSimTypes.h`); an enemy is named across steps by `Serial` (`enemies.md` R-ENM-23), within the step by index:
+- `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce}`: `Damage` is final (crit, load and stats applied by the emitter); `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits.
+- `FDTHeroHit{PlayerId Damage Kind(Contact Bullet Hazard) SourceRole AttackId EnemySerial Position}`: damage already scaled by the enemy's `DmgScale`.
+- `FDTKill{EnemySerial Role Position OwnerId SourceId WeaponSlot bElite bDirector BeatId}`.
+- `FDTDisplacement{EnemyIndex EnemySerial Delta OwnerId}`: a stale serial is ignored; the boss hull ignores every displacement (`boss.md`).
 
 ## 5. Budgets
 Frame and thread budgets are `C.BUDGET.*`; caps are `C.BULLETS.CAP` and `C.ENEMIES.CAP`. Measurement rules are `11_Quality §5`. Hardware: 4070-class PC (Epic), 3060-class tier, Steam Deck tier at 1.0; M2 MacBook Air when D-007 is reopened. Until a 4070 is available, GPU readings from the RTX 4080 measurement machine are multiplied by `C.PERF.GPU_PROXY_4080_TO_4070` before they are judged (D-011); real 4070 and 3060-class readings replace the proxy before S4 exits.

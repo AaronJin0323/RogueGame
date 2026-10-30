@@ -3,3 +3,7 @@ date,constant,from,to,evidence,hypothesis_or_decision,remeasure_job,result
 2026-10-28,C.GATE.TEST_FLOOR,4,6,[M],11_Quality §1 (floor rises with the suite),Gate.ps1 tests,met
 2026-10-30,C.GATE.TEST_FLOOR,6,21,[M],11_Quality §1 (floor rises with the suite),Gate.ps1 tests,met
 2026-10-30,C.GATE.TEST_FLOOR,21,30,[M],11_Quality §1 (floor rises with the suite),Gate.ps1 tests,met
+2026-10-30,C.STATUS.SHOCK_S,3.0,2.0,[G],S1 integration: one status owner (enemies.md); keeper_identity_spec value (was C.ENCHANT.SHOCK_DURATION_S) kept,S1 bot ablation + O-008 sessions,pending
+2026-10-30,C.STATUS.BURN_S,4.0,3.0,[G],S1 integration: Burn stacks as keepers.md and expression.csv need; keeper_identity_spec value kept,S1 bot ablation + O-008 sessions,pending
+2026-10-30,C.STATUS.CHILL_S,3.0,2.0,[G],S1 integration: keeper_identity_spec value kept over the enemies.md first guess,S1 bot ablation + O-008 sessions,pending
+2026-10-30,C.STATUS.CHILL_SLOW_PER_STACK,0.20,0.15,[G],S1 integration: keeper_identity_spec value kept over the enemies.md first guess,S1 bot ablation + O-008 sessions,pending

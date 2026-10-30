@@ -44,13 +44,13 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 
 ### 5. Enchantment (look + status)
 - **R-KEE-09** From the first blessing, every player round carries the primary Keeper's trail colour (`Pal.Keeper.<Path>`) and each player hit applies the primary status with chance `C.ENCHANT.STATUS_CHANCE_PRIMARY`. From the commitment, the second Keeper tints the trail tip only and applies its status with chance `C.ENCHANT.STATUS_CHANCE_SECOND`. No enchantment ever changes the round's core or head colour (R-PRE-01). Status rolls draw only from the `Combat` stream (R-TEC-02).
-- **R-KEE-10** `Status.Shock`: the enemy takes `C.ENCHANT.SHOCK_VULN` more damage from player hits for `C.ENCHANT.SHOCK_DURATION_S`; a new Shock refreshes the timer and never stacks.
-- **R-KEE-11** `Status.Burn`: each stack deals `C.ENCHANT.BURN_DPS_RATIO` of the applying hit's damage per second for `C.ENCHANT.BURN_DURATION_S`, with its own timer; stacks cap at `C.ENCHANT.BURN_STACKS_MAX` and a stack past the cap replaces the oldest.
-- **R-KEE-12** `Status.Chill`: each stack slows the enemy by `C.ENCHANT.CHILL_SLOW_PER_STACK` for `C.ENCHANT.CHILL_DURATION_S`. At `C.ENCHANT.FREEZE_STACKS` stacks (Frost may lower it, `expression.csv`) the enemy becomes `Status.Freeze` for `C.ENCHANT.FREEZE_DURATION_S`: it neither moves nor attacks, and its Chill stacks clear.
+- **R-KEE-10** Keepers decide *when* a status lands, `enemies.md` owns *what* it does: status state, durations, stacking and effects are R-ENM-21 and R-ENM-22 with `C.STATUS.*`, never redefined here. Every proc (enchantment, `Flag.StatusApply`, a flag's own status, Intercession) is rolled in `EDTSimPhase::Effects` on that step's hits and kills and appends one `FDTStatusApply` (`enemies.md` §Data) with the hit's owner and the granting Keeper's source; it takes effect at the next Enemies phase (`07_Technical §4`).
+- **R-KEE-11** A Burn application's damage per second is `C.STATUS.BURN_DPS_RATIO` × the applying hit's damage; a Furnace stack-cap bonus (`burn_stacks_max`, `expression.csv`) travels in the application's `StackBonus`.
+- **R-KEE-12** A Chill application adds its stacks (one, or a flag's `chill_stacks_*`); Frost's lower Freeze threshold (`freeze_stacks`) and longer Freeze (`freeze_duration_scale`) travel in the application's `FreezeAt` and `FreezeScale`; otherwise `C.STATUS.FREEZE_STACKS` and `C.STATUS.FREEZE_S` apply.
 - **R-KEE-13** Every hit or tick that exists because of a Keeper (flag children, chain jumps, echo strikes, cleaves, slams, field ticks, crush, status damage, Intercession) carries telemetry source `Keeper.<Path>` of the Keeper that granted it (R-TEL-05); layer hits carry the second Keeper's source.
 
 ### 6. Intercession
-- **R-KEE-14** `combat_core.md` owns the input, the charge and the activation; this section owns the content. On activation the effect is the primary Keeper's **base**, shaped by the **variant** of the primary's leading archetype (none → base only), plus from the commitment the **layer** of the second Keeper's leading archetype (none → no layer). The three are read at cast time. Where a layer conflicts with a variant, the variant's shape wins and the layer applies to its hits. With no primary Keeper, activation does nothing and spends no charge.
+- **R-KEE-14** `combat_core.md` owns the input, the charge and the activation; this section owns the content. On activation the effect is the primary Keeper's **base**, shaped by the **variant** of the primary's leading archetype (none → base only), plus from the commitment the **layer** of the second Keeper's leading archetype (none → no layer). The three are read at cast time. Where a layer conflicts with a variant, the variant's shape wins and the layer applies to its hits. A primary always exists (the Patron is picked before the first step), so every cast has a base.
 
 | Path | Base (variants and layers: `expression.csv`) |
 |---|---|
@@ -79,14 +79,13 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 | Tier thresholds | C.TIER.FAVOR_T1 / T2 / T3 | CORE | R-KEE-07, T-KEE-07 |
 | Tier line limits | C.TIER.LINE_WORDS_EN_MAX, C.TIER.LINE_CHARS_ZH_MAX | CORE | R-KEE-08, T-KEE-08 |
 | Status chance, primary / second | C.ENCHANT.STATUS_CHANCE_PRIMARY / SECOND | GATED(S1) | R-KEE-09 |
-| Shock | C.ENCHANT.SHOCK_VULN, C.ENCHANT.SHOCK_DURATION_S | GATED(S1) | R-KEE-10 |
-| Burn | C.ENCHANT.BURN_DPS_RATIO, BURN_DURATION_S, BURN_STACKS_MAX | GATED(S1) | R-KEE-11 |
-| Chill / Freeze | C.ENCHANT.CHILL_SLOW_PER_STACK, CHILL_DURATION_S, FREEZE_STACKS, FREEZE_DURATION_S | GATED(S1) | R-KEE-12 |
+| Burn magnitude | C.STATUS.BURN_DPS_RATIO | GATED(S1) | R-KEE-11 (status numbers: `enemies.md`) |
+| Default Freeze threshold and length | C.STATUS.FREEZE_STACKS, C.STATUS.FREEZE_S | GATED(S1) | R-KEE-12 |
 | Intercession bases | C.INTERCESSION.STORM_* / FORGE_* / TIDE_* | GATED(S1) | R-KEE-14 |
 | Intercession band | C.INTERCESSION.BAND | CORE | R-KEE-15 |
 | Retune step per pass | C.INTERCESSION.RETUNE_STEP_MAX | GATED(S1) | R-KEE-15 |
 | Power budget | C.POWER.KEEPER_SHARE_L16, C.POWER.ARCHETYPE_BAND | CORE | R-KEE-18 |
-| Blessing starter pool | C.POOL.STARTER_BLESSINGS | CORE | `offers.md` §3 (see Open) |
+| Blessing starter pool | C.POOL.STARTER_BLESSINGS | CORE | `offers.md` R-OFF-07: the `Key` of each archetype is a starter |
 
 Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting points from `Handoff_Dusktracer/game/reference/specs/keeper_identity_spec.md §3`, §3.7 and `intercession_variants_spec.md §2`; they live in `expression.csv` and every change is logged in `number_change_log.csv`.
 
@@ -96,7 +95,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `expression.csv` row | one per archetype | columns below; generated into `UDTKeeperDef` + `UDTBlessingDef` data assets |
 | `Path` / `Archetype` | `Keeper.<Path>` / `Archetype.<Path>.<Name>` tags | |
 | `KeyFlag` | `Flag.*` tag | R-KEE-02 |
-| `Key` `Amp1` `Amp2` `Trait` | effect spec | `Flag.<Name>{param=value;…}`, several joined by ` + `; `+x` adds to the Key's param; blessing id is `Blessing.<Path>.<Archetype>.<column>` |
+| `Key` `Amp1` `Amp2` `Trait` | effect spec (every `Key` is a starter card, R-OFF-07) | `Flag.<Name>{param=value;…}`, several joined by ` + `; `+x` adds to the Key's param; blessing id is `Blessing.<Path>.<Archetype>.<column>` |
 | Param units | in the spec | `_uu` distance, `_s` time, `dmg` `dps` `crush_dmg` ratios of the triggering hit, `dmg_ratio` (Slam) a ratio of the strongest owned weapon's per-hit damage |
 | `Tier1` `Tier2` `Tier3` | effect spec | applied while the archetype leads (R-KEE-07) |
 | `EnchantLook` / `EnchantStatus` | palette token / `Status.*` | per Keeper, repeated per row |
@@ -106,7 +105,6 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `TextPrefix` | `ST_Keepers.<Path>.<Archetype>` | keys below |
 | `UDTBlessingDef` | data asset | `Id Path Archetype Role{Key,Amp,Trait} Flags[] Requires[] TextKey` |
 | `FDTKeeperRunState` | inside `FDTPlayerRunState` (R-TEC-01) | `Primary Second Owned[] Favor[Path] Tier[Path] Leading[Path] CommitDone` |
-| `FDTStatusState` | per enemy slot (SoA) | `ShockLeft BurnStacks[] ChillStacks ChillLeft FreezeLeft SourceOwner` |
 
 ## Acceptance
 - T-KEE-01 `Dusktracer.Keepers.Catalog`: the generated defs hold three Keepers × `C.KEEPER.ARCHETYPES_PER_KEEPER` × `C.KEEPER.BLESSINGS_PER_ARCHETYPE` blessings with the right ids; no other Path is offerable. PLANNED(S1)
@@ -118,11 +116,11 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - T-KEE-07 `Dusktracer.Keepers.Tiers`: tiers unlock exactly at the thresholds, follow a leading-archetype change and are never lost. PLANNED(S1)
 - T-KEE-08 `Dusktracer.Keepers.TierLineLength`: every tier line in `ST_Keepers` en and zh-Hans is within limits. PLANNED(S1)
 - T-KEE-09 `Dusktracer.Keepers.Enchantment`: trail colours as specified, core unchanged; status proc rates over a seeded sample match the chances; same seed, same procs. PLANNED(S1)
-- T-KEE-10 `Dusktracer.Keepers.Shock`: damage bonus during the window only; reapply refreshes, never stacks. PLANNED(S1)
-- T-KEE-11 `Dusktracer.Keepers.Burn`: tick damage, per-stack timers, cap with oldest replaced. PLANNED(S1)
-- T-KEE-12 `Dusktracer.Keepers.ChillFreeze`: slow per stack; Freeze at the threshold (and at Frost's lower one), no move or attack, stacks cleared. PLANNED(S1)
+- T-KEE-10 `Dusktracer.Keepers.StatusProcs`: procs append one status application in the Effects phase with the hit's owner and the Keeper source, take effect the next step, and use only `C.STATUS.*` behaviour. PLANNED(S1)
+- T-KEE-11 `Dusktracer.Keepers.BurnMagnitude`: a Burn application carries the ratio × the hit's damage; Furnace's bonus raises the stack cap. PLANNED(S1)
+- T-KEE-12 `Dusktracer.Keepers.FrostThreshold`: Frost's application freezes at its lower threshold and for its scaled length; without Frost the defaults apply. PLANNED(S1)
 - T-KEE-13 `Dusktracer.Keepers.Sources`: children, chains, echoes, cleaves, slams, ticks, status and Intercession damage carry the granting Keeper's source; layer hits the second's. PLANNED(S1)
-- T-KEE-14 `Dusktracer.Keepers.IntercessionCompose`: base, variant by leading archetype, layer only after commitment, variant shape wins a conflict, no primary spends nothing. PLANNED(S1)
+- T-KEE-14 `Dusktracer.Keepers.IntercessionCompose`: base, variant by leading archetype, layer only after commitment, variant shape wins a conflict. PLANNED(S1)
 - T-KEE-15 `Dusktracer.Keepers.IntercessionBand` (bot probe): every combination per primary within the band of its mean. PLANNED(S1)
 - T-KEE-16 `Dusktracer.Keepers.SecondCompat`: an incompatible second-Keeper blessing is never offered; none excluded without a leading archetype; owned ones stay when the leader changes. PLANNED(S1)
 - T-KEE-17 `Dusktracer.Keepers.NoFitMultiplier`: the same blessing set gives identical flag parameters on fit and off-fit weapons. PLANNED(S1)
@@ -133,13 +131,14 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 
 ## Telemetry
 - `keeper_pick{owner, blessing, path, archetype, role, favor, tier, leading}` per blessing taken.
-- `keeper_commit{owner, primary, second, primary_leading}` at the L8 commitment.
+- `keeper_commit{owner, role, path, primary_leading}` when a Keeper hand is picked: role `Patron` at run start, `Second` at the L8 commitment.
+- `status{owner, applied{Status: n}}` per player at each interval end (procs by status).
 - `intercession{owner, base, variant, layer, enemies_hit, damage}` per cast; marginal damage is measured offline (R-KEE-15).
-- Damage, hits and kills by source `Keeper.<Path>` through R-TEL-05; status procs counted per status per interval.
+- Damage, hits and kills by source `Keeper.<Path>` through R-TEL-05.
 
 ## Text
 - Table `ST_Keepers`, en + zh-Hans from the first string; zh authored from the fiction (`localization/zh_naming.md`), never "god".
-- Per row, keys under its `TextPrefix`: `.Name`; `.Key|.Amp1|.Amp2|.Trait` each `.Name` + `.Desc`; `.Tier1|.Tier2|.Tier3`; `.Ult.Desc`; `.Layer.Name` + `.Layer.Desc`. Per Keeper: `ST_Keepers.<Path>.Enchant.Desc`, `ST_Keepers.<Path>.Ult.Name`, `ST_Keepers.<Path>.Ult.Desc`. Budget: exactly these keys, no others.
+- Per row, keys under its `TextPrefix`: `.Name`; `.Key|.Amp1|.Amp2|.Trait` each `.Name` + `.Desc`; `.Tier1|.Tier2|.Tier3`; `.Ult.Desc`; `.Layer.Name` + `.Layer.Desc`. Per Keeper: `ST_Keepers.<Path>.Name` + `.Desc` (the `Keeper.<Path>` card of the Patron and L8 hands), `ST_Keepers.<Path>.Enchant.Desc`, `ST_Keepers.<Path>.Ult.Name`, `ST_Keepers.<Path>.Ult.Desc`. Keyword notes (`<kw>`, used by every card table): `ST_Keywords.Status.<Name>` and `ST_Keywords.Flag.<Name>`, each `.Name` + `.Desc`, owned here. Budget: exactly these keys, no others.
 - Numbers in text are format args from data. Tier lines: R-KEE-08. Names and rules follow the card limits of `keeper_identity_text.md` §0.
 
 ## Out of scope
@@ -147,11 +146,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - Radiance (burst / crit, `Status.Blind`): S2.
 - Quicksilver (mobility / ricochet): S2.
 - Duo reactions and duo blessings; the Stormwall and Breakwater archetypes of the reference; patron traits (their role is the enchantment here): S2.
-- Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); L16 transformations (`weapons.md`); boss immunity to control (`boss.md`).
+- Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: S2 (the S1 hand is `offers.md` R-OFF-09). Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
 
 ## Open
-- `C.POOL.STARTER_BLESSINGS` is smaller than the thirty-six S1 blessings: proposal Key + Amp1 of each archetype as the starter set → resolved by `offers.md` §3.
-- "Only primary blessings before the L8 commitment" (R-KEE-05) must match the offer rules → resolved by `offers.md` §4.
-- Freeze and pull against control-immune targets (boss) → resolved by `boss.md` (reference: convert to a vulnerability status).
-- Status ownership on the enemy side (`FDTStatusState` on the SoA) → resolved by `enemies.md` in S1.
 - All `GATED(S1)` values → resolved by bot ablation and the S1 validation sessions (O-008).

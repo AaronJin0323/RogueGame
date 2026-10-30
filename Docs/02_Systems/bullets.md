@@ -38,9 +38,10 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 | `FDTBulletSpawn.OwnerId` | `int32` | player index (R-TEC-01) |
 | `FDTBulletSpawn.Pierce` | `int32` | distinct enemies it may hit; one means no pierce |
 | `FDTBulletSpawn.SourceId` | `uint16` | telemetry source (R-BUL-08); defaults to `Unknown` |
-| Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft SourceId Serial HitCount HitRing` |
+| `FDTBulletSpawn.WeaponSlot` / `bCrit` | `int8` / `bool` | copied into every hit (S1, `weapons.md` R-WPN-12); none / false for stress |
+| Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft SourceId WeaponSlot Crit Serial HitCount HitRing`; `bPierce` of a hit = spawned `Pierce` above one |
 | `HitRing` | `int32[C.BULLETS.HIT_MEMORY]` per bullet | serials of the last enemies hit (ring) |
-| `FDTHit` | `Core/DTSimTypes.h` | `EnemyIndex OwnerId Damage Position SourceId`, appended to `FDTWorldView::Hits` |
+| `FDTHit` | `Core/DTSimTypes.h` | fields and lifetime: `07_Technical §4` (the one definition); appended to `FDTWorldView::Hits` |
 | Instance custom data | `float` × four | `RGB` linear from `Pal.Player.Core`, then emissive strength; read by `M_InstanceColor` |
 | `Fallback_BulletMaterial` | code path | `/Engine/BasicShapes/BasicShapeMaterial` when `/Game/DT/Materials/M_InstanceColor` is missing (R-TEC-05) |
 
@@ -65,11 +66,12 @@ API: `UDTBulletSubsystem::Spawn(const FDTBulletSpawn&)`, `GetPool()`, `GetRender
 - None: the bullet system has no player-facing text. Console help strings are developer-only English.
 
 ## Out of scope
-- Weapons and fire patterns, modifiers, per-weapon colours and trails (`04_Presentation` R-PRE-01), enemy bullets: S1.
+- Weapons and fire patterns, modifiers (`weapons.md`, `modifiers.md`), per-weapon colours and trails (`04_Presentation` R-PRE-01); enemy rounds are a separate pool (`enemies.md` R-ENM-15).
 - Damage application, kills and their events (`ResolveHits`, enemy system).
 - Niagara A/B and measured performance at the cap (`07_Technical` R-TEC-10, T-TEC-10).
 
 ## Open
 - Hit memory moves from enemy slot index to enemy `Serial` (`enemies.md` S1) → resolved by the S1 enemy work; until it lands a reused slot may be skipped.
+- The boss hull (`boss.md`, radius `C.BOSS.RADIUS_UU`) widens every bullet query while it lives (R-BUL-05 adds the largest radius) → test it as a separate circle if `T-TEC-10` shows the cost.
 - Recycling scans for the oldest live bullet (linear in the cap) → keep while recycling is rare; revisit if `Recycled` climbs in play telemetry.
 - `M_InstanceColor` must be cooked for packaged builds (no hard reference yet) → resolved when the arena map or a data asset references it.

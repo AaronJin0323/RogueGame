@@ -65,7 +65,6 @@ enemies:
   ROLE.TANK_TURN_DEG_S:        { value: 70, unit: deg_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-10, T-ENM-10] }
   ROLE.TANK_FRONT_HALF_ARC_DEG:{ value: 60, unit: deg, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-10, T-ENM-10] }
   ROLE.TANK_FRONT_DAMAGE_MULT: { value: 0.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-10, T-ENM-10] }
-  ROLE.TANK_SHARE_MAX:         { value: 0.35, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, 02_Systems/director.md] }
   ROLE.RUSHER_HP:              { value: 32, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-09] }
   ROLE.RUSHER_SPEED_UU_S:      { value: 240, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-11] }
   ROLE.RUSHER_RADIUS_UU:       { value: 40, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-11] }
@@ -76,7 +75,6 @@ enemies:
   ROLE.RUSHER_CHARGE_S:        { value: 0.65, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_RECOVER_S:       { value: 0.8, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_COOLDOWN_S:      { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
-  ROLE.RUSHER_SHARE_MAX:       { value: 0.10, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, 02_Systems/director.md] }
   ROLE.TURRET_HP:              { value: 40, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-09] }
   ROLE.TURRET_RADIUS_UU:       { value: 48, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-12] }
   ROLE.TURRET_CONTACT_DAMAGE:  { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }
@@ -84,7 +82,7 @@ enemies:
   ROLE.TURRET_FIRE_RANGE_UU:   { value: 1250, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12, T-ENM-12] }
   ROLE.TURRET_TELL_S:          { value: 0.75, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12, R-ENM-13, T-ENM-12] }
   ROLE.TURRET_PERIOD_S:        { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12, T-ENM-12] }
-  ROLE.TURRET_SHARE_MAX:       { value: 0.05, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, 02_Systems/director.md] }
+  ROLE.ELITE_HP_MULT:          { value: 5, unit: x, tag: MEASURED(reference balance/model.md), dependents: [02_Systems/enemies.md, 02_Systems/director.md, R-ENM-09, T-ENM-09] }
   ENEMY_FIRE.CAP:              { value: 1024, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-15, T-ENM-15, T-PERF-01] }
   ENEMY_FIRE.SHOT_SPEED_UU_S:  { value: 650, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12] }
   ENEMY_FIRE.SHOT_RADIUS_UU:   { value: 16, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-16, T-ENM-20] }
@@ -100,13 +98,16 @@ enemies:
   AIM.FAN_MIN_RANGE_UU:        { value: 600, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-19, T-ENM-19] }
   AIM.TEST_RANGE_UU:           { value: [200, 2000], unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, T-ENM-20] }
   AIM.FAN_TEST_COUNT_MAX:      { value: 6, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, T-ENM-20] }
-  STATUS.SHOCK_S:              { value: 3.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-21, 02_Systems/keepers.md] }
-  STATUS.SHOCK_DAMAGE_TAKEN:   { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-22, T-ENM-22] }
-  STATUS.BURN_S:               { value: 4.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-21, T-ENM-21] }
+  STATUS.SHOCK_S:              { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-ENM-21, T-ENM-21] }
+  STATUS.SHOCK_DAMAGE_TAKEN:   { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-ENM-22, T-ENM-22] }
+  STATUS.BURN_S:               { value: 3.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-ENM-21, T-ENM-21] }
   STATUS.BURN_TICK_S:          { value: 0.5, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-22, T-ENM-22] }
-  STATUS.CHILL_S:              { value: 3.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-21, T-ENM-21] }
-  STATUS.CHILL_SLOW_PER_STACK: { value: 0.20, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-22, T-ENM-22] }
-  STATUS.FREEZE_STACKS:        { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-21, T-ENM-21] }
+  STATUS.BURN_DPS_RATIO:       { value: 0.20, unit: ratio_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-KEE-11, T-KEE-11] }
+  STATUS.BURN_STACKS_MAX:      { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/expression.csv, R-ENM-21, T-ENM-21] }
+  STATUS.BURN_STACK_SLOTS:     { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/expression.csv, R-ENM-21, T-ENM-21] }
+  STATUS.CHILL_S:              { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-ENM-21, T-ENM-21] }
+  STATUS.CHILL_SLOW_PER_STACK: { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, R-ENM-22, T-ENM-22] }
+  STATUS.FREEZE_STACKS:        { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/keepers.md, 09_Catalog/expression.csv, R-ENM-21, T-ENM-21] }
   STATUS.FREEZE_S:             { value: 1.5, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-21, T-ENM-22] }
   STATUS.BOSS_CHILL_STACK_MAX: { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/boss.md, R-BOS-11, T-BOS-11] }
 bullets:
@@ -159,15 +160,6 @@ keepers:
   TIER.LINE_CHARS_ZH_MAX:      { value: 20,   unit: chars, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-08] }
   ENCHANT.STATUS_CHANCE_PRIMARY: { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-09] }
   ENCHANT.STATUS_CHANCE_SECOND: { value: 0.05, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-09] }
-  ENCHANT.SHOCK_VULN:          { value: 0.15, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-10] }
-  ENCHANT.SHOCK_DURATION_S:    { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-10] }
-  ENCHANT.BURN_DPS_RATIO:      { value: 0.20, unit: ratio_per_s, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-11] }
-  ENCHANT.BURN_DURATION_S:     { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-11] }
-  ENCHANT.BURN_STACKS_MAX:     { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-11] }
-  ENCHANT.CHILL_SLOW_PER_STACK: { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-12] }
-  ENCHANT.CHILL_DURATION_S:    { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-12] }
-  ENCHANT.FREEZE_STACKS:       { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-12] }
-  ENCHANT.FREEZE_DURATION_S:   { value: 1.5,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-12] }
   INTERCESSION.STORM_DURATION_S: { value: 6.0, unit: s,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.STORM_SPLIT_CHILDREN: { value: 3, unit: n,  tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.FORGE_DURATION_S: { value: 5.0, unit: s,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
@@ -252,6 +244,7 @@ combat:
   DIR.DROPIN_ACTIVE_MAX_THREAT: { value: 2,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-08] }
   DIR.DROPIN_GAP_MIN_S:        { value: 1.5,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-08] }
   DIR.THREAT_ACTIONS_MIN:      { value: 4,    unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-09] }
+  DIR.CHEST_DROP_UU:           { value: 400,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, R-DIR-16, T-DIR-16] }
   SCALE.HP_PER_MIN:            { value: 0.16, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10] }
   SCALE.DMG_PER_MIN:           { value: 0.0667, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-10] }
   DROP.XP_SWARM:               { value: 1,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
@@ -259,7 +252,6 @@ combat:
   DROP.XP_RUSHER:              { value: 2,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
   DROP.XP_TURRET:              { value: 3,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
   DROP.XP_ELITE_MULT:          { value: 5,    unit: x,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-12] }
-  DROP.GEMS_MAX:               { value: 2000, unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-12] }
 
 boss:
   BOSS.FORM_II_WINS:           { value: 1, unit: n, tag: GATED(S2), dependents: [02_Systems/boss.md, R-BOS-01, T-BOS-01] }

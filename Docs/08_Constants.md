@@ -97,7 +97,6 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.TANK_TURN_DEG_S | 70 | deg/s | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
 | C.ROLE.TANK_FRONT_HALF_ARC_DEG | 60 | deg | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
 | C.ROLE.TANK_FRONT_DAMAGE_MULT | 0.5 | ratio | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
-| C.ROLE.TANK_SHARE_MAX | 0.35 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
 | C.ROLE.RUSHER_HP | 32 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
 | C.ROLE.RUSHER_SPEED_UU_S | 240 | uu/s | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-11 |
 | C.ROLE.RUSHER_RADIUS_UU | 40 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-11 |
@@ -108,7 +107,6 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.RUSHER_CHARGE_S | 0.65 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_RECOVER_S | 0.8 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_COOLDOWN_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
-| C.ROLE.RUSHER_SHARE_MAX | 0.10 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
 | C.ROLE.TURRET_HP | 40 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
 | C.ROLE.TURRET_RADIUS_UU | 48 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-12 |
 | C.ROLE.TURRET_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
@@ -116,7 +114,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.TURRET_FIRE_RANGE_UU | 1250 | uu | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
 | C.ROLE.TURRET_TELL_S | 0.75 | s | GATED(S1) | enemies.md, R-ENM-12, R-ENM-13, T-ENM-12 |
 | C.ROLE.TURRET_PERIOD_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
-| C.ROLE.TURRET_SHARE_MAX | 0.05 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
+| C.ROLE.ELITE_HP_MULT | 5 | x | MEASURED(reference balance/model.md) | enemies.md R-ENM-09, director.md, T-ENM-09 |
 | C.ENEMY_FIRE.CAP | 1024 | n | GATED(S1) | enemies.md, R-ENM-15, T-ENM-15, T-PERF-01 |
 | C.ENEMY_FIRE.SHOT_SPEED_UU_S | 650 | uu/s | GATED(S1) | enemies.md, R-ENM-12 |
 | C.ENEMY_FIRE.SHOT_RADIUS_UU | 16 | uu | GATED(S1) | enemies.md, R-ENM-16, T-ENM-20 |
@@ -132,13 +130,16 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.AIM.FAN_MIN_RANGE_UU | 600 | uu | GATED(S1) | enemies.md, R-ENM-19, T-ENM-19 |
 | C.AIM.TEST_RANGE_UU | 200–2000 | uu | GATED(S1) | enemies.md, T-ENM-20 |
 | C.AIM.FAN_TEST_COUNT_MAX | 6 | n | GATED(S1) | enemies.md, T-ENM-20 |
-| C.STATUS.SHOCK_S | 3.0 | s | GATED(S1) | enemies.md, R-ENM-21, keepers.md |
-| C.STATUS.SHOCK_DAMAGE_TAKEN | 0.15 | ratio | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
-| C.STATUS.BURN_S | 4.0 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.SHOCK_S | 2.0 | s | GATED(S1) | enemies.md, keepers.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.SHOCK_DAMAGE_TAKEN | 0.15 | ratio | GATED(S1) | enemies.md, keepers.md, R-ENM-22, T-ENM-22 |
+| C.STATUS.BURN_S | 3.0 | s | GATED(S1) | enemies.md, keepers.md, R-ENM-21, T-ENM-21 |
 | C.STATUS.BURN_TICK_S | 0.5 | s | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
-| C.STATUS.CHILL_S | 3.0 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
-| C.STATUS.CHILL_SLOW_PER_STACK | 0.20 | ratio | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
-| C.STATUS.FREEZE_STACKS | 3 | n | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.BURN_DPS_RATIO | 0.20 | ratio of hit per s | GATED(S1) | enemies.md, keepers.md R-KEE-11, T-KEE-11 |
+| C.STATUS.BURN_STACKS_MAX | 3 | n | GATED(S1) | enemies.md, expression.csv (Furnace raises it), R-ENM-21, T-ENM-21 |
+| C.STATUS.BURN_STACK_SLOTS | 4 | n | GATED(S1) | enemies.md (storage per enemy; base cap plus any bonus never exceeds it), expression.csv, T-ENM-21 |
+| C.STATUS.CHILL_S | 2.0 | s | GATED(S1) | enemies.md, keepers.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.CHILL_SLOW_PER_STACK | 0.15 | ratio | GATED(S1) | enemies.md, keepers.md, R-ENM-22, T-ENM-22 |
+| C.STATUS.FREEZE_STACKS | 3 | n | GATED(S1) | enemies.md, keepers.md, expression.csv (Frost lowers it), R-ENM-21, T-ENM-21 |
 | C.STATUS.FREEZE_S | 1.5 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-22 |
 | C.STATUS.BOSS_CHILL_STACK_MAX | 2 | n | GATED(S1) | enemies.md, boss.md, R-BOS-11, T-BOS-11 |
 
@@ -205,15 +206,6 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TIER.LINE_CHARS_ZH_MAX | 20 | chars | CORE | keepers.md R-KEE-08, T-KEE-08 |
 | C.ENCHANT.STATUS_CHANCE_PRIMARY | 0.15 | ratio per hit | GATED(S1) | keepers.md R-KEE-09, T-KEE-09 |
 | C.ENCHANT.STATUS_CHANCE_SECOND | 0.05 | ratio per hit | GATED(S1) | keepers.md R-KEE-09, T-KEE-09 |
-| C.ENCHANT.SHOCK_VULN | 0.15 | ratio | GATED(S1) | keepers.md R-KEE-10, T-KEE-10 |
-| C.ENCHANT.SHOCK_DURATION_S | 2.0 | s | GATED(S1) | keepers.md R-KEE-10, T-KEE-10 |
-| C.ENCHANT.BURN_DPS_RATIO | 0.20 | ratio of hit per s | GATED(S1) | keepers.md R-KEE-11, T-KEE-11 |
-| C.ENCHANT.BURN_DURATION_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-11, T-KEE-11 |
-| C.ENCHANT.BURN_STACKS_MAX | 3 | n | GATED(S1) | keepers.md R-KEE-11, expression.csv, T-KEE-11 |
-| C.ENCHANT.CHILL_SLOW_PER_STACK | 0.15 | ratio | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
-| C.ENCHANT.CHILL_DURATION_S | 2.0 | s | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
-| C.ENCHANT.FREEZE_STACKS | 3 | n | GATED(S1) | keepers.md R-KEE-12, expression.csv (Frost lowers it), T-KEE-12 |
-| C.ENCHANT.FREEZE_DURATION_S | 1.5 | s | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
 | C.INTERCESSION.STORM_DURATION_S | 6.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.STORM_SPLIT_CHILDREN | 3 | n | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.FORGE_DURATION_S | 5.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
@@ -306,6 +298,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DIR.DROPIN_ACTIVE_MAX_THREAT | 2 | n | GATED(S1) | director.md, T-DIR-08 |
 | C.DIR.DROPIN_GAP_MIN_S | 1.5 | s | GATED(S1) | director.md, T-DIR-08 |
 | C.DIR.THREAT_ACTIONS_MIN | 4 | /min | GATED(S1) | director.md, T-DIR-09 |
+| C.DIR.CHEST_DROP_UU | 400 | uu | GATED(S1) | director.md R-DIR-16, T-DIR-16 |
 | C.SCALE.HP_PER_MIN | 0.16 | /min | GATED(S1) | director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10 |
 | C.SCALE.DMG_PER_MIN | 0.0667 | /min | GATED(S1) | director.md, T-DIR-02, T-DIR-10 |
 | C.DROP.XP_SWARM | 1 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
@@ -313,7 +306,6 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DROP.XP_RUSHER | 2 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
 | C.DROP.XP_TURRET | 3 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
 | C.DROP.XP_ELITE_MULT | 5 | x | GATED(S1) | director.md, T-DIR-12 |
-| C.DROP.GEMS_MAX | 2000 | n | GATED(S1) | director.md, T-DIR-12 |
 
 ## Boss (02_Systems/boss.md)
 
