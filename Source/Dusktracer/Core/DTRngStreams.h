@@ -12,6 +12,7 @@ enum class EDTRngStream : uint8
 	Boss,
 	Weather,
 	Loot,
+	Director, // S1; appended so the seeds of earlier streams never change (R-TEC-02)
 	Count
 };
 
@@ -28,6 +29,9 @@ struct DUSKTRACER_API FDTRngStreams
 
 	/** Platform-independent seed for one stream (splitmix64 of the run seed and the stream index). */
 	static int32 DeriveSeed(int32 InRunSeed, EDTRngStream Stream);
+
+	/** Seed of one player's own copy of a stream (offers.md: a per-player Offer stream); independent of the shared one. */
+	static int32 DerivePlayerSeed(int32 InRunSeed, EDTRngStream Stream, int32 PlayerIndex);
 
 private:
 	int32 RunSeed = 0;

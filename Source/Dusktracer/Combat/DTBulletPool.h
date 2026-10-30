@@ -18,6 +18,10 @@ struct FDTBulletSpawn
 	int32 Pierce = 1;
 	/** Telemetry source id (FDTTelemetrySources; 0 = Unknown), copied onto every FDTHit this bullet makes (R-BUL-08). */
 	uint16 SourceId = 0;
+	/** The owner's weapon slot, copied onto every hit (weapons.md R-WPN-12); INDEX_NONE for stress fire. */
+	int8 WeaponSlot = INDEX_NONE;
+	/** Rolled crit, copied onto every hit (R-WPN-12); Damage already includes it. */
+	bool bCrit = false;
 };
 
 /** Monotonic counters; never reset except by Reset(). */
@@ -43,7 +47,10 @@ public:
 	/** Adds a bullet; at capacity it replaces the oldest live bullet and counts a recycle. Returns its index. */
 	int32 Spawn(const FDTBulletSpawn& Params);
 
-	/** Saves PrevPos, integrates, expires, collides against View's enemies, appends to View.Hits. */
+	/**
+	 * Saves PrevPos, integrates, expires, collides against View's enemies, appends to View.Hits. Only enemies with a
+	 * published serial (View.EnemySerials) are collidable; hit memory is keyed by serial (R-BUL-04, enemies.md R-ENM-23).
+	 */
 	void Step(float Dt, FDTWorldView& View);
 
 	void Reset();
@@ -61,8 +68,8 @@ public:
 
 private:
 	void RemoveAtSwap(int32 Index);
-	bool HasHit(int32 Index, int32 EnemyIndex) const;
-	void RememberHit(int32 Index, int32 EnemyIndex);
+	bool HasHit(int32 Index, uint32 EnemySerial) const;
+	void RememberHit(int32 Index, uint32 EnemySerial);
 
 	int32 Capacity;
 	uint64 NextSerial = 0;
@@ -76,9 +83,11 @@ private:
 	TArray<int32> OwnerId;
 	TArray<int32> PierceLeft;
 	TArray<uint16> SourceId; // telemetry source of every hit this bullet makes (R-BUL-08)
+	TArray<int8> WeaponSlot; // copied onto every hit (R-WPN-12)
+	TArray<uint8> Crit;      // copied onto every hit as bCrit
 	TArray<uint64> Serial;   // spawn order; the smallest is the oldest live bullet
 	TArray<int32> HitCount;  // enemies this bullet has hit; ring slot = HitCount % C.BULLETS.HIT_MEMORY
-	TArray<int32> HitRing;   // C.BULLETS.HIT_MEMORY slots per bullet: the last enemies it hit
+	TArray<uint32> HitRing;  // C.BULLETS.HIT_MEMORY slots per bullet: serials of the last enemies it hit (R-BUL-04)
 
 	TArray<int32> Candidates; // scratch for hash queries
 	FDTBulletCounters Counters;

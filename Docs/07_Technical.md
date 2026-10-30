@@ -112,6 +112,7 @@ Frame and thread budgets are `C.BUDGET.*`; caps are `C.BULLETS.CAP` and `C.ENEMI
 ## 6. Toolchain
 - Engine: UE 5.8.3 at `E:\UE5\UE_5.8` (`UE_ROOT` overrides). Builds through `Tools/Build.bat`; gates through `Tools/Gate.ps1` (`11_Quality §1`).
 - Python 3 for tools, always run with `-I`, standard library only (no pip packages: `-I` hides user site-packages). `constants.yaml` is therefore restricted to one constant per line in flow style, parsed by `Tools/dtconst.py`.
+- Catalogs: `Tools/gen_catalog.py` generates `Core/DTCatalogGen.h` (constexpr tables, `C.` cells as `DTConst` symbols) and `Core/DTTagsGen.h/.cpp` (native gameplay tags) from `09_Catalog/*.csv`; committed like `DTConstantsGen.h` and kept in sync by gate step `catalog` (`--check`).
 - Blender 5.2.2 LTS, headless: `E:\Blender_RogueHero_20261022\portable\blender-5.2.2-windows-x64\blender.exe -b --python <script>`.
 - Editor command line: `-unattended -nopause -LiveCoding=false`; kill stray processes by PID only.
 

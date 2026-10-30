@@ -8,12 +8,7 @@
 
 class FDTRunState;
 
-/** Enemy role: the key enemies are authored and tagged by (Enemy.<Role>). S0 has the swarm only. */
-enum class EDTEnemyRole : uint8
-{
-	Swarm,
-	Count
-};
+// EDTEnemyRole lives in Core/DTSimTypes.h (shared by FDTKill, FDTHeroHit, FDTDropInMarker). S0 spawns the swarm only.
 
 /** Per-role movement and body values, read from the generated constants (R-TEC-07). */
 struct FDTEnemyRoleDef
@@ -65,7 +60,7 @@ public:
 	/** Moves every enemy by one step of Dt towards the nearest of Heroes, with separation. */
 	void Move(float Dt, TConstArrayView<FVector2f> Heroes);
 
-	/** Writes positions, radii and the rebuilt hash into View (dense; index = enemy slot). */
+	/** Writes positions, radii, serials and the rebuilt hash into View (dense; index = enemy slot). */
 	void Publish(FDTWorldView& View) const;
 
 	/**
@@ -74,7 +69,10 @@ public:
 	 */
 	int32 ResolveHits(const FDTSimContext& Context);
 
-	/** Applies Hits to the pool and emits events into Run; marks deaths but does not compact. Returns kills. */
+	/**
+	 * Applies Hits to the pool and emits events into Run; marks deaths but does not compact. Returns kills.
+	 * A hit whose EnemySerial is non-zero and no longer matches its index is stale and ignored (R-ENM-23).
+	 */
 	int32 ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run);
 
 	/** Swap-removes every dead enemy. Returns the number removed. */
@@ -95,6 +93,11 @@ public:
 	TConstArrayView<float> GetMaxHp() const { return MaxHp; }
 	TConstArrayView<float> GetSpeeds() const { return Speed; }
 	TConstArrayView<EDTEnemyRole> GetRoles() const { return Role; }
+	/** Run-unique, never zero, kept through swap-removal (R-ENM-23). */
+	TConstArrayView<uint32> GetSerials() const { return Serial; }
+	/** True while Handle still names the same enemy (its serial at its index matches). */
+	bool IsHandleValid(const FDTEnemyHandle& Handle) const { return Serial.IsValidIndex(Handle.Index) && Handle.Serial != 0 && Serial[Handle.Index] == Handle.Serial; }
+	FDTEnemyHandle GetHandle(int32 Index) const { return FDTEnemyHandle{ Index, Serial[Index] }; }
 	bool IsDead(int32 Index) const { return Dead[Index] != 0; }
 
 	/** Test hooks: place or wound an enemy directly. */
@@ -114,6 +117,8 @@ private:
 	TArray<float> Speed;
 	TArray<EDTEnemyRole> Role;
 	TArray<uint8> Dead;
+	TArray<uint32> Serial;
+	uint32 NextSerial = 1; // never zero; reset only with the counters (a new run)
 
 	FDTSpatialHash NeighbourHash;
 	TArray<int32> Candidates;
