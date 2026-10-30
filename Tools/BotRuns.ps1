@@ -1,6 +1,7 @@
 # Bot v1 run harness (S1 tool; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
 #   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-Seeds 10] [-FirstSeed 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
+#                       [-Jobs <jobs.csv>] [-Stagger 1.5]
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
@@ -10,6 +11,8 @@
 # copied from Saved/Playtests and the log. Then Tools/bot_summary.py writes summary.csv + summary.md and runs -Check.
 # -Check T-DIR-01 alone defaults to the no-pick arm with C.DIR.BOT_RUNS seeds.
 # Prints "BOTRUNS: PASS|FAIL (...)"; exit 0 / 1 (a failed check or a run with no record fails).
+# -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
+# run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
 param(
 	[string[]]$Arms = @(),
 	[int]$Seeds = 0,
@@ -21,7 +24,9 @@ param(
 	[string]$Check = "",
 	[string]$Out = "",
 	[int]$Parallel = 1,
-	[string]$Map = "/Game/DT/Maps/L_Arena_Test"
+	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
+	[string]$Jobs = "",
+	[double]$Stagger = 1.5
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -80,25 +85,43 @@ function Reap-Runs([int]$Wanted) {
 }
 
 $script:Active = @()
+function Start-Run($Label, $Seed, $Extra) {
+	$RunDir = Join-Path $Out ("{0}_s{1}" -f $Label, $Seed)
+	New-Item -ItemType Directory -Force $RunDir | Out-Null
+	$Log = Join-Path $RunDir "run.log"
+	$Record = Join-Path $RunDir "bot.csv"
+	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
+		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
+		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $Extra
+	Reap-Runs ([Math]::Max(1, $Parallel))
+	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }
+	if ($Parallel -gt 1) { Start-Sleep -Milliseconds ([int]($Stagger * 1000)) }
+	return $RunDir
+}
+
+if ($Jobs) {
+	foreach ($Job in (Import-Csv $Jobs)) {
+		$RunDir = Start-Run $Job.label $Job.seed @("-DTBot=Steered", "-DTNoDirector", "-DTProbe=`"$($Job.script)`"")
+		Copy-Item $Job.script (Join-Path $RunDir "scene.txt")
+	}
+	Reap-Runs 1
+	$Summary = & python -I (Join-Path $Root "Tools\probe.py") read $Out 2>&1
+	$Summary | Select-String "^T-KEE" | ForEach-Object { "  " + $_.Line }
+	Write-Host ("BOTRUNS: {0} ({1} run(s) without a bot record; {2})" -f $(if ($Missing) { "FAIL" } else { "PASS" }), $Missing, $Out)
+	exit $(if ($Missing) { 1 } else { 0 })
+}
+
 foreach ($Arm in $Arms) {
 	$Parts = $Arm -split ':'
 	$Policy = $Parts[0]
 	$Label = ($Parts -join '-')
 	foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
-		$RunDir = Join-Path $Out ("{0}_s{1}" -f $Label, $Seed)
-		New-Item -ItemType Directory -Force $RunDir | Out-Null
-		$Log = Join-Path $RunDir "run.log"
-		$Record = Join-Path $RunDir "bot.csv"
-		$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
-			"-DTSeed=$Seed", "-DTBot=$Policy", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotMaxSeconds=$MaxSeconds",
-			("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)), "-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"")
-		if ($Parts.Count -gt 1) { $ArgList += "-DTBotPath=$($Parts[1])" }
-		if ($Parts.Count -gt 2) { $ArgList += "-DTBotArchetype=$($Parts[2])" }
-		if ($Parts.Count -gt 3) { $ArgList += "-DTBotSecond=$($Parts[3])" }
-		Reap-Runs ([Math]::Max(1, $Parallel))
-		$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
-		$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }
-		if ($Parallel -gt 1) { Start-Sleep -Milliseconds 1500 }
+		$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
+		if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
+		if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
+		if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
+		$null = Start-Run $Label $Seed $Extra
 	}
 }
 Reap-Runs 1

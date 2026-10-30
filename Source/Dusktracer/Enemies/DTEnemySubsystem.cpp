@@ -231,7 +231,10 @@ void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
 	}
 	if (Wanted > 0)
 	{
-		Pool.SpawnRing(EDTEnemyRole::Swarm, Wanted, Center, Ring, Rng);
+		FDTEnemySpawn Template;
+		Template.Role = EDTEnemyRole::Swarm;
+		Template.HpScale = KeepHpScale;
+		Pool.SpawnRing(Template, Wanted, Center, Ring, Rng);
 	}
 
 	// Debug statuses go through the same queue effects use (FDTWorldView::StatusApplies, R-ENM-21).

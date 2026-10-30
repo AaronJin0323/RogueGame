@@ -490,7 +490,9 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 			ImminentSteps = 0;
 		}
 
-		if (S.Intercession01 >= 1.0f && Crowd >= IntercessionCrowd)
+		const bool bCast = Config.CastStep == FDTBotConfig::CastAuto ? S.Intercession01 >= 1.0f && Crowd >= IntercessionCrowd
+			: Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0;
+		if (bCast)
 		{
 			In.bIntercessionPress = true;
 			++Stats.IntercessionPresses;

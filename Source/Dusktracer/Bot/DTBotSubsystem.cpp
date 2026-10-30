@@ -1,11 +1,13 @@
 #include "Bot/DTBotSubsystem.h"
 #include "Boss/DTBossSubsystem.h"
+#include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTSimSubsystem.h"
 #include "Dusktracer.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/DTGameMode.h"
+#include "Keepers/DTKeeperSubsystem.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
@@ -122,7 +124,100 @@ void UDTBotSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		MaxSeconds = DTBotSubsystemLocal::CVarBotMaxSeconds.GetValueOnGameThread();
 		bQuit = DTBotSubsystemLocal::CVarBotQuit.GetValueOnGameThread() != 0;
 		FParse::Value(FCommandLine::Get(), TEXT("DTBotOut="), OutPath);
+		FString ProbePath;
+		if (FParse::Value(FCommandLine::Get(), TEXT("DTProbe="), ProbePath))
+		{
+			FString Text;
+			FString Error;
+			FDTProbeScript Script;
+			if (!FFileHelper::LoadFileToString(Text, *ProbePath) || !Script.Parse(Text, Error))
+			{
+				UE_LOG(LogDT, Error, TEXT("Bot: probe %s not read: %s"), *ProbePath, *Error);
+				return;
+			}
+			StartProbe(Script, Config.Seed);
+			return;
+		}
 		Activate(Config);
+	}
+}
+
+void UDTBotSubsystem::StartProbe(const FDTProbeScript& Script, int32 Seed)
+{
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Path = Script.Patron;
+	Config.Seed = Seed;
+	Config.CastStep = Script.CastAtS < 0.0f ? FDTBotConfig::CastNever : FMath::RoundToInt64(Script.CastAtS * DTConst::SIM_FIXED_HZ);
+	Activate(Config);
+	Probe = Script;
+	bProbe = bActive;
+	bProbeApplied = false;
+	MaxSeconds = Script.WarmupS + Script.WindowS;
+}
+
+void UDTBotSubsystem::ApplyProbe()
+{
+	bProbeApplied = true;
+	UWorld* World = GetWorld();
+	UDTSimSubsystem* SimSys = Sim.Get();
+	UDTKeeperSubsystem* Keepers = World ? World->GetSubsystem<UDTKeeperSubsystem>() : nullptr;
+	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+	UDTEnemySubsystem* Enemies = World ? World->GetSubsystem<UDTEnemySubsystem>() : nullptr;
+	if (!SimSys || !Keepers || !Weapons || !Enemies || !Heroes.IsValid())
+	{
+		UE_LOG(LogDT, Error, TEXT("Bot: probe needs the sim, Keeper, weapon, enemy and hero systems"));
+		return;
+	}
+	FDTPlayerRunState& Player = SimSys->GetRun().GetPlayer(0);
+	if (Probe.Second != EDTPath::None)
+	{
+		Player.Offer.SecondPath = Probe.Second;
+		Player.Keepers.Second = Probe.Second;
+		Player.Keepers.bCommitDone = true;
+	}
+	for (const FName& Id : Probe.Blessings)
+	{
+		if (!Keepers->Bless(0, Id))
+		{
+			UE_LOG(LogDT, Error, TEXT("Bot: probe blessing %s refused"), *Id.ToString());
+		}
+	}
+	Keepers->Rebuild(0);
+	for (const FDTProbeWeapon& Weapon : Probe.Weapons)
+	{
+		EDTWeaponResult Result = Weapons->Give(0, Weapon.Id, Weapon.Level);
+		if (Result == EDTWeaponResult::AlreadyOwned)
+		{
+			Result = Weapons->LevelUp(0, Weapon.Id, Weapon.Level);
+		}
+		if (Result != EDTWeaponResult::Ok)
+		{
+			UE_LOG(LogDT, Error, TEXT("Bot: probe weapon %s L%d refused (%d)"), *Weapon.Id.ToString(), Weapon.Level, static_cast<int32>(Result));
+		}
+		for (const FName& Mod : Weapon.Mods)
+		{
+			const EDTWeaponResult Socketed = Weapons->Socket(0, Weapon.Id, Mod);
+			if (Socketed != EDTWeaponResult::Ok)
+			{
+				UE_LOG(LogDT, Error, TEXT("Bot: probe modifier %s on %s refused (%d)"), *Mod.ToString(), *Weapon.Id.ToString(), static_cast<int32>(Socketed));
+			}
+		}
+	}
+	Heroes->SetNoDamage(true); // the probe reads damage dealt; a hero that dies ends the window
+	Enemies->SetKeepHpScale(Probe.HpScale);
+	Enemies->SetKeepPopulation(Probe.Field);
+	UE_LOG(LogDT, Log, TEXT("Bot: probe applied: %d blessing(s), %d weapon(s), field %d at HP scale %.2f, window %.1f + %.1f s, cast at %.1f s"),
+		Probe.Blessings.Num(), Probe.Weapons.Num(), Probe.Field, Probe.HpScale, Probe.WarmupS, Probe.WindowS, Probe.CastAtS);
+}
+
+void UDTBotSubsystem::WriteBuildSnapshot()
+{
+	bSnapshotDone = true;
+	UDTSimSubsystem* SimSys = Sim.Get();
+	if (SimSys && !OutPath.IsEmpty())
+	{
+		FFileHelper::SaveStringToFile(FDTProbeScript::FromPlayer(SimSys->GetRun().GetPlayer(0)).ToText(), *(OutPath + TEXT(".L16")));
 	}
 }
 
@@ -142,6 +237,7 @@ void UDTBotSubsystem::Activate(const FDTBotConfig& Config)
 	bDead = bVictory = bTimedOut = bExitRequested = false;
 	bPawnMuted = false;
 	Minutes.Reset();
+	bProbe = bProbeApplied = bSnapshotDone = false;
 	Level630 = 0;
 	EndSeconds = 0.0;
 	HeroEventHandle = Heroes->OnHeroEvent.AddUObject(this, &UDTBotSubsystem::HandleHeroEvent);
@@ -322,6 +418,14 @@ void UDTBotSubsystem::HandleStepEnd()
 		}
 		const FDTPlayerRunState& Player = SimSys->GetRun().GetPlayer(0);
 		const FDTHeroState* State = Heroes.IsValid() ? Heroes->GetState(0) : nullptr;
+		if (bProbe && !bProbeApplied && Player.Keepers.Primary != EDTPath::None)
+		{
+			ApplyProbe();
+		}
+		if (!bSnapshotDone && Player.Level >= DTConst::TEL_POWER_CHECK_LEVEL)
+		{
+			WriteBuildSnapshot();
+		}
 		FMinute& M = Minutes[Minute];
 		M.EndSeconds = T;
 		M.Level = Player.Level;

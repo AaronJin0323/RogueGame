@@ -33,6 +33,11 @@ struct DUSKTRACER_API FDTBotConfig
 	float Skill = 1.0f;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
+	/** Intercession presses: CastAuto = when the meter is full and a crowd is near; CastNever = none (a probe's no-cast arm);
+	 * a step index = one press at the first decision from that step on (a probe's cast). */
+	static constexpr int64 CastAuto = -1;
+	static constexpr int64 CastNever = -2;
+	int64 CastStep = CastAuto;
 
 	static const TCHAR* PolicyName(EDTBotPolicy Policy);
 	static EDTBotPolicy ParsePolicy(const FString& Text);
