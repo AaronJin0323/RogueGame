@@ -21,7 +21,6 @@
 
 ## In flight
 - Tide Frost/Stillness cast line (D-019 reserved) and the round 1 number set on a branch off `main`
-- `offer_pick` duplicate key, `S1_probes.md` §3 tracer note, Tide/Stillness:Storm seed 6 cause on a branch off `main`
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
@@ -38,7 +37,7 @@
 
 ## Numbers at risk
 - Probes (`S1_keeper_power.md`, bounds, 40× field): T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.573, 4/9 arms; package gain 1/9; archetype 5/9). The share formula cannot pass Storm. Pass criteria stay until human readings
-- Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 196 steered runs reach the boss, 153 win, after the free-Slam bug went. T-DIR-01 PASS (588.6 s on 15 seeds); T-OFF-15 FAIL 195/196 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
+- Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 196 steered runs reach the boss, 153 win, after the free-Slam bug went. T-DIR-01 PASS (588.6 s on 15 seeds); T-OFF-15 FAIL 195/196 (seed 6 of Tide/Stillness:Storm, no bug: Rifle alone for 11 minutes, 24 XP short); T-DIR-02 per arm FAIL (0/19 arms in band)
 - Primary Whirlpool and Stillness are the weakest Keeper arms (5–6 of 15 at the boss); Slam arms lost wins. With no heal in S1 the band and boss reach cannot both hold
 - Contrast gate 7/7 on the rendered lit ground (Y 0.112) and shadow; telegraph (3.22) and round (3.14) pass through their dark tones with thin margins. Against the `Pal.Ground.Bright` token gem, tracer core and chest are under 3; the second weather does not exist
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
