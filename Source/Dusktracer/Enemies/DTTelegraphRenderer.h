@@ -26,6 +26,12 @@ class UMaterialInterface;
  *        dodge lane: a sector of Width degrees centred on Dir is left undrawn.
  *   HazardRing (boss.md hazard): everything outside the circle of radius Length around Origin, out past the arena
  *        corners (C.ARENA.HALF_EXTENT_UU times sqrt 2), drawn as RingSegments quads whose inner edges are tangent to it.
+ *
+ * Layers (R-PRE-05): by default each telegraph draws three times, floor up. A dark band in Pal.Telegraph.Edge, the shape
+ * grown by C.PRE.TELEGRAPH_EDGE_UU; the rim, the footprint itself, always at full emissive; the fill, the shape shrunk
+ * by C.PRE.TELEGRAPH_RIM_UU so the rim shows round it, whose emissive ramps with Progress from
+ * C.PRE.TELEGRAPH_FILL_MIN of full (none on a shape too thin to shrink: aim lines). Each layer sits
+ * C.PRE.TELEGRAPH_LAYER_UU over the last. Control cues share these shapes and draw one flat layer (SetEdged false).
  */
 UCLASS(NotPlaceable, Transient)
 class DUSKTRACER_API ADTTelegraphRenderer : public AActor
@@ -45,11 +51,20 @@ public:
 	/** The drawn height (default C.ENEMIES.TELEGRAPH_Z_UU; control cues sit under telegraphs, R-PRE-11). */
 	void SetDrawZ(float InZ) { DrawZ = InZ; }
 
-	/** Rebuilds the instances from Telegraphs: count follows InstancesFor of each entry; transforms batch-written. */
+	/** False: one flat layer in the InitRender colour (control cues, R-PRE-11); true (default): the telegraph layers. */
+	void SetEdged(bool bInEdged) { bEdged = bInEdged; }
+
+	/** Rebuilds the instances from Telegraphs: count follows the layers of each entry; transforms and colours batch-written. */
 	void SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraphs);
 
-	/** Number of quads one telegraph is drawn with. */
+	/** Number of quads one shape is drawn with. */
 	static int32 InstancesFor(const FDTTelegraph& Telegraph);
+	/** Number of quads one telegraph is drawn with across its layers. */
+	static int32 InstancesDrawn(const FDTTelegraph& Telegraph);
+	/** Telegraph with its boundary moved outward by OutwardUU (negative: inward); false when nothing is left of it. */
+	static bool OffsetShape(const FDTTelegraph& Telegraph, float OutwardUU, FDTTelegraph& Out);
+	/** The fill's share of full emissive at Progress. */
+	static float FillScale(float Progress);
 	/** Appends the quad transforms of one telegraph (MeshSize = edge length of the quad mesh in uu). */
 	static void AppendTransforms(const FDTTelegraph& Telegraph, float MeshSize, float Z, TArray<FTransform>& Out);
 
@@ -62,11 +77,15 @@ private:
 	/** R-TEC-05 fallback when M_CueColor is missing: the engine basic-shape material (no per-instance colour). */
 	static UMaterialInterface* Fallback_TelegraphMaterial();
 
+	/** Appends one telegraph's quads at height Z, each carrying the NumCustomData floats at Data. */
+	void AddLayer(const FDTTelegraph& Telegraph, float Z, const float* Data);
+
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UInstancedStaticMeshComponent> Instances;
 
 	float MeshSizeUU = 1.0f;
 	bool bFallbackMaterial = false;
+	bool bEdged = true;
 	float CustomData[NumCustomData] = {};
 	float DrawZ = static_cast<float>(DTConst::ENEMIES_TELEGRAPH_Z_UU);
 	TArray<FTransform> Transforms;

@@ -60,23 +60,21 @@ namespace DTTelegraphTest
 		}
 	};
 
-	/** True when every instance of Part carries exactly Color and Emissive in custom data 0-3. */
-	static bool InstancesCarry(const UInstancedStaticMeshComponent* Part, const FLinearColor& Color, float Emissive)
+	/** Instances of Part carrying exactly Color and Emissive in custom data 0-3. */
+	static int32 CountCarrying(const UInstancedStaticMeshComponent* Part, const FLinearColor& Color, float Emissive)
 	{
 		const int32 Stride = Part->NumCustomDataFloats;
 		if (Stride < 4 || Part->PerInstanceSMCustomData.Num() != Part->GetInstanceCount() * Stride)
 		{
-			return false;
+			return 0;
 		}
+		int32 Count = 0;
 		for (int32 Instance = 0; Instance < Part->GetInstanceCount(); ++Instance)
 		{
 			const float* Data = &Part->PerInstanceSMCustomData[Instance * Stride];
-			if (Data[0] != Color.R || Data[1] != Color.G || Data[2] != Color.B || Data[3] != Emissive)
-			{
-				return false;
-			}
+			Count += Data[0] == Color.R && Data[1] == Color.G && Data[2] == Color.B && Data[3] == Emissive ? 1 : 0;
 		}
-		return true;
+		return Count;
 	}
 
 	static int32 ExpectedInstances(TConstArrayView<FDTTelegraph> Telegraphs)
@@ -84,7 +82,7 @@ namespace DTTelegraphTest
 		int32 Sum = 0;
 		for (const FDTTelegraph& T : Telegraphs)
 		{
-			Sum += ADTTelegraphRenderer::InstancesFor(T);
+			Sum += ADTTelegraphRenderer::InstancesDrawn(T);
 		}
 		return Sum;
 	}
@@ -212,6 +210,34 @@ bool FDTEnmTelegraphRender::RunTest(const FString& Parameters)
 		Arc.Length = 300.0f;
 		Arc.Width = 90.0f;
 		TestEqual(TEXT("a quarter arc is a quarter of the ring's quads"), ADTTelegraphRenderer::InstancesFor(Arc), ADTTelegraphRenderer::RingSegments / 4);
+
+		// Layers: the band outside the footprint, the fill inside it, in both directions for every shape.
+		const float EdgeUU = static_cast<float>(DTConst::PRE_TELEGRAPH_EDGE_UU);
+		const float RimUU = static_cast<float>(DTConst::PRE_TELEGRAPH_RIM_UU);
+		FDTTelegraph Layer;
+		TestTrue(TEXT("a band grows"), ADTTelegraphRenderer::OffsetShape(Band, EdgeUU, Layer));
+		TestEqual(TEXT("grown band length"), Layer.Length, Band.Length + 2.0f * EdgeUU);
+		TestEqual(TEXT("grown band width"), Layer.Width, Band.Width + 2.0f * EdgeUU);
+		TestTrue(TEXT("grown band starts behind the origin"), Layer.Origin.Equals(Band.Origin - FVector2f(0.0f, EdgeUU), 1.0e-3f));
+		TestTrue(TEXT("a band has a fill"), ADTTelegraphRenderer::OffsetShape(Band, -RimUU, Layer) && Layer.Width == Band.Width - 2.0f * RimUU);
+		FDTTelegraph Aim = Band;
+		Aim.Shape = EDTTelegraphShape::AimLine;
+		Aim.Width = 2.0f * static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU);
+		TestFalse(TEXT("an aim line is too thin for a fill"), ADTTelegraphRenderer::OffsetShape(Aim, -RimUU, Layer));
+		TestEqual(TEXT("an aim line draws its band and its line"), ADTTelegraphRenderer::InstancesDrawn(Aim), 2);
+		TestTrue(TEXT("a ring grows on both edges"), ADTTelegraphRenderer::OffsetShape(Ring, EdgeUU, Layer) && Layer.Length == Ring.Length + EdgeUU && Layer.Width == Ring.Width + 2.0f * EdgeUU);
+		FDTTelegraph Lane;
+		Lane.Shape = EDTTelegraphShape::RingGap;
+		Lane.Length = 600.0f;
+		Lane.Width = 40.0f;
+		TestTrue(TEXT("growing a lane shape narrows the lane"), ADTTelegraphRenderer::OffsetShape(Lane, EdgeUU, Layer) && Layer.Width < Lane.Width && Layer.Length == Lane.Length + EdgeUU);
+		FDTTelegraph Hazard;
+		Hazard.Shape = EDTTelegraphShape::HazardRing;
+		Hazard.Length = 800.0f;
+		TestTrue(TEXT("growing the hazard shrinks the safe circle"), ADTTelegraphRenderer::OffsetShape(Hazard, EdgeUU, Layer) && Layer.Length == Hazard.Length - EdgeUU);
+		TestEqual(TEXT("the fill starts dim"), ADTTelegraphRenderer::FillScale(0.0f), static_cast<float>(DTConst::PRE_TELEGRAPH_FILL_MIN));
+		TestEqual(TEXT("the fill lands at full emissive"), ADTTelegraphRenderer::FillScale(1.0f), 1.0f);
+		TestTrue(TEXT("the top layer stays under hulls and rounds"), Z + 2.0f * static_cast<float>(DTConst::PRE_TELEGRAPH_LAYER_UU) < static_cast<float>(DTConst::SIM_PLANE_Z_UU));
 	}
 
 	FTestWorld W;
@@ -255,9 +281,21 @@ bool FDTEnmTelegraphRender::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("three Rusher bands and a Turret aim line show"), bBoth);
 	TestTrue(TEXT("instances follow the Telegraphs count every frame"), bFollows);
-	TestEqual(TEXT("band and aim line are one quad each"), Renderer->GetInstanceCount(), Sim->GetView().Telegraphs.Num());
-	TestTrue(TEXT("every quad is Pal.Telegraph at the telegraph emissive"),
-		InstancesCarry(Renderer->GetInstances(), DTPal::Linear(DTPal::Telegraph), DTConst::ENEMIES_TELEGRAPH_EMISSIVE));
+	{
+		const TConstArrayView<FDTTelegraph> Shown = Sim->GetView().Telegraphs;
+		const FLinearColor Red = DTPal::Linear(DTPal::Telegraph);
+		const float Full = static_cast<float>(DTConst::ENEMIES_TELEGRAPH_EMISSIVE);
+		TestEqual(TEXT("each telegraph has one dark band quad"), CountCarrying(Renderer->GetInstances(), DTPal::Linear(DTPal::Telegraph_Edge), 1.0f), Shown.Num());
+		TestTrue(TEXT("every telegraph's rim is Pal.Telegraph at full emissive"), CountCarrying(Renderer->GetInstances(), Red, Full) >= Shown.Num());
+		for (const FDTTelegraph& T : Shown)
+		{
+			FDTTelegraph Fill;
+			if (ADTTelegraphRenderer::OffsetShape(T, -static_cast<float>(DTConst::PRE_TELEGRAPH_RIM_UU), Fill))
+			{
+				TestTrue(TEXT("a fill burns at its Progress"), CountCarrying(Renderer->GetInstances(), Red, Full * ADTTelegraphRenderer::FillScale(T.Progress)) > 0);
+			}
+		}
+	}
 	TestEqual(TEXT("telegraph colour is the Pal.Telegraph token"), UDTEnemySubsystem::GetTelegraphColor(), DTPal::Linear(DTPal::Telegraph));
 	TestEqual(TEXT("no actor per telegraph"), W.CountActors(), ActorsBefore);
 

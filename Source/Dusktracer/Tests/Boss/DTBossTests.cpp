@@ -973,7 +973,7 @@ bool FDTBossWorld::RunTest(const FString& Parameters)
 			int32 Expected = 0;
 			for (const FDTTelegraph& T : Telegraphs)
 			{
-				Expected += ADTTelegraphRenderer::InstancesFor(T);
+				Expected += ADTTelegraphRenderer::InstancesDrawn(T);
 			}
 			TestEqual(TEXT("the renderer draws every boss telegraph"), Renderer->GetInstanceCount(), Expected);
 			TestTrue(TEXT("boss shapes are tessellated"), Expected > Telegraphs.Num());

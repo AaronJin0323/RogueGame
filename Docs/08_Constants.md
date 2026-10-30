@@ -60,6 +60,10 @@
 | C.PRE.CHARGE_RING_GAP_UU | 28 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CHARGE_TICKS | 12 | n | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CHARGE_TICK_FILL | 0.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.TELEGRAPH_EDGE_UU | 16 | uu | GATED(S1) | 04_Presentation R-PRE-05, T-ENM-25 |
+| C.PRE.TELEGRAPH_RIM_UU | 16 | uu | GATED(S1) | 04_Presentation R-PRE-05, T-ENM-25 |
+| C.PRE.TELEGRAPH_FILL_MIN | 0.5 | ratio | GATED(S1) | 04_Presentation R-PRE-05, T-ENM-25 |
+| C.PRE.TELEGRAPH_LAYER_UU | 0.5 | uu | GATED(S1) | 04_Presentation R-PRE-05, T-ENM-25 |
 
 ## 4. Budgets (from `G02` §07 and D-003)
 

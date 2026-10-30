@@ -48,6 +48,10 @@ presentation:
   PRE.CHARGE_RING_GAP_UU:      { value: 28,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.CHARGE_TICKS:            { value: 12,   unit: n,     tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.CHARGE_TICK_FILL:        { value: 0.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.TELEGRAPH_EDGE_UU:       { value: 16,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
+  PRE.TELEGRAPH_RIM_UU:        { value: 16,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
+  PRE.TELEGRAPH_FILL_MIN:      { value: 0.5,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
+  PRE.TELEGRAPH_LAYER_UU:      { value: 0.5,  unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
