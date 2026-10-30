@@ -207,6 +207,37 @@ bool FDTBotCards::RunTest(const FString& Parameters)
 	return true;
 }
 
+// The ring is a skill check for a hero who can see it. Standing far outside, past the look-ahead, every move lands in the
+// hazard: the bot must still walk in, even with an enemy on the inside pushing its kite outward (S1_boss_after_fields.md).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotHazardRingInward, "Dusktracer.Bot.HazardRingInward", DTBotTest::Flags)
+bool FDTBotHazardRingInward::RunTest(const FString& Parameters)
+{
+	FDTTelegraph Ring;
+	Ring.Shape = EDTTelegraphShape::HazardRing;
+	Ring.Length = 2800.0f;
+	Ring.Progress = 1.0f;
+	FDTHeroState Hero;
+	Hero.Pos = FVector2f(2500.0f, 2500.0f); // 3535 uu out, clear of the wall band, which would push it in anyway
+	Hero.Hp = Hero.MaxHp = 100.0f;
+	const FVector2f EnemyPos[] = { FVector2f(1800.0f, 1800.0f) };
+	const FVector2f EnemyVel[] = { FVector2f::ZeroVector };
+	const float EnemyRadius[] = { 340.0f };
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.Telegraphs = MakeArrayView(&Ring, 1);
+	World.EnemyPos = EnemyPos;
+	World.EnemyVel = EnemyVel;
+	World.EnemyRadius = EnemyRadius;
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::None;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	TestTrue(TEXT("danger grows with the distance outside the ring"), Brain.DangerAt(World, Hero.Pos, 0.0f) > Brain.DangerAt(World, Hero.Pos * 0.9f, 0.0f));
+	const FDTHeroInput Input = Brain.Decide(World);
+	TestTrue(TEXT("a hero far outside the ring walks in"), FVector2f::DotProduct(Input.Move, Hero.Pos.GetSafeNormal()) < -0.5f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotDodge, "Dusktracer.Bot.Dodge", DTBotTest::Flags)
 bool FDTBotDodge::RunTest(const FString& Parameters)
 {

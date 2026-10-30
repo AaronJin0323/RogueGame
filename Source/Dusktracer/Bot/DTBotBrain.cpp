@@ -264,7 +264,17 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 	{
 		if (InTelegraph(Tele, P, HeroR + MarginUU))
 		{
-			Score += (Tele.Shape == EDTTelegraphShape::HazardRing ? HazardWeight : TelegraphWeight) * (0.3f + Tele.Progress);
+			if (Tele.Shape == EDTTelegraphShape::HazardRing)
+			{
+				// Graded by the distance outside: from past the look-ahead every move lands in the hazard, and a flat score would
+				// leave only the kite, which points away from the boss, so outward (S1_boss_after_fields.md).
+				const float Outside = FMath::Max(0.0f, FVector2f::Distance(P, Tele.Origin) - Tele.Length);
+				Score += HazardWeight * (0.3f + Tele.Progress) * (1.0f + Outside / FMath::Max(Tele.Length, 1.0f));
+			}
+			else
+			{
+				Score += TelegraphWeight * (0.3f + Tele.Progress);
+			}
 		}
 	}
 	for (int32 Index = 0; Index < World.EnemyPos.Num(); ++Index)
