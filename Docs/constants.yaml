@@ -55,6 +55,7 @@ enemies:
   ENM.EMISSIVE_STRENGTH:       { value: 2.0,  unit: ratio, tag: GATED(S1),  dependents: [02_Systems/enemies.md, 04_Presentation.md, Enemies/DTEnemySubsystem] }
   ENM.KILL_RATE_WINDOW_S:      { value: 1.0,  unit: s,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S, T-ENM-05] }
   ENEMIES.OPTIC_EMISSIVE:      { value: 14.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, T-ENM-24] }
+  ENEMIES.OPTIC_SCALE:         { value: 0.35, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, Enemies/DTEnemySubsystem] }
   ENEMIES.TELEGRAPH_EMISSIVE:  { value: 12.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, 04_Presentation.md] }
   ENEMIES.TELEGRAPH_LEAD_MIN_S:{ value: 0.75, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/boss.md, R-ENM-13, T-ENM-13, R-BOS-05] }
   ROLE.SWARM_CONTACT_DAMAGE:   { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }

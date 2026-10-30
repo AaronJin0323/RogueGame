@@ -11,7 +11,17 @@ namespace DTEnemyRender
 	static const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
 	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_InstanceColor.M_InstanceColor");
 	static const TCHAR* Fallback_EnemyMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
-	constexpr int32 NumCustomFloats = 4;
+
+	static UInstancedStaticMeshComponent* MakePart(AActor* Owner, const TCHAR* Name)
+	{
+		UInstancedStaticMeshComponent* Part = Owner->CreateDefaultSubobject<UInstancedStaticMeshComponent>(Name);
+		Part->SetMobility(EComponentMobility::Movable);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetGenerateOverlapEvents(false);
+		Part->SetCanEverAffectNavigation(false);
+		Part->NumCustomDataFloats = ADTEnemyRenderer::NumCustomData;
+		return Part;
+	}
 }
 
 ADTEnemyRenderer::ADTEnemyRenderer()
@@ -20,21 +30,20 @@ ADTEnemyRenderer::ADTEnemyRenderer()
 	SetCanBeDamaged(false);
 	bReplicates = false;
 
-	Instances = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Instances"));
-	Instances->SetMobility(EComponentMobility::Movable);
-	Instances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Instances->SetGenerateOverlapEvents(false);
-	Instances->SetCanEverAffectNavigation(false);
-	Instances->NumCustomDataFloats = DTEnemyRender::NumCustomFloats;
-	RootComponent = Instances;
+	Hull = DTEnemyRender::MakePart(this, TEXT("Hull"));
+	RootComponent = Hull;
+	Optic = DTEnemyRender::MakePart(this, TEXT("Optic"));
+	Optic->SetupAttachment(Hull);
+	Optic->SetCastShadow(false);
 }
 
-void ADTEnemyRenderer::Setup(const FLinearColor& InstanceColor, float EmissiveStrength)
+void ADTEnemyRenderer::Setup(const FLinearColor& HullColor, float HullEmissive, const FLinearColor& OpticColor, float OpticEmissive)
 {
 	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, DTEnemyRender::MeshPath);
 	if (Mesh)
 	{
-		Instances->SetStaticMesh(Mesh);
+		Hull->SetStaticMesh(Mesh);
+		Optic->SetStaticMesh(Mesh);
 		MeshSizeUU = FMath::Max(UE_KINDA_SMALL_NUMBER, 2.0f * static_cast<float>(Mesh->GetBounds().BoxExtent.X));
 	}
 	else
@@ -43,6 +52,7 @@ void ADTEnemyRenderer::Setup(const FLinearColor& InstanceColor, float EmissiveSt
 	}
 
 	UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, DTEnemyRender::MaterialPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	bFallbackMaterial = Material == nullptr;
 	if (!Material)
 	{
 		// Fallback_EnemyMaterial (R-TEC-05): until M_InstanceColor exists, enemies draw untinted.
@@ -51,16 +61,18 @@ void ADTEnemyRenderer::Setup(const FLinearColor& InstanceColor, float EmissiveSt
 	}
 	if (Material)
 	{
-		Instances->SetMaterial(0, Material);
+		Hull->SetMaterial(0, Material);
+		Optic->SetMaterial(0, Material);
 	}
 
-	CustomData = { InstanceColor.R, InstanceColor.G, InstanceColor.B, EmissiveStrength };
+	HullData = { HullColor.R, HullColor.G, HullColor.B, HullEmissive };
+	OpticData = { OpticColor.R, OpticColor.G, OpticColor.B, OpticEmissive };
 }
 
-void ADTEnemyRenderer::UpdateInstances(TConstArrayView<FTransform> Transforms)
+void ADTEnemyRenderer::Sync(UInstancedStaticMeshComponent* Part, TConstArrayView<FTransform> Transforms, const TArray<float>& Data)
 {
 	const int32 Want = Transforms.Num();
-	const int32 Have = Instances->GetInstanceCount();
+	const int32 Have = Part->GetInstanceCount();
 
 	if (Want < Have)
 	{
@@ -70,24 +82,30 @@ void ADTEnemyRenderer::UpdateInstances(TConstArrayView<FTransform> Transforms)
 		{
 			RemoveScratch.Add(Index);
 		}
-		Instances->RemoveInstances(RemoveScratch, true);
+		Part->RemoveInstances(RemoveScratch, true);
 	}
 	else if (Want > Have)
 	{
 		const TArray<FTransform> Added(Transforms.Slice(Have, Want - Have));
-		Instances->AddInstances(Added, false, true, false);
+		Part->AddInstances(Added, false, true, false);
 		for (int32 Index = Have; Index < Want; ++Index)
 		{
-			Instances->SetCustomData(Index, CustomData, false);
+			Part->SetCustomData(Index, Data, false);
 		}
 	}
 
 	if (Want > 0)
 	{
-		Instances->BatchUpdateInstancesTransforms(0, Transforms, true, true, false);
+		Part->BatchUpdateInstancesTransforms(0, Transforms, true, true, false);
 	}
 	else if (Have > 0)
 	{
-		Instances->MarkRenderStateDirty();
+		Part->MarkRenderStateDirty();
 	}
+}
+
+void ADTEnemyRenderer::UpdateInstances(TConstArrayView<FTransform> HullTransforms, TConstArrayView<FTransform> OpticTransforms)
+{
+	Sync(Hull, HullTransforms, HullData);
+	Sync(Optic, OpticTransforms, OpticData);
 }
