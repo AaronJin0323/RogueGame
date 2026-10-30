@@ -43,6 +43,13 @@
 |---|---|---|---|---|
 | C.PRE.CONTRAST_MIN | 3.0 | ratio | CORE | 04_Presentation §2, T-PRE-05 |
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
+| C.PRE.CUE_EMISSIVE | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CUE_Z_UU | 1 | uu | GATED(S1) | 04_Presentation R-PRE-11, Combat/DTWeaponSubsystem |
+| C.PRE.AURA_RING_UU | 12 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.AURA_PULSE_UU | 24 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.WALL_PLATE_RATIO | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.HOLD_FRAME_RATIO | 1.9 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.HOLD_FRAME_UU | 10 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 
 ## 4. Budgets (from `G02` §07 and D-003)
 
@@ -125,6 +132,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENEMY_FIRE.FAN_COUNT | 4 | n | GATED(S1) | enemies.md, R-ENM-19, R-ENM-20 |
 | C.ENEMY_FIRE.FAN_SPREAD_DEG | 14 | deg | GATED(S1) | enemies.md, R-ENM-20, T-ENM-20 |
 | C.ENEMY_FIRE.EMISSIVE | 3.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, 04_Presentation.md |
+| C.ENEMY_FIRE.CORE_RADIUS_RATIO | 0.6 | ratio | GATED(S1) | enemies.md, R-ENM-17, Tools/create_arena.py |
 | C.AIM.TOKENS | 3 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.TOKENS_THREAT | 4 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.FAN_MIN_RANGE_UU | 600 | uu | GATED(S1) | enemies.md, R-ENM-19, T-ENM-19 |
@@ -244,6 +252,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.OFFER.FORCE_WEAPON_LEVEL | 5 | level | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
 | C.OFFER.FORCE_WEAPON_BELOW | 2 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
 | C.OFFER.INPUT_GUARD_S | 0.4 | s | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
+| C.OFFER.KEYWORD_NOTES_MAX | 4 | n | GATED(S1) | 02_Systems/offers.md, R-OFF-13, T-OFF-17 |
 | C.OFFER.RESERVE_RESTORE_HP_RATIO | 0.3 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
 | C.OFFER.RESERVE_HONE_DAMAGE_RATIO | 0.04 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
 | C.OFFER.RESERVE_SPARE_REROLLS | 1 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |

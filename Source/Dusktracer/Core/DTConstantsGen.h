@@ -36,6 +36,13 @@ namespace DTConst
 	inline constexpr float HUD_BANNER_S = 2.5f; // s, GATED(S1)
 	inline constexpr float PRE_CONTRAST_MIN = 3.0f; // ratio, CORE
 	inline constexpr int32 PRE_DENSITY_LOD_KILLS_PER_S = 20; // per_s, GATED(S1)
+	inline constexpr float PRE_CUE_EMISSIVE = 1.6f; // ratio, GATED(S1)
+	inline constexpr int32 PRE_CUE_Z_UU = 1; // uu, GATED(S1)
+	inline constexpr int32 PRE_AURA_RING_UU = 12; // uu, GATED(S1)
+	inline constexpr int32 PRE_AURA_PULSE_UU = 24; // uu, GATED(S1)
+	inline constexpr float PRE_WALL_PLATE_RATIO = 1.6f; // ratio, GATED(S1)
+	inline constexpr float PRE_HOLD_FRAME_RATIO = 1.9f; // ratio, GATED(S1)
+	inline constexpr int32 PRE_HOLD_FRAME_UU = 10; // uu, GATED(S1)
 	// budget
 	// BUDGET_RES = '1080p60' (res_fps, CORE) - not a number; no constant generated
 	inline constexpr int32 BUDGET_GAME_THREAD_P50_MS = 8; // ms, CORE
@@ -99,6 +106,7 @@ namespace DTConst
 	inline constexpr int32 ENEMY_FIRE_FAN_COUNT = 4; // n, GATED(S1)
 	inline constexpr int32 ENEMY_FIRE_FAN_SPREAD_DEG = 14; // deg, GATED(S1)
 	inline constexpr float ENEMY_FIRE_EMISSIVE = 3.5f; // ratio, GATED(S1)
+	inline constexpr float ENEMY_FIRE_CORE_RADIUS_RATIO = 0.6f; // ratio, GATED(S1)
 	inline constexpr int32 AIM_TOKENS = 3; // n, GATED(S1)
 	inline constexpr int32 AIM_TOKENS_THREAT = 4; // n, GATED(S1)
 	inline constexpr int32 AIM_FAN_MIN_RANGE_UU = 600; // uu, GATED(S1)
@@ -178,6 +186,7 @@ namespace DTConst
 	inline constexpr float INTERCESSION_TIDE_FREEZE_S = 3.0f; // s, GATED(S1)
 	inline constexpr float INTERCESSION_RETUNE_STEP_MAX = 2.0f; // x, GATED(S1)
 	// offers
+	inline constexpr int32 OFFER_KEYWORD_NOTES_MAX = 4; // n, GATED(S1)
 	inline constexpr int32 OFFER_SECOND_KEEPER_LEVEL = 8; // level, CORE
 	inline constexpr int32 OFFER_REFORGING_LEVEL = 16; // level, CORE
 	inline constexpr int32 OFFER_REFORGING_CARDS = 3; // n, CORE

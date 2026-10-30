@@ -31,6 +31,13 @@ presentation:
   HUD.BANNER_S:                { value: 2.5, unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-17] }
   PRE.CONTRAST_MIN:            { value: 3.0,  unit: ratio, tag: CORE,       dependents: [04_Presentation.md, T-PRE-05] }
   PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
+  PRE.CUE_EMISSIVE:            { value: 1.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CUE_Z_UU:                { value: 1,    unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, Combat/DTWeaponSubsystem] }
+  PRE.AURA_RING_UU:            { value: 12,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.AURA_PULSE_UU:           { value: 24,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.WALL_PLATE_RATIO:        { value: 1.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.HOLD_FRAME_RATIO:        { value: 1.9,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.HOLD_FRAME_UU:           { value: 10,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
@@ -94,6 +101,7 @@ enemies:
   ENEMY_FIRE.FAN_COUNT:        { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-19, R-ENM-20] }
   ENEMY_FIRE.FAN_SPREAD_DEG:   { value: 14, unit: deg, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-20, T-ENM-20] }
   ENEMY_FIRE.EMISSIVE:         { value: 3.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, 04_Presentation.md] }
+  ENEMY_FIRE.CORE_RADIUS_RATIO: { value: 0.6, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, Tools/create_arena.py] }
   AIM.TOKENS:                  { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.TOKENS_THREAT:           { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.FAN_MIN_RANGE_UU:        { value: 600, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-19, T-ENM-19] }
@@ -172,6 +180,7 @@ keepers:
   INTERCESSION.RETUNE_STEP_MAX: { value: 2.0, unit: x,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-15] }
 
 offers:
+  OFFER.KEYWORD_NOTES_MAX:     { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, R-OFF-13, T-OFF-17] }
   OFFER.SECOND_KEEPER_LEVEL:         { value: 8, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-08] }
   OFFER.REFORGING_LEVEL:             { value: 16, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-09] }
   OFFER.REFORGING_CARDS:             { value: 3, unit: n, tag: CORE, dependents: [02_Systems/offers.md, T-OFF-09] }
