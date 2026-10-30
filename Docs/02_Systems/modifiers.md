@@ -54,15 +54,15 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 | `FDTWeaponInstance.Sockets[]` | per weapon | `Mod.*` id plus `bDormant` (R-MOD-08) |
 
 ## Acceptance
-- T-MOD-01 PLANNED(S1) `Dusktracer.Modifiers.NeverIncompatible`: for every S1 weapon × modifier, the offer generator (run with every modifier in the pool), the socket and the composition agree with `IsCompatible`; no incompatible pair is ever offered, socketed or applied, and every compatible flag-carrying pair resolves `native`.
-- T-MOD-02 PLANNED(S1) `Dusktracer.Modifiers.MatrixGenerated`: `IsCompatible` over the catalogs reproduces the expected per-cell table built from the stated rule; once `Tools/gen_matrix.py` exists, its `--check` fails on any hand edit of `matrix.csv`.
-- T-MOD-03 PLANNED(S1) `Dusktracer.Modifiers.Specialisers`: no modifier row carries a damage, fire-rate, size or crit multiplier parameter; every row names a behaviour.
-- T-MOD-04 PLANNED(S1) `Dusktracer.Modifiers.Sockets`: a second copy on one weapon and a socket beyond the cap are refused; a modifier affects only its own weapon.
-- T-MOD-05 PLANNED(S1) `Dusktracer.Modifiers.StackCaps`: `Mod.SplitCore` + `Mod.ScatterShell` + `Flag.Split` never produce a round past the generation cap; crit chance from all sources clamps at the cap.
-- T-MOD-06 PLANNED(S1) `Dusktracer.Modifiers.NoFitBonus`: a modifier's composed effect is identical with and without the Keepers its `fits` names.
-- T-MOD-07 PLANNED(S1) `Dusktracer.Modifiers.Coverage`: every S1 weapon has at least the minimum compatible modifiers, over the starter rows and over all S1 rows.
-- T-MOD-08 PLANNED(S1) `Dusktracer.Modifiers.Dormant`: a `ConvertMelee` that converts every round of a Pulse Rifle makes its `Mod.Pierce` dormant (kept, inert); the modifier wakes when the conversion is gone.
-- T-MOD-09 PLANNED(S1) `Dusktracer.Modifiers.Source`: split children and fields from a modifier carry `Modifier.<Name>`; pierced hits keep the weapon's source.
+- T-MOD-01 `Dusktracer.Modifiers.NeverIncompatible`: for every S1 weapon × modifier, the offer generator (run with every modifier in the pool), the socket and the composition agree with `IsCompatible`; no incompatible pair is ever offered, socketed or applied, and every compatible flag-carrying pair resolves `native`.
+- T-MOD-02 `Dusktracer.Modifiers.MatrixGenerated`: `IsCompatible` over the catalogs reproduces the expected per-cell table built from the stated rule; once `Tools/gen_matrix.py` exists, its `--check` fails on any hand edit of `matrix.csv`.
+- T-MOD-03 `Dusktracer.Modifiers.Specialisers`: no modifier row carries a damage, fire-rate, size or crit multiplier parameter; every row names a behaviour.
+- T-MOD-04 `Dusktracer.Modifiers.Sockets`: a second copy on one weapon and a socket beyond the cap are refused; a modifier affects only its own weapon.
+- T-MOD-05 `Dusktracer.Modifiers.StackCaps`: `Mod.SplitCore` + `Mod.ScatterShell` + `Flag.Split` never produce a round past the generation cap; crit chance from all sources clamps at the cap.
+- T-MOD-06 `Dusktracer.Modifiers.NoFitBonus`: a modifier's composed effect is identical with and without the Keepers its `fits` names.
+- T-MOD-07 `Dusktracer.Modifiers.Coverage`: every S1 weapon has at least the minimum compatible modifiers, over the starter rows and over all S1 rows.
+- T-MOD-08 `Dusktracer.Modifiers.Dormant`: a `ConvertMelee` that converts every round of a Pulse Rifle makes its `Mod.Pierce` dormant (kept, inert); the modifier wakes when the conversion is gone.
+- T-MOD-09 `Dusktracer.Modifiers.Source`: split children and fields from a modifier carry `Modifier.<Name>`; pierced hits keep the weapon's source.
 - HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does.
 
 ## Telemetry
@@ -81,3 +81,5 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - `Mod.ChainTrigger` snowball in dense crowds is bounded only by its interval and the spawn rate cap → measured in the first steered bot runs.
 - Dormant modifiers may need a refund (a reroll) to avoid feeling like a lost pick → decided with `offers.md` after the S1 validation sessions.
 - Crit has no S1 modifier source; the cap guards hero base crit and S2 Radiance → revisit when Radiance lands.
+- T-MOD-01 checks the full catalog cross product (declared and converted caps), the socket and the composition; its offer-generator leg is added when `offers.md` lands (offers call `DTModCompat::IsCompatible`, `Combat/DTWeaponCatalog.h`).
+- Flag-carrying modifiers feed the weapon's flag accumulator as their own entries (source `Modifier.<Name>`, tier below every Keeper source); Pierce, Mirror, Fork and ChainTrigger compose into the spec directly.

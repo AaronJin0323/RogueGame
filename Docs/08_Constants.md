@@ -353,6 +353,9 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.WEAPON.MINE_PULL_RADIUS_RATIO | 1.5 | ratio of blast radius | GATED(S1) | weapons.md, T-WPN-13 |
 | C.WEAPON.MINE_PULL_SPEED_UU_S | 300 | uu/s | GATED(S1) | weapons.md, T-WPN-13 |
 | C.WEAPON.MINE_LIVE_MAX | 4 | n per weapon | GATED(S1) | weapons.md, T-WPN-13 |
+| C.WEAPON.CHILD_SPEED_UU_S | 900 | uu/s | GATED(S1) | weapons.md, T-WPN-08 (split children of a carrier with no round speed: arcs, mines) |
+| C.WEAPON.CHILD_RANGE_UU | 450 | uu | GATED(S1) | weapons.md, T-WPN-08 (their range; life = range / speed) |
+| C.WEAPON.CHILD_RADIUS_UU | 10 | uu | GATED(S1) | weapons.md, T-WPN-08 (their radius) |
 | C.MOD.SOCKETS_PER_WEAPON | 3 | n | GATED(S1) | modifiers.md, offers.md, T-MOD-04 |
 | C.MOD.MIN_COMPATIBLE | 4 | n per weapon | GATED(S1) | modifiers.md, T-MOD-07 |
 | C.MOD.SPLIT_GENERATIONS_MAX | 2 | n | CORE | modifiers.md, keepers.md, T-MOD-05 |
