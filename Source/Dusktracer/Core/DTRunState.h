@@ -132,6 +132,37 @@ struct FDTKeeperRunState
 	bool bCommitDone = false;
 };
 
+/**
+ * One owned weapon (weapons.md Data). Behaviour lives in the weapon system (Combat/DTWeaponSim.h); this is only its
+ * per-player state. Ids are the tag spelling (Weapon.*, Mod.*).
+ */
+struct FDTWeaponInstance
+{
+	/** A socketed modifier (modifiers.md R-MOD-04, R-MOD-08): dormant = kept but inert while the weapon cannot express it. */
+	struct FSocket
+	{
+		FName ModId;
+		bool bDormant = false;
+	};
+
+	/** Weapon.<Name>. */
+	FName Id;
+	/** Row index in DTCat::Weapons. */
+	int32 Def = INDEX_NONE;
+	int32 Level = 1;
+	/** Acquisition order within the player (load ties, R-WPN-03). */
+	int32 AcquiredOrder = 0;
+	/** Seconds until the next volley; <= 0 = ready. */
+	float Cooldown = 0.0f;
+	TArray<FSocket> Sockets;
+	/** Active pattern conversion as a DTCat::EFlag value (ConvertMelee / ConvertOrbit); 0xFF = none (R-WPN-10). */
+	uint8 Conversion = 0xFF;
+	/** Volleys fired (every-Nth triggers). */
+	int32 ShotCounter = 0;
+	/** FDTTelemetrySources id of Weapon.<Name>. */
+	uint16 SourceId = 0;
+};
+
 /** Everything one player owns during a run. Systems add their fields here, never to a global. */
 struct FDTPlayerRunState
 {
@@ -147,6 +178,8 @@ struct FDTPlayerRunState
 	int32 Pickups = 0;
 	FDTPlayerOfferState Offer;
 	FDTKeeperRunState Keepers;
+	/** Owned weapons in slot order (at most C.WEAPON.SLOTS); the slot index is FDTHit::WeaponSlot. */
+	TArray<FDTWeaponInstance> Weapons;
 };
 
 /** The run: its seed-derived streams and one state per player. There is no single-player shortcut. */

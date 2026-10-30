@@ -86,19 +86,19 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 | `FDTHit`, `FDTDisplacement` | `07_Technical §4` | hits from arcs, mine ticks and detonations; mine pulls; never a direct damage or position write |
 
 ## Acceptance
-- T-WPN-01 PLANNED(S1) `Dusktracer.Weapons.CatalogRows`: every `weapons.csv` row parses; every S1 weapon has a row for each level up to `C.WEAPON.LEVEL_MAX` and a known pattern; a weapon def is built from rows alone.
-- T-WPN-02 PLANNED(S1) `Dusktracer.Weapons.Caps`: every catalog cap is one of the twelve `Cap.*` tags; effective caps change with a conversion and only then.
-- T-WPN-03 PLANNED(S1) `Dusktracer.Weapons.Load`: with one to `C.WEAPON.SLOTS` weapons, rank and damage follow the factors; a level-up that reorders levels reorders load; ties go to the earlier weapon; a pick beyond the slots is refused.
-- T-WPN-04 PLANNED(S1) `Dusktracer.Weapons.LevelTrack`: consecutive levels differ on exactly one axis; the level cap holds.
-- T-WPN-05 PLANNED(S1) `Dusktracer.Weapons.NoL16Card`: in S1 the L16 hand contains no weapon card.
-- T-WPN-06 PLANNED(S1) `Dusktracer.Weapons.Emission`: in a headless world each S1 weapon emits per its pattern (rounds via `Spawn` with life from range and speed, drones in turn, arcs as hits, one hit per enemy per sweep) and adds no actor per round.
-- T-WPN-07 PLANNED(S1) `Dusktracer.Weapons.HitPath`: enemy health is unchanged until `ResolveHits`; every hit carries the right owner and the source of its creator (weapon, modifier or Keeper).
-- T-WPN-08 PLANNED(S1) `Dusktracer.Weapons.FlagResolution`: for every flag and every catalog weapon the resolution is `native` or `fallback` and matches the walk over `flag_compat.csv`.
-- T-WPN-09 PLANNED(S1) `Dusktracer.Weapons.ComposeAndThrottle`: composition order and stacking are as stated; a weapon stacked past the spawn rate cap emits no more than the cap and counts the rest.
-- T-WPN-10 PLANNED(S1) `Dusktracer.Weapons.Conversion`: two conversions on one weapon leave only the higher-tier one; a converted volley is one arc with the stated damage; a partial conversion keeps `Projectile`.
-- T-WPN-11 PLANNED(S1) `Dusktracer.Weapons.Palette`: every weapon visual's core is `Pal.Player.Core` and no weapon visual resolves to a red or magenta token (pairs with T-PRE-01).
-- T-WPN-12 PLANNED(S1) `Dusktracer.Weapons.Determinism`: same seed and inputs give identical emissions and hits; a targeted weapon with no enemy in range does not fire (in `Manual` aim a `Nearest` weapon fires along the aim); crit rates over a seeded sample match the composed chance.
-- T-WPN-13 PLANNED(S1) `Dusktracer.Weapons.Mine`: arm, pull ticks, detonation and the live cap behave as stated; enemy positions change only through displacement requests.
+- T-WPN-01 `Dusktracer.Weapons.CatalogRows`: every `weapons.csv` row parses; every S1 weapon has a row for each level up to `C.WEAPON.LEVEL_MAX` and a known pattern; a weapon def is built from rows alone.
+- T-WPN-02 `Dusktracer.Weapons.Caps`: every catalog cap is one of the twelve `Cap.*` tags; effective caps change with a conversion and only then.
+- T-WPN-03 `Dusktracer.Weapons.Load`: with one to `C.WEAPON.SLOTS` weapons, rank and damage follow the factors; a level-up that reorders levels reorders load; ties go to the earlier weapon; a pick beyond the slots is refused.
+- T-WPN-04 `Dusktracer.Weapons.LevelTrack`: consecutive levels differ on exactly one axis; the level cap holds.
+- T-WPN-05 `Dusktracer.Weapons.NoL16Card`: in S1 the L16 hand contains no weapon card.
+- T-WPN-06 `Dusktracer.Weapons.Emission`: in a headless world each S1 weapon emits per its pattern (rounds via `Spawn` with life from range and speed, drones in turn, arcs as hits, one hit per enemy per sweep) and adds no actor per round.
+- T-WPN-07 `Dusktracer.Weapons.HitPath`: enemy health is unchanged until `ResolveHits`; every hit carries the right owner and the source of its creator (weapon, modifier or Keeper).
+- T-WPN-08 `Dusktracer.Weapons.FlagResolution`: for every flag and every catalog weapon the resolution is `native` or `fallback` and matches the walk over `flag_compat.csv`.
+- T-WPN-09 `Dusktracer.Weapons.ComposeAndThrottle`: composition order and stacking are as stated; a weapon stacked past the spawn rate cap emits no more than the cap and counts the rest.
+- T-WPN-10 `Dusktracer.Weapons.Conversion`: two conversions on one weapon leave only the higher-tier one; a converted volley is one arc with the stated damage; a partial conversion keeps `Projectile`.
+- T-WPN-11 `Dusktracer.Weapons.Palette`: every weapon visual's core is `Pal.Player.Core` and no weapon visual resolves to a red or magenta token (pairs with T-PRE-01).
+- T-WPN-12 `Dusktracer.Weapons.Determinism`: same seed and inputs give identical emissions and hits; a targeted weapon with no enemy in range does not fire (in `Manual` aim a `Nearest` weapon fires along the aim); crit rates over a seeded sample match the composed chance.
+- T-WPN-13 `Dusktracer.Weapons.Mine`: arm, pull ticks, detonation and the live cap behave as stated; enemy positions change only through displacement requests.
 - HUMAN: a validator can say in their own words what each S1 weapon does, and can see the difference when a Keeper flag changes it (split fans on the Ring Emitter, a cleave from the Pulse Rifle, the mine's pull).
 
 ## Telemetry
@@ -118,3 +118,6 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - Source credit for conversions keeps the weapon's source, which may understate the Keeper share at L16 → checked against `Tools/power_split.py` on the first steered bot runs.
 - The MEASURED reference shows Gravity Mine an order of magnitude over every other weapon in a dense crowd, and Ring Emitter and Drones never one-shot a late swarm → tuned in the S1 catalog pass against `C.TTK.SWARM_STEERED_MAX`.
 - Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass.
+- Implementation notes (S1 build): the flag seam is `UDTWeaponSubsystem::AddFlagSource(OwnerId, SourceTag, FDTWeaponFlags)`; entries stack per (flag, telemetry source, `on` word), so Keeper lines with another trigger need their own `on` (`Volley`, `Pulled`, `ChainHit`, `Cleave`). Split children of a carrier with no round speed (arcs, mines) use `C.WEAPON.CHILD_*`. Field ticks every fixed step. Hit-taken and dash-landing slams fire once per player, from the highest-load weapon carrying Slam.
+- Not yet expressed, for lack of an S1 source or input → with keepers/enemies: Field `trigger=HitOnBurning` (enemy status not readable; every impact counts), Pull crush, Stillness `status`/`window_s`, Echo `every_n`, ConvertOrbit native, Seek, Hunter, Nova, Charge, VolleyOnDash, SpeedScale, Push, Ricochet fallbacks; a key-only ConvertMelee size fallback (drones, mine) reads only `radius_scale`.
+- Rounds that split, bounce or pull to their origin are mirrored by the weapon system to recover generation, origin and expiry; a round recycled at `C.BULLETS.CAP` is missed → revisit if `Recycled` climbs.

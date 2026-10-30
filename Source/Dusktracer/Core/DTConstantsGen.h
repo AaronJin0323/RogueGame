@@ -298,6 +298,9 @@ namespace DTConst
 	inline constexpr float WEAPON_MINE_PULL_RADIUS_RATIO = 1.5f; // ratio, GATED(S1)
 	inline constexpr int32 WEAPON_MINE_PULL_SPEED_UU_S = 300; // uu_per_s, GATED(S1)
 	inline constexpr int32 WEAPON_MINE_LIVE_MAX = 4; // n, GATED(S1)
+	inline constexpr int32 WEAPON_CHILD_SPEED_UU_S = 900; // uu_per_s, GATED(S1)
+	inline constexpr int32 WEAPON_CHILD_RANGE_UU = 450; // uu, GATED(S1)
+	inline constexpr int32 WEAPON_CHILD_RADIUS_UU = 10; // uu, GATED(S1)
 	inline constexpr int32 MOD_SOCKETS_PER_WEAPON = 3; // n, GATED(S1)
 	inline constexpr int32 MOD_MIN_COMPATIBLE = 4; // n, GATED(S1)
 	inline constexpr int32 MOD_SPLIT_GENERATIONS_MAX = 2; // n, CORE
