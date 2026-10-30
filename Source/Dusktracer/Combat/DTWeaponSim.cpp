@@ -2890,6 +2890,33 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 		{
 			continue;
 		}
+		// The Stillness dial needs no Trait: every owner of the flag sees what its next volley holds.
+		const FDTResolvedFlag* Dial = nullptr;
+		int32 Charges = 0;
+		for (const FWeaponRuntime& Weapon : Player.Weapons)
+		{
+			if (const FDTResolvedFlag* Flag = Weapon.Spec.FindFlag(DTCat::EFlag::Stillness))
+			{
+				Dial = Dial ? Dial : Flag;
+				Charges = FMath::Max(Charges, Weapon.StillCharges);
+			}
+		}
+		if (Dial)
+		{
+			const FDTFlagParams& Params = Dial->Entry.Params;
+			const float ChargeS = Params.Get(DTFlagParam::ChargeS);
+			const int32 MaxCharges = FMath::Max(1, FMath::RoundToInt(Params.Get(DTFlagParam::ChargesMax, 1.0f)));
+			const float Gathered = Charges < MaxCharges && ChargeS > 0.0f ? FMath::Clamp(Player.StillTime / ChargeS, 0.0f, 1.0f) : 0.0f;
+			if (Charges > 0 || Gathered > 0.0f)
+			{
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::StillCharge;
+				V.Position = HeroOf(View, Owner);
+				V.Radius = static_cast<float>(DTConst::HERO_RADIUS_UU) * DTConst::PRE_CHARGE_RING_RATIO;
+				V.Charges = Charges;
+				V.Charge01 = Gathered;
+			}
+		}
 		for (const FWeaponRuntime& Weapon : Player.Weapons)
 		{
 			const FDTResolvedFlag* Still = Weapon.StillCharges > 0 ? Weapon.Spec.FindFlag(DTCat::EFlag::Stillness) : nullptr;
@@ -2905,32 +2932,44 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 				break;
 			}
 		}
-		const bool bBlocks = ReadHeldControl(Player.Weapons[0].Spec).bBlocks;
-		if (!bBlocks && Player.HeldFrozen.Num() == 0)
+	}
+	// Every Frozen enemy shows a cue: the wall and the hold where they apply, else the plain diamond.
+	for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+	{
+		const FDTEnemyAux& Aux = Enemies->GetAux(Enemy);
+		if (!Aux.IsFrozen())
 		{
 			continue;
 		}
-		for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+		const auto Emit = [&Out, &View, Enemy](FDTWeaponVisual::EKind Kind)
 		{
-			const FDTEnemyAux& Aux = Enemies->GetAux(Enemy);
-			if (!Aux.IsFrozen())
+			FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+			V.Kind = Kind;
+			V.Position = View.EnemyPositions[Enemy];
+			V.Radius = View.EnemyRadii[Enemy];
+		};
+		bool bCued = false;
+		for (int32 Owner = 0; Owner < Players.Num() && Owner < Run.GetNumPlayers(); ++Owner)
+		{
+			const FPlayerRuntime& Player = Players[Owner];
+			if (Player.Weapons.Num() == 0)
 			{
 				continue;
 			}
-			if (bBlocks && Aux.FreezeOwner == Owner)
+			if (Aux.FreezeOwner == Owner && ReadHeldControl(Player.Weapons[0].Spec).bBlocks)
 			{
-				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
-				V.Kind = FDTWeaponVisual::EKind::FrozenWall;
-				V.Position = View.EnemyPositions[Enemy];
-				V.Radius = View.EnemyRadii[Enemy];
+				Emit(FDTWeaponVisual::EKind::FrozenWall);
+				bCued = true;
 			}
 			if (Player.HeldFrozen.Contains(View.EnemySerials[Enemy]))
 			{
-				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
-				V.Kind = FDTWeaponVisual::EKind::FrozenHold;
-				V.Position = View.EnemyPositions[Enemy];
-				V.Radius = View.EnemyRadii[Enemy];
+				Emit(FDTWeaponVisual::EKind::FrozenHold);
+				bCued = true;
 			}
+		}
+		if (!bCued)
+		{
+			Emit(FDTWeaponVisual::EKind::FrozenPlain);
 		}
 	}
 }

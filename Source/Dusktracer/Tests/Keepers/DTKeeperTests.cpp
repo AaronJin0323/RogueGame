@@ -1952,6 +1952,24 @@ bool FDTPreControlCues::RunTest(const FString& Parameters)
 			TestTrue(TEXT("the wall bucket is Pal.Keeper.Tide"), DTWeaponPalette::BucketToken(DTWeaponPalette::WallBucket()) == DTPal::Keeper_Tide);
 		}
 		TestEqual(TEXT("no frame while nothing is held"), Count(H, FDTWeaponVisual::EKind::FrozenHold), 0);
+		FDTWeaponVisual Plain;
+		TestEqual(TEXT("the Frozen enemy without a card shows the plain cue, and only it"), Count(H, FDTWeaponVisual::EKind::FrozenPlain, &Plain), bBlocks ? 0 : 1);
+		if (!bBlocks)
+		{
+			TestEqual(TEXT("on the enemy"), Plain.Position, At);
+			TestTrue(TEXT("a plain Frozen is a cue"), DTWeaponCues::IsCue(Plain));
+			TestEqual(TEXT("in its own bucket"), DTWeaponCues::BucketOf(Plain), static_cast<int32>(DTWeaponCues::Frozen));
+			TArray<FDTTelegraph> Bars;
+			DTWeaponCues::Append(Plain, Bars);
+			TestEqual(TEXT("a diamond of four bars"), Bars.Num(), 4);
+			const float Half = Plain.Radius * DTConst::PRE_FROZEN_CUE_RATIO;
+			for (const FDTTelegraph& Bar : Bars)
+			{
+				const FVector2f Start = Bar.Origin - Plain.Position;
+				TestEqual(TEXT("each starts on a diamond corner"), FMath::Abs(Start.X) + FMath::Abs(Start.Y), Half, 0.01f);
+				TestTrue(TEXT("and runs on the diagonal, never like the hold's square"), FMath::IsNearlyEqual(FMath::Abs(Bar.Dir.X), FMath::Abs(Bar.Dir.Y), 0.01f));
+			}
+		}
 	}
 
 	// The hold: exactly the held enemies, a frame of four bars around each.
@@ -1966,6 +1984,7 @@ bool FDTPreControlCues::RunTest(const FString& Parameters)
 		FDTWeaponVisual Hold;
 		TestEqual(TEXT("one frame per held enemy, held_max at most"), Count(H, FDTWeaponVisual::EKind::FrozenHold, &Hold), 2);
 		TestEqual(TEXT("no plate without the wall card"), Count(H, FDTWeaponVisual::EKind::FrozenWall), 0);
+		TestEqual(TEXT("the unheld Frozen enemy shows the plain cue"), Count(H, FDTWeaponVisual::EKind::FrozenPlain), 1);
 		TestTrue(TEXT("a frame is a cue"), DTWeaponCues::IsCue(Hold));
 		TArray<FDTTelegraph> Bars;
 		DTWeaponCues::Append(Hold, Bars);
@@ -1991,7 +2010,34 @@ bool FDTPreControlCues::RunTest(const FString& Parameters)
 			H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Trait")));
 		}
 		TestEqual(TEXT("no ring before the charge"), Count(H, FDTWeaponVisual::EKind::StillAura), 0);
+		TestEqual(TEXT("no dial before a step"), Count(H, FDTWeaponVisual::EKind::StillCharge), 0);
+		H.StepMany(3);
+		FDTWeaponVisual Dial;
+		TestEqual(TEXT("the dial shows the charge gathering, Trait or not"), Count(H, FDTWeaponVisual::EKind::StillCharge, &Dial), 1);
+		TestEqual(TEXT("nothing held yet"), Dial.Charges, 0);
+		TestTrue(TEXT("part way to a charge"), Dial.Charge01 > 0.0f && Dial.Charge01 < 1.0f);
 		H.StepMany(FireSteps);
+		TestEqual(TEXT("the dial stays while a charge is held"), Count(H, FDTWeaponVisual::EKind::StillCharge, &Dial), 1);
+		TestEqual(TEXT("one charge at charges_max 1"), Dial.Charges, 1);
+		TestEqual(TEXT("and nothing more to gather"), Dial.Charge01, 0.0f);
+		TestEqual(TEXT("on the ground bucket"), DTWeaponCues::BucketOf(Dial), static_cast<int32>(DTWeaponCues::Ground));
+		{
+			TArray<FDTTelegraph> Closed;
+			DTWeaponCues::Append(Dial, Closed);
+			TestEqual(TEXT("a held charge is one closed ring"), Closed.Num(), 1);
+			TestTrue(TEXT("a ring shape"), Closed.Num() == 1 && Closed[0].Shape == EDTTelegraphShape::Ring);
+			FDTWeaponVisual Next = Dial;
+			Next.Charge01 = 0.5f;
+			TArray<FDTTelegraph> Gathering;
+			DTWeaponCues::Append(Next, Gathering);
+			TestEqual(TEXT("then ticks for the next, half the dial at one half"), Gathering.Num(), 1 + DTConst::PRE_CHARGE_TICKS / 2);
+			FDTWeaponVisual Two = Dial;
+			Two.Charges = 2;
+			TArray<FDTTelegraph> Pair;
+			DTWeaponCues::Append(Two, Pair);
+			TestEqual(TEXT("two charges, two rings"), Pair.Num(), 2);
+			TestTrue(TEXT("each its own radius"), Pair.Num() == 2 && Pair[1].Length > Pair[0].Length + Pair[0].Width);
+		}
 		FDTWeaponVisual Aura;
 		TestEqual(TEXT("a ring while charged, with the Trait"), Count(H, FDTWeaponVisual::EKind::StillAura, &Aura), bTrait ? 1 : 0);
 		if (bTrait)
@@ -2016,11 +2062,12 @@ bool FDTPreControlCues::RunTest(const FString& Parameters)
 		const FLinearColor C = DTPal::Linear(Token);
 		return FMath::Min(1.0f, (0.2126f * C.R + 0.7152f * C.G + 0.0722f * C.B) * Emissive);
 	};
-	for (const FColor& Token : { DTPal::Keeper_Tide, DTPal::Player_Core })
+	for (int32 Bucket = 0; Bucket < DTWeaponCues::NumBuckets; ++Bucket)
 	{
+		const FColor Token = DTWeaponCues::Token(Bucket);
 		for (const FColor& Ground : { DTPal::Ground_Shadow, DTPal::Ground_Bright })
 		{
-			const float Contrast = (Luminance(Token, DTConst::PRE_CUE_EMISSIVE) + 0.05f) / (Luminance(Ground, 1.0f) + 0.05f);
+			const float Contrast = (Luminance(Token, DTWeaponCues::Emissive(Bucket)) + 0.05f) / (Luminance(Ground, 1.0f) + 0.05f);
 			TestTrue(FString::Printf(TEXT("cue contrast %.2f"), Contrast), Contrast >= DTConst::PRE_CONTRAST_MIN);
 		}
 		const float Hue = FLinearColor(Token.ReinterpretAsLinear()).LinearRGBToHSV().R;
@@ -2033,6 +2080,14 @@ bool FDTPreControlCues::RunTest(const FString& Parameters)
 			TestTrue(TEXT("no cue reads an enemy or telegraph token"), DTWeaponCues::Token(Bucket) != Forbidden);
 		}
 	}
+
+	// Draw order: zones lie on the ground under the ground cues, those under telegraphs; hull cues sit at the hull's own height.
+	const float ZoneTop = static_cast<float>(DTConst::PRE_ZONE_Z_UU + DTConst::PRE_ZONE_HALF_UU);
+	TestTrue(TEXT("zones are above the floor"), DTConst::PRE_ZONE_Z_UU > DTConst::PRE_ZONE_HALF_UU);
+	TestTrue(TEXT("a zone never covers a ground cue"), ZoneTop < DTWeaponCues::DrawZ(DTWeaponCues::Ground));
+	TestTrue(TEXT("a ground cue never covers a telegraph"), DTWeaponCues::DrawZ(DTWeaponCues::Ground) < static_cast<float>(DTConst::ENEMIES_TELEGRAPH_Z_UU));
+	TestEqual(TEXT("the hold frame sits at hull height"), DTWeaponCues::DrawZ(DTWeaponCues::Hold), static_cast<float>(DTConst::SIM_PLANE_Z_UU));
+	TestEqual(TEXT("the plain Frozen diamond too"), DTWeaponCues::DrawZ(DTWeaponCues::Frozen), static_cast<float>(DTConst::SIM_PLANE_Z_UU));
 	return true;
 }
 

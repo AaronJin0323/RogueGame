@@ -36,16 +36,20 @@ namespace DTWeaponPalette
 }
 
 /**
- * Control cues that draw as flat quads on the ground (04_Presentation R-PRE-11): two renderers of ADTTelegraphRenderer's
- * shapes in cool tokens, under every telegraph. The Frozen wall is a flat plate instead (DTWeaponPalette::WallBucket).
+ * Control cues that draw as flat quads (04_Presentation R-PRE-11): one renderer of ADTTelegraphRenderer's shapes per bucket,
+ * in cool tokens. Ground cues (the aura, the Stillness dial) lie under every telegraph; hull cues (the hold frame, the plain
+ * Frozen diamond) ring the hull at its own height, so the camera's tilt cannot slide them off it. The Frozen wall is a flat
+ * plate instead (DTWeaponPalette::WallBucket).
  */
 namespace DTWeaponCues
 {
-	enum EBucket : int32 { Aura, Hold, NumBuckets };
+	enum EBucket : int32 { Ground, Hold, Frozen, NumBuckets };
 	DUSKTRACER_API bool IsCue(const FDTWeaponVisual& Visual);
 	DUSKTRACER_API FColor Token(int32 Bucket);
+	DUSKTRACER_API float Emissive(int32 Bucket);
+	DUSKTRACER_API float DrawZ(int32 Bucket);
 	DUSKTRACER_API int32 BucketOf(const FDTWeaponVisual& Visual);
-	/** The footprint of one cue: the aura's ring ends at its reach and thickens inward on a pulse; a hold is a square frame. */
+	/** The footprint of one cue: the aura's ring ends at its reach and thickens inward on a pulse; the dial shows charges; a hold is a square, a plain Frozen a diamond. */
 	DUSKTRACER_API void Append(const FDTWeaponVisual& Visual, TArray<FDTTelegraph>& Out);
 }
 

@@ -63,46 +63,135 @@ int32 DTWeaponPalette::BucketOf(const FDTWeaponVisual& Visual)
 
 bool DTWeaponCues::IsCue(const FDTWeaponVisual& Visual)
 {
-	return Visual.Kind == FDTWeaponVisual::EKind::StillAura || Visual.Kind == FDTWeaponVisual::EKind::FrozenHold;
+	switch (Visual.Kind)
+	{
+	case FDTWeaponVisual::EKind::StillAura:
+	case FDTWeaponVisual::EKind::StillCharge:
+	case FDTWeaponVisual::EKind::FrozenHold:
+	case FDTWeaponVisual::EKind::FrozenPlain:
+		return true;
+	default:
+		return false;
+	}
 }
 
 FColor DTWeaponCues::Token(int32 Bucket)
 {
-	return Bucket == Hold ? DTPal::Player_Core : DTPal::Keeper_Tide;
+	switch (Bucket)
+	{
+	case Hold: return DTPal::Player_Core;
+	case Frozen: return DTPal::Player_TrailNeutral;
+	default: return DTPal::Keeper_Tide;
+	}
+}
+
+float DTWeaponCues::Emissive(int32 Bucket)
+{
+	return static_cast<float>(Bucket == Ground ? DTConst::PRE_CUE_HUE_EMISSIVE : DTConst::PRE_CUE_EMISSIVE);
+}
+
+float DTWeaponCues::DrawZ(int32 Bucket)
+{
+	return static_cast<float>(Bucket == Ground ? DTConst::PRE_CUE_Z_UU : DTConst::SIM_PLANE_Z_UU);
 }
 
 int32 DTWeaponCues::BucketOf(const FDTWeaponVisual& Visual)
 {
-	return Visual.Kind == FDTWeaponVisual::EKind::FrozenHold ? Hold : Aura;
+	switch (Visual.Kind)
+	{
+	case FDTWeaponVisual::EKind::FrozenHold: return Hold;
+	case FDTWeaponVisual::EKind::FrozenPlain: return Frozen;
+	default: return Ground;
+	}
+}
+
+namespace DTWeaponCuesLocal
+{
+	/** A closed outline of straight bars through Corners (offsets from Center). */
+	static void AppendOutline(const FVector2f& Center, TConstArrayView<FVector2f> Corners, float Width, TArray<FDTTelegraph>& Out)
+	{
+		for (int32 Side = 0; Side < Corners.Num(); ++Side)
+		{
+			const FVector2f From = Corners[Side];
+			const FVector2f To = Corners[(Side + 1) % Corners.Num()];
+			FDTTelegraph& Bar = Out.AddDefaulted_GetRef();
+			Bar.Shape = EDTTelegraphShape::Band;
+			Bar.Origin = Center + From;
+			Bar.Dir = (To - From).GetSafeNormal();
+			Bar.Length = (To - From).Size();
+			Bar.Width = Width;
+		}
+	}
+
+	/** The Stillness dial: one ring per charge held, then the charge being gathered as ticks round the next ring. */
+	static void AppendCharge(const FDTWeaponVisual& Visual, TArray<FDTTelegraph>& Out)
+	{
+		const float Width = static_cast<float>(DTConst::PRE_CHARGE_RING_UU);
+		const float Gap = static_cast<float>(DTConst::PRE_CHARGE_RING_GAP_UU);
+		for (int32 Index = 0; Index < Visual.Charges; ++Index)
+		{
+			FDTTelegraph& Ring = Out.AddDefaulted_GetRef();
+			Ring.Shape = EDTTelegraphShape::Ring;
+			Ring.Origin = Visual.Position;
+			Ring.Length = Visual.Radius + Index * Gap;
+			Ring.Width = Width;
+		}
+		const int32 Ticks = FMath::FloorToInt32(Visual.Charge01 * DTConst::PRE_CHARGE_TICKS);
+		const float Radius = Visual.Radius + Visual.Charges * Gap - 0.5f * Width;
+		const float Step = UE_TWO_PI / static_cast<float>(DTConst::PRE_CHARGE_TICKS);
+		const float TickLength = Radius * Step * static_cast<float>(DTConst::PRE_CHARGE_TICK_FILL);
+		for (int32 Tick = 0; Tick < Ticks; ++Tick)
+		{
+			float S = 0.0f;
+			float C = 1.0f;
+			FMath::SinCos(&S, &C, Tick * Step);
+			const FVector2f Radial(C, S);
+			const FVector2f Tangent(-S, C);
+			FDTTelegraph& Bar = Out.AddDefaulted_GetRef();
+			Bar.Shape = EDTTelegraphShape::Band;
+			Bar.Origin = Visual.Position + Radial * Radius - Tangent * (0.5f * TickLength);
+			Bar.Dir = Tangent;
+			Bar.Length = TickLength;
+			Bar.Width = Width;
+		}
+	}
 }
 
 void DTWeaponCues::Append(const FDTWeaponVisual& Visual, TArray<FDTTelegraph>& Out)
 {
-	if (Visual.Kind == FDTWeaponVisual::EKind::StillAura)
+	using namespace DTWeaponCuesLocal;
+	switch (Visual.Kind)
+	{
+	case FDTWeaponVisual::EKind::StillAura:
 	{
 		FDTTelegraph& Ring = Out.AddDefaulted_GetRef();
 		Ring.Shape = EDTTelegraphShape::Ring;
 		Ring.Origin = Visual.Position;
 		Ring.Length = Visual.Radius;
 		Ring.Width = static_cast<float>(DTConst::PRE_AURA_RING_UU) + Visual.Pulse01 * static_cast<float>(DTConst::PRE_AURA_PULSE_UU);
-		return;
+		break;
 	}
-	if (Visual.Kind == FDTWeaponVisual::EKind::FrozenHold)
+	case FDTWeaponVisual::EKind::StillCharge:
+		AppendCharge(Visual, Out);
+		break;
+	case FDTWeaponVisual::EKind::FrozenHold:
 	{
-		// Four bars, each from one corner to the next, read as a frame pinned around the hull.
+		// A square pinned around the hull.
 		const float Half = Visual.Radius * DTConst::PRE_HOLD_FRAME_RATIO;
 		const FVector2f Corners[] = { FVector2f(-Half, -Half), FVector2f(Half, -Half), FVector2f(Half, Half), FVector2f(-Half, Half) };
-		for (int32 Side = 0; Side < UE_ARRAY_COUNT(Corners); ++Side)
-		{
-			const FVector2f From = Corners[Side];
-			const FVector2f To = Corners[(Side + 1) % UE_ARRAY_COUNT(Corners)];
-			FDTTelegraph& Bar = Out.AddDefaulted_GetRef();
-			Bar.Shape = EDTTelegraphShape::Band;
-			Bar.Origin = Visual.Position + From;
-			Bar.Dir = (To - From).GetSafeNormal();
-			Bar.Length = 2.0f * Half;
-			Bar.Width = static_cast<float>(DTConst::PRE_HOLD_FRAME_UU);
-		}
+		AppendOutline(Visual.Position, Corners, static_cast<float>(DTConst::PRE_HOLD_FRAME_UU), Out);
+		break;
+	}
+	case FDTWeaponVisual::EKind::FrozenPlain:
+	{
+		// A diamond: the square turned 45 degrees, clear of the hull's corners.
+		const float Half = Visual.Radius * DTConst::PRE_FROZEN_CUE_RATIO;
+		const FVector2f Corners[] = { FVector2f(Half, 0.0f), FVector2f(0.0f, Half), FVector2f(-Half, 0.0f), FVector2f(0.0f, -Half) };
+		AppendOutline(Visual.Position, Corners, static_cast<float>(DTConst::PRE_FROZEN_CUE_UU), Out);
+		break;
+	}
+	default:
+		break;
 	}
 }
 
@@ -267,8 +356,12 @@ ADTBulletRenderer* UDTWeaponSubsystem::EnsureRenderer(int32 Bucket)
 		if (Renderer)
 		{
 			// Cores glow like player rounds; zones stay at plain token brightness so they never outshine the fire.
-			const float Emissive = Bucket == 0 ? DTConst::BULLETS_EMISSIVE_PLAYER : (Bucket == DTWeaponPalette::WallBucket() ? DTConst::PRE_CUE_EMISSIVE : 1.0f);
+			const float Emissive = Bucket == 0 ? DTConst::BULLETS_EMISSIVE_PLAYER : (Bucket == DTWeaponPalette::WallBucket() ? DTConst::PRE_CUE_HUE_EMISSIVE : 1.0f);
 			Renderer->InitRender(DTPal::Linear(DTWeaponPalette::BucketToken(Bucket)), Emissive);
+			if (Bucket == DTWeaponPalette::WallBucket())
+			{
+				Renderer->UseCueMaterial();
+			}
 		}
 		Renderers[Bucket] = Renderer;
 	}
@@ -291,8 +384,8 @@ ADTTelegraphRenderer* UDTWeaponSubsystem::EnsureCueRenderer(int32 Bucket)
 		ADTTelegraphRenderer* Renderer = World->SpawnActor<ADTTelegraphRenderer>(ADTTelegraphRenderer::StaticClass(), FTransform::Identity, Params);
 		if (Renderer)
 		{
-			Renderer->InitRender(DTPal::Linear(DTWeaponCues::Token(Bucket)), DTConst::PRE_CUE_EMISSIVE);
-			Renderer->SetDrawZ(static_cast<float>(DTConst::PRE_CUE_Z_UU));
+			Renderer->InitRender(DTPal::Linear(DTWeaponCues::Token(Bucket)), DTWeaponCues::Emissive(Bucket));
+			Renderer->SetDrawZ(DTWeaponCues::DrawZ(Bucket));
 		}
 		CueRenderers[Bucket] = Renderer;
 	}
@@ -319,6 +412,8 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 		Shapes.Reset();
 	}
 	const double Z = DTConst::SIM_PLANE_Z_UU;
+	const double ZoneZ = DTConst::PRE_ZONE_Z_UU;
+	const float ZoneHalf = static_cast<float>(DTConst::PRE_ZONE_HALF_UU);
 	for (const FDTWeaponVisual& Visual : Visuals)
 	{
 		if (DTWeaponCues::IsCue(Visual))
@@ -335,18 +430,20 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 			break;
 		case FDTWeaponVisual::EKind::MineZone:
 		case FDTWeaponVisual::EKind::Field:
-			// A flat disc on the sim plane, one unit thick.
-			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, Z), FVector(Visual.Radius, Visual.Radius, 1.0f)));
+			// A flat disc on the ground, under the cues and telegraphs (R-PRE-11).
+			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Visual.Radius, Visual.Radius, ZoneHalf)));
 			break;
 		case FDTWeaponVisual::EKind::FrozenWall:
 		{
 			// A plate in the Tide zone colour under the hull: the same flat disc as a field, wider than the hull's corners.
 			const float Plate = Visual.Radius * DTConst::PRE_WALL_PLATE_RATIO;
-			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, Z), FVector(Plate, Plate, 1.0f)));
+			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Plate, Plate, ZoneHalf)));
 			break;
 		}
 		case FDTWeaponVisual::EKind::StillAura:
+		case FDTWeaponVisual::EKind::StillCharge:
 		case FDTWeaponVisual::EKind::FrozenHold:
+		case FDTWeaponVisual::EKind::FrozenPlain:
 			break; // drawn as cues above
 		case FDTWeaponVisual::EKind::Arc:
 		{

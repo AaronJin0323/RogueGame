@@ -39,7 +39,7 @@ struct FDTWeaponCounters
 /** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
 struct FDTWeaponVisual
 {
-	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, FrozenWall, FrozenHold };
+	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, StillCharge, FrozenWall, FrozenHold, FrozenPlain };
 	EKind Kind = EKind::Drone;
 	FVector2f Position = FVector2f::ZeroVector;
 	FVector2f Dir = FVector2f(1.0f, 0.0f);
@@ -47,6 +47,9 @@ struct FDTWeaponVisual
 	float ArcDeg = 0.0f;
 	/** StillAura: 1 as the aura pulses, falling to 0 by the next pulse. */
 	float Pulse01 = 0.0f;
+	/** StillCharge: charges held (the most any weapon holds), and how far the next one has gathered (0 at charges_max). */
+	int32 Charges = 0;
+	float Charge01 = 0.0f;
 	/** Zone tint: the owner's leading Keeper, or EDTPath::None for Pal.Player.TrailNeutral. Cores ignore it. */
 	EDTPath Path = EDTPath::None;
 };
