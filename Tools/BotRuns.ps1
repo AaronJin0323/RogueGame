@@ -41,6 +41,7 @@ if ($Arms.Count -eq 0) { $Arms = @("None") }
 if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant "DIR.BOT_RUNS") } else { 1 } }
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
 New-Item -ItemType Directory -Force $Out | Out-Null
+$Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
 Write-Host ("botruns: arms {0}, seeds {1}..{2}, skill {3}, {4} steps/frame -> {5}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $Skill, $Steps, $Out)
 
 $Missing = 0

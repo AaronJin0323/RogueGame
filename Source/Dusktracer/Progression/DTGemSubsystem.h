@@ -57,7 +57,8 @@ public:
 	FDTOnLevelUp OnLevelUp;
 
 private:
-	void CheckRunRestart(int64 NextStep);
+	/** Empties the floor when the sim's step index was rewound (a new run). bStepping: called from SimStep. */
+	void CheckRunRestart(int64 StepIndex, bool bStepping);
 	void SyncPlayers(int32 NumPlayers);
 	void RaiseLevels();
 	void EnsureRenderer();
