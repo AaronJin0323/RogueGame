@@ -106,6 +106,6 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - `Mod.Refit` has no pickup; the reference's drop is a socket fit → a real pickup waits for art (S4).
 - Boomerang gives a lone target one hit per round, not the source's two (R-MOD-12) → read with humans.
 - Dormant modifiers may need a refund (a reroll) to avoid feeling like a lost pick → decided with `offers.md` after the S1 validation sessions.
-- Crit has no S1 modifier source; the cap guards hero base crit and S2 Radiance → revisit when Radiance lands.
+- Crit has no S1 modifier source; the cap guards hero base crit and S2 Radiance (`keepers.md` R-KEE-30).
 - T-MOD-01 checks the full catalog cross product (declared and converted caps), the socket and the composition; its offer-generator leg is added when `offers.md` lands (offers call `DTModCompat::IsCompatible`, `Combat/DTWeaponCatalog.h`).
 - Flag-carrying modifiers feed the weapon's flag accumulator as their own entries (source `Modifier.<Name>`, tier below every Keeper source); Pierce, Mirror, Fork and ChainTrigger compose into the spec directly.

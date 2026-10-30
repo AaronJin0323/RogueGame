@@ -1,7 +1,7 @@
 """Scene probes for Keeper power (02_Systems/keepers.md, Docs/Validation/S1_probes.md). Stdlib only.
 
-Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5]            writes the T-KEE-15 scenes and <dir>/jobs.csv
-        python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
+Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5] [--stage S1|S2|all]            writes the T-KEE-15 scenes and <dir>/jobs.csv
+        python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1] [--stage S1|S2|all]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
         & Tools\\BotRuns.ps1 -Jobs <dir>\\jobs.csv -Parallel 14 -Out <dir>\\runs   runs them headless
         python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
 
@@ -19,6 +19,9 @@ T-KEE-18 (R-KEE-18): each snapshot is rebuilt per configuration and ablated (the
   loss    = 1 - DPS without blessings / full DPS (reads high on multipliers, so it is printed beside the share)
   gain    = full DPS / DPS without the archetype's own cards, against C.KEEPER.PACKAGE_GAIN_BAND
 Share against C.POWER.KEEPER_SHARE_L16; each arm's share within +-C.POWER.ARCHETYPE_BAND of the arm mean.
+
+--stage picks the primaries (expression.csv Stage; default S1, the S1 commands read as they did): S2 is Shade, Radiance and
+Quicksilver as primaries, with every R-KEE-16 layer of all six Keepers.
 
 Prints T-KEE-15: PASS|FAIL (...) and T-KEE-18: PASS|FAIL (...); with --check exit 1 on FAIL or no reading, else 0.
 """
@@ -50,27 +53,33 @@ SHOWCASE = {
 	"Steered-Forge-Hammer": ("Forge", "Hammer"), "Steered-Forge-Furnace": ("Forge", "Furnace"), "Steered-Forge-Slam": ("Forge", "Slam"),
 	"Steered-Tide-Frost": ("Tide", "Frost"), "Steered-Tide-Stillness": ("Tide", "Stillness"), "Steered-Tide-Whirlpool": ("Tide", "Whirlpool"),
 }
+# The nine S2 arms (keepers.md §9); ablation --stage S2 reads these.
+SHOWCASE_S2 = {
+	"Steered-Shade-Hound": ("Shade", "Hound"), "Steered-Shade-Hunters": ("Shade", "Hunters"), "Steered-Shade-Economy": ("Shade", "Economy"),
+	"Steered-Radiance-Lance": ("Radiance", "Lance"), "Steered-Radiance-Prism": ("Radiance", "Prism"), "Steered-Radiance-Solar": ("Radiance", "Solar"),
+	"Steered-Quicksilver-Vector": ("Quicksilver", "Vector"), "Steered-Quicksilver-Momentum": ("Quicksilver", "Momentum"), "Steered-Quicksilver-Rebound": ("Quicksilver", "Rebound"),
+}
 CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra")
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")
 
 
-def read_archetypes(path=EXPRESSION):
-	"""[{path, name, key_flag, incompat: [flags]}] from expression.csv."""
+def read_archetypes(path=EXPRESSION, stage="S1"):
+	"""[{path, name, key_flag, incompat: [flags], stage}] from expression.csv; stage "all" reads every row."""
 	out = []
 	with open(path, encoding="utf-8", newline="") as f:
 		for row in csv.DictReader(f):
-			if row["Path"]:
+			if row["Path"] and stage in ("all", row["Stage"]):
 				out.append({"path": row["Path"].split(".")[-1], "name": row["Archetype"].split(".")[-1], "key_flag": row["KeyFlag"],
-					"incompat": [x for x in row["IncompatFlags"].split("|") if x]})
+					"incompat": [x for x in row["IncompatFlags"].split("|") if x], "stage": row["Stage"]})
 	return out
 
 
-def combinations(archetypes):
+def combinations(archetypes, layers=None):
 	"""[(primary archetype, layer archetype or None)]: every variant x layer pair R-KEE-16 lets a player hold."""
 	out = []
 	for variant in archetypes:
 		out.append((variant, None))
-		for layer in archetypes:
+		for layer in layers if layers is not None else archetypes:
 			if layer["path"] != variant["path"] and layer["key_flag"] not in variant["incompat"]:
 				out.append((variant, layer))
 	return out
@@ -141,14 +150,15 @@ def write_jobs(out_dir, jobs):
 	print(f"PROBE: {len(jobs)} scene(s) -> {out_dir}")
 
 
-def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT):
+def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT, stage="S1"):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	cast_at = ABLATE_WARMUP_S  # a probe's meter is full from the start (UDTBotSubsystem::ApplyProbe)
 	hp = field_hp(consts, mult)
 	columns = ("Key", "Amp1", "Amp2", "Trait")
 	cast_jobs, plain_jobs = [], []
-	for index, (variant, layer) in enumerate(combinations(read_archetypes())):
+	layers = read_archetypes(stage="all") if stage != "S1" else None
+	for index, (variant, layer) in enumerate(combinations(read_archetypes(stage=stage), layers)):
 		path, name = variant["path"], variant["name"]
 		blessings = cards(path, name, columns) + (cards(layer["path"], layer["name"], ("Key", "Amp1")) if layer else [])
 		second = layer["path"] if layer else None
@@ -165,13 +175,14 @@ def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT):
 	write_jobs(out_dir, cast_jobs + plain_jobs)
 
 
-def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT):
+def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1"):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	hp = field_hp(consts, mult)
 	by_config = {c: [] for c in CONFIGS}
 	count = 0
-	for label, (path, name) in SHOWCASE.items():
+	arms = {"S1": SHOWCASE, "S2": SHOWCASE_S2}.get(stage, {**SHOWCASE, **SHOWCASE_S2})
+	for label, (path, name) in arms.items():
 		for folder in sorted(glob.glob(os.path.join(builds_root, f"{label}_s*"))):
 			snap = os.path.join(folder, "bot.csv.L16")
 			if not os.path.exists(snap):
@@ -344,11 +355,12 @@ def main(argv):
 	command, target = argv[1], argv[2]
 	seeds = int(argv[argv.index("--seeds") + 1]) if "--seeds" in argv else None
 	mult = float(argv[argv.index("--hp-mult") + 1]) if "--hp-mult" in argv else FIELD_HP_MULT
+	stage = argv[argv.index("--stage") + 1] if "--stage" in argv else "S1"
 	if command == "intercession":
-		gen_intercession(target, seeds or 5, mult)
+		gen_intercession(target, seeds or 5, mult, stage)
 		return 0
 	if command == "ablation":
-		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1, mult)
+		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1, mult, stage)
 		return 0
 	if command != "read":
 		print(__doc__)

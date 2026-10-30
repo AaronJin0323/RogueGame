@@ -34,6 +34,20 @@
 | Archetype.Tide.Frost | Frost | 霜冻 |
 | Archetype.Tide.Stillness | Stillness | 止水 |
 
+## Archetypes, S2 (`keepers.md` §9)
+
+| Key | en | zh-Hans |
+|---|---|---|
+| Archetype.Shade.Hound | Hound | 猎犬 |
+| Archetype.Shade.Hunters | Collectors | 收债人 |
+| Archetype.Shade.Economy | Ledger | 账簿 |
+| Archetype.Radiance.Lance | Lance | 光矛 |
+| Archetype.Radiance.Prism | Prism | 棱镜 |
+| Archetype.Radiance.Solar | Solar | 烈日 |
+| Archetype.Quicksilver.Vector | Vector | 矢量 |
+| Archetype.Quicksilver.Momentum | Momentum | 动量 |
+| Archetype.Quicksilver.Rebound | Rebound | 弹射 |
+
 ## Core terms
 
 | Key | en | zh-Hans | Definition |

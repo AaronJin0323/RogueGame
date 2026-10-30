@@ -71,7 +71,7 @@ A Burning enemy that dies explodes for `explode_dmg` × the strongest owned weap
 
 ### 8. Per player
 - **R-KEE-19** Primary, second, owned blessings, Favor, tiers, leading archetypes and Intercession state are per-player run state keyed by `OwnerId` (R-TEC-01): one player's Keepers never change another player's weapons, statuses' sources or offers. The same seed and inputs give the same status procs.
-- **R-KEE-20** `expression.csv` is the only source of archetype content: every row validates (nine rows, known `Flag.*`/`Status.*`/`Archetype.*` tags, every `IncompatFlags` pair symmetric) and generates the Keeper data assets headless; a row that fails stops generation.
+- **R-KEE-20** `expression.csv` is the only source of archetype content: every row validates (the S1 rows and §9's, known `Flag.*`/`Status.*`/`Archetype.*` tags, every `IncompatFlags` pair symmetric) and generates the Keeper data assets headless; a row that fails stops generation.
 
 ### 9. S2 Keepers: Shade, Radiance, Quicksilver
 | Path | Speciality | Status (enchantment) | Archetypes (`Archetype.<Path>.<Name>`) and key flag |
@@ -133,6 +133,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `IntercessionVariant` / `SecondKeeperLayer` | effect spec | variant shapes the primary's base; layer is what this archetype adds as the second Keeper |
 | `IncompatFlags` | `Flag.*` list (`|`) | R-KEE-16 |
 | `DuoReactions` | `S2` | out of S1 |
+| `Stage` | `S1` / `S2` | R-KEE-23; S1 rows first |
 | `TextPrefix` | `ST_Keepers.<Path>.<Archetype>` | keys below |
 | `UDTBlessingDef` | data asset | `Id Path Archetype Role{Key,Amp,Trait} Flags[] Requires[] TextKey` |
 | `FDTKeeperRunState` | inside `FDTPlayerRunState` (R-TEC-01) | `Primary Second Owned[] Favor[Path] Tier[Path] Leading[Path] CommitDone` |
@@ -198,6 +199,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
   - Tier lines and Intercession overlays fold into one flag source per Keeper (`Keeper.<Path>`): a `+x` adds, a plain value replaces. A tier clause with `every_n_volley` and its own `pattern` is a separate per-volley entry (Tempest's ring); the others (Downpour, Whirlpool) change the per-hit entry because the weapon system has no per-volley Echo or Pull.
   - The Intercession bases name mechanics without every number: child damage, chain range and damage, ring damage and knockback, and the Tide line's gap are read from the Path's own cards in `expression.csv` (first card naming the parameter); a screen-wide scope is `C.ARENA.CAMERA_FRAME_RADIUS_UU`.
   - Frost's `frozen_vuln` is expressed by the Keeper layer as an extra `Keeper.Tide` hit on Frozen enemies (no other system owns it).
+  - Time Dilation's slow-motion (R-KEE-35) is the same gap as the next line.
   - Stillness's `time_scale` stays unexpressed: a global scale changes the fixed-step clock (R-TEC-03), and an enemy-only scale stretches telegraphs, which never scale (R-DIR-10).
   - Parameters no reader names, on purpose: `counts_still`, `window_s`, `dash_keeps`, `weapons` (Stillness; defaults the code already honours: a walking hero's anchor, `charge_s`, and every weapon carrying the flag). Each is a Keeper parameter, so the owner is this page plus `weapons.md`.
   - `all_volleys_charged` has no reader of its own: the cast's overlay charges in one step, so every volley is charged (`Param.StillnessAllVolleysCharged` pins it). `freeze_until_hit` is a re-applied Freeze because `enemies.md` owns the status; `frozen_blocks_enemies` is the displacement queue, so a wall holds to within a step of movement.
