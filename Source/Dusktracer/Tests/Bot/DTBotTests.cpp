@@ -591,6 +591,7 @@ bool FDTBotSkillProfileTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("more attention, range and look-ahead"), P.AttentionRounds > Last.AttentionRounds && P.ThreatRangeUU > Last.ThreatRangeUU && P.HorizonS > Last.HorizonS);
 		TestTrue(TEXT("less stick error, an earlier dash, more dash plans"), P.StickErrDeg < Last.StickErrDeg && P.ImminentS > Last.ImminentS && P.DashPlanP > Last.DashPlanP);
 		TestTrue(TEXT("casts sooner, less taste, more awareness"), P.CastCrowd <= Last.CastCrowd && P.TasteScore < Last.TasteScore && P.FitAwareness > Last.FitAwareness);
+		TestTrue(TEXT("less of the clearance gives way to a body being left"), P.LeaveUU < Last.LeaveUU);
 		Last = P;
 	}
 	const FDTBotSkillProfile Top = FDTBotSkillProfile::FromSkill(1.0f);
@@ -640,6 +641,62 @@ bool FDTBotSkillProfileTest::RunTest(const FString& Parameters)
 		Hero.Pos += InA.Move * 2.0f;
 	}
 	TestTrue(TEXT("v2 at skill 1.0 gives v1's inputs"), bSame);
+	return true;
+}
+
+namespace DTBotTest
+{
+	/** The stick after a settled second of a v2 bot with no dash charge, one chaser, on a world that does not move. */
+	static FVector2f StickNear(float Skill, const FVector2f& HeroPos, const FVector2f& EnemyOffset, float EnemySpeed)
+	{
+		FDTBotConfig Config;
+		Config.Policy = EDTBotPolicy::Steered;
+		Config.Version = 2;
+		Config.Skill = Skill;
+		Config.Seed = 5;
+		FDTBotBrain Brain;
+		Brain.Reset(Config);
+		FDTHeroState Hero;
+		Hero.Pos = HeroPos;
+		Hero.Hp = Hero.MaxHp = 100.0f;
+		Hero.DashCharges = 0;
+		const TArray<FVector2f> EnemyPos = { HeroPos + EnemyOffset };
+		const TArray<FVector2f> EnemyVel = { -EnemyOffset.GetSafeNormal() * EnemySpeed };
+		const TArray<float> EnemyRadius = { 30.0f };
+		FDTBotWorld World;
+		World.Hero = &Hero;
+		World.EnemyPos = EnemyPos;
+		World.EnemyVel = EnemyVel;
+		World.EnemyRadius = EnemyRadius;
+		FDTHeroInput In;
+		for (int32 Step = 0; Step < DTConst::SIM_FIXED_HZ; ++Step)
+		{
+			World.StepIndex = Step;
+			In = Brain.Decide(World);
+		}
+		return In.Move;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotLeaves, "Dusktracer.Bot.LeavesClearance", DTBotTest::Flags) // T-BOT-14
+bool FDTBotLeaves::RunTest(const FString& Parameters)
+{
+	const float Contact = static_cast<float>(DTConst::HERO_RADIUS_UU) + 30.0f;
+	for (const float Skill : { 0.6f, 0.3f })
+	{
+		const FDTBotSkillProfile Profile = FDTBotSkillProfile::FromSkill(Skill);
+		// Inside the clearance, not touching, and slower than the hero: walking off leaves it behind, standing lets it arrive.
+		const FVector2f Offset(Contact + Profile.MarginUU * 0.5f, 0.0f);
+		const FVector2f Stick = DTBotTest::StickNear(Skill, FVector2f::ZeroVector, Offset, 120.0f);
+		TestTrue(TEXT("a body in the clearance is walked away from, not waited for"), Stick.X < -0.5f);
+	}
+	TestEqual(TEXT("the top of the knob keeps v1's reading"), FDTBotSkillProfile::FromSkill(1.0f).LeaveUU, 0.0f);
+
+	// R-BOT-14: pushing into a wall goes nowhere, so a chaser along the wall is left by the free direction.
+	const float Limit = static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU - DTConst::HERO_RADIUS_UU);
+	const FDTBotSkillProfile Profile = FDTBotSkillProfile::FromSkill(0.6f);
+	const FVector2f Stick = DTBotTest::StickNear(0.6f, FVector2f(-Limit, -Limit), FVector2f(Contact + Profile.MarginUU * 0.5f, 0.0f), 120.0f);
+	TestTrue(TEXT("in a corner the stick takes the way out along the wall"), Stick.Y > 0.5f);
 	return true;
 }
 
