@@ -1211,7 +1211,7 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		const int32 Drone = (Runtime.NextDrone + Attempt) % Drones;
 		int32 Enemy = INDEX_NONE;
 		const FDTResolvedFlag* Seek = Spec.FindFlag(DTCat::EFlag::Seek);
-		const uint32 Marked = Seek && Seek->IsFallback() ? NearestMarked(Owner, DronePos(Drone), Spec.Range, View) : 0;
+		const uint32 Marked = Seek ? NearestMarked(Owner, DronePos(Drone), Spec.Range, View) : 0;
 		if (Marked != 0 || FindNearest(View, DronePos(Drone), Spec.Range, 0, Enemy))
 		{
 			Enemy = Marked != 0 ? IndexOfSerialIn(View, Marked) : Enemy;

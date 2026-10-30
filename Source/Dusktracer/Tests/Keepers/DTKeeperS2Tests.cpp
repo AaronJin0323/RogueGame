@@ -271,13 +271,16 @@ DT_S2_TEST(FDTKeeperS2HoundFallbacks, "Seek") // T-KEE-26
 			H.Weapons.Give(H.Run, 0, OrbitalDrones, 1);
 			if (bCard)
 			{
-				H.Bless(Blessing(TEXT("Shade.Hound"), TEXT("Key")));
+				// The flag alone: the Key would also Mark the near enemy on its first hit.
+				FDTWeaponFlags Flags;
+				Flags.Add(EFlag::Seek, Src(EDTPath::Shade), EDTFlagTier::Key).Params.Set(TEXT("turn_deg_s"), 60.0f);
+				H.Weapons.AddFlagSource(0, TEXT("Test.Seek"), Flags);
 			}
-			H.AddEnemy(FVector2f(150.0f, 0.0f));
-			const int32 Far = H.AddEnemy(FVector2f(-320.0f, 0.0f));
+			H.AddEnemy(FVector2f(200.0f, 0.0f));
+			const int32 Far = H.AddEnemy(FVector2f(200.0f, 420.0f));
 			H.StepOnce();
 			H.Weapons.ApplyMark(0, SerialOf(H, Far), H.Step);
-			H.StepMany(Second / 2);
+			H.StepMany(2 * Second);
 			return HitsOn(H, SerialOf(H, Far), DTWeapons::WeaponSource(DTWeapons::FindWeapon(OrbitalDrones)));
 		};
 		TestTrue(TEXT("the flag sends drones at the Marked enemy"), Drones(true) > Drones(false));
