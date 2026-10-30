@@ -262,6 +262,9 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PICKUP.MAGNET_ACCEL_UU_S2 | 6000 | uu/s2 | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
 | C.PICKUP.MAGNET_SPEED_MAX_UU_S | 1800 | uu/s | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
 | C.PICKUP.GEM_CAP | 1000 | n | GATED(S1) | 02_Systems/progression.md, T-PRG-07 |
+| C.PICKUP.GEM_SIZE_UU | 24 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
+| C.PICKUP.CHEST_SIZE_UU | 70 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
+| C.PICKUP.EMISSIVE | 3.0 | ratio | GATED(S1) | 02_Systems/progression.md, 04_Presentation.md |
 
 ## Combat and director (02_Systems/combat_core.md, director.md)
 

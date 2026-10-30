@@ -12,6 +12,7 @@
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Progression/DTXPBar.h"
 
 namespace DTHUDLocal
 {
@@ -211,4 +212,6 @@ void ADTHUD::DrawHUD()
 	}
 
 	DrawHeroes();
+	// Last, so nothing covers it (progression.md R-PRG-11).
+	FDTXPBar::Draw(Canvas, GetWorld(), Font);
 }

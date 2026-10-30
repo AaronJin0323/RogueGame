@@ -30,6 +30,7 @@ Kills drop XP gems; walking into the crowd you just cleared pulls them in, and e
 | Collection distance | C.PICKUP.COLLECT_RADIUS_UU | GATED(S1) | R-PRG-08, T-PRG-08 |
 | Magnet acceleration / top speed | C.PICKUP.MAGNET_ACCEL_UU_S2, C.PICKUP.MAGNET_SPEED_MAX_UU_S | GATED(S1) | R-PRG-08, T-PRG-08 |
 | Live gem cap | C.PICKUP.GEM_CAP | GATED(S1) | R-PRG-07, T-PRG-07 |
+| Gem and chest draw size, pickup emissive | C.PICKUP.GEM_SIZE_UU, C.PICKUP.CHEST_SIZE_UU, C.PICKUP.EMISSIVE | GATED(S1) | R-PRG-07, R-PRE-05 |
 
 The curve table is `09_Catalog/xp_curve.csv` (`level, xp_to_next, xp_cumulative, ref_reached_s`): the first three steps are the previous project's measured table, then geometric growth by `C.XP.GROWTH`; `ref_reached_s` is computed from the previous project's measured income (`Handoff_Dusktracer/game/reference/balance/xp_curve.csv` full-pickup column × `C.XP.REFERENCE_PICKUP_RATIO`). The base pickup radius is the previous project's hero stat; magnet speed must stay above hero move speed (`combat_core.md`).
 
@@ -41,22 +42,22 @@ The curve table is `09_Catalog/xp_curve.csv` (`level, xp_to_next, xp_cumulative,
 | `FDTGemSpawn` | struct | `Position` (`FVector2f`), `Value` (`int32`), `OwnerId` of the killer (telemetry only) |
 | Gem pool arrays | SoA | `Pos PrevPos Vel Value BoundTo(int32, none = free) SpawnStep`; chests: a small `ChestPos[]` beside it |
 | `xp_curve.csv` | catalog | generated into `DA_XPCurve` (R-TEC-07); `DA_PickupTuning` holds the `C.PICKUP.*` values |
-| Gem render | one instanced mesh per world | colour from a pickup palette token (`04_Presentation`), contrast per R-PRE-05 |
+| Gem render | one instanced mesh per world (gems, and one for chests) | `Pal.Pickup.Gem`, `Pal.Pickup.Chest` (`04_Presentation §3`), contrast per R-PRE-05 |
 
-API: `UDTGemSubsystem::Spawn(const FDTGemSpawn&)` and `SpawnChest(Position)` (called by the director's drops), `MagnetAll(OwnerId)`, `GetPool()`; `UDTProgression::AddXP(OwnerId, Amount)` returns the levels gained and queues their hands.
+API: `UDTGemSubsystem::Spawn(const FDTGemSpawn&)` and `SpawnChest(Position)` (called by the director's drops), `MagnetAll(OwnerId)`, `GetPool()`, `OnLevelUp`; `FDTProgression::AddXP(Run, OwnerId, Amount)` returns the levels gained and queues their hands (plain struct: it holds no state). A queued hand is an `FDTOfferHand` with only `HandKind` and `Level` set; the offer system assigns `HandId` and the cards when it opens it. Debug (not in Shipping): `DT.Xp <amount> [player]`, `DT.Level <n> [player]`, `DT.Gems.Stats`.
 
 ## Acceptance
-- T-PRG-01 PLANNED(S1) `Dusktracer.Progression.SharedXP`: with two players, one pickup raises both players' XP by the value × each player's XP-gain stat; the event carries the collector's owner.
-- T-PRG-02 PLANNED(S1) `Dusktracer.Progression.Curve`: `XPToNext` matches every CSV row and, past it, the growth rule; levels well beyond the table still advance.
-- T-PRG-03 PLANNED(S1) `Dusktracer.Progression.Anchors` (tool check on the CSV): `ref_reached_s` of L8 and L16 lie within the tolerance of their CORE targets, and the level at the run length grants the hand budget within the tolerance.
+- T-PRG-01 `Dusktracer.Progression.SharedXP`: with two players, one pickup raises both players' XP by the value × each player's XP-gain stat; the event carries the collector's owner.
+- T-PRG-02 `Dusktracer.Progression.Curve`: `XPToNext` matches every CSV row and, past it, the growth rule; levels well beyond the table still advance.
+- T-PRG-03 `Dusktracer.Progression.Anchors` (tool check on the CSV): `ref_reached_s` of L8 and L16 lie within the tolerance of their CORE targets, and the level at the run length grants the hand budget within the tolerance.
 - T-PRG-04 PLANNED(S1) `Tools/docs_lint.py` curve check: a change to `xp_curve.csv` without a matching `number_change_log.csv` row fails.
-- T-PRG-05 PLANNED(S1) `Dusktracer.Progression.Overflow`: XP worth several levels raises the level that many times, keeps the remainder, and queues one hand per level in order.
-- T-PRG-06 PLANNED(S1) `Dusktracer.Progression.LevelGrants`: levels queue a level-up hand except the milestone levels, which queue the Keeper and the Reforging hand; no stat changes on level-up.
-- T-PRG-07 PLANNED(S1) `Dusktracer.Progression.GemPool`: gems add no Actor; a spawn at the cap adds its value to the oldest gem and the total XP on the floor is unchanged.
-- T-PRG-08 PLANNED(S1) `Dusktracer.Progression.Magnet`: a gem inside the radius binds to the nearest player, accelerates to the cap speed, is collected inside the collection distance; a gem outside every radius stays put.
-- T-PRG-09 PLANNED(S1) `Dusktracer.Progression.MagnetAll`: every free gem is collected by that player within a bounded number of steps; already-bound gems keep their player; a touched chest queues one chest hand for its collector and magnetises their gems.
-- T-PRG-10 PLANNED(S1) `Dusktracer.Progression.Determinism`: two identical runs give identical gem positions, collection steps and level timelines.
-- T-PRG-11 PLANNED(S1) `Dusktracer.Progression.XPBar`: the HUD bar widget exists for each player during play, shows level and progress, and stays visible while a hand is open.
+- T-PRG-05 `Dusktracer.Progression.Overflow`: XP worth several levels raises the level that many times, keeps the remainder, and queues one hand per level in order.
+- T-PRG-06 `Dusktracer.Progression.LevelGrants`: levels queue a level-up hand except the milestone levels, which queue the Keeper and the Reforging hand; no stat changes on level-up.
+- T-PRG-07 `Dusktracer.Progression.GemPool`: gems add no Actor; a spawn at the cap adds its value to the oldest gem and the total XP on the floor is unchanged.
+- T-PRG-08 `Dusktracer.Progression.Magnet`: a gem inside the radius binds to the nearest player, accelerates to the cap speed, is collected inside the collection distance; a gem outside every radius stays put.
+- T-PRG-09 `Dusktracer.Progression.MagnetAll`: every free gem is collected by that player within a bounded number of steps; already-bound gems keep their player; a touched chest queues one chest hand for its collector and magnetises their gems.
+- T-PRG-10 `Dusktracer.Progression.Determinism`: two identical runs give identical gem positions, collection steps and level timelines.
+- T-PRG-11 `Dusktracer.Progression.XPBar`: the HUD bar widget exists for each player during play, shows level and progress, and stays visible while a hand is open.
 - HUMAN: a validator says gems "come to me" without having to stop and hunt them; they notice the second-Keeper choice near the five-minute mark and the Reforging hand near ten and a half minutes; nobody loses track of their level.
 
 ## Telemetry
@@ -77,4 +78,5 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 ## Open
 - The reference income is from a twenty-minute timeline with different content → re-measure L8, L16 and the boss-time level with bot v1 on the S1 director timeline and retune `C.XP.GROWTH` first (a hundredth moves L16 by roughly forty seconds in the reference model).
 - Magnet acceleration, top speed, collection distance and the gem cap have no measured reference → set by feel in the first S1 human session.
-- A pickup palette token does not exist yet → `04_Presentation` adds one with the gem renderer.
+- Until `FDTStatSet` exists the XP-gain and pickup-radius stats are `FDTProgressionStats` on the gem subsystem (`SetStats`); a downed hero neither binds nor keeps gems (treated as absent) → revisit with co-op revive.
+- Pickup draw sizes and emissive are first guesses → judged in the first S1 capture against R-PRE-05.

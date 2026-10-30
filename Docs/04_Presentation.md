@@ -60,6 +60,8 @@ Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colou
 | `Pal.Rarity.Common` | #B8B2A7 | 0.45 | rarity marker, Common | vs `Pal.UI.Panel` | owner (D-008) |
 | `Pal.Rarity.Rare` | #5FA8E0 | 0.36 | rarity marker, Rare | vs `Pal.UI.Panel` | owner (D-008) |
 | `Pal.Rarity.Epic` | #8A7CFF | 0.27 | rarity marker, Epic | vs `Pal.UI.Panel` | G02 (≈ #8A7CFF) |
+| `Pal.Pickup.Gem` | #5CF2A0 | 0.68 | XP gems and the HUD XP bar fill (cool green, clear of the enemy band and the Keeper hues) | vs both ground refs, both weathers | scheduler (progression.md) |
+| `Pal.Pickup.Chest` | #FFD866 | 0.71 | chests on the floor | vs both ground refs, both weathers | scheduler (progression.md) |
 | `Pal.UI.Panel` | #15171C | 0.01 | dark translucent panel base | reference tone for UI | owner (D-008) |
 | `Pal.UI.Text` | #E8E4DC | 0.78 | main UI text (bone) | vs `Pal.UI.Panel` | art book PL.24 |
 
