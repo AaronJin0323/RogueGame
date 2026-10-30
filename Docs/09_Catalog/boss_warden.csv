@@ -1,0 +1,12 @@
+form,phase,enter_hp_frac,latest_start_s,attack,telegraph,signature,windup_s,interval_s,count,speed_uu_s,damage,extent_uu,arc_deg,notes
+I,One,1.00,0,Charge,Band,yes,1.10,,1,2100,22,1800,,"hull-width corridor clipped to the wall and hazard ring; recover 0.9 s; first charge after a 1.2 s walk; standoff 2.6 hull radii"
+I,One,1.00,0,Sweep,Arc,no,0.85,,1,,18,700,130,"only when the target is within 900 uu; otherwise another charge; alternates with Charge"
+I,Two,0.60,50,Ring,RingGap,no,0.75,3.2,32,430,16,,,"from both shoulder heads; lane per R-BOS-07; reference telegraph 0.6 s raised to C.ENEMIES.TELEGRAPH_LEAD_MIN_S"
+I,Two,0.60,50,CrossRing,RingGap,no,0.75,,32,430,16,,,"fires C.BOSS.CROSS_RING_DELAY_S after each Ring; lane offset C.BOSS.CROSS_LANE_OFFSET_DEG (R-BOS-08)"
+I,Two,0.60,50,DashCharge,Band,no,0.75,5.5,1,2800,22,2200,,"reference wind-up 0.45 s raised to the minimum lead; one dash clears the swath"
+I,Two,0.60,50,Adds,none,no,,14,2,,,,,"Tank adds (not an attack); cap 4 alive; first right after the shift; exempt from role shares"
+I,Three,0.30,85,Ring,RingGap,no,0.75,2.0,40,480,16,,,"enraged rings"
+I,Three,0.30,85,CrossRing,RingGap,no,0.75,,40,480,16,,,"as phase Two"
+I,Three,0.30,85,DashCharge,Band,no,0.75,4.0,1,2800,22,2200,,"enraged interval"
+I,Three,0.30,85,Spiral,SpiralLane,no,0.75,0.1,2,340,16,,95,"2 arms; 10 rounds per s per arm (interval per arm); arc_deg = turn rate deg/s; lane sector rotates at 0.25 of the spiral rate"
+I,Three,0.30,85,Hazard,HazardRing,no,2.00,0.5,,60,8,2800,,"shown at 2800 uu then shrinks at 60 uu/s to 1300 uu; damage per interval outside; 0.25 s grace on crossing"

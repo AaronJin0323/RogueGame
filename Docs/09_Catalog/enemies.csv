@@ -1,0 +1,5 @@
+id,role_tag,hp,speed_uu_s,radius_uu,contact_damage,attack,fire_pattern,telegraph,share_max,name_key
+Swarm,Enemy.Swarm,C.ENM.SWARM_HP,C.ENM.SWARM_SPEED_UU_S,C.ENM.SWARM_RADIUS_UU,C.ROLE.SWARM_CONTACT_DAMAGE,none,none,none,remainder,ST_Enemies.Enemy.Swarm.Name
+Tank,Enemy.Tank,C.ROLE.TANK_HP,C.ROLE.TANK_SPEED_UU_S,C.ROLE.TANK_RADIUS_UU,C.ROLE.TANK_CONTACT_DAMAGE,none,none,none,C.ROLE.TANK_SHARE_MAX,ST_Enemies.Enemy.Tank.Name
+Rusher,Enemy.Rusher,C.ROLE.RUSHER_HP,C.ROLE.RUSHER_SPEED_UU_S,C.ROLE.RUSHER_RADIUS_UU,C.ROLE.RUSHER_CONTACT_DAMAGE,Rusher.Charge,none,Band,C.ROLE.RUSHER_SHARE_MAX,ST_Enemies.Enemy.Rusher.Name
+Turret,Enemy.Turret,C.ROLE.TURRET_HP,0,C.ROLE.TURRET_RADIUS_UU,C.ROLE.TURRET_CONTACT_DAMAGE,Turret.Fire,Turret.Burst|Turret.Fan,AimLine,C.ROLE.TURRET_SHARE_MAX,ST_Enemies.Enemy.Turret.Name

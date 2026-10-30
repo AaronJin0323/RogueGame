@@ -86,6 +86,61 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENM.OPTIC_TINT | 0.35 | ratio | GATED(S1) | enemies.md, 04_Presentation §3 |
 | C.ENM.EMISSIVE_STRENGTH | 2.0 | ratio | GATED(S1) | enemies.md, 04_Presentation §2 |
 | C.ENM.KILL_RATE_WINDOW_S | 1.0 | s | GATED(S0) | enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S |
+| C.ENEMIES.OPTIC_EMISSIVE | 14.0 | ratio | GATED(S1) | enemies.md, R-ENM-24, T-ENM-24 |
+| C.ENEMIES.TELEGRAPH_EMISSIVE | 12.0 | ratio | GATED(S1) | enemies.md, R-ENM-13, 04_Presentation.md |
+| C.ENEMIES.TELEGRAPH_LEAD_MIN_S | 0.75 | s | GATED(S1) | enemies.md, boss.md, R-ENM-13, T-ENM-13, R-BOS-05 |
+| C.ROLE.SWARM_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
+| C.ROLE.TANK_HP | 90 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
+| C.ROLE.TANK_SPEED_UU_S | 165 | uu/s | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-10 |
+| C.ROLE.TANK_RADIUS_UU | 58 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv |
+| C.ROLE.TANK_CONTACT_DAMAGE | 12 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
+| C.ROLE.TANK_TURN_DEG_S | 70 | deg/s | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
+| C.ROLE.TANK_FRONT_HALF_ARC_DEG | 60 | deg | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
+| C.ROLE.TANK_FRONT_DAMAGE_MULT | 0.5 | ratio | GATED(S1) | enemies.md, R-ENM-10, T-ENM-10 |
+| C.ROLE.TANK_SHARE_MAX | 0.35 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
+| C.ROLE.RUSHER_HP | 32 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
+| C.ROLE.RUSHER_SPEED_UU_S | 240 | uu/s | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-11 |
+| C.ROLE.RUSHER_RADIUS_UU | 40 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-11 |
+| C.ROLE.RUSHER_CONTACT_DAMAGE | 14 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
+| C.ROLE.RUSHER_TRIGGER_UU | 750 | uu | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_WINDUP_S | 1.0 | s | GATED(S1) | enemies.md, R-ENM-11, R-ENM-13, T-ENM-11 |
+| C.ROLE.RUSHER_CHARGE_SPEED_UU_S | 1500 | uu/s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_CHARGE_S | 0.65 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_RECOVER_S | 0.8 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_COOLDOWN_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_SHARE_MAX | 0.10 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
+| C.ROLE.TURRET_HP | 40 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
+| C.ROLE.TURRET_RADIUS_UU | 48 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-12 |
+| C.ROLE.TURRET_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
+| C.ROLE.TURRET_HEAD_TURN_DEG_S | 140 | deg/s | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
+| C.ROLE.TURRET_FIRE_RANGE_UU | 1250 | uu | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
+| C.ROLE.TURRET_TELL_S | 0.75 | s | GATED(S1) | enemies.md, R-ENM-12, R-ENM-13, T-ENM-12 |
+| C.ROLE.TURRET_PERIOD_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
+| C.ROLE.TURRET_SHARE_MAX | 0.05 | ratio | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, director.md |
+| C.ENEMY_FIRE.CAP | 1024 | n | GATED(S1) | enemies.md, R-ENM-15, T-ENM-15, T-PERF-01 |
+| C.ENEMY_FIRE.SHOT_SPEED_UU_S | 650 | uu/s | GATED(S1) | enemies.md, R-ENM-12 |
+| C.ENEMY_FIRE.SHOT_RADIUS_UU | 16 | uu | GATED(S1) | enemies.md, R-ENM-16, T-ENM-20 |
+| C.ENEMY_FIRE.SHOT_DAMAGE | 5 | hp | GATED(S1) | enemies.md, R-ENM-16 |
+| C.ENEMY_FIRE.SHOT_LIFE_S | 4.0 | s | GATED(S1) | enemies.md, R-ENM-15 |
+| C.ENEMY_FIRE.BURST_SHOTS | 3 | n | GATED(S1) | enemies.md, R-ENM-12, R-ENM-20 |
+| C.ENEMY_FIRE.BURST_GAP_S | 0.12 | s | GATED(S1) | enemies.md, R-ENM-12 |
+| C.ENEMY_FIRE.FAN_COUNT | 4 | n | GATED(S1) | enemies.md, R-ENM-19, R-ENM-20 |
+| C.ENEMY_FIRE.FAN_SPREAD_DEG | 14 | deg | GATED(S1) | enemies.md, R-ENM-20, T-ENM-20 |
+| C.ENEMY_FIRE.EMISSIVE | 3.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, 04_Presentation.md |
+| C.AIM.TOKENS | 3 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
+| C.AIM.TOKENS_THREAT | 4 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
+| C.AIM.FAN_MIN_RANGE_UU | 600 | uu | GATED(S1) | enemies.md, R-ENM-19, T-ENM-19 |
+| C.AIM.TEST_RANGE_UU | 200–2000 | uu | GATED(S1) | enemies.md, T-ENM-20 |
+| C.AIM.FAN_TEST_COUNT_MAX | 6 | n | GATED(S1) | enemies.md, T-ENM-20 |
+| C.STATUS.SHOCK_S | 3.0 | s | GATED(S1) | enemies.md, R-ENM-21, keepers.md |
+| C.STATUS.SHOCK_DAMAGE_TAKEN | 0.15 | ratio | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
+| C.STATUS.BURN_S | 4.0 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.BURN_TICK_S | 0.5 | s | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
+| C.STATUS.CHILL_S | 3.0 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.CHILL_SLOW_PER_STACK | 0.20 | ratio | GATED(S1) | enemies.md, R-ENM-22, T-ENM-22 |
+| C.STATUS.FREEZE_STACKS | 3 | n | GATED(S1) | enemies.md, R-ENM-21, T-ENM-21 |
+| C.STATUS.FREEZE_S | 1.5 | s | GATED(S1) | enemies.md, R-ENM-21, T-ENM-22 |
+| C.STATUS.BOSS_CHILL_STACK_MAX | 2 | n | GATED(S1) | enemies.md, boss.md, R-BOS-11, T-BOS-11 |
 
 ## Bullets (02_Systems/bullets.md)
 
@@ -133,3 +188,25 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TEL.TTK_PERCENTILE | 0.50 | ratio | CORE | telemetry.md (`swarm_ttk_s` column), C.TTK.SWARM_STEERED_MAX |
 | C.TEL.NEAREST_PERCENTILE | 0.10 | ratio | CORE | telemetry.md (`nearest_enemy_p10_uu` column) |
 | C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01 |
+
+## Boss (02_Systems/boss.md)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.BOSS.FORM_II_WINS | 1 | n | GATED(S2) | boss.md, R-BOS-01, T-BOS-01 |
+| C.BOSS.FORM_III_WINS | 3 | n | GATED(S2) | boss.md, R-BOS-01, T-BOS-01 |
+| C.BOSS.IDENTIFY_S | 10 | s | GATED(S1) | boss.md, R-BOS-02, T-BOS-02 |
+| C.BOSS.RADIUS_UU | 340 | uu | GATED(S1) | boss.md, R-BOS-03 |
+| C.BOSS.CONTACT_DAMAGE | 15 | hp | GATED(S1) | boss.md, R-BOS-03 |
+| C.BOSS.PHASE_SHIFT_S | 1.5 | s | GATED(S1) | boss.md, R-BOS-04, T-BOS-04 |
+| C.BOSS.BULLET_RADIUS_UU | 16 | uu | GATED(S1) | boss.md, R-BOS-05, R-BOS-07 |
+| C.BOSS.LANE_HERO_DIAMETERS | 3 | hero diameters | GATED(S1) | boss.md, R-BOS-07, T-BOS-07 |
+| C.BOSS.LANE_MEASURE_UU | 600 | uu | GATED(S1) | boss.md, R-BOS-07, T-BOS-07 |
+| C.BOSS.LANE_BEARING_MAX_DEG | 40 | deg | GATED(S1) | boss.md, R-BOS-07, T-BOS-07 |
+| C.BOSS.CROSS_RING_DELAY_S | 0.55 | s | GATED(S1) | boss.md, 09_Catalog/boss_warden.csv, R-BOS-08, T-BOS-08 |
+| C.BOSS.CROSS_LANE_OFFSET_DEG | 80–120 | deg | GATED(S1) | boss.md, 09_Catalog/boss_warden.csv, R-BOS-08, T-BOS-08 |
+| C.BOSS.HP_BASE | 16000 | hp | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
+| C.BOSS.CALIBRATE_S | 8.0 | s | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
+| C.BOSS.TARGET_FIGHT_S | 80 | s | GATED(S1) | boss.md, R-BOS-09, R-BOS-10, C.RUN.BOSS_MAX |
+| C.BOSS.HP_MIN_MULT | 0.6 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
+| C.BOSS.HP_MAX_MULT | 4.0 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
