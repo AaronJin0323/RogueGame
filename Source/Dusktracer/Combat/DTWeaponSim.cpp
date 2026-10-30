@@ -835,7 +835,8 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		}
 		break;
 	case EDTWeaponPattern::Radial:
-		Dir = FindNearest(View, Hero, Spec.Range, 0, Target) ? SafeDir(View.EnemyPositions[Target] - Hero, AimDir) : AimDir;
+	case EDTWeaponPattern::Spiral:
+		Dir = FindNearest(View, Hero, Spec.Range, 0, Target) ? SafeDir(View.EnemyPositions[Target] - Hero, AimDir) : AimDir; // only a cleave reads it
 		break;
 	case EDTWeaponPattern::Line:
 		if (!FindDensestLine(View, Hero, Spec.Range, Dir))
@@ -849,9 +850,6 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			return false;
 		}
-		break;
-	case EDTWeaponPattern::Spiral:
-		Dir = AimDir; // unaimed, as Radial: only a cleave reads this
 		break;
 	case EDTWeaponPattern::Lob:
 	case EDTWeaponPattern::Mine:
