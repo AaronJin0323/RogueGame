@@ -10,6 +10,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import contrast_check  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 
@@ -88,6 +89,70 @@ class Ablation(unittest.TestCase):
 	def test_a_drop_below_zero_is_noise(self):
 		dps = {"full": 100.0, "no_keepers": 50.0, "no_package": 50.0, "no_mods": 120.0, "no_levels": 100.0, "no_extra": 100.0}
 		self.assertAlmostEqual(probe.share_of(dps)["share"], 1.0)
+
+
+class Contrast(unittest.TestCase):
+	GROUND = (118, 104, 86)
+	SHADOW = (40, 36, 32)
+	TELEGRAPH = (255, 105, 75)
+	RIM = (255, 45, 138)
+	OPTIC = (255, 225, 240)
+	TRACER = (250, 250, 250)
+	GEM = (92, 242, 160)
+	CHEST = (255, 216, 102)
+
+	def frame(self, patches):
+		"""A 200x200 frame of ground with a shadow strip and 10x10 patches, one per colour, in the unmasked middle."""
+		w = h = 200
+		rgb = bytearray(self.GROUND * (w * h))
+		def fill(x0, y0, side, colour):
+			for y in range(y0, y0 + side):
+				for x in range(x0, x0 + side):
+					rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes(colour)
+		fill(10, 60, 30, self.SHADOW)
+		for index, colour in enumerate(patches):
+			fill(60 + 12 * index, 100, 10, colour)
+		return w, h, bytes(rgb)
+
+	def readings(self, patches):
+		read = contrast_check.measure(*self.frame(patches))
+		read["hero"] = (0.7, 100)
+		return read
+
+	def test_classes(self):
+		for colour, name in ((self.TELEGRAPH, "telegraph"), (self.RIM, "enemy_rim"), (self.OPTIC, "optic"), (self.TRACER, "tracer_core"),
+			(self.GEM, "gem"), (self.CHEST, "chest"), (self.GROUND, "ground"), (self.SHADOW, "shadow")):
+			self.assertEqual(contrast_check.classify(*colour), name, colour)
+
+	def test_wcag_ratio(self):
+		self.assertAlmostEqual(contrast_check.contrast(1.0, 0.0), 21.0)
+		self.assertAlmostEqual(contrast_check.contrast(0.0, 1.0), 21.0)
+		self.assertAlmostEqual(contrast_check.srgb_y(255, 255, 255), 1.0)
+
+	def test_bright_elements_pass_a_dim_one_fails(self):
+		read = self.readings([self.OPTIC, self.TRACER, self.GEM, self.CHEST, self.TELEGRAPH, self.RIM])
+		rows, failed = contrast_check.judge(read, 3.0, 20)
+		verdict = {r[0]: r[5] for r in rows}
+		self.assertEqual(verdict["optic"], "PASS")
+		self.assertEqual(verdict["telegraph"], "FAIL")
+		self.assertIn("telegraph", failed)
+
+	def test_a_missing_element_fails(self):
+		rows, failed = contrast_check.judge(self.readings([self.OPTIC]), 3.0, 20)
+		self.assertIn("chest", failed)
+		self.assertEqual({r[0]: r[5] for r in rows}["chest"], "not found")
+
+	def test_a_known_debt_does_not_fail_but_a_missing_one_does(self):
+		read = self.readings([self.OPTIC, self.TRACER, self.GEM, self.CHEST, self.TELEGRAPH, self.RIM])
+		_, failed = contrast_check.judge(read, 3.0, 20, ("telegraph", "enemy_rim"))
+		self.assertEqual(failed, [])
+		_, failed = contrast_check.judge(self.readings([self.OPTIC]), 3.0, 20, ("chest",))
+		self.assertIn("chest", failed)
+
+	def test_hud_is_masked(self):
+		self.assertTrue(contrast_check.masked(640, 20, 1280, 720))
+		self.assertTrue(contrast_check.masked(100, 650, 1280, 720))
+		self.assertFalse(contrast_check.masked(640, 400, 1280, 720))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Smoke test (gate step `smoke`, 11_Quality s1): a rendered run on the stress arena, judged from its log and a screenshot.
 #   & Tools\Smoke.ps1 [-Culture en|zh-Hans] [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-Seconds <s>] [-Name arena_empty]
-#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-ResX 1280 -ResY 720] [-Contrast]
+#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast]
 # Launches the game (UnrealEditor -game, 1280x720 window) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
@@ -9,7 +9,8 @@
 # Verdict: no crash, no ensure, no Error/Fatal line from LogDT, "Run start" seen, the drawn Test.LocRoundTrip equals
 # ST_UI.csv for the culture, screenshot present, and
 # Tools/image_check.py PASS against Docs/Validation/goldens/<Name>_<Culture>.png (-Update re-baselines the golden).
-# -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden.
+# -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden; the hero is read from the arena_empty
+# shot of the same culture, where nothing stands on it.
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -21,8 +22,6 @@ param(
 	[int]$LoadTimeout = 900,  # the first launch after render changes compiles shaders
 	[switch]$Director,
 	[switch]$Update,
-	[int]$ResX = 1280,
-	[int]$ResY = 720,
 	[switch]$Contrast
 )
 
@@ -61,7 +60,7 @@ if (-not (Test-Path $Locres) -or (Get-Item $Locres).LastWriteTime -lt (Get-Item 
 # --- run ----------------------------------------------------------------------------------------------------------
 if (Test-Path $Log) { Remove-Item $Log -Force }
 if (Test-Path $Shot) { Remove-Item $Shot -Force }
-$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
+$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=1280", "-ResY=720", "-LiveCoding=false", "-nosplash",
 	"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))
 if (-not $Director) { $ArgList += "-DTNoDirector" }
 if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
@@ -116,7 +115,8 @@ $Image = "no screenshot"
 $ImageOk = $false
 if (Test-Path $Shot) {
 	if ($Contrast) {
-		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot 2>&1
+		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot --hero (Join-Path $ShotDir "arena_empty_$Culture.png") `
+			--known (Join-Path $Root "Docs\Validation\contrast_debts.txt") 2>&1
 		$ImageOk = ($LASTEXITCODE -eq 0)
 		$ImgOut | ForEach-Object { "    $_" }
 		$Image = (($ImgOut | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)

@@ -127,10 +127,10 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - T-KEE-12 `Dusktracer.Keepers.FrostThreshold`: Frost's application freezes at its lower threshold and for its scaled length; without Frost the defaults apply.
 - T-KEE-13 `Dusktracer.Keepers.Sources`: children, chains, echoes, cleaves, slams, ticks, status and Intercession damage carry the granting Keeper's source; layer hits the second's.
 - T-KEE-14 `Dusktracer.Keepers.IntercessionCompose`: base, variant by leading archetype, layer only after commitment, variant shape wins a conflict.
-- T-KEE-15 `Dusktracer.Keepers.IntercessionBand` (bot probe): every combination per primary within the band of its mean. PLANNED(S1)
+- T-KEE-15 `Tools/probe.py read <dir> --check` (bot probe, `Tools/BotRuns.ps1 -Jobs`; the scene is `Dusktracer.Bot.ProbeScene`): every combination per primary within the band of its mean, on the 57 combinations R-KEE-16 allows, one fixed loadout, a refilled field. A reading, like T-DIR-02, not a gate step until the numbers are tuned against it (`Docs/Validation/S1_probes.md`).
 - T-KEE-16 `Dusktracer.Keepers.SecondCompat`: an incompatible second-Keeper blessing is never offered; none excluded without a leading archetype; owned ones stay when the leader changes.
 - T-KEE-17 `Dusktracer.Keepers.NoFitMultiplier`: the same blessing set gives identical flag parameters on fit and off-fit weapons.
-- T-KEE-18 `Dusktracer.Keepers.Budget` (bot ablation, `Tools/power_split.py`): Keeper share, package gain and archetype band hold for the nine showcase builds. PLANNED(S1)
+- T-KEE-18 `Tools/probe.py read <dir> --check` (bot ablation of the L16 snapshots of the nine showcase arms, `bot.csv.L16`): Keeper share, package gain and archetype band hold. A reading, not a gate step yet (`Docs/Validation/S1_probes.md`); `Tools/power_split.py` stays the attribution view of session logs.
 - T-KEE-19 `Dusktracer.Keepers.PerPlayer`: two owners with different Keepers never affect each other's weapons, procs or offers.
 - T-KEE-21 `Dusktracer.Keepers.Param.*`: pull interval (R-KEE-21), field status (R-KEE-22), Whirlpool's layer, crush, pulled_vuln, arcs (dmg_vs_shocked, return_same_target), fork_on_kill, retarget, HitOnBurning, burning deaths (explosion, spread), dash_cooldown_reset, Frost's shatter, wall, hold and neighbour Chill, Whirlpool's cluster and pull stacks, Stillness's charged status, pull, aura, ring and cast, Slam's after-hit, embers and detonation, Furnace's Burn rate, Hammer's Ricochet, Downpour's screen strike and Arc Grid's kill Shock each change behaviour exactly when their condition holds; the Whirlpool Key has a non-zero Keeper damage share (`Dusktracer.Keepers.Key.Whirlpool`).
 - T-KEE-22 `Dusktracer.Keepers.Keywords`: every status and every flag an S1 card or `Kw` column names has `.Name` and `.Desc` in `ST_Keywords`, and "god" never appears (`Tools/loc_build.py`).
@@ -141,7 +141,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - `keeper_pick{owner, blessing, path, archetype, role, favor, tier, leading}` per blessing taken.
 - `keeper_commit{owner, role, path, primary_leading}` when a Keeper hand is picked: role `Patron` at run start, `Second` at the L8 commitment.
 - `status{owner, applied{Status: n}}` per player at each interval end (procs by status).
-- `intercession{owner, base, variant, layer, enemies_hit, damage}` per cast; marginal damage is measured offline (R-KEE-15).
+- `intercession{owner, base, variant, layer, enemies_hit, damage}` per cast; marginal damage is measured offline (R-KEE-15, `Tools/probe.py`).
 - Damage, hits and kills by source `Keeper.<Path>` through R-TEL-05.
 
 ## Text
@@ -157,7 +157,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: S2 (the S1 hand is `offers.md` R-OFF-09). Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
 
 ## Open
-- All `GATED(S1)` values → resolved by bot ablation and the S1 validation sessions (O-008).
+- All `GATED(S1)` values → resolved by the probes (`Docs/Validation/S1_probes.md`, which read both bands today) and the S1 validation sessions (O-008).
 - Implemented in `Source/Dusktracer/Keepers/` (S1 keepers package). Notes from that build, for the next spec pass:
   - Tier lines and Intercession overlays fold into one flag source per Keeper (`Keeper.<Path>`): a `+x` adds, a plain value replaces. A tier clause with `every_n_volley` and its own `pattern` is a separate per-volley entry (Tempest's ring); the others (Downpour, Whirlpool) change the per-hit entry because the weapon system has no per-volley Echo or Pull.
   - The Intercession bases name mechanics without every number: child damage, chain range and damage, ring damage and knockback, and the Tide line's gap are read from the Path's own cards in `expression.csv` (first card naming the parameter); a screen-wide scope is `C.ARENA.CAMERA_FRAME_RADIUS_UU`.

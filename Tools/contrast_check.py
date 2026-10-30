@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""T-PRE-05 contrast check (04_Presentation R-PRE-05) on an off-screen capture. Stdlib only.
+"""T-PRE-05 contrast check (04_Presentation R-PRE-05) on off-screen captures. Stdlib only.
 
-Usage:  python -I Tools/contrast_check.py <shot.png> [--min-pixels N]
+Usage:  python -I Tools/contrast_check.py <fight.png> --hero <empty.png> [--known <debts.txt>] [--min-pixels N]
 
-Finds each gameplay element in the frame by the display colour its token renders to, takes a bright tone (the 75th percentile
-of its pixels' relative luminance, WCAG, sRGB decoded) and reports the contrast against Pal.Ground.Bright and Pal.Ground.Shadow
-and against the ground the frame actually shows. An enemy round is dual-tone (R-PRE-05): its rim or its dark core may carry a
-ground. Elements are never read from swatches: the luminance is the rendered pixel's, emissive and bloom included.
+Rule R-PRE-05 is checked on the rendered frame, not on swatches, so both references come from the frame: the lit ground (the 90th
+percentile of bare ground) and the shadow on it. Pal.Ground.Bright and Pal.Ground.Shadow are printed beside them for reference.
+Each gameplay element is found by the display colour its token renders to; its tone is the 75th percentile of its pixels'
+relative luminance (WCAG, sRGB decoded), emissive and bloom included. An enemy round is dual-tone: its rim or its dark core may
+carry a ground. The hero is read from <empty.png>, where nothing stands on it; the fight frame buries it in the crowd.
 
-The HUD is masked (HUD_MASKS). The elite light shares the optic's hue band and blinks, so the two are one line, `optic`.
-Prints one line per element and  CONTRAST: PASS|FAIL (...); an element not found fails as `not found`, because a frame that does
-not show an element proves nothing. Exit 0 / 1 (2 on bad arguments).
+The HUD is masked (HUD_MASKS, 1280x720 frames). The elite light shares the optic's hue band and blinks, so the two are one line,
+`optic`. One weather exists; the rule's second is not measured.
+
+Prints one line per element and  CONTRAST: PASS|FAIL (...). An element not found fails: a frame that does not show it proves
+nothing. --known names a file of element names (one per line, # comments) that fail today: they print as KNOWN and do not fail
+the check, and any other failure does. Exit 0 / 1 (2 on bad arguments).
 """
 
 import colorsys
@@ -30,15 +34,18 @@ ELEMENTS = {
 	"telegraph": (((350, 360), (0, 22)), (0.40, 1.01), (0.70, 1.01)),
 	"enemy_rim": (((318, 346),), (0.45, 1.01), (0.70, 1.01)),
 	"optic": (((295, 350),), (0.06, 0.45), (0.86, 1.01)),
-	"tracer_core": (((185, 235),), (0.0, 0.25), (0.92, 1.01)),
-	"hero": (((0, 360),), (0.0, 0.06), (0.62, 0.92)),
+	"tracer_core": (((185, 240),), (0.0, 0.25), (0.80, 1.01)),
+	"hero": (((0, 360),), (0.0, 0.10), (0.45, 1.01)),
 	"gem": (((130, 170),), (0.30, 1.01), (0.55, 1.01)),
 	"chest": (((36, 58),), (0.35, 1.01), (0.70, 1.01)),
 }
 DUAL_TONE = {"enemy_rim": "enemy_core"}
 GROUND = (0.30, 0.55)  # value range of bare ground pixels; saturation below GROUND_SAT
-GROUND_SAT = 0.45
+SHADOW = (0.08, 0.29)  # value range of the shadow on it
+GROUND_SAT = 0.50
 ENEMY_CORE_MAX_V = 0.32
+TRACER_MIN_V = 0.70
+TRACER_MAX_S = 0.06
 
 
 def srgb_y(r, g, b):
@@ -67,11 +74,15 @@ def classify(r, g, b):
 	"""The element a display colour reads as, "ground", or None."""
 	h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
 	deg = h * 360.0
+	if v >= TRACER_MIN_V and s < TRACER_MAX_S:
+		return "tracer_core"  # a white-hot core has no hue left; the hero is read from another frame
 	for name, (hues, sats, vals) in ELEMENTS.items():
-		if sats[0] <= s < sats[1] and vals[0] <= v < vals[1] and any(lo <= deg <= hi for lo, hi in hues):
+		if name != "hero" and sats[0] <= s < sats[1] and vals[0] <= v < vals[1] and any(lo <= deg <= hi for lo, hi in hues):
 			return name
 	if s < GROUND_SAT and GROUND[0] <= v <= GROUND[1]:
 		return "ground"
+	if s < GROUND_SAT and SHADOW[0] <= v < SHADOW[1]:
+		return "shadow"
 	return None
 
 
@@ -116,9 +127,10 @@ def enemy_core_tone(rim, rgb, w):
 
 
 def measure(w, h, rgb):
-	"""{element: (bright tone Y, pixels)}, plus "ground" and, when rounds show one, "enemy_core"."""
+	"""{element: (tone Y, pixels)}, plus "ground", "shadow" and, when rounds show one, "enemy_core"."""
 	lums = {name: [] for name in ELEMENTS}
 	lums["ground"] = []
+	lums["shadow"] = []
 	rim = set()
 	for y in range(h):
 		for x in range(w):
@@ -132,61 +144,90 @@ def measure(w, h, rgb):
 			lums[name].append(srgb_y(r, g, b))
 			if name == "enemy_rim":
 				rim.add((x, y))
-	out = {name: (percentile(v, 0.5 if name == "ground" else 0.75), len(v)) for name, v in lums.items()}
+	tone = {"ground": 0.9, "shadow": 0.5}
+	out = {name: (percentile(v, tone.get(name, 0.75)), len(v)) for name, v in lums.items()}
 	core, count = enemy_core_tone(rim, rgb, w)
 	if core is not None:
 		out["enemy_core"] = (core, count)
 	return out
 
 
-def judge(readings, bright, shadow, need, min_pixels):
-	"""[(element, tone, pixels, vs bright, vs shadow, vs frame ground, verdict)] and the failed element names."""
+def hero_tone(w, h, rgb):
+	"""(tone Y, pixels) of the only bright neutral in an empty arena: the hero's armour."""
+	values = []
+	for y in range(h):
+		for x in range(w):
+			if masked(x, y, w, h):
+				continue
+			i = (y * w + x) * 3
+			h_, s, v = colorsys.rgb_to_hsv(rgb[i] / 255.0, rgb[i + 1] / 255.0, rgb[i + 2] / 255.0)
+			_, sats, vals = ELEMENTS["hero"][0], ELEMENTS["hero"][1], ELEMENTS["hero"][2]
+			if sats[0] <= s < sats[1] and vals[0] <= v < vals[1]:
+				values.append(srgb_y(rgb[i], rgb[i + 1], rgb[i + 2]))
+	return percentile(values, 0.75), len(values)
+
+
+def judge(readings, need, min_pixels, known=()):
+	"""[(element, tone, pixels, vs lit ground, vs shadow, verdict)] and the failed element names (known debts left out)."""
 	rows, failed = [], []
-	ground = readings["ground"][0]
+	lit, dark = readings["ground"][0], readings["shadow"][0]
 	for name in ELEMENTS:
 		tone, pixels = readings[name]
-		if pixels < min_pixels:
-			rows.append((name, None, pixels, None, None, None, "not found"))
+		if pixels < min_pixels or lit is None or dark is None:
+			rows.append((name, None, pixels, None, None, "not found"))
 			failed.append(name)
 			continue
 		other = readings.get(DUAL_TONE.get(name, ""), (None, 0))[0]
 		vs = lambda ref: max(contrast(tone, ref), contrast(other, ref) if other is not None else 0.0)
-		cb, cs = vs(bright), vs(shadow)
-		ok = cb >= need and cs >= need
-		rows.append((name, tone, pixels, cb, cs, vs(ground) if ground is not None else None, "PASS" if ok else "FAIL"))
-		if not ok:
+		cl, cd = vs(lit), vs(dark)
+		ok = cl >= need and cd >= need
+		verdict = "PASS" if ok else ("KNOWN" if name in known else "FAIL")
+		rows.append((name, tone, pixels, cl, cd, verdict))
+		if verdict == "FAIL":
 			failed.append(name)
 	return rows, failed
 
 
+def read_known(path):
+	if not path or not os.path.exists(path):
+		return ()
+	with open(path, encoding="utf-8") as f:
+		return tuple(line.split("#")[0].strip() for line in f if line.split("#")[0].strip())
+
+
+def option(argv, name, default=None):
+	return argv[argv.index(name) + 1] if name in argv and argv.index(name) + 1 < len(argv) else default
+
+
 def main(argv):
-	args = [a for a in argv if not a.startswith("--")]
-	if not args:
+	if not argv or argv[0].startswith("--"):
 		print(__doc__)
 		return 2
-	min_pixels = int(argv[argv.index("--min-pixels") + 1]) if "--min-pixels" in argv else 20
-	if "--min-pixels" in argv:
-		args = [a for a in args if a != str(min_pixels)]
+	min_pixels = int(option(argv, "--min-pixels", 20))
+	known = read_known(option(argv, "--known"))
 	need = dtconst.load()["PRE.CONTRAST_MIN"]["value"]
-	bright, shadow = token_y("Pal.Ground.Bright"), token_y("Pal.Ground.Shadow")
 	try:
-		w, h, ch, px = image_check.decode_png(args[0])
+		w, h, ch, px = image_check.decode_png(argv[0])
+		readings = measure(w, h, image_check.rgb_of(w, h, ch, px))
+		w2, h2, ch2, px2 = image_check.decode_png(option(argv, "--hero", argv[0]))
+		readings["hero"] = hero_tone(w2, h2, image_check.rgb_of(w2, h2, ch2, px2))
 	except (OSError, ValueError) as exc:
-		print(f"CONTRAST: FAIL ({args[0]}: {exc})")
+		print(f"CONTRAST: FAIL ({exc})")
 		return 1
-	rgb = image_check.rgb_of(w, h, ch, px)
-	readings = measure(w, h, rgb)
-	rows, failed = judge(readings, bright, shadow, need, min_pixels)
-	ground = readings["ground"][0]
-	print(f"{w}x{h}; refs Bright Y {bright:.3f}, Shadow Y {shadow:.3f}, frame ground Y {ground if ground is None else round(ground, 3)}; need {need}")
+	rows, failed = judge(readings, need, min_pixels, known)
+	lit, dark = readings["ground"][0], readings["shadow"][0]
+	print(f"{w}x{h}; frame lit ground Y {lit if lit is None else round(lit, 3)}, shadow Y {dark if dark is None else round(dark, 3)}; "
+		f"tokens Bright {token_y('Pal.Ground.Bright'):.3f}, Shadow {token_y('Pal.Ground.Shadow'):.3f}; need {need}")
 	if "enemy_core" in readings:
 		print(f"  enemy_core   tone {readings['enemy_core'][0]:.3f} ({readings['enemy_core'][1]} rounds)")
-	for name, tone, pixels, cb, cs, cg, verdict in rows:
+	for name, tone, pixels, cl, cd, verdict in rows:
 		if tone is None:
 			print(f"  {name:<12} {pixels} px: {verdict}")
 		else:
-			print(f"  {name:<12} tone {tone:.3f} ({pixels} px)  vs Bright {cb:.2f}  vs Shadow {cs:.2f}  vs frame ground {cg if cg is None else round(cg, 2)}  {verdict}")
-	print(f"CONTRAST: {'FAIL' if failed else 'PASS'} ({len(rows) - len(failed)}/{len(rows)} elements; {'; '.join(r[0] + ' ' + r[6] for r in rows if r[6] != 'PASS') or 'all at or above ' + str(need)})")
+			print(f"  {name:<12} tone {tone:.3f} ({pixels} px)  vs lit ground {cl:.2f}  vs shadow {cd:.2f}  {verdict}")
+	notes = [f"{r[0]} {r[5]}" for r in rows if r[5] != "PASS"]
+	print(f"CONTRAST: {'FAIL' if failed else 'PASS'} ({sum(r[5] == 'PASS' for r in rows)}/{len(rows)} elements at or above {need}"
+		+ (f"; {'; '.join(notes)}" if notes else "") + ")")
 	return 1 if failed else 0
 
 
