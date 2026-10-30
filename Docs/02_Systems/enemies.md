@@ -99,22 +99,22 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - T-ENM-06 `Dusktracer.Enemies.DiesOnce`: several lethal hits on one enemy in one step give one kill to the first owner; a stale index is ignored.
 - T-ENM-07 `Dusktracer.Enemies.Compaction`: after killing several slots, every survivor keeps its own data and each appears once.
 - T-ENM-08 `Dusktracer.Enemies.Determinism`: same seed gives bit-identical positions; another seed differs.
-- T-ENM-09 PLANNED(S1) `Dusktracer.Enemies.RoleDefs`: each role spawns with its `C.ROLE.*` stats times its multipliers, an elite with the elite HP factor; role state machines advance only in the Enemies phase.
-- T-ENM-10 PLANNED(S1) `Dusktracer.Enemies.TankPlate`: a hit inside the front arc deals the reduced damage, one outside it full damage, a piercing hit full damage; the facing never turns faster than the limit.
-- T-ENM-11 PLANNED(S1) `Dusktracer.Enemies.RusherCharge`: the state sequence and durations; the charge covers exactly the telegraphed band; the direction does not change after the wind-up starts.
-- T-ENM-12 PLANNED(S1) `Dusktracer.Enemies.TurretBurst`: no fire beyond range; tell, then the pattern along the locked aim; tell starts are at least the period apart.
-- T-ENM-13 PLANNED(S1) `Dusktracer.Enemies.TelegraphLead`: for every attack in `09_Catalog/enemies.csv` the telegraph appears at least the minimum lead before damage and its footprint equals the damage shape; an arriving Rusher and Turret start their attack on their first step, and one killed mid-telegraph still lands it.
-- T-ENM-14 PLANNED(S1) `Dusktracer.Enemies.Contact`: an overlapping enemy appends one hero hit per step with role contact damage times its multiplier; a non-overlapping one appends none.
-- T-ENM-15 PLANNED(S1) `Dusktracer.EnemyFire.Pool`: integration and expiry as T-BUL-01/02; at the cap a spawn is refused and counted and no live round is removed; player bullets at their cap never remove an enemy round.
-- T-ENM-16 PLANNED(S1) `Dusktracer.EnemyFire.HitHero`: a round touching a hero gives one hero hit to that player and is removed; an intangible hero is passed through; rounds never append an `FDTHit`.
-- T-ENM-17 PLANNED(S1) `Dusktracer.EnemyFire.NoActors`: rounds at the cap add no actor and one instance each on the enemy-fire renderer; instance colours equal the enemy tokens at every density.
-- T-ENM-18 PLANNED(S1) `Dusktracer.Enemies.AimTokens`: many turrets over a long window never exceed the token count (Threat count in a Threat block); every turret still fires; a unit without a token holds before its tell.
-- T-ENM-19 PLANNED(S1) `Dusktracer.Enemies.NoCloseFan`: a fan pattern fires single rounds inside the close range and a fan outside it.
-- T-ENM-20 PLANNED(S1) `Dusktracer.Enemies.AimedFansHitStationary`: fans of every count up to `C.AIM.FAN_TEST_COUNT_MAX`, both sides, against a stationary hero across `C.AIM.TEST_RANGE_UU`: the nearest round's miss is within hero body radius plus round radius.
-- T-ENM-21 PLANNED(S1) `Dusktracer.Enemies.StatusApply`: durations; Burn stacks to its cap (with a bonus, never past the slots) and replaces the oldest; Chill stacks reach Freeze (default and lowered threshold) and are consumed; Chill refused while frozen; stale handles ignored.
-- T-ENM-22 PLANNED(S1) `Dusktracer.Enemies.StatusEffect`: Shock raises damage taken; a full Burn deals exactly damage per second times duration and its kill goes to the burner; Chill slows per stack; Freeze stops movement and pauses a wind-up; contact damage unchanged.
+- T-ENM-09 `Dusktracer.Enemies.RoleDefs`: each role spawns with its `C.ROLE.*` stats times its multipliers, an elite with the elite HP factor; role state machines advance only in the Enemies phase.
+- T-ENM-10 `Dusktracer.Enemies.TankPlate`: a hit inside the front arc deals the reduced damage, one outside it full damage, a piercing hit full damage; the facing never turns faster than the limit.
+- T-ENM-11 `Dusktracer.Enemies.RusherCharge`: the state sequence and durations; the charge covers exactly the telegraphed band; the direction does not change after the wind-up starts.
+- T-ENM-12 `Dusktracer.Enemies.TurretBurst`: no fire beyond range; tell, then the pattern along the locked aim; tell starts are at least the period apart.
+- T-ENM-13 `Dusktracer.Enemies.TelegraphLead`: for every attack in `09_Catalog/enemies.csv` the telegraph appears at least the minimum lead before damage and its footprint equals the damage shape; an arriving Rusher and Turret start their attack on their first step, and one killed mid-telegraph still lands it.
+- T-ENM-14 `Dusktracer.Enemies.Contact`: an overlapping enemy appends one hero hit per step with role contact damage times its multiplier; a non-overlapping one appends none.
+- T-ENM-15 `Dusktracer.EnemyFire.Pool`: integration and expiry as T-BUL-01/02; at the cap a spawn is refused and counted and no live round is removed; player bullets at their cap never remove an enemy round.
+- T-ENM-16 `Dusktracer.EnemyFire.HitHero`: a round touching a hero gives one hero hit to that player and is removed; an intangible hero is passed through; rounds never append an `FDTHit`.
+- T-ENM-17 `Dusktracer.EnemyFire.NoActors`: rounds at the cap add no actor and one instance each on the enemy-fire renderer; instance colours equal the enemy tokens at every density.
+- T-ENM-18 `Dusktracer.Enemies.AimTokens`: many turrets over a long window never exceed the token count (Threat count in a Threat block); every turret still fires; a unit without a token holds before its tell.
+- T-ENM-19 `Dusktracer.Enemies.NoCloseFan`: a fan pattern fires single rounds inside the close range and a fan outside it.
+- T-ENM-20 `Dusktracer.Enemies.AimedFansHitStationary`: fans of every count up to `C.AIM.FAN_TEST_COUNT_MAX`, both sides, against a stationary hero across `C.AIM.TEST_RANGE_UU`: the nearest round's miss is within hero body radius plus round radius.
+- T-ENM-21 `Dusktracer.Enemies.StatusApply`: durations; Burn stacks to its cap (with a bonus, never past the slots) and replaces the oldest; Chill stacks reach Freeze (default and lowered threshold) and are consumed; Chill refused while frozen; stale handles ignored.
+- T-ENM-22 `Dusktracer.Enemies.StatusEffect`: Shock raises damage taken; a full Burn deals exactly damage per second times duration and its kill goes to the burner; Chill slows per stack; Freeze stops movement and pauses a wind-up; contact damage unchanged.
 - T-ENM-23 `Dusktracer.Enemies.SlotGenerations`: after an enemy dies and its slot is refilled (by swap and by a new spawn), an old handle is invalid, a hit with the old serial is ignored, and a bullet that hit the old enemy can hit the new one.
-- T-ENM-24 PLANNED(S1) `Dusktracer.Enemies.OpticPart`: every live enemy has exactly one hull and one optic instance; the hull colour equals `Pal.Enemy.Body` with zero emissive; the optic equals `Pal.Enemy.Optic`.
+- T-ENM-24 `Dusktracer.Enemies.OpticPart`: every live enemy has exactly one hull and one optic instance; the hull colour equals `Pal.Enemy.Body` with zero emissive; the optic equals `Pal.Enemy.Optic`.
 - HUMAN: in PIE with `DT.Spawn` per role, a validator names each role from above by silhouette and optic alone, sees every Rusher band and Turret aim line before damage, flanks a Tank, and weaves a Turret burst; enemy rounds are never confused with player rounds.
 
 ## Telemetry
@@ -134,3 +134,9 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - Swarm radius, speed and HP are placeholders until the time-to-kill target is measured → S1 sessions against `C.TTK.SWARM_STEERED_MAX`.
 - Kill horizon: strong builds kill Rushers before `C.ROLE.RUSHER_TRIGGER_UU` → `director.md` (drop-ins, threat ring); a longer trigger is a TUNE after the first S1 session.
 - Turret radius has no measured source → first S1 capture of the Turret grey box.
+- S1 implementation deviations (non-behavioural):
+  - Telegraphs are published to `FDTWorldView::Telegraphs` but not drawn yet: `Tools/gen_constants.py` only generates two-part tokens, so `Pal.Telegraph` has no `DTPal::` constant → widen the token pattern, regenerate, then add the telegraph renderer (`Enemies/`).
+  - Enemy rounds draw the `Pal.Enemy.Bullet` rim token only; the `Pal.Enemy.BulletCore` dark core needs a two-tone material (`M_InstanceColor` carries one colour) → content task.
+  - `HeroHits` is reset at the start of the Enemies phase (the hero has read it in the Hero phase), so the list stays bounded while no hero system is registered.
+  - `ThreatAction` is counted in the pool (`DT.Enemies.Stats`) until telemetry adds the event kind.
+  - The optic part's size is `C.ENEMIES.OPTIC_SCALE`; `C.ENM.OPTIC_TINT` and `C.ENM.EMISSIVE_STRENGTH` are no longer read.
