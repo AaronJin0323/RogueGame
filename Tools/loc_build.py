@@ -18,7 +18,8 @@ Modes (default --check):
            every {arg} in en appears in zh and vice versa. Prints `LOC: PASS (...)` or `LOC: FAIL (...)` plus one
            line per violation; exit 0 / 1.
   --build  runs the check, then writes (deterministic, byte-identical on re-run):
-           Content/DT/Text/Generated/ST_<Table>.csv          UE string-table import CSV (Key,SourceString,Comment)
+           Content/DT/Text/Generated/ST_<Table>.csv          UE string-table import CSV (Key,SourceString,Comment,Kw;
+                                                            Kw reaches the game as string-table metadata: offer notes)
            Content/Localization/Game/zh-Hans/Game.po        msgctxt "<Namespace>,<Key>" (UE PortableObjectPipeline
                                                             ConditionIdentityForPO); namespace = table id ST_<Table>,
                                                             so C++ must register LOCTABLE_FROMFILE_GAME("ST_X", "ST_X", ...)
@@ -156,9 +157,9 @@ def ue_csv_cell(s):
 
 
 def ue_string_table_csv(rows):
-    out = ["Key,SourceString,Comment"]
+    out = ["Key,SourceString,Comment,Kw"]
     for r in rows:
-        out.append(",".join(ue_csv_cell(c) for c in (r["Key"], r["en"], r["Context"])))
+        out.append(",".join(ue_csv_cell(c) for c in (r["Key"], r["en"], r["Context"], r["Kw"].strip())))
     return "\n".join(out) + "\n"
 
 
