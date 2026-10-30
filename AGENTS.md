@@ -1,6 +1,6 @@
 # Dusktracer / 曳光 — entry for agents
 
-UE 5.8 C++ top-down survivor-like where the player is the bullet hell. **Stage: S0 Foundations** (see `Docs/STATE.md`). No feature code before S0 exits and the owner has confirmed the shape constants (`Docs/13_Decisions/OPEN.md` O-001).
+UE 5.8 C++ top-down survivor-like where the player is the bullet hell. **Stage: S1 Core slice** (see `Docs/STATE.md`; S0 passed, D-012). Specs come before code: no feature code without its `Docs/02_Systems/` spec.
 
 ## Read first (the must-read set, ≤ ~20k tokens — `Docs/Harness/H05 C2`)
 1. `Docs/STATE.md` — where we are, what is in flight. Rewritten, never appended.
@@ -29,7 +29,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
-- Platforms: Win64 and macOS in parallel (D-003). Code must compile on both; no Windows-only APIs outside `#if PLATFORM_WINDOWS`. A Mac gate that was not run is reported `not run`, never passed.
+- Platforms: Win64 now; macOS deferred (D-007, amends D-003). Keep code portable; no Windows-only APIs outside `#if PLATFORM_WINDOWS`. A Mac gate that was not run is reported `not run`, never passed.
 - The repo is public (D-006): never commit keys, tokens, or assets whose licence forbids redistribution.
 - Build: `Tools/Build.bat`. Models: Blender 5.2.2, headless only (path in `Docs/STATE.md`).
 
