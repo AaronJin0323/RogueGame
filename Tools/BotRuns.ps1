@@ -104,11 +104,16 @@ foreach ($Arm in $Arms) {
 Reap-Runs 1
 
 $SumArgs = @((Join-Path $Root "Tools\bot_summary.py"), $Out)
-if ($Check) { $SumArgs += @("--check", $Check) }
+# PowerShell joins an unquoted comma list into one space-separated string.
+if ($Check) { $SumArgs += @("--check", ($Check -split '[,\s]+' -join ',')) }
 $Summary = & python -I @SumArgs 2>&1
 $Rc = $LASTEXITCODE
 $Summary | ForEach-Object { "  $_" }
 $Verdicts = @($Summary | Select-String "^T-[A-Z]+-\d+:" | ForEach-Object { $_.Line })
+if ($Check -and $Verdicts.Count -eq 0) {
+	Write-Host "BOTRUNS: FAIL (-Check $Check produced no verdict; $Out)"
+	exit 1
+}
 if ($Rc -ne 0 -or $Missing -gt 0) {
 	Write-Host ("BOTRUNS: FAIL ({0}{1}; {2})" -f ($Verdicts -join '; '), $(if ($Missing) { "; $Missing run(s) without a bot record" } else { "" }), $Out)
 	exit 1
