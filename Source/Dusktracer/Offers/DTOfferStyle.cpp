@@ -3,6 +3,8 @@
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
+#include "Internationalization/StringTableCore.h"
+#include "Internationalization/StringTableRegistry.h"
 #include "Internationalization/Text.h"
 #include "Offers/DTOfferGenerator.h"
 
@@ -13,6 +15,7 @@ namespace DTOfferStyleLocal
 	const TCHAR* const KeepersTable = TEXT("ST_Keepers");
 	const TCHAR* const WeaponsTable = TEXT("ST_Weapons");
 	const TCHAR* const ModifiersTable = TEXT("ST_Modifiers");
+	const TCHAR* const KeywordsTable = TEXT("ST_Keywords");
 	const TCHAR* const ReserveNames[] = { TEXT("Restore"), TEXT("Hone"), TEXT("SpareTerms"), TEXT("Salvage"), TEXT("Mend") };
 	static_assert(UE_ARRAY_COUNT(ReserveNames) == static_cast<int32>(EDTReserveKind::Count), "one text id per Reserve kind");
 	constexpr double MetresPerUu = 0.01;
@@ -298,6 +301,38 @@ FText DTOfferText::Line(const FDTOfferCard& Card, const FDTPlayerRunState& Playe
 	}
 }
 
+TArray<FString> DTOfferText::Keywords(const FDTOfferCard& Card)
+{
+	static const FName KwColumn(TEXT("Kw"));
+	TArray<FString> Out;
+	FString Table;
+	FString Key;
+	if (!DescKey(Card, Table, Key))
+	{
+		return Out;
+	}
+	const FStringTableConstPtr Source = FStringTableRegistry::Get().FindStringTable(FName(*Table));
+	if (Source.IsValid())
+	{
+		Source->GetMetaData(FTextKey(Key), KwColumn).ParseIntoArray(Out, TEXT(";"));
+	}
+	if (Out.Num() > DTConst::OFFER_KEYWORD_NOTES_MAX)
+	{
+		Out.SetNum(DTConst::OFFER_KEYWORD_NOTES_MAX);
+	}
+	return Out;
+}
+
+FText DTOfferText::KeywordName(const FString& Keyword)
+{
+	return DTOfferStyleLocal::FromTable(DTOfferStyleLocal::KeywordsTable, Keyword + TEXT(".Name"));
+}
+
+FText DTOfferText::KeywordDesc(const FString& Keyword)
+{
+	return DTOfferStyleLocal::FromTable(DTOfferStyleLocal::KeywordsTable, Keyword + TEXT(".Desc"));
+}
+
 TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 {
 	using namespace DTOfferStyleLocal;
@@ -313,6 +348,11 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 		if (DescKey(Card, Table, Key))
 		{
 			Keys.AddUnique(TPair<FString, FString>(Table, Key));
+		}
+		for (const FString& Keyword : Keywords(Card))
+		{
+			Keys.AddUnique(TPair<FString, FString>(KeywordsTable, Keyword + TEXT(".Name")));
+			Keys.AddUnique(TPair<FString, FString>(KeywordsTable, Keyword + TEXT(".Desc")));
 		}
 	};
 	FDTOfferCard Card;

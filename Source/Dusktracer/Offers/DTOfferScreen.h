@@ -76,6 +76,8 @@ public:
 
 private:
 	void DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, const FBox2D& Rect, int32 Slot, bool bFocus);
+	/** The focused card's `<kw>` notes in a panel from Top down (offers.md R-OFF-13). */
+	void DrawNotes(UCanvas* Canvas, const FDTOfferCard& Card, const FBox2D& CardRect, float Top);
 
 	TArray<FBox2D> CardRects;
 	FBox2D ToolRects[3];

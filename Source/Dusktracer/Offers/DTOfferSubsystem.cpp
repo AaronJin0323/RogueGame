@@ -340,6 +340,14 @@ bool UDTOfferSubsystem::IsAnyHandOpen() const
 	return false;
 }
 
+void UDTOfferSubsystem::SetFocus(int32 OwnerId, int32 Slot)
+{
+	if (Flows.IsValidIndex(OwnerId))
+	{
+		Flows[OwnerId].Focus = Slot;
+	}
+}
+
 int32 UDTOfferSubsystem::GetFocus(int32 OwnerId) const
 {
 	return Flows.IsValidIndex(OwnerId) ? Flows[OwnerId].Focus : 0;

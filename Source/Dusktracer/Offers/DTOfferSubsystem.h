@@ -80,6 +80,8 @@ public:
 	const FDTOfferHand* GetOpenHand(int32 OwnerId) const;
 	bool IsAnyHandOpen() const;
 	int32 GetFocus(int32 OwnerId) const;
+	/** Debug and capture: move the focus to Slot of the open hand. */
+	void SetFocus(int32 OwnerId, int32 Slot);
 	const FDTOfferPlayerStats* GetStats(int32 OwnerId) const;
 	int32 GetHoneStacks(int32 OwnerId) const;
 	/** Reserve kinds whose effect lives outside the run state (R-OFF-12); a pick calls it, tests may too. */

@@ -1031,6 +1031,58 @@ bool FDTOfferCardIdentityTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// T-OFF-17
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferKeywordNotesTest, "Dusktracer.Offers.KeywordNotes", DTOfferTest::Flags)
+bool FDTOfferKeywordNotesTest::RunTest(const FString& Parameters)
+{
+	using namespace DTOfferTest;
+	constexpr int32 MaxNoteWords = 20; // the ST_Keywords budget, keepers.md Text
+	const auto Blessing = [](const TCHAR* Id)
+	{
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Blessing;
+		Card.ContentId = FName(Id);
+		return Card;
+	};
+	const auto Keeper = [](EDTPath Path)
+	{
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Keeper;
+		Card.ContentId = DTOffers::KeeperId(Path);
+		return Card;
+	};
+	const auto Check = [this, MaxNoteWords](const FDTOfferCard& Card)
+	{
+		const TArray<FString> Notes = DTOfferText::Keywords(Card);
+		TestTrue(TEXT("notes stay within C.OFFER.KEYWORD_NOTES_MAX"), Notes.Num() <= DTConst::OFFER_KEYWORD_NOTES_MAX);
+		for (const FString& Note : Notes)
+		{
+			TestFalse(FString::Printf(TEXT("%s has a term"), *Note), DTOfferText::KeywordName(Note).IsEmpty());
+			TArray<FString> Words;
+			DTOfferText::KeywordDesc(Note).ToString().ParseIntoArrayWS(Words);
+			TestTrue(FString::Printf(TEXT("%s is a short note"), *Note), Words.Num() > 0 && Words.Num() <= MaxNoteWords);
+		}
+	};
+	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			Check(Blessing(DTCat::Archetypes[Row].BlessingIds[Column]));
+		}
+	}
+	for (EDTPath Path : DTOffers::RunKeepers())
+	{
+		Check(Keeper(Path));
+	}
+	// Each card names what it uses, in reading order, and nothing of its Path's that it does not.
+	TestEqual(TEXT("Tempest's Key notes Split, not its Path's status"), DTOfferText::Keywords(Blessing(TEXT("Blessing.Storm.Tempest.Key"))), TArray<FString>{ TEXT("Flag.Split") });
+	TestEqual(TEXT("the wall card notes Freeze"), DTOfferText::Keywords(Blessing(TEXT("Blessing.Tide.Frost.Amp1"))), TArray<FString>{ TEXT("Status.Freeze") });
+	TestTrue(TEXT("the aura card notes standing still"), DTOfferText::Keywords(Blessing(TEXT("Blessing.Tide.Stillness.Trait"))).Contains(TEXT("Flag.Stillness")));
+	TestEqual(TEXT("the Tide Keeper notes all it names"), DTOfferText::Keywords(Keeper(EDTPath::Tide)).Num(), DTConst::OFFER_KEYWORD_NOTES_MAX);
+	TestEqual(TEXT("a Reserve card has no notes"), DTOfferText::Keywords(DTOffers::MakeReserve(EDTReserveKind::Hone)).Num(), 0);
+	return true;
+}
+
 // T-OFF-14
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferChestHandTest, "Dusktracer.Offers.ChestHand", DTOfferTest::Flags)
 bool FDTOfferChestHandTest::RunTest(const FString& Parameters)

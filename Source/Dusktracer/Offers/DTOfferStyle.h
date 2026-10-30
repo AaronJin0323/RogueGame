@@ -74,6 +74,10 @@ namespace DTOfferText
 	DUSKTRACER_API FText Desc(const FDTOfferCard& Card);
 	/** "Level 2 -> 3", "Socket into Pulse Rifle", "Keeper · Archetype"; empty when the kind has none. */
 	DUSKTRACER_API FText Line(const FDTOfferCard& Card, const FDTPlayerRunState& Player);
+	/** The card's `<kw>` notes: ST_Keywords keys (Status.Burn, Flag.Pull) of its rules row's Kw column, in reading order, at most C.OFFER.KEYWORD_NOTES_MAX. */
+	DUSKTRACER_API TArray<FString> Keywords(const FDTOfferCard& Card);
+	DUSKTRACER_API FText KeywordName(const FString& Keyword);
+	DUSKTRACER_API FText KeywordDesc(const FString& Keyword);
 	DUSKTRACER_API FText Ui(const TCHAR* Key);
 	/** Every string-table key the offer screen can read (T-OFF-13 text coverage). */
 	DUSKTRACER_API TArray<TPair<FString, FString>> AllKeys();

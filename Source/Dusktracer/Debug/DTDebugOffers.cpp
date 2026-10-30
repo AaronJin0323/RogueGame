@@ -4,6 +4,8 @@
 //   DT.Offer.Stats                                            per player tools, Keepers, hands, decisions, Reserve share
 // Capture hook: -DTOfferShot=<png> picks the Patron (slot 0), gives two weapons, opens a level-up hand and writes a
 // screenshot of it after a few wall seconds, then quits (the hand pauses the world, so it runs on the core ticker).
+// -DTOfferShotPatron=<slot> picks that Patron instead, -DTOfferShotPatron=-1 shoots the Patron hand itself;
+// -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it).
 
 #include "CoreMinimal.h"
 
@@ -222,13 +224,21 @@ namespace DTDebugOffers
 		const double T = Now - Shot.Start;
 		if (Shot.Stage == 0 && T >= SetupAfterS)
 		{
-			Offers->Pick(0, 0); // the run-start Patron hand
-			if (UDTWeaponSubsystem* Weapons = World->GetSubsystem<UDTWeaponSubsystem>())
+			int32 Patron = 0;
+			FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotPatron="), Patron);
+			if (Patron >= 0)
 			{
-				Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), 2);
-				Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
+				Offers->Pick(0, Patron); // the run-start Patron hand
+				if (UDTWeaponSubsystem* Weapons = World->GetSubsystem<UDTWeaponSubsystem>())
+				{
+					Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), 2);
+					Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
+				}
+				Offers->BuildHand(0, EDTHandKind::Level, 3);
 			}
-			Offers->BuildHand(0, EDTHandKind::Level, 3);
+			int32 Focus = 0;
+			FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotFocus="), Focus);
+			Offers->SetFocus(0, Focus);
 			Shot.Stage = 1;
 		}
 		else if (Shot.Stage == 1 && T >= ShootAfterS)

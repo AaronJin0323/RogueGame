@@ -37,6 +37,14 @@ namespace DTOfferScreenLocal
 	constexpr float DisabledAlpha = 0.35f;
 	constexpr int32 CircleSegments = 16;
 	constexpr float DashLen = 10.0f;
+	constexpr float NotesW = 1000.0f;
+	constexpr float NotesPad = 12.0f;
+	constexpr float NotesGap = 10.0f;     // above the panel
+	constexpr float NotesRowGap = 6.0f;
+	constexpr float NotesNameGap = 18.0f; // between the term column and the note column
+	constexpr float NotesMargin = 14.0f;  // panel to the canvas bottom
+	constexpr float NotesMinScale = 0.8f; // the note text shrinks to here before it would leave the canvas
+	constexpr float NotesScaleStep = 0.05f;
 
 	const TCHAR* const ToolKeys[] = { TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock") };
 	// Key glyph names (device names, the same in every culture).
@@ -462,6 +470,73 @@ void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const F
 	}
 }
 
+void UDTOfferScreen::DrawNotes(UCanvas* Canvas, const FDTOfferCard& Card, const FBox2D& CardRect, float Top)
+{
+	using namespace DTOfferScreenLocal;
+	const TArray<FString> Keywords = DTOfferText::Keywords(Card);
+	if (Keywords.Num() == 0)
+	{
+		return;
+	}
+	FPainter P{ Canvas, GEngine->GetLargeFont(), Canvas->ClipY / RefHeight };
+	const FLinearColor Family = Token(DTOfferStyle::FamilyToken(DTOfferStyle::ForKind(Card.Kind).Family));
+	const float Pad = NotesPad * P.S;
+	const float Margin = SideMargin * P.S;
+	const float PanelW = FMath::Min(NotesW * P.S, Canvas->ClipX - 2.0f * Margin);
+	const float MaxH = Canvas->ClipY - NotesMargin * P.S - Top;
+
+	struct FRow
+	{
+		FText Name;
+		TArray<FString> Lines;
+	};
+	TArray<FRow> Rows;
+	float Scale = BodyScale;
+	float NameW = 0.0f;
+	float LineH = 0.0f;
+	float PanelH = 0.0f;
+	for (;; Scale -= NotesScaleStep)
+	{
+		Rows.Reset();
+		NameW = 0.0f;
+		for (const FString& Keyword : Keywords)
+		{
+			FRow& Row = Rows.AddDefaulted_GetRef();
+			Row.Name = DTOfferText::KeywordName(Keyword);
+			NameW = FMath::Max(NameW, static_cast<float>(P.Measure(Row.Name.ToString(), Scale).X));
+		}
+		LineH = P.Measure(TEXT("0"), Scale).Y;
+		PanelH = 2.0f * Pad + (Keywords.Num() - 1) * NotesRowGap * P.S;
+		const float TextW = PanelW - 2.0f * Pad - NameW - NotesNameGap * P.S;
+		for (int32 Index = 0; Index < Keywords.Num(); ++Index)
+		{
+			Rows[Index].Lines = P.Wrap(DTOfferText::KeywordDesc(Keywords[Index]).ToString(), Scale, TextW);
+			PanelH += Rows[Index].Lines.Num() * LineH;
+		}
+		if (PanelH <= MaxH || Scale - NotesScaleStep < NotesMinScale)
+		{
+			break;
+		}
+	}
+
+	// Under the focused card, kept on the canvas.
+	const float X = FMath::Clamp(0.5f * (CardRect.Min.X + CardRect.Max.X - PanelW), Margin, Canvas->ClipX - Margin - PanelW);
+	P.Tile(X, Top, PanelW, PanelH, Token(DTPal::UI_Panel, PanelAlpha));
+	P.Tile(X, Top, PanelW, Thin * P.S, Family);
+	float Y = Top + Pad;
+	const FLinearColor Text = Token(DTPal::UI_Text);
+	for (const FRow& Row : Rows)
+	{
+		P.Text(Row.Name, X + Pad, Y, Scale, Family);
+		for (const FString& Line : Row.Lines)
+		{
+			P.Text(FText::FromString(Line), X + Pad + NameW + NotesNameGap * P.S, Y, Scale, Text);
+			Y += LineH;
+		}
+		Y += NotesRowGap * P.S;
+	}
+}
+
 void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 {
 	using namespace DTOfferScreenLocal;
@@ -537,4 +612,11 @@ void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 	}
 	const FText Hint = DTOfferText::Ui(Model.bGuardActive ? TEXT("Offer.Hint.Guard") : TEXT("Offer.Hint.Pick"));
 	P.Centered(Hint, 0.5f * Canvas->ClipX, Y, BodyScale, Text);
+	Y += P.Measure(TEXT("0"), BodyScale).Y + NotesGap * P.S;
+
+	// Keyword notes of the focused card (hover and pad focus both move Focus).
+	if (Hand.Cards.IsValidIndex(Model.Focus))
+	{
+		DrawNotes(Canvas, Hand.Cards[Model.Focus], CardRects[Model.Focus], Y);
+	}
 }
