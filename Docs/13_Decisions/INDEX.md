@@ -14,3 +14,4 @@
 | D-010 | Palette generated into code; enemy hull token; fallback registry | RULE | applied |
 | D-011 | RTX 4080 as the measurement proxy for the 4070 budget | RULE | applied |
 | D-012 | S0 gate passed; S1 core slice starts | GO-NOGO | applied |
+| D-013 | S1 spec set integration calls (Patron at run start, S1 Reforging, starters, one owner per number) | SYSTEM | applied |
