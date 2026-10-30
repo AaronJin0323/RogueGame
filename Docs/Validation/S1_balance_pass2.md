@@ -67,7 +67,7 @@ Five seeds read too noisily to judge a single change (one seed moves Tempest's m
 | Round | Change | Reading | Verdict |
 |---|---|---|---|
 | 0 | BUG: arcs report the contact point | Forge 0.00–0.05 → 0.02–0.04/min (5 seeds); Tank contact appears on Slam | kept: behaviour = R-ENM-10 (the 0.10+ guess was not reached; a BUG fix is not reverted for that) |
-| 1 | `C.DIR.SHARE_MAX_TURRET` 0.25 | T-DIR-01 FAIL 464.9 s, Turret rounds now the top no-pick source; Tempest 749 → 556 s, Frost 847 → 464 s; Forge 0.03–0.09 | **not met**, reverted |
+| 1 | `C.DIR.SHARE_MAX_TURRET` 0.25 | T-DIR-01 FAIL 464.9 s, Turret rounds join the no-pick killers (almost every run takes them); Tempest 749 → 556 s, Frost 847 → 464 s; Forge 0.03–0.09 | **not met**, reverted |
 | 1 | `C.DIR.SHARE_MAX_TANK` 0.15 | as above, one reading with the Turret cap | **not met**, reverted |
 | 1 | Whirlpool `distance_uu` 40 | median 140 s, L8 0/5 | **not met**, reverted |
 | 2 | Tempest `chance` 0.40 | L16 share 0.43, boss 0/15, median 637 → 534 s | **not met**, reverted |
@@ -108,7 +108,7 @@ Before = baseline of §2; after = final tree, same seeds. Arms with `:Forge` are
 
 15 seeds, final tree (boss / wins / median / dmg / L16 share): Tempest 1/0/637/0.33/0.44; ArcGrid 1/1/457/0.28/0.53; Downpour 1/1/509/0.18/0.33; Hammer 13/7/956/0.09/0.59; Furnace 9/6/927/0.09/0.43; Slam 13/2/953/0.03/0.43; Frost 4/0/552/0.08/0.24; Stillness 2/1/727/0.25/0.24; Whirlpool 0/0/110/—/—.
 
-Checks on the brief's seeds: T-DIR-01 PASS (592.9 s); T-OFF-15 PASS (29/29, mean 28.7). Seeds 1..15 read T-OFF-15 72/73 (one Steered run at 32 decisions): the 5-seed check holds, the margin is thin. `Tools/pressure.py --check` on the final batteries: FAIL, 0/10 arms inside both bands (Tempest and Stillness sit inside the damage band in some batteries, never both bands on 15 seeds).
+Checks on the brief's seeds: T-DIR-01 PASS (592.9 s); T-OFF-15 PASS (29/29, mean 28.7). Seeds 1..15 read T-OFF-15 72/73 (Tide/Frost seed 11 reaches the boss with 21 decisions, a slow build, not a budget overrun). `Tools/pressure.py --check`: FAIL on both batteries: 0/10 arms inside both bands on 5 seeds, 1/10 on 15 seeds (Storm/Tempest at 0.335/min and 6.76 dashes, over the 8 of 15 runs still alive in the window, and most of those die in it).
 
 ## 8. What remains
 1. **Tide adds no power (largest gap, content layer).** Every arm that takes Tide reaches the boss at 0–2 of 15; every arm without it 13–15. `keepers.md` Open lists the parameters no system reads, and Frost and Stillness hold most of them. No number can lift a card that does nothing (round 2). Next: express Frost's shatter and `frozen_blocks_enemies`, Whirlpool's cluster freeze, Stillness's charged effects, then re-run the `:Tide` arms.
