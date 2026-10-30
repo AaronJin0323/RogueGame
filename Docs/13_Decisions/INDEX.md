@@ -20,3 +20,4 @@
 | D-016 | Pull holds each enemy for an interval; fields apply their status | RULE | applied |
 | D-017 | Owner waives the S1 playtest hold on merging | PROCESS | applied |
 | D-018 | Share caps bind only above a floor of alive enemies | RULE | reverted |
+| D-019 | Frost and Stillness casts drop Tide's line | RULE | applied |
