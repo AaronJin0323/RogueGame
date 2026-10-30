@@ -844,6 +844,11 @@ float FDTBotBrain::ScoreCard(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 	return Config.Version >= 2 ? CardScoreV2(Card, Hand, Player) : CardScore(Card, Hand, Player);
 }
 
+int32 FDTBotBrain::ReforgePick(const FDTOfferHand& Hand, int32 Seed)
+{
+	return INDEX_NONE;
+}
+
 int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player)
 {
 	if (Hand.Cards.Num() == 0)

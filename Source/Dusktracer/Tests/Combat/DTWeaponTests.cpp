@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Tests/Combat/DTWeaponTestHarness.h"
+#include "Combat/DTReforge.h"
 #include "Combat/DTBulletSubsystem.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponCompose.h"
@@ -175,14 +176,14 @@ bool FDTWeaponsLevelTrack::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsNoL16Card, "Dusktracer.Weapons.NoL16Card", DTWeaponTestHarness::TestFlags) // T-WPN-05
-bool FDTWeaponsNoL16Card::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsEvolutionColumn, "Dusktracer.Weapons.EvolutionColumn", DTWeaponTestHarness::TestFlags) // T-WPN-05
+bool FDTWeaponsEvolutionColumn::RunTest(const FString& Parameters)
 {
-	// R-WPN-05: in S1 no weapon contributes a card to the L16 hand (offers R-OFF-09 fills it with blessings).
+	// R-WPN-05: the `evolution` column names the weapon's row of reforging.csv.
 	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
 	{
-		TestEqual(FString::Printf(TEXT("%s gives no L16 card"), DTCat::Weapons[Weapon].Id), DTWeapons::ReforgeCards(Weapon).Num(), 0);
-		TestTrue(FString::Printf(TEXT("%s evolution is S2"), DTCat::Weapons[Weapon].Id), FString(DTCat::Weapons[Weapon].Evolution).Contains(TEXT("(S2)")));
+		const int32 Row = DTReforge::FindEvolve(Weapon);
+		TestTrue(FString::Printf(TEXT("%s names an Evolve row"), DTCat::Weapons[Weapon].Id), Row != INDEX_NONE && DTCat::Reforges[Row].bEvolve);
 	}
 	return true;
 }

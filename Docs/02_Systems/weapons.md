@@ -35,7 +35,7 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 - **R-WPN-04** A weapon levels from the first level to `C.WEAPON.LEVEL_MAX`; each level is one catalog row, and consecutive rows differ on exactly one axis of `damage`, `count`, `cooldown_s` or size (`radius_uu` with `area_r_uu`). Level values are the base the composition starts from (R-WPN-09); leveling is an offer pick (`offers.md`).
 
 **L16 Reforging**
-- **R-WPN-05** In S1 and the arsenal slice no weapon contributes a card to the L16 hand: the S1 hand is the blessing filler of `offers.md` R-OFF-09. Weapon evolutions (the `evolution` column) and Path transformations are S2. Any later reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
+- **R-WPN-05** A weapon's `evolution` column names its row in `09_Catalog/reforging.csv`; `reforging.md` owns what the row does and when it reaches the L16 hand. A reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
 
 **Ballistics and the bullet-subsystem interface**
 - **R-WPN-06** Weapons step in `EDTSimPhase::Weapons`, per player, after `Enemies` published `FDTWorldView`. By carrier:
@@ -104,7 +104,7 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 - T-WPN-02 `Dusktracer.Weapons.Caps`: every catalog cap is one of the twelve `Cap.*` tags; effective caps change with a conversion and only then.
 - T-WPN-03 `Dusktracer.Weapons.Load`: with one to `C.WEAPON.SLOTS` weapons, rank and damage follow the factors; a level-up that reorders levels reorders load; ties go to the earlier weapon; a pick beyond the slots is refused.
 - T-WPN-04 `Dusktracer.Weapons.LevelTrack`: consecutive levels differ on exactly one axis; the level cap holds.
-- T-WPN-05 `Dusktracer.Weapons.NoL16Card`: in S1 the L16 hand contains no weapon card.
+- T-WPN-05 `Dusktracer.Weapons.EvolutionColumn`: every weapon names one Evolve row of `reforging.csv` (the L16 hand is T-RFG-02).
 - T-WPN-06 `Dusktracer.Weapons.Emission`: in a headless world each S1 weapon emits per its pattern (rounds via `Spawn` with life from range and speed, drones in turn, arcs as hits, one hit per enemy per sweep) and adds no actor per round.
 - T-WPN-07 `Dusktracer.Weapons.HitPath`: enemy health is unchanged until `ResolveHits`; every hit carries the right owner and the source of its creator (weapon, modifier or Keeper).
 - T-WPN-08 `Dusktracer.Weapons.FlagResolution`: for every flag and every catalog weapon the resolution is `native` or `fallback` and matches the walk over `flag_compat.csv`.
@@ -129,7 +129,7 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 - Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label; budget two rows per weapon plus one; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.
 
 ## Out of scope
-- Weapon evolutions and fusions (S2, `evolution` column).
+- Weapon evolutions (`reforging.md`).
 - How the `starter` column becomes the run pool, the starting loadout (`offers.md` R-OFF-07, `C.POOL.STARTER_WEAPONS`), the L16 hand (`offers.md` R-OFF-09).
 - Flag meanings and parameters, status procs (`keepers.md`); status behaviour and `ResolveHits` (`enemies.md`).
 - Per-weapon trails and VFX assets (`04_Presentation`).

@@ -221,6 +221,9 @@ offers:
   OFFER.SECOND_KEEPER_LEVEL:         { value: 8, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-08] }
   OFFER.REFORGING_LEVEL:             { value: 16, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-09] }
   OFFER.REFORGING_CARDS:             { value: 3, unit: n, tag: CORE, dependents: [02_Systems/offers.md, T-OFF-09] }
+  OFFER.REFORGE_EVOLVE_MIN_LEVEL:    { value: 6, unit: level, tag: GATED(S2), dependents: [02_Systems/reforging.md, T-RFG-02] }
+  REFORGE.POWER_MIN:                 { value: 1.3, unit: ratio, tag: GATED(S2), dependents: [02_Systems/reforging.md] }
+  REFORGE.POWER_MAX:                 { value: 1.8, unit: ratio, tag: GATED(S2), dependents: [02_Systems/reforging.md] }
   OFFER.KEEPER_CHOICES:              { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-08] }
   OFFER.CHEST_CARDS:                 { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-14] }
   OFFER.WEIGHT_BASE:                 { value: 1.0, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }

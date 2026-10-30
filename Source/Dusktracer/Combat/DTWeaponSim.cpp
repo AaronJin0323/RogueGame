@@ -421,6 +421,16 @@ void FDTWeaponSim::ResetTransient()
 // ------------------------------------------------------------------------------------------------------------------
 // Emission primitives
 
+int32 FDTWeaponSim::GetLivePillars() const
+{
+	return 0;
+}
+
+float FDTWeaponSim::GetBladeRadius(int32 OwnerId, int32 Slot) const
+{
+	return 0.0f;
+}
+
 bool FDTWeaponSim::TryEmit(FWeaponRuntime& Runtime)
 {
 	if (Runtime.EmitRing.Num() == 0)

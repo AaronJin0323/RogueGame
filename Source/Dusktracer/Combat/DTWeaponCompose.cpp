@@ -1,5 +1,7 @@
 #include "Combat/DTWeaponCompose.h"
 
+#include "Combat/DTReforge.h"
+
 float DTWeaponCompose::LoadFactor(int32 Rank)
 {
 	switch (Rank)

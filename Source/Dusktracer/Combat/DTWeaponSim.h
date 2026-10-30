@@ -105,6 +105,12 @@ public:
 	const FDTWeaponSpec& GetLastSpec(int32 OwnerId, int32 Slot) const;
 	int32 GetLiveMines(int32 OwnerId, int32 Slot) const;
 	int32 GetLiveFields() const { return Fields.Num(); }
+	/** Fields opened this run (Vortex zones among them). */
+	int32 GetFieldsOpened() const { return FieldsOpened; }
+	int32 GetLiveHusks() const { return Husks.Num(); }
+	int32 GetLivePillars() const;
+	/** Where a Blade Halo's blades orbit now (R-RFG-07). */
+	float GetBladeRadius(int32 OwnerId, int32 Slot) const;
 	int32 GetTrackedRounds() const { return Rounds.Num(); }
 	/** Highest split generation of any round spawned this run (R-MOD-05 check). */
 	int32 GetMaxGeneration() const { return MaxGeneration; }
@@ -428,6 +434,15 @@ private:
 	TArray<FPlayerRuntime> Players;
 	TArray<FRound> Rounds;
 	TArray<FField> Fields;
+	struct FHusk
+	{
+		int32 OwnerId = INDEX_NONE;
+		FVector2f Position = FVector2f::ZeroVector;
+		float Left = 0.0f;
+		float ReadyIn = 0.0f;
+	};
+	TArray<FHusk> Husks;
+	int32 FieldsOpened = 0;
 	TArray<FEcho> Echoes;
 	TArray<FArcFlash> Arcs;
 	TArray<FImpact> Impacts;

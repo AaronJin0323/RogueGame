@@ -161,6 +161,8 @@ struct FDTWeaponInstance
 	int32 ShotCounter = 0;
 	/** FDTTelemetrySources id of Weapon.<Name>. */
 	uint16 SourceId = 0;
+	/** Row in DTCat::Reforges this weapon evolved by (reforging.md R-RFG-03); INDEX_NONE = not evolved. */
+	int32 Evolve = INDEX_NONE;
 };
 
 /** Everything one player owns during a run. Systems add their fields here, never to a global. */
@@ -180,6 +182,8 @@ struct FDTPlayerRunState
 	FDTKeeperRunState Keepers;
 	/** Owned weapons in slot order (at most C.WEAPON.SLOTS); the slot index is FDTHit::WeaponSlot. */
 	TArray<FDTWeaponInstance> Weapons;
+	/** Path rows of DTCat::Reforges taken (reforging.md R-RFG-03). */
+	TArray<int32> PathReforges;
 };
 
 /** The run: its seed-derived streams and one state per player. There is no single-player shortcut. */

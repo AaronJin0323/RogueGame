@@ -105,9 +105,6 @@ namespace DTWeapons
 	DUSKTRACER_API uint16 WeaponSource(int32 Weapon);
 	DUSKTRACER_API uint16 ModifierSource(int32 Mod);
 	DUSKTRACER_API uint16 KeeperSource(EDTPath Path);
-
-	/** S1 rule (R-WPN-05): no weapon contributes a card to the L16 Reforging hand. Always empty in S1. */
-	DUSKTRACER_API TArray<FName> ReforgeCards(int32 Weapon);
 }
 
 namespace DTModCompat

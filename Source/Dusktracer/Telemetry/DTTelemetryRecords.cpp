@@ -1,7 +1,7 @@
 // S1 record writers of FDTTelemetryCore (02_Systems/telemetry.md §Data). Field names and order follow each owning spec's
 // §Telemetry: offers.md, keepers.md, combat_core.md, progression.md, weapons.md, modifiers.md, director.md, boss.md.
-#include "Enemies/DTElite.h"
 #include "Telemetry/DTTelemetryRecords.h"
+#include "Enemies/DTElite.h"
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetryJson.h"
 #include "Telemetry/DTTelemetrySources.h"

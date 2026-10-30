@@ -268,6 +268,9 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.OFFER.SECOND_KEEPER_LEVEL | 8 | level | CORE | 02_Systems/offers.md, 02_Systems/progression.md, T-OFF-08 |
 | C.OFFER.REFORGING_LEVEL | 16 | level | CORE | 02_Systems/offers.md, 02_Systems/progression.md, T-OFF-09 |
 | C.OFFER.REFORGING_CARDS | 3 | n | CORE | 02_Systems/offers.md, T-OFF-09 |
+| C.OFFER.REFORGE_EVOLVE_MIN_LEVEL | 6 | level | GATED(S2) | 02_Systems/reforging.md, T-RFG-02 |
+| C.REFORGE.POWER_MIN | 1.3 | ratio | GATED(S2) | 02_Systems/reforging.md |
+| C.REFORGE.POWER_MAX | 1.8 | ratio | GATED(S2) | 02_Systems/reforging.md |
 | C.OFFER.KEEPER_CHOICES | 3 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-08 |
 | C.OFFER.CHEST_CARDS | 3 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-14 |
 | C.OFFER.WEIGHT_BASE | 1.0 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |

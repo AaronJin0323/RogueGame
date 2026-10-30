@@ -722,20 +722,6 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 	// --- Reforging (R-OFF-09): sources, then the highest-weight legal blessings of the chosen Keepers, Epic; then Reserve.
 	if (Kind == EDTHandKind::Reforging)
 	{
-		if (Player.Weapons.Num() > 0)
-		{
-			for (const FName& Id : DTWeapons::ReforgeCards(Player.Weapons[0].Def))
-			{
-				if (Hand.Cards.Num() < Size)
-				{
-					FDTOfferCard& Card = Hand.Cards.AddDefaulted_GetRef();
-					Card.Kind = EDTCardKind::Reforging;
-					Card.ContentId = Id;
-					Card.TargetWeapon = Player.Weapons[0].Id;
-					Card.Rarity = EDTRarity::Epic;
-				}
-			}
-		}
 		TArray<FDTOfferCard> Blessings = Pool2.FilterByPredicate([](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Blessing; });
 		Blessings.StableSort([](const FDTOfferCard& A, const FDTOfferCard& B)
 		{

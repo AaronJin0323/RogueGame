@@ -1,0 +1,628 @@
+// L16 Reforging tests (02_Systems/reforging.md T-RFG-01..18).
+// Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Reforging; Quit" -unattended -nullrhi
+
+#include "Misc/AutomationTest.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Tests/Combat/DTWeaponTestHarness.h"
+#include "Bot/DTBotBrain.h"
+#include "Combat/DTReforge.h"
+#include "Combat/DTWeaponCatalog.h"
+#include "Internationalization/StringTableCore.h"
+#include "Internationalization/StringTableRegistry.h"
+#include "Offers/DTOfferGenerator.h"
+#include "Offers/DTOfferStyle.h"
+
+namespace DTReforgeTest
+{
+	using namespace DTWeaponTestHarness;
+
+	/** Weapon at level 8, evolved. Returns its row. */
+	static int32 GiveEvolved(FDTHarness& H, const TCHAR* Weapon, int32 Level = 8)
+	{
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(Weapon), Level, &Slot);
+		FDTWeaponInstance& Owned = H.Run.GetPlayer(0).Weapons[Slot];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		return Owned.Evolve;
+	}
+
+	static FDTWeaponFlags StatusFlag(EDTPath Path, const TCHAR* Status)
+	{
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Entry = Flags.Add(DTCat::EFlag::StatusApply, DTWeapons::KeeperSource(Path), EDTFlagTier::Key);
+		Entry.Params.SetWord(DTFlagParam::Status, FName(Status));
+		Entry.Params.Set(DTFlagParam::Chance, 1.0f);
+		return Flags;
+	}
+
+	/** The harness has no Enemies phase: statuses land here, as they do at the next step in the sim. */
+	static void RunSteps(FDTHarness& H, int32 Steps)
+	{
+		for (int32 Index = 0; Index < Steps; ++Index)
+		{
+			H.StepOnce();
+			for (const FDTStatusApply& Apply : H.View.StatusApplies)
+			{
+				H.Enemies.ApplyStatus(Apply);
+			}
+			H.View.StatusApplies.Reset();
+		}
+	}
+
+	static void FreezeEnemy(FDTHarness& H, int32 Enemy)
+	{
+		FDTStatusApply Apply;
+		Apply.Handle = H.Enemies.GetHandle(Enemy);
+		Apply.Status = EDTStatus::Freeze;
+		Apply.OwnerId = 0;
+		H.Enemies.ApplyStatus(Apply);
+	}
+
+	static int32 HitsOn(const FDTHarness& H, uint32 Serial, uint16 Source = 0)
+	{
+		int32 Count = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Count += Hit.EnemySerial == Serial && (Source == 0 || Hit.SourceId == Source) ? 1 : 0;
+		}
+		return Count;
+	}
+
+	/** A committed player: Storm Patron, Forge second, with Weapon at Level. */
+	static void Commit(FDTHarness& H, const TCHAR* Weapon, int32 Level)
+	{
+		FDTPlayerRunState& P = H.Run.GetPlayer(0);
+		P.Offer.PatronPath = P.Keepers.Primary = EDTPath::Storm;
+		P.Offer.SecondPath = P.Keepers.Second = EDTPath::Forge;
+		P.Keepers.bCommitDone = true;
+		H.Weapons.Give(H.Run, 0, FName(Weapon), Level);
+	}
+
+	static FDTOfferHand ReforgeHand(FDTHarness& H)
+	{
+		FRandomStream Rng(5);
+		return DTOffers::BuildHand(H.Run.GetPlayer(0), FDTOfferPool(), EDTHandKind::Reforging, DTConst::OFFER_REFORGING_LEVEL, Rng, {}, nullptr);
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCatalog, "Dusktracer.Reforging.Catalog", DTWeaponTestHarness::TestFlags) // T-RFG-01
+bool FDTReforgeCatalog::RunTest(const FString& Parameters)
+{
+	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
+	{
+		const int32 Row = DTReforge::FindEvolve(Weapon);
+		TestTrue(FString::Printf(TEXT("%s has an Evolve row"), DTCat::Weapons[Weapon].Id), Row != INDEX_NONE);
+		const FDTCapList Caps = DTReforge::Caps(Row);
+		TestTrue(TEXT("an evolution declares caps"), Caps.Caps.Num() > 0);
+		for (int32 Flag = 0; Flag < static_cast<int32>(DTCat::EFlag::Count); ++Flag)
+		{
+			TestTrue(FString::Printf(TEXT("%s resolves %s"), DTCat::Reforges[Row].Id, DTCat::FlagIds[Flag]),
+				DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat != DTCat::ECompat::None);
+		}
+	}
+	for (const EDTPath Path : { EDTPath::Storm, EDTPath::Forge, EDTPath::Tide })
+	{
+		TestTrue(TEXT("an S1 Keeper has a Path row"), DTReforge::FindPath(Path) != INDEX_NONE);
+	}
+	for (int32 Row = 0; Row < DTCat::NumReforges; ++Row)
+	{
+		const FName Id = DTReforge::RowId(Row);
+		TestTrue(FString::Printf(TEXT("%s behaviour is known"), DTCat::Reforges[Row].Id),
+			DTReforge::Evolution(Row) != EDTEvolve::None || DTReforge::PathReforge(Row) != EDTPathReforge::None);
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Reforging;
+		Card.ContentId = Id;
+		FString Table;
+		FString Key;
+		TestTrue(TEXT("a name key"), DTOfferText::NameKey(Card, Table, Key));
+		TestFalse(FString::Printf(TEXT("%s has a name"), DTCat::Reforges[Row].Id), FText::FromStringTable(FName(Table), Key).IsEmpty());
+		TestTrue(TEXT("a rules key"), DTOfferText::DescKey(Card, Table, Key));
+		TestFalse(FString::Printf(TEXT("%s has a rules line"), DTCat::Reforges[Row].Id), DTOfferText::Desc(Card).IsEmpty());
+		TestTrue(FString::Printf(TEXT("%s has keyword notes"), DTCat::Reforges[Row].Id), DTOfferText::Keywords(Card).Num() > 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeHand, "Dusktracer.Reforging.Hand", DTWeaponTestHarness::TestFlags) // T-RFG-02
+bool FDTReforgeHand::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	{
+		FDTHarness H;
+		Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+		const FDTOfferHand Hand = ReforgeHand(H);
+		TestEqual(TEXT("card count"), Hand.Cards.Num(), DTConst::OFFER_REFORGING_CARDS);
+		if (Hand.Cards.Num() == 3)
+		{
+			TestEqual(TEXT("slot one: the Patron's row"), Hand.Cards[0].ContentId, FName(TEXT("Transform.Storm")));
+			TestEqual(TEXT("slot two: the second's row"), Hand.Cards[1].ContentId, FName(TEXT("Transform.Forge")));
+			TestEqual(TEXT("slot three: the evolution"), Hand.Cards[2].ContentId, FName(TEXT("Evolve.PulseRifle")));
+			TestEqual(TEXT("it binds the weapon"), Hand.Cards[2].TargetWeapon, FName(TEXT("Weapon.PulseRifle")));
+			for (const FDTOfferCard& Card : Hand.Cards)
+			{
+				TestEqual(TEXT("a Reforging card"), Card.Kind, EDTCardKind::Reforging);
+				TestEqual(TEXT("Epic"), Card.Rarity, EDTRarity::Epic);
+				TestFalse(TEXT("no tools"), DTOffers::CardAllowsBanishLock(Card));
+			}
+		}
+	}
+	{
+		FDTHarness H;
+		Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL - 1);
+		const FDTOfferHand Hand = ReforgeHand(H);
+		TestEqual(TEXT("under the level: still the count"), Hand.Cards.Num(), DTConst::OFFER_REFORGING_CARDS);
+		TestFalse(TEXT("under the level: no evolution"), Hand.Cards.ContainsByPredicate([](const FDTOfferCard& C) { return C.ContentId == FName(TEXT("Evolve.PulseRifle")); }));
+	}
+	{
+		FDTHarness H;
+		Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.ArcBlade")), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL + 1);
+		const FDTOfferHand Hand = ReforgeHand(H);
+		TestEqual(TEXT("the primary is rank one, not the first slot"), DTReforge::PrimarySlot(H.Run.GetPlayer(0).Weapons), 1);
+		TestTrue(TEXT("its evolution is offered"), Hand.Cards.ContainsByPredicate([](const FDTOfferCard& C) { return C.ContentId == FName(TEXT("Evolve.ArcBlade")); }));
+	}
+	{
+		FDTHarness H;
+		Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+		FDTPlayerRunState& P = H.Run.GetPlayer(0);
+		P.PathReforges.Add(DTReforge::FindPath(EDTPath::Storm));
+		P.Weapons[0].Evolve = DTReforge::FindEvolve(P.Weapons[0].Def);
+		const FDTOfferHand Hand = ReforgeHand(H);
+		TestFalse(TEXT("a taken row leaves"), Hand.Cards.ContainsByPredicate([](const FDTOfferCard& C) { return C.ContentId == FName(TEXT("Transform.Storm")); }));
+		TestFalse(TEXT("an evolved weapon does not evolve again"), Hand.Cards.ContainsByPredicate([](const FDTOfferCard& C) { return C.ContentId == FName(TEXT("Evolve.PulseRifle")); }));
+		TestEqual(TEXT("filler keeps the count"), Hand.Cards.Num(), DTConst::OFFER_REFORGING_CARDS);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePick, "Dusktracer.Reforging.Pick", DTWeaponTestHarness::TestFlags) // T-RFG-03
+bool FDTReforgePick::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.ArcBlade")), 1);
+	FDTPlayerRunState& P = H.Run.GetPlayer(0);
+	const FDTOfferHand Hand = ReforgeHand(H);
+	if (Hand.Cards.Num() != 3)
+	{
+		AddError(TEXT("no hand"));
+		return false;
+	}
+	const int32 Favor = P.Keepers.Favor[static_cast<int32>(EDTPath::Storm)];
+	const FDTPickOutcome Path = DTOffers::ApplyPickState(P, Hand.HandKind, Hand.Cards[0]);
+	TestTrue(TEXT("a Path pick is valid"), Path.bValid);
+	TestEqual(TEXT("no Favor"), P.Keepers.Favor[static_cast<int32>(EDTPath::Storm)], Favor);
+	TestEqual(TEXT("the row is owned"), DTReforge::OwnedPathRow(P, EDTPathReforge::Overload), DTReforge::FindPath(EDTPath::Storm));
+	const FDTPickOutcome Evolve = DTOffers::ApplyPickState(P, Hand.HandKind, Hand.Cards[2]);
+	TestTrue(TEXT("an Evolve pick is valid"), Evolve.bValid);
+	TestEqual(TEXT("only that weapon evolves"), P.Weapons[0].Evolve, DTReforge::FindEvolve(P.Weapons[0].Def));
+	TestEqual(TEXT("the other stays"), P.Weapons[1].Evolve, static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("upgrades still apply"), H.Weapons.LevelUp(H.Run, 0, 0), EDTWeaponResult::Ok);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCaps, "Dusktracer.Reforging.Caps", DTWeaponTestHarness::TestFlags) // T-RFG-04
+bool FDTReforgeCaps::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8);
+	FDTPlayerRunState& P = H.Run.GetPlayer(0);
+	int32 Mod = INDEX_NONE;
+	const FDTCapList Evolved = DTReforge::Caps(DTReforge::FindEvolve(P.Weapons[0].Def));
+	for (int32 Index = 0; Index < DTWeapons::NumModifiers() && Mod == INDEX_NONE; ++Index)
+	{
+		if (DTModCompat::IsCompatible(P.Weapons[0].Def, Index) && !DTModCompat::IsCompatible(Evolved, Index))
+		{
+			Mod = Index;
+		}
+	}
+	if (Mod == INDEX_NONE)
+	{
+		AddError(TEXT("no modifier the Halo loses"));
+		return false;
+	}
+	TestEqual(TEXT("socketed"), H.Weapons.Socket(H.Run, 0, 0, DTWeapons::ModifierId(Mod)), EDTWeaponResult::Ok);
+	P.Weapons[0].Evolve = DTReforge::FindEvolve(P.Weapons[0].Def);
+	const FDTWeaponSpec Spec = H.Weapons.ComposeSlot(H.Run, 0, 0);
+	TestTrue(TEXT("the row's caps"), Spec.EffectiveCaps == Evolved);
+	TestEqual(TEXT("still socketed"), P.Weapons[0].Sockets.Num(), 1);
+	TestTrue(TEXT("dormant"), P.Weapons[0].Sockets[0].bDormant);
+	TestEqual(TEXT("declared caps follow the row"), DTReforge::DeclaredCaps(P.Weapons[0]).Mask, Evolved.Mask);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeRailstorm, "Dusktracer.Reforging.Railstorm", DTWeaponTestHarness::TestFlags) // T-RFG-05
+bool FDTReforgeRailstorm::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.PulseRifle"));
+	H.AddEnemy(FVector2f(300.0f, 0.0f));
+	const float Launch = DTReforge::Param(Row, TEXT("launch_s"));
+	RunSteps(H, FMath::RoundToInt(10.0f * Launch / Dt));
+	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+	const DTCat::FWeaponLevelRow& L8 = *DTWeapons::GetLevelRow(Spec.Weapon, 8);
+	TestTrue(TEXT("a boomerang"), Spec.bBoomerang);
+	TestEqual(TEXT("the row's pierce"), Spec.Pierce, FMath::RoundToInt(DTReforge::Param(Row, TEXT("pierce"))));
+	TestNearlyEqual(TEXT("one launch per launch_s"), H.Weapons.GetCounters(0, 0).Spawned, 10.0, 1.1);
+	TestNearlyEqual(TEXT("the stated damage"), Spec.Damage, L8.Damage * L8.Count * DTReforge::Param(Row, TEXT("dmg_ratio")) * DTConst::LOAD_FACTOR_1, 0.01f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeFlechette, "Dusktracer.Reforging.Flechette", DTWeaponTestHarness::TestFlags) // T-RFG-06
+bool FDTReforgeFlechette::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.ScatterCannon"));
+	const int32 Enemy = H.AddEnemy(FVector2f(120.0f, 0.0f));
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 0.0f;
+	H.StepOnce();
+	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+	const DTCat::FWeaponLevelRow& L8 = *DTWeapons::GetLevelRow(Spec.Weapon, 8);
+	TestEqual(TEXT("the pellet count"), Spec.Count, FMath::RoundToInt(DTReforge::Param(Row, TEXT("pellets"))));
+	TestNearlyEqual(TEXT("the row's total"), Spec.Damage * Spec.Count, L8.Damage * L8.Count * DTConst::LOAD_FACTOR_1, 0.1f);
+	// Long cooldown: read only the first volley's hits and the strikes that follow.
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	RunSteps(H, FMath::RoundToInt(0.3f / Dt));
+	const int32 Direct = HitsOn(H, H.Enemies.GetSerials()[Enemy]);
+	TestTrue(TEXT("pellets struck"), Direct > 0);
+	RunSteps(H, FMath::RoundToInt(DTReforge::Param(Row, TEXT("embed_s")) / Dt) + 2);
+	TestTrue(TEXT("embedded strikes land later"), HitsOn(H, H.Enemies.GetSerials()[Enemy]) > Direct);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeBladeHalo, "Dusktracer.Reforging.BladeHalo", DTWeaponTestHarness::TestFlags) // T-RFG-07
+bool FDTReforgeBladeHalo::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.OrbitalDrones"));
+	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
+	const int32 Near = H.AddEnemy(FVector2f(Orbit, 0.0f));
+	const int32 Far = H.AddEnemy(FVector2f(Orbit + 400.0f, 0.0f));
+	RunSteps(H, 300);
+	TestEqual(TEXT("no bolts"), H.Bullets.Num(), 0);
+	TestTrue(TEXT("a blade strikes what it touches"), HitsOn(H, H.Enemies.GetSerials()[Near]) > 0);
+	TestEqual(TEXT("and nothing out of reach"), HitsOn(H, H.Enemies.GetSerials()[Far]), 0);
+	TestEqual(TEXT("the blade count"), H.Weapons.GetLastSpec(0, 0).Count, FMath::RoundToInt(DTReforge::Param(Row, TEXT("blades"))));
+	const float Still = H.Weapons.GetBladeRadius(0, 0);
+	const FVector2f Speed(DTReforge::Param(Row, TEXT("speed_ref_uu_s")) * Dt, 0.0f);
+	H.View.HeroPositions[0] += Speed;
+	H.StepOnce();
+	H.View.HeroPositions[0] += Speed;
+	H.StepOnce();
+	TestNearlyEqual(TEXT("the orbit widens with speed"), H.Weapons.GetBladeRadius(0, 0), Still * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio"))), 0.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeSweepBeam, "Dusktracer.Reforging.SweepBeam", DTWeaponTestHarness::TestFlags) // T-RFG-08
+bool FDTReforgeSweepBeam::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.RailLance"));
+	const float Half = 0.5f * DTReforge::Param(Row, TEXT("sweep_deg"));
+	const FVector2f Base(1.0f, 0.0f);
+	const int32 Centre = H.AddEnemy(Base * 500.0f);
+	const FVector2f Edge = Base.GetRotated(Half - 5.0f) * 500.0f;
+	const int32 Side = H.AddEnemy(Edge);
+	const int32 Behind = H.AddEnemy(-Base * 500.0f);
+	H.StepOnce();
+	TestTrue(TEXT("the beam starts on one side, not all at once"), HitsOn(H, H.Enemies.GetSerials()[Centre]) == 0);
+	RunSteps(H, FMath::RoundToInt(DTReforge::Param(Row, TEXT("beam_s")) / Dt));
+	TestTrue(TEXT("the sweep reaches its middle"), HitsOn(H, H.Enemies.GetSerials()[Centre]) > 0);
+	TestTrue(TEXT("and its edge"), HitsOn(H, H.Enemies.GetSerials()[Side]) > 0);
+	TestEqual(TEXT("not behind it"), HitsOn(H, H.Enemies.GetSerials()[Behind]), 0);
+	TestEqual(TEXT("no rounds"), H.Bullets.Num(), 0);
+	TestTrue(TEXT("the cooldown holds the beam"), H.Weapons.GetLastSpec(0, 0).Cooldown >= DTReforge::Param(Row, TEXT("beam_s")) - KINDA_SMALL_NUMBER);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCarpet, "Dusktracer.Reforging.Carpet", DTWeaponTestHarness::TestFlags) // T-RFG-09
+bool FDTReforgeCarpet::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.FlakMortar"), 1);
+	const float Walk = DTReforge::Param(Row, TEXT("walk_uu"));
+	const int32 Blasts = FMath::RoundToInt(DTReforge::Param(Row, TEXT("blasts")));
+	H.AddEnemy(FVector2f(300.0f, 0.0f));
+	const int32 Tail = H.AddEnemy(FVector2f(300.0f + Walk, 0.0f));
+	H.StepOnce();
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	const int32 Before = HitsOn(H, H.Enemies.GetSerials()[Tail]);
+	RunSteps(H, FMath::RoundToInt((1.0f + DTReforge::Param(Row, TEXT("step_s")) * Blasts) / Dt));
+	TestTrue(TEXT("the line reaches its end"), HitsOn(H, H.Enemies.GetSerials()[Tail]) > Before);
+	const int32 Settled = H.HitLog.Num();
+	RunSteps(H, 120);
+	TestEqual(TEXT("a strike does not walk"), H.HitLog.Num(), Settled);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCyclone, "Dusktracer.Reforging.Cyclone", DTWeaponTestHarness::TestFlags) // T-RFG-10
+bool FDTReforgeCyclone::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.ArcBlade"));
+	const int32 Front = H.AddEnemy(FVector2f(100.0f, 0.0f));
+	const int32 Back = H.AddEnemy(FVector2f(-100.0f, 30.0f));
+	RunSteps(H, 120);
+	TestEqual(TEXT("at rest: nothing"), H.HitLog.Num(), 0);
+	const float Speed = 2.0f * DTReforge::Param(Row, TEXT("move_min_uu_s"));
+	for (int32 Step = 0; Step < static_cast<int32>(1.0f / Dt); ++Step)
+	{
+		H.View.HeroPositions[0].Y += Speed * Dt;
+		H.StepOnce();
+	}
+	TestNearlyEqual(TEXT("the stated rate"), static_cast<float>(HitsOn(H, H.Enemies.GetSerials()[Front])), DTReforge::Param(Row, TEXT("hits_s")), 1.1f);
+	TestTrue(TEXT("all round"), HitsOn(H, H.Enemies.GetSerials()[Back]) > 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeMurmuration, "Dusktracer.Reforging.Murmuration", DTWeaponTestHarness::TestFlags) // T-RFG-11
+bool FDTReforgeMurmuration::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.SeekerSwarm"), 1);
+	const int32 A = H.AddEnemy(FVector2f(200.0f, 0.0f));
+	const int32 B = H.AddEnemy(FVector2f(200.0f, 300.0f));
+	const int32 C = H.AddEnemy(FVector2f(-200.0f, 300.0f));
+	H.StepOnce();
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	const int32 Launched = H.Bullets.Num();
+	TestTrue(TEXT("missiles left"), Launched > 0);
+	RunSteps(H, FMath::RoundToInt(3.0f / Dt));
+	TestEqual(TEXT("still alive past a plain missile's life"), H.Bullets.Num(), Launched);
+	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+	TestNearlyEqual(TEXT("the row's life"), Spec.Life, DTReforge::Param(Row, TEXT("life_s")), 0.01f);
+	const int32 Total = HitsOn(H, H.Enemies.GetSerials()[A]) + HitsOn(H, H.Enemies.GetSerials()[B]) + HitsOn(H, H.Enemies.GetSerials()[C]);
+	TestTrue(TEXT("a missile moved on"), Total > Launched);
+	TestTrue(TEXT("once each at most"), Total <= Launched * 3);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWall, "Dusktracer.Reforging.PulseWall", DTWeaponTestHarness::TestFlags) // T-RFG-12
+bool FDTReforgePulseWall::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+	const float Radius = DTReforge::Param(Row, TEXT("radius_uu"));
+	const int32 Rim = H.AddEnemy(FVector2f(Radius - 20.0f, 0.0f));
+	const int32 Core = H.AddEnemy(FVector2f(0.0f, 60.0f));
+	H.StepOnce();
+	TestEqual(TEXT("one ring"), H.Weapons.GetLiveFields(), 1);
+	TestEqual(TEXT("no rounds"), H.Bullets.Num(), 0);
+	const FVector2f Before = H.Enemies.GetPositions()[Rim];
+	bool bPushed = false;
+	for (int32 Step = 0; Step < FMath::RoundToInt((DTReforge::Param(Row, TEXT("grow_s")) + 0.5f) / Dt); ++Step)
+	{
+		H.StepOnce();
+		bPushed = bPushed || H.View.Displacements.ContainsByPredicate([&H, Rim](const FDTDisplacement& D) { return D.EnemySerial == H.Enemies.GetSerials()[Rim] && D.Delta.X > 0.0f; });
+	}
+	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
+	TestTrue(TEXT("the band hurts the rim"), HitsOn(H, H.Enemies.GetSerials()[Rim]) > 0);
+	TestTrue(TEXT("and pushes it out through a displacement"), bPushed);
+	TestEqual(TEXT("positions are not written by the weapon"), H.Enemies.GetPositions()[Rim], Before);
+	TestEqual(TEXT("what the ring passed is left alone"), HitsOn(H, H.Enemies.GetSerials()[Core]), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeVortex, "Dusktracer.Reforging.Vortex", DTWeaponTestHarness::TestFlags) // T-RFG-13
+bool FDTReforgeVortex::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	GiveEvolved(H, TEXT("Weapon.SpiralProjector"), 1);
+	H.StepOnce();
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	TestTrue(TEXT("a round left"), H.Bullets.Num() > 0);
+	if (H.Bullets.Num() > 0)
+	{
+		const FVector2f V0 = (H.Bullets.GetPositions()[0] - H.Bullets.GetPrevPositions()[0]);
+		H.StepOnce();
+		const FVector2f V1 = (H.Bullets.GetPositions()[0] - H.Bullets.GetPrevPositions()[0]);
+		TestTrue(TEXT("it curls"), FMath::Abs(V0.GetSafeNormal().Dot(V1.GetSafeNormal())) < 1.0f - 1.0e-6f);
+	}
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	RunSteps(H, FMath::RoundToInt(3.0f / Dt));
+	TestEqual(TEXT("an expiry opened one zone, now closed or open, never two"), H.Weapons.GetLiveFields() <= 1, true);
+	TestTrue(TEXT("a zone opened"), H.Weapons.GetFieldsOpened() > 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeSingularity, "Dusktracer.Reforging.Singularity", DTWeaponTestHarness::TestFlags) // T-RFG-14
+bool FDTReforgeSingularity::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.GravityMine"), 8);
+	H.AddEnemy(FVector2f(300.0f, 0.0f));
+	H.AddEnemy(FVector2f(-300.0f, 0.0f));
+	RunSteps(H, 150);
+	TestEqual(TEXT("one live mine"), H.Weapons.GetLiveMines(0, 0), 1);
+	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+	const DTCat::FWeaponLevelRow& L8 = *DTWeapons::GetLevelRow(Spec.Weapon, 8);
+	TestNearlyEqual(TEXT("the larger blast"), Spec.AreaRadius, L8.AreaR_uu * DTReforge::Param(Row, TEXT("blast_ratio")), 0.1f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeOverload, "Dusktracer.Reforging.Overload", DTWeaponTestHarness::TestFlags) // T-RFG-15
+bool FDTReforgeOverload::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Storm);
+	const uint16 Storm = DTWeapons::KeeperSource(EDTPath::Storm);
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	H.Weapons.AddFlagSource(0, TEXT("Test.Shock"), StatusFlag(EDTPath::Storm, TEXT("Status.Shock")));
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	H.AddEnemy(FVector2f(200.0f, 0.0f));
+	const int32 Neighbour = H.AddEnemy(FVector2f(1200.0f, 100.0f));
+	const int32 Near = H.AddEnemy(FVector2f(200.0f, 200.0f));
+	// Only the closest is shot; a neighbour in range takes bolts, the far one nothing.
+	RunSteps(H, 120);
+	TestTrue(TEXT("a discharge reached its neighbour"), HitsOn(H, H.Enemies.GetSerials()[Near], Storm) > 0);
+	TestEqual(TEXT("not past its range"), HitsOn(H, H.Enemies.GetSerials()[Neighbour], Storm), 0);
+	const float Cooldown = DTReforge::Param(Row, TEXT("cooldown_s"));
+	const int32 PerSecond = HitsOn(H, H.Enemies.GetSerials()[Near], Storm);
+	TestTrue(TEXT("the cooldown holds"), static_cast<float>(PerSecond) <= 2.0f * 2.0f / Cooldown + 1.0f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeKiln, "Dusktracer.Reforging.Kiln", DTWeaponTestHarness::TestFlags) // T-RFG-16
+bool FDTReforgeKiln::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Forge);
+	const uint16 Forge = DTWeapons::KeeperSource(EDTPath::Forge);
+	for (const bool bBurn : { true, false })
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+		if (bBurn)
+		{
+			H.Weapons.AddFlagSource(0, TEXT("Test.Burn"), StatusFlag(EDTPath::Forge, TEXT("Status.Burn")));
+		}
+		H.Run.GetPlayer(0).PathReforges.Add(Row);
+		H.AddEnemy(FVector2f(200.0f, 0.0f), 40.0f);
+		const int32 Near = H.AddEnemy(FVector2f(280.0f, 900.0f), ToughHp);
+		RunSteps(H, 60);
+		TestEqual(FString::Printf(TEXT("a husk only from a Burning death (%d)"), bBurn), H.Weapons.GetLiveHusks() > 0, bBurn);
+		H.Enemies.SetPosition(Near, FVector2f(200.0f, 40.0f));
+		RunSteps(H, FMath::RoundToInt(1.0f / Dt));
+		if (bBurn)
+		{
+			TestTrue(TEXT("a husk strikes"), HitsOn(H, H.Enemies.GetSerials()[Near], Forge) > 0);
+			RunSteps(H, FMath::RoundToInt(DTReforge::Param(Row, TEXT("husk_s")) / Dt));
+			TestEqual(TEXT("and ends"), H.Weapons.GetLiveHusks(), 0);
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeGlacier, "Dusktracer.Reforging.Glacier", DTWeaponTestHarness::TestFlags) // T-RFG-17
+bool FDTReforgeGlacier::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Tide);
+	FDTHarness H;
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f; // no weapon strikes until asked
+	const int32 Pillar = H.AddEnemy(FVector2f(300.0f, 0.0f));
+	const int32 Walker = H.AddEnemy(FVector2f(305.0f, 0.0f));
+	FreezeEnemy(H, Pillar);
+	RunSteps(H, 2);
+	TestEqual(TEXT("a pillar"), H.Weapons.GetLivePillars(), 1);
+	FDTEnemyRoundSpawn Round;
+	Round.Position = FVector2f(300.0f, 0.0f);
+	Round.Velocity = FVector2f::ZeroVector;
+	Round.Radius = 5.0f;
+	Round.Life = 10.0f;
+	H.Enemies.GetRounds().Spawn(Round);
+	RunSteps(H, 2);
+	TestEqual(TEXT("an enemy round stops at a pillar"), H.Enemies.GetRounds().Num(), 0);
+	TestTrue(TEXT("a body is pushed out"), H.View.Displacements.Num() > 0 || FVector2f::Distance(H.Enemies.GetPositions()[Walker], H.Enemies.GetPositions()[Pillar]) > 5.0f);
+	RunSteps(H, FMath::RoundToInt(DTConst::STATUS_FREEZE_S / Dt) + 2);
+	if (DTReforge::Param(Row, TEXT("pillar_s")) > DTConst::STATUS_FREEZE_S + 0.1f)
+	{
+		TestTrue(TEXT("Freeze holds past its length"), H.Enemies.GetAux(Pillar).IsFrozen());
+	}
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 0.0f;
+	const uint16 Tide = DTWeapons::KeeperSource(EDTPath::Tide);
+	RunSteps(H, 30);
+	TestEqual(TEXT("a strike shatters it"), H.Weapons.GetLivePillars(), 0);
+	TestTrue(TEXT("the shatter is the Keeper's"), H.CountHitsFrom(Tide) > 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeDeterminism, "Dusktracer.Reforging.Determinism", DTWeaponTestHarness::TestFlags) // T-RFG-18
+bool FDTReforgeDeterminism::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
+	{
+		TArray<float> Runs[2];
+		for (int32 Run = 0; Run < 2; ++Run)
+		{
+			FDTHarness H(13);
+			GiveEvolved(H, DTCat::Weapons[Weapon].Id);
+			H.Run.GetPlayer(0).PathReforges.Add(DTReforge::FindPath(EDTPath::Storm));
+			for (int32 Index = 0; Index < 12; ++Index)
+			{
+				H.AddEnemy(FVector2f(150.0f + 60.0f * Index, 120.0f * (Index % 4) - 200.0f));
+			}
+			RunSteps(H, 200);
+			for (const FDTHit& Hit : H.HitLog)
+			{
+				Runs[Run].Add(Hit.Damage);
+			}
+			TestTrue(FString::Printf(TEXT("%s evolved does something"), DTCat::Weapons[Weapon].Id), H.HitLog.Num() > 0 || DTCat::Weapons[Weapon].Id == FString(TEXT("Weapon.ArcBlade")));
+		}
+		TestTrue(FString::Printf(TEXT("%s same hits"), DTCat::Weapons[Weapon].Id), Runs[0] == Runs[1]);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardReforge, "Dusktracer.Bot.CardReforge", DTWeaponTestHarness::TestFlags) // T-BOT-15
+bool FDTBotCardReforge::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+	const FDTOfferHand Hand = ReforgeHand(H);
+	TSet<FName> Taken;
+	for (int32 Seed = 0; Seed < 3; ++Seed)
+	{
+		const int32 Slot = FDTBotBrain::ReforgePick(Hand, Seed);
+		if (Hand.Cards.IsValidIndex(Slot))
+		{
+			Taken.Add(Hand.Cards[Slot].ContentId);
+		}
+	}
+	TestEqual(TEXT("three seeds, three cards"), Taken.Num(), 3);
+	FDTOfferHand Filler = Hand;
+	if (Filler.Cards.Num() == 3)
+	{
+		Filler.Cards[2].Kind = EDTCardKind::Blessing;
+		for (int32 Seed = 0; Seed < 3; ++Seed)
+		{
+			const int32 Slot = FDTBotBrain::ReforgePick(Filler, Seed);
+			TestTrue(TEXT("a Reforging card beats filler, and a missing card falls to the next"), Filler.Cards.IsValidIndex(Slot) && Filler.Cards[Slot].Kind == EDTCardKind::Reforging);
+		}
+		for (FDTOfferCard& Card : Filler.Cards)
+		{
+			Card.Kind = EDTCardKind::Blessing;
+		}
+		TestEqual(TEXT("no Reforging card: no opinion"), FDTBotBrain::ReforgePick(Filler, 0), static_cast<int32>(INDEX_NONE));
+	}
+	return true;
+}
+
+#endif
