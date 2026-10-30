@@ -6,9 +6,53 @@
 
 struct FDTWorldView;
 
+/**
+ * How a round moves beyond a straight line (R-BUL-09): steering, an orbit before release, a return to the hero. All zero is
+ * a straight round; straight rounds cost one byte test per step.
+ */
+struct FDTBulletMotion
+{
+	/** Homing: the turn limit; 0 = no steering. */
+	float TurnDegS = 0.0f;
+	/** Homing: how far it looks for a new target. */
+	float SeekUu = 0.0f;
+	/** Homing: the enemy it hunts (0 = the nearest within SeekUu, taken when it needs one). */
+	uint32 TargetSerial = 0;
+	/** Orbit: seconds left circling the owner's hero. */
+	float OrbitLeft = 0.0f;
+	float OrbitRadius = 0.0f;
+	float OrbitDegS = 0.0f;
+	float OrbitAngleDeg = 0.0f;
+	/** Orbit: how far the release looks for the nearest enemy when no boss lives. */
+	float ReleaseRange = 0.0f;
+	/** Boomerang: turns home once LifeLeft falls to this, or at the hit that spends it. */
+	bool bBoomerang = false;
+	bool bReturning = false;
+	float ReturnAt = 0.0f;
+	/** Filled at spawn: the round's flight speed and pierce (a turn home restores the pierce). */
+	float Speed = 0.0f;
+	int32 Pierce = 1;
+	/** Non-zero: the weapon system mirrors this round and reads its moves (GetRoundReports). */
+	uint32 RoundId = 0;
+
+	bool IsActive() const { return TurnDegS > 0.0f || OrbitLeft > 0.0f || bBoomerang; }
+};
+
+/** Where a mirrored moving round is this step, before collision (the mirror cannot redo its steering). */
+struct FDTRoundReport
+{
+	uint32 RoundId = 0;
+	FVector2f Position = FVector2f::ZeroVector;
+	FVector2f Velocity = FVector2f::ZeroVector;
+	float LifeLeft = 0.0f;
+	int32 PierceLeft = 0;
+	bool bReturning = false;
+};
+
 /** Everything needed to create one bullet. Pierce is how many distinct enemies it may hit (1 = no pierce). */
 struct FDTBulletSpawn
 {
+	FDTBulletMotion Motion;
 	FVector2f Position = FVector2f::ZeroVector;
 	FVector2f Velocity = FVector2f::ZeroVector; // uu/s on the sim plane
 	float Radius = 0.0f;
@@ -65,11 +109,17 @@ public:
 	TConstArrayView<float> GetRadii() const { return Radius; }
 	TConstArrayView<int32> GetOwners() const { return OwnerId; }
 	TConstArrayView<uint16> GetSources() const { return SourceId; }
+	/** This step's moves of mirrored moving rounds (FDTBulletMotion::RoundId), written in Step. */
+	TConstArrayView<FDTRoundReport> GetRoundReports() const { return RoundReports; }
 
 private:
 	void RemoveAtSwap(int32 Index);
 	bool HasHit(int32 Index, uint32 EnemySerial) const;
 	void RememberHit(int32 Index, uint32 EnemySerial);
+	/** Applies the round's motion for this step (R-BUL-09): may set its velocity, its life, or turn it home. */
+	void StepMotion(int32 Index, float Dt, const FDTWorldView& View, int32 NumEnemies);
+	void TurnHome(int32 Index, bool bForget);
+	bool FindSeekTarget(const FVector2f& From, float Range, const FDTWorldView& View, int32 NumEnemies, int32& OutEnemy);
 
 	int32 Capacity;
 	uint64 NextSerial = 0;
@@ -88,7 +138,13 @@ private:
 	TArray<uint64> Serial;   // spawn order; the smallest is the oldest live bullet
 	TArray<int32> HitCount;  // enemies this bullet has hit; ring slot = HitCount % C.BULLETS.HIT_MEMORY
 	TArray<uint32> HitRing;  // C.BULLETS.HIT_MEMORY slots per bullet: serials of the last enemies it hit (R-BUL-04)
+	TArray<uint8> Moves;     // 1 = Motion[Index] is active (R-BUL-09)
+	TArray<FDTBulletMotion> Motion;
 
 	TArray<int32> Candidates; // scratch for hash queries
+	TArray<int32> SeekScratch;
+	TMap<uint32, int32> SerialToEnemy; // built once per Step, on the first target lookup
+	bool bSerialsBuilt = false;
+	TArray<FDTRoundReport> RoundReports;
 	FDTBulletCounters Counters;
 };

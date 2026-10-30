@@ -94,6 +94,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 | `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`) | overwritten each step; a touch the hero refused never sets it |
 | `HeroHits` (`FDTHeroHit[]`) | enemies: contact, enemy rounds; boss hazards (Enemies) | hero, next step | by the hero after reading |
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
+| `bBossAlive`, `BossPosition` | weapons (Weapons) | bullets (R-BUL-09) | overwritten |
 | `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
 | `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends) | at the next `ResolveHits` |
 | `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step | after applying |

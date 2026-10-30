@@ -352,15 +352,10 @@ bool FDTArsenalBoomerang::RunTest(const FString& Parameters)
 	P.Weapons.Socket(P.Run, 0, 0, TEXT("Mod.Boomerang"));
 	P.StepOnce();
 	const int32 Live = P.Bullets.Num();
-	P.StepMany(20);
-	TestEqual(TEXT("a struck round is not spent"), P.Bullets.Num() >= Live, true);
-	P.StepMany(60);
-	bool bHomeward = false;
-	for (int32 Index = 0; Index < P.Bullets.Num(); ++Index)
-	{
-		bHomeward |= Heading(P, Index).X < 0.0f;
-	}
-	TestTrue(TEXT("rounds fly home after the hit"), bHomeward || P.Bullets.GetCounters().Expired > 0);
+	P.StepMany(FMath::CeilToInt((250.0f / Row(TEXT("Weapon.PulseRifle"), 1).Speed_uu_s) / Dt) + 2);
+	TestEqual(TEXT("a struck round is not spent"), P.Bullets.Num(), Live);
+	TestEqual(TEXT("it struck"), P.HitLog.Num() > 0, true);
+	TestTrue(TEXT("rounds fly home after the hit"), P.Bullets.Num() > 0 && Heading(P, 0).X < 0.0f);
 
 	// A round that reaches the hero is gone, well before its doubled life runs out.
 	FDTHarness E;
@@ -440,7 +435,7 @@ bool FDTArsenalRefit::RunTest(const FString& Parameters)
 	{
 		for (int32 Index = 0; Index < Times; ++Index)
 		{
-			H.AddEnemy(FVector2f(120.0f, 0.0f), 1.0f);
+			H.AddEnemy(FVector2f(116.0f, 31.0f), 1.0f); // between two ring rounds: the rifle takes the kill
 			H.StepMany(40);
 		}
 	};

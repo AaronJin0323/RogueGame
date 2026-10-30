@@ -12,6 +12,7 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 - **R-BUL-06** The step is deterministic: the same spawns against the same enemies give bit-identical positions and the same hit sequence.
 - **R-BUL-07** Bullets are drawn by one `UInstancedStaticMeshComponent` on one transient `ADTBulletRenderer` per world (R-TEC-11): never an Actor or component per bullet. Each frame the instances interpolate `PrevPos → Pos` with the sim alpha at height `C.SIM.PLANE_Z_UU`; instances are added or removed only at the tail when the live count changes, and transforms are written in one batch.
 - **R-BUL-08** Every bullet carries a telemetry source id (`FDTBulletSpawn::SourceId`, `FDTTelemetrySources`, `telemetry.md` R-TEL-05; `Unknown` when untagged), kept through swap-removal and set anew when its slot is recycled; every `FDTHit` it appends carries that id. `DT.Bullets` stress emitters spawn with `Stress`.
+- **R-BUL-09** A round may carry a motion (`FDTBulletMotion`); a round without one stays a straight line and costs one byte test. The pool runs it in `Step`, between life and integration, so a moving round is still data: *homing* turns the velocity toward its target at no more than `TurnDegS`, keeping its speed; a dead or missing target is replaced by the nearest enemy within `SeekUu`, else it flies on. *Orbit* holds the round on a circle around its owner's hero for the hold and on release re-aims it once: at the boss if one lives (`FDTWorldView::BossPosition`), else at the nearest enemy within `ReleaseRange`, else on along the orbit. *Boomerang* turns home when its life falls to `ReturnAt` (hit memory cleared, pierce restored, so the way home strikes what the way out struck), or at the hit that would spend it (memory kept, pierce restored); it steers to the hero and ends as an expiry on reaching it. A mirrored moving round reports its position, velocity, life and pierce each step before collision (`GetRoundReports`), and the weapon system reads that rather than redoing the motion. Determinism (R-BUL-06) holds.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -41,6 +42,7 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 | `FDTBulletSpawn.WeaponSlot` / `bCrit` | `int8` / `bool` | copied into every hit (S1, `weapons.md` R-WPN-12); none / false for stress |
 | Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft SourceId WeaponSlot Crit Serial HitCount HitRing`; `bPierce` of a hit = spawned `Pierce` above one |
 | `HitRing` | `int32[C.BULLETS.HIT_MEMORY]` per bullet | serials of the last enemies hit (ring) |
+| `FDTBulletSpawn.Motion` | `FDTBulletMotion` | R-BUL-09; all zero = straight |
 | `FDTHit` | `Core/DTSimTypes.h` | fields and lifetime: `07_Technical §4` (the one definition); appended to `FDTWorldView::Hits` |
 | Instance custom data | `float` × four | `RGB` linear from `Pal.Player.Core`, then emissive strength; read by `M_InstanceColor` |
 | `Fallback_BulletMaterial` | code path | `/Engine/BasicShapes/BasicShapeMaterial` when `/Game/DT/Materials/M_InstanceColor` is missing (R-TEC-05) |
@@ -56,6 +58,7 @@ API: `UDTBulletSubsystem::Spawn(const FDTBulletSpawn&)`, `GetPool()`, `GetRender
 - T-BUL-06 `Dusktracer.Bullets.Determinism`: two identical runs give bit-identical positions and hit sequences.
 - T-BUL-07 `Dusktracer.Tec.Bullets.NoActors` (also T-TEC-11): in a headless game world, `C.BULLETS.CAP` bullets add no actor and exactly one instance each; the instance count follows the live count down.
 - T-BUL-08 `Dusktracer.Bullets.HitSource`: hits carry their bullet's source, including a bullet swapped into a freed slot and a bullet that recycled the oldest slot; an untagged spawn is `Unknown`.
+- T-BUL-09 `Dusktracer.Bullets.Motion`: a motion stays with its bullet through swap-removal; a mirrored moving round is reported at the pool's own position. Homing, orbit and return behaviour are read through their modifiers (`modifiers.md` T-MOD-10, T-MOD-11, T-MOD-12).
 - HUMAN: in the stress arena, `DT.Bullets` at `C.BULLETS.CAP` shows a spinning ring of cool-white rounds with no visible stutter; `DT.Bullets.Stats` reports the live count near the target.
 
 ## Telemetry

@@ -11,7 +11,7 @@
 //   ArcSweep   (one per sweep, at mid reach): Field, Pull, Echo
 //   MineHit    (one enemy in a detonation):   StatusApply, Chain
 //   Detonation (one per mine):                Split (children burst), Field, Pull, Echo (fallback: repeats in place)
-//   Expiry     (a tracked round's life ran out): Split on=Expiry (Mod.ScatterShell)
+//   Expiry     (a tracked round's life ran out): Split on=Expiry (Mod.ScatterShell), Mod.SpreadWave's wave
 // Field ticks, echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains).
 // Kills (StepEffects, ReactToKills): arc forks, burning explosions, Burn spread. Crush, pulled_vuln and explosion hits carry
 // no weapon slot: they are Keeper-only and never feed the enchantment or other reactions.
@@ -93,8 +93,26 @@ namespace DTWeaponSimLocal
 		return false;
 	}
 
+	/** The weapon's own rounds' motion (R-BUL-09). An orbit adds its hold to the flight; a return doubles the flight. */
+	static void ApplyMotion(const FDTWeaponSpec& Spec, float& InOutLife, FDTBulletMotion& Out)
+	{
+		Out.TurnDegS = Spec.HomingTurnDegS;
+		Out.SeekUu = Spec.HomingSeekUu;
+		Out.OrbitLeft = Spec.OrbitHoldS;
+		Out.OrbitRadius = Spec.OrbitRadiusUu;
+		Out.OrbitDegS = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S);
+		Out.ReleaseRange = Spec.Range * Spec.OrbitRangeRatio;
+		Out.bBoomerang = Spec.bBoomerang;
+		Out.ReturnAt = InOutLife;
+		InOutLife = InOutLife * (Spec.bBoomerang ? 2.0f : 1.0f) + Spec.OrbitHoldS;
+	}
+
 	static bool NeedsLedger(const FDTWeaponSpec& Spec)
 	{
+		if (Spec.WaveSource != 0)
+		{
+			return true;
+		}
 		for (const FDTResolvedFlag& Flag : Spec.Flags)
 		{
 			if (Flag.Entry.Flag == DTCat::EFlag::Split || Flag.Entry.Flag == DTCat::EFlag::Ricochet ||
@@ -384,6 +402,7 @@ void FDTWeaponSim::ResetTransient()
 		Player.bSlamBoosted = false;
 		Player.SkyStrikes = 0;
 	}
+	Overkills.Reset();
 	Rounds.Reset();
 	Fields.Reset();
 	Echoes.Reset();
@@ -477,6 +496,14 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 	Spawn.SourceId = Shot.SourceId;
 	Spawn.WeaponSlot = static_cast<int8>(Shot.Slot);
 	Spawn.bCrit = bCrit;
+	const bool bMoving = Shot.Motion.IsActive();
+	const uint32 RoundId = bMoving && Shot.bTrack ? ++NextRoundId : 0;
+	if (bMoving)
+	{
+		Spawn.Motion = Shot.Motion;
+		Spawn.Motion.OrbitAngleDeg = FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X));
+		Spawn.Motion.RoundId = RoundId;
+	}
 	if (Bullets)
 	{
 		Bullets->Spawn(Spawn);
@@ -499,11 +526,14 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.BouncesLeft = Shot.Bounces;
 		Round.bCharged = Shot.bCharged;
 		Round.bEmber = Shot.bEmber;
+		Round.RoundId = RoundId;
+		Round.Pierce = Spawn.Pierce;
+		Round.bBoomerang = Shot.Motion.bBoomerang;
 	}
 }
 
 int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FShot& Shot, const FVector2f& Dir,
-	float ArcDeg, float Reach, bool bCleave)
+	float ArcDeg, float Reach, bool bCleave, bool bImpacts)
 {
 	if (!TryEmit(Runtime))
 	{
@@ -549,6 +579,11 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Out.SourceId = Shot.SourceId;
 		Out.WeaponSlot = static_cast<int8>(Shot.Slot);
 		Out.bCrit = bCrit;
+		++Hit;
+		if (!bImpacts)
+		{
+			continue; // a wave strikes and starts no reaction
+		}
 
 		FImpact& Impact = Impacts.AddDefaulted_GetRef();
 		Impact.Kind = EImpact::ArcHit;
@@ -571,21 +606,23 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 			StepCleaved.Add(Out.EnemySerial);
 		}
 		++Runtime.Counters.Impacts;
-		++Hit;
 	}
-	FImpact& Sweep = Impacts.AddDefaulted_GetRef();
-	Sweep.Kind = EImpact::ArcSweep;
-	Sweep.OwnerId = Shot.OwnerId;
-	Sweep.Slot = static_cast<int8>(Shot.Slot);
-	Sweep.SourceId = Shot.SourceId;
-	Sweep.Origin = Shot.Origin;
-	Sweep.Dir = Dir;
-	Sweep.Position = Shot.Origin + Dir * (0.5f * Reach); // mid reach: where a sweep's field or strike lands
-	Sweep.Area = 0.5f * Reach;
-	Sweep.BaseDamage = Shot.Damage;
-	Sweep.HitDamage = Damage;
-	Sweep.bCleave = bCleave;
-	Sweep.bCharged = Shot.bCharged;
+	if (bImpacts)
+	{
+		FImpact& Sweep = Impacts.AddDefaulted_GetRef();
+		Sweep.Kind = EImpact::ArcSweep;
+		Sweep.OwnerId = Shot.OwnerId;
+		Sweep.Slot = static_cast<int8>(Shot.Slot);
+		Sweep.SourceId = Shot.SourceId;
+		Sweep.Origin = Shot.Origin;
+		Sweep.Dir = Dir;
+		Sweep.Position = Shot.Origin + Dir * (0.5f * Reach); // mid reach: where a sweep's field or strike lands
+		Sweep.Area = 0.5f * Reach;
+		Sweep.BaseDamage = Shot.Damage;
+		Sweep.HitDamage = Damage;
+		Sweep.bCleave = bCleave;
+		Sweep.bCharged = Shot.bCharged;
+	}
 
 	FArcFlash& Flash = Arcs.AddDefaulted_GetRef();
 	Flash.OwnerId = Shot.OwnerId;
@@ -714,6 +751,45 @@ void FDTWeaponSim::FindDensestCells(const FDTWorldView& View, const FVector2f& H
 	}
 }
 
+void FDTWeaponSim::EnemiesInRange(const FDTWorldView& View, const FVector2f& From, float Range, TArray<int32>& Out) const
+{
+	EnemiesInCircle(View, From, Range, Out);
+}
+
+bool FDTWeaponSim::FindDensestLine(const FDTWorldView& View, const FVector2f& Hero, float Range, FVector2f& OutDir) const
+{
+	struct FSector { int32 Count = 0; int32 Lowest = 0; FVector2f Sum = FVector2f::ZeroVector; };
+	TArray<FSector, TInlineAllocator<128>> Sectors;
+	Sectors.SetNum(DTConst::WEAPON_LINE_SECTORS);
+	TArray<int32> Local;
+	EnemiesInRange(View, Hero, Range, Local);
+	const float Width = 360.0f / static_cast<float>(DTConst::WEAPON_LINE_SECTORS);
+	for (const int32 Enemy : Local)
+	{
+		const FVector2f Dir = DTWeaponSimLocal::SafeDir(View.EnemyPositions[Enemy] - Hero, FVector2f(1.0f, 0.0f));
+		const float Deg = FMath::Fmod(FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)) + 360.0f, 360.0f);
+		FSector& Sector = Sectors[FMath::Clamp(FMath::FloorToInt(Deg / Width), 0, DTConst::WEAPON_LINE_SECTORS - 1)];
+		Sector.Lowest = Sector.Count == 0 ? Enemy : FMath::Min(Sector.Lowest, Enemy);
+		++Sector.Count;
+		Sector.Sum += Dir;
+	}
+	const FSector* Best = nullptr;
+	for (const FSector& Sector : Sectors)
+	{
+		// Most enemies first; ties on the lowest enemy index (R-WPN-12).
+		if (Sector.Count > 0 && (!Best || Sector.Count > Best->Count || (Sector.Count == Best->Count && Sector.Lowest < Best->Lowest)))
+		{
+			Best = &Sector;
+		}
+	}
+	if (!Best)
+	{
+		return false;
+	}
+	OutDir = DTWeaponSimLocal::SafeDir(Best->Sum, FVector2f(1.0f, 0.0f));
+	return true;
+}
+
 // ------------------------------------------------------------------------------------------------------------------
 // Firing
 
@@ -738,10 +814,12 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	// Targeting (R-WPN-12): a targeted weapon with nothing in range does not fire.
 	FVector2f Dir = FVector2f(1.0f, 0.0f);
 	TArray<FVector2f> MineCells;
+	TArray<int32> Seekers;
 	int32 Target = INDEX_NONE;
 	switch (Spec.Pattern)
 	{
 	case EDTWeaponPattern::Aimed:
+	case EDTWeaponPattern::Cone:
 	case EDTWeaponPattern::MeleeArc:
 		if (Spec.Target == EDTWeaponTarget::Nearest && bManual)
 		{
@@ -759,6 +837,23 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	case EDTWeaponPattern::Radial:
 		Dir = FindNearest(View, Hero, Spec.Range, 0, Target) ? SafeDir(View.EnemyPositions[Target] - Hero, AimDir) : AimDir;
 		break;
+	case EDTWeaponPattern::Line:
+		if (!FindDensestLine(View, Hero, Spec.Range, Dir))
+		{
+			return false;
+		}
+		break;
+	case EDTWeaponPattern::Homing:
+		EnemiesInRange(View, Hero, Spec.Range, Seekers);
+		if (Seekers.Num() == 0)
+		{
+			return false;
+		}
+		break;
+	case EDTWeaponPattern::Spiral:
+		Dir = AimDir; // unaimed, as Radial: only a cleave reads this
+		break;
+	case EDTWeaponPattern::Lob:
 	case EDTWeaponPattern::Mine:
 		FindDensestCells(View, Hero, Spec.Range, Spec.Count + Spec.ForkRounds, MineCells);
 		if (MineCells.Num() == 0)
@@ -767,10 +862,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		}
 		break;
 	default:
-		return false; // S2 patterns are not fired in S1
+		return false;
 	}
 
 	FShot Shot = MakeShot(Owner, Slot, Runtime, SourceOverride != 0 ? SourceOverride : Instance.SourceId, Hero);
+	ApplyMotion(Spec, Shot.Life, Shot.Motion);
 	// Reshaping by a Keeper flag carries Keeper.<Path>; by a modifier or the weapon itself, the weapon's source (R-WPN-07, D-015).
 	auto ReshapeSource = [](uint16 FlagSource, uint16 Current)
 	{
@@ -795,7 +891,7 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 
 	bool bMelee = false;
 	int32 Converted = 0;
-	if (Spec.Conversion == DTCat::EFlag::ConvertMelee && (Spec.Pattern == EDTWeaponPattern::Aimed || Spec.Pattern == EDTWeaponPattern::Radial))
+	if (Spec.Conversion == DTCat::EFlag::ConvertMelee && Spec.Pattern != EDTWeaponPattern::Mine && Spec.Pattern != EDTWeaponPattern::MeleeArc)
 	{
 		// R-WPN-10: the converted rounds fold into ONE arc of their summed damage x the conversion ratio.
 		Converted = Spec.ConvertRounds;
@@ -816,9 +912,26 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		bMelee = true;
 	}
 
+	const auto EmitForks = [&](int32 Remaining)
+	{
+		if (Spec.ForkSource == 0 || Remaining <= 0)
+		{
+			return;
+		}
+		FShot Fork = Shot;
+		Fork.SourceId = Spec.ForkSource;
+		for (int32 Extra = 1; Extra <= Spec.ForkRounds; ++Extra)
+		{
+			const float Sign = (Extra % 2 == 1) ? 1.0f : -1.0f;
+			const float Angle = Sign * Spec.ForkAngleDeg * static_cast<float>((Extra + 1) / 2);
+			SpawnRound(Context, Bullets, Runtime, Fork, Hero, Rotate(Dir, Angle));
+		}
+	};
+
 	switch (Spec.Pattern)
 	{
 	case EDTWeaponPattern::Aimed:
+	case EDTWeaponPattern::Line:
 	{
 		const int32 Remaining = Spec.Count - Converted;
 		const FVector2f Side(-Dir.Y, Dir.X);
@@ -835,6 +948,76 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 				SpawnRound(Context, Bullets, Runtime, Copy, Hero + Side * Offset, -Dir);
 			}
 		}
+		EmitForks(Remaining);
+		break;
+	}
+	case EDTWeaponPattern::Cone:
+	{
+		// Pellets evenly across the cone (R-WPN-14): spread is geometry, never a roll.
+		const int32 Remaining = Spec.Count - Converted;
+		const float Cone = static_cast<float>(DTConst::WEAPON_CONE_DEG);
+		for (int32 Index = 0; Index < Remaining; ++Index)
+		{
+			const float Angle = Remaining > 1 ? -0.5f * Cone + Cone * static_cast<float>(Index) / static_cast<float>(Remaining - 1) : 0.0f;
+			SpawnRound(Context, Bullets, Runtime, Shot, Hero, Rotate(Dir, Angle));
+			if (Spec.MirrorSource != 0)
+			{
+				FShot Copy = Shot;
+				Copy.SourceId = Spec.MirrorSource;
+				Copy.Damage = Shot.Damage * Spec.MirrorDamageRatio;
+				SpawnRound(Context, Bullets, Runtime, Copy, Hero, Rotate(-Dir, Angle));
+			}
+		}
+		EmitForks(Remaining);
+		break;
+	}
+	case EDTWeaponPattern::Homing:
+	{
+		// Each missile draws its own target from the living in range (R-WPN-17) and leaves on a fan around it.
+		FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Combat);
+		const int32 Regular = Spec.Count - Converted;
+		const int32 Missiles = Regular + (Spec.ForkSource != 0 && Regular > 0 ? Spec.ForkRounds : 0);
+		const float Cone = static_cast<float>(DTConst::WEAPON_CONE_DEG);
+		for (int32 Index = 0; Index < Missiles; ++Index)
+		{
+			const int32 Enemy = Seekers[Rng.RandRange(0, Seekers.Num() - 1)];
+			FShot Missile = Shot;
+			Missile.SourceId = Index < Regular ? Shot.SourceId : Spec.ForkSource;
+			Missile.Motion.TargetSerial = View.EnemySerials[Enemy];
+			const FVector2f ToEnemy = SafeDir(View.EnemyPositions[Enemy] - Hero, AimDir);
+			const float Angle = Missiles > 1 ? -0.5f * Cone + Cone * static_cast<float>(Index) / static_cast<float>(Missiles - 1) : 0.0f;
+			SpawnRound(Context, Bullets, Runtime, Missile, Hero, Rotate(ToEnemy, Angle));
+		}
+		break;
+	}
+	case EDTWeaponPattern::Spiral:
+	{
+		// Count arms; the stream turns on by the spin times the time since the last round (R-WPN-18).
+		Runtime.SpiralDeg = FMath::Fmod(Runtime.SpiralDeg + static_cast<float>(DTConst::WEAPON_SPIRAL_DEG_S) * Spec.Cooldown, 360.0f);
+		const FVector2f Base(1.0f, 0.0f);
+		for (int32 Index = Converted; Index < Spec.Count; ++Index)
+		{
+			const float Angle = Runtime.SpiralDeg + 360.0f * static_cast<float>(Index) / static_cast<float>(FMath::Max(1, Spec.Count));
+			SpawnRound(Context, Bullets, Runtime, Shot, Hero, Rotate(Base, Angle));
+		}
+		break;
+	}
+	case EDTWeaponPattern::Lob:
+	{
+		// Shells take the densest cells, and repeat them when the crowd is thin (R-WPN-16).
+		const int32 Remaining = Spec.Count - Converted;
+		for (int32 Index = 0; Index < Remaining; ++Index)
+		{
+			const FVector2f Cell = MineCells[Index % MineCells.Num()];
+			LaunchShell(Runtime, Shot, Cell);
+			if (Spec.MirrorSource != 0)
+			{
+				FShot Copy = Shot;
+				Copy.SourceId = Spec.MirrorSource;
+				Copy.Damage = Shot.Damage * Spec.MirrorDamageRatio;
+				LaunchShell(Runtime, Copy, Hero * 2.0f - Cell);
+			}
+		}
 		if (Spec.ForkSource != 0 && Remaining > 0)
 		{
 			FShot Fork = Shot;
@@ -842,8 +1025,7 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 			for (int32 Extra = 1; Extra <= Spec.ForkRounds; ++Extra)
 			{
 				const float Sign = (Extra % 2 == 1) ? 1.0f : -1.0f;
-				const float Angle = Sign * Spec.ForkAngleDeg * static_cast<float>((Extra + 1) / 2);
-				SpawnRound(Context, Bullets, Runtime, Fork, Hero, Rotate(Dir, Angle));
+				LaunchShell(Runtime, Fork, Hero + Rotate(MineCells[0] - Hero, Sign * Spec.ForkAngleDeg * static_cast<float>((Extra + 1) / 2)));
 			}
 		}
 		break;
@@ -1003,6 +1185,7 @@ void FDTWeaponSim::PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runti
 	}
 	FMine& Mine = Runtime.Mines.AddDefaulted_GetRef();
 	Mine.Position = At;
+	Mine.Origin = At;
 	Mine.Damage = Damage;
 	Mine.SourceId = SourceId;
 	Mine.bCharged = bCharged;
@@ -1075,6 +1258,45 @@ void FDTWeaponSim::StepMines(const FDTSimContext& Context, FDTBulletPool* Bullet
 	}
 }
 
+void FDTWeaponSim::LaunchShell(FWeaponRuntime& Runtime, const FShot& Shot, const FVector2f& Target)
+{
+	if (!TryEmit(Runtime))
+	{
+		return;
+	}
+	FShell& Shell = Runtime.Shells.AddDefaulted_GetRef();
+	Shell.Origin = Shot.Origin;
+	Shell.Target = Target;
+	Shell.Flight = Shot.Speed > 0.0f ? FVector2f::Distance(Shot.Origin, Target) / Shot.Speed : 0.0f;
+	Shell.Left = Shell.Flight;
+	Shell.Damage = Shot.Damage;
+	Shell.SourceId = Shot.SourceId;
+	Shell.bCharged = Shot.bCharged;
+}
+
+void FDTWeaponSim::StepShells(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime)
+{
+	for (int32 Index = 0; Index < Runtime.Shells.Num();)
+	{
+		FShell& Shell = Runtime.Shells[Index];
+		Shell.Left -= Context.StepSeconds;
+		if (Shell.Left > 0.0f)
+		{
+			++Index;
+			continue;
+		}
+		// A landing is a detonation: blast, reactions and sources run as a mine's do (R-WPN-16).
+		FMine Blast;
+		Blast.Position = Shell.Target;
+		Blast.Origin = Shell.Origin;
+		Blast.Damage = Shell.Damage;
+		Blast.SourceId = Shell.SourceId;
+		Blast.bCharged = Shell.bCharged;
+		Runtime.Shells.RemoveAt(Index);
+		Detonate(Context, OwnerId, Slot, Runtime, Blast);
+	}
+}
+
 void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FMine& Mine)
 {
 	FDTWorldView& View = *Context.View;
@@ -1089,7 +1311,7 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 		Impact.Slot = static_cast<int8>(Slot);
 		Impact.SourceId = Mine.SourceId;
 		Impact.Position = Out.Position;
-		Impact.Origin = Mine.Position;
+		Impact.Origin = Mine.Origin;
 		Impact.Dir = DTWeaponSimLocal::SafeDir(Out.Position - Mine.Position, FVector2f(1.0f, 0.0f));
 		Impact.BaseDamage = Mine.Damage;
 		Impact.HitDamage = Out.Damage;
@@ -1525,6 +1747,7 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 		ResetTransient(); // the clock went back: a new run started
 	}
 	LastStep = Context.StepIndex;
+	LastBullets = Bullets;
 	FDTRunState& Run = *Context.Run;
 	FDTWorldView& View = *Context.View;
 	SyncPlayers(Run);
@@ -1568,7 +1791,9 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 			FWeaponRuntime& Runtime = PlayerRt.Weapons[Slot];
 			FDTWeaponInstance& Instance = Player.Weapons[Slot];
 			Runtime.ChainTriggerReadyIn -= Context.StepSeconds;
+			Runtime.RefitReadyIn -= Context.StepSeconds;
 			StepMines(Context, Bullets, Owner, Slot, Runtime);
+			StepShells(Context, Owner, Slot, Runtime);
 			if (Runtime.Spec.Pattern == EDTWeaponPattern::Orbiter)
 			{
 				StepDrones(Context, Bullets, Player, Slot, Runtime, false);
@@ -1590,6 +1815,22 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 		}
 	}
 	WeaponsHitsEnd = View.Hits.Num();
+
+	// Published each step: a released orbiting round aims at the boss first (R-MOD-11).
+	View.bBossAlive = false;
+	if (Enemies)
+	{
+		const TConstArrayView<EDTEnemyRole> Roles = Enemies->GetRoles();
+		const int32 Num = FMath::Min(DTWeaponSimLocal::NumEnemies(View), Roles.Num());
+		for (int32 Enemy = 0; Enemy < Num && !View.bBossAlive; ++Enemy)
+		{
+			if (Roles[Enemy] == EDTEnemyRole::Boss)
+			{
+				View.bBossAlive = true;
+				View.BossPosition = View.EnemyPositions[Enemy];
+			}
+		}
+	}
 }
 
 void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
@@ -1603,12 +1844,38 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 	const float Dt = Context.StepSeconds;
 	const float Half = static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU);
 
-	// 1. Mirror the pool's own float ops (FDTBulletPool::Step): life, move, expiry, bounds.
+	// 1. Mirror the pool's own float ops (FDTBulletPool::Step): life, move, expiry, bounds. A moving round is read off the
+	// pool's report instead: steering depends on state the mirror does not hold (R-BUL-09).
+	TMap<uint32, FDTRoundReport> Reports;
+	if (LastBullets)
+	{
+		for (const FDTRoundReport& Report : LastBullets->GetRoundReports())
+		{
+			Reports.Add(Report.RoundId, Report);
+		}
+	}
 	for (int32 Index = 0; Index < Rounds.Num();)
 	{
 		FRound& Round = Rounds[Index];
-		Round.LifeLeft -= Dt;
-		Round.Position += Round.Velocity * Dt;
+		if (Round.RoundId != 0)
+		{
+			const FDTRoundReport* Report = Reports.Find(Round.RoundId);
+			if (!Report)
+			{
+				Rounds.RemoveAtSwap(Index); // recycled at the cap, or no pool in this test
+				continue;
+			}
+			Round.Position = Report->Position;
+			Round.Velocity = Report->Velocity;
+			Round.LifeLeft = Report->LifeLeft;
+			Round.PierceLeft = Report->PierceLeft;
+			Round.bReturning = Report->bReturning;
+		}
+		else
+		{
+			Round.LifeLeft -= Dt;
+			Round.Position += Round.Velocity * Dt;
+		}
 		if (Round.LifeLeft <= 0.0f)
 		{
 			FImpact& Expiry = Impacts.AddDefaulted_GetRef();
@@ -1697,6 +1964,13 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.bCharged = Round.bCharged;
 			Impact.bEmber = Round.bEmber;
 			Impact.bSpent = --Round.PierceLeft <= 0;
+			if (Impact.bSpent && Round.bBoomerang && !Round.bReturning)
+			{
+				// The pool turned it home instead of spending it.
+				Impact.bSpent = false;
+				Round.bReturning = true;
+				Round.PierceLeft = Round.Pierce;
+			}
 			if (Impact.bSpent)
 			{
 				Spent.Add(Match);
@@ -1710,7 +1984,117 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 	{
 		Rounds.RemoveAtSwap(Index);
 	}
+	EstimateOverkill(View);
 }
+
+void FDTWeaponSim::EstimateOverkill(const FDTWorldView& View)
+{
+	bool bAny = false;
+	for (const FPlayerRuntime& Player : Players)
+	{
+		for (const FWeaponRuntime& Weapon : Player.Weapons)
+		{
+			bAny |= Weapon.Spec.SpilloverSource != 0;
+		}
+	}
+	if (!bAny || !Enemies)
+	{
+		return;
+	}
+	// ResolveHits owns health and keeps no overkill, so the step's hits are replayed against it here, in its own order. The
+	// Shock multiplier is read; the Tank's plate is not (R-MOD-14 calls this an estimate).
+	const TConstArrayView<float> Hp = Enemies->GetHp();
+	const int32 Num = FMath::Min(DTWeaponSimLocal::NumEnemies(View), Hp.Num());
+	const uint8 ShockBit = DTWeaponSimLocal::ShockBit;
+	TMap<int32, float> Left;
+	for (const FDTHit& Hit : View.Hits)
+	{
+		if (Hit.EnemyIndex < 0 || Hit.EnemyIndex >= Num || (Hit.EnemySerial != 0 && View.EnemySerials[Hit.EnemyIndex] != Hit.EnemySerial))
+		{
+			continue;
+		}
+		float& Remaining = Left.FindOrAdd(Hit.EnemyIndex, Hp[Hit.EnemyIndex]);
+		if (Remaining <= 0.0f)
+		{
+			continue; // already dead this step
+		}
+		const bool bShocked = (StatusMaskOf(Hit.EnemyIndex, View.EnemySerials[Hit.EnemyIndex]) & ShockBit) != 0;
+		Remaining -= FMath::Max(0.0f, Hit.Damage) * (bShocked ? 1.0f + DTConst::STATUS_SHOCK_DAMAGE_TAKEN : 1.0f);
+		if (Remaining > 0.0f)
+		{
+			continue;
+		}
+		const FWeaponRuntime* Runtime = Players.IsValidIndex(Hit.OwnerId) && Players[Hit.OwnerId].Weapons.IsValidIndex(Hit.WeaponSlot)
+			? &Players[Hit.OwnerId].Weapons[Hit.WeaponSlot] : nullptr;
+		// A jump's own overkill never jumps again: reactions do not chain.
+		if (Runtime && Runtime->Spec.SpilloverSource != 0 && Hit.SourceId != Runtime->Spec.SpilloverSource)
+		{
+			Overkills.Add(FOverkill{ View.EnemySerials[Hit.EnemyIndex], Hit.OwnerId, Hit.WeaponSlot, Runtime->Spec.SpilloverSource, -Remaining });
+		}
+	}
+}
+
+void FDTWeaponSim::SpillOverkill(const FDTSimContext& Context)
+{
+	const FDTWorldView& ConstView = *Context.View;
+	for (const FOverkill& Over : Overkills)
+	{
+		const FDTKill* Kill = ConstView.Kills.FindByPredicate([&Over](const FDTKill& K) { return K.EnemySerial == Over.Serial; });
+		FWeaponRuntime* Runtime = FindRuntime(Over.OwnerId, Over.Slot);
+		if (!Kill || !Runtime)
+		{
+			continue;
+		}
+		int32 Next = INDEX_NONE;
+		if (!FindNearest(ConstView, Kill->Position, Runtime->Spec.SpilloverSeekUu, Over.Serial, Next) || !TryEmit(*Runtime))
+		{
+			continue;
+		}
+		FDTHit& Out = Context.View->Hits.AddDefaulted_GetRef();
+		Out.EnemyIndex = Next;
+		Out.EnemySerial = ConstView.EnemySerials[Next];
+		Out.OwnerId = Over.OwnerId;
+		Out.Damage = Over.Damage;
+		Out.Position = ConstView.EnemyPositions[Next];
+		Out.SourceId = Over.SourceId;
+		Out.WeaponSlot = Over.Slot;
+	}
+	Overkills.Reset();
+}
+
+bool FDTWeaponSim::TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Player, FWeaponRuntime& Source)
+{
+	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Combat);
+	const TArray<FWeaponRuntime>& Runtimes = Players[Player.PlayerIndex].Weapons;
+	for (int32 Slot = 0; Slot < Player.Weapons.Num() && Slot < Runtimes.Num(); ++Slot)
+	{
+		FDTWeaponInstance& Weapon = Player.Weapons[Slot];
+		if (Weapon.Sockets.Num() >= DTConst::MOD_SOCKETS_PER_WEAPON)
+		{
+			continue;
+		}
+		TArray<int32, TInlineAllocator<32>> Pool;
+		for (int32 Mod = 0; Mod < DTWeapons::NumModifiers(); ++Mod)
+		{
+			const FName Id = DTWeapons::ModifierId(Mod);
+			const bool bInPool = DTCat::Modifiers[Mod].bStarter || Unlocked.Contains(Id);
+			const bool bFitted = Weapon.Sockets.ContainsByPredicate([Id](const FDTWeaponInstance::FSocket& S) { return S.ModId == Id; });
+			if (bInPool && !bFitted && DTModCompat::IsCompatible(Runtimes[Slot].Spec.EffectiveCaps, Mod))
+			{
+				Pool.Add(Mod);
+			}
+		}
+		if (Pool.Num() == 0)
+		{
+			continue;
+		}
+		FDTWeaponInstance::FSocket& Added = Weapon.Sockets.AddDefaulted_GetRef();
+		Added.ModId = DTWeapons::ModifierId(Pool[Rng.RandRange(0, Pool.Num() - 1)]);
+		return true;
+	}
+	return false;
+}
+
 
 void FDTWeaponSim::BuildSerialIndex(const FDTWorldView& View)
 {
@@ -1781,6 +2165,23 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 		}
 		Runtime->ChainTriggerReadyIn = Runtime->Spec.ChainTriggerIntervalS;
 		FireVolley(Context, Bullets, Run.GetPlayer(Kill.OwnerId), Kill.WeaponSlot, *Runtime, Runtime->Spec.ChainTriggerSource, true);
+	}
+
+	SpillOverkill(Context);
+
+	// Mod.Refit: a kill by a full weapon, once per its interval; an interval with no socket to fill is not spent.
+	for (const FDTKill& Kill : View.Kills)
+	{
+		FWeaponRuntime* Runtime = FindRuntime(Kill.OwnerId, Kill.WeaponSlot);
+		if (!Runtime || Runtime->Spec.RefitSource == 0 || Runtime->RefitReadyIn > 0.0f || !Run.IsValidPlayer(Kill.OwnerId))
+		{
+			continue;
+		}
+		FDTPlayerRunState& Player = Run.GetPlayer(Kill.OwnerId);
+		if (Player.Weapons[Kill.WeaponSlot].Sockets.Num() >= Runtime->Spec.RefitFitted && TryRefit(Context, Player, *Runtime))
+		{
+			Runtime->RefitReadyIn = Runtime->Spec.RefitIntervalS;
+		}
 	}
 
 	for (const FPendingStatus& Pending : PendingStatuses)
@@ -2472,6 +2873,13 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		return;
 	}
+	if (Impact.Kind == EImpact::Expiry && Spec.WaveSource != 0 && Impact.Generation == 0)
+	{
+		// Mod.SpreadWave: the round's end is a short arc onward, from its own source; a wave starts no reaction.
+		FShot Wave = MakeShot(Impact.OwnerId, Impact.Slot, *Runtime, Spec.WaveSource, Impact.Position);
+		Wave.Damage = Impact.BaseDamage * Spec.WaveDamageRatio;
+		EmitArc(Context, *Runtime, Wave, Impact.Dir, Spec.WaveArcDeg, Spec.WaveReachUu, false, false);
+	}
 	// apply_modifier_on_hit: a cleave's hit counts as a round's hit for the modifiers the weapon carries.
 	const FDTResolvedFlag* Melee = Impact.Kind == EImpact::ArcHit && Impact.bCleave ? Spec.FindFlag(DTCat::EFlag::ConvertMelee) : nullptr;
 	const bool bCarries = Melee && !Melee->Entry.Params.GetWord(DTFlagParam::ApplyModifierOnHit).IsNone();
@@ -2582,7 +2990,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			if (Params.GetWord(DTFlagParam::Target) == WordOrigin)
 			{
 				// Mod.Backwash: the hit enemy is drawn toward the round's origin.
-				if ((Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcHit) && HitEnemy != INDEX_NONE)
+				if ((Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcHit || Impact.Kind == EImpact::MineHit) && HitEnemy != INDEX_NONE)
 				{
 					const FVector2f To = Impact.Origin - View.EnemyPositions[HitEnemy];
 					const float Dist = To.Size();
@@ -2752,7 +3160,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		case DTCat::EFlag::Echo:
 		{
-			const bool bFires = (Flag.IsNative() && (Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcSweep)) ||
+			// Continuous's fallback: a strike on every Nth stream hit (R-WPN-08).
+			const bool bStream = Flag.IsFallback() && Flag.Resolution.Cap == DTCat::ECap::Continuous && Impact.Kind == EImpact::RoundHit &&
+				++Runtime->StreamHits % DTConst::WEAPON_STREAM_ECHO_EVERY_N == 0;
+			const bool bFires = bStream || (Flag.IsNative() && (Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcSweep)) ||
 				Impact.Kind == EImpact::Detonation; // Mine: native or "the detonation repeats at the same point"
 			if (!bFires)
 			{
@@ -2844,6 +3255,13 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 						Weapon.DroneAngleDeg + 360.0f * static_cast<float>(Drone) / static_cast<float>(Drones));
 					V.Radius = 2.0f * Spec.Radius; // a drone reads as twice its bolt
 				}
+			}
+			for (const FShell& Shell : Weapon.Shells)
+			{
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::Mine;
+				V.Position = FMath::Lerp(Shell.Target, Shell.Origin, Shell.Flight > 0.0f ? Shell.Left / Shell.Flight : 0.0f);
+				V.Radius = Spec.Radius;
 			}
 			for (const FMine& Mine : Weapon.Mines)
 			{
