@@ -251,6 +251,7 @@ combat:
   DIR.SHARE_MAX_TANK:          { value: 0.10, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
   DIR.SHARE_MAX_RUSHER:        { value: 0.10, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
   DIR.SHARE_MAX_TURRET:        { value: 0.08, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.SHARE_FLOOR_ALIVE:       { value: 30,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
   DIR.THREAT_SHARE_MIN:        { value: 0.25, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, 09_Catalog/timeline_*.csv, T-DIR-06] }
   DIR.DROPIN_LEAD_S:           { value: 1.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-07] }
   DIR.DROPIN_THREAT_MULT:      { value: 2,    unit: x,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-07] }

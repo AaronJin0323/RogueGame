@@ -258,6 +258,7 @@ namespace DTConst
 	inline constexpr float DIR_SHARE_MAX_TANK = 0.1f; // ratio, GATED(S1)
 	inline constexpr float DIR_SHARE_MAX_RUSHER = 0.1f; // ratio, GATED(S1)
 	inline constexpr float DIR_SHARE_MAX_TURRET = 0.08f; // ratio, GATED(S1)
+	inline constexpr int32 DIR_SHARE_FLOOR_ALIVE = 30; // n, GATED(S1)
 	inline constexpr float DIR_THREAT_SHARE_MIN = 0.25f; // ratio, GATED(S1)
 	inline constexpr float DIR_DROPIN_LEAD_S = 1.0f; // s, GATED(S1)
 	inline constexpr int32 DIR_DROPIN_THREAT_MULT = 2; // x, GATED(S1)
