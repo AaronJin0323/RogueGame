@@ -476,7 +476,7 @@ void FDTTelemetryCore::RecordReforge(int32 Owner, bool bEvolve, FName Id, FName 
 		{
 			Names.Add(Name.ToString());
 		}
-		JsonlOut += FDTTelJson(JsonHead(TEXT("reforge"), Owner)).Str(TEXT("kind"), bEvolve ? TEXT("Evolve") : TEXT("Path")).Name(TEXT("id"), Id)
+		JsonlOut += FDTTelJson(JsonHead(TEXT("reforge"), Owner)).Str(TEXT("reforge_kind"), bEvolve ? TEXT("Evolve") : TEXT("Path")).Name(TEXT("id"), Id)
 			.Name(TEXT("target"), Target).Int(TEXT("weapon_level"), WeaponLevel).Str(TEXT("dormant"), *FString::Join(Names, TEXT(";"))).Line();
 	}
 }

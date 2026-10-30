@@ -70,7 +70,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - HUMAN: at L16 a validator can say, in their own words, what changed on screen within two seconds of the pick, for each of the three cards they were offered.
 
 ## Telemetry
-- `reforge{kind, id, target, weapon_level, dormant}` (`owner` = the player) on a Reforging pick, after the `offer_pick`; `dormant` joins with semicolons the modifiers the pick put to sleep. A filler blessing writes the blessing records and no `reforge`.
+- `reforge{reforge_kind, id, target, weapon_level, dormant}` (`owner` = the player) on a Reforging pick, after the `offer_pick`; `dormant` joins with semicolons the modifiers the pick put to sleep. A filler blessing writes the blessing records and no `reforge`.
 - The bot record gains `reforge=<id>` (`none` when the hand gave only filler or the run ended first) so a batch reads per card.
 
 ## Text
@@ -85,4 +85,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - Hit source of an evolved weapon stays `Weapon.<Name>`, so `Tools/power_split.py` and T-KEE-18 count it outside the Keeper share → read once a human reading exists.
 - Cyclone asks for motion and Stillness asks for rest; a Stillness build can take Cyclone and fight itself → a dead pairing to read, not yet forbidden.
 - A pillar shatters on the owner's next hit, and auto-fire hits what is near, so pillars close to the hero may not last → read in `Validation/S2_reforging.md`.
+- Few steered primaries reach `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL` by the hand, so the third source mostly yields to filler → traced against human weapon levels (`Validation/S2_reforging.md`).
+- The power band is unread: output after the pick matches the control, which may be a field cap → a measure that a full-clear build cannot saturate, before any row moves.
+- Fusions are named by `build_depth_spec` and absent from R-OFF-09 → stays out unless a decision adds a fourth source.
 - Path rows are eligible at any Favor (source), so a Path whose status the build never applies is a weak card → the hand has two others; read it.
