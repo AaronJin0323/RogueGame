@@ -133,3 +133,37 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TEL.TTK_PERCENTILE | 0.50 | ratio | CORE | telemetry.md (`swarm_ttk_s` column), C.TTK.SWARM_STEERED_MAX |
 | C.TEL.NEAREST_PERCENTILE | 0.10 | ratio | CORE | telemetry.md (`nearest_enemy_p10_uu` column) |
 | C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01 |
+
+## Keepers (02_Systems/keepers.md)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.KEEPER.ARCHETYPES_PER_KEEPER | 3 | n | CORE | keepers.md R-KEE-01, expression.csv, T-KEE-01 |
+| C.KEEPER.BLESSINGS_PER_ARCHETYPE | 4 | n | CORE | keepers.md R-KEE-01 (Key, Amp1, Amp2, Trait), expression.csv, T-KEE-01 |
+| C.KEEPER.TRAIT_PREREQ_CARDS | 2 | n | GATED(S1) | keepers.md R-KEE-04, offers.md, T-KEE-04 |
+| C.KEEPER.PACKAGE_GAIN_BAND | 2.0–2.4 | × crowd DPS | GATED(S1) | keepers.md R-KEE-18, T-KEE-18 (reference D-57) |
+| C.TIER.FAVOR_PER_BLESSING | 1 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
+| C.TIER.FAVOR_T1 | 3 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
+| C.TIER.FAVOR_T2 | 6 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
+| C.TIER.FAVOR_T3 | 9 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
+| C.TIER.LINE_WORDS_EN_MAX | 12 | words | CORE | keepers.md R-KEE-08, T-KEE-08 |
+| C.TIER.LINE_CHARS_ZH_MAX | 20 | chars | CORE | keepers.md R-KEE-08, T-KEE-08 |
+| C.ENCHANT.STATUS_CHANCE_PRIMARY | 0.15 | ratio per hit | GATED(S1) | keepers.md R-KEE-09, T-KEE-09 |
+| C.ENCHANT.STATUS_CHANCE_SECOND | 0.05 | ratio per hit | GATED(S1) | keepers.md R-KEE-09, T-KEE-09 |
+| C.ENCHANT.SHOCK_VULN | 0.15 | ratio | GATED(S1) | keepers.md R-KEE-10, T-KEE-10 |
+| C.ENCHANT.SHOCK_DURATION_S | 2.0 | s | GATED(S1) | keepers.md R-KEE-10, T-KEE-10 |
+| C.ENCHANT.BURN_DPS_RATIO | 0.20 | ratio of hit per s | GATED(S1) | keepers.md R-KEE-11, T-KEE-11 |
+| C.ENCHANT.BURN_DURATION_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-11, T-KEE-11 |
+| C.ENCHANT.BURN_STACKS_MAX | 3 | n | GATED(S1) | keepers.md R-KEE-11, expression.csv, T-KEE-11 |
+| C.ENCHANT.CHILL_SLOW_PER_STACK | 0.15 | ratio | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
+| C.ENCHANT.CHILL_DURATION_S | 2.0 | s | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
+| C.ENCHANT.FREEZE_STACKS | 3 | n | GATED(S1) | keepers.md R-KEE-12, expression.csv (Frost lowers it), T-KEE-12 |
+| C.ENCHANT.FREEZE_DURATION_S | 1.5 | s | GATED(S1) | keepers.md R-KEE-12, T-KEE-12 |
+| C.INTERCESSION.STORM_DURATION_S | 6.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.STORM_SPLIT_CHILDREN | 3 | n | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.FORGE_DURATION_S | 5.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.FORGE_RING_INTERVAL_S | 0.5 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.FORGE_RING_RADIUS_UU | 600 | uu | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.TIDE_RADIUS_UU | 2000 | uu | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.TIDE_FREEZE_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
+| C.INTERCESSION.RETUNE_STEP_MAX | 2.0 | × per pass | GATED(S1) | keepers.md R-KEE-15, T-KEE-15 (weak ×2 up, strong ×0.5 down) |
