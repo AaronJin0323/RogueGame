@@ -240,6 +240,58 @@ bool FDTBotHazardRingInward::RunTest(const FString& Parameters)
 
 // R-DIR-16 clamps a chest to the arena, so it can lie against a wall. The wall band must not stop the bot fetching it, or
 // a run misses its chest hand and the magnet with it (S1_boss_after_fields.md, T-OFF-15).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotHazardRingThroughRounds, "Dusktracer.Bot.HazardRingThroughRounds", DTBotTest::Flags)
+bool FDTBotHazardRingThroughRounds::RunTest(const FString& Parameters)
+{
+	// Rounds in the way cost one hit; the live ring costs one every interval until it is crossed. A hero outside it goes in
+	// through rounds that would stop a walk anywhere else (S1_probes.md, the three ring deaths).
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Seed = 5;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+
+	FDTHeroState Hero;
+	Hero.Pos = FVector2f(-2300.0f, -2300.0f); // 3253 uu out, 453 past the ring, clear of the walls
+	Hero.Hp = 60.0f;
+	Hero.DashCharges = 0;
+	const FVector2f In = (-Hero.Pos).GetSafeNormal();
+	const FVector2f Across(-In.Y, In.X);
+
+	FDTTelegraph Ring;
+	Ring.Shape = EDTTelegraphShape::HazardRing;
+	Ring.Origin = FVector2f::ZeroVector;
+	Ring.Length = 2800.0f;
+	Ring.Progress = 1.0f;
+
+	// A curtain of rounds across the way in, drifting outward.
+	TArray<FVector2f> RoundPos;
+	TArray<FVector2f> RoundVel;
+	TArray<float> RoundRadius;
+	for (int32 Row = 0; Row < 3; ++Row)
+	{
+		for (int32 Col = -5; Col <= 5; ++Col)
+		{
+			RoundPos.Add(Hero.Pos + In * (160.0f + 120.0f * Row) + Across * (80.0f * Col));
+			RoundVel.Add(-In * 200.0f);
+			RoundRadius.Add(12.0f);
+		}
+	}
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.StepSeconds = 1.0f / DTConst::SIM_FIXED_HZ;
+	World.StepIndex = 0;
+	TArray<FDTTelegraph> Telegraphs = { Ring };
+	World.Telegraphs = Telegraphs;
+	World.RoundPos = RoundPos;
+	World.RoundVel = RoundVel;
+	World.RoundRadius = RoundRadius;
+	const FDTHeroInput Input = Brain.Decide(World);
+	const float Dot = FVector2f::DotProduct(Input.Move, In);
+	TestTrue(*FString::Printf(TEXT("the bot walks in through the rounds (dot %.2f)"), Dot), Dot > 0.5f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotChestAtWall, "Dusktracer.Bot.ChestAtWall", DTBotTest::Flags)
 bool FDTBotChestAtWall::RunTest(const FString& Parameters)
 {

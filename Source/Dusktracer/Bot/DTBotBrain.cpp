@@ -18,6 +18,8 @@ namespace DTBotTuning
 	constexpr float BodyWeight = 400.0f;
 	constexpr float TelegraphWeight = 700.0f;
 	constexpr float HazardWeight = 900.0f;
+	/** Outside a live hazard ring, the danger gains one HazardWeight step per this many uu. */
+	constexpr float RingGradeUU = 60.0f;
 	/** Bodies inside this radius push the bot away (crowd pressure). */
 	constexpr float CrowdRadiusUU = 650.0f;
 	constexpr float CrowdWeight = 14.0f;
@@ -279,9 +281,10 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 			if (Tele.Shape == EDTTelegraphShape::HazardRing)
 			{
 				// Graded by the distance outside: from past the look-ahead every move lands in the hazard, and a flat score would
-				// leave only the kite, which points away from the boss, so outward (S1_boss_after_fields.md).
+				// leave only the kite, which points away from the boss, so outward (S1_boss_after_fields.md). The grade is steep: a
+				// round in the way costs one hit, the live ring one every interval until it is crossed (S1_probes.md).
 				const float Outside = FMath::Max(0.0f, FVector2f::Distance(P, Tele.Origin) - Tele.Length);
-				Score += HazardWeight * (0.3f + Tele.Progress) * (1.0f + Outside / FMath::Max(Tele.Length, 1.0f));
+				Score += HazardWeight * (0.3f + Tele.Progress) * (1.0f + Outside / RingGradeUU);
 			}
 			else
 			{
