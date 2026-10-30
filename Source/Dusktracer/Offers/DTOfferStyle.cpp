@@ -323,6 +323,95 @@ TArray<FString> DTOfferText::Keywords(const FDTOfferCard& Card)
 	return Out;
 }
 
+bool DTOfferText::IsNoLineStart(TCHAR Ch)
+{
+	// CJK comma and stop, fullwidth stops, marks, closers and tilde, ideographic closers, ellipsis, dashes, middle dots,
+	// closing curly quotes; then the ASCII forms.
+	static const TCHAR Closing[] = TEXT("、。，．；：！？）］｝％～")
+		TEXT("】》〉」』〕〗…—–·・’”,.;:!?)]}%");
+	return Ch != 0 && FCString::Strchr(Closing, Ch) != nullptr;
+}
+
+bool DTOfferText::IsNoLineEnd(TCHAR Ch)
+{
+	// Fullwidth and ideographic openers, opening curly quotes; then the ASCII forms.
+	static const TCHAR Opening[] = TEXT("（［｛【《〈「『〔〖‘“([{");
+	return Ch != 0 && FCString::Strchr(Opening, Ch) != nullptr;
+}
+
+TArray<FString> DTOfferText::WrapLines(const FString& Text, TFunctionRef<float(const FString&)> Measure, float MaxWidth)
+{
+	constexpr TCHAR FirstWide = 0x2E80; // the CJK blocks start here; each wide character is a break opportunity
+	const auto CanBreakBefore = [](const FString& Line, int32 Index)
+	{
+		const TCHAR Prev = Line[Index - 1];
+		const TCHAR Next = Line[Index];
+		// Spaces at a break are dropped, so what must not start a line is the first character after them.
+		int32 First = Index;
+		while (First < Line.Len() && Line[First] == TEXT(' '))
+		{
+			++First;
+		}
+		if (First == Line.Len() || IsNoLineStart(Line[First]) || IsNoLineEnd(Prev))
+		{
+			return false;
+		}
+		return Prev == TEXT(' ') || Next == TEXT(' ') || Prev >= FirstWide || Next >= FirstWide;
+	};
+
+	TArray<FString> Lines;
+	const auto AddLine = [&Lines](const FString& Line)
+	{
+		const FString Trimmed = Line.TrimEnd();
+		if (!Trimmed.IsEmpty())
+		{
+			Lines.Add(Trimmed);
+		}
+	};
+	TArray<FString> Paragraphs;
+	Text.ParseIntoArray(Paragraphs, TEXT("\n"), false);
+	for (const FString& Paragraph : Paragraphs)
+	{
+		const int32 Len = Paragraph.Len();
+		int32 Start = 0;
+		while (Start < Len)
+		{
+			// The longest run from Start that fits; a line always takes at least one character.
+			int32 End = Start + 1;
+			while (End < Len && Measure(Paragraph.Mid(Start, End + 1 - Start)) <= MaxWidth)
+			{
+				++End;
+			}
+			if (End >= Len)
+			{
+				AddLine(Paragraph.Mid(Start));
+				break;
+			}
+			int32 Break = End;
+			while (Break > Start && !CanBreakBefore(Paragraph, Break))
+			{
+				--Break;
+			}
+			if (Break == Start)
+			{
+				// No opportunity in the run: a hard break, still clear of a closing mark when it can be.
+				Break = End;
+				while (Break > Start + 1 && IsNoLineStart(Paragraph[Break]))
+				{
+					--Break;
+				}
+			}
+			AddLine(Paragraph.Mid(Start, Break - Start));
+			Start = Break;
+			while (Start < Len && Paragraph[Start] == TEXT(' '))
+			{
+				++Start;
+			}
+		}
+	}
+	return Lines;
+}
+
 FText DTOfferText::KeywordName(const FString& Keyword)
 {
 	return DTOfferStyleLocal::FromTable(DTOfferStyleLocal::KeywordsTable, Keyword + TEXT(".Name"));

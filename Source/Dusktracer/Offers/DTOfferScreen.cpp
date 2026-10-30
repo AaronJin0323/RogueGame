@@ -114,50 +114,9 @@ namespace DTOfferScreenLocal
 		{
 			Text(Line, CenterX - 0.5f * Measure(Line.ToString(), Scale).X, Y, Scale, Color);
 		}
-		/** Greedy wrap: breaks after spaces, between CJK characters, or mid-word when a word alone is too wide. */
 		TArray<FString> Wrap(const FString& Text, float Scale, float MaxWidth) const
 		{
-			TArray<FString> Lines;
-			TArray<FString> Paragraphs;
-			Text.ParseIntoArray(Paragraphs, TEXT("\n"), false);
-			for (const FString& Paragraph : Paragraphs)
-			{
-				FString Current;
-				int32 LastBreak = INDEX_NONE;
-				for (int32 Index = 0; Index < Paragraph.Len(); ++Index)
-				{
-					const TCHAR Ch = Paragraph[Index];
-					const FString Candidate = Current + Ch;
-					if (!Current.IsEmpty() && Measure(Candidate, Scale).X > MaxWidth)
-					{
-						if (LastBreak != INDEX_NONE && LastBreak < Current.Len())
-						{
-							Lines.Add(Current.Left(LastBreak).TrimEnd());
-							Current = Current.Mid(LastBreak).TrimStart() + Ch;
-						}
-						else
-						{
-							Lines.Add(Current.TrimEnd());
-							Current = FString(1, &Ch).TrimStart();
-						}
-						LastBreak = INDEX_NONE;
-					}
-					else
-					{
-						Current = Candidate;
-					}
-					// Break opportunities: after a space, or after any wide (CJK) character.
-					if (Ch == TEXT(' ') || Ch >= 0x2E80)
-					{
-						LastBreak = Current.Len();
-					}
-				}
-				if (!Current.IsEmpty())
-				{
-					Lines.Add(Current);
-				}
-			}
-			return Lines;
+			return DTOfferText::WrapLines(Text, [this, Scale](const FString& Line) { return static_cast<float>(Measure(Line, Scale).X); }, MaxWidth);
 		}
 	};
 

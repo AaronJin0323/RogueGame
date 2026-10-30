@@ -3,6 +3,10 @@
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Offers; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/Csv/CsvParser.h"
+#include "Misc/Paths.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTCatalogGen.h"
@@ -1084,6 +1088,77 @@ bool FDTOfferKeywordNotesTest::RunTest(const FString& Parameters)
 }
 
 // T-OFF-14
+// T-OFF-18: card text wraps with kinsoku: no line starts on closing punctuation or ends on opening punctuation.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferKinsokuTest, "Dusktracer.Offers.Kinsoku", DTOfferTest::Flags)
+bool FDTOfferKinsokuTest::RunTest(const FString& Parameters)
+{
+	// One unit per character: the logic, free of a font.
+	const auto Width = [](const FString& Line) { return static_cast<float>(Line.Len()); };
+	const auto Wrap = [&Width](const FString& Text, float MaxWidth) { return DTOfferText::WrapLines(Text, Width, MaxWidth); };
+	const auto Join = [](const TArray<FString>& Lines) { return FString::Join(Lines, TEXT("")); };
+
+	// A stop that would fall first on the next line pulls the character before it down with it.
+	{
+		const FString Text = TEXT("冰冻敌人。击碎");
+		const TArray<FString> Lines = Wrap(Text, 4.0f);
+		TestEqual(TEXT("two lines"), Lines.Num(), 2);
+		TestEqual(TEXT("the stop keeps its character"), Lines.Num() == 2 ? Lines[1].Left(2) : FString(), FString(TEXT("人。")));
+		TestEqual(TEXT("nothing is lost"), Join(Lines), Text);
+	}
+	// Runs of closers move together; an opener never ends a line.
+	{
+		const TArray<FString> Lines = Wrap(TEXT("敌人冰冻。”击碎"), 4.0f);
+		TestTrue(TEXT("a closing quote after a stop stays off the line start"), Lines.Num() >= 2 && Lines[1].StartsWith(TEXT("冻。”")));
+		const TArray<FString> Open = Wrap(TEXT("敌人冰《冻结》"), 4.0f);
+		TestTrue(TEXT("an opening bracket moves down with its word"), Open.Num() == 2 && Open[0] == TEXT("敌人冰") && Open[1].StartsWith(TEXT("《")));
+	}
+	// Latin text wraps at spaces exactly as before, and a too-long word still breaks clear of a closing mark.
+	{
+		const TArray<FString> Lines = Wrap(TEXT("Hits can Burn, then spread."), 10.0f);
+		TestEqual(TEXT("three lines"), Lines.Num(), 3);
+		TestEqual(TEXT("broken at a space, trimmed"), Lines.Num() > 0 ? Lines[0] : FString(), FString(TEXT("Hits can")));
+		const TArray<FString> Hard = Wrap(TEXT("abcdefgh."), 8.0f);
+		TestTrue(TEXT("a hard break keeps the stop off the line start"), Hard.Num() == 2 && Hard[1] == TEXT("h."));
+		TestEqual(TEXT("an empty text has no lines"), Wrap(FString(), 8.0f).Num(), 0);
+		TestEqual(TEXT("a width below one character still ends"), Wrap(TEXT("敌人"), 0.5f).Num(), 2);
+	}
+	// Every en and zh-Hans string of every string table, at every width a card or the notes panel can reach.
+	const FString TextDir = FPaths::ProjectContentDir() / TEXT("DT/Text");
+	TArray<FString> Tables;
+	IFileManager::Get().FindFiles(Tables, *(TextDir / TEXT("ST_*.csv")), true, false);
+	TestTrue(TEXT("the string tables are found"), Tables.Num() > 0);
+	int32 Rows = 0;
+	for (const FString& Table : Tables)
+	{
+		FString File;
+		FFileHelper::LoadFileToString(File, *(TextDir / Table));
+		const FCsvParser Parser(File);
+		for (int32 Row = 1; Row < Parser.GetRows().Num(); ++Row)
+		{
+			const TArray<const TCHAR*>& Cells = Parser.GetRows()[Row];
+			++Rows;
+			for (int32 Column = 1; Column <= 2 && Column < Cells.Num(); ++Column)
+			{
+				for (int32 Chars = 24; Chars <= 60; Chars += 3)
+				{
+					const TArray<FString> Lines = Wrap(Cells[Column], static_cast<float>(Chars));
+					for (int32 Index = 0; Index < Lines.Num(); ++Index)
+					{
+						const bool bBadStart = Index > 0 && DTOfferText::IsNoLineStart(Lines[Index][0]);
+						const bool bBadEnd = Index + 1 < Lines.Num() && DTOfferText::IsNoLineEnd(Lines[Index][Lines[Index].Len() - 1]);
+						if (bBadStart || bBadEnd)
+						{
+							AddError(FString::Printf(TEXT("%s row %d at %d chars: line '%s'"), *Table, Row, Chars, *Lines[Index]));
+						}
+					}
+				}
+			}
+		}
+	}
+	TestTrue(TEXT("rows were checked"), Rows > 100);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferChestHandTest, "Dusktracer.Offers.ChestHand", DTOfferTest::Flags)
 bool FDTOfferChestHandTest::RunTest(const FString& Parameters)
 {

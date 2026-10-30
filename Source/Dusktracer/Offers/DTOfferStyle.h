@@ -79,6 +79,16 @@ namespace DTOfferText
 	DUSKTRACER_API FText KeywordName(const FString& Keyword);
 	DUSKTRACER_API FText KeywordDesc(const FString& Keyword);
 	DUSKTRACER_API FText Ui(const TCHAR* Key);
+	/**
+	 * Greedy line wrap with kinsoku (offers.md R-OFF-13): breaks after spaces and beside wide (CJK) characters, never before
+	 * closing punctuation nor after opening punctuation (the character before it moves down instead), and mid-word only when
+	 * a word alone is too wide. Measure returns a line's width in the same unit as MaxWidth.
+	 */
+	DUSKTRACER_API TArray<FString> WrapLines(const FString& Text, TFunctionRef<float(const FString&)> Measure, float MaxWidth);
+	/** True when Ch may not start a line: closing brackets and quotes, stops, commas, ellipsis, dashes. */
+	DUSKTRACER_API bool IsNoLineStart(TCHAR Ch);
+	/** True when Ch may not end a line: opening brackets and quotes. */
+	DUSKTRACER_API bool IsNoLineEnd(TCHAR Ch);
 	/** Every string-table key the offer screen can read (T-OFF-13 text coverage). */
 	DUSKTRACER_API TArray<TPair<FString, FString>> AllKeys();
 }
