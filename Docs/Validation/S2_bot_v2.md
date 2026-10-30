@@ -75,7 +75,7 @@ T-DIR-01 stays a v1 check (R-DIR-01): its band says nothing about v2 below 1.0. 
 
 ## What reads wrong
 - **Skill 0.3's reaction is 0.18 s, faster than a typical human, and it still loses every run.** At human-like latency the bot died at minutes 1 to 3: its movement is a per-step danger search with no real plan, so it has no way to absorb latency beyond clearance. The skill number is a position on this bot's own scale, not a human percentile.
-- **Skill 0.6 is thin at the top:** 7 wins in 270, against 74 for v1 at 0.6, whose delay is shorter and which has no cue misses. If S2's "bots win a full run" means a mid skill, this knob does not yet say so; at 1.0 it does.
+- **Skill 0.6 is thin at the top:** 7 wins in 270, against 74 for v1 at 0.6, which has the same 0.10 s delay but no cue misses, attention limit or card error. If S2's "bots win a full run" means a mid skill, this knob does not yet say so; at 1.0 it does.
 - **The fall from 1.0 to 0.6 is steep and the histogram is two-humped** (minutes 6-8, and 15 at the boss). A real population may look like this or may not; only O-008 can say.
 - **Pickup barely moves with skill** (0.71 → 0.67, reference 0.51), so level timing stays an early bound at every skill. Weaker runs die sooner rather than collect worse.
 - **Dashes per minute are flat** at about 5.8; a weak player's dash rate should differ. Windows at 0.3 hold only 30 runs.
