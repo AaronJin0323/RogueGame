@@ -1,8 +1,8 @@
 # S1 boss fights after field status (2026-10-30)
 
-Goal: find why the field status of R-KEE-22 cost wins in the six arms without Tide (`S1_pull_rule.md` §4), and why T-OFF-15 read 199/201. Class: BUG, in the measuring instrument (Bot v1), not in the game.
+Goal: find why the field status of R-KEE-22 cost wins in the six arms without Tide (`S1_pull_rule.md` §4), and why T-OFF-15 read 199/201. Class: BUG, in the measuring instrument (Bot v1), not in the game. Layer: bot heuristics (`DTBotTuning`, which are tool parameters and never game numbers). Control: `pull_t2`, 15 seeds, 19 arms. Bot skill 1.0, headless; a bound, not a human reading.
 
-**Verdict: field status never cost wins; a bot blind spot at the hazard ring did. With the bot fixed, status on reads 78 wins of 83 fights against 73 of 86 off. No game rule or number changed. T-OFF-15 still fails, 200/201, on a different run. T-DIR-01 passes. The fix also shows the Warden is a near-certain win for the bot (§5).** Layer: bot heuristics (`DTBotTuning`, which are tool parameters and never game numbers). Control: `pull_t2`, 15 seeds, 19 arms. Bot skill 1.0, headless; a bound, not a human reading.
+**Verdict: field status never cost wins; a bot blind spot at the hazard ring did. With the bot fixed, status on reads 78 wins of 83 fights against 73 of 86 off. No game rule or number changed. T-OFF-15 still fails, 200/201, on a different run. T-DIR-01 passes. The fix also shows the Warden is a near-certain win for the bot (§5).**
 
 ## 1. Diagnosis (written before any behaviour change)
 **The bot cannot see its way back into the phase III hazard ring.** A hero more than about 360 uu outside the ring stands in the hazard and dies there at full speed, with the ring plainly passable.
