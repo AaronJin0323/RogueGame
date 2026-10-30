@@ -1,4 +1,4 @@
-"""Summary of Bot v1 runs (Tools/BotRuns.ps1 writes the run folders; Docs/Validation/S1_bot_baseline.md). Stdlib only.
+"""Summary of bot runs (Tools/BotRuns.ps1 writes the run folders; Docs/Validation/S1_bot_baseline.md). Stdlib only.
 
 Usage:  python -I Tools/bot_summary.py <Saved/BotRuns/<stamp>> [--check T-DIR-01[,T-OFF-15]]
 
@@ -14,7 +14,8 @@ Window metrics (damage-taken share per minute, dashes per minute) are the run's 
 that ended before the window has none. The bot's own per-minute record (bot.csv) is kept for debugging only.
 Per arm it also reports the pressure sources in that window (damage by hit kind and role, threat actions, the kill horizon),
 the boss reach, the Keeper share at C.TEL.POWER_CHECK_LEVEL (`sources` records up to the level-up), and damage per Intercession
-cast, each read per arm because a pooled mean hides builds that miss in opposite directions.
+cast, each read per arm because a pooled mean hides builds that miss in opposite directions. Each batch names the bot version
+and skill its records hold and says when it mixes them (R-BOT-13), and gets the death-minute histogram per arm (R-BOT-12).
 """
 
 import csv
@@ -26,6 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
+import bot_compare  # noqa: E402
 import power_split  # noqa: E402
 import pressure  # noqa: E402
 
@@ -39,6 +41,12 @@ def read_kv(path):
 					k, v = line.rstrip("\n").split("=", 1)
 					out[k.strip()] = v.strip()
 	return out
+
+
+def read_config(text):
+	"""(version, skill) from a record's config= line. Records older than the version field are v1."""
+	fields = dict(p.split("=", 1) for p in (text or "").split() if "=" in p)
+	return fields.get("version", "1"), fields.get("skill", "")
 
 
 def read_run_end(jsonl):
@@ -257,10 +265,14 @@ def summarise_run(folder, consts):
 	t_check = econ["level_t"].get(check_level)
 	casts, cast_damage, _ = read_casts(jsonl) if jsonl else (0, None, "")
 	to_boss = consts["RUN.LENGTH_TO_BOSS"]["value"]
+	bot_version, bot_skill = read_config(kv.get("config"))
 	return {
 		"label": label,
 		"seed": int(seed) if seed.isdigit() else seed,
+		"bot_version": bot_version,
+		"bot_skill": bot_skill,
 		"outcome": kv.get("outcome", "missing"),
+		"last_hit": kv.get("last_hit", ""),
 		"end_s": round(end_s, 1),
 		"level_630": int(kv["level_630"]) if kv.get("level_630") else "",
 		"level_end": level if level is not None else p0.get("level", ""),
@@ -339,7 +351,7 @@ def main(argv):
 	tol = consts["OFFER.DECISIONS_TOLERANCE"]["value"]
 	reserve_max = consts["OFFER.RESERVE_SHARE_MAX"]["value"]
 
-	lines = ["# Bot runs summary", "", f"Folder: `{root}`", "",
+	lines = ["# Bot runs summary", "", f"Folder: `{root}`", "", f"Bot: {bot_compare.batch_note(runs)}. Bot numbers are bounds, not human readings.", "",
 		f"Bands: damage taken {fmt_band(dmg_band)} share/min, dashes {fmt_band(dash_band)} /min (window {fmt_band(consts['DIR.BAND_WINDOW_S']['value'])} s), "
 		f"Keeper share >= {keeper_need} at L16, no-pick death {fmt_band(nopick_band)} s, decisions {per_run} +- {tol}.", "",
 		"| Arm | Runs | Deaths | Wins | Median end s | Level @630 | Decisions | Dmg share/min (window) | Dashes/min (window) | Keeper share | Reserve share | Gem pickup ratio |",
@@ -410,6 +422,13 @@ def main(argv):
 			"" if share == "" or label not in power else ("IN" if abs(share - arm_mean) <= arch_band else "OUT"),
 			mean(r["casts"] for r in rs), cast,
 			"" if cast == "" or not keeper_mean else ("IN" if abs(cast / keeper_mean - 1.0) <= cast_band else f"OUT ({cast / keeper_mean:.2f}x)")))
+	lines += ["", "Deaths by minute (Nth minute of the run counts as N-1; wins and timeouts stay out; `12_Production` names a band, no spec sets it yet):", "",
+		"| Arm | Deaths | Median death min | Minute: runs |", "|---|---|---|---|"]
+	for label in labels:
+		rs = [r for r in runs if r["label"] == label]
+		minutes = bot_compare.death_minutes(rs)
+		lines.append("| {} | {} | {} | {} |".format(label, len(minutes), round(statistics.median(minutes), 1) if minutes else "",
+			" ".join(f"{m}:{n}" for m, n in bot_compare.histogram(rs).items())))
 	lines += ["", "Per run: `summary.csv`."]
 
 	verdicts = []

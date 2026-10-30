@@ -1,7 +1,8 @@
-# Bot v1 run harness (S1 tool; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
-#   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-Seeds 10] [-FirstSeed 1] [-Skill 1] [-MaxSeconds 1100]
+# Bot run harness (Docs/02_Systems/bot.md; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
+#   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-Seeds 10] [-FirstSeed 1] [-BotVersion 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
 #                       [-Jobs <jobs.csv>] [-Stagger 1.5]
+# -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
@@ -17,6 +18,7 @@ param(
 	[string[]]$Arms = @(),
 	[int]$Seeds = 0,
 	[int]$FirstSeed = 1,
+	[int]$BotVersion = 1,
 	[double]$Skill = 1.0,
 	[int]$MaxSeconds = 1100,
 	[int]$Steps = 600,
@@ -49,7 +51,7 @@ if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant 
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
-Write-Host ("botruns: arms {0}, seeds {1}..{2}, skill {3}, {4} steps/frame -> {5}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $Skill, $Steps, $Out)
+Write-Host ("botruns: arms {0}, seeds {1}..{2}, version {3}, skill {4}, {5} steps/frame -> {6}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $BotVersion, $Skill, $Steps, $Out)
 
 $Missing = 0
 function Finish-Run($Run) {
@@ -91,7 +93,7 @@ function Start-Run($Label, $Seed, $Extra) {
 	$Log = Join-Path $RunDir "run.log"
 	$Record = Join-Path $RunDir "bot.csv"
 	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
-		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
+		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotVersion=$BotVersion", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
 		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $Extra
 	Reap-Runs ([Math]::Max(1, $Parallel))
 	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden

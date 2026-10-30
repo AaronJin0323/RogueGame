@@ -11,6 +11,8 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bot_compare  # noqa: E402
+import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
@@ -87,6 +89,43 @@ class Intercession(unittest.TestCase):
 	def test_a_mean_at_zero_passes_nothing(self):
 		checked, _ = probe.band_check({"a": 0.0, "b": 0.0}, 0.2)
 		self.assertFalse(checked["a"][1])
+
+
+class BotHistogram(unittest.TestCase):
+	"""T-BOT-12: deaths bin by minute, wins and timeouts stay out, batches line up by arm."""
+
+	ROWS = [
+		{"label": "None", "seed": "1", "outcome": "death", "end_s": "59.9", "reached_boss": "0", "bot_version": "2", "bot_skill": "0.30"},
+		{"label": "None", "seed": "2", "outcome": "death", "end_s": "60.0", "reached_boss": "0", "bot_version": "2", "bot_skill": "0.30"},
+		{"label": "Steered-Tide-Frost", "seed": "1", "outcome": "victory", "end_s": "950", "reached_boss": "1", "bot_version": "2", "bot_skill": "0.30"},
+		{"label": "Steered-Tide-Frost", "seed": "2", "outcome": "timeout", "end_s": "1100", "reached_boss": "1", "bot_version": "2", "bot_skill": "0.30"},
+	]
+
+	def test_bins(self):
+		self.assertEqual(bot_compare.histogram(self.ROWS), {0: 1, 1: 1})
+
+	def test_lines_up(self):
+		lines = bot_compare.compare([("a", self.ROWS), ("b", self.ROWS[:2])])
+		self.assertIn("| None | 0/2 0 1.0 | 0/2 0 1.0 |", lines)
+		self.assertIn("| Steered-Tide-Frost | 2/2 1 - | - |", lines)
+		self.assertIn("| **Steered** | 2/2 1 - | - |", lines)
+
+	def test_seeds(self):
+		lines = bot_compare.compare([("a", self.ROWS)], (2, 2))
+		self.assertIn("| None | 0/1 0 1.0 |", lines)
+
+
+class BotLabel(unittest.TestCase):
+	"""T-BOT-13: a batch names its version and skill, says when it mixes them, and old records read as v1."""
+
+	def test_note(self):
+		self.assertEqual(bot_compare.batch_note(BotHistogram.ROWS), "v2 skill 0.30")
+		mixed = BotHistogram.ROWS[:1] + [dict(BotHistogram.ROWS[1], bot_skill="1.00")]
+		self.assertTrue(bot_compare.batch_note(mixed).endswith("MIXED"))
+
+	def test_config(self):
+		self.assertEqual(bot_summary.read_config("policy=Steered path=Tide skill=0.60 seed=3 version=2"), ("2", "0.60"))
+		self.assertEqual(bot_summary.read_config("policy=Steered skill=1.00 seed=3"), ("1", "1.00"))
 
 
 class Ablation(unittest.TestCase):
