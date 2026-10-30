@@ -28,6 +28,7 @@ sim:
   HASH.CELL_UU:                { value: 200,  unit: uu,    tag: GATED(S0),  dependents: [07_Technical.md, Core/DTSpatialHash, T-TEC-13] }
   SIM.PLANE_Z_UU:              { value: 50,   unit: uu,    tag: CORE,       dependents: [07_Technical.md] }
 presentation:
+  HUD.BANNER_S:                { value: 2.5, unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-17] }
   PRE.CONTRAST_MIN:            { value: 3.0,  unit: ratio, tag: CORE,       dependents: [04_Presentation.md, T-PRE-05] }
   PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
 budget:

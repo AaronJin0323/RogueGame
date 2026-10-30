@@ -19,6 +19,14 @@ enum class EDTDirBlock : uint8
 	Boss
 };
 
+/** The banner of the moment (R-DIR-17); the HUD draws it. */
+enum class EDTDirBanner : uint8
+{
+	None,
+	Threat,
+	BossIncoming
+};
+
 /** Where the director's requests go. UDTDirector forwards them to the enemy, gem and telemetry systems; tests record them. */
 class IDTDirectorSink
 {
@@ -108,6 +116,8 @@ public:
 
 	// State (tests, stats, render).
 	EDTDirBlock GetBlock() const { return Block; }
+	/** R-DIR-17: what the HUD shows now. */
+	EDTDirBanner GetBanner() const;
 	double GetTime() const { return Time; }
 	float GetCredit() const { return Credit; }
 	float GetDropInProgress() const { return DropInProgress; }

@@ -273,6 +273,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.HERO.MAX_HP | 100 | hp | GATED(S1) | combat_core.md, T-CMB-10, T-DIR-02 |
+| C.HUD.BANNER_S | 2.5 | s | GATED(S1) | director.md, T-DIR-17 |
 | C.HERO.RADIUS_UU | 40 | uu | GATED(S1) | combat_core.md, T-CMB-03, T-CMB-08 |
 | C.HERO.MOVE_SPEED_UU_S | 600 | uu/s | GATED(S1) | combat_core.md, T-CMB-03 |
 | C.HERO.HURT_IFRAMES_S | 0.4 | s | GATED(S1) | combat_core.md, T-CMB-09 |

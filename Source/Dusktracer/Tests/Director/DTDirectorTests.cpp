@@ -13,6 +13,9 @@
 #include "Director/DTDirector.h"
 #include "Director/DTDirectorCore.h"
 #include "Enemies/DTEnemyPool.h"
+#include "Internationalization/StringTable.h"
+#include "Internationalization/StringTableCore.h"
+#include "Internationalization/StringTableRegistry.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -1050,6 +1053,30 @@ bool FDTDirBossHandoff::RunTest(const FString& Parameters)
 	TestFalse(TEXT("no threat block"), H.View.bThreatBlock);
 	TestTrue(TEXT("the director is in its Boss block"), H.Dir.GetBlock() == EDTDirBlock::Boss);
 	TestTrue(TEXT("the boss request is a dir_block with phase Boss"), H.Blocks.Num() > 0 && H.Blocks.Last().Phase == TEXT("Boss"));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDirBanners, "Dusktracer.Director.Banners", DTDirTest::Flags) // T-DIR-17
+bool FDTDirBanners::RunTest(const FString& Parameters)
+{
+	using namespace DTDirTest;
+	FHarness H(17, false, EKill::None);
+	H.Start();
+	H.RunTo(10.0);
+	TestTrue(TEXT("no banner in a Harvest block"), H.Dir.GetBanner() == EDTDirBanner::None);
+	const double Beat = DTCat::TimelineArena1[3].Start_s;
+	H.RunTo(Beat + 0.5);
+	TestTrue(TEXT("the beat's first seconds show Hud.Threat"), H.Dir.GetBlock() == EDTDirBlock::Threat && H.Dir.GetBanner() == EDTDirBanner::Threat);
+	H.RunTo(Beat + DTConst::HUD_BANNER_S + 0.5);
+	TestTrue(TEXT("the banner ends after C.HUD.BANNER_S, the beat goes on"), H.Dir.GetBlock() == EDTDirBlock::Threat && H.Dir.GetBanner() == EDTDirBanner::None);
+	H.RunTo(DTConst::RUN_LENGTH_TO_BOSS + 0.5);
+	TestTrue(TEXT("boss time shows Hud.BossIncoming"), H.Dir.GetBanner() == EDTDirBanner::BossIncoming);
+	H.RunTo(DTConst::RUN_LENGTH_TO_BOSS + DTConst::HUD_BANNER_S + 0.5);
+	TestTrue(TEXT("and it ends"), H.Dir.GetBanner() == EDTDirBanner::None);
+	FStringTableConstPtr Table = FStringTableRegistry::Get().FindStringTable(FName(TEXT("ST_UI")));
+	FString Text;
+	TestTrue(TEXT("Hud.Threat exists"), Table.IsValid() && Table->GetSourceString(TEXT("Hud.Threat"), Text));
+	TestTrue(TEXT("Hud.BossIncoming exists"), Table.IsValid() && Table->GetSourceString(TEXT("Hud.BossIncoming"), Text));
 	return true;
 }
 
