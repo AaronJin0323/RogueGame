@@ -27,7 +27,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - **R-WPN-04** A weapon levels from the first level to `C.WEAPON.LEVEL_MAX`; each level is one catalog row, and consecutive rows differ on exactly one axis of `damage`, `count`, `cooldown_s` or size (`radius_uu` with `area_r_uu`). Level values are the base the composition starts from (R-WPN-09); leveling is an offer pick (`offers.md`).
 
 **L16 Reforging**
-- **R-WPN-05** In S1 no weapon contributes a card to the L16 hand: the hand is built by `offers.md` from the Path transformations of `keepers.md`. Weapon evolutions (the `evolution` column) are S2. Any later reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
+- **R-WPN-05** In S1 no weapon contributes a card to the L16 hand: the S1 hand is the blessing filler of `offers.md` R-OFF-09. Weapon evolutions (the `evolution` column) and Path transformations are S2. Any later reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
 
 **Ballistics and the bullet-subsystem interface**
 - **R-WPN-06** Weapons step in `EDTSimPhase::Weapons`, per player, after `Enemies` published `FDTWorldView`. By carrier:
@@ -38,7 +38,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - **R-WPN-07** A weapon never changes enemy health, status or death state: every point of damage it causes reaches the enemy as an `FDTHit` resolved in `EDTSimPhase::ResolveHits` (R-BUL-05). Each hit's `SourceId` names its creator: the weapon's base pattern uses its one source `Weapon.<Name>`; an extra emission created by a modifier uses `Modifier.<Name>`, one created by a Keeper flag uses `Keeper.<Path>` (`telemetry.md` R-TEL-05). Reshaping the weapon's own rounds (conversion, charge, stillness) keeps `Weapon.<Name>`.
 
 **Flag expression**
-- **R-WPN-08** A behaviour flag `Flag.<Name>` (meaning: `keepers.md`) is expressed on a weapon by walking its effective caps in listed order through `09_Catalog/flag_compat.csv`; the first cap whose cell is not `none` decides: `native` runs the flag as specified, `fallback:<text>` runs that substitute. Every flag resolves to `native` or `fallback` on every weapon in the catalog, so a blessing always means something on every weapon. The S1 resolutions:
+- **R-WPN-08** A behaviour flag `Flag.<Name>` (meaning: `keepers.md` §2; a flag no S1 Keeper grants, such as `Ricochet`, means what the `modifiers.csv` row granting it says) is expressed on a weapon by walking its effective caps in listed order through `09_Catalog/flag_compat.csv`; the first cap whose cell is not `none` decides: `native` runs the flag as specified, `fallback:<text>` runs that substitute. Every flag resolves to `native` or `fallback` on every weapon in the catalog, so a blessing always means something on every weapon. The S1 resolutions:
 
 | Flag | Pulse, Ring | Drones (Orbit first) | Arc Blade (Melee first) | Gravity Mine (Mine first) |
 |---|---|---|---|---|
@@ -57,8 +57,8 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 
 **Readability, targeting, determinism**
 - **R-WPN-11** Every round, drone bolt, arc, slam ring, field and mine a weapon draws has the cool `Pal.Player.Core` core; tails, arcs, rings and zones take the leading Keeper's `Pal.Keeper.<Path>` or `Pal.Player.TrailNeutral` (R-PRE-01, R-PRE-02). No weapon visual uses red or magenta; melee arcs are never red.
-- **R-WPN-12** Targeting is per pattern (`target` column): `Nearest` (to the hero), `NearestToDrone`, `DensestCell` (the enemy-hash cell holding the most enemies within `range_uu`), `None` (Radial fires on cooldown regardless). Ties break on the lowest enemy index. A targeted weapon with no enemy in range does not fire and keeps its cooldown ready. All randomness a weapon needs comes from the weapons system's own `FRandomStream` derived from the run seed; the same seed and inputs give the same emissions and hits.
-- **R-WPN-13** A Gravity Mine is placed at its target cell, arms after `C.WEAPON.MINE_ARM_S`, then pulls for `C.WEAPON.MINE_PULL_TICKS` ticks of `C.WEAPON.MINE_PULL_TICK_S`: each tick moves enemies within `area_r_uu` × `C.WEAPON.MINE_PULL_RADIUS_RATIO` toward it at `C.WEAPON.MINE_PULL_SPEED_UU_S` (as displacement requests to the enemy system, never by writing enemy positions) and hits them for `damage` × `C.WEAPON.MINE_PULL_TICK_DAMAGE_RATIO`; then it detonates, one `FDTHit` per enemy within `area_r_uu`. At most `C.WEAPON.MINE_LIVE_MAX` mines per weapon are live; placing one more detonates the oldest at once.
+- **R-WPN-12** Targeting is per pattern (`target` column): `Nearest` (to the hero), `NearestToDrone`, `DensestCell` (the enemy-hash cell holding the most enemies within `range_uu`), `None` (Radial fires on cooldown regardless). Ties break on the lowest enemy index. A targeted weapon with no enemy in range does not fire and keeps its cooldown ready. When the player's aim mode is `Manual` (`combat_core.md` R-CMB-04), a `Nearest` weapon fires along `FDTWorldView::HeroAimDirs` instead, whenever ready. Crit is rolled once per emission (a round, or one arc or mine hit) against the composed `CritChance`; a crit multiplies that emission's damage by `CritMult` and sets `bCrit` on its hits. All weapon randomness draws from the `Combat` stream (R-TEC-02); the same seed and inputs give the same emissions and hits.
+- **R-WPN-13** A Gravity Mine is placed at its target cell, arms after `C.WEAPON.MINE_ARM_S`, then pulls for `C.WEAPON.MINE_PULL_TICKS` ticks of `C.WEAPON.MINE_PULL_TICK_S`: each tick moves enemies within `area_r_uu` × `C.WEAPON.MINE_PULL_RADIUS_RATIO` toward it at `C.WEAPON.MINE_PULL_SPEED_UU_S` (as `FDTDisplacement` entries in `FDTWorldView::Displacements`, `07_Technical §4`, never by writing enemy positions) and hits them for `damage` × `C.WEAPON.MINE_PULL_TICK_DAMAGE_RATIO`; then it detonates, one `FDTHit` per enemy within `area_r_uu`. At most `C.WEAPON.MINE_LIVE_MAX` mines per weapon are live; placing one more detonates the oldest at once.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -77,14 +77,13 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 ## Data
 | Field | Type | Notes |
 |---|---|---|
-| `weapons.csv` | catalog | `id stage caps pattern target fits level damage count cooldown_s radius_uu speed_uu_s range_uu pierce area_r_uu evolution tag ref`; S2 rows carry no level stats yet |
+| `weapons.csv` | catalog | `id stage starter caps pattern target fits level damage count cooldown_s radius_uu speed_uu_s range_uu pierce area_r_uu evolution tag ref`; `starter` = in the starter pool (`offers.md` R-OFF-07); S2 rows carry no level stats yet |
 | `flag_compat.csv` | catalog | one row per `Flag.*` (all eighteen), one column per `Cap.*`, cell `native` / `fallback:<text>` / `none` |
 | `UDTWeaponDef` | data asset, generated from the catalog | `Id` (`Weapon.*` tag), `Caps` (ordered `Cap.*`), `Pattern`, `Target`, `Levels[]`, `TextKey` |
 | `FDTWeaponInstance` | per player, in the run state | `Def`, `Level`, `AcquiredOrder`, `Cooldown`, `Sockets[]` (`Mod.*`), `Conversion`, `ShotCounter`, `SourceId` |
 | `FDTWeaponSpec` | composed per weapon (R-WPN-09) | `Damage Count Cooldown Radius Speed Life Pierce AreaRadius CritChance CritMult EffectiveCaps Behaviours[]` |
-| `FDTBulletSpawn` | `bullets.md` | filled from the spec; `SourceId` per R-WPN-07 |
-| `FDTHit` | `Core/DTSimTypes.h` | appended by arcs, mine ticks and detonations; never a direct damage write |
-| Displacement request | needed from the enemy system | `EnemyIndex Delta OwnerId`, applied in the next `Enemies` phase (see Open) |
+| `FDTBulletSpawn` | `bullets.md` | filled from the spec; `SourceId` per R-WPN-07; `WeaponSlot`, `bCrit` per R-WPN-12 |
+| `FDTHit`, `FDTDisplacement` | `07_Technical §4` | hits from arcs, mine ticks and detonations; mine pulls; never a direct damage or position write |
 
 ## Acceptance
 - T-WPN-01 PLANNED(S1) `Dusktracer.Weapons.CatalogRows`: every `weapons.csv` row parses; every S1 weapon has a row for each level up to `C.WEAPON.LEVEL_MAX` and a known pattern; a weapon def is built from rows alone.
@@ -98,27 +97,24 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - T-WPN-09 PLANNED(S1) `Dusktracer.Weapons.ComposeAndThrottle`: composition order and stacking are as stated; a weapon stacked past the spawn rate cap emits no more than the cap and counts the rest.
 - T-WPN-10 PLANNED(S1) `Dusktracer.Weapons.Conversion`: two conversions on one weapon leave only the higher-tier one; a converted volley is one arc with the stated damage; a partial conversion keeps `Projectile`.
 - T-WPN-11 PLANNED(S1) `Dusktracer.Weapons.Palette`: every weapon visual's core is `Pal.Player.Core` and no weapon visual resolves to a red or magenta token (pairs with T-PRE-01).
-- T-WPN-12 PLANNED(S1) `Dusktracer.Weapons.Determinism`: same seed and inputs give identical emissions and hits; a targeted weapon with no enemy in range does not fire.
+- T-WPN-12 PLANNED(S1) `Dusktracer.Weapons.Determinism`: same seed and inputs give identical emissions and hits; a targeted weapon with no enemy in range does not fire (in `Manual` aim a `Nearest` weapon fires along the aim); crit rates over a seeded sample match the composed chance.
 - T-WPN-13 PLANNED(S1) `Dusktracer.Weapons.Mine`: arm, pull ticks, detonation and the live cap behave as stated; enemy positions change only through displacement requests.
 - HUMAN: a validator can say in their own words what each S1 weapon does, and can see the difference when a Keeper flag changes it (split fans on the Ring Emitter, a cleave from the Pulse Rifle, the mine's pull).
 
 ## Telemetry
 - Per weapon and player, per interval: `weapon{source, level, load_rank, spawned, throttled, hits, damage}` (schema owned by `telemetry.md`; hits and damage already arrive by source through R-TEL-05).
-- `weapon_acquired{player, source, step}` and `weapon_level{player, source, level, step}` when an offer pick changes the loadout.
+- `weapon_acquired{source}` and `weapon_level{source, level}` (record `owner` = the player) when an offer pick changes the loadout.
 
 ## Text
 - Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label; budget two rows per weapon plus one; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.
 
 ## Out of scope
 - Weapon evolutions and fusions (S2, `evolution` column); the five S2 weapons' level rows.
-- Which weapons are in the starting pool and starting loadout (`offers.md` §3, `C.POOL.STARTER_WEAPONS`), the L16 hand (`offers.md` §5).
-- Flag meanings and parameters, Path transformations, Hunters (`keepers.md`); crit roll and status application in `ResolveHits` (`combat_core.md`).
+- How the `starter` column becomes the run pool, the starting loadout (`offers.md` R-OFF-07, `C.POOL.STARTER_WEAPONS`), the L16 hand (`offers.md` R-OFF-09).
+- Flag meanings and parameters, status procs (`keepers.md`); status behaviour and `ResolveHits` (`enemies.md`).
 - Per-weapon trails and VFX assets (`04_Presentation`).
 
 ## Open
-- Displacement requests (mine pull, `Flag.Pull`/`Push`, Backwash) need a queue on `FDTWorldView` applied by the enemy system → resolved in `enemies.md` / `07_Technical` before the mine is built.
-- `FDTHit` has no crit or status fields; `Flag.StatusApply`, `Mod.Conduit` and the crit cap need them → resolved by `combat_core.md` (hit resolution) in S1.
 - Source credit for conversions keeps the weapon's source, which may understate the Keeper share at L16 → checked against `Tools/power_split.py` on the first steered bot runs.
 - The MEASURED reference shows Gravity Mine an order of magnitude over every other weapon in a dense crowd, and Ring Emitter and Drones never one-shot a late swarm → tuned in the S1 catalog pass against `C.TTK.SWARM_STEERED_MAX`.
-- Suggested starting pool: Pulse Rifle, Ring Emitter, Orbital Drones, Arc Blade, with Gravity Mine as the first unlock → decided in `offers.md`.
 - Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass.

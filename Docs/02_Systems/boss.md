@@ -6,7 +6,7 @@ The run ends in one fight of pure pattern reading: telegraphed charges, then bul
 ## Rules
 - **R-BOS-01** Form by wins: the form is III at or above `C.BOSS.FORM_III_WINS` cumulative wins, II at or above `C.BOSS.FORM_II_WINS`, otherwise I; Heat and anything inside the run never change it. A form whose rows are missing in its catalogue plays form I and is counted. S1 ships form I only; form II (a phase-two counter to the player's main archetype) and form III are S2.
 - **R-BOS-02** Every form is identifiable within `C.BOSS.IDENTIFY_S` of the fight start: it has its own silhouette (kitbash) and fires its signature attack (the catalogue row marked `signature`) inside that window.
-- **R-BOS-03** The hull is one slot of role `Boss` in the enemy pool (R-ENM-01, never an Actor): weapons target it, bullets hit it through `ResolveHits`, its death is one `Kill` event to the killing hit's owner, and its stale handles follow R-ENM-23. The boss system moves it by script (no steering, no separation), keeps it inside the hazard ring, and keeps it at least the catalogue standoff from its target hero in phase I. Contact deals `C.BOSS.CONTACT_DAMAGE` through R-ENM-14; radius `C.BOSS.RADIUS_UU`.
+- **R-BOS-03** The hull is one slot of role `Boss` in the enemy pool (R-ENM-01, never an Actor): weapons target it, bullets hit it through `ResolveHits`, its death is one `Kill` event to the killing hit's owner, and its stale handles follow R-ENM-23. The boss system moves it by script (no steering, no separation, and every `FDTDisplacement` naming it is ignored), keeps it inside the hazard ring, and keeps it at least the catalogue standoff from its target hero in phase I. Contact deals `C.BOSS.CONTACT_DAMAGE` through R-ENM-14; radius `C.BOSS.RADIUS_UU`.
 - **R-BOS-04** Phases come from `09_Catalog/boss_warden.csv` and only advance: a phase starts when the effective HP fraction falls to its threshold or the fight time reaches its latest start, whichever comes first; one burst through several thresholds enters each phase in order. Each phase change starts a shift of `C.BOSS.PHASE_SHIFT_S` with no attack.
 - **R-BOS-05** Every attack is a catalogue row naming its telegraph shape; it obeys R-ENM-13 (red projected telegraph, at least `C.ENEMIES.TELEGRAPH_LEAD_MIN_S` before damage, footprint equal to the damage shape). Boss rounds are enemy fire (R-ENM-15, R-ENM-16, R-ENM-17; source role `Boss`) with radius `C.BOSS.BULLET_RADIUS_UU`; aim tokens (R-ENM-18) do not limit the boss.
 - **R-BOS-06** Ring slots: a ring of `count` slots puts its rounds at equal angles around the ring origin (the shoulder mirror heads in form I); the slot phase is a pure function of the fight step and the target bearing, never a random draw.
@@ -70,8 +70,8 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 - HUMAN: a validator who has never seen the Warden names its phase-II and phase-III skill checks after one fight, says every ring had a way through, and does not describe the fight as a damage sponge.
 
 ## Telemetry
-- `BossStart{Form, Wins, Players}`, `BossPhase{Phase, FightTime, HpFrac, ByTime}`, `BossCalibrated{WindowDps, EffectiveMax, Clamped}`.
-- `BossEnd{Outcome, FightTime, HpLeftFrac, Phase}`; per player: hero damage taken by attack, dashes, hits taken per ring.
+- JSONL records (`telemetry.md` format, `owner` `-1`): `boss_start{form, wins, players}`, `boss_phase{phase, fight_time_s, hp_frac, by_time}`, `boss_calibrated{window_dps, effective_max, clamped}`.
+- `boss_end{outcome, fight_time_s, hp_left_frac, phase, per_player{owner: {damage_taken_by_attack{}, dashes, hits_per_ring}}}`.
 - `ThreatAction{Role Boss, AttackId}` per attack started (same event as `enemies.md`).
 
 ## Text
@@ -80,7 +80,7 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 ## Out of scope
 - Forms II and III (S2): build counter, retreat behaviour, Keeper-colour phase, Codex unlock. Other arenas' bosses (later stages, same template).
 - Pausing regular spawns for the fight and the run's win screen: `director.md` and the run flow. Damage taken and dash: `combat_core.md`.
-- Control on control-immune targets converting to a vulnerability: a `keepers.md` decision.
+- Control on the boss converting into a vulnerability: S2 (S1 refuses Freeze, caps Chill, ignores displacement).
 
 ## Open
 - The boss kills too few players in the reference (every build that reached it won) → first S1 sessions set the target share of boss deaths; tune ring interval and damage rows, never HP.

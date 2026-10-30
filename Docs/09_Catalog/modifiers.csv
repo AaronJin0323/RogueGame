@@ -1,4 +1,4 @@
-id,stage,starter_candidate,flag,required_caps,blocked_caps,effect,param_1,value_1,param_2,value_2,param_3,value_3,fits,text_key,tag,ref
+id,stage,starter,flag,required_caps,blocked_caps,effect,param_1,value_1,param_2,value_2,param_3,value_3,fits,text_key,tag,ref
 Mod.SplitCore,S1,yes,Flag.Split,Projectile,Orbit;Lob;Mine;Melee,On hit a round splits into a fan of children (one generation),children,2,child_damage_ratio,0.6,fan_deg,30,Storm: split fans fill the screen,ST_Modifiers.SplitCore,GATED(S1),MEASURED(reference/text_tables/ST_Modifiers.csv; fan_deg first guess)
 Mod.ScatterShell,S1,yes,Flag.Split,Expiry;Mine,,At expiry or detonation a round bursts into a ring of children (one generation),children,6,child_damage_ratio,0.4,,,Storm: rings of children; Tide: rings seed the pull point,ST_Modifiers.ScatterShell,GATED(S1),MEASURED(original_docs/01_GameDesign.md 5.3; child ratio first guess)
 Mod.Pierce,S1,yes,,Projectile,,Rounds pass through more enemies before they are spent,pierce_add,3,,,,,Storm: chains start from every pierced enemy; Tide: lines of Chill,ST_Modifiers.Pierce,GATED(S1),MEASURED(original_docs/01_GameDesign.md 5.3)

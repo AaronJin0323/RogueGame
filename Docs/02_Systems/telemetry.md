@@ -11,7 +11,7 @@ Every run, from the first validation session on, leaves a per-interval CSV and a
 - **R-TEL-05** Damage, hits and kills are kept per (owner, source). A source is a small id on `FDTHit::SourceId` resolved through the name table `FDTTelemetrySources` (`Unknown`, `Stress`, later `Weapon.<Key>`, `Keeper.<Path>`, `Modifier.<Key>`); a hit nobody tagged is `Unknown`. Strings are never stored per hit.
 - **R-TEL-06** The CSV header is pinned (column list in §Data); changing it is a RULE change to this spec and its test.
 - **R-TEL-07** A session writes `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv` and `.jsonl` under the project's (or packaged build's) Saved directory (`FPaths::ProjectSavedDir`); this is the log export of the packaged build.
-- **R-TEL-08** Telemetry is deterministic: the same seed and the same steps give a byte-identical CSV and identical JSONL except the wall-clock field of `run_start`.
+- **R-TEL-08** Telemetry is deterministic: the same seed and the same steps give a byte-identical CSV and identical JSONL except wall-clock fields. A wall-clock field is named `wall` or `wall_*` and exists only where sim time cannot measure the quantity (`run_start.wall`; time spent in hands, which pause the sim: `offer_pick.wall_decide_s`, `run_end.wall_paused_s`); tools never compare them.
 - **R-TEL-09** Output is buffered in memory and appended off the game thread on one ordered pipe: flushed at every interval end and at run end (the last partial interval is written then, its rates over the elapsed time); the game thread never waits on disk except at run end.
 
 ## Numbers
@@ -34,15 +34,15 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `player` | int | owner index (R-TEC-01) |
 | `kills_per_min` | float | kills per `C.TEL.RATE_UNIT_S` |
 | `swarm_ttk_s` | float | `C.TEL.TTK_PERCENTILE` of spawn-to-death times (R-TEL-03) |
-| `damage_taken_per_min` | float | zero until the hero takes damage (S1) |
-| `dashes_per_min` | float | zero until the hero dashes (S1) |
+| `damage_taken_per_min` | float | applied damage as a share of max HP (each hit ÷ max HP at that hit) per `C.TEL.RATE_UNIT_S`; compares with `C.DMG_TAKEN.BAND_MIN10_13` |
+| `dashes_per_min` | float | `Dash` events (`combat_core.md`) |
 | `level` | int | `FDTPlayerRunState::Level` at the interval end |
 | `live_bullets`, `live_enemies` | int | at the interval end (world, repeated per player) |
 | `recycled_bullets`, `refused_spawns` | int | during the interval (R-BUL-03, R-ENM-01) |
-| `threat_actions_per_min` | float | zero until threats exist (S1) |
+| `threat_actions_per_min` | float | threat actions started within the threat ring of this player's hero (`director.md`, `enemies.md`) |
 | `nearest_enemy_uu` | float | `C.TEL.NEAREST_PERCENTILE` over steps of the nearest enemy to this player's hero |
 | `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt |
-| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` or `unknown`; current culture; `unknown` until S1 |
+| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` or `unknown`; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
 
 JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run).
 
@@ -53,9 +53,8 @@ JSONL: one object per line; every record starts with `t` (sim seconds), `step`, 
 | `hit` | `hits damage damage_by_source{name: damage}` | once per player per step with hits (R-TEL-04) |
 | `sources` | `interval damage{} kills{} hits{}` by source name | per player at each interval end |
 | `run_end` | `reason steps unowned_events mirror_desyncs` | session end |
-| `offer_shown` (S1) | `offer_id cards[{key kind weight}] reroll_left` | planned |
-| `offer_taken` / `offer_skipped` (S1) | `offer_id key` / `offer_id` | planned |
-| `offer_rerolled` / `offer_banished` / `offer_locked` (S1) | `offer_id key` | planned |
+
+S1 kinds are defined in the owning spec's §Telemetry, in this record format, aggregated per step per player whenever they can occur more than once per step (R-TEL-04): `offer` `offer_pick` `offer_tool` (`offers.md`); `keeper_pick` `keeper_commit` `intercession` `status` (`keepers.md`); `dash` `hero_damaged` `hero_down` (`combat_core.md`); `xp` `level_up` `gems_merged` (`progression.md`); `weapon` `weapon_acquired` `weapon_level` (`weapons.md`); `modifier_socketed` `modifier_dormant` (`modifiers.md`); `dir_block` (`director.md`); `boss_start` `boss_phase` `boss_calibrated` `boss_end` (`boss.md`). `run_end` gains the per-player fields of `offers.md` and `progression.md`. A new kind or field is legal without a change here; a CSV column is not (R-TEL-06).
 
 Code: `FDTTelemetryCore` (plain C++), `FDTTelemetryWriter` (pipe), `FDTTelemetrySources`, `UDTTelemetrySubsystem`; `ADTGameMode` starts the session with the run seed and ends it in `EndPlay`; the enemy subsystem reports spawns and brackets `ResolveHits`. Debug (not in Shipping, R-TEC-12): `DT.Stats` prints the interval in progress per player; `DT.Stats.Flush` queues the buffer now.
 
@@ -69,7 +68,7 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 - T-TEL-05 `Dusktracer.Telemetry.Sources`: the name table is stable; kills and damage are credited per (owner, source) to the hit that landed them.
 - T-TEL-06 `Dusktracer.Telemetry.CsvHeader`: the header equals the pinned column list.
 - T-TEL-07 `Dusktracer.Telemetry.Files`: files go to `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv|.jsonl` and exist after a write.
-- T-TEL-08 `Dusktracer.Telemetry.Determinism`: a real fight (enemy and bullet pools) twice with the same seed gives an identical CSV and JSONL except `run_start.wall`; another seed differs.
+- T-TEL-08 `Dusktracer.Telemetry.Determinism`: a real fight (enemy and bullet pools) twice with the same seed gives an identical CSV and JSONL except `wall` / `wall_*` fields; another seed differs.
 - T-TEL-09 `Dusktracer.Telemetry.Buffered`: mid-interval output is only buffered events; run end writes the partial row and `run_end`; appends land in order.
 - HUMAN: after a stress-arena run, `Saved/Playtests` holds the run's pair of files and `python -I Tools/power_split.py` reads them.
 
@@ -80,9 +79,8 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 - None: telemetry shows no player-facing text (`DT.Stats` is a debug log line).
 
 ## Out of scope
-- Offer events (schema above, emitted by the offer system in S1), healing, per-effect trigger / VFX / audio counts, damage taken by source, threat actions, outcome cause beyond the end-play reason (S1 systems emit them).
+- The S1 record kinds listed in §Data (their specs own them); healing, per-effect trigger / VFX / audio counts, outcome cause beyond the end-play reason.
 - Ablation-based value budget (`model.md`): the S2 gate may replace attribution by ablation.
 
 ## Open
-- Source tags on bullets: the bullet pool carries no source yet, so stress hits read `Unknown` → resolved when weapons land (S1) by a `SourceId` on `FDTBulletSpawn`.
 - Build hash is `unknown` until the build defines `DT_BUILD_HASH` → resolved by a one-line build rule change.

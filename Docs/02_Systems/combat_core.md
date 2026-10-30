@@ -9,12 +9,12 @@ The hero is the one body the player drives: it moves, dashes and calls its Keepe
 - **R-CMB-03** Movement: the hero's velocity is the move input (clamped to unit length, so a keyboard diagonal is not faster) times `C.HERO.MOVE_SPEED_UU_S` times the move-speed stat, with no acceleration or deceleration. The hero stays inside `±C.ARENA.HALF_EXTENT_UU` less `C.HERO.RADIUS_UU`. Enemies never block the hero and the hero never pushes enemies.
 - **R-CMB-04** Aim is optional and never required: each step the hero publishes an aim direction per player (`FDTWorldView::HeroAimDirs`). In `Auto` mode (the default) it points at the nearest enemy (`EnemyHash`), holding the last direction when none is near. In `Manual` mode (a player option) it is the mouse cursor projected onto the sim plane at `C.SIM.PLANE_Z_UU`, or the right stick beyond the dead zone; a neutral stick holds the last direction. There is no aim assist. Weapons read the aim direction only when their targeting rule says so (`weapons.md`).
 - **R-CMB-05** Weapons fire automatically on their own cadence: there is no fire input in either mapping. In play the player has exactly two action inputs, dash and Intercession (`00_Vision §3`: no second ultimate input).
-- **R-CMB-06** Dash: a dash press with at least one charge spends a charge and moves the hero `C.DASH.DISTANCE_UU` over `C.DASH.DURATION_S` at constant speed, in the move-input direction or, with no move input, the last move direction; move input is ignored while dashing and the arena clamp still applies. Spent charges refill one at a time, one per `C.DASH.COOLDOWN_S` times the cooldown stat; the maximum is `C.DASH.CHARGES` plus stat bonuses. The hero is invulnerable for the whole dash. Each dash emits one `Dash` event with its `OwnerId` (the `OnDash` hook of the effect manager).
+- **R-CMB-06** Dash: a dash press with at least one charge spends a charge and moves the hero `C.DASH.DISTANCE_UU` over `C.DASH.DURATION_S` at constant speed, in the move-input direction or, with no move input, the last move direction; move input is ignored while dashing and the arena clamp still applies. Spent charges refill one at a time, one per `C.DASH.COOLDOWN_S` times the cooldown stat; the maximum is `C.DASH.CHARGES` plus stat bonuses. The hero is invulnerable for the whole dash and publishes `HeroIntangible` for it (enemy rounds pass through, `enemies.md` R-ENM-16). Each dash emits one `Dash` event with its `OwnerId` (the `OnDash` hook of the effect manager).
 - **R-CMB-07** Dash budget: with base stats, the sustained dash rate (one charge per cooldown) is at least the upper end of `C.DASHES.BAND_MIN10_13`, so the band is reachable without any blessing; the band itself is met by threats that demand dashes (`director.md`), not by the hero.
-- **R-CMB-08** Damage intake reads the world view, never actors: (a) contact — every enemy whose circle overlaps the hero's circle, found through `FDTWorldView::EnemyHash` with the hero radius plus the largest enemy radius, deals its role's contact damage; (b) every `FDTHeroHit` that enemy bullets and enemy hazards appended to `FDTWorldView::HeroHits`. Both are read in the `Hero` phase from what the previous step published, then `HeroHits` is cleared. Enemy damage arrives already scaled (`director.md` R-DIR-10); the hero applies only its own damage-taken stats.
-- **R-CMB-09** One hit per window: while the hero is neither dashing nor in hurt i-frames, the largest pending damage of the step is applied (ties: contact before bullet before hazard, then the lower enemy index), then the hero is invulnerable for `C.HERO.HURT_IFRAMES_S`. Every other pending damage of that step, and all damage during dash or hurt i-frames, is discarded, never queued. Each applied hit emits one `HeroDamaged` event with its `OwnerId`.
+- **R-CMB-08** Damage intake reads the world view, never actors: every `FDTHeroHit` (`07_Technical §4`) in `FDTWorldView::HeroHits` — contact (`enemies.md` R-ENM-14), enemy rounds (R-ENM-16), hazards (arrivals, boss) — is read in the `Hero` phase from what the previous step published, then `HeroHits` is cleared. The hero never searches for contacts itself. Enemy damage arrives already scaled (`director.md` R-DIR-10); the hero applies only its own damage-taken stats.
+- **R-CMB-09** One hit per window: while the hero is neither dashing nor in hurt i-frames, the largest pending damage of the step is applied (ties: contact before bullet before hazard, then the lower enemy serial), then the hero is invulnerable for `C.HERO.HURT_IFRAMES_S`. Every other pending damage of that step, and all damage during dash or hurt i-frames, is discarded, never queued. Each applied hit emits one `HeroDamaged` event with its `OwnerId`.
 - **R-CMB-10** Death: the step HP reaches zero or below, the hero goes down exactly once, emits `HeroDown`, and stops moving, dashing, aiming and firing; its input is ignored. The run ends with reason `Death` the step every player's hero is down (`ADTGameMode` ends the run; revive is `coop.md`). Winning is the boss kill (`boss.md`).
-- **R-CMB-11** Intercession: each player has one meter that starts the run empty and fills over `C.HERO.INTERCESSION_CHARGE_S` of sim time times the cooldown stat (Keepers may add sources, `keepers.md`). An `IA_Intercession` press with a full meter and a patron Keeper empties the meter and emits one `Intercession` event `{OwnerId, Path}`; what it does is `keepers.md`. A press with the meter not full, or without a patron, changes nothing in the sim and plays a deny cue. The meter does not fill while the sim is paused (offers, pause).
+- **R-CMB-11** Intercession: each player has one meter that starts the run empty and fills over `C.HERO.INTERCESSION_CHARGE_S` of sim time times the cooldown stat (Keepers may add sources, `keepers.md`). An `IA_Intercession` press with a full meter empties the meter and emits one `Intercession` event `{OwnerId, Path}` (the Patron, picked before the first step, `offers.md` R-OFF-08); what it does is `keepers.md`. A press with the meter not full changes nothing in the sim and plays a deny cue. The meter does not fill while the sim is paused (offers, pause).
 - **R-CMB-12** The hero is deterministic and driveable: the same seed and the same per-step `FDTHeroInput` sequence give bit-identical hero states. The bot (S1) and the test harness drive the hero through the same `FDTHeroInput`, never through private setters. Hero randomness, if any is ever added, comes only from the `Combat` stream (R-TEC-02).
 
 ## Numbers
@@ -49,8 +49,7 @@ Sources: base HP, move speed, dash and Intercession timings are the previous pro
 | `FDTHeroState.Intercession01` | `float` | meter, zero to one |
 | `FDTHeroState.bDown` | `bool` | set once (R-CMB-10) |
 | `FDTHeroInput` | struct | `Move`, `AimStick`, `AimCursorWorld` (`FVector2f`), `bAimCursorValid`, pending `DashPress`/`IntercessionPress` with age, `Device` |
-| `FDTHeroHit` | struct, `Core/DTSimTypes.h` | `PlayerIndex Amount Kind{Contact, Bullet, Hazard} Role SourceId`; appended by enemy systems |
-| `FDTWorldView::HeroAimDirs`, `HeroHits` | arrays | new view fields next to `HeroPositions` |
+| `FDTHeroHit`; `HeroAimDirs`, `HeroIntangible`, `HeroHits` | struct; view fields | `07_Technical §4` (the one definition) |
 | Aim mode | `EDTAimMode{Auto, Manual}` per player | player option, default `Auto`; saved with settings |
 
 Input mapping (assets in `Content/DT/Input/`, built headless, R-TEC-06):
@@ -63,7 +62,7 @@ Input mapping (assets in `Content/DT/Input/`, built headless, R-TEC-06):
 | `IA_Intercession` | button | Q | left shoulder |
 | `IA_Pause` | button | Esc | Start |
 
-Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `HeroDamaged{Amount, HpAfter, MaxHp, Kind, Role, SourceId}`, `HeroDown`, `Intercession{Path}`, `IntercessionDenied`.
+Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `HeroDamaged{Amount, HpAfter, MaxHp, Kind, SourceRole, AttackId}`, `HeroDown`, `Intercession{Path}`, `IntercessionDenied`.
 
 ## Acceptance
 - T-CMB-01 PLANNED(S1) `Dusktracer.Combat.Hero.PerPlayerState`: two players step independently; `HeroPositions` holds both; the pawn adds no movement component and moving it by hand does not change the sim state.
@@ -73,17 +72,17 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 - T-CMB-05 PLANNED(S1) `Dusktracer.Combat.Input.NoFireAction`: both mapping contexts bind exactly the five actions above; no action fires weapons; weapons fire with no input.
 - T-CMB-06 PLANNED(S1) `Dusktracer.Combat.Hero.Dash`: a dash covers `C.DASH.DISTANCE_UU` in `C.DASH.DURATION_S` along move input, or the last move direction with none; charges refill one per cooldown; damage during the dash is discarded; one `Dash` event per dash.
 - T-CMB-07 PLANNED(S1) `Dusktracer.Combat.Hero.DashBudget`: from the generated constants, base charges and cooldown sustain at least the upper end of `C.DASHES.BAND_MIN10_13` per minute.
-- T-CMB-08 PLANNED(S1) `Dusktracer.Combat.Hero.IntakeFromView`: an overlapping enemy deals its contact damage; a `FDTHeroHit` deals its amount; both are read one step after they were published; `HeroHits` is empty after the hero phase.
+- T-CMB-08 PLANNED(S1) `Dusktracer.Combat.Hero.IntakeFromView`: a contact, a bullet and a hazard `FDTHeroHit` each deal their amount, read one step after they were published; `HeroHits` is empty after the hero phase; the hero adds no contact of its own.
 - T-CMB-09 PLANNED(S1) `Dusktracer.Combat.Hero.HitWindow`: three contacts and a bullet in one step apply only the largest; nothing applies for `C.HERO.HURT_IFRAMES_S`; a pile of enemies deals at most one hit per window; one `HeroDamaged` per applied hit.
 - T-CMB-10 PLANNED(S1) `Dusktracer.Combat.Hero.Death`: lethal damage downs the hero once and emits `HeroDown` once; a downed hero ignores input; one of two players down keeps the run going; both down ends it with `Death`.
-- T-CMB-11 PLANNED(S1) `Dusktracer.Combat.Hero.Intercession`: the meter starts empty and fills in `C.HERO.INTERCESSION_CHARGE_S`; a press when full emits one event and empties it; a press when not full or without a patron emits `IntercessionDenied` only; a paused sim does not fill it.
+- T-CMB-11 PLANNED(S1) `Dusktracer.Combat.Hero.Intercession`: the meter starts empty and fills in `C.HERO.INTERCESSION_CHARGE_S`; a press when full emits one event and empties it; a press when not full emits `IntercessionDenied` only; a paused sim does not fill it.
 - T-CMB-12 PLANNED(S1) `Dusktracer.Combat.Hero.Determinism`: a recorded input sequence replayed twice gives bit-identical hero states; the bot input path gives the same states as the same inputs fed by the harness.
 - HUMAN: on KBM and on pad only, in the S1 slice, a validator moves, dashes through a telegraphed charge line and fires the Intercession without reading the controls page; they never look for a fire button; dashes per minute in the band window of a steered run land in `C.DASHES.BAND_MIN10_13` (telemetry `dashes_per_min`).
 
 ## Telemetry
 - `dash` record per dash: `owner dir_x dir_y charges_after` (dash rates are low; one line each is within R-TEL-04's spirit) and the CSV column `dashes_per_min`.
-- `hero_damaged` record per applied hit: `owner amount hp_after max_hp kind role source`; the CSV column `damage_taken_per_min` as a share of max HP so it compares with `C.DMG_TAKEN.BAND_MIN10_13`.
-- `hero_down{owner}`, `intercession{owner path}`, per-interval count of `intercession_denied` per player.
+- `hero_damaged` record per applied hit: `owner amount hp_after max_hp kind role attack`; the CSV column `damage_taken_per_min` is a share of max HP (`telemetry.md` §Data).
+- `hero_down{owner}`; per-interval count of `intercession_denied` per player. The `intercession` record per cast is `keepers.md`'s.
 - `input_device` column: the device that last produced gameplay input (`kbm` or `pad`) at the interval end.
 
 ## Text
@@ -97,7 +96,5 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 - Pad glyph art, rebinding UI and the settings screen (S3).
 
 ## Open
-- Telemetry's `damage_taken_per_min` column has no unit yet; this spec needs it as a share of max HP → resolved by a `telemetry.md` RULE change when the hero lands.
-- `FDTHeroHit`, `HeroAimDirs` and `HeroHits` are new `FDTWorldView` fields; `07_Technical` R-TEC-14 names the view's contents → resolved when the hero code lands (one line in `07_Technical`).
 - Aim assist is omitted because no S1 weapon needs precise aim → revisit if `weapons.md` adds a manual-aim weapon or pad validators miss in `Manual`.
 - Intercession charge by time only, as in the previous project; whether kills should also charge it → resolved by S1 sessions against `C.INTERCESSION.BAND`.
