@@ -32,8 +32,15 @@ Every rule is checked on the rendered frame at gameplay camera, not on swatches.
 - **R-PRE-09** Colour comes only from the tokens of §3: code, materials and UI styles read a token by name; a literal colour outside the token source is a lint error. Changing a token value is a PRESENT change with a before/after capture.
   - T-PRE-09 `Tools/gen_constants.py --check` (gate step `constants`): `Source/Dusktracer/Core/DTPaletteGen.h` is generated from the §3 table and matches it; no hex colour literal (`FromHex`, `#RRGGBB`/`RRGGBB` string) appears in `Source/` outside generated files.
 
-- **R-PRE-11** Control the player holds is visible on the ground, in cool tokens only, and presentation reads sim state, never writes it. A Stillness aura is a ring in `Pal.Keeper.Tide` whose outer edge is `charged_aura_uu` while a charge is held, `C.PRE.AURA_RING_UU` thick plus up to `C.PRE.AURA_PULSE_UU` inward as it pulses. A Frozen wall (`frozen_blocks_enemies`) is a flat `Pal.Keeper.Tide` plate of `C.PRE.WALL_PLATE_RATIO` of the enemy's radius under each enemy that player Froze. A Frozen hold (`freeze_until_hit`) is a square frame in `Pal.Player.Core`, half-side `C.PRE.HOLD_FRAME_RATIO` of the radius, `C.PRE.HOLD_FRAME_UU` thick, around each held enemy: shape and colour both tell it from the wall. Ring and frame draw at `C.PRE.CUE_Z_UU`, under telegraphs (R-PRE-03), all three at `C.PRE.CUE_EMISSIVE`.
-  - T-PRE-11 `Dusktracer.Pre.ControlCues`: each cue appears exactly when the sim is doing what it shows; footprints match; cue tokens reach `C.PRE.CONTRAST_MIN` against both ground references at the drawn emissive, stay in the cool hues and are never an enemy or telegraph token.
+- **R-PRE-11** Control the player holds is visible around what it holds, in cool tokens only, and presentation reads sim state, never writes it. Hues are judged on the rendered frame, so flat marks that must read as their token (telegraphs, cues) draw unlit on `M_CueColor`: a lit quad takes the warm sun, and the tonemapper then slides it off its token. Every cue shows what the sim is doing now:
+  - **Stillness dial** (any owner of `Flag.Stillness`, Trait or not): `Pal.Keeper.Tide`, one closed ring per charge held, the first of outer radius `C.PRE.CHARGE_RING_RATIO` of the hero's radius, each `C.PRE.CHARGE_RING_UU` thick, the next `C.PRE.CHARGE_RING_GAP_UU` further out; the charge being gathered shows as up to `C.PRE.CHARGE_TICKS` ticks round the next ring, each `C.PRE.CHARGE_TICK_FILL` of its share of the circle. Walking clears it; dashing keeps the rings.
+  - **Stillness aura** (`charged_aura_uu`): a ring in `Pal.Keeper.Tide` whose outer edge is `charged_aura_uu` while a charge is held, `C.PRE.AURA_RING_UU` thick plus up to `C.PRE.AURA_PULSE_UU` inward as it pulses.
+  - **Frozen wall** (`frozen_blocks_enemies`): a flat `Pal.Keeper.Tide` plate of `C.PRE.WALL_PLATE_RATIO` of the enemy's radius under each enemy that player Froze.
+  - **Frozen hold** (`freeze_until_hit`): a square frame in `Pal.Player.Core`, half-side `C.PRE.HOLD_FRAME_RATIO` of the radius, `C.PRE.HOLD_FRAME_UU` thick, around each held enemy.
+  - **Plain Frozen** (every other Frozen enemy): a diamond in `Pal.Player.TrailNeutral`, half-diagonal `C.PRE.FROZEN_CUE_RATIO` of the radius, `C.PRE.FROZEN_CUE_UU` thick. An enemy with a wall or a hold shows those instead.
+
+  Draw order, floor up: zones (fields, mine zones, the wall plate) at `C.PRE.ZONE_Z_UU`, `C.PRE.ZONE_HALF_UU` to either side, so a disc never hides a cue, a telegraph or a hero's legs; dial and aura at `C.PRE.CUE_Z_UU`, under telegraphs (R-PRE-03); frame and diamond at `C.SIM.PLANE_Z_UU`, around the hull's own middle, so the camera's tilt cannot slide them off it. Dial, aura and plate draw at `C.PRE.CUE_HUE_EMISSIVE`, frame and diamond at `C.PRE.CUE_EMISSIVE`.
+  - T-PRE-11 `Dusktracer.Pre.ControlCues`: each cue appears exactly when the sim is doing what it shows; footprints match; the draw order holds; cue tokens reach `C.PRE.CONTRAST_MIN` against both ground references at the drawn emissive, stay in the cool hues and are never an enemy or telegraph token.
 
 ## 3. Palette tokens (binding)
 
@@ -42,7 +49,7 @@ Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colou
 | Token | sRGB | Y | Use | Contrast requirement | Status |
 |---|---|---|---|---|---|
 | `Pal.Player.Core` | #EEF7FF | 0.92 | core of every player round | vs both ground refs, both weathers | from art book (A3 near-white core) |
-| `Pal.Player.TrailNeutral` | #9CD2FF | 0.58 | player trail while no Keeper is held | trail is not a carrier; core carries | owner (D-008) |
+| `Pal.Player.TrailNeutral` | #9CD2FF | 0.58 | player trail while no Keeper is held; plain Frozen cue (R-PRE-11) | trail is not a carrier; core carries | owner (D-008) |
 | `Pal.Hero.Armour` | #D9DDE2 | 0.72 | hero armour; brightest neutral object | vs both ground refs, both weathers | owner (D-008) |
 | `Pal.Keeper.Storm` | #7FB4FF | 0.44 | trail, rig light, conduits, HUD, cards | rendered emissive vs `Pal.Ground.Bright` | art book A1 |
 | `Pal.Keeper.Forge` | #FF9F3A | 0.46 | as Storm; trail only, never the head | as Storm; hue stays clear of the enemy band | art book A1 |
@@ -127,3 +134,5 @@ Binding but not yet set (owned by the arena post-process volume, S0): depth of f
 | Enemy optic `#FF3B9E` and enemy round `#FF2D8A` are two near-identical hues; unify into one danger hue? | side-by-side capture at gameplay camera |
 | Exposure value per weather, bloom threshold | first S0 stress-arena captures; become `C.PRE.*` keys when measured |
 | Per-weapon hue variation inside the cool range, or one core for all weapons | S1 playtest: can players tell weapons apart by shape alone |
+| `Pal.Telegraph` at its true red is low in luminance: rendered Y 0.21 (#F32F27) against the rendered floor's 0.10 is 1.8:1, and the token against `Pal.Ground.Bright` is 1.2:1, under `C.PRE.CONTRAST_MIN` (R-PRE-05). The coral it replaced reached 2.6:1 by leaving its hue. Change the token, the ground reference, or the rule for hue-carried elements? | T-PRE-05 on captures in both weathers; a human reading of the red on the floor |
+| `Pal.Keeper.Tide` renders at its hue (182, token 183) but paler (saturation 0.34, token 0.52): the tonemapper desaturates, and a lower emissive darkens it below the cue contrast of T-PRE-11. Accept, or grade the tonemapper for all colours? | T-PRE-05 and a human reading; a grade changes every token |
