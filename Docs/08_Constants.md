@@ -198,6 +198,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.KEEPER.BLESSINGS_PER_ARCHETYPE | 4 | n | CORE | keepers.md R-KEE-01 (Key, Amp1, Amp2, Trait), expression.csv, T-KEE-01 |
 | C.KEEPER.TRAIT_PREREQ_CARDS | 2 | n | GATED(S1) | keepers.md R-KEE-04, offers.md, T-KEE-04 |
 | C.KEEPER.PACKAGE_GAIN_BAND | 2.0–2.4 | × crowd DPS | GATED(S1) | keepers.md R-KEE-18, T-KEE-18 (reference D-57) |
+| C.KEEPER.PULL_INTERVAL_S | 2.0 | s | GATED(S1) | keepers.md R-KEE-21, T-KEE-21 (D-016) |
 | C.TIER.FAVOR_PER_BLESSING | 1 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
 | C.TIER.FAVOR_T1 | 3 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
 | C.TIER.FAVOR_T2 | 6 | favor | CORE | keepers.md R-KEE-07, T-KEE-07 |
