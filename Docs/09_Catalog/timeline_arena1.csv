@@ -1,0 +1,18 @@
+start_s,phase,duration_s,spawn_rate_per_s,cap,w_swarm,w_tank,w_rusher,w_turret,dropin_interval_s,dropin_w_rusher,dropin_w_turret,event,event_count,note
+0,Harvest,,2.4,90,1.00,0.00,0.00,0.00,,,,,,opening flock (GATED S1; old 15-min timeline with D-71 Harvest x1.5)
+67.5,Harvest,,2.8,90,0.85,0.15,0.00,0.00,,,,,,+ Tank
+135,Harvest,,3.2,180,0.75,0.15,0.10,0.00,,,,,,+ Rusher
+225,Threat,45,2.4,180,0.55,0.15,0.30,0.00,,,,EliteWave,2,first elite wave
+270,Harvest,,3.6,180,0.70,0.12,0.10,0.08,12,0.70,0.30,,,+ Turret; drop-ins start (kill horizon)
+337.5,Threat,30,2.6,180,0.60,0.10,0.15,0.15,,,,SwarmRing,40,ring forces a break-out
+405,Harvest,,4.4,300,0.68,0.12,0.12,0.08,12,0.70,0.30,,,cap 300
+450,Harvest,,4.8,300,0.66,0.12,0.13,0.09,10,0.70,0.30,,,drop-ins every 10 s
+450,Threat,45,3.0,300,0.50,0.15,0.20,0.15,,,,EliteWave,3,second elite wave
+562.5,Threat,30,3.0,300,0.50,0.10,0.30,0.10,,,,RusherStampede,12,charge lines from one arc
+600,Harvest,,5.8,300,0.64,0.12,0.14,0.10,10,0.70,0.30,,,band window opens (C.DIR.BAND_WINDOW_S)
+675,Harvest,,6.2,300,0.64,0.12,0.14,0.10,7,0.70,0.30,,,drop-ins every 7 s
+675,Threat,45,3.2,300,0.50,0.15,0.20,0.15,,,,EliteWave,4,third elite wave
+720,Harvest,,6.6,400,0.62,0.12,0.15,0.11,7,0.70,0.30,,,cap 400 (C.ENEMIES.CAP)
+787.5,Threat,30,3.2,400,0.55,0.10,0.15,0.20,,,,TurretNest,6,aimed bursts to weave
+810,Harvest,,7.5,400,0.62,0.12,0.15,0.11,5,0.70,0.30,,,drop-ins every 5 s
+900,Boss,,0,400,0,0,0,0,,,,Boss,1,C.RUN.LENGTH_TO_BOSS: Warden (boss.md)
