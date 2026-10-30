@@ -20,12 +20,12 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- `dev/s1-pass2` (local, not pushed): gaps, balance pass 2, Keeper params expressed; gate PASS at `ac55c81` (215 tests), perf PASS (scene grants no blessings). Holds feel-changing work until the owner plays `main`. Evidence on that branch: `Docs/Validation/S1_balance_pass2.md`, `S1_tide_expression.md`
-- Pull rule (per-enemy interval, new D-nnn) and the Field `status` / layer radius gaps, on a branch off `dev/s1-pass2`
+- `dev/s1-pass2` (local, not pushed): gaps, balance pass 2, Keeper params expressed, Pull rule (D-016); gate PASS at `6662f6a` (218 tests), perf PASS (scene grants no blessings). Holds feel-changing work until the owner plays `main`. Evidence on that branch: `Docs/Validation/S1_balance_pass2.md`, `S1_tide_expression.md`, `S1_pull_rule.md`
+- Bot tuning paused: what remains needs a human reading
 
 ## Queue (next 5)
 1. Owner playtest of `main` (feel check before validators; `Harness/H03 §4`: no feel-changing merge past an unplayed checkpoint), then merge `dev/s1-pass2`
-2. Re-run the `:Tide` arms after the Pull rule; `Whirlpool.Key` is the suspect (boss 1 of 77 with it, 7 of 13 without)
+2. Field `status` cost wins without Tide (56 → 40; boss hazard hits nearly doubled): trace it; opening-seconds boss HP calibration explains part. T-OFF-15 reads 199/201 low on `dev/s1-pass2`
 3. RULE candidate from pass 2: share caps on a floor of alive enemies
 4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
