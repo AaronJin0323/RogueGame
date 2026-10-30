@@ -73,16 +73,73 @@ T-DIR-01 stays a v1 check (R-DIR-01): its band says nothing about v2 below 1.0. 
 2. Skill-0 limits, after two more passes on three arms × 6 seeds: reaction 0.45 → 0.26 s, hold 0.18 → 0.1 s, cue miss 0.5 → 0.4, stick error 30 → 10°, look-ahead 0.3 → 0.4 s, late dash 0.12 → 0.16 s, extra clearance 120 uu. Tuned to a slope with no human target, stopped once the slope stood: these are tool parameters and the numbers only mean "between these settings".
 3. Reach also cost a first extra weapon: seed 12 of the Tide arms kept a lone rifle at 21 s and died about 130 s sooner than v1. Early on the crowd is in contact, so a blade pays even when kiting later says otherwise. Below two weapons a new weapon now beats an upgrade (`SecondWeaponFloor`); reach still chooses between weapons. This is why 117 Arc Blades remain.
 
+## The stall: an instrument fault, fixed (R-BOT-14)
+**The tables above are the reading with the fault in it.** They stand as what was read; skill 0.6 and 0.3 are read again here. Forge/Hammer seed 2's 17 hits in 47 s, and the four deaths in minutes 0-1 (which are two runs, each in an arm and its second-Keeper twin), came from the bot, not the game.
+
+**Cause.** `ThreatAlong` scores a body at its closest approach on a path, discounted by when that comes. Inside the clearance (`MarginUU`, 66 uu at 0.6 and 102 at 0.3) a path leaving the body has its closest approach now, so it reads at full strength; standing still has it later, so it reads discounted. Standing beat walking off. The trace: a chaser at 120 uu with one enemy in 300 uu scored 449 along the escape and 230 standing. The hero stood, and got hit: across 14 traced runs at 0.6 the stick rested in 2% of decisions with the nearest enemy 150-200 uu off, and in 60% inside 100 uu. A path that merely passed inside the clearance also read as an immediate threat, so dashes went on brushes and every hit in Tide/Whirlpool seed 5 found 0 charges. Separately, a press into a wall scored as a free escape: seed 2 pushed into the corner at (-3960,-3960) and stood there for 8 s. The widened clearance (change 1 above) turned a narrow v1 quirk into this: v1's 18 uu has the same term and 7% of hits at 1.0 land with the stick at rest. The game did what it should: contact, i-frames and movement all behaved.
+
+**Fix.** R-BOT-14. Replay: `Dusktracer.Bot.LeavesClearance` failed first, then passed. No skill profile value changed; `LeaveUU` is new and is 0 at 1.0.
+
+**Before/after,** same tree, batches `base_*` and `fix_*` (`-Out Saved\BotRuns\base_060` at commit 9c52e42, `fix_060` at cdb4925). `base_060` is not the 63/7 above: `main` merged D-019 into this branch in between. Replays: `Forge/Hammer` seed 2 at 0.6 keeps `input_hash` c9700def with the counters added.
+
+| Arm | v2 1.0 | 0.6 before | 0.6 after | 0.3 before | 0.3 after |
+|---|---|---|---|---|---|
+| None | 0/15 0 9.8 | 0/15 0 7.4 | 0/15 0 6.9 | 0/15 0 5.7 | 0/15 0 7.2 |
+| Forge/Furnace:Tide | 9/15 5 12.1 | 0/15 0 7.4 | 4/15 2 7.0 | 0/15 0 4.6 | 4/15 0 10.5 |
+| Forge/Furnace | 15/15 13 16.8 | 3/15 1 7.4 | 11/15 6 15.3 | 0/15 0 4.7 | 8/15 3 13.6 |
+| Forge/Hammer:Tide | 12/15 7 15.2 | 2/15 0 7.4 | 4/15 1 12.0 | 0/15 0 5.0 | 7/15 0 14.1 |
+| Forge/Hammer | 15/15 15 - | 9/15 0 15.2 | 14/15 5 15.9 | 1/15 0 5.8 | 11/15 3 15.1 |
+| Forge/Slam:Tide | 7/15 6 13.3 | 0/15 0 7.9 | 7/15 2 10.1 | 0/15 0 5.5 | 2/15 1 9.6 |
+| Forge/Slam | 14/15 13 14.6 | 4/15 0 9.4 | 13/15 4 15.8 | 1/15 0 5.4 | 10/15 0 15.2 |
+| Storm/ArcGrid:Forge | 15/15 13 16.7 | 6/15 1 10.1 | 14/15 7 15.7 | 2/15 0 7.7 | 13/15 2 15.3 |
+| Storm/ArcGrid | 10/15 9 11.5 | 6/15 0 12.7 | 9/15 4 13.2 | 1/15 0 8.0 | 8/15 1 15.0 |
+| Storm/Downpour:Forge | 15/15 15 - | 8/15 1 15.1 | 15/15 9 15.8 | 1/15 0 9.8 | 14/15 4 15.6 |
+| Storm/Downpour | 13/15 12 14.3 | 8/15 0 15.3 | 14/15 4 15.8 | 3/15 0 7.3 | 10/15 3 15.3 |
+| Storm/Tempest:Forge | 14/15 14 9.0 | 1/15 1 7.9 | 12/15 6 15.3 | 0/15 0 3.9 | 8/15 1 14.8 |
+| Storm/Tempest | 9/15 9 10.0 | 0/15 0 8.3 | 8/15 4 10.0 | 1/15 0 3.9 | 5/15 1 13.2 |
+| Tide/Frost:Storm | 13/15 11 10.6 | 2/15 0 8.0 | 8/15 7 8.2 | 0/15 0 5.7 | 4/15 1 11.0 |
+| Tide/Frost | 9/15 4 15.0 | 1/15 0 8.2 | 6/15 3 10.4 | 0/15 0 5.7 | 3/15 0 9.5 |
+| Tide/Stillness:Storm | 7/15 7 8.7 | 1/15 0 7.1 | 9/15 3 12.6 | 1/15 0 5.7 | 5/15 1 8.5 |
+| Tide/Stillness | 5/15 3 11.4 | 3/15 0 7.9 | 4/15 1 9.1 | 0/15 0 6.1 | 3/15 1 8.3 |
+| Tide/Whirlpool:Storm | 11/15 8 13.4 | 2/15 0 6.5 | 8/15 4 6.8 | 0/15 0 4.9 | 6/15 1 12.6 |
+| Tide/Whirlpool | 2/15 2 10.5 | 0/15 0 6.3 | 5/15 0 9.4 | 0/15 0 4.9 | 3/15 1 9.2 |
+| **Steered (270)** | 195 166 12.6 | 56 4 8.2 | 165 72 13.3 | 11 0 5.5 | 124 24 13.5 |
+
+| Steered measure | v2 1.0 | 0.6 before | 0.6 after | 0.3 before | 0.3 after |
+|---|---|---|---|---|---|
+| Median run end s | 967 | 495 | 928 | 333 | 844 |
+| Hits per run | 5.6 | 9.3 | 6.6 | 10.2 | 7.1 |
+| Hits with the stick at rest | 7% | 32% | 12% | 51% | 7% |
+| Hits at a wall | 14% | 11% | 13% | 5% | 10% |
+| Dashes/min, 600-780 s (runs in window) | 4.98 (233) | 5.79 (97) | 2.10 (200) | 5.84 (28) | 2.56 (187) |
+| Damage share/min, same window | 0.06 | 0.17 | 0.16 | 0.25 | 0.15 |
+| Deaths before minute 5 | 8 | 28 | 12 | 104 | 0 |
+| Deaths in minutes 5-10 | 36 | 162 | 72 | 141 | 103 |
+| Deaths from minute 15 | 29 | 52 | 93 | 11 | 100 |
+| Commonest last hits | Boss, Rusher, Tank | Tank, Rusher, Boss | Boss, Rusher, Swarm | Tank, Rusher, Swarm | Boss, Rusher, Swarm |
+
+Deaths by minute, Steered arms:
+- 0.6 before: 0:2 1:4 2:8 3:10 4:4 5:21 6:38 7:40 8:28 9:18 10:17 11:6 12:4 13:5 14:9 15:41 16:11
+- 0.6 after: 2:2 3:8 4:2 5:8 6:11 7:14 8:12 9:13 10:14 11:5 12:7 13:6 14:3 15:62 16:29 17:2
+- 0.3 before: 2:28 3:35 4:41 5:60 6:27 7:32 8:12 9:7 10:3 11:5 12:3 13:2 14:4 15:10 16:1
+- 0.3 after: 5:6 6:12 7:27 8:21 9:17 10:20 11:10 12:8 13:12 14:13 15:83 16:16 17:1
+
+**What the fault was hiding.** Skill 0.6's 7 wins of 270 came from it: on this tree 4 wins before, 72 after. Minutes 0-1 at 0.6 hold no deaths now; Forge/Hammer seed 2 reaches the boss (958 s) and Tide/Whirlpool seed 5 goes 100 → 935 s. The hump at minutes 6-8 was mostly the fault too: minutes 5-10 fall 162 → 72 and spread flat. The hump at 15 is real to this bot and grew, because runs now get there: the boss is the commonest last hit at both skills.
+
+**v1 and skill 1.0.** 24 runs each (4 arms, seeds 1..6), before against after the fix: v2 at 1.0 24 of 24, v1 at 1.0 24 of 24, v1 at 0.6 24 of 24 identical `input_hash`, end time and outcome.
+
 ## What reads wrong
-- **Skill 0.3's reaction is 0.18 s, faster than a typical human, and it still loses every run.** At human-like latency the bot died at minutes 1 to 3: its movement is a per-step danger search with no real plan, so it has no way to absorb latency beyond clearance. The skill number is a position on this bot's own scale, not a human percentile.
-- **Skill 0.6 is thin at the top:** 7 wins in 270, against 74 for v1 at 0.6, which has the same 0.10 s delay but no cue misses, attention limit or card error. If S2's "bots win a full run" means a mid skill, this knob does not yet say so; at 1.0 it does.
-- **The fall from 1.0 to 0.6 is steep and the histogram is two-humped** (minutes 6-8, and 15 at the boss). A real population may look like this or may not; only O-008 can say.
-- **Pickup barely moves with skill** (0.71 → 0.67, reference 0.51), so level timing stays an early bound at every skill. Weaker runs die sooner rather than collect worse.
-- **Dashes per minute are flat** at about 5.8; a weak player's dash rate should differ. Windows at 0.3 hold only 30 runs.
-- **Four deaths in minutes 0-1 at 0.6.** Forge/Hammer seed 2 took 17 hits in 47 s with 7 enemies alive, which looks like a stall in the clearance search, not a weak player. Not traced to the end; a fault in the instrument until shown otherwise.
+- **The fault is frozen in at the top.** V1 and skill 1.0 keep the term R-BOT-14 removes, as R-BOT-01 and R-BOT-03 require: 7% of their hits still land with the stick at rest. The bound is a little below what it could be. Whether the frozen term should go is a decision for when the default flips (`bot.md` Open), and it would move every S1 reading.
+- **The knob is now out of order in places.** Skill 0.3 has no death before minute 5 and 0.6 has 12; no-pick lasts longer at 0.3 (7.2) than at 0.6 (6.9); the Steered median death minute is 13.5 against 13.3. The larger `LeaveUU` and clearance help more than the slower hands cost. Boss reach and wins still fall with skill (195/166, 165/72, 124/24). Not traced; a mix of the two, not one cause, is the likely reading.
+- **The skill-0 limits were tuned around the fault.** Changes 1 and 2 above (clearance growth, reaction capped at 0.26 s after "minutes 1 to 3" at human latency) were read through it. They are left alone: there is no human target (O-008). Their rationale is out of date and 0.3's fall is shallower than those passes wanted.
+- **Dashes per minute fell below the ceiling:** 2.1 at 0.6, 2.6 at 0.3, 4.98 at 1.0. Brushes no longer ask for a dash, so most of the old rate was that fault. Whether a weak player dashes this rarely, only O-008 can say. The three parts of R-BOT-14 were not split from each other.
+- **Skill 0.3's reaction is 0.18 s, faster than a typical human.** It now reaches the boss in 124 of 270. The skill number is a position on this bot's own scale, not a human percentile.
+- **The histogram is still two-humped,** with one hump now at the boss (minutes 15-16) and a flat shelf at 6-10. A real population may look like this or may not; only O-008 can say.
+- **Corners stay a trap:** the kite still runs into them (10-13% of hits at a wall). That reads as a player's mistake and is left in.
+- **Pickup barely moves with skill** in the first reading (0.71 → 0.67, reference 0.51), so level timing stays an early bound at every skill. Not re-read after the fix.
 - **The second-Keeper rule costs some arms at 1.0:** Forge/Hammer:Tide wins 10 → 7, Tide/Whirlpool reach 6 → 2, Tide/Frost wins 8 → 6, while Tide/Whirlpool:Storm reach 5 → 10 and Tide/Stillness:Storm 5 → 11. With 15 seeds a single arm moves by chance too. Blessing Tide sooner hurting Forge fits `S1_balance_pass2.md` §6 (Tide is what loses), but that was not separated from noise here, nor split from the reach rule.
 - **Off-archetype Keys remain:** Tide/Whirlpool seed 12 takes the Stillness Key before its own, as v1 does. V2 does not plan toward an unseen Key.
 - **Not modelled:** rerolls, banishes, locks, closing to melee range, learning across runs.
 
 ## Tool parameters at this reading
-Skill 0 (`DTBotSkillTuning`): `MaxReactionS` 0.26, `MaxHoldS` 0.1, `MaxCueMissP` 0.4, `MinAttentionRounds` 10 (80 just below skill 1), `MinThreatRangeUU` 800, `MinHorizonS` 0.4, `MaxStickErrDeg` 10, `MaxExtraMarginUU` 120, `MinImminentS` 0.16, `MaxCastCrowd` 24, `MaxTasteScore` 30. Cards (`DTBotTuning`): `ReachPenalty` 60, `ModReachShare` 0.5, `SecondWeaponFloor` 61, `SecondFirstScore` 94, `SecondNextScore` 65; `StickTauS` 0.5.
+Skill 0 (`DTBotSkillTuning`): `MaxReactionS` 0.26, `MaxHoldS` 0.1, `MaxCueMissP` 0.4, `MinAttentionRounds` 10 (80 just below skill 1), `MinThreatRangeUU` 800, `MinHorizonS` 0.4, `MaxStickErrDeg` 10, `MaxExtraMarginUU` 120, `MaxLeaveUU` 240, `MinImminentS` 0.16, `MaxCastCrowd` 24, `MaxTasteScore` 30. Cards (`DTBotTuning`): `ReachPenalty` 60, `ModReachShare` 0.5, `SecondWeaponFloor` 61, `SecondFirstScore` 94, `SecondNextScore` 65; `StickTauS` 0.5, `WallProbeUU` 10.

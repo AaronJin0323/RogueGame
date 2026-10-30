@@ -14,6 +14,7 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 - **R-BOT-05** Missed cues (`Harness/H07 §5`): each telegraph is noticed or missed once, when it first reaches the bot, with probability `CueMissP`; a missed cue stays unseen until it ends. The boss's hazard ring is never missed: it stands on screen for the whole phase.
 - **R-BOT-06** Attention: below `1.0` the bot tracks only the `AttentionRounds` nearest enemy rounds, within a shorter `ThreatRangeUU` and a shorter look-ahead `HorizonS`. Enemy bodies are always all seen: a crowd is not a cue one can miss.
 - **R-BOT-07** Dodge error: below `1.0` the chosen direction carries a stick error that drifts slowly (time constant `StickTauS`) rather than a new random angle per decision, a dash is pressed later (`ImminentS`), it lands where the hero was heading unless a plan roll (`DashPlanP`) passes, and Intercession waits for a larger crowd (`CastCrowd`).
+- **R-BOT-14** A slower player walks off what it is too close to: below `1.0` a path that only leaves a body or round counts nothing for it (`LeaveUU` into the clearance), a path that passes without touching counts its depth in the clearance and asks for no dash, and a press into an arena wall is scored as the move it makes, not the one asked for. `LeaveUU` is `0` at `1.0`, so R-BOT-01 and R-BOT-03 hold by construction.
 - **R-BOT-08** Aim: v2 stays in the default `Auto` aim (`combat_core.md` R-CMB-04) at every skill. A player has to opt into `Manual`, so a weaker player has no aim error to model. V1 below `1.0` switches to `Manual` with noise on each decision; that stays as it is under R-BOT-01 and is why v1's sub-`1.0` numbers are not a player.
 
 **Cards** (Steered policy; None and Random are unchanged)
@@ -22,7 +23,7 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 - **R-BOT-11** Card error: below `1.0` the bot reads each card's value through a taste: a score offset fixed per content id for the whole run (`TasteScore`), so it keeps misjudging the same card rather than rolling dice per hand. The fit terms of R-BOT-09 and R-BOT-10 count at weight `skill`: a weak player sees them less. Keeper cards take no taste: the Patron and second Keeper name the arm, and an arm must stay the arm it says it is.
 
 **Reading it**
-- **R-BOT-12** The bot record gives what the S2 gates read: `version`, `skill` (in `config=`), the outcome, the end time, and the hit that ended the run (`last_hit`: hit kind, role, attack id). `Tools/bot_summary.py` writes the death-minute histogram per arm; `Tools/bot_compare.py` lines up batches arm by arm on boss reach, wins and median death minute.
+- **R-BOT-12** The bot record gives what the S2 gates read: `version`, `skill` (in `config=`), the outcome, the end time, the hit that ended the run (`last_hit`: hit kind, role, attack id), and the hits taken: all, with the stick at rest, within 100 uu of an arena edge (`hits`, `hits_still`, `hits_wall`). `Tools/bot_summary.py` writes the death-minute histogram per arm; `Tools/bot_compare.py` lines up batches arm by arm on boss reach, wins and median death minute, and prints the hit shares per batch.
 - **R-BOT-13** Every reported bot number names its version and skill and is a bound until calibrated against humans. `C.XP.REFERENCE_PICKUP_RATIO` is the only human anchor today; a skill that reads near it on pickup is a hint, never a calibration.
 
 ## Numbers
@@ -30,7 +31,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 
 | Constant | Key | Tag | Dependents |
 |---|---|---|---|
-| Skill profile | `DTBotSkillTuning::*`, `DTBotTuning::StickTauS` | tool parameter | R-BOT-04…08, T-BOT-03 |
+| Skill profile | `DTBotSkillTuning::*`, `DTBotTuning::StickTauS`, `WallProbeUU` | tool parameter | R-BOT-04…08, R-BOT-14, T-BOT-03, T-BOT-14 |
 | Card scores | `DTBotTuning::ReachPenalty`, `ModReachShare`, `SecondWeaponFloor`, `SecondFirstScore`, `SecondNextScore`, `DTBotSkillTuning::MaxTasteScore` | tool parameter | R-BOT-09…11 |
 | Reach sampling | `DTBotTuning::ReachSampleS`, `ReachWindowS`, `ReachMinSamples`, `ReachPriorUU` | tool parameter | R-BOT-09 |
 
@@ -39,7 +40,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 |---|---|---|
 | `FDTBotConfig::Version` | `int32` | `1` or `2`; default `1` (R-BOT-01) |
 | `FDTBotConfig::Skill` | `float` | clamped to the unit range; v1 and v2 read it differently |
-| `FDTBotSkillProfile` | struct | `ReactionS HoldS MarginUU CueMissP AttentionRounds ThreatRangeUU HorizonS StickErrDeg DashPlanP ImminentS CastCrowd TasteScore FitAwareness` |
+| `FDTBotSkillProfile` | struct | `ReactionS HoldS MarginUU LeaveUU CueMissP AttentionRounds ThreatRangeUU HorizonS StickErrDeg DashPlanP ImminentS CastCrowd TasteScore FitAwareness` |
 | `FDTBotPerception` | class | ring of past frames, the attended rounds, the cue list (R-BOT-04…06) |
 
 ## Acceptance
@@ -56,10 +57,11 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - T-BOT-11 `Dusktracer.Bot.CardTaste`: no taste at skill `1.0`; below it the same card reads the same score across hands of a run, differs by seed, and Keeper hands ignore it.
 - T-BOT-12 `Tools/tools_test.py` `BotHistogram`: death minutes bin per arm, wins and timeouts stay out of the histogram, `Tools/bot_compare.py` lines up two batches.
 - T-BOT-13 `Tools/tools_test.py` `BotLabel`: the summary names version and skill read from the records and says a batch mixes them.
+- T-BOT-14 `Dusktracer.Bot.LeavesClearance`: below `1.0` a slower chaser inside the clearance is walked away from, not waited for, and in a corner the stick takes the way out along the wall; `LeaveUU` is `0` at skill `1.0` and shrinks with skill.
 - HUMAN: not measured. When O-008 sessions exist, compare human boss reach, death minute and pickup against the skill rows of `Docs/Validation/S2_bot_v2.md`, and only then call any setting a player.
 
 ## Telemetry
-- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>` and `config=` gains `version=`. The game's telemetry is unchanged.
+- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>`, `hits=`, `hits_still=`, `hits_wall=`, and `config=` gains `version=`. The game's telemetry is unchanged.
 
 ## Text
 - None: a tool, never player-facing.
