@@ -21,6 +21,7 @@ namespace DTPal
 	inline constexpr FColor Enemy_Optic = FColor(255, 59, 158); // #FF3B9E
 	inline constexpr FColor Elite_Light = FColor(255, 122, 194); // #FF7AC2
 	inline constexpr FColor Telegraph = FColor(255, 42, 42); // #FF2A2A
+	inline constexpr FColor Telegraph_Edge = FColor(0, 0, 0); // #000000
 	inline constexpr FColor Ground_Bright = FColor(126, 121, 112); // #7E7970
 	inline constexpr FColor Ground_Lit = FColor(102, 98, 91); // #66625B
 	inline constexpr FColor Ground_Shadow = FColor(52, 50, 47); // #34322F

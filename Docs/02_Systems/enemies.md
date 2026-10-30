@@ -72,7 +72,7 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 | `FDTEnemyBulletPool` | SoA | `Pos PrevPos Vel Radius Damage LifeLeft TargetPlayer SourceRole AttackId` |
 | `FDTHeroHit`, `FDTHit`, `FDTKill`, `FDTDisplacement` | structs | `07_Technical §4` |
 | `FDTStatusApply` | struct | `Handle Status Magnitude OwnerId SourceId StackBonus FreezeAt FreezeScale`; `Magnitude` = Burn damage per second or Chill stacks; appended to `FDTWorldView::StatusApplies` (owned here) |
-| `FDTTelegraph` | struct | `Shape(Band Ring Arc AimLine) Origin Dir Length Width Progress`; published per step, drawn in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE` |
+| `FDTTelegraph` | struct | `Shape(Band Ring Arc AimLine) Origin Dir Length Width Progress`; published per step, drawn in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE` in the layers of `04_Presentation` R-PRE-05 |
 | view fields | `FDTWorldView` | writers and readers: `07_Technical §4` |
 | instance custom data | `float[4]` | `0-2` linear RGB, `3` emissive strength (`M_InstanceColor`, telegraphs the unlit `M_CueColor`; fallback `Fallback_EnemyMaterial`); enemy rounds add `4-6` core linear RGB (`M_EnemyRound`, R-ENM-17) |
 
@@ -114,7 +114,7 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - T-ENM-22 `Dusktracer.Enemies.StatusEffect`: Shock raises damage taken; a full Burn deals exactly damage per second times duration and its kill goes to the burner; Chill slows per stack; Freeze stops movement and pauses a wind-up; contact damage unchanged.
 - T-ENM-23 `Dusktracer.Enemies.SlotGenerations`: after an enemy dies and its slot is refilled (by swap and by a new spawn), an old handle is invalid, a hit with the old serial is ignored, and a bullet that hit the old enemy can hit the new one.
 - T-ENM-24 `Dusktracer.Enemies.OpticPart`: every live enemy has exactly one hull and one optic instance; the hull colour equals `Pal.Enemy.Body` with zero emissive; the optic equals `Pal.Enemy.Optic`.
-- T-ENM-25 `Dusktracer.Enemies.TelegraphRender`: every published telegraph draws on one instanced renderer (a band or aim line one quad over its length and width, a ring or arc tessellated around its origin) at `C.ENEMIES.TELEGRAPH_Z_UU`, in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE`; the instance count follows `Telegraphs` every frame, an empty arena draws none, and no actor is added.
+- T-ENM-25 `Dusktracer.Enemies.TelegraphRender`: every published telegraph draws on one instanced renderer (a band or aim line one quad over its length and width, a ring or arc tessellated around its origin) from `C.ENEMIES.TELEGRAPH_Z_UU`, in the layers of `04_Presentation` R-PRE-05: a `Pal.Telegraph.Edge` band outside the footprint, a `Pal.Telegraph` fill ramping with `Progress`, a `Pal.Telegraph` rim on the footprint at `C.ENEMIES.TELEGRAPH_EMISSIVE`; the instance count follows `Telegraphs` every frame, an empty arena draws none, and no actor is added.
 - T-ENM-26 `Dusktracer.Enemies.ThreatTelemetry`: a Turret burst inside the threat ring of the hero is forwarded from the enemy subsystem to telemetry and fills `threat_actions_per_min`; without the call the column stays zero.
 - HUMAN: in PIE with `DT.Spawn` per role, a validator names each role from above by silhouette and optic alone, sees every Rusher band and Turret aim line before damage, flanks a Tank, and weaves a Turret burst; enemy rounds are never confused with player rounds.
 
@@ -136,6 +136,6 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - Kill horizon: strong builds kill Rushers before `C.ROLE.RUSHER_TRIGGER_UU` → `director.md` (drop-ins, threat ring); a longer trigger is a TUNE after the first S1 session.
 - Turret radius has no measured source → first S1 capture of the Turret grey box.
 - S1 implementation deviations (non-behavioural):
-  - Telegraphs draw as flat quads of one instanced plane (`ADTTelegraphRenderer`) at constant `C.ENEMIES.TELEGRAPH_EMISSIVE`; `Progress` does not ramp the fill yet. Ring and Arc have no producer: the renderer reads Ring as outer radius `Length`, thickness `Width` (none = filled disc) and Arc as a filled sector of radius `Length` around `Dir` whose full angle in degrees is `Width` → confirm or change with `boss.md`.
+  - Telegraphs draw as flat quads of one instanced plane (`ADTTelegraphRenderer`). Ring and Arc have no producer: the renderer reads Ring as outer radius `Length`, thickness `Width` (none = filled disc) and Arc as a filled sector of radius `Length` around `Dir` whose full angle in degrees is `Width` → confirm or change with `boss.md`.
   - `HeroHits` is reset at the start of the Enemies phase (the hero has read it in the Hero phase), so the list stays bounded while no hero system is registered.
   - The optic part's size is `C.ENEMIES.OPTIC_SCALE`.

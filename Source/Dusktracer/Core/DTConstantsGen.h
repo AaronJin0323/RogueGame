@@ -53,6 +53,10 @@ namespace DTConst
 	inline constexpr int32 PRE_CHARGE_RING_GAP_UU = 28; // uu, GATED(S1)
 	inline constexpr int32 PRE_CHARGE_TICKS = 12; // n, GATED(S1)
 	inline constexpr float PRE_CHARGE_TICK_FILL = 0.6f; // ratio, GATED(S1)
+	inline constexpr int32 PRE_TELEGRAPH_EDGE_UU = 16; // uu, GATED(S1)
+	inline constexpr int32 PRE_TELEGRAPH_RIM_UU = 16; // uu, GATED(S1)
+	inline constexpr float PRE_TELEGRAPH_FILL_MIN = 0.5f; // ratio, GATED(S1)
+	inline constexpr float PRE_TELEGRAPH_LAYER_UU = 0.5f; // uu, GATED(S1)
 	// budget
 	// BUDGET_RES = '1080p60' (res_fps, CORE) - not a number; no constant generated
 	inline constexpr int32 BUDGET_GAME_THREAD_P50_MS = 8; // ms, CORE

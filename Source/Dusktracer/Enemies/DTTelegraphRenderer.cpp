@@ -1,6 +1,7 @@
 #include "Enemies/DTTelegraphRenderer.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Core/DTConstantsGen.h"
+#include "Core/DTPaletteGen.h"
 #include "Dusktracer.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -180,12 +181,108 @@ int32 ADTTelegraphRenderer::GetInstanceCount() const
 	return Instances->GetInstanceCount();
 }
 
+bool ADTTelegraphRenderer::OffsetShape(const FDTTelegraph& T, float OutwardUU, FDTTelegraph& Out)
+{
+	using namespace DTTelegraphRender;
+	Out = T;
+	// The angle an offset subtends at the rim: sector sides move by it, so they sit OutwardUU off at the rim and meet at the origin.
+	const float SideDegrees = T.Length > 0.0f ? FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(OutwardUU / T.Length, -1.0f, 1.0f))) : 0.0f;
+	switch (T.Shape)
+	{
+	case EDTTelegraphShape::Band:
+	case EDTTelegraphShape::AimLine:
+	{
+		const FVector2f Dir = T.Dir.IsNearlyZero() ? FVector2f(1.0f, 0.0f) : T.Dir.GetSafeNormal();
+		Out.Origin = T.Origin - Dir * OutwardUU;
+		Out.Length = T.Length + 2.0f * OutwardUU;
+		Out.Width = T.Width + 2.0f * OutwardUU;
+		return Out.Length > 0.0f && Out.Width > 0.0f;
+	}
+	case EDTTelegraphShape::Ring:
+		Out.Length = T.Length + OutwardUU;
+		if (!IsFilledRing(T))
+		{
+			Out.Width = T.Width + 2.0f * OutwardUU;
+			return Out.Length > 0.0f && Out.Width > 0.0f;
+		}
+		return Out.Length > 0.0f;
+	case EDTTelegraphShape::Arc:
+		Out.Length = T.Length + OutwardUU;
+		Out.Width = FMath::Clamp(T.Width + 2.0f * SideDegrees, 0.0f, 360.0f);
+		return Out.Length > 0.0f && Out.Width > 0.0f;
+	case EDTTelegraphShape::RingGap:
+	case EDTTelegraphShape::SpiralLane:
+		// Width is the undrawn lane: growing the shape closes it.
+		Out.Length = T.Length + OutwardUU;
+		Out.Width = FMath::Clamp(T.Width - 2.0f * SideDegrees, 0.0f, 360.0f);
+		return Out.Length > 0.0f;
+	default: // HazardRing: Length is the safe circle, so growing the hazard shrinks it
+		Out.Length = FMath::Max(0.0f, T.Length - OutwardUU);
+		return true;
+	}
+}
+
+float ADTTelegraphRenderer::FillScale(float Progress)
+{
+	return FMath::Lerp(static_cast<float>(DTConst::PRE_TELEGRAPH_FILL_MIN), 1.0f, FMath::Clamp(Progress, 0.0f, 1.0f));
+}
+
+int32 ADTTelegraphRenderer::InstancesDrawn(const FDTTelegraph& T)
+{
+	int32 Count = InstancesFor(T);
+	FDTTelegraph Layer;
+	Count += OffsetShape(T, static_cast<float>(DTConst::PRE_TELEGRAPH_EDGE_UU), Layer) ? InstancesFor(Layer) : 0;
+	Count += OffsetShape(T, -static_cast<float>(DTConst::PRE_TELEGRAPH_RIM_UU), Layer) ? InstancesFor(Layer) : 0;
+	return Count;
+}
+
+void ADTTelegraphRenderer::AddLayer(const FDTTelegraph& Telegraph, float Z, const float* Data)
+{
+	const int32 From = Transforms.Num();
+	AppendTransforms(Telegraph, MeshSizeUU, Z, Transforms);
+	for (int32 Added = From; Added < Transforms.Num(); ++Added)
+	{
+		CustomScratch.Append(Data, NumCustomData);
+	}
+}
+
 void ADTTelegraphRenderer::SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraphs)
 {
 	Transforms.Reset();
-	for (const FDTTelegraph& Telegraph : Telegraphs)
+	CustomScratch.Reset();
+	if (bEdged)
 	{
-		AppendTransforms(Telegraph, MeshSizeUU, DrawZ, Transforms);
+		// Floor up: every dark band, every rim, every fill, so a neighbour's band never covers red (R-PRE-05, R-PRE-06).
+		const float LayerZ = static_cast<float>(DTConst::PRE_TELEGRAPH_LAYER_UU);
+		const FLinearColor Edge = DTPal::Linear(DTPal::Telegraph_Edge);
+		const float EdgeData[NumCustomData] = { Edge.R, Edge.G, Edge.B, 1.0f };
+		FDTTelegraph Layer;
+		for (const FDTTelegraph& Telegraph : Telegraphs)
+		{
+			if (OffsetShape(Telegraph, static_cast<float>(DTConst::PRE_TELEGRAPH_EDGE_UU), Layer))
+			{
+				AddLayer(Layer, DrawZ, EdgeData);
+			}
+		}
+		for (const FDTTelegraph& Telegraph : Telegraphs)
+		{
+			AddLayer(Telegraph, DrawZ + LayerZ, CustomData);
+		}
+		for (const FDTTelegraph& Telegraph : Telegraphs)
+		{
+			if (OffsetShape(Telegraph, -static_cast<float>(DTConst::PRE_TELEGRAPH_RIM_UU), Layer))
+			{
+				const float FillData[NumCustomData] = { CustomData[0], CustomData[1], CustomData[2], CustomData[3] * FillScale(Telegraph.Progress) };
+				AddLayer(Layer, DrawZ + 2.0f * LayerZ, FillData);
+			}
+		}
+	}
+	else
+	{
+		for (const FDTTelegraph& Telegraph : Telegraphs)
+		{
+			AddLayer(Telegraph, DrawZ, CustomData);
+		}
 	}
 
 	const int32 Wanted = Transforms.Num();
@@ -194,12 +291,6 @@ void ADTTelegraphRenderer::SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraph
 	{
 		const TArray<FTransform> Added(Transforms.GetData() + Have, Wanted - Have);
 		Instances->AddInstances(Added, false, false, false);
-		CustomScratch.SetNumUninitialized((Wanted - Have) * NumCustomData);
-		for (int32 Slot = 0; Slot < CustomScratch.Num(); ++Slot)
-		{
-			CustomScratch[Slot] = CustomData[Slot % NumCustomData];
-		}
-		Instances->SetCustomData(Have, Wanted - 1, CustomScratch, false);
 	}
 	else if (Wanted < Have)
 	{
@@ -212,6 +303,7 @@ void ADTTelegraphRenderer::SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraph
 	}
 	if (Wanted > 0)
 	{
+		Instances->SetCustomData(0, Wanted - 1, CustomScratch, false);
 		Instances->BatchUpdateInstancesTransforms(0, Transforms, false, true, true);
 	}
 	else if (Have > 0)

@@ -386,6 +386,7 @@ ADTTelegraphRenderer* UDTWeaponSubsystem::EnsureCueRenderer(int32 Bucket)
 		{
 			Renderer->InitRender(DTPal::Linear(DTWeaponCues::Token(Bucket)), DTWeaponCues::Emissive(Bucket));
 			Renderer->SetDrawZ(DTWeaponCues::DrawZ(Bucket));
+			Renderer->SetEdged(false);
 		}
 		CueRenderers[Bucket] = Renderer;
 	}
