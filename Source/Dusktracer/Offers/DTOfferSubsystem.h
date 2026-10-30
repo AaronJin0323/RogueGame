@@ -82,6 +82,8 @@ public:
 	int32 GetFocus(int32 OwnerId) const;
 	const FDTOfferPlayerStats* GetStats(int32 OwnerId) const;
 	int32 GetHoneStacks(int32 OwnerId) const;
+	/** Reserve kinds whose effect lives outside the run state (R-OFF-12); a pick calls it, tests may too. */
+	void ApplyReserve(int32 OwnerId, EDTReserveKind Kind);
 	/** The pool the generator reads for OwnerId now: unlocks and each weapon's composed caps. */
 	FDTOfferPool MakePool(int32 OwnerId) const;
 
@@ -106,6 +108,7 @@ private:
 		FVector2D LastMouse = FVector2D::ZeroVector;
 		bool bMouseDown = false;
 		int32 HoneStacks = 0;
+		int32 SalvageStacks = 0;
 		FDTOfferPlayerStats Stats;
 	};
 

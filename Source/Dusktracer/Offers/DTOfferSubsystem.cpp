@@ -12,6 +12,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Progression/DTGemSubsystem.h"
 #include "Telemetry/DTTelemetryRecords.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
 
@@ -529,7 +530,6 @@ void UDTOfferSubsystem::ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome)
 {
 	UWorld* World = GetWorld();
 	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
-	UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr;
 	if (!Outcome.bValid)
 	{
 		UE_LOG(LogDT, Warning, TEXT("Offer p%d: pick had no effect (kind %d)"), OwnerId, static_cast<int32>(Outcome.Kind));
@@ -548,34 +548,7 @@ void UDTOfferSubsystem::ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome)
 		Result = Weapons ? Weapons->Socket(OwnerId, Outcome.Weapon, Outcome.Mod) : EDTWeaponResult::BadPlayer;
 		break;
 	case EDTCardKind::Reserve:
-		switch (Outcome.Reserve)
-		{
-		case EDTReserveKind::Hone:
-			if (Weapons && Flows.IsValidIndex(OwnerId))
-			{
-				// Stacks multiplicatively; the stat system (FDTStatSet) will own this slice when it lands.
-				FDTWeaponHeroStats Stats;
-				Stats.DamageMult = FMath::Pow(1.0f + DTConst::OFFER_RESERVE_HONE_DAMAGE_RATIO, static_cast<float>(++Flows[OwnerId].HoneStacks));
-				Weapons->SetHeroStats(OwnerId, Stats);
-			}
-			break;
-		case EDTReserveKind::Mend:
-			if (const FDTHeroState* State = Hero ? Hero->GetState(OwnerId) : nullptr)
-			{
-				FDTHeroStats Stats = State->Stats;
-				Stats.MaxHpBonus += static_cast<float>(DTConst::OFFER_RESERVE_MEND_MAX_HP);
-				Hero->SetStats(OwnerId, Stats);
-			}
-			break;
-		case EDTReserveKind::Restore:
-			UE_LOG(LogDT, Log, TEXT("Offer p%d: Reserve.Restore taken; no heal entry point on the hero yet (no-op)"), OwnerId);
-			break;
-		case EDTReserveKind::Salvage:
-			UE_LOG(LogDT, Log, TEXT("Offer p%d: Reserve.Salvage taken; no pickup-radius stat yet (no-op)"), OwnerId);
-			break;
-		default:
-			break; // SpareTerms is run state (applied by DTOffers::ApplyPickState)
-		}
+		ApplyReserve(OwnerId, Outcome.Reserve);
 		break;
 	default:
 		break;
@@ -583,6 +556,51 @@ void UDTOfferSubsystem::ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome)
 	if (Result != EDTWeaponResult::Ok)
 	{
 		UE_LOG(LogDT, Warning, TEXT("Offer p%d: weapon change for %s refused (%d)"), OwnerId, *Outcome.Weapon.ToString(), static_cast<int32>(Result));
+	}
+}
+
+void UDTOfferSubsystem::ApplyReserve(int32 OwnerId, EDTReserveKind Kind)
+{
+	UWorld* World = GetWorld();
+	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+	UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr;
+	UDTGemSubsystem* Gems = World ? World->GetSubsystem<UDTGemSubsystem>() : nullptr;
+	const FDTHeroState* State = Hero ? Hero->GetState(OwnerId) : nullptr;
+	switch (Kind)
+	{
+	case EDTReserveKind::Hone:
+		if (Weapons && Flows.IsValidIndex(OwnerId))
+		{
+			// Stacks multiplicatively; the stat system (FDTStatSet) will own this slice when it lands.
+			FDTWeaponHeroStats Stats;
+			Stats.DamageMult = FMath::Pow(1.0f + DTConst::OFFER_RESERVE_HONE_DAMAGE_RATIO, static_cast<float>(++Flows[OwnerId].HoneStacks));
+			Weapons->SetHeroStats(OwnerId, Stats);
+		}
+		break;
+	case EDTReserveKind::Mend:
+		if (State)
+		{
+			FDTHeroStats Stats = State->Stats;
+			Stats.MaxHpBonus += static_cast<float>(DTConst::OFFER_RESERVE_MEND_MAX_HP);
+			Hero->SetStats(OwnerId, Stats);
+		}
+		break;
+	case EDTReserveKind::Restore:
+		if (State)
+		{
+			Hero->Heal(OwnerId, DTConst::OFFER_RESERVE_RESTORE_HP_RATIO * State->MaxHp);
+		}
+		break;
+	case EDTReserveKind::Salvage:
+		if (Gems && Flows.IsValidIndex(OwnerId))
+		{
+			FDTProgressionStats Stats = Gems->GetStats(OwnerId);
+			Stats.PickupRadiusMul = FMath::Pow(1.0f + DTConst::OFFER_RESERVE_SALVAGE_RADIUS_RATIO, static_cast<float>(++Flows[OwnerId].SalvageStacks));
+			Gems->SetStats(OwnerId, Stats);
+		}
+		break;
+	default:
+		break; // SpareTerms is run state (applied by DTOffers::ApplyPickState)
 	}
 }
 

@@ -228,6 +228,42 @@ bool FDTCmbPerPlayerState::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCmbHeal, "Dusktracer.Combat.Hero.Heal", DTHeroTest::Flags) // T-OFF-16
+bool FDTCmbHeal::RunTest(const FString& Parameters)
+{
+	using namespace DTHeroTest;
+	FHarness H;
+	H.Steps(1);
+	const float Max = H.Hero.GetState(0).MaxHp;
+	H.View.HeroHits.Add(MakeHit(0, 40.0f));
+	H.Steps(1);
+	TestEqual(TEXT("the hit lands"), H.Hero.GetState(0).Hp, Max - 40.0f);
+	H.Hero.Heal(0, 15.0f);
+	TestEqual(TEXT("a heal adds HP"), H.Hero.GetState(0).Hp, Max - 25.0f);
+	H.Hero.Heal(0, 2.0f * Max);
+	TestEqual(TEXT("never above max HP"), H.Hero.GetState(0).Hp, Max);
+
+	FHarness Dead;
+	Dead.Steps(1);
+	Dead.View.HeroHits.Add(MakeHit(0, 10.0f * Max));
+	Dead.Steps(1);
+	TestTrue(TEXT("down"), Dead.Hero.GetState(0).bDown);
+	const float Hp = Dead.Hero.GetState(0).Hp;
+	Dead.Hero.Heal(0, Max);
+	TestEqual(TEXT("a down hero stays down"), Dead.Hero.GetState(0).Hp, Hp);
+
+	// Slam's dash_cooldown_reset (keepers.md).
+	FHarness Dash;
+	Dash.Steps(1);
+	const int32 Charges = Dash.Hero.GetState(0).DashCharges;
+	Dash.Step(DashInput(FVector2f(1.0f, 0.0f)));
+	TestTrue(TEXT("a dash spends a charge"), Dash.Hero.GetState(0).DashCharges < Charges);
+	Dash.Hero.RefillDash(0);
+	TestEqual(TEXT("the refill returns every charge"), Dash.Hero.GetState(0).DashCharges, Charges);
+	TestEqual(TEXT("no refill left to wait for"), Dash.Hero.GetState(0).DashRefillLeft, 0.0f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCmbInputEdges, "Dusktracer.Combat.Hero.InputEdges", DTHeroTest::Flags) // T-CMB-02
 bool FDTCmbInputEdges::RunTest(const FString& Parameters)
 {
