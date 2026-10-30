@@ -9,8 +9,9 @@ folders and prints one line per check:
   T-OFF-15: PASS|FAIL|n/a (...) Steered runs that reached the boss: decisions in C.DECISIONS.PER_RUN +- tolerance,
                                Reserve share <= C.OFFER.RESERVE_SHARE_MAX (bot-measured, GATED until calibrated)
 Exit 1 when a requested check fails (or cannot run), else 0.
-Window metrics (damage-taken share per minute, dashes per minute) average the minutes inside C.DIR.BAND_WINDOW_S over
-the time the hero was alive in it; a run that ended before the window has none.
+Window metrics (damage-taken share per minute, dashes per minute) are the run's telemetry read by Tools/pressure.py
+(T-DIR-02): JSONL hero_damaged / dash records inside C.DIR.BAND_WINDOW_S over the time the hero was alive in it; a run
+that ended before the window has none. The bot's own per-minute record (bot.csv) is kept for debugging only.
 """
 
 import csv
@@ -23,6 +24,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
 import power_split  # noqa: E402
+import pressure  # noqa: E402
 
 
 def read_kv(path):
@@ -34,28 +36,6 @@ def read_kv(path):
 					k, v = line.rstrip("\n").split("=", 1)
 					out[k.strip()] = v.strip()
 	return out
-
-
-def read_minutes(path):
-	if not os.path.exists(path):
-		return []
-	with open(path, encoding="utf-8", newline="") as f:
-		return [{k: float(v) for k, v in row.items()} for row in csv.DictReader(f)]
-
-
-def window_rates(minutes, lo, hi, end_s):
-	"""(damage share per min, dashes per min, alive minutes) over [lo, hi) clipped to the run's end."""
-	span_end = min(hi, end_s)
-	alive = (span_end - lo) / 60.0
-	if alive <= 0:
-		return None, None, 0.0
-	dmg = dashes = 0.0
-	for m in minutes:
-		start = m["minute"] * 60.0
-		if lo <= start < hi:
-			dmg += m["dmg_share"]
-			dashes += m["dashes"]
-	return dmg / alive, dashes / alive, alive
 
 
 def read_run_end(jsonl):
@@ -75,13 +55,12 @@ def summarise_run(folder, consts):
 	name = os.path.basename(folder)
 	label, _, seed = name.rpartition("_s")
 	kv = read_kv(os.path.join(folder, "bot.csv.txt"))
-	minutes = read_minutes(os.path.join(folder, "bot.csv"))
 	jsonls = glob.glob(os.path.join(folder, "*.jsonl"))
 	jsonl = jsonls[0] if jsonls else None
 	csv_path = jsonl[:-6] + ".csv" if jsonl and os.path.exists(jsonl[:-6] + ".csv") else None
-	lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
 	end_s = float(kv.get("end_s", "0") or 0)
-	dmg, dashes, alive = window_rates(minutes, lo, hi, end_s)
+	rates, _ = pressure.window_rates(jsonl, csv_path, consts)
+	dmg, dashes, alive = rates.get(0, (None, None, 0.0))
 	run_end = read_run_end(jsonl) or {}
 	p0 = (run_end.get("per_player") or {}).get("0", {})
 	offered = p0.get("cards_offered", 0)
