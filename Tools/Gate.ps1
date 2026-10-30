@@ -2,7 +2,7 @@
 #   & Tools\Gate.ps1 [-AllFiles] [-Base origin/main] [-Skip build,shipping,...]     (from PowerShell)
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
-# Steps: secrets, docs, constants, catalog, loc, build (0 warnings), nonunity (T-TEC-09), shipping (T-TEC-12), tests, then the
+# Steps: secrets, docs, constants, catalog, loc, build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09), shipping (T-TEC-12), tests, then the
 # steps that do not exist yet: smoke, pad, scope; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
@@ -61,6 +61,16 @@ if (-not (Skipped "build")) {
 	$R = Ubt "build" "DusktracerEditor" "Development"
 	Report "build" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "build" }
+}
+
+if (-not (Skipped "locbuild")) {
+	# Generated text (Content/DT/Text/Generated, .locres) is git-ignored: rebuild it here so tests and smoke never read stale
+	# or missing tables in a fresh checkout or after a merge (R-TEC-08).
+	$Out = & cmd /c "`"$Root\Tools\Localize.bat`" 2>&1"
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_locbuild.log") -Encoding utf8
+	Report "locbuild" (($Out | Select-String "^LOCALIZE:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "^(LOCALIZE|Error)"; Fail "locbuild" }
 }
 
 if (-not (Skipped "nonunity")) {
