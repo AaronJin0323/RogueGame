@@ -189,6 +189,16 @@ namespace DTKeeperTest
 			return Total > 0.0 ? Damage(DTKeepers::KeeperSource(Path)) / Total : 0.0;
 		}
 
+		int32 CountHits(uint16 Source) const
+		{
+			int32 Count = 0;
+			for (const FDTHit& Hit : HitLog)
+			{
+				Count += Hit.SourceId == Source ? 1 : 0;
+			}
+			return Count;
+		}
+
 		int32 CountStatuses(EDTStatus Status, uint16 Source) const
 		{
 			int32 Count = 0;
@@ -1492,7 +1502,6 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamDashReset, "DashCooldownReset")
 	return true;
 }
 
-#undef DT_KEEPER_PARAM_TEST
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTKeepersKeywords, "Dusktracer.Keepers.Keywords", DTWeaponTestHarness::TestFlags) // T-KEE-22
 bool FDTKeepersKeywords::RunTest(const FString& Parameters)
@@ -1517,5 +1526,444 @@ bool FDTKeepersKeywords::RunTest(const FString& Parameters)
 	}
 	return true;
 }
+
+// ---- Tide's cards, each param against its absence (keepers.md §2, T-KEE-21) ------------------------------------------------------
+
+namespace DTKeeperExpressTest
+{
+	using namespace DTKeeperParamTest;
+
+	static const FName WordChill(TEXT("Status.Chill"));
+
+	static void FreezeEnemy(FDTKeeperHarness& H, int32 Enemy, float Seconds = DTConst::STATUS_FREEZE_S)
+	{
+		FDTStatusApply Apply;
+		Apply.Handle = H.Enemies.GetHandle(Enemy);
+		Apply.Status = EDTStatus::Freeze;
+		Apply.OwnerId = 0;
+		Apply.SourceId = DTKeepers::KeeperSource(EDTPath::Tide);
+		Apply.FreezeScale = Seconds / DTConst::STATUS_FREEZE_S;
+		H.Enemies.ApplyStatus(Apply);
+	}
+
+	/** A Frost entry whose own proc never rolls, so only the param under test can act. */
+	static FDTFlagEntry& FrostEntry(FDTWeaponFlags& Flags)
+	{
+		FDTFlagEntry& Entry = AddFlag(Flags, DTCat::EFlag::StatusApply, EDTPath::Tide);
+		Entry.Params.SetWord(DTFlagParam::Status, WordChill);
+		Entry.Params.Set(DTFlagParam::Chance, 0.0f);
+		return Entry;
+	}
+
+	static int32 StatusesOn(const FDTKeeperHarness& H, uint32 Serial, EDTStatus Status)
+	{
+		int32 Count = 0;
+		for (const FDTStatusApply& Apply : H.StatusLog)
+		{
+			Count += Apply.Handle.Serial == Serial && Apply.Status == Status ? 1 : 0;
+		}
+		return Count;
+	}
+
+	static uint32 SerialOf(const FDTKeeperHarness& H, int32 Enemy)
+	{
+		return H.Enemies.GetSerials()[Enemy];
+	}
+
+	static float PlainDamage()
+	{
+		return DTWeapons::GetLevelRow(DTWeapons::FindWeapon(PulseRifle), 1)->Damage;
+	}
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFrostShatter, "FrostShatter")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	const auto Run = [](bool bFrozen, FDTKeeperHarness& H)
+	{
+		const int32 Victim = H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
+		const int32 Near = H.AddEnemy(FVector2f(400.0f, 0.0f));
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Frost = FrostEntry(Flags);
+		Frost.Params.Set(DTFlagParam::ShatterOnFrozenKillUu, 200.0f);
+		Frost.Params.Set(DTFlagParam::ShatterDmg, 0.5f);
+		Frost.Params.SetWord(DTFlagParam::ShatterStatus, WordChill);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		if (bFrozen)
+		{
+			FreezeEnemy(H, Victim);
+		}
+		const uint32 Serial = H.Enemies.GetSerials()[Near];
+		H.StepMany(30);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Near = Run(true, H);
+		TestEqual(TEXT("the Frozen death bursts once on its neighbour"), HitsOn(H, Near, Tide), 1);
+		TestEqual(TEXT("for shatter_dmg of the strongest weapon"), BiggestHit(H, Tide), 0.5f * PlainDamage(), 0.01f);
+		TestEqual(TEXT("and applies shatter_status"), StatusesOn(H, Near, EDTStatus::Chill), 1);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Near = Run(false, H);
+		TestEqual(TEXT("a death that was not Frozen does not shatter"), HitsOn(H, Near, Tide), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFrozenBlocks, "FrozenBlocksEnemies")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](bool bBlocks, FDTKeeperHarness& H)
+	{
+		const int32 Wall = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const int32 Walker = H.AddEnemy(FVector2f(600.0f, 0.0f));
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FrostEntry(Flags).Params.Set(DTFlagParam::FrozenBlocksEnemies, bBlocks ? 1.0f : 0.0f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		FreezeEnemy(H, Wall);
+		for (int32 Step = 0; Step < 180; ++Step)
+		{
+			H.Enemies.Move(Dt, H.View.HeroPositions);
+			H.StepOnce();
+		}
+		return H.Enemies.GetPositions()[Walker].X;
+	};
+	const float Rim = 300.0f + 2.0f * static_cast<float>(DTConst::ENM_SWARM_RADIUS_UU);
+	const float OneStep = static_cast<float>(DTConst::ENM_SWARM_SPEED_UU_S) * Dt;
+	{
+		FDTKeeperHarness H;
+		const float X = Run(true, H);
+		TestTrue(FString::Printf(TEXT("the walker stops at the Frozen wall (x %.1f, rim %.1f)"), X, Rim), X >= Rim - 2.0f * OneStep);
+	}
+	{
+		FDTKeeperHarness H;
+		const float X = Run(false, H);
+		TestTrue(FString::Printf(TEXT("without the card it walks through (x %.1f)"), X), X < Rim - 2.0f * OneStep);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFreezeUntilHit, "FreezeUntilHit")
+{
+	using namespace DTKeeperExpressTest;
+	// The harness never ticks statuses: a hold reads as the Freeze re-applied step after step.
+	const auto Setup = [](FDTKeeperHarness& H, bool bHold)
+	{
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Frost = FrostEntry(Flags);
+		Frost.Params.Set(DTFlagParam::FreezeUntilHit, bHold ? 1.0f : 0.0f);
+		Frost.Params.Set(DTFlagParam::HeldMax, 2.0f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+	};
+	{
+		// Out of the rifle's range: nothing strikes them, so the hold runs, for at most held_max.
+		FDTKeeperHarness H;
+		TArray<uint32> Serials;
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			const int32 Enemy = H.AddEnemy(FVector2f(2000.0f, 200.0f * Index));
+			Serials.Add(H.Enemies.GetSerials()[Enemy]);
+			FreezeEnemy(H, Enemy, Dt);
+		}
+		Setup(H, true);
+		H.StepMany(60);
+		int32 Held = 0;
+		for (const uint32 Serial : Serials)
+		{
+			Held += StatusesOn(H, Serial, EDTStatus::Freeze) > 30 ? 1 : 0;
+		}
+		TestEqual(TEXT("exactly held_max enemies are held"), Held, 2);
+	}
+	{
+		// In range: the first hit ends the hold.
+		FDTKeeperHarness H;
+		const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		FreezeEnemy(H, Enemy, Dt);
+		Setup(H, true);
+		H.StepMany(60);
+		const int32 Early = StatusesOn(H, Serial, EDTStatus::Freeze);
+		H.StepMany(60);
+		TestTrue(TEXT("a hit ends the hold"), Early > 0 && StatusesOn(H, Serial, EDTStatus::Freeze) == Early);
+	}
+	{
+		FDTKeeperHarness H;
+		const int32 Enemy = H.AddEnemy(FVector2f(2000.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		FreezeEnemy(H, Enemy, Dt);
+		Setup(H, false);
+		H.StepMany(60);
+		TestEqual(TEXT("without the card nothing is held"), StatusesOn(H, Serial, EDTStatus::Freeze), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFrozenHitChills, "FrozenHitChillsNeighbours")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](bool bFrozen, FDTKeeperHarness& H, uint32& OutNear, uint32& OutFar)
+	{
+		const int32 Struck = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		OutNear = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 120.0f)));
+		OutFar = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 300.0f)));
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FrostEntry(Flags).Params.Set(DTFlagParam::FrozenHitChillsNeighboursUu, 150.0f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		if (bFrozen)
+		{
+			FreezeEnemy(H, Struck);
+		}
+		H.StepMany(120);
+	};
+	uint32 Near = 0;
+	uint32 Far = 0;
+	{
+		FDTKeeperHarness H;
+		Run(true, H, Near, Far);
+		TestTrue(TEXT("a neighbour in reach is Chilled"), StatusesOn(H, Near, EDTStatus::Chill) > 0);
+		TestEqual(TEXT("one past the reach is not"), StatusesOn(H, Far, EDTStatus::Chill), 0);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(false, H, Near, Far);
+		TestEqual(TEXT("a hit on an enemy that is not Frozen Chills nothing"), StatusesOn(H, Near, EDTStatus::Chill), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamClusterFreeze, "ClusterFreeze")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	const auto Bless = [](FDTKeeperHarness& H, int32 Min)
+	{
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Pull = AddFlag(Flags, DTCat::EFlag::Pull, EDTPath::Tide);
+		Pull.Params.Set(DTFlagParam::DistanceUu, 1.0f);
+		Pull.Params.Set(DTFlagParam::RadiusUu, 200.0f);
+		Pull.Params.Set(DTFlagParam::ClusterFreezeMin, static_cast<float>(Min));
+		Pull.Params.Set(DTFlagParam::Shatter, 1.0f);
+		Pull.Params.Set(DTFlagParam::ShatterUu, 200.0f);
+		Pull.Params.Set(DTFlagParam::ShatterDmg, 0.5f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+	};
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		const uint32 Serial = H.Enemies.GetSerials()[0];
+		Bless(H, 5);
+		H.StepMany(FireSteps);
+		TestTrue(FString::Printf(TEXT("touching pulled enemies Freeze together (%d)"), H.FrozenEnemies()), H.FrozenEnemies() >= 5);
+		TestEqual(TEXT("and shatter for shatter_dmg of the strongest weapon"), BiggestHit(H, Tide), 0.5f * PlainDamage(), 0.01f);
+		TestTrue(FString::Printf(TEXT("a Frozen cluster does not burst on every impact (%d hits)"), HitsOn(H, Serial, Tide)), HitsOn(H, Serial, Tide) < 10);
+	}
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		Bless(H, 1000);
+		H.StepMany(FireSteps);
+		TestEqual(TEXT("below the minimum nothing Freezes"), H.FrozenEnemies(), 0);
+		TestEqual(TEXT("and nothing shatters"), H.Damage(Tide), 0.0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamChillOnPull, "ChillStacksOnPull")
+{
+	using namespace DTKeeperExpressTest;
+	const auto MostStacks = [](const FDTKeeperHarness& H)
+	{
+		float Most = 0.0f;
+		for (const FDTStatusApply& Apply : H.StatusLog)
+		{
+			Most = Apply.Status == EDTStatus::Chill ? FMath::Max(Most, Apply.Magnitude) : Most;
+		}
+		return Most;
+	};
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Key")));
+		H.StepMany(FireSteps);
+		TestEqual(TEXT("the Key's pull Chills one stack"), MostStacks(H), 1.0f);
+	}
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Key")));
+		H.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Amp1")));
+		H.StepMany(FireSteps);
+		TestEqual(TEXT("Cold Draw: chill_stacks_on_pull stacks"), MostStacks(H), 2.0f);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamChargedStatus, "StillnessChargedStatus")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](bool bWalk, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		for (int32 Step = 0; Step < FireSteps; ++Step)
+		{
+			H.View.HeroPositions[0] = FVector2f(0.0f, bWalk ? 80.0f * (Step % 2) : 0.0f);
+			H.StepOnce();
+		}
+	};
+	{
+		FDTKeeperHarness H;
+		Run(false, H);
+		TestTrue(TEXT("a charged volley Freezes what it hits"), H.CountStatuses(EDTStatus::Freeze, DTKeepers::KeeperSource(EDTPath::Tide)) > 0);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(true, H);
+		TestEqual(TEXT("an uncharged volley does not"), H.CountStatuses(EDTStatus::Freeze, DTKeepers::KeeperSource(EDTPath::Tide)), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamChargedPull, "StillnessChargedPull")
+{
+	using namespace DTKeeperExpressTest;
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Amp1")));
+		H.StepMany(FireSteps);
+		float Longest = 0.0f;
+		for (const FDTDisplacement& Move : H.MoveLog)
+		{
+			Longest = FMath::Max(Longest, Move.Delta.Size());
+		}
+		TestTrue(TEXT("a charged impact pulls"), H.MoveLog.Num() > 0);
+		TestTrue(FString::Printf(TEXT("up to distance_uu (%.1f)"), Longest), Longest <= 150.0f + 0.01f);
+	}
+	{
+		FDTKeeperHarness H;
+		H.AddBlock();
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		H.StepMany(FireSteps);
+		TestEqual(TEXT("the Key alone pulls nothing"), H.MoveLog.Num(), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamChargedAura, "StillnessChargedAura")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](bool bAura, FDTKeeperHarness& H, uint32& OutNear, uint32& OutFar)
+	{
+		H.AddEnemy(FVector2f(250.0f, 0.0f));
+		OutNear = SerialOf(H, H.AddEnemy(FVector2f(0.0f, 280.0f)));
+		OutFar = SerialOf(H, H.AddEnemy(FVector2f(0.0f, 420.0f)));
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		if (bAura)
+		{
+			H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Trait")));
+		}
+		H.StepMany(FireSteps);
+	};
+	uint32 Near = 0;
+	uint32 Far = 0;
+	{
+		FDTKeeperHarness H;
+		Run(true, H, Near, Far);
+		TestTrue(TEXT("while charged the hero Chills what is in reach"), StatusesOn(H, Near, EDTStatus::Chill) > 0);
+		TestEqual(TEXT("and nothing past it"), StatusesOn(H, Far, EDTStatus::Chill), 0);
+		TestEqual(TEXT("the card's Field half leaves no zone on impacts"), H.Weapons.GetLiveFields(), 0);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(false, H, Near, Far);
+		TestEqual(TEXT("without the Trait no aura"), StatusesOn(H, Near, EDTStatus::Chill), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamChargedFreezeRing, "StillnessChargedFreezeRing")
+{
+	using namespace DTKeeperExpressTest;
+	const auto Run = [](float Ring, FDTKeeperHarness& H, uint32& OutNear, uint32& OutFar)
+	{
+		H.AddEnemy(FVector2f(250.0f, 0.0f));
+		OutNear = SerialOf(H, H.AddEnemy(FVector2f(0.0f, 280.0f)));
+		OutFar = SerialOf(H, H.AddEnemy(FVector2f(0.0f, 420.0f)));
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Still = AddFlag(Flags, DTCat::EFlag::Stillness, EDTPath::Tide);
+		Still.Params.Set(DTFlagParam::StillMoveUu, 50.0f);
+		Still.Params.Set(DTFlagParam::ChargeS, 0.6f);
+		Still.Params.Set(DTFlagParam::Mult, 2.0f);
+		Still.Params.Set(DTFlagParam::ChargedFreezeRingUu, Ring);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+		H.StepMany(FireSteps);
+	};
+	uint32 Near = 0;
+	uint32 Far = 0;
+	{
+		FDTKeeperHarness H;
+		Run(300.0f, H, Near, Far);
+		TestTrue(TEXT("a charged volley Freezes the ring around the hero"), StatusesOn(H, Near, EDTStatus::Freeze) > 0);
+		TestEqual(TEXT("not past it"), StatusesOn(H, Far, EDTStatus::Freeze), 0);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(0.0f, H, Near, Far);
+		TestEqual(TEXT("without the tier no ring"), StatusesOn(H, Near, EDTStatus::Freeze), 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamAllVolleysCharged, "StillnessAllVolleysCharged")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	const auto Run = [](bool bCast, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		if (bCast)
+		{
+			H.Keepers.QueueIntercession(0);
+		}
+		for (int32 Step = 0; Step < 300; ++Step)
+		{
+			H.View.HeroPositions[0] = FVector2f(0.0f, 80.0f * (Step % 2)); // walks: past still_move_uu, inside pool_radius_uu
+			H.StepOnce();
+		}
+	};
+	{
+		FDTKeeperHarness H;
+		Run(true, H);
+		TestTrue(TEXT("the cast runs"), H.Keepers.IsCasting(0));
+		TestTrue(FString::Printf(TEXT("every volley of the cast is charged (%d Keeper hits)"), H.CountHits(Tide)), H.CountHits(Tide) >= 16);
+	}
+	{
+		FDTKeeperHarness H;
+		Run(false, H);
+		TestEqual(TEXT("walking without the cast charges nothing"), H.CountHits(Tide), 0);
+	}
+	return true;
+}
+
+#undef DT_KEEPER_PARAM_TEST
 
 #endif // WITH_DEV_AUTOMATION_TESTS

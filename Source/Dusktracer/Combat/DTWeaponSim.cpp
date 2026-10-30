@@ -96,7 +96,11 @@ namespace DTWeaponSimLocal
 	static const FName WordHitOnBurning(TEXT("HitOnBurning"));
 	static const FName WordEliteOrBoss(TEXT("EliteOrBoss"));
 	static const FName WordBurn(TEXT("Status.Burn"));
+	static const FName WordFreeze(TEXT("Status.Freeze"));
+	static const FName WordChargedVolley(TEXT("ChargedVolley"));
+	static const FName WordHero(TEXT("Hero"));
 	constexpr uint8 BurnBit = 1 << static_cast<int32>(EDTStatus::Burn);
+	constexpr uint8 FreezeBit = 1 << static_cast<int32>(EDTStatus::Freeze);
 	constexpr uint8 ShockBit = 1 << static_cast<int32>(EDTStatus::Shock);
 }
 
@@ -348,6 +352,9 @@ void FDTWeaponSim::ResetTransient()
 		Player.bWasIntangible = false;
 		Player.PulledUntilStep.Reset();
 		Player.SpreadReadyIn = 0.0f;
+		Player.HeldFrozen.Reset();
+		Player.FrozenStruck.Reset();
+		Player.AuraReadyIn = 0.0f;
 	}
 	Rounds.Reset();
 	Fields.Reset();
@@ -358,6 +365,7 @@ void FDTWeaponSim::ResetTransient()
 	ArcMarks.Reset();
 	StepCleaved.Reset();
 	StepSlammed.Reset();
+	StepClustered.Reset();
 	WeaponsHitsEnd = 0;
 	MaxGeneration = 0;
 	LastStep = -1;
@@ -461,6 +469,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.PierceLeft = Spawn.Pierce;
 		Round.Generation = Shot.Generation;
 		Round.BouncesLeft = Shot.Bounces;
+		Round.bCharged = Shot.bCharged;
 	}
 }
 
@@ -526,6 +535,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Impact.EnemyRadius = View.EnemyRadii[Enemy];
 		Impact.EnemyPosition = View.EnemyPositions[Enemy];
 		Impact.bCleave = bCleave;
+		Impact.bCharged = Shot.bCharged;
 		Impact.StatusMask = StatusMaskOf(Enemy, Out.EnemySerial);
 		if (bMarkKills)
 		{
@@ -546,6 +556,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 	Sweep.BaseDamage = Shot.Damage;
 	Sweep.HitDamage = Damage;
 	Sweep.bCleave = bCleave;
+	Sweep.bCharged = Shot.bCharged;
 
 	FArcFlash& Flash = Arcs.AddDefaulted_GetRef();
 	Flash.OwnerId = Shot.OwnerId;
@@ -748,10 +759,8 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	{
 		if (const FDTResolvedFlag* Still = Spec.FindFlag(DTCat::EFlag::Stillness))
 		{
-			Shot.Damage *= Still->Entry.Params.Get(DTFlagParam::Mult, 1.0f);
-			Shot.Pierce += FMath::RoundToInt(Still->Entry.Params.Get(DTFlagParam::ChargedPierce));
+			SpendCharge(Context, Owner, Runtime, *Still, Shot);
 			Shot.SourceId = ReshapeSource(Still->Entry.SourceId, Shot.SourceId);
-			--Runtime.StillCharges;
 		}
 	}
 
@@ -842,13 +851,13 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	{
 		for (int32 Index = 0; Index < Spec.Count && Index < MineCells.Num(); ++Index)
 		{
-			PlaceMine(Context, Runtime, Owner, Slot, MineCells[Index], Shot.Damage, Shot.SourceId);
+			PlaceMine(Context, Runtime, Owner, Slot, MineCells[Index], Shot.Damage, Shot.SourceId, Shot.bCharged);
 		}
 		for (int32 Extra = 0; Spec.ForkSource != 0 && Extra < Spec.ForkRounds; ++Extra)
 		{
 			// Extra mines take the next densest cells, or repeat the densest when the crowd is thin.
 			const int32 Cell = Spec.Count + Extra < MineCells.Num() ? Spec.Count + Extra : Extra % MineCells.Num();
-			PlaceMine(Context, Runtime, Owner, Slot, MineCells[Cell], Shot.Damage, Spec.ForkSource);
+			PlaceMine(Context, Runtime, Owner, Slot, MineCells[Cell], Shot.Damage, Spec.ForkSource, Shot.bCharged);
 		}
 		break;
 	}
@@ -897,9 +906,7 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			if (const FDTResolvedFlag* Still = Spec.FindFlag(DTCat::EFlag::Stillness))
 			{
-				Shot.Damage *= Still->Entry.Params.Get(DTFlagParam::Mult, 1.0f);
-				Shot.Pierce += FMath::RoundToInt(Still->Entry.Params.Get(DTFlagParam::ChargedPierce));
-				--Runtime.StillCharges;
+				SpendCharge(Context, Owner, Runtime, *Still, Shot);
 			}
 		}
 		SpawnRound(Context, Bullets, Runtime, Shot, From, Dir);
@@ -952,7 +959,7 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 }
 
 void FDTWeaponSim::PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
-	float Damage, uint16 SourceId)
+	float Damage, uint16 SourceId, bool bCharged)
 {
 	if (!TryEmit(Runtime))
 	{
@@ -969,6 +976,7 @@ void FDTWeaponSim::PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runti
 	Mine.Position = At;
 	Mine.Damage = Damage;
 	Mine.SourceId = SourceId;
+	Mine.bCharged = bCharged;
 }
 
 void FDTWeaponSim::StepMines(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime)
@@ -1060,6 +1068,7 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 		Impact.EnemyRadius = View.EnemyRadii[Out.EnemyIndex];
 		Impact.EnemyPosition = Out.Position;
 		Impact.StatusMask = StatusMaskOf(Out.EnemyIndex, Out.EnemySerial);
+		Impact.bCharged = Mine.bCharged;
 		++Runtime.Counters.Impacts;
 	}
 	FImpact& Blast = Impacts.AddDefaulted_GetRef();
@@ -1072,6 +1081,7 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 	Blast.Area = Runtime.Spec.AreaRadius;
 	Blast.BaseDamage = Mine.Damage;
 	Blast.HitDamage = Mine.Damage;
+	Blast.bCharged = Mine.bCharged;
 }
 
 // ------------------------------------------------------------------------------------------------------------------
@@ -1176,6 +1186,32 @@ void FDTWeaponSim::StepStillness(const FDTSimContext& Context, int32 OwnerId, FP
 				Weapon.StillCharges = FMath::Min(Weapon.StillCharges + 1, Max);
 			}
 		}
+	}
+}
+
+void FDTWeaponSim::SpendCharge(const FDTSimContext& Context, int32 OwnerId, FWeaponRuntime& Runtime, const FDTResolvedFlag& Still, FShot& Shot)
+{
+	const FDTFlagParams& Params = Still.Entry.Params;
+	Shot.Damage *= Params.Get(DTFlagParam::Mult, 1.0f);
+	Shot.Pierce += FMath::RoundToInt(Params.Get(DTFlagParam::ChargedPierce));
+	Shot.bCharged = true;
+	Shot.bTrack = true; // the impact must know it was charged
+	--Runtime.StillCharges;
+	const float Ring = Params.Get(DTFlagParam::ChargedFreezeRingUu);
+	if (Ring <= 0.0f)
+	{
+		return;
+	}
+	const FDTWorldView& View = *Context.View;
+	TArray<int32> Local;
+	EnemiesInCircle(View, DTWeaponSimLocal::HeroOf(View, OwnerId), Ring, Local);
+	for (const int32 Enemy : Local)
+	{
+		FPendingStatus& Pending = PendingStatuses.AddDefaulted_GetRef();
+		Pending.EnemySerial = View.EnemySerials[Enemy];
+		Pending.OwnerId = OwnerId;
+		Pending.SourceId = Still.Entry.SourceId;
+		Pending.Params.SetWord(DTFlagParam::Status, DTWeaponSimLocal::WordFreeze);
 	}
 }
 
@@ -1539,6 +1575,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.Area = Round.Radius;
 			Impact.Generation = Round.Generation;
 			Impact.BouncesLeft = Round.BouncesLeft;
+			Impact.bCharged = Round.bCharged;
 			Impact.bSpent = --Round.PierceLeft <= 0;
 			if (Impact.bSpent)
 			{
@@ -1582,9 +1619,11 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	SyncPlayers(Run);
 	BuildSerialIndex(View);
 	bPriorityBuilt = false;
+	StepClustered.Reset();
 	for (FPlayerRuntime& Player : Players)
 	{
 		Player.SpreadReadyIn -= Context.StepSeconds;
+		Player.AuraReadyIn -= Context.StepSeconds;
 		for (TMap<uint32, int64>::TIterator It = Player.PulledUntilStep.CreateIterator(); It; ++It)
 		{
 			if (It.Value() < Context.StepIndex)
@@ -1606,6 +1645,10 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	for (const FImpact& Impact : Batch)
 	{
 		ReactToImpact(Context, Bullets, Impact);
+	}
+	for (int32 Owner = 0; Owner < Players.Num() && Owner < Run.GetNumPlayers(); ++Owner)
+	{
+		StepHeldControl(Context, Owner, Players[Owner]);
 	}
 
 	// Mod.ChainTrigger: a kill by the weapon fires a free volley, at most once per its interval.
@@ -1633,6 +1676,169 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 
 // ------------------------------------------------------------------------------------------------------------------
 // Reactions
+
+void FDTWeaponSim::EnemiesInCircle(const FDTWorldView& View, const FVector2f& Center, float Radius, TArray<int32>& Out) const
+{
+	Out.Reset();
+	const int32 Num = DTWeaponSimLocal::NumEnemies(View);
+	if (Num == 0 || View.EnemyHash.Num() == 0 || Radius <= 0.0f)
+	{
+		return;
+	}
+	View.EnemyHash.QueryCircle(Center, Radius, Out);
+	Out.RemoveAll([&View, &Center, Radius, Num](int32 Enemy)
+	{
+		return Enemy < 0 || Enemy >= Num || FVector2f::DistSquared(Center, View.EnemyPositions[Enemy]) > Radius * Radius;
+	});
+	Out.Sort();
+}
+
+FDTFlagParams FDTWeaponSim::StatusParams(const FDTWeaponSpec& Spec, FName StatusWord) const
+{
+	FDTFlagParams Out;
+	Out.SetWord(DTFlagParam::Status, StatusWord);
+	for (const FDTResolvedFlag& Flag : Spec.Flags)
+	{
+		const FDTFlagParams& Params = Flag.Entry.Params;
+		if (Flag.Entry.Flag == DTCat::EFlag::StatusApply && Params.Has(DTFlagParam::FreezeStacks))
+		{
+			Out.Replace(DTFlagParam::FreezeStacks, Params.Get(DTFlagParam::FreezeStacks));
+			Out.Replace(DTFlagParam::FreezeDurationScale, Params.Get(DTFlagParam::FreezeDurationScale));
+			break;
+		}
+	}
+	return Out;
+}
+
+void FDTWeaponSim::StepHeldControl(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player)
+{
+	using namespace DTWeaponSimLocal;
+	if (!Enemies || Player.Weapons.Num() == 0)
+	{
+		return;
+	}
+	FDTWorldView& View = *Context.View;
+	const FDTWeaponSpec& Spec = Player.Weapons[0].Spec; // Keeper flags reach every weapon alike (R-KEE-03)
+	bool bBlocks = false;
+	int32 HeldMax = 0;
+	uint16 Source = 0;
+	for (const FDTResolvedFlag& Flag : Spec.Flags)
+	{
+		const FDTFlagParams& Params = Flag.Entry.Params;
+		if (Flag.Entry.Flag == DTCat::EFlag::StatusApply && (Params.Has(DTFlagParam::FrozenBlocksEnemies) || Params.Has(DTFlagParam::FreezeUntilHit)))
+		{
+			bBlocks |= Params.Get(DTFlagParam::FrozenBlocksEnemies) > 0.0f;
+			HeldMax = Params.Get(DTFlagParam::FreezeUntilHit) > 0.0f ? FMath::RoundToInt(Params.Get(DTFlagParam::HeldMax)) : HeldMax;
+			Source = Flag.Entry.SourceId;
+		}
+	}
+	const int32 Num = FMath::Min(NumEnemies(View), Enemies->Num());
+
+	// frozen_blocks_enemies: a Frozen enemy is a wall. Anything overlapping one is pushed back out to its rim, through the
+	// displacement queue (weapons never write positions), so the crowd has to walk around it.
+	if (bBlocks)
+	{
+		TArray<int32> Local;
+		for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+		{
+			if (Enemies->GetAux(Enemy).FreezeOwner != OwnerId || !Enemies->GetAux(Enemy).IsFrozen())
+			{
+				continue;
+			}
+			const FVector2f Wall = View.EnemyPositions[Enemy];
+			const float Radius = View.EnemyRadii[Enemy];
+			EnemiesInCircle(View, Wall, Radius + MaxEnemyRadius, Local);
+			for (const int32 Other : Local)
+			{
+				if (Other == Enemy || Other >= Num || Enemies->GetAux(Other).IsFrozen())
+				{
+					continue;
+				}
+				const FVector2f Away = View.EnemyPositions[Other] - Wall;
+				const float Dist = Away.Size();
+				const float Reach = Radius + View.EnemyRadii[Other];
+				if (Dist >= Reach)
+				{
+					continue;
+				}
+				FDTDisplacement& Move = View.Displacements.AddDefaulted_GetRef();
+				Move.EnemyIndex = Other;
+				Move.EnemySerial = View.EnemySerials[Other];
+				Move.Delta = SafeDir(Away, FVector2f(1.0f, 0.0f)) * (Reach - Dist);
+				Move.OwnerId = OwnerId;
+			}
+		}
+	}
+
+	// freeze_until_hit: enemies.md owns Freeze, so the hold is a Freeze re-applied for two steps while it would run out and
+	// no weapon has struck the enemy. A strike stops the hold; it never shortens a Freeze already running.
+	if (HeldMax > 0)
+	{
+		const float Hold = 2.0f * Context.StepSeconds;
+		auto Refresh = [&](int32 Enemy, uint32 Serial)
+		{
+			FDTStatusApply& Apply = View.StatusApplies.AddDefaulted_GetRef();
+			Apply.Handle = FDTEnemyHandle{ Enemy, Serial };
+			Apply.Status = EDTStatus::Freeze;
+			Apply.OwnerId = OwnerId;
+			Apply.SourceId = Source;
+			Apply.FreezeScale = Hold / DTConst::STATUS_FREEZE_S;
+		};
+		for (int32 Index = 0; Index < Player.HeldFrozen.Num();)
+		{
+			const uint32 Serial = Player.HeldFrozen[Index];
+			const int32 Enemy = IndexOfSerial(Serial);
+			if (Enemy == INDEX_NONE || Enemy >= Num || !Enemies->GetAux(Enemy).IsFrozen() || Player.FrozenStruck.Contains(Serial))
+			{
+				Player.HeldFrozen.RemoveAt(Index);
+				continue;
+			}
+			Refresh(Enemy, Serial);
+			++Index;
+		}
+		for (int32 Enemy = 0; Enemy < Num && Player.HeldFrozen.Num() < HeldMax; ++Enemy)
+		{
+			const FDTEnemyAux& Aux = Enemies->GetAux(Enemy);
+			const uint32 Serial = View.EnemySerials[Enemy];
+			if (Aux.IsFrozen() && Aux.FreezeOwner == OwnerId && Aux.FreezeLeft <= Hold && !Player.FrozenStruck.Contains(Serial) && !Player.HeldFrozen.Contains(Serial))
+			{
+				Player.HeldFrozen.Add(Serial);
+				Refresh(Enemy, Serial);
+			}
+		}
+	}
+	for (TSet<uint32>::TIterator It = Player.FrozenStruck.CreateIterator(); It; ++It)
+	{
+		const int32 Enemy = IndexOfSerial(*It);
+		if (Enemy == INDEX_NONE || Enemy >= Num || !Enemies->GetAux(Enemy).IsFrozen())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// charged_aura_uu: while any weapon holds a charge the hero pulses the aura status.
+	for (const FWeaponRuntime& Weapon : Player.Weapons)
+	{
+		const FDTResolvedFlag* Still = Weapon.StillCharges > 0 ? Weapon.Spec.FindFlag(DTCat::EFlag::Stillness) : nullptr;
+		const float Aura = Still ? Still->Entry.Params.Get(DTFlagParam::ChargedAuraUu) : 0.0f;
+		if (Aura <= 0.0f)
+		{
+			continue;
+		}
+		if (Player.AuraReadyIn <= 0.0f)
+		{
+			Player.AuraReadyIn = Still->Entry.Params.Get(DTFlagParam::AuraIntervalS);
+			const FDTFlagParams Params = StatusParams(Weapon.Spec, Still->Entry.Params.GetWord(DTFlagParam::AuraStatus));
+			TArray<int32> Local;
+			EnemiesInCircle(View, HeroOf(View, OwnerId), Aura, Local);
+			for (const int32 Enemy : Local)
+			{
+				ApplyStatus(Context, Params, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, 0.0f, OwnerId, Still->Entry.SourceId);
+			}
+		}
+		break;
+	}
+}
 
 uint8 FDTWeaponSim::StatusMaskOf(int32 Enemy, uint32 Serial) const
 {
@@ -1790,6 +1996,79 @@ void FDTWeaponSim::ForkArcs(const FDTSimContext& Context, const FDTKill& Kill, c
 	}
 }
 
+void FDTWeaponSim::ShatterAt(const FDTSimContext& Context, const FDTFlagEntry& Entry, int32 OwnerId, int32 Slot, const FVector2f& Center, float Radius)
+{
+	FWeaponRuntime* Runtime = FindRuntime(OwnerId, Slot != INDEX_NONE ? Slot : 0);
+	if (!Runtime || !TryEmit(*Runtime))
+	{
+		return;
+	}
+	const float Damage = StrongestDamage(OwnerId) * Entry.Params.Get(DTFlagParam::ShatterDmg);
+	TArray<FDTEnemyHandle> Hit;
+	HitCircle(Context, OwnerId, INDEX_NONE, Entry.SourceId, Center, Radius, Damage, false, nullptr, &Hit);
+	const FName Word = Entry.Params.GetWord(DTFlagParam::ShatterStatus);
+	if (!Word.IsNone())
+	{
+		const FDTFlagParams Params = StatusParams(Runtime->Spec, Word);
+		for (const FDTEnemyHandle& Handle : Hit)
+		{
+			ApplyStatus(Context, Params, Handle, Damage, OwnerId, Entry.SourceId);
+		}
+	}
+	FArcFlash& Flash = Arcs.AddDefaulted_GetRef();
+	Flash.OwnerId = OwnerId;
+	Flash.Position = Center;
+	Flash.Reach = Radius;
+	Flash.ArcDeg = 360.0f;
+	Flash.TimeLeft = 0.5f * Runtime->Spec.Cooldown;
+}
+
+void FDTWeaponSim::FreezeCluster(const FDTSimContext& Context, const FDTFlagEntry& Pull, const TArray<TPair<int32, FVector2f>>& Moved, const FImpact& Impact)
+{
+	using namespace DTWeaponSimLocal;
+	const FDTWorldView& View = *Context.View;
+	// Only enemies not yet Frozen count, so a held cluster cannot freeze and burst again on every impact.
+	TArray<TPair<int32, FVector2f>> Open;
+	for (const TPair<int32, FVector2f>& Item : Moved)
+	{
+		const uint32 Serial = View.EnemySerials[Item.Key];
+		if ((StatusMaskOf(Item.Key, Serial) & FreezeBit) == 0 && !StepClustered.Contains(Serial))
+		{
+			Open.Add(Item);
+		}
+	}
+	TArray<int32> Cluster;
+	FVector2f Center = FVector2f::ZeroVector;
+	for (int32 A = 0; A < Open.Num(); ++A)
+	{
+		for (int32 B = 0; B < Open.Num(); ++B)
+		{
+			const float Reach = View.EnemyRadii[Open[A].Key] + View.EnemyRadii[Open[B].Key];
+			if (A != B && FVector2f::DistSquared(Open[A].Value, Open[B].Value) <= Reach * Reach)
+			{
+				Cluster.Add(Open[A].Key);
+				Center += Open[A].Value;
+				break;
+			}
+		}
+	}
+	if (Cluster.Num() == 0 || Cluster.Num() < FMath::RoundToInt(Pull.Params.Get(DTFlagParam::ClusterFreezeMin)))
+	{
+		return;
+	}
+	FDTFlagParams Freeze;
+	Freeze.SetWord(DTFlagParam::Status, WordFreeze);
+	for (const int32 Enemy : Cluster)
+	{
+		StepClustered.Add(View.EnemySerials[Enemy]);
+		ApplyStatus(Context, Freeze, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, Impact.HitDamage, Impact.OwnerId, Pull.SourceId);
+	}
+	if (Pull.Params.Get(DTFlagParam::Shatter) > 0.0f)
+	{
+		ShatterAt(Context, Pull, Impact.OwnerId, Impact.Slot, Center / static_cast<float>(Cluster.Num()), Pull.Params.Get(DTFlagParam::ShatterUu));
+	}
+}
+
 void FDTWeaponSim::ExplodeBurning(const FDTSimContext& Context, const FDTKill& Kill, const FDTFlagEntry& Entry, float Radius)
 {
 	const int32 Slot = Kill.WeaponSlot != INDEX_NONE ? Kill.WeaponSlot : 0;
@@ -1857,11 +2136,29 @@ void FDTWeaponSim::ReactToKills(const FDTSimContext& Context, TConstArrayView<FA
 			}
 		}
 		const bool bHasDeath = Deaths.IsValidIndex(Index) && Deaths[Index].Serial == Kill.EnemySerial;
-		if (!bHasDeath || (Deaths[Index].StatusMask & BurnBit) == 0)
+		if (!bHasDeath)
 		{
 			continue;
 		}
 		FPlayerRuntime& Player = Players[Kill.OwnerId];
+		if ((Deaths[Index].StatusMask & FreezeBit) != 0)
+		{
+			for (const FFlagSource& Source : Player.Sources)
+			{
+				for (const FDTFlagEntry& Entry : Source.Flags.Entries)
+				{
+					const float Radius = Entry.Params.Get(DTFlagParam::ShatterOnFrozenKillUu);
+					if (Radius > 0.0f)
+					{
+						ShatterAt(Context, Entry, Kill.OwnerId, Kill.WeaponSlot, Kill.Position, Radius);
+					}
+				}
+			}
+		}
+		if ((Deaths[Index].StatusMask & BurnBit) == 0)
+		{
+			continue;
+		}
 		for (const FFlagSource& Source : Player.Sources)
 		{
 			for (const FDTFlagEntry& Entry : Source.Flags.Entries)
@@ -1927,7 +2224,7 @@ void FDTWeaponSim::ApplyStatus(const FDTSimContext& Context, const FDTFlagParams
 		Apply.StackBonus = FMath::RoundToInt(Params.Get(DTFlagParam::BurnStacksMax));
 		break;
 	case EDTStatus::Chill:
-		Apply.Magnitude = 1.0f + Params.Get(DTFlagParam::ChillStacksOnPull); // keepers.md R-KEE-12
+		Apply.Magnitude = FMath::Max(1.0f, Params.Get(DTFlagParam::ChillStacksOnPull)); // keepers.md R-KEE-12
 		Apply.FreezeAt = FMath::RoundToInt(Params.Get(DTFlagParam::FreezeStacks));
 		Apply.FreezeScale = 1.0f + Params.Get(DTFlagParam::FreezeDurationScale);
 		break;
@@ -2020,6 +2317,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 	const int32 HitEnemy = bEnemyHit ? IndexOfSerial(Impact.EnemySerial) : INDEX_NONE;
 	const int32 NumEnemies = DTWeaponSimLocal::NumEnemies(View);
 	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Combat);
+	if (bEnemyHit && (Impact.StatusMask & FreezeBit) != 0)
+	{
+		Players[Impact.OwnerId].FrozenStruck.Add(Impact.EnemySerial);
+	}
 
 	// Reactions spawn rounds and hits but never recompose: the spec is fixed for the step.
 	const TArray<FDTResolvedFlag>& Flags = Spec.Flags;
@@ -2071,6 +2372,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			break;
 		}
 		case DTCat::EFlag::Field:
+			if (Params.GetWord(DTFlagParam::Around) == WordHero)
+			{
+				break; // Stillness's aura pulses from the hero (StepHeldControl); it never lands on an impact
+			}
 			if (Params.GetWord(DTFlagParam::Trigger) == WordHitOnBurning)
 			{
 				if (Flag.IsNative() && bEnemyHit && (Impact.StatusMask & BurnBit) != 0)
@@ -2125,9 +2430,33 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			{
 				break;
 			}
-			const float Radius = Params.Get(DTFlagParam::RadiusUu);
+			float Radius = Params.Get(DTFlagParam::RadiusUu);
+			if (On == WordChargedVolley)
+			{
+				// Stillness's Pull: only a charged volley's impact, reaching charged_pull_uu.
+				const FDTResolvedFlag* Still = Impact.bCharged ? Spec.FindFlag(DTCat::EFlag::Stillness) : nullptr;
+				if (!Still)
+				{
+					break;
+				}
+				Radius = Still->Entry.Params.Get(DTFlagParam::ChargedPullUu);
+			}
 			const int64 VulnSteps = FMath::RoundToInt64(Params.Get(DTFlagParam::PulledVulnSeconds) / Context.StepSeconds);
 			const bool bCrush = Params.Get(DTFlagParam::CrushDmg) > 0.0f;
+			const bool bCluster = Params.Get(DTFlagParam::ClusterFreezeMin) > 0.0f;
+			// chill_stacks_on_pull sits on the Pull; the status it scales is the on=Pulled StatusApply (R-KEE-12).
+			TArray<TPair<FDTFlagParams, uint16>, TInlineAllocator<2>> PulledStatuses;
+			for (const FDTResolvedFlag& Status : Flags)
+			{
+				if (Status.Entry.Flag == DTCat::EFlag::StatusApply && Status.Entry.Params.GetWord(DTFlagParam::On) == WordPulled)
+				{
+					FDTFlagParams& Pulled = PulledStatuses.Emplace_GetRef(Status.Entry.Params, Status.Entry.SourceId).Key;
+					if (Params.Has(DTFlagParam::ChillStacksOnPull))
+					{
+						Pulled.Replace(DTFlagParam::ChillStacksOnPull, Params.Get(DTFlagParam::ChillStacksOnPull));
+					}
+				}
+			}
 			TArray<TPair<int32, FVector2f>> Moved;
 			TArray<int32> Local;
 			View.EnemyHash.QueryCircle(Impact.Position, Radius, Local);
@@ -2148,7 +2477,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				Move.EnemySerial = View.EnemySerials[Enemy];
 				Move.Delta = To / Dist * FMath::Min(Distance, Dist);
 				Move.OwnerId = Impact.OwnerId;
-				if (bCrush)
+				if (bCrush || bCluster)
 				{
 					Moved.Emplace(Enemy, View.EnemyPositions[Enemy] + Move.Delta);
 				}
@@ -2156,22 +2485,39 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				{
 					Puller.PulledUntilStep.Add(Move.EnemySerial, Context.StepIndex + VulnSteps);
 				}
-				for (const FDTResolvedFlag& Status : Flags)
+				const uint32 PulledSerial = Move.EnemySerial;
+				for (const TPair<FDTFlagParams, uint16>& Status : PulledStatuses)
 				{
-					if (Status.Entry.Flag == DTCat::EFlag::StatusApply && Status.Entry.Params.GetWord(DTFlagParam::On) == WordPulled)
-					{
-						ApplyStatus(Context, Status.Entry.Params, FDTEnemyHandle{ Enemy, Move.EnemySerial }, Impact.HitDamage, Impact.OwnerId, Status.Entry.SourceId);
-					}
+					ApplyStatus(Context, Status.Key, FDTEnemyHandle{ Enemy, PulledSerial }, Impact.HitDamage, Impact.OwnerId, Status.Value);
 				}
 			}
 			if (bCrush)
 			{
 				CrushContacts(Context, Flag.Entry, Moved, Impact.HitDamage, Impact.OwnerId);
 			}
+			if (bCluster)
+			{
+				FreezeCluster(Context, Flag.Entry, Moved, Impact);
+			}
 			break;
 		}
 		case DTCat::EFlag::StatusApply:
 		{
+			// frozen_hit_chills_neighbours_uu: a hit on a Frozen enemy (even the lethal one) Chills around it.
+			const float Neighbours = Params.Get(DTFlagParam::FrozenHitChillsNeighboursUu);
+			if (Neighbours > 0.0f && bEnemyHit && (Impact.StatusMask & FreezeBit) != 0)
+			{
+				const FDTFlagParams Chill = StatusParams(Spec, Params.GetWord(DTFlagParam::Status));
+				TArray<int32> Local;
+				EnemiesInCircle(View, Impact.EnemyPosition, Neighbours, Local);
+				for (const int32 Enemy : Local)
+				{
+					if (View.EnemySerials[Enemy] != Impact.EnemySerial)
+					{
+						ApplyStatus(Context, Chill, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, Impact.HitDamage, Impact.OwnerId, Flag.Entry.SourceId);
+					}
+				}
+			}
 			if (!bEnemyHit || HitEnemy == INDEX_NONE)
 			{
 				break;
@@ -2260,6 +2606,13 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			}
 			break;
 		}
+		case DTCat::EFlag::Stillness:
+			// The Key's status: a charged volley applies it to what it hits (Status.Freeze, refused by the boss).
+			if (Impact.bCharged && HitEnemy != INDEX_NONE && !Params.GetWord(DTFlagParam::Status).IsNone())
+			{
+				ApplyStatus(Context, Params, FDTEnemyHandle{ HitEnemy, Impact.EnemySerial }, Impact.HitDamage, Impact.OwnerId, Flag.Entry.SourceId);
+			}
+			break;
 		case DTCat::EFlag::Ricochet:
 		{
 			if (!Flag.IsNative() || Impact.Kind != EImpact::RoundHit || !Impact.bSpent || Impact.BouncesLeft <= 0)

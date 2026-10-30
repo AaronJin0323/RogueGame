@@ -52,6 +52,22 @@ namespace DTFlagParam
 	const FName ExplodeDmg(TEXT("explode_dmg"));
 	const FName SpreadBurnOnKillUu(TEXT("spread_burn_on_kill_uu"));
 	const FName SpreadBurnIntervalS(TEXT("spread_burn_interval_s"));
+	const FName ShatterOnFrozenKillUu(TEXT("shatter_on_frozen_kill_uu"));
+	const FName ShatterUu(TEXT("shatter_uu"));
+	const FName ShatterDmg(TEXT("shatter_dmg"));
+	const FName ShatterStatus(TEXT("shatter_status"));
+	const FName Shatter(TEXT("shatter"));
+	const FName ClusterFreezeMin(TEXT("cluster_freeze_min"));
+	const FName FrozenBlocksEnemies(TEXT("frozen_blocks_enemies"));
+	const FName FreezeUntilHit(TEXT("freeze_until_hit"));
+	const FName HeldMax(TEXT("held_max"));
+	const FName FrozenHitChillsNeighboursUu(TEXT("frozen_hit_chills_neighbours_uu"));
+	const FName ChargedPullUu(TEXT("charged_pull_uu"));
+	const FName ChargedAuraUu(TEXT("charged_aura_uu"));
+	const FName AuraStatus(TEXT("aura_status"));
+	const FName AuraIntervalS(TEXT("aura_interval_s"));
+	const FName ChargedFreezeRingUu(TEXT("charged_freeze_ring_uu"));
+	const FName Around(TEXT("around"));
 }
 
 EDTParamOp FDTFlagParams::DefaultOp(FName Name)
