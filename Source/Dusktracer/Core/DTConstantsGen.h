@@ -96,4 +96,35 @@ namespace DTConst
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
+	// keepers
+	inline constexpr int32 KEEPER_ARCHETYPES_PER_KEEPER = 3; // n, CORE
+	inline constexpr int32 KEEPER_BLESSINGS_PER_ARCHETYPE = 4; // n, CORE
+	inline constexpr int32 KEEPER_TRAIT_PREREQ_CARDS = 2; // n, GATED(S1)
+	inline constexpr float KEEPER_PACKAGE_GAIN_BAND_MIN = 2.0f; // x, GATED(S1)
+	inline constexpr float KEEPER_PACKAGE_GAIN_BAND_MAX = 2.4f; // x, GATED(S1)
+	inline constexpr int32 TIER_FAVOR_PER_BLESSING = 1; // favor, CORE
+	inline constexpr int32 TIER_FAVOR_T1 = 3; // favor, CORE
+	inline constexpr int32 TIER_FAVOR_T2 = 6; // favor, CORE
+	inline constexpr int32 TIER_FAVOR_T3 = 9; // favor, CORE
+	inline constexpr int32 TIER_LINE_WORDS_EN_MAX = 12; // words, CORE
+	inline constexpr int32 TIER_LINE_CHARS_ZH_MAX = 20; // chars, CORE
+	inline constexpr float ENCHANT_STATUS_CHANCE_PRIMARY = 0.15f; // ratio, GATED(S1)
+	inline constexpr float ENCHANT_STATUS_CHANCE_SECOND = 0.05f; // ratio, GATED(S1)
+	inline constexpr float ENCHANT_SHOCK_VULN = 0.15f; // ratio, GATED(S1)
+	inline constexpr float ENCHANT_SHOCK_DURATION_S = 2.0f; // s, GATED(S1)
+	inline constexpr float ENCHANT_BURN_DPS_RATIO = 0.2f; // ratio_per_s, GATED(S1)
+	inline constexpr float ENCHANT_BURN_DURATION_S = 3.0f; // s, GATED(S1)
+	inline constexpr int32 ENCHANT_BURN_STACKS_MAX = 3; // n, GATED(S1)
+	inline constexpr float ENCHANT_CHILL_SLOW_PER_STACK = 0.15f; // ratio, GATED(S1)
+	inline constexpr float ENCHANT_CHILL_DURATION_S = 2.0f; // s, GATED(S1)
+	inline constexpr int32 ENCHANT_FREEZE_STACKS = 3; // n, GATED(S1)
+	inline constexpr float ENCHANT_FREEZE_DURATION_S = 1.5f; // s, GATED(S1)
+	inline constexpr float INTERCESSION_STORM_DURATION_S = 6.0f; // s, GATED(S1)
+	inline constexpr int32 INTERCESSION_STORM_SPLIT_CHILDREN = 3; // n, GATED(S1)
+	inline constexpr float INTERCESSION_FORGE_DURATION_S = 5.0f; // s, GATED(S1)
+	inline constexpr float INTERCESSION_FORGE_RING_INTERVAL_S = 0.5f; // s, GATED(S1)
+	inline constexpr int32 INTERCESSION_FORGE_RING_RADIUS_UU = 600; // uu, GATED(S1)
+	inline constexpr int32 INTERCESSION_TIDE_RADIUS_UU = 2000; // uu, GATED(S1)
+	inline constexpr float INTERCESSION_TIDE_FREEZE_S = 3.0f; // s, GATED(S1)
+	inline constexpr float INTERCESSION_RETUNE_STEP_MAX = 2.0f; // x, GATED(S1)
 }

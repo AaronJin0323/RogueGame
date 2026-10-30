@@ -20,6 +20,20 @@
 | Keeper.Radiance | (string table) | 司曜 | 曜 | LUMEN | Blind 致盲 | burst / crit |
 | Keeper.Quicksilver | (string table) | 司驰 | 驰 | RELAY | — | mobility / ricochet |
 
+## Archetypes, S1 (`Archetype.<Path>.<Name>` tags; content in `02_Systems/keepers.md`, `09_Catalog/expression.csv`)
+
+| Key | en | zh-Hans |
+|---|---|---|
+| Archetype.Storm.Tempest | Tempest | 暴风 |
+| Archetype.Storm.ArcGrid | Arc Grid | 电弧网 |
+| Archetype.Storm.Downpour | Downpour | 倾盆 |
+| Archetype.Forge.Hammer | Hammer | 铁锤 |
+| Archetype.Forge.Furnace | Furnace | 熔炉 |
+| Archetype.Forge.Slam | Slam | 重砸 |
+| Archetype.Tide.Whirlpool | Whirlpool | 漩涡 |
+| Archetype.Tide.Frost | Frost | 霜冻 |
+| Archetype.Tide.Stillness | Stillness | 止水 |
+
 ## Core terms
 
 | Key | en | zh-Hans | Definition |

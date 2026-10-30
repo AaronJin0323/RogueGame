@@ -91,3 +91,33 @@ caps:
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
+keepers:
+  KEEPER.ARCHETYPES_PER_KEEPER: { value: 3,    unit: n,     tag: CORE,       dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-01] }
+  KEEPER.BLESSINGS_PER_ARCHETYPE: { value: 4,  unit: n,     tag: CORE,       dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-01] }
+  KEEPER.TRAIT_PREREQ_CARDS:   { value: 2,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 02_Systems/offers.md, T-KEE-04] }
+  KEEPER.PACKAGE_GAIN_BAND:    { value: [2.0, 2.4], unit: x, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-18] }
+  TIER.FAVOR_PER_BLESSING:     { value: 1,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
+  TIER.FAVOR_T1:               { value: 3,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
+  TIER.FAVOR_T2:               { value: 6,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
+  TIER.FAVOR_T3:               { value: 9,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
+  TIER.LINE_WORDS_EN_MAX:      { value: 12,   unit: words, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-08] }
+  TIER.LINE_CHARS_ZH_MAX:      { value: 20,   unit: chars, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-08] }
+  ENCHANT.STATUS_CHANCE_PRIMARY: { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-09] }
+  ENCHANT.STATUS_CHANCE_SECOND: { value: 0.05, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-09] }
+  ENCHANT.SHOCK_VULN:          { value: 0.15, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-10] }
+  ENCHANT.SHOCK_DURATION_S:    { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-10] }
+  ENCHANT.BURN_DPS_RATIO:      { value: 0.20, unit: ratio_per_s, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-11] }
+  ENCHANT.BURN_DURATION_S:     { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-11] }
+  ENCHANT.BURN_STACKS_MAX:     { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-11] }
+  ENCHANT.CHILL_SLOW_PER_STACK: { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-12] }
+  ENCHANT.CHILL_DURATION_S:    { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-12] }
+  ENCHANT.FREEZE_STACKS:       { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-12] }
+  ENCHANT.FREEZE_DURATION_S:   { value: 1.5,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-12] }
+  INTERCESSION.STORM_DURATION_S: { value: 6.0, unit: s,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.STORM_SPLIT_CHILDREN: { value: 3, unit: n,  tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.FORGE_DURATION_S: { value: 5.0, unit: s,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.FORGE_RING_INTERVAL_S: { value: 0.5, unit: s, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.FORGE_RING_RADIUS_UU: { value: 600, unit: uu, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.TIDE_RADIUS_UU: { value: 2000, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.TIDE_FREEZE_S:  { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
+  INTERCESSION.RETUNE_STEP_MAX: { value: 2.0, unit: x,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-15] }
