@@ -1,0 +1,88 @@
+Key,en,zh-Hans,Context,Kw
+Storm.Name,Keeper of Storms,司雷,Keeper.Storm card name (Patron and L8 hands). Honorific; never 'god'.,
+Storm.Desc,"Rounds split, arcs leap between enemies, strikes fall from the sky. Hits can Shock.",弹体分裂，电弧在敌人间跳跃，天雷落下。命中可让敌人感电。,Keeper.Storm card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Status.Shock
+Forge.Name,Keeper of the Forge,司炉,Keeper.Forge card name (Patron and L8 hands). Honorific; never 'god'.,
+Forge.Desc,"Rounds become cleaves, burning ground spreads, slams shake the floor. Hits can Burn.",弹体化作横斩，火地蔓延，重砸震地。命中可让敌人灼烧。,Keeper.Forge card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Status.Burn
+Tide.Name,Keeper of Tides,司潮,Keeper.Tide card name (Patron and L8 hands). Honorific; never 'god'.,
+Tide.Desc,"Hits pull and Chill, Chill turns to Freeze, and standing still charges your volleys.",命中会拉拢并减速敌人，减速叠满即冻结；站定可以蓄力。,Keeper.Tide card rules: what this Keeper's archetypes do. <= 90 chars en / 40 zh.,Status.Chill;Status.Freeze
+Storm.Tempest.Name,Tempest,暴风,Archetype.Storm.Tempest display name (card binding line).,
+Storm.Tempest.Key.Name,Forked Path,分岔,Blessing.Storm.Tempest.Key card name. <= 18 chars en / 6 zh.,
+Storm.Tempest.Key.Desc,"{chance_pct}% of rounds split into {children} on hit, each for {child_dmg_pct}% damage.",命中时 {chance_pct}% 几率分裂成 {children} 发，每发 {child_dmg_pct}% 伤害。,"Blessing.Storm.Tempest.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Tempest.Amp1.Name,Overcharge,雷怒,Blessing.Storm.Tempest.Amp1 card name. <= 18 chars en / 6 zh.,
+Storm.Tempest.Amp1.Desc,Splits make {children} more child. Children deal +{child_dmg_pct}% damage.,分裂多 {children} 发，子弹伤害 +{child_dmg_pct}%。,"Blessing.Storm.Tempest.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Tempest.Amp2.Name,Lightning Rod,引雷,Blessing.Storm.Tempest.Amp2 card name. <= 18 chars en / 6 zh.,
+Storm.Tempest.Amp2.Desc,Split children seek elites and the boss first.,分裂出的子弹优先飞向精英和首领。,"Blessing.Storm.Tempest.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Tempest.Trait.Name,Stormfront,锋面雷,Blessing.Storm.Tempest.Trait card name. <= 18 chars en / 6 zh.,
+Storm.Tempest.Trait.Desc,Children split once more.,子弹会再分裂一次。,"Blessing.Storm.Tempest.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.ArcGrid.Name,Arc Grid,电弧网,Archetype.Storm.ArcGrid display name (card binding line).,
+Storm.ArcGrid.Key.Name,Live Wire,惊蛰,Blessing.Storm.ArcGrid.Key card name. <= 18 chars en / 6 zh.,
+Storm.ArcGrid.Key.Desc,Hits arc to {jumps} more enemies within {range_uu_m} m for {dmg_pct}% damage.,命中后电弧跳向 {range_uu_m} 米内 {jumps} 个敌人，造成 {dmg_pct}% 伤害。,"Blessing.Storm.ArcGrid.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.ArcGrid.Amp1.Name,Ground Fault,雷痕,Blessing.Storm.ArcGrid.Amp1 card name. <= 18 chars en / 6 zh.,
+Storm.ArcGrid.Amp1.Desc,Arcs Shock. Shocked enemies take +{dmg_vs_shocked_pct}% from arcs.,电弧让敌人感电。感电的敌人受电弧伤害 +{dmg_vs_shocked_pct}%。,"Blessing.Storm.ArcGrid.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.ArcGrid.Amp2.Name,Return Stroke,回击,Blessing.Storm.ArcGrid.Amp2 card name. <= 18 chars en / 6 zh.,
+Storm.ArcGrid.Amp2.Desc,Arcs have a {return_same_target_pct}% chance to leap back to the same enemy.,电弧有 {return_same_target_pct}% 几率跳回同一个敌人。,"Blessing.Storm.ArcGrid.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.ArcGrid.Trait.Name,Supercell,雷暴核,Blessing.Storm.ArcGrid.Trait card name. <= 18 chars en / 6 zh.,
+Storm.ArcGrid.Trait.Desc,An arc that kills forks into {fork_on_kill} new arcs.,电弧击杀敌人时分出 {fork_on_kill} 道新电弧。,"Blessing.Storm.ArcGrid.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Downpour.Name,Downpour,倾盆,Archetype.Storm.Downpour display name (card binding line).,
+Storm.Downpour.Key.Name,Thunderclap,霹雳,Blessing.Storm.Downpour.Key card name. <= 18 chars en / 6 zh.,
+Storm.Downpour.Key.Desc,Each impact is struck again from the sky {delay_s} s later for {dmg_pct}% damage.,每次命中 {delay_s} 秒后天雷再落一次，造成 {dmg_pct}% 伤害。,"Blessing.Storm.Downpour.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Downpour.Amp1.Name,Rolling Thunder,滚雷,Blessing.Storm.Downpour.Amp1 card name. <= 18 chars en / 6 zh.,
+Storm.Downpour.Amp1.Desc,Sky strikes leave a field that Shocks for {duration_s} s.,天雷落点留下感电区域，持续 {duration_s} 秒。,"Blessing.Storm.Downpour.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Downpour.Amp2.Name,Long Peal,长雷,Blessing.Storm.Downpour.Amp2 card name. <= 18 chars en / 6 zh.,
+Storm.Downpour.Amp2.Desc,Sky strikes fall {count} more time.,天雷多落 {count} 次。,"Blessing.Storm.Downpour.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Storm.Downpour.Trait.Name,Capacitor,蓄雷,Blessing.Storm.Downpour.Trait card name. <= 18 chars en / 6 zh.,
+Storm.Downpour.Trait.Desc,Every {every_n}th sky strike hits the whole screen.,每第 {every_n} 次天雷落向全屏。,"Blessing.Storm.Downpour.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Shock
+Forge.Hammer.Name,Hammer,铁锤,Archetype.Forge.Hammer display name (card binding line).,
+Forge.Hammer.Key.Name,Hammer Hand,锤手,Blessing.Forge.Hammer.Key card name. <= 18 chars en / 6 zh.,
+Forge.Hammer.Key.Desc,The first {rounds} rounds of each volley become a cleave around you for ×{dmg_mult} damage.,每次齐射的前 {rounds} 发化为身边的横斩，伤害 ×{dmg_mult}。,"Blessing.Forge.Hammer.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Hammer.Amp1.Name,Hard Blow,重击,Blessing.Forge.Hammer.Amp1 card name. <= 18 chars en / 6 zh.,
+Forge.Hammer.Amp1.Desc,Cleaves knock enemies back {knockback_uu_m} m.,横斩把敌人击退 {knockback_uu_m} 米。,"Blessing.Forge.Hammer.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Hammer.Amp2.Name,Long Haft,长柄,Blessing.Forge.Hammer.Amp2 card name. <= 18 chars en / 6 zh.,
+Forge.Hammer.Amp2.Desc,Cleaves are {radius_scale_pct}% larger.,横斩范围 +{radius_scale_pct}%。,"Blessing.Forge.Hammer.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Hammer.Trait.Name,Masterwork,精工,Blessing.Forge.Hammer.Trait card name. <= 18 chars en / 6 zh.,
+Forge.Hammer.Trait.Desc,Cleaves carry the effects of your modifiers.,横斩也带上武器模块的效果。,"Blessing.Forge.Hammer.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Furnace.Name,Furnace,熔炉,Archetype.Forge.Furnace display name (card binding line).,
+Forge.Furnace.Key.Name,Kindling,引火,Blessing.Forge.Furnace.Key card name. <= 18 chars en / 6 zh.,
+Forge.Furnace.Key.Desc,{chance_pct}% of hits Burn. Hitting a Burning enemy leaves burning ground for {duration_s} s.,命中时 {chance_pct}% 几率灼烧；命中灼烧的敌人留下火地 {duration_s} 秒。,"Blessing.Forge.Furnace.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Furnace.Amp1.Name,Bellows,鼓风,Blessing.Forge.Furnace.Amp1 card name. <= 18 chars en / 6 zh.,
+Forge.Furnace.Amp1.Desc,Burn ticks {burn_tick_rate_pct}% faster.,灼烧跳伤速度 +{burn_tick_rate_pct}%。,"Blessing.Forge.Furnace.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Furnace.Amp2.Name,Banked Heat,封火,Blessing.Forge.Furnace.Amp2 card name. <= 18 chars en / 6 zh.,
+Forge.Furnace.Amp2.Desc,Burning ground lasts {duration_s} s longer. Burn stacks {burn_stacks_max} higher.,火地持续 +{duration_s} 秒，灼烧层数上限 +{burn_stacks_max}。,"Blessing.Forge.Furnace.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Furnace.Trait.Name,Wildfire,野火,Blessing.Forge.Furnace.Trait card name. <= 18 chars en / 6 zh.,
+Forge.Furnace.Trait.Desc,A Burning enemy that dies spreads Burn within {spread_burn_on_kill_uu_m} m.,灼烧的敌人死亡时，向 {spread_burn_on_kill_uu_m} 米内扩散灼烧。,"Blessing.Forge.Furnace.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Slam.Name,Slam,重砸,Archetype.Forge.Slam display name (card binding line).,
+Forge.Slam.Key.Name,Ember Trail,踏火,Blessing.Forge.Slam.Key card name. <= 18 chars en / 6 zh.,
+Forge.Slam.Key.Desc,"Dash landings, every {n}th melee hit and hits you take set off a slam within {radius_uu_m} m.",冲刺落地、每第 {n} 次近战命中和受击时，在 {radius_uu_m} 米内重砸。,"Blessing.Forge.Slam.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Slam.Amp1.Name,Quench,淬火,Blessing.Forge.Slam.Amp1 card name. <= 18 chars en / 6 zh.,
+Forge.Slam.Amp1.Desc,"After you are hit, your next slam deals ×{after_hit_taken_mult} damage.",受击后，下一次重砸伤害 ×{after_hit_taken_mult}。,"Blessing.Forge.Slam.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Slam.Amp2.Name,Spark Shower,火星雨,Blessing.Forge.Slam.Amp2 card name. <= 18 chars en / 6 zh.,
+Forge.Slam.Amp2.Desc,Slams throw {embers} embers that Burn what they hit.,重砸溅出 {embers} 颗火星，命中即灼烧。,"Blessing.Forge.Slam.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Forge.Slam.Trait.Name,Cinder Storm,烬暴,Blessing.Forge.Slam.Trait card name. <= 18 chars en / 6 zh.,
+Forge.Slam.Trait.Desc,Slams set off every Burning enemy in range.,重砸引爆范围内所有灼烧的敌人。,"Blessing.Forge.Slam.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn
+Tide.Whirlpool.Name,Whirlpool,漩涡,Archetype.Tide.Whirlpool display name (card binding line).,
+Tide.Whirlpool.Key.Name,Undertow,暗涌,Blessing.Tide.Whirlpool.Key card name. <= 18 chars en / 6 zh.,
+Tide.Whirlpool.Key.Desc,Hits pull enemies within {radius_uu_m} m toward the impact; {chance_pct}% are Chilled.,命中把 {radius_uu_m} 米内的敌人拉向落点，{chance_pct}% 几率减速。,"Blessing.Tide.Whirlpool.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Whirlpool.Amp1.Name,Cold Draw,寒引,Blessing.Tide.Whirlpool.Amp1 card name. <= 18 chars en / 6 zh.,
+Tide.Whirlpool.Amp1.Desc,Pulled enemies gain {chill_stacks_on_pull} Chill.,被拉动的敌人获得 {chill_stacks_on_pull} 层减速。,"Blessing.Tide.Whirlpool.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Whirlpool.Amp2.Name,Crush Depth,深压,Blessing.Tide.Whirlpool.Amp2 card name. <= 18 chars en / 6 zh.,
+Tide.Whirlpool.Amp2.Desc,Pulled enemies that collide take {crush_dmg_pct}% damage.,被拉动的敌人相撞时受到 {crush_dmg_pct}% 伤害。,"Blessing.Tide.Whirlpool.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Whirlpool.Trait.Name,Shatterpoint,碎点,Blessing.Tide.Whirlpool.Trait card name. <= 18 chars en / 6 zh.,
+Tide.Whirlpool.Trait.Desc,"When {cluster_freeze_min} or more pulled enemies touch, they Freeze together and shatter.",{cluster_freeze_min} 个以上被拉动的敌人挤在一起时，一同冻结并碎裂。,"Blessing.Tide.Whirlpool.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Frost.Name,Frost,霜冻,Archetype.Tide.Frost display name (card binding line).,
+Tide.Frost.Key.Name,Brittle,易碎,Blessing.Tide.Frost.Key card name. <= 18 chars en / 6 zh.,
+Tide.Frost.Key.Desc,{chance_pct}% of hits Chill. {freeze_stacks} Chills Freeze; Frozen take +{frozen_vuln_pct}%.,命中时 {chance_pct}% 几率减速，{freeze_stacks} 层冻结；冻结的敌人受伤 +{frozen_vuln_pct}%。,"Blessing.Tide.Frost.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Frost.Amp1.Name,Breakwater,防波堤,Blessing.Tide.Frost.Amp1 card name. <= 18 chars en / 6 zh.,
+Tide.Frost.Amp1.Desc,Frozen enemies block other enemies like walls.,冻结的敌人像墙一样挡住其他敌人。,"Blessing.Tide.Frost.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Frost.Amp2.Name,Permafrost,永冻,Blessing.Tide.Frost.Amp2 card name. <= 18 chars en / 6 zh.,
+Tide.Frost.Amp2.Desc,"Freeze lasts until the enemy is hit, up to {held_max} enemies at once.",冻结持续到敌人被命中，最多同时 {held_max} 个。,"Blessing.Tide.Frost.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Frost.Trait.Name,Ice Shatter,冰裂,Blessing.Tide.Frost.Trait card name. <= 18 chars en / 6 zh.,
+Tide.Frost.Trait.Desc,A Frozen enemy that dies shatters for {shatter_dmg_pct}% within {shatter_on_frozen_kill_uu_m} m and Chills.,冻结的敌人死亡时碎裂，对 {shatter_on_frozen_kill_uu_m} 米内造成 {shatter_dmg_pct}% 伤害并减速。,"Blessing.Tide.Frost.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Stillness.Name,Stillness,止水,Archetype.Tide.Stillness display name (card binding line).,
+Tide.Stillness.Key.Name,Deep Calm,静渊,Blessing.Tide.Stillness.Key card name. <= 18 chars en / 6 zh.,
+Tide.Stillness.Key.Desc,Stand still for {charge_s} s: your next volley deals ×{mult} damage and Freezes.,站定 {charge_s} 秒：下一次齐射伤害 ×{mult} 并冻结。,"Blessing.Tide.Stillness.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Stillness.Amp1.Name,Drawdown,退潮,Blessing.Tide.Stillness.Amp1 card name. <= 18 chars en / 6 zh.,
+Tide.Stillness.Amp1.Desc,Charged volleys pull enemies {charged_pull_uu_m} m toward the impact.,蓄力齐射把敌人拉向落点 {charged_pull_uu_m} 米。,"Blessing.Tide.Stillness.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Stillness.Amp2.Name,Deep Reserve,深蓄,Blessing.Tide.Stillness.Amp2 card name. <= 18 chars en / 6 zh.,
+Tide.Stillness.Amp2.Desc,Hold up to {charges_max} charged volleys.,最多存下 {charges_max} 次蓄力齐射。,"Blessing.Tide.Stillness.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze
+Tide.Stillness.Trait.Name,Cold Breath,寒息,Blessing.Tide.Stillness.Trait card name. <= 18 chars en / 6 zh.,
+Tide.Stillness.Trait.Desc,"While charged, you Chill enemies within {charged_aura_uu_m} m every {aura_interval_s} s.",蓄力时每 {aura_interval_s} 秒让 {charged_aura_uu_m} 米内的敌人减速。,"Blessing.Tide.Stillness.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Chill;Status.Freeze

@@ -11,6 +11,7 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
+#include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTXPBar.h"
 
@@ -212,6 +213,12 @@ void ADTHUD::DrawHUD()
 	}
 
 	DrawHeroes();
-	// Last, so nothing covers it (progression.md R-PRG-11).
+	// Above the world HUD; only the offer screen draws over it (progression.md R-PRG-11).
 	FDTXPBar::Draw(Canvas, GetWorld(), Font);
+
+	// The offer screen draws over everything while a hand is open (offers.md R-OFF-13).
+	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
+	{
+		Offers->DrawScreen(Canvas);
+	}
 }

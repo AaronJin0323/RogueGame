@@ -86,21 +86,21 @@ Non-starter S1 rows (Gravity Mine, Fork, Ricochet) enter a run only through `DT.
 API: `UDTOfferSubsystem::BuildHand(OwnerId, HandKind)`, `Reroll / Banish(Slot) / Lock(Slot) / Pick(Slot)`; the generator is a pure function of (`FDTPlayerRunState` snapshot, catalogs, stream) so tests need no world.
 
 ## Acceptance
-- T-OFF-01 PLANNED(S1) `Dusktracer.Offers.HandShape`: over many seeded hands every level-up hand has exactly `C.OFFER.CARDS` cards with distinct identities.
-- T-OFF-02 PLANNED(S1) `Dusktracer.Offers.Weights`: each factor of R-OFF-02 moves only its cards by the stated amount; the empirical pick share over many draws matches the weights.
-- T-OFF-03 PLANNED(S1) `Dusktracer.Offers.Legality`: no hand ever shows a modifier the matrix forbids or a weapon without a free socket, an amplifier or trait without its key, a second-Keeper blessing excluded by the Patron's `IncompatFlags`, a non-Patron blessing before the L8 hand, a third-Keeper blessing after it, a banished id, or a new weapon with full slots.
-- T-OFF-04 PLANNED(S1) `Dusktracer.Offers.PerPlayerStream`: two players with the same seed; rerolling for one leaves the other's hands identical; the same seed and choices replay identical hands.
-- T-OFF-05 PLANNED(S1) `Dusktracer.Offers.Rarity`: rarity shares match the constants; a Rare and an Epic upgrade add their levels, capped.
-- T-OFF-06 PLANNED(S1) `Dusktracer.Offers.Guarantee`: the first card is in the guaranteed set; the pre-L8 blessing share matches; after L8 the committed-blessing floor and the owned-archetype card hold; an empty set gives `guarantee_filled = false`.
-- T-OFF-07 PLANNED(S1) `Dusktracer.Offers.StarterPool`: a fresh profile's pool is the catalog starter flags within the `C.POOL.*` caps; amplifiers and traits appear only after their key.
-- T-OFF-08 PLANNED(S1) `Dusktracer.Offers.SecondKeeper`: the run-start Patron hand holds every Keeper of the run up to the constant, unweighted; at the milestone level the hand holds only Keeper cards (the non-Patron Keepers, at most the constant); after the pick the other Keepers' blessings never appear.
-- T-OFF-09 PLANNED(S1) `Dusktracer.Offers.Reforging`: with every combination of missing sources (in S1: all missing) the Reforging hand still has exactly `C.OFFER.REFORGING_CARDS` distinct pickable cards, the highest-weight legal blessings first.
-- T-OFF-10 PLANNED(S1) `Dusktracer.Offers.Tools`: counts start at the constants and never go negative; reroll keeps the locked card; banish removes the id for the run and refills the slot; lock carries a card into the next level-up hand and refunds when it turns illegal; Reserve, Keeper and Reforging cards refuse banish and lock.
-- T-OFF-11 PLANNED(S1) `Dusktracer.Offers.AntiFrustration`: below the weapon floor at the force level a new-weapon card is present when legal; a confirm inside the input guard picks nothing; every hand action works from keyboard, mouse and gamepad input actions.
-- T-OFF-12 PLANNED(S1) `Dusktracer.Offers.Reserve`: with an exhausted pool every hand still reaches its card count; Reserve cards fill only empty slots, at most one per kind, never with a legal card left out.
-- T-OFF-13 PLANNED(S1) `Dusktracer.Offers.CardIdentity` (with T-PRE-08): every card kind maps to a unique border, icon and label key, and Reserve is distinct from all five content kinds.
-- T-OFF-14 PLANNED(S1) `Dusktracer.Offers.ChestHand`: chest hands have `C.OFFER.CHEST_CARDS` cards, rarity at least Rare, no guaranteed slot, no Keeper or Reforging card; queued hands open in order, one at a time per player.
-- T-OFF-15 PLANNED(S1) `Dusktracer.Offers.Budget`: the budget constants sum to `C.DECISIONS.PER_RUN`; a bot telemetry run reports decisions, paused seconds per minute and Reserve share within R-OFF-15 (bot bound, GATED until calibrated against humans).
+- T-OFF-01 `Dusktracer.Offers.HandShape`: over many seeded hands every level-up hand has exactly `C.OFFER.CARDS` cards with distinct identities.
+- T-OFF-02 `Dusktracer.Offers.Weights`: each factor of R-OFF-02 moves only its cards by the stated amount; the empirical pick share over many draws matches the weights.
+- T-OFF-03 `Dusktracer.Offers.Legality`: no hand ever shows a modifier the matrix forbids or a weapon without a free socket, an amplifier or trait without its key, a second-Keeper blessing excluded by the Patron's `IncompatFlags`, a non-Patron blessing before the L8 hand, a third-Keeper blessing after it, a banished id, or a new weapon with full slots.
+- T-OFF-04 `Dusktracer.Offers.PerPlayerStream`: two players with the same seed; rerolling for one leaves the other's hands identical; the same seed and choices replay identical hands.
+- T-OFF-05 `Dusktracer.Offers.Rarity`: rarity shares match the constants; a Rare and an Epic upgrade add their levels, capped.
+- T-OFF-06 `Dusktracer.Offers.Guarantee`: the first card is in the guaranteed set; the pre-L8 blessing share matches; after L8 the committed-blessing floor and the owned-archetype card hold; an empty set gives `guarantee_filled = false`.
+- T-OFF-07 `Dusktracer.Offers.StarterPool`: a fresh profile's pool is the catalog starter flags within the `C.POOL.*` caps; amplifiers and traits appear only after their key.
+- T-OFF-08 `Dusktracer.Offers.SecondKeeper`: the run-start Patron hand holds every Keeper of the run up to the constant, unweighted; at the milestone level the hand holds only Keeper cards (the non-Patron Keepers, at most the constant); after the pick the other Keepers' blessings never appear.
+- T-OFF-09 `Dusktracer.Offers.Reforging`: with every combination of missing sources (in S1: all missing) the Reforging hand still has exactly `C.OFFER.REFORGING_CARDS` distinct pickable cards, the highest-weight legal blessings first.
+- T-OFF-10 `Dusktracer.Offers.Tools`: counts start at the constants and never go negative; reroll keeps the locked card; banish removes the id for the run and refills the slot; lock carries a card into the next level-up hand and refunds when it turns illegal; Reserve, Keeper and Reforging cards refuse banish and lock.
+- T-OFF-11 `Dusktracer.Offers.AntiFrustration`: below the weapon floor at the force level a new-weapon card is present when legal; a confirm inside the input guard picks nothing; every hand action works from keyboard, mouse and gamepad input actions.
+- T-OFF-12 `Dusktracer.Offers.Reserve`: with an exhausted pool every hand still reaches its card count; Reserve cards fill only empty slots, at most one per kind, never with a legal card left out.
+- T-OFF-13 `Dusktracer.Offers.CardIdentity` (with T-PRE-08): every card kind maps to a unique border, icon and label key, and Reserve is distinct from all five content kinds.
+- T-OFF-14 `Dusktracer.Offers.ChestHand`: chest hands have `C.OFFER.CHEST_CARDS` cards, rarity at least Rare, no guaranteed slot, no Keeper or Reforging card; queued hands open in order, one at a time per player.
+- T-OFF-15 `Dusktracer.Offers.Budget`: the budget constants sum to `C.DECISIONS.PER_RUN`; a steered headless run takes `C.DECISIONS.PER_RUN` ± `C.OFFER.DECISIONS_TOLERANCE` decisions with a Reserve share within `C.OFFER.RESERVE_SHARE_MAX`. The bot telemetry run (decisions, paused seconds per minute, Reserve share) lands with bot v1 (bot bound, GATED until calibrated against humans).
 - HUMAN: on the first offer screen a validator with a gamepad and one with keyboard and mouse can pick, reroll, banish and lock without help; each names a card's kind (weapon, modifier, blessing, Keeper; Reforging cards from S2) at a glance; at L16 they see a choice of three, never one card.
 
 ## Telemetry
@@ -119,5 +119,8 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 - Co-op hands (non-pausing slow time, auto-pick): the co-op release (D-004); the state is already per player.
 
 ## Open
+- The pause stops the sim at the frame boundary after a hand is queued (`AGameModeBase::SetPause` with a guard the pause menu cannot clear); when a frame runs more than one fixed step, the steps after the level-up step still run before the hand opens → smallest fix: a pause request on `UDTSimSubsystem` checked between steps in `StepNow` (Core change, not made by the offers package).
+- `Reserve.Restore` and `Reserve.Salvage` are logged no-ops until the hero has a heal entry point and progression has a pickup-radius stat; `Reserve.Hone` writes `FDTWeaponHeroStats` directly until `FDTStatSet` owns the damage slice.
+- Unattended runs (`-unattended`, `dt.Offer.AutoPick`) take the first card of every hand, so smoke and perf runs never wait on a hand; the run-start Patron is then the first Keeper in Path order.
 - Weight values come from a 20-minute run with more content → re-tuned from bot telemetry once the S1 pool exists (`10_Tuning`).
 - `Reserve.Hone` adds non-Keeper damage → its share is reported by `Tools/power_split.py` as Other; revisit if it moves `C.POWER.KEEPER_SHARE_L16`.

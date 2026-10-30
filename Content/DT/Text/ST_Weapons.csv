@@ -1,0 +1,11 @@
+Key,en,zh-Hans,Context,Kw
+PulseRifle.Name,Pulse Rifle,脉冲步枪,Offer card name of Weapon.PulseRifle (weapons.md Text).,
+PulseRifle.Desc,Fires quick bolts at the nearest enemy.,向最近的敌人连射光弹。,"Offer card line of Weapon.PulseRifle: names the pattern, never a catalog number.",
+RingEmitter.Name,Ring Emitter,环射器,Offer card name of Weapon.RingEmitter (weapons.md Text).,
+RingEmitter.Desc,Pulses a ring of rounds in every direction.,向四面八方射出一圈弹体。,"Offer card line of Weapon.RingEmitter: names the pattern, never a catalog number.",
+OrbitalDrones.Name,Orbital Drones,浮游炮,Offer card name of Weapon.OrbitalDrones (weapons.md Text).,
+OrbitalDrones.Desc,Drones circle you and fire at whatever comes near.,浮游炮环绕你，射击靠近的敌人。,"Offer card line of Weapon.OrbitalDrones: names the pattern, never a catalog number.",
+ArcBlade.Name,Arc Blade,弧刃,Offer card name of Weapon.ArcBlade (weapons.md Text).,
+ArcBlade.Desc,Sweeps a wide blade at the closest enemy.,朝最近的敌人挥出宽弧刃。,"Offer card line of Weapon.ArcBlade: names the pattern, never a catalog number.",
+GravityMine.Name,Gravity Mine,引力雷,Offer card name of Weapon.GravityMine (weapons.md Text).,
+GravityMine.Desc,"Drops a mine on a crowd: it pulls them in, then detonates.",在敌群中布雷：先把敌人吸过来，再引爆。,"Offer card line of Weapon.GravityMine: names the pattern, never a catalog number.",
