@@ -445,6 +445,12 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 			// A flat disc on the ground, under the cues and telegraphs (R-PRE-11).
 			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Visual.Radius, Visual.Radius, ZoneHalf)));
 			break;
+		case FDTWeaponVisual::EKind::Marked:
+		{
+			const float Plate = Visual.Radius * DTConst::PRE_WALL_PLATE_RATIO;
+			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, ZoneZ), FVector(Plate, Plate, ZoneHalf)));
+			break;
+		}
 		case FDTWeaponVisual::EKind::FrozenWall:
 		{
 			// A plate in the Tide zone colour under the hull: the same flat disc as a field, wider than the hull's corners.

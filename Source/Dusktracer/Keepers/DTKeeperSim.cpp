@@ -32,6 +32,25 @@ namespace DTKeeperSimLocal
 	static const FName ParamBurnToCap(TEXT("burn_to_cap"));
 	static const FName ParamGrantCharge(TEXT("grant_charge"));
 	static const FName ParamDashCooldownReset(TEXT("dash_cooldown_reset"));
+	static const FName ParamDashCooldownScale(TEXT("dash_cooldown_scale"));
+	static const FName ParamDashCooldownS(TEXT("dash_cooldown_s"));
+	static const FName ParamDashCharges(TEXT("dash_charges"));
+	static const FName ParamTurnDegS(TEXT("turn_deg_s"));
+	static const FName ParamSeekRangeUu(TEXT("seek_range_uu"));
+	static const FName ParamOnCast(TEXT("on_cast"));
+	static const FName ParamLifeS(TEXT("life_s"));
+	static const FName ParamLifeScale(TEXT("life_scale"));
+	static const FName ParamInstantPayday(TEXT("instant_payday"));
+	static const FName ParamPaydayMult(TEXT("payday_mult"));
+	static const FName ParamPaydayExecute(TEXT("payday_execute_below"));
+	static const FName ParamCastDebt(TEXT("cast_debt"));
+	static const FName ParamGrantStacks(TEXT("grant_stacks"));
+	static const FName ParamNoDecay(TEXT("no_decay"));
+	static const FName ParamBeams(TEXT("beams"));
+	static const FName ParamBeamFan(TEXT("beam_fan"));
+	static const FName ParamBeamNovaS(TEXT("beam_nova_s"));
+	static const FName ParamCritMult(TEXT("crit_mult"));
+	static const FName WordMarked(TEXT("Marked"));
 	static const FName WordPattern(TEXT("pattern"));
 	static const FName WordFan(TEXT("Fan"));
 	static const FName WordOn(TEXT("on"));
@@ -87,6 +106,9 @@ namespace DTKeeperSimLocal
 	{
 		return Path != EDTPath::None && Path < EDTPath::Count;
 	}
+
+	/** A beam's flash: a narrow arc (keepers.md R-KEE-36). */
+	constexpr float BeamFlashDeg = 8.0f;
 }
 
 // ---- players and flags -------------------------------------------------------------------------------------------------------
@@ -158,7 +180,34 @@ const FDTIntercessionPlan& FDTKeeperSim::GetActivePlan(int32 OwnerId) const
 
 FDTKeeperSim::FHeroRiders FDTKeeperSim::GetHeroRiders(int32 OwnerId) const
 {
-	return FHeroRiders();
+	using namespace DTKeeperSimLocal;
+	FHeroRiders Riders;
+	if (!Players.IsValidIndex(OwnerId))
+	{
+		return Riders;
+	}
+	const FPlayer& Player = Players[OwnerId];
+	float Scale = 0.0f;
+	for (const FDTWeaponFlags& Built : Player.Built)
+	{
+		for (const FDTFlagEntry& Entry : Built.Entries)
+		{
+			Scale += Entry.Params.Get(ParamDashCooldownScale);
+			Riders.DashCharges += FMath::RoundToInt(Entry.Params.Get(ParamDashCharges));
+		}
+	}
+	Riders.DashCooldownMul = FMath::Max(0.0f, 1.0f + Scale);
+	if (Player.Cast.bActive)
+	{
+		for (const FDTSpecClause& Clause : Player.Cast.Plan.VariantSpec.Clauses)
+		{
+			if (Clause.HasNum(ParamDashCooldownS))
+			{
+				Riders.DashCooldownMul = Clause.GetNum(ParamDashCooldownS) / static_cast<float>(DTConst::DASH_COOLDOWN_S);
+			}
+		}
+	}
+	return Riders;
 }
 
 void FDTKeeperSim::ResetRun()
@@ -269,6 +318,15 @@ void FDTKeeperSim::AppendStatus(FDTWorldView& View, FPlayer& Player, EDTStatus S
 	}
 	switch (Status)
 	{
+	case EDTStatus::Blind:
+	{
+		// keepers.md R-KEE-25: it reaches the enemy as a short Freeze.
+		FDTStatusApply Stun = Apply;
+		Stun.Status = EDTStatus::Freeze;
+		Stun.FreezeScale = DTConst::STATUS_BLIND_S / DTConst::STATUS_FREEZE_S;
+		View.StatusApplies.Add(Stun);
+		break;
+	}
 	case EDTStatus::Burn:
 		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage * (1.0f + BurnRate);
 		Apply.StackBonus = FMath::RoundToInt(StackBonus);
@@ -368,9 +426,10 @@ void FDTKeeperSim::StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapo
 		{
 			Enchant(Context, Player, Hit, Enemy);
 		}
-		if (Player.Cast.bActive && Player.Cast.Plan.Base == EDTPath::Storm)
+		const EDTPath Casting = Player.Cast.bActive ? Player.Cast.Plan.Base : EDTPath::None;
+		if (Casting == EDTPath::Storm || Casting == EDTPath::Shade || Casting == EDTPath::Quicksilver)
 		{
-			ApplyLayerStatus(Context, Hit.OwnerId, Player, Enemy, Hit.Damage); // a Storm cast's hits are its rounds', never its own
+			ApplyLayerStatus(Context, Hit.OwnerId, Player, Enemy, Hit.Damage); // these casts' hits are their rounds', never their own
 		}
 		// Frost: a Frozen enemy takes frozen_vuln more from every hit; the extra is Keeper damage (R-KEE-13).
 		if (Hit.bFrozen && FrozenVuln[Hit.OwnerId] > 0.0f)
@@ -403,6 +462,10 @@ void FDTKeeperSim::StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapo
 		{
 			StepCast(Context, Owner, Player, Weapons);
 		}
+	}
+	if (Weapons)
+	{
+		Weapons->AbsorbStatuses(Context);
 	}
 	LastStep = Context.StepIndex;
 }
@@ -500,6 +563,47 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 			}
 		}
 		break;
+	case EDTPath::Shade:
+	{
+		// R-KEE-35: the screen is Marked and every round hunts; the execute is EndCast's.
+		const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+		if (Weapons)
+		{
+			Weapons->MarkCircle(Context, OwnerId, HeroOf(*Context.View, OwnerId), Frame, DTKeepers::KeeperSource(EDTPath::Shade));
+		}
+		FDTSpecClause Seek = MakeClause(DTCat::EFlag::Seek);
+		AddNum(Seek, ParamTurnDegS, static_cast<float>(DTConst::INTERCESSION_SHADE_TURN_DEG_S));
+		AddNum(Seek, ParamSeekRangeUu, Frame);
+		Seek.Words.Emplace(WordTarget, WordMarked);
+		Player.Overlay[Base].Add(Seek);
+		Player.Overlay[Base].Append(Plan.VariantSpec.Clauses);
+		Cast.TimeLeft = DTConst::INTERCESSION_SHADE_DURATION_S;
+		break;
+	}
+	case EDTPath::Radiance:
+	{
+		Cast.ChargeLeft = DTConst::INTERCESSION_RADIANCE_CHARGE_S;
+		int32 Beams = 1;
+		for (const FDTSpecClause& Clause : Plan.VariantSpec.Clauses)
+		{
+			Beams = Clause.HasNum(ParamBeams) ? FMath::RoundToInt(Clause.GetNum(ParamBeams)) : Beams;
+		}
+		Cast.BeamLeft = 0.0f;
+		Cast.BeamsLeft = Beams;
+		Cast.TimeLeft = DTConst::INTERCESSION_RADIANCE_CHARGE_S + static_cast<float>(Beams) * DTConst::INTERCESSION_RADIANCE_BEAM_S;
+		break;
+	}
+	case EDTPath::Quicksilver:
+		// R-KEE-35: every dash of the window fires; the slow-motion is not built (keepers.md Open).
+		if (!Player.Built[Base].Has(DTCat::EFlag::VolleyOnDash))
+		{
+			FDTSpecClause Volley = MakeClause(DTCat::EFlag::VolleyOnDash);
+			AddNum(Volley, DTFlagParam::DmgMult, 1.0f);
+			Player.Overlay[Base].Add(Volley);
+		}
+		Player.Overlay[Base].Append(Plan.VariantSpec.Clauses);
+		Cast.TimeLeft = DTConst::INTERCESSION_QUICKSILVER_DURATION_S;
+		break;
 	default:
 		break;
 	}
@@ -551,6 +655,159 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 	if (Weapons)
 	{
 		RebuildFlags(*Context.Run, OwnerId, *Weapons);
+		ApplyCastGrants(Context, OwnerId, Player, *Weapons, Plan.VariantSpec, Plan.Base);
+		if (Plan.Layer != INDEX_NONE && IsPath(Plan.LayerPath))
+		{
+			ApplyCastGrants(Context, OwnerId, Player, *Weapons, Plan.LayerSpec, Plan.LayerPath);
+		}
+	}
+}
+
+void FDTKeeperSim::ApplyCastGrants(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, FDTWeaponSim& Weapons, const FDTEffectSpec& Spec, EDTPath Path)
+{
+	using namespace DTKeeperSimLocal;
+	const FDTFlagEntry* Hunter = Player.Built[static_cast<int32>(Path)].Entries.FindByPredicate([](const FDTFlagEntry& E) { return E.Flag == DTCat::EFlag::Hunter; });
+	for (const FDTSpecClause& Clause : Spec.Clauses)
+	{
+		if (Clause.HasNum(ParamOnCast) && Hunter)
+		{
+			Weapons.RaiseHunters(OwnerId, FMath::RoundToInt(Clause.GetNum(ParamOnCast)), HeroOf(*Context.View, OwnerId),
+				Hunter->Params.Get(ParamLifeS) * Clause.GetNum(ParamLifeScale, 1.0f), Hunter->Params.Get(DTFlagParam::Dmg));
+		}
+		if (Clause.GetNum(ParamInstantPayday) > 0.0f)
+		{
+			Weapons.ForcePayday(OwnerId, Clause.GetNum(ParamPaydayMult), Clause.GetNum(ParamPaydayExecute));
+		}
+		if (Clause.HasNum(ParamCastDebt))
+		{
+			Weapons.AddDebt(OwnerId, FMath::RoundToInt(Clause.GetNum(ParamCastDebt)));
+		}
+		if (Clause.HasNum(ParamGrantStacks))
+		{
+			Weapons.GrantMomentum(OwnerId, Clause.GetNum(ParamGrantStacks), Clause.GetNum(ParamNoDecay) > 0.0f);
+		}
+	}
+}
+
+void FDTKeeperSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, FDTWeaponSim* Weapons)
+{
+	using namespace DTKeeperSimLocal;
+	FCast& Cast = Player.Cast;
+	const FDTIntercessionPlan& Plan = Cast.Plan;
+	const FDTWorldView& View = *Context.View;
+	const float Dt = Context.StepSeconds;
+	if (Cast.ChargeLeft > 0.0f)
+	{
+		Cast.ChargeLeft -= Dt;
+		return;
+	}
+	const FVector2f Hero = HeroOf(View, OwnerId);
+	const float Length = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+	if (Cast.BeamLeft <= 0.0f)
+	{
+		if (Cast.BeamsLeft <= 0)
+		{
+			return;
+		}
+		--Cast.BeamsLeft;
+		Cast.BeamLeft = DTConst::INTERCESSION_RADIANCE_BEAM_S;
+		Cast.BeamDir = AimOf(View, OwnerId);
+		const bool bDensest = FindClause(Plan.VariantSpec, DTCat::EFlag::Charge) != nullptr;
+		if (bDensest && Weapons)
+		{
+			Weapons->GetDensestLine(View, Hero, Length, Cast.BeamDir);
+		}
+	}
+	Cast.BeamLeft -= Dt;
+	int32 Lines = 1;
+	float BeamNovaS = 0.0f;
+	float NovaRadius = DTKeepers::PathParam(EDTPath::Radiance, DTCat::EFlag::Nova, DTFlagParam::RadiusUu, 0.0f);
+	for (const FDTSpecClause& Clause : Plan.VariantSpec.Clauses)
+	{
+		Lines = Clause.HasNum(ParamBeamFan) ? FMath::RoundToInt(Clause.GetNum(ParamBeamFan)) : Lines;
+		BeamNovaS = Clause.HasNum(ParamBeamNovaS) ? Clause.GetNum(ParamBeamNovaS) : BeamNovaS;
+		NovaRadius = Clause.HasNum(DTFlagParam::RadiusUu) ? Clause.GetNum(DTFlagParam::RadiusUu) : NovaRadius;
+	}
+	const float Strongest = StrongestDamage(Context, OwnerId, Weapons);
+	const float Crit = FMath::Max(Weapons ? Weapons->BestCritMult(OwnerId) : 1.0f, DTKeepers::PathParam(EDTPath::Radiance, DTCat::EFlag::Charge, ParamCritMult, 1.0f));
+	Cast.BeamTimer -= Dt;
+	if (Cast.BeamTimer <= 0.0f)
+	{
+		Cast.BeamTimer += DTConst::INTERCESSION_RADIANCE_BEAM_TICK_S;
+		const float Fan = static_cast<float>(DTConst::INTERCESSION_RADIANCE_FAN_DEG);
+		for (int32 Line = 0; Line < Lines; ++Line)
+		{
+			const float Deg = Lines > 1 ? -0.5f * Fan + Fan * static_cast<float>(Line) / static_cast<float>(Lines - 1) : 0.0f;
+			float S = 0.0f;
+			float C = 1.0f;
+			FMath::SinCos(&S, &C, FMath::DegreesToRadians(Deg));
+			const FVector2f Dir(Cast.BeamDir.X * C - Cast.BeamDir.Y * S, Cast.BeamDir.X * S + Cast.BeamDir.Y * C);
+			HitBeam(Context, OwnerId, Player, Hero, Dir, Length, Strongest * DTConst::INTERCESSION_RADIANCE_BEAM_DMG * Crit, Weapons);
+			if (Weapons)
+			{
+				Weapons->AddFlash(OwnerId, Hero, Dir, Length, BeamFlashDeg, DTConst::INTERCESSION_RADIANCE_BEAM_TICK_S);
+			}
+		}
+	}
+	if (BeamNovaS > 0.0f && NovaRadius > 0.0f)
+	{
+		Cast.NetTimer -= Dt;
+		if (Cast.NetTimer <= 0.0f)
+		{
+			Cast.NetTimer += BeamNovaS;
+			for (float Along = NovaRadius; Along < Length; Along += NovaRadius)
+			{
+				HitCircle(Context, OwnerId, Player, Hero + Cast.BeamDir * Along, NovaRadius, Strongest, EDTPath::Radiance, 0.0f, false, 0);
+			}
+		}
+	}
+}
+
+void FDTKeeperSim::HitBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer& Player, const FVector2f& Origin, const FVector2f& Dir, float Length,
+	float Damage, FDTWeaponSim* Weapons)
+{
+	using namespace DTKeeperSimLocal;
+	FDTWorldView& View = *Context.View;
+	const int32 Num = NumEnemies(View);
+	if (Num == 0 || View.EnemyHash.Num() == 0)
+	{
+		return;
+	}
+	const float HalfWidth = 0.5f * static_cast<float>(DTConst::INTERCESSION_RADIANCE_BEAM_WIDTH_UU);
+	const float NovaRadius = DTKeepers::PathParam(EDTPath::Radiance, DTCat::EFlag::Nova, DTFlagParam::RadiusUu, 0.0f);
+	const float NovaDmg = DTKeepers::PathParam(EDTPath::Radiance, DTCat::EFlag::Nova, DTFlagParam::Dmg, 1.0f);
+	TArray<int32> Local;
+	View.EnemyHash.QueryCircle(Origin, Length, Local);
+	Local.Sort();
+	for (const int32 Enemy : Local)
+	{
+		if (Enemy < 0 || Enemy >= Num)
+		{
+			continue;
+		}
+		const FVector2f To = View.EnemyPositions[Enemy] - Origin;
+		const float Along = FVector2f::DotProduct(To, Dir);
+		const float Across = FMath::Abs(To.X * Dir.Y - To.Y * Dir.X);
+		if (Along < 0.0f || Along > Length || Across > HalfWidth + View.EnemyRadii[Enemy])
+		{
+			continue;
+		}
+		FDTHit& Out = View.Hits.AddDefaulted_GetRef();
+		Out.EnemyIndex = Enemy;
+		Out.EnemySerial = View.EnemySerials[Enemy];
+		Out.OwnerId = OwnerId;
+		Out.Damage = Damage;
+		Out.Position = View.EnemyPositions[Enemy];
+		Out.SourceId = DTKeepers::KeeperSource(EDTPath::Radiance);
+		Out.bCrit = true;
+		Player.Cast.Damage += Damage;
+		Player.Cast.EnemiesHit.Add(View.EnemySerials[Enemy]);
+		ApplyLayerStatus(Context, OwnerId, Player, Enemy, Damage);
+		const float Hp = Weapons ? Weapons->HpOf(Enemy) : 0.0f;
+		if (Hp > 0.0f && Damage > Hp && NovaRadius > 0.0f)
+		{
+			HitCircle(Context, OwnerId, Player, View.EnemyPositions[Enemy], NovaRadius, (Damage - Hp) * NovaDmg, EDTPath::Radiance, 0.0f, false, 0);
+		}
 	}
 }
 
@@ -598,6 +855,10 @@ void FDTKeeperSim::StepCast(const FDTSimContext& Context, int32 OwnerId, FPlayer
 				DashResets.Add(OwnerId);
 			}
 		}
+	}
+	if (Plan.Base == EDTPath::Radiance)
+	{
+		StepBeam(Context, OwnerId, Player, Weapons);
 	}
 	if (Plan.Base == EDTPath::Storm)
 	{
@@ -670,6 +931,14 @@ void FDTKeeperSim::EndCast(const FDTSimContext& Context, int32 OwnerId, FPlayer&
 					StrongestDamage(Context, OwnerId, Weapons) * Clause.GetNum(ParamDmgRatio, 1.0f), Plan.LayerPath, 0.0f, false, 0);
 			}
 		}
+	}
+	if (Weapons)
+	{
+		if (Plan.Base == EDTPath::Shade)
+		{
+			Weapons->ExecuteMarked(Context, OwnerId, DTConst::INTERCESSION_SHADE_EXECUTE_BELOW, DTKeepers::KeeperSource(EDTPath::Shade));
+		}
+		Weapons->GrantMomentum(OwnerId, 0.0f, false); // a held Momentum fades again
 	}
 	FDTKeeperCastRecord& Record = Finished.AddDefaulted_GetRef();
 	Record.OwnerId = OwnerId;

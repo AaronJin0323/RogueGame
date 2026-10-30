@@ -196,7 +196,7 @@ Shade.Hunters.Layer.Name,Summons,传唤,Archetype.Shade.Hunters Intercession lay
 Shade.Hunters.Layer.Desc,As second Keeper: Intercession raises {on_cast} Shades.,作为第二位司者：神临升起 {on_cast} 个亡影。,Archetype.Shade.Hunters Intercession layer (SecondKeeperLayer column) as the second Keeper. <= 90 en / 40 zh.,Flag.Hunter
 Shade.Economy.Name,Ledger,账簿,Archetype.Shade.Economy display name (card binding line).,
 Shade.Economy.Key.Name,Interest,生息,Blessing.Shade.Economy.Key card name. <= 18 chars en / 6 zh.,
-Shade.Economy.Key.Desc,"Marked kills add Debt. At {debt_max}, your next volley hunts every enemy on screen at ×{payday_mult}.",击杀标记敌人累积债务。满 {debt_max} 点时下次齐射追猎全屏，伤害 ×{payday_mult}。,"Blessing.Shade.Economy.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt;Status.Mark
+Shade.Economy.Key.Desc,"Marked kills add Debt. At {debt_max}, your next volley hunts the screen at ×{payday_mult}.",击杀标记敌人累积债务。满 {debt_max} 点时下次齐射追猎全屏，伤害 ×{payday_mult}。,"Blessing.Shade.Economy.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt;Status.Mark
 Shade.Economy.Amp1.Name,Long Arm,追讨,Blessing.Shade.Economy.Amp1 card name. <= 18 chars en / 6 zh.,
 Shade.Economy.Amp1.Desc,Elites add {elite_debt} more Debt.,精英额外增加 {elite_debt} 点债务。,"Blessing.Shade.Economy.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Debt
 Shade.Economy.Amp2.Name,Compound,复利,Blessing.Shade.Economy.Amp2 card name. <= 18 chars en / 6 zh.,

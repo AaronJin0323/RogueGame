@@ -306,7 +306,7 @@ bool FDTCoreCatalogTables::RunTest(const FString& Parameters)
 	TestEqual(TEXT("sixteen modifiers"), DTCat::NumModifiers, 16);
 	TestEqual(TEXT("starter modifiers = C.POOL.STARTER_MODIFIERS"), StarterMods, DTConst::POOL_STARTER_MODIFIERS);
 	TestEqual(TEXT("nine archetypes"), DTCat::NumArchetypes, 9);
-	TestEqual(TEXT("eighteen flags in flag_compat"), DTCat::NumFlags, 18);
+	TestEqual(TEXT("twenty flags in flag_compat"), DTCat::NumFlags, 20);
 	for (int32 F = 0; F < DTCat::NumFlags; ++F)
 	{
 		TestEqual(TEXT("flag_compat rows in EFlag order"), FString(DTCat::FlagCompat[F].Flag), FString(DTCat::FlagIds[F]));

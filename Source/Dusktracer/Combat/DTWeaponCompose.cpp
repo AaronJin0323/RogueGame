@@ -266,13 +266,52 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 				break;
 			}
 		}
+		// keepers.md §9: the flags that reshape composed numbers.
+		static const FName ParamTurn(TEXT("turn_deg_s"));
+		static const FName ParamPierceAdd(TEXT("pierce_add"));
+		if (Entry.Flag == EFlag::Seek && Resolved.IsNative())
+		{
+			Spec.HomingTurnDegS = FMath::Max(Spec.HomingTurnDegS, Entry.Params.Get(ParamTurn));
+			Spec.HomingSeekUu = FMath::Max(Spec.HomingSeekUu, Entry.Params.Get(DTFlagParam::SeekRangeUu));
+			Spec.bSeekMarked = true;
+			Spec.Pierce += FMath::RoundToInt(Entry.Params.Get(ParamPierceAdd));
+		}
+		else if (Entry.Flag == EFlag::Seek && Resolved.IsFallback() && Resolved.Resolution.Cap == ECap::Homing)
+		{
+			Spec.HomingTurnDegS += Entry.Params.Get(ParamTurn); // "+turn rate"
+		}
+		else if (Entry.Flag == EFlag::Ricochet && Resolved.IsFallback())
+		{
+			const float Bounces = Entry.Params.Get(DTFlagParam::Bounces);
+			switch (Resolved.Resolution.Cap)
+			{
+			case ECap::Beam: // +pierce
+				Spec.Pierce += FMath::RoundToInt(Bounces);
+				break;
+			case ECap::Melee: // +sweep speed
+			case ECap::Orbit: // +orbit speed
+				Spec.Cooldown /= 1.0f + DTConst::KEEPER_RICOCHET_FALLBACK_RATE * Bounces;
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	// 4. Hero stats; crit chance clamps at the cap whatever its sources (R-MOD-05).
+	static const FName ParamCritAdd(TEXT("crit_add"));
+	static const FName ParamCritMult(TEXT("crit_mult"));
+	float CritAdd = 0.0f;
+	float CritMult = Stats.CritMult;
+	for (const FDTResolvedFlag& Flag : Spec.Flags)
+	{
+		CritAdd += Flag.Entry.Params.Get(ParamCritAdd);
+		CritMult = FMath::Max(CritMult, Flag.Entry.Params.Get(ParamCritMult));
+	}
 	Spec.Damage *= Stats.DamageMult;
 	Spec.Cooldown *= Stats.CooldownMult;
-	Spec.CritChance = FMath::Clamp(Stats.CritChance, 0.0f, DTConst::MOD_CRIT_CHANCE_CAP);
-	Spec.CritMult = Stats.CritMult;
+	Spec.CritChance = FMath::Clamp(Stats.CritChance + CritAdd, 0.0f, DTConst::MOD_CRIT_CHANCE_CAP);
+	Spec.CritMult = CritMult;
 
 	// 5. Load factor by rank (R-WPN-03).
 	Spec.LoadRank = LoadRank;

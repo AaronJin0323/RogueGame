@@ -187,6 +187,30 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 		{
 			Hero->RefillDash(OwnerId);
 		}
+		// keepers.md R-KEE-34: what Quicksilver asks of the dash.
+		FDTRunState* Run = GetRun();
+		for (int32 OwnerId = 0; Weapons && Run && OwnerId < Run->GetNumPlayers(); ++OwnerId)
+		{
+			if (const FDTHeroState* State = Hero->GetState(OwnerId))
+			{
+				const FDTKeeperSim::FHeroRiders Riders = Sim.GetHeroRiders(OwnerId);
+				if (State->Stats.DashCooldownMul != Riders.DashCooldownMul || State->Stats.DashChargesBonus != Riders.DashCharges)
+				{
+					FDTHeroStats Stats = State->Stats;
+					Stats.DashCooldownMul = Riders.DashCooldownMul;
+					Stats.DashChargesBonus = Riders.DashCharges;
+					Hero->SetStats(OwnerId, Stats);
+				}
+				if (const float Refund = Weapons->GetSim().TakeDashRefund(OwnerId))
+				{
+					Hero->RefundDash(OwnerId, Refund);
+				}
+				for (int32 Refill = Weapons->GetSim().TakeDashRefills(OwnerId); Refill > 0; --Refill)
+				{
+					Hero->RefillDash(OwnerId);
+				}
+			}
+		}
 	}
 	TArray<FDTKeeperCastRecord> Casts = Sim.TakeFinishedCasts();
 	if (Casts.Num() == 0)

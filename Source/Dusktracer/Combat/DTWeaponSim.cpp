@@ -401,7 +401,31 @@ void FDTWeaponSim::ResetTransient()
 		Player.AuraReadyIn = 0.0f;
 		Player.bSlamBoosted = false;
 		Player.SkyStrikes = 0;
+		Player.MarkedUntilStep.Reset();
+		Player.BlindedUntilStep.Reset();
+		Player.Debt = 0;
+		Player.PaydayMult = 0.0f;
+		Player.PaydayExecute = 0.0f;
+		Player.LastingKills = 0;
+		Player.LastingLive = 0;
+		Player.LastCritSerial = 0;
+		Player.FocalStacks = 0;
+		Player.CritCount = 0;
+		Player.SunStored = 0.0f;
+		Player.SunReadyIn = 0.0f;
+		Player.Momentum = 0.0f;
+		Player.bMomentumHold = false;
+		Player.WaveDistance = 0.0f;
+		Player.bHasHeroPos = false;
+		Player.bDashWas = false;
+		Player.TailwindLeft = 0.0f;
+		Player.DashesDone = 0;
+		Player.DashRefund = 0.0f;
+		Player.DashRefundUsed = 0.0f;
+		Player.DashRefills = 0;
 	}
+	Hunters.Reset();
+	NovaOverkills.Reset();
 	Overkills.Reset();
 	Rounds.Reset();
 	Fields.Reset();
@@ -466,11 +490,11 @@ FDTWeaponSim::FShot FDTWeaponSim::MakeShot(int32 OwnerId, int32 Slot, const FWea
 	Shot.Radius = Spec.Radius;
 	Shot.Life = Spec.Life;
 	Shot.bTrack = DTWeaponSimLocal::NeedsLedger(Spec);
-	if (const FDTResolvedFlag* Ricochet = Spec.FindFlag(DTCat::EFlag::Ricochet))
+	for (const FDTResolvedFlag& Flag : Spec.Flags)
 	{
-		if (Ricochet->IsNative())
+		if (Flag.Entry.Flag == DTCat::EFlag::Ricochet && Flag.IsNative())
 		{
-			Shot.Bounces = FMath::RoundToInt(Ricochet->Entry.Params.Get(DTFlagParam::Bounces));
+			Shot.Bounces += FMath::RoundToInt(Flag.Entry.Params.Get(DTFlagParam::Bounces)); // a modifier and a Keeper add up
 		}
 	}
 	return Shot;
@@ -484,7 +508,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		return;
 	}
 	float Damage = Shot.Damage;
-	const bool bCrit = RollCrit(Context, Runtime.Spec, Damage);
+	const bool bCrit = RollShot(Context, Runtime.Spec, Shot, Damage);
 	FDTBulletSpawn Spawn;
 	Spawn.Position = Position;
 	Spawn.Velocity = Dir * Shot.Speed;
@@ -526,6 +550,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.BouncesLeft = Shot.Bounces;
 		Round.bCharged = Shot.bCharged;
 		Round.bEmber = Shot.bEmber;
+		Round.bLance = Shot.bLance;
 		Round.RoundId = RoundId;
 		Round.Pierce = Spawn.Pierce;
 		Round.bBoomerang = Shot.Motion.bBoomerang;
@@ -541,7 +566,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 	}
 	FDTWorldView& View = *Context.View;
 	float Damage = Shot.Damage;
-	const bool bCrit = RollCrit(Context, Runtime.Spec, Damage);
+	const bool bCrit = RollShot(Context, Runtime.Spec, Shot, Damage);
 	const float CosHalf = FMath::Cos(FMath::DegreesToRadians(0.5f * ArcDeg));
 	const bool bFull = ArcDeg >= 360.0f;
 	const int32 Num = DTWeaponSimLocal::NumEnemies(View);
@@ -600,6 +625,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		Impact.EnemyPosition = View.EnemyPositions[Enemy];
 		Impact.bCleave = bCleave;
 		Impact.bCharged = Shot.bCharged;
+		Impact.bCrit = bCrit;
 		Impact.StatusMask = StatusMaskOf(Enemy, Out.EnemySerial);
 		if (bMarkKills)
 		{
@@ -821,7 +847,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	case EDTWeaponPattern::Aimed:
 	case EDTWeaponPattern::Cone:
 	case EDTWeaponPattern::MeleeArc:
-		if (Spec.Target == EDTWeaponTarget::Nearest && bManual)
+		if (bVolleyForced)
+		{
+			Dir = VolleyDir; // a dash volley fires along the dash (keepers.md R-KEE-34)
+		}
+		else if (Spec.Target == EDTWeaponTarget::Nearest && bManual)
 		{
 			Dir = AimDir;
 		}
@@ -839,7 +869,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Dir = FindNearest(View, Hero, Spec.Range, 0, Target) ? SafeDir(View.EnemyPositions[Target] - Hero, AimDir) : AimDir; // only a cleave reads it
 		break;
 	case EDTWeaponPattern::Line:
-		if (!FindDensestLine(View, Hero, Spec.Range, Dir))
+		if (bVolleyForced)
+		{
+			Dir = VolleyDir;
+		}
+		else if (!FindDensestLine(View, Hero, Spec.Range, Dir))
 		{
 			return false;
 		}
@@ -854,6 +888,15 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	case EDTWeaponPattern::Lob:
 	case EDTWeaponPattern::Mine:
 		FindDensestCells(View, Hero, Spec.Range, Spec.Count + Spec.ForkRounds, MineCells);
+		if (const FDTResolvedFlag* Seek = Spec.FindFlag(DTCat::EFlag::Seek))
+		{
+			// Fallback: shells and mines take the Marked enemy first (keepers.md R-KEE-26).
+			const uint32 Marked = Seek->IsFallback() ? NearestMarked(Owner, Hero, Spec.Range, View) : 0;
+			if (Marked != 0)
+			{
+				MineCells.Insert(View.EnemyPositions[IndexOfSerialIn(View, Marked)], 0);
+			}
+		}
 		if (MineCells.Num() == 0)
 		{
 			return false;
@@ -865,6 +908,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 
 	FShot Shot = MakeShot(Owner, Slot, Runtime, SourceOverride != 0 ? SourceOverride : Instance.SourceId, Hero);
 	ApplyMotion(Spec, Shot.Life, Shot.Motion);
+	Shot.Damage *= bVolleyForced ? VolleyMult : 1.0f;
+	if (Spec.bSeekMarked)
+	{
+		Shot.Motion.TargetSerial = NearestMarked(Owner, Hero, Spec.HomingSeekUu, View);
+	}
 	// Reshaping by a Keeper flag carries Keeper.<Path>; by a modifier or the weapon itself, the weapon's source (R-WPN-07, D-015).
 	auto ReshapeSource = [](uint16 FlagSource, uint16 Current)
 	{
@@ -877,6 +925,10 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		}
 		return Current;
 	};
+	if (!bFree)
+	{
+		ChargeShot(Spec, Instance.ShotCounter + 1, Shot);
+	}
 	// Stillness: a charge reshapes the weapon's own next volley.
 	if (!bFree && Runtime.StillCharges > 0)
 	{
@@ -1111,6 +1163,10 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		const FVector2f From = DronePos(Drone);
 		const FVector2f Dir = SafeDir(View.EnemyPositions[Enemy] - From, FVector2f(1.0f, 0.0f));
 		FShot Shot = MakeShot(Owner, Slot, Runtime, Source, From);
+		if (bCharge)
+		{
+			ChargeShot(Spec, Instance.ShotCounter + 1, Shot);
+		}
 		if (bCharge && Runtime.StillCharges > 0)
 		{
 			if (const FDTResolvedFlag* Still = Spec.FindFlag(DTCat::EFlag::Stillness))
@@ -1154,8 +1210,11 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 	{
 		const int32 Drone = (Runtime.NextDrone + Attempt) % Drones;
 		int32 Enemy = INDEX_NONE;
-		if (FindNearest(View, DronePos(Drone), Spec.Range, 0, Enemy))
+		const FDTResolvedFlag* Seek = Spec.FindFlag(DTCat::EFlag::Seek);
+		const uint32 Marked = Seek && Seek->IsFallback() ? NearestMarked(Owner, DronePos(Drone), Spec.Range, View) : 0;
+		if (Marked != 0 || FindNearest(View, DronePos(Drone), Spec.Range, 0, Enemy))
 		{
+			Enemy = Marked != 0 ? IndexOfSerialIn(View, Marked) : Enemy;
 			FireBolt(Drone, Enemy, Instance.SourceId, true);
 			Runtime.NextDrone = (Drone + 1) % Drones;
 			Runtime.DroneTimer = FMath::Max(Runtime.DroneTimer, 0.0f) + Spec.Cooldown / static_cast<float>(Drones);
@@ -1335,6 +1394,33 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 
 // ------------------------------------------------------------------------------------------------------------------
 // Activation-time expressions, stillness, slam
+
+void FDTWeaponSim::ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const
+{
+	const FDTResolvedFlag* Charge = Spec.FindFlag(DTCat::EFlag::Charge);
+	if (!Charge)
+	{
+		return;
+	}
+	static const FName ParamPierceAdd(TEXT("pierce_add"));
+	static const FName ParamChargedCrit(TEXT("charged_crit"));
+	static const FName ParamAlwaysCrit(TEXT("always_crit"));
+	const FDTFlagParams& Params = Charge->Entry.Params;
+	const int32 Every = FMath::RoundToInt(Params.Get(DTFlagParam::EveryN));
+	if (Every > 0 && ShotNumber % Every == 0)
+	{
+		Shot.Damage *= Params.Get(DTFlagParam::Mult, 1.0f);
+		Shot.Pierce += FMath::RoundToInt(Params.Get(ParamPierceAdd));
+		Shot.CritBonus = Params.Get(ParamChargedCrit);
+		Shot.bForceCrit = Params.Get(ParamAlwaysCrit) > 0.0f;
+		Shot.SourceId = Charge->Entry.SourceId; // reshaping by a Keeper flag is the Keeper's (R-WPN-07)
+	}
+}
+
+int32 FDTWeaponSim::IndexOfSerialIn(const FDTWorldView& View, uint32 Serial) const
+{
+	return View.EnemySerials.Find(Serial);
+}
 
 void FDTWeaponSim::OnActivation(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot,
 	FWeaponRuntime& Runtime, bool bMelee)
@@ -1782,6 +1868,11 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 				Runtime.EmitRing[Runtime.EmitCursor] = 0;
 			}
 		}
+		StepKeeperHero(Context, Bullets, Owner, PlayerRt, Player);
+		if (PlayerRt.PaydayMult > 0.0f)
+		{
+			FirePayday(Context, Bullets, Owner, PlayerRt);
+		}
 		StepStillness(Context, Owner, PlayerRt);
 		StepSlamTriggers(Context, Bullets, Owner, PlayerRt);
 		for (int32 Slot = 0; Slot < Player.Weapons.Num(); ++Slot)
@@ -1812,6 +1903,7 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 			}
 		}
 	}
+	StepHunters(Context, Bullets);
 	WeaponsHitsEnd = View.Hits.Num();
 
 	// Published each step: a released orbiting round aims at the boss first (R-MOD-11).
@@ -1937,6 +2029,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.EnemyRadius = View.EnemyRadii[Hit.EnemyIndex];
 			Impact.StatusMask = StatusMaskOf(Hit.EnemyIndex, Hit.EnemySerial);
 		}
+		Impact.bCrit = Hit.bCrit;
 		const FVector2f Hero = HeroOf(View, Hit.OwnerId);
 		Impact.Origin = Hero;
 		Impact.Dir = SafeDir(Hit.Position - Hero, FVector2f(1.0f, 0.0f));
@@ -1961,6 +2054,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.BouncesLeft = Round.BouncesLeft;
 			Impact.bCharged = Round.bCharged;
 			Impact.bEmber = Round.bEmber;
+			Impact.bLance = Round.bLance;
 			Impact.bSpent = --Round.PierceLeft <= 0;
 			if (Impact.bSpent && Round.bBoomerang && !Round.bReturning)
 			{
@@ -1983,6 +2077,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 		Rounds.RemoveAtSwap(Index);
 	}
 	EstimateOverkill(View);
+	AccrueSun(View);
 }
 
 void FDTWeaponSim::EstimateOverkill(const FDTWorldView& View)
@@ -1992,7 +2087,7 @@ void FDTWeaponSim::EstimateOverkill(const FDTWorldView& View)
 	{
 		for (const FWeaponRuntime& Weapon : Player.Weapons)
 		{
-			bAny |= Weapon.Spec.SpilloverSource != 0;
+			bAny |= Weapon.Spec.SpilloverSource != 0 || Weapon.Spec.HasFlag(DTCat::EFlag::Nova);
 		}
 	}
 	if (!bAny || !Enemies)
@@ -2028,6 +2123,12 @@ void FDTWeaponSim::EstimateOverkill(const FDTWorldView& View)
 		if (Runtime && Runtime->Spec.SpilloverSource != 0 && Hit.SourceId != Runtime->Spec.SpilloverSource)
 		{
 			Overkills.Add(FOverkill{ View.EnemySerials[Hit.EnemyIndex], Hit.OwnerId, Hit.WeaponSlot, Runtime->Spec.SpilloverSource, -Remaining });
+		}
+		if (Runtime)
+		{
+			FDTHit Lethal = Hit;
+			Lethal.EnemySerial = View.EnemySerials[Hit.EnemyIndex];
+			NoteNova(Lethal, Runtime->Spec, -Remaining);
 		}
 	}
 }
@@ -2141,6 +2242,8 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	ReactToKills(Context, Marks);
 	StepCleaved.Reset();
 	StepSlammed.Reset();
+	StepKeeperState(Context);
+	ReactKeeperKills(Context, Bullets);
 
 	TArray<FImpact> Batch = MoveTemp(Impacts);
 	Impacts.Reset();
@@ -2166,6 +2269,7 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	}
 
 	SpillOverkill(Context);
+	StepNovas(Context);
 
 	// Mod.Refit: a kill by a full weapon, once per its interval; an interval with no socket to fill is not spent.
 	for (const FDTKill& Kill : View.Kills)
@@ -2758,6 +2862,19 @@ void FDTWeaponSim::ApplyStatus(const FDTSimContext& Context, const FDTFlagParams
 	Apply.SourceId = SourceId;
 	switch (Status)
 	{
+	case EDTStatus::Mark:
+		ApplyMark(OwnerId, Handle.Serial, Context.StepIndex); // keepers.md R-KEE-24: the owner holds it, enemies refuse the word
+		break;
+	case EDTStatus::Blind:
+	{
+		// keepers.md R-KEE-25: it reaches the enemy as a short Freeze.
+		FDTStatusApply Stun = Apply;
+		Stun.Status = EDTStatus::Freeze;
+		Stun.FreezeScale = DTConst::STATUS_BLIND_S / DTConst::STATUS_FREEZE_S;
+		Context.View->StatusApplies.Add(Stun);
+		EnsurePlayer(OwnerId).BlindedUntilStep.Add(Handle.Serial, Context.StepIndex + FMath::RoundToInt64(DTConst::STATUS_BLIND_S * static_cast<float>(DTConst::SIM_FIXED_HZ)));
+		break;
+	}
 	case EDTStatus::Burn:
 		Apply.Magnitude = DTConst::STATUS_BURN_DPS_RATIO * HitDamage * (1.0f + BurnRate(OwnerId)); // keepers.md R-KEE-11
 		Apply.StackBonus = FMath::RoundToInt(Params.Get(DTFlagParam::BurnStacksMax));
@@ -2788,6 +2905,7 @@ void FDTWeaponSim::EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bul
 	Shot.bTrack = true; // children carry their generation (R-MOD-05)
 	Shot.Generation = Impact.Generation + 1;
 	Shot.Bounces = 0;
+	Shot.bLance = Entry.Flag == DTCat::EFlag::CritSplit && !Params.GetWord(FName(TEXT("lance_status"))).IsNone();
 	if (Shot.Speed <= 0.0f)
 	{
 		// A carrier with no round speed (arcs, mines) emits children of the shared child kind.
@@ -2871,6 +2989,21 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		return;
 	}
+	if (Impact.bLance)
+	{
+		const FDTResolvedFlag* Prism = Spec.FindFlag(DTCat::EFlag::CritSplit);
+		if (Prism && HitEnemy != INDEX_NONE)
+		{
+			FDTFlagParams Lance;
+			Lance.SetWord(DTFlagParam::Status, Prism->Entry.Params.GetWord(FName(TEXT("lance_status"))));
+			ApplyStatus(Context, Lance, FDTEnemyHandle{ HitEnemy, Impact.EnemySerial }, Impact.HitDamage, Impact.OwnerId, Prism->Entry.SourceId);
+		}
+		return;
+	}
+	if (Impact.bCrit && bEnemyHit)
+	{
+		ReactToCrit(Context, *Runtime, Impact, HitEnemy);
+	}
 	if (Impact.Kind == EImpact::Expiry && Spec.WaveSource != 0 && Impact.Generation == 0)
 	{
 		// Mod.SpreadWave: the round's end is a short arc onward, from its own source; a wave starts no reaction.
@@ -2895,12 +3028,46 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 
 	// Reactions spawn rounds and hits but never recompose: the spec is fixed for the step.
 	const TArray<FDTResolvedFlag>& Flags = Spec.Flags;
+	bool bBounced = false; // a modifier's and a Keeper's Ricochet are one bounce
 	for (const FDTResolvedFlag& Flag : Flags)
 	{
 		const FDTFlagParams& Params = Flag.Entry.Params;
 		const FName On = Params.GetWord(DTFlagParam::On);
 		switch (Flag.Entry.Flag)
 		{
+		case DTCat::EFlag::Seek:
+			if (bEnemyHit)
+			{
+				ReactSeek(Context, Flag, Impact, HitEnemy);
+			}
+			break;
+		case DTCat::EFlag::CritSplit:
+			// A first-generation crit fans lances; lances never split (keepers.md R-KEE-32).
+			if (Impact.bCrit && bEnemyHit && Impact.Generation == 0)
+			{
+				EmitChildren(Context, Bullets, *Runtime, Impact, Flag.Entry, false, Impact.EnemySerial != 0 ? Impact.EnemyPosition : Impact.Position);
+			}
+			break;
+		case DTCat::EFlag::SpeedScale:
+		{
+			static const FName ParamMaxEchoDmg(TEXT("max_echo_dmg"));
+			static const FName ParamMaxEchoDelay(TEXT("max_echo_delay_s"));
+			static const FName ParamStacksMax(TEXT("stacks_max"));
+			const float Cap = Params.Get(ParamStacksMax);
+			if (Params.Get(ParamMaxEchoDmg) > 0.0f && Cap > 0.0f && Players[Impact.OwnerId].Momentum >= Cap &&
+				(Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcSweep) && TryEmit(*Runtime))
+			{
+				FEcho& Echo = Echoes.AddDefaulted_GetRef();
+				Echo.OwnerId = Impact.OwnerId;
+				Echo.Slot = Impact.Slot;
+				Echo.SourceId = Flag.Entry.SourceId;
+				Echo.Position = Impact.Position;
+				Echo.Delay = Params.Get(ParamMaxEchoDelay);
+				Echo.Damage = Impact.BaseDamage * Params.Get(ParamMaxEchoDmg);
+				Echo.Radius = Impact.Area;
+			}
+			break;
+		}
 		case DTCat::EFlag::Split:
 		{
 			if (!Flag.IsNative() || On == WordVolley)
@@ -3198,19 +3365,40 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			break;
 		case DTCat::EFlag::Ricochet:
 		{
+			static const FName ParamReturnSame(TEXT("return_same_target"));
+			static const FName ParamBounceDmg(TEXT("bounce_dmg"));
+			if (Flag.IsFallback() && Impact.Kind == EImpact::Detonation)
+			{
+				// Lob and Mine: the blast hops once to the nearest enemy (keepers.md R-KEE-34).
+				int32 Hop = INDEX_NONE;
+				if (FindNearest(View, Impact.Position, Params.Get(DTFlagParam::SeekRangeUu), 0, Hop))
+				{
+					HitCircle(Context, Impact.OwnerId, INDEX_NONE, Flag.Entry.SourceId, View.EnemyPositions[Hop], Impact.Area, Impact.BaseDamage, false, nullptr);
+				}
+				break;
+			}
 			const bool bFromCleave = bCarries && FromModifier(Flag.Entry.SourceId);
 			const int32 Bounces = bFromCleave ? FMath::RoundToInt(Params.Get(DTFlagParam::Bounces)) : Impact.BouncesLeft;
-			if (!Flag.IsNative() || (!bFromCleave && (Impact.Kind != EImpact::RoundHit || !Impact.bSpent)) || Bounces <= 0)
+			if (!Flag.IsNative() || bBounced || (!bFromCleave && (Impact.Kind != EImpact::RoundHit || !Impact.bSpent)) || Bounces <= 0)
 			{
 				break;
 			}
+			bBounced = true;
 			int32 Next = INDEX_NONE;
 			if (!FindNearest(View, Impact.Position, Params.Get(DTFlagParam::SeekRangeUu), Impact.EnemySerial, Next))
 			{
+				// return_same_target: with nothing in reach the bounce strikes the enemy it left (keepers.md R-KEE-34).
+				if (Params.Get(ParamReturnSame) > 0.0f && HitEnemy != INDEX_NONE)
+				{
+					for (int32 Left = 0; Left < Bounces; ++Left)
+					{
+						KeeperHit(View, HitEnemy, Impact.OwnerId, Impact.BaseDamage * (1.0f + Params.Get(ParamBounceDmg)), Flag.Entry.SourceId, View);
+					}
+				}
 				break;
 			}
 			FShot Bounce = MakeShot(Impact.OwnerId, Impact.Slot, *Runtime, Flag.Entry.SourceId, Impact.Position);
-			Bounce.Damage = Impact.BaseDamage;
+			Bounce.Damage = Impact.BaseDamage * (1.0f + Params.Get(ParamBounceDmg));
 			Bounce.Pierce = 1;
 			Bounce.bTrack = true;
 			Bounce.Generation = Impact.Generation;
@@ -3221,7 +3409,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			break;
 		}
 		default:
-			break; // Seek, Hunter, Nova, Charge, VolleyOnDash, SpeedScale, Push, ConvertOrbit native: no S1 source
+			break; // Hunter, Debt, Nova, Charge, VolleyOnDash run off kills, shots and hero motion (DTWeaponSimKeepers.cpp); Push, ConvertOrbit native: no source
 		}
 	}
 }
@@ -3277,6 +3465,13 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 				}
 			}
 		}
+	}
+	for (const FHunter& Hunter : Hunters)
+	{
+		FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+		V.Kind = FDTWeaponVisual::EKind::Drone;
+		V.Position = Hunter.Position;
+		V.Radius = 2.0f * static_cast<float>(DTConst::WEAPON_CHILD_RADIUS_UU);
 	}
 	for (const FField& Field : Fields)
 	{
@@ -3345,6 +3540,22 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 				V.Position = HeroOf(View, Owner);
 				V.Radius = Aura;
 				V.Pulse01 = Interval > 0.0f ? FMath::Clamp(Player.AuraReadyIn / Interval, 0.0f, 1.0f) : 0.0f;
+				break;
+			}
+		}
+	}
+	// A Marked enemy stands on a plate of the Keeper's colour (keepers.md R-KEE-36).
+	for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+	{
+		for (int32 Owner = 0; Owner < Players.Num() && Owner < Run.GetNumPlayers(); ++Owner)
+		{
+			if (IsMarked(Owner, View.EnemySerials[Enemy]))
+			{
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::Marked;
+				V.Position = View.EnemyPositions[Enemy];
+				V.Radius = View.EnemyRadii[Enemy];
+				V.Path = EDTPath::Shade;
 				break;
 			}
 		}

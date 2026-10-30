@@ -68,6 +68,8 @@ struct FDTWeaponSpec
 	/** Steering of the weapon's own rounds: Mod.Homing, or the Seeker Swarm's pattern. */
 	float HomingTurnDegS = 0.0f;
 	float HomingSeekUu = 0.0f;
+	/** Flag.Seek natively: a round launches at the nearest Marked enemy (keepers.md R-KEE-26). */
+	bool bSeekMarked = false;
 	float OrbitHoldS = 0.0f;
 	float OrbitRadiusUu = 0.0f;
 	float OrbitRangeRatio = 0.0f;

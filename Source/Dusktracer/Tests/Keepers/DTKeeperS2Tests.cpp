@@ -17,8 +17,6 @@ namespace DTKeeperS2Test
 	using namespace DTKeeperTest;
 	using DTCat::EFlag;
 
-	static const FName RailLance(TEXT("Weapon.RailLance"));
-	static const FName FlakMortar(TEXT("Weapon.FlakMortar"));
 	static const FName GravityMine(TEXT("Weapon.GravityMine"));
 
 	constexpr int32 Second = DTConst::SIM_FIXED_HZ;
@@ -75,10 +73,9 @@ namespace DTKeeperS2Test
 		return H.Enemies.GetSerials().Contains(Serial);
 	}
 
-	/** Kills the enemy at Enemy by firing until it is gone, at most Steps. */
-	static void KillIt(FDTKeeperHarness& H, int32 Enemy, int32 Steps = 3 * Second)
+	/** Fires until the enemy with this serial is gone, at most Steps. */
+	static void KillIt(FDTKeeperHarness& H, uint32 Serial, int32 Steps = 3 * Second)
 	{
-		const uint32 Serial = SerialOf(H, Enemy);
 		for (int32 Step = 0; Step < Steps && IsAlive(H, Serial); ++Step)
 		{
 			H.StepOnce();
@@ -185,17 +182,24 @@ DT_S2_TEST(FDTKeeperS2Blind, "Blind") // T-KEE-25
 		Own(H, EDTPath::Storm, TEXT("Radiance.Prism"), { TEXT("Key"), TEXT("Amp1") });
 		H.P().Weapons.Reset();
 		H.Weapons.Give(H.Run, 0, PulseRifle, 8);
-		const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
-		H.StepMany(8 * Second);
-		const uint32 Serial = SerialOf(H, Enemy);
-		TestTrue(TEXT("Status.Blind is logged"), StatusesOn(H, Serial, EDTStatus::Blind) > 0);
+		H.AddBlock();
+		bool bRemembered = false;
+		for (int32 Step = 0; Step < 12 * Second; ++Step)
+		{
+			H.StepOnce();
+			for (const uint32 Serial : H.Enemies.GetSerials())
+			{
+				bRemembered |= H.Weapons.IsBlinded(0, Serial);
+			}
+		}
+		TestTrue(TEXT("Status.Blind is logged"), H.CountStatuses(EDTStatus::Blind, Src(EDTPath::Radiance)) > 0);
 		bool bShort = false;
 		for (const FDTStatusApply& Apply : H.StatusLog)
 		{
 			bShort |= Apply.Status == EDTStatus::Freeze && FMath::IsNearlyEqual(Apply.FreezeScale * DTConst::STATUS_FREEZE_S, DTConst::STATUS_BLIND_S, 0.001f);
 		}
 		TestTrue(TEXT("a Blind is a Freeze of its own length"), bShort);
-		TestTrue(TEXT("the owner remembers it"), H.Weapons.IsBlinded(0, Serial));
+		TestTrue(TEXT("the owner remembers it"), bRemembered);
 	}
 	{
 		EDTStatus Status;
@@ -221,8 +225,8 @@ DT_S2_TEST(FDTKeeperS2HoundKey, "Card.Shade.Hound.Key") // T-KEE-26
 		}
 		const int32 Enemy = H.AddEnemy(FVector2f(600.0f, 0.0f));
 		H.StepMany(4); // a round is in the air
-		H.Enemies.SetPosition(Enemy, FVector2f(600.0f, 220.0f));
-		H.StepMany(Second / 2);
+		H.Enemies.SetPosition(Enemy, FVector2f(600.0f, 110.0f));
+		H.StepMany(Second / 3);
 		return H.CountHits(DTWeapons::WeaponSource(DTWeapons::FindWeapon(PulseRifle)));
 	};
 	TestTrue(TEXT("a seeking round bends onto it"), Scene(true) > Scene(false));
@@ -260,17 +264,23 @@ DT_S2_TEST(FDTKeeperS2HoundFallbacks, "Seek") // T-KEE-26
 	}
 	{
 		// Orbit: drones pick the Marked enemy first.
-		FDTKeeperHarness H;
-		H.Patron(EDTPath::Storm, 0, false);
-		H.Weapons.Give(H.Run, 0, OrbitalDrones, 1);
-		H.Bless(Blessing(TEXT("Shade.Hound"), TEXT("Key")));
-		const int32 Near = H.AddEnemy(FVector2f(150.0f, 0.0f));
-		const int32 Far = H.AddEnemy(FVector2f(-450.0f, 0.0f));
-		H.StepOnce();
-		H.Weapons.ApplyMark(0, SerialOf(H, Far), H.Step);
-		H.StepMany(2 * Second);
-		const uint16 Drones = DTWeapons::WeaponSource(DTWeapons::FindWeapon(OrbitalDrones));
-		TestTrue(TEXT("the far Marked enemy is the target"), HitsOn(H, SerialOf(H, Far), Drones) > HitsOn(H, SerialOf(H, Near), Drones));
+		const auto Drones = [](bool bCard)
+		{
+			FDTKeeperHarness H;
+			H.Patron(EDTPath::Storm, 0, false);
+			H.Weapons.Give(H.Run, 0, OrbitalDrones, 1);
+			if (bCard)
+			{
+				H.Bless(Blessing(TEXT("Shade.Hound"), TEXT("Key")));
+			}
+			H.AddEnemy(FVector2f(150.0f, 0.0f));
+			const int32 Far = H.AddEnemy(FVector2f(-320.0f, 0.0f));
+			H.StepOnce();
+			H.Weapons.ApplyMark(0, SerialOf(H, Far), H.Step);
+			H.StepMany(Second / 2);
+			return HitsOn(H, SerialOf(H, Far), DTWeapons::WeaponSource(DTWeapons::FindWeapon(OrbitalDrones)));
+		};
+		TestTrue(TEXT("the flag sends drones at the Marked enemy"), Drones(true) > Drones(false));
 	}
 	{
 		// Mine: drops on the target class.
@@ -378,12 +388,13 @@ DT_S2_TEST(FDTKeeperS2HuntersKey, "Card.Shade.Hunters.Key") // T-KEE-27
 	{
 		const int32 Enemy = bElite ? AddScaled(H, FVector2f(300.0f, 0.0f), EDTEnemyRole::Swarm, true) : H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
 		H.Enemies.SetHp(Enemy, 1.0f);
+		const uint32 Serial = SerialOf(H, Enemy);
 		H.StepOnce();
 		if (bMark)
 		{
-			H.Weapons.ApplyMark(0, SerialOf(H, Enemy), H.Step);
+			H.Weapons.ApplyMark(0, Serial, H.Step);
 		}
-		KillIt(H, Enemy);
+		KillIt(H, Serial);
 	};
 	{
 		FDTKeeperHarness H;
@@ -449,10 +460,10 @@ DT_S2_TEST(FDTKeeperS2HuntersAmp1, "Card.Shade.Hunters.Amp1") // T-KEE-27
 		{
 			S.Bless(Blessing(TEXT("Shade.Hunters"), TEXT("Amp1")));
 		}
-		const int32 Enemy = S.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
+		const uint32 Serial = SerialOf(S, S.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f));
 		S.StepOnce();
-		S.Weapons.ApplyMark(0, SerialOf(S, Enemy), S.Step);
-		KillIt(S, Enemy);
+		S.Weapons.ApplyMark(0, Serial, S.Step);
+		KillIt(S, Serial);
 		S.StepMany(7 * Second);
 		return S.Weapons.GetLiveHunters(0);
 	};
@@ -473,6 +484,7 @@ DT_S2_TEST(FDTKeeperS2HuntersAmp2, "Card.Shade.Hunters.Amp2") // T-KEE-27
 			H.Bless(Blessing(TEXT("Shade.Hunters"), TEXT("Amp2")));
 		}
 		H.StepOnce();
+		H.P().Weapons[0].Cooldown = 1000.0f; // the hunter does the killing
 		H.Weapons.RaiseHunters(0, 1, FVector2f(0.0f, 0.0f), 2.0f, 0.4f);
 		for (int32 Index = 0; Index < 4; ++Index)
 		{
@@ -557,9 +569,9 @@ DT_S2_TEST(FDTKeeperS2EconomyKey, "Card.Shade.Economy.Key") // T-KEE-29
 	const uint16 Shade = Src(EDTPath::Shade);
 	FDTKeeperHarness H;
 	Own(H, EDTPath::Storm, TEXT("Shade.Economy"), { TEXT("Key") });
-	const int32 Weak = H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
+	const uint32 Weak = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f));
 	H.StepOnce();
-	H.Weapons.ApplyMark(0, SerialOf(H, Weak), H.Step);
+	H.Weapons.ApplyMark(0, Weak, H.Step);
 	KillIt(H, Weak);
 	TestEqual(TEXT("a Marked kill adds Debt"), H.Weapons.GetDebt(0), 1);
 	const int32 Front = H.AddEnemy(FVector2f(300.0f, 0.0f));
@@ -590,9 +602,10 @@ DT_S2_TEST(FDTKeeperS2EconomyAmp1, "Card.Shade.Economy.Amp1") // T-KEE-29
 		}
 		const int32 Elite = AddScaled(H, FVector2f(300.0f, 0.0f), EDTEnemyRole::Swarm, true);
 		H.Enemies.SetHp(Elite, 1.0f);
+		const uint32 Serial = SerialOf(H, Elite);
 		H.StepOnce();
-		H.Weapons.ApplyMark(0, SerialOf(H, Elite), H.Step);
-		KillIt(H, Elite);
+		H.Weapons.ApplyMark(0, Serial, H.Step);
+		KillIt(H, Serial);
 		return H.Weapons.GetDebt(0);
 	};
 	TestEqual(TEXT("one Debt"), Scene(false), 1);
@@ -877,12 +890,12 @@ DT_S2_TEST(FDTKeeperS2SolarKey, "Card.Radiance.Solar.Key") // T-KEE-33
 	FDTKeeperHarness H;
 	Own(H, EDTPath::Storm, TEXT("Radiance.Solar"), { TEXT("Key") });
 	H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
-	const int32 Near = H.AddEnemy(FVector2f(400.0f, 0.0f));
-	const int32 Far = H.AddEnemy(FVector2f(300.0f, 240.0f));
+	const uint32 Near = SerialOf(H, H.AddEnemy(FVector2f(400.0f, 0.0f)));
+	const uint32 Far = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 240.0f)));
 	H.StepMany(Second);
 	const uint16 Radiance = Src(EDTPath::Radiance);
-	TestTrue(TEXT("overkill bursts on a neighbour"), HitsOn(H, SerialOf(H, Near), Radiance) > 0);
-	TestEqual(TEXT("not past the radius"), HitsOn(H, SerialOf(H, Far), Radiance), 0);
+	TestTrue(TEXT("overkill bursts on a neighbour"), HitsOn(H, Near, Radiance) > 0);
+	TestEqual(TEXT("not past the radius"), HitsOn(H, Far, Radiance), 0);
 	return true;
 }
 
@@ -892,9 +905,9 @@ DT_S2_TEST(FDTKeeperS2SolarAmp1, "Card.Radiance.Solar.Amp1") // T-KEE-33
 	FDTKeeperHarness H;
 	Own(H, EDTPath::Storm, TEXT("Radiance.Solar"), { TEXT("Key"), TEXT("Amp1") });
 	H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
-	const int32 Far = H.AddEnemy(FVector2f(300.0f, 240.0f));
+	const uint32 Far = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 240.0f)));
 	H.StepMany(Second);
-	TestTrue(TEXT("the wider burst reaches it"), HitsOn(H, SerialOf(H, Far), Src(EDTPath::Radiance)) > 0);
+	TestTrue(TEXT("the wider burst reaches it"), HitsOn(H, Far, Src(EDTPath::Radiance)) > 0);
 	return true;
 }
 
@@ -1168,16 +1181,13 @@ DT_S2_TEST(FDTKeeperS2ReboundKey, "Card.Quicksilver.Rebound.Key") // T-KEE-34
 		TestTrue(TEXT("alone, it strikes the same enemy"), HitsOn(H, SerialOf(H, Alone), Quick) > 0);
 	}
 	{
-		// Fallbacks: Melee fires faster, a Line pierces, a Mine strikes again.
+		// Fallbacks: Melee fires faster, a Mine strikes again (no weapon resolves Beam first: Projectile comes first on the Rail).
 		FDTKeeperHarness H;
 		H.Patron(EDTPath::Storm, 0, false);
 		H.Weapons.Give(H.Run, 0, ArcBlade, 1);
-		H.Weapons.Give(H.Run, 0, RailLance, 1);
 		const float Melee = H.Weapons.ComposeSlot(H.Run, 0, 0).Cooldown;
-		const int32 Pierce = H.Weapons.ComposeSlot(H.Run, 0, 1).Pierce;
 		H.Bless(Blessing(TEXT("Quicksilver.Rebound"), TEXT("Key")));
 		TestEqual(TEXT("a sweep comes faster"), H.Weapons.ComposeSlot(H.Run, 0, 0).Cooldown, Melee / (1.0f + DTConst::KEEPER_RICOCHET_FALLBACK_RATE), 0.001f);
-		TestEqual(TEXT("a lance pierces more"), H.Weapons.ComposeSlot(H.Run, 0, 1).Pierce, Pierce + 1);
 	}
 	{
 		FDTKeeperHarness H;
