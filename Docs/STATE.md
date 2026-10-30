@@ -1,7 +1,7 @@
 # CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-10-30)
 
 ## Where we are
-- Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance pass 1 in flight; exit test not booked (O-008)
+- Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance pass 1 merged; exit test not booked (O-008)
 - Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `OPEN.md` holds human-only items
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tests (179+, floor 30), smoke en + zh-Hans. Not run: pad (S3), scope (no brief), mac (D-007)
@@ -20,12 +20,12 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- Balance pass 1 (`Docs/Validation/S1_balance_pass1.md`): hero telemetry wiring, `run_end.gems_left`, `Tools/pressure.py` (T-DIR-02), XP economy diagnosis + GATED tune, re-measure
+- none
 
 ## Queue (next 5)
-1. Merge balance pass 1; re-baseline smoke goldens once (HUD grew: XP bar, timer) with a viewed image
+1. Re-baseline smoke goldens once (HUD grew: XP bar, timer) with a viewed image
 2. Owner playtest of the slice (feel check before validators; `Harness/H03 §4`: no feel-changing merge past an unplayed checkpoint)
-3. Balance pass 2 from bot + owner data: survival to the boss, damage-taken band, Keeper share at L16
+3. Balance pass 2 from bot + owner data: pressure split by build (Storm dies, Forge untouched), Keeper share at L16 (3 of 9), share caps cut XP income to ~0.79 of the model
 4. Gaps listed in specs' Open: unexpressed flag params (keepers.md), Reserve Restore/Salvage no-ops, `ST_Keywords`, two-tone enemy rounds
 5. S1 validation sessions (O-008), then the S1 exit note
 
@@ -36,7 +36,7 @@
 - O-008 (book S1 validation sessions)
 
 ## Numbers at risk
-- Bot baseline before pass 1: runs reach ~L4 at 630 s (L16 expected), 14 of 15 steered runs die before the boss, no-pick median death 452.6 s (band 480–720 s)
+- After pass 1 (`Docs/Validation/S1_balance_pass1.md`; gem-floor wipe bug fixed, no number changed): T-DIR-01 PASS (no-pick median death 592.9 s), T-OFF-15 PASS; 9/15 steered runs reach L16, 7/15 reach the boss; damage-taken band met only as a pooled mean
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
