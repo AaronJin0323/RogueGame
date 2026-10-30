@@ -51,6 +51,8 @@ namespace DTBotSubsystemLocal
 	constexpr int32 HandGuard = 64;
 	/** The level probe of the bot record ("level at 630 s", Docs/Validation/S1_bot_baseline.md). */
 	constexpr double LevelProbeS = 630.0;
+	/** The bot record's hits_wall: a hit this close to an arena edge counts as taken at the wall. */
+	constexpr float HitWallBandUU = 100.0f;
 
 	static void SetCVar(const TCHAR* Name, const FString& Value)
 	{
@@ -251,6 +253,8 @@ void UDTBotSubsystem::Activate(const FDTBotConfig& Config)
 	bPawnMuted = false;
 	Minutes.Reset();
 	LastHit.Reset();
+	Hits = HitsStill = HitsWall = 0;
+	bStickAtRest = true;
 	bProbe = bProbeApplied = bSnapshotDone = false;
 	Level630 = 0;
 	EndSeconds = 0.0;
@@ -340,6 +344,13 @@ void UDTBotSubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 		Minutes[Minute].DamageShare += Event.MaxHp > 0.0f ? Event.Amount / Event.MaxHp : 0.0f;
 		LastHit = FString::Printf(TEXT("%s/%s/%s"), DTTelNames::HeroHitKind(Event.HitKind), DTTelNames::EnemyRole(Event.SourceRole), *Event.AttackId.ToString());
 		const FDTHeroState* State = Heroes.IsValid() ? Heroes->GetState(0) : nullptr;
+		++Hits;
+		HitsStill += bStickAtRest ? 1 : 0;
+		if (State)
+		{
+			const float Edge = static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU - DTConst::HERO_RADIUS_UU) - FMath::Max(FMath::Abs(State->Pos.X), FMath::Abs(State->Pos.Y));
+			HitsWall += Edge < DTBotSubsystemLocal::HitWallBandUU ? 1 : 0;
+		}
 		UE_LOG(LogDT, Verbose, TEXT("Bot: hit t=%.2f kind=%d role=%d attack=%s amount=%.1f hp=%.1f pos=(%.0f,%.0f) charges=%d"), T,
 			static_cast<int32>(Event.HitKind), static_cast<int32>(Event.SourceRole), *Event.AttackId.ToString(), Event.Amount, Event.HpAfter,
 			State ? State->Pos.X : 0.0f, State ? State->Pos.Y : 0.0f, State ? State->DashCharges : 0);
@@ -359,9 +370,9 @@ void UDTBotSubsystem::WriteRecord() const
 		Csv += FString::Printf(TEXT("%d,%.4f,%.6f,%d,%d,%d,%.2f,%d\n"), Minute, M.EndSeconds, M.DamageShare, M.Dashes, M.Hits, M.Level, M.Hp, M.Alive);
 	}
 	const FDTBotStats& Stats = Brain.GetStats();
-	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nconfig=%s\n"),
+	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nconfig=%s\n"),
 		bVictory ? TEXT("victory") : (bDead ? TEXT("death") : TEXT("timeout")), EndSeconds, Level630, Sim.IsValid() ? Sim->GetStepIndex() : -1,
-		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, *Brain.GetConfig().Describe());
+		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, Hits, HitsStill, HitsWall, *Brain.GetConfig().Describe());
 	FFileHelper::SaveStringToFile(Csv, *OutPath);
 	FFileHelper::SaveStringToFile(Summary, *(OutPath + TEXT(".txt")));
 	UE_LOG(LogDT, Log, TEXT("Bot: record written to %s"), *OutPath);
@@ -403,6 +414,7 @@ void UDTBotSubsystem::LatchNext()
 		HeroSys->SetAimMode(0, EDTAimMode::Manual); // v1 only: a player opts into Manual, so v2 stays in Auto (bot.md R-BOT-08)
 	}
 	HeroSys->LatchInput(0, Input);
+	bStickAtRest = Input.Move.IsNearlyZero();
 
 	using DTBotSubsystemLocal::Mix;
 	Mix(InputHash, &Input.Move, sizeof(Input.Move));

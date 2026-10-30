@@ -51,6 +51,17 @@ def batch_note(rows):
 	return note + " MIXED" if len(versions) > 1 or len(skills) > 1 else note
 
 
+def hit_note(rows):
+	"""Hits per run, and the shares taken with the stick at rest and at a wall; older records have none of these."""
+	rows = [r for r in rows if str(r.get("hits", "")).isdigit()]
+	hits = sum(int(r["hits"]) for r in rows)
+	if not hits:
+		return "no hit counts"
+	still = sum(int(r["hits_still"]) for r in rows)
+	wall = sum(int(r["hits_wall"]) for r in rows)
+	return f"{hits / len(rows):.1f} hits/run, {100 * still / hits:.0f}% stick at rest, {100 * wall / hits:.0f}% at a wall"
+
+
 def compare(batches, seeds=None):
 	"""batches = [(name, rows)]; the lines of the report."""
 	batches = [(name, [r for r in rows if in_seeds(r, seeds)]) for name, rows in batches]
@@ -69,6 +80,8 @@ def compare(batches, seeds=None):
 	for name, rows in batches:
 		hist = histogram([r for r in rows if r["label"].lower().startswith("steered")])
 		lines.append(f"- {name}: " + (" ".join(f"{m}:{n}" for m, n in hist.items()) or "none"))
+	lines += ["", "Hits, Steered arms:", ""]
+	lines += [f"- {name}: " + hit_note([r for r in rows if r["label"].lower().startswith("steered")]) for name, rows in batches]
 	return lines
 
 

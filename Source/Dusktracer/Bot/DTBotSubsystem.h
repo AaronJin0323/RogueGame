@@ -98,6 +98,11 @@ private:
 	FString OutPath;
 	/** The last hit taken, kind/role/attack (R-BOT-12). */
 	FString LastHit;
+	/** R-BOT-12: hits taken, those with the stick at rest, those within HitWallBandUU of an arena edge. */
+	int32 Hits = 0;
+	int32 HitsStill = 0;
+	int32 HitsWall = 0;
+	bool bStickAtRest = true;
 	FDelegateHandle HeroEventHandle;
 
 	FDTProbeScript Probe;
