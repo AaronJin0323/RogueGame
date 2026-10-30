@@ -72,10 +72,12 @@ void UDTGemSubsystem::EnsureRenderer()
 	}
 }
 
-void UDTGemSubsystem::CheckRunRestart(int64 NextStep)
+void UDTGemSubsystem::CheckRunRestart(int64 StepIndex, bool bStepping)
 {
-	// UDTSimSubsystem::StartRun rewinds the step index: a new run starts with an empty floor.
-	if (LastStepped >= 0 && NextStep <= LastStepped)
+	// UDTSimSubsystem::StartRun rewinds the step index: a new run starts with an empty floor. The Pickups phase sees a
+	// rewind when its step does not advance; a drop (Spawn, SpawnChest) comes later in the same step (Director phase,
+	// StepIndex == LastStepped) or between steps (LastStepped + 1), so only a smaller index is a rewind for it.
+	if (LastStepped >= 0 && (bStepping ? StepIndex <= LastStepped : StepIndex < LastStepped))
 	{
 		Pool.Reset();
 		LastStepped = -1;
@@ -98,9 +100,9 @@ void UDTGemSubsystem::SyncPlayers(int32 NumPlayers)
 
 EDTGemSpawnResult UDTGemSubsystem::Spawn(const FDTGemSpawn& Gem)
 {
-	const int64 NextStep = Sim.IsValid() ? Sim->GetStepIndex() : 0;
-	CheckRunRestart(NextStep);
-	const EDTGemSpawnResult Result = Pool.Spawn(Gem, NextStep);
+	const int64 StepIndex = Sim.IsValid() ? Sim->GetStepIndex() : 0;
+	CheckRunRestart(StepIndex, false);
+	const EDTGemSpawnResult Result = Pool.Spawn(Gem, StepIndex);
 	if (Result != EDTGemSpawnResult::Rejected)
 	{
 		if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
@@ -110,6 +112,7 @@ EDTGemSpawnResult UDTGemSubsystem::Spawn(const FDTGemSpawn& Gem)
 			{
 				Telemetry->Records().RecordGemsMerged(1);
 			}
+			Telemetry->Records().SetGemsLive(Pool.Num()); // drops land after this step's Pickups phase
 		}
 	}
 	return Result;
@@ -117,7 +120,7 @@ EDTGemSpawnResult UDTGemSubsystem::Spawn(const FDTGemSpawn& Gem)
 
 int32 UDTGemSubsystem::SpawnChest(const FVector2f& Position)
 {
-	CheckRunRestart(Sim.IsValid() ? Sim->GetStepIndex() : 0);
+	CheckRunRestart(Sim.IsValid() ? Sim->GetStepIndex() : 0, false);
 	return Pool.SpawnChest(Position);
 }
 
@@ -191,7 +194,7 @@ int32 UDTGemSubsystem::GrantXP(int32 OwnerId, int64 Amount)
 
 void UDTGemSubsystem::SimStep(const FDTSimContext& Context)
 {
-	CheckRunRestart(Context.StepIndex);
+	CheckRunRestart(Context.StepIndex, true);
 	LastStepped = Context.StepIndex;
 	SimTime = static_cast<double>(Context.StepIndex + 1) * Context.StepSeconds;
 	if (!Context.Run || !Context.View)

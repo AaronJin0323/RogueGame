@@ -5,6 +5,9 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Engine/Engine.h"
+#include "HAL/FileManager.h"
+#include "Telemetry/DTTelemetrySubsystem.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -559,6 +562,73 @@ bool FDTPrgXPBar::RunTest(const FString& Parameters)
 	FDTXPBar::BuildRows(Run, 60.0, LastUp, Rows);
 	TestEqual(TEXT("bars stay with hands queued"), Rows.Num(), 2);
 	TestFalse(TEXT("flash ends"), Rows.Num() == 2 && Rows[1].bFlash);
+	return true;
+}
+
+namespace DTPrgTest
+{
+	/** Drops one gem per step from the Director phase, as the director does (R-DIR-12), far from every hero. */
+	struct FDirectorDropper : IDTSimSystem
+	{
+		UDTGemSubsystem* Gems = nullptr;
+		int32 Dropped = 0;
+		virtual void SimStep(const FDTSimContext& Context) override
+		{
+			if (Gems && Gems->Spawn(Gem(3000.0f, -3000.0f + 10.0f * Dropped, 1)) != EDTGemSpawnResult::Rejected)
+			{
+				++Dropped;
+			}
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPrgDropsSurvive, "Dusktracer.Progression.DropsSurvive", DTPrgTest::Flags) // R-PRG-07 (gems never expire)
+bool FDTPrgDropsSurvive::RunTest(const FString& Parameters)
+{
+	using namespace DTPrgTest;
+	// A gem dropped in the Director phase (after Pickups in the same step) stays on the floor: the run-restart check
+	// must not read the same step as a rewind. run_end.gems_left reports the floor.
+	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), TEXT("DTPrgDropWorld")));
+	Context.SetCurrentWorld(World);
+	World->InitializeActorsForPlay(FURL());
+	World->BeginPlay();
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTGemSubsystem* Gems = World->GetSubsystem<UDTGemSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	FDirectorDropper Dropper;
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("gems"), Gems) && TestNotNull(TEXT("telemetry"), Telemetry))
+	{
+		Sim->StartRun(12, 1);
+		Telemetry->StartSession(12, 1);
+		Dropper.Gems = Gems;
+		Sim->Register(EDTSimPhase::Director, &Dropper);
+		const int32 Steps = 30;
+		Sim->StepNow(Steps);
+		Gems->SpawnChest(FVector2f(-3000.0f, 3000.0f));
+		Sim->StepNow(1);
+		TestEqual(TEXT("every dropped gem is still on the floor"), Gems->GetPool().Num(), Dropper.Dropped);
+		TestEqual(TEXT("one gem per step"), Dropper.Dropped, Steps + 1);
+		TestEqual(TEXT("the chest survives the next drop"), Gems->GetPool().NumChests(), 1);
+		Sim->Unregister(&Dropper);
+
+		Telemetry->EndSession(TEXT("test"));
+		const FString JsonlPath = Telemetry->GetWriter().GetJsonlPath();
+		FString Jsonl;
+		FFileHelper::LoadFileToString(Jsonl, *JsonlPath);
+		IFileManager::Get().Delete(*JsonlPath, false, true, true);
+		IFileManager::Get().Delete(*Telemetry->GetWriter().GetCsvPath(), false, true, true);
+		TestTrue(TEXT("run_end gems_spawned counts every drop"), Jsonl.Contains(FString::Printf(TEXT("\"gems_spawned\":%d"), Dropper.Dropped)));
+		TestTrue(TEXT("run_end gems_left is the floor"), Jsonl.Contains(FString::Printf(TEXT("\"gems_left\":%d"), Gems->GetPool().Num())));
+
+		// A new run (the step index rewinds) still starts with an empty floor.
+		Sim->StartRun(13, 1);
+		Sim->StepNow(1);
+		TestEqual(TEXT("a restart empties the floor"), Gems->GetPool().Num(), 0);
+		TestEqual(TEXT("and the chests"), Gems->GetPool().NumChests(), 0);
+	}
+	World->DestroyWorld(true);
+	GEngine->DestroyWorldContext(World);
 	return true;
 }
 
