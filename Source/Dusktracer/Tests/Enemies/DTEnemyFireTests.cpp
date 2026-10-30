@@ -275,7 +275,7 @@ bool FDTEnmOpticPart::RunTest(const FString& Parameters)
 	ADTEnemyRenderer* Renderer = Enemies->GetRenderer();
 	const int32 Live = Enemies->GetLiveCount();
 	TestEqual(TEXT("one hull per live enemy"), Renderer->GetHull()->GetInstanceCount(), Live);
-	TestEqual(TEXT("one optic per live enemy"), Renderer->GetOptic()->GetInstanceCount(), Live);
+	TestEqual(TEXT("one optic per live enemy that is not an elite"), Renderer->GetOptic()->GetInstanceCount(), Live);
 	TestEqual(TEXT("no actor per enemy"), W.CountActors(), ActorsBefore);
 	TestEqual(TEXT("hull colour token"), UDTEnemySubsystem::GetHullColor(), DTPal::Linear(DTPal::Enemy_Body));
 	TestEqual(TEXT("optic colour token"), UDTEnemySubsystem::GetOpticColor(), DTPal::Linear(DTPal::Enemy_Optic));

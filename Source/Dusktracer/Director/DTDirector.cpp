@@ -136,6 +136,7 @@ void UDTDirector::SimStep(const FDTSimContext& Context)
 	In.StepSeconds = Context.StepSeconds;
 	In.StepIndex = Context.StepIndex;
 	In.Rng = &Context.Run->GetRng().Get(EDTRngStream::Director);
+	In.EliteRng = &Context.Run->GetRng().Get(EDTRngStream::Elite);
 	In.View = Context.View;
 
 	const int32 NumHeroes = Context.View->HeroPositions.Num();

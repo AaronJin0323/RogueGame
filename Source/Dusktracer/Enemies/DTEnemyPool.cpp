@@ -939,6 +939,18 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 	}
 }
 
+void FDTEnemyPool::SpawnEliteChildren(FRandomStream* Rng)
+{
+}
+
+void FDTEnemyPool::StepElites(float Dt, FDTWorldView& View)
+{
+}
+
+void FDTEnemyPool::StepBlasts(float Dt, FDTWorldView& View)
+{
+}
+
 void FDTEnemyPool::CountThreat(EDTEnemyRole InRole, const FVector2f& Origin)
 {
 	++Counters.ThreatActions[static_cast<int32>(InRole)];

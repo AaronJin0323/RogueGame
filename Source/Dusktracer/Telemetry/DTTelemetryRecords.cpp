@@ -110,6 +110,8 @@ namespace DTTelNames
 		case EDTHeroHitKind::Charge: return TEXT("Charge");
 		case EDTHeroHitKind::Sweep: return TEXT("Sweep");
 		case EDTHeroHitKind::DashCharge: return TEXT("DashCharge");
+		case EDTHeroHitKind::Blast: return TEXT("Blast");
+		case EDTHeroHitKind::Drain: return TEXT("Drain");
 		default: return TEXT("HazardRing");
 		}
 	}
@@ -351,6 +353,10 @@ void FDTTelemetryCore::RecordBossStart(FName Form, int32 Wins, int32 NumPlayers)
 		JsonlOut += FDTTelJson(JsonHead(TEXT("boss_start"), INDEX_NONE)).Name(TEXT("form"), Form).Int(TEXT("wins"), Wins)
 			.Int(TEXT("players"), NumPlayers).Line();
 	}
+}
+
+void FDTTelemetryCore::RecordEliteDeath(const FDTTelElite& Elite)
+{
 }
 
 void FDTTelemetryCore::RecordBossPhase(int32 Phase, float FightTimeSeconds, float HpFrac, bool bByTime)

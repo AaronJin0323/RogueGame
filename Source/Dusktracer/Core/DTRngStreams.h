@@ -13,6 +13,7 @@ enum class EDTRngStream : uint8
 	Weather,
 	Loot,
 	Director, // S1; appended so the seeds of earlier streams never change (R-TEC-02)
+	Elite,    // S2: affix rolls (elites.md R-ELT-02)
 	Count
 };
 

@@ -17,6 +17,8 @@ struct FDTEnemySpawn
 	float DmgScale = 1.0f;
 	/** C.ROLE.ELITE_HP_MULT times the scaled HP; otherwise its role (R-ENM-09). */
 	bool bElite = false;
+	/** Bits of EDTAffix (DTElite::Bit); read only on an elite (elites.md R-ELT-01). */
+	uint8 AffixMask = 0;
 	/** Director drop-in (R-ENM-13): a Rusher spawns in WindUp, a Turret in its tell when it gets a token. */
 	bool bArrival = false;
 	/** Director beat tag, copied into FDTKill; INDEX_NONE outside a beat. */

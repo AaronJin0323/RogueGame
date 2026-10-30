@@ -14,7 +14,7 @@ The director turns one run of `C.RUN.LENGTH_TO_BOSS` into a rhythm the player ca
 - **R-DIR-08** Drop-in fairness: at most `C.DIR.DROPIN_ACTIVE_MAX` markers are live at once (`C.DIR.DROPIN_ACTIVE_MAX_THREAT` during a beat); landings are at least `C.DIR.DROPIN_GAP_MIN_S` apart; none come during Breath or from `C.RUN.LENGTH_TO_BOSS` on. A due drop-in that would break a limit waits; at most one waits at a time (no backlog). Drop-ins never change HP, damage or telegraph durations.
 - **R-DIR-09** Kill-horizon guarantee: with a debug build that kills every enemy on the step it lands, threat actions that start within the threat ring of a hero reach at least `C.DIR.THREAT_ACTIONS_MIN` per minute over `C.DIR.BAND_WINDOW_S`.
 - **R-DIR-10** Scaling: every director spawn is stamped once with `HpScale = 1 + C.SCALE.HP_PER_MIN × m` and `DmgScale = 1 + C.SCALE.DMG_PER_MIN × m`, where `m` is run time in minutes (continuous); the enemy keeps both for life and scales its HP, contact damage and bullet damage by them. The director has no other HP or damage lever, and telegraph durations never scale.
-- **R-DIR-11** Events: a `Threat` row's `event` spawns at the beat start, `event_count` times, tagged with the beat (event table in §Data); event enemies count toward the alive cap and the share caps. An `EliteWave` spawns `bElite` enemies; elite HP is `enemies.md` R-ENM-09 (affixes S2).
+- **R-DIR-11** Events: a `Threat` row's `event` spawns at the beat start, `event_count` times, tagged with the beat (event table in §Data); event enemies count toward the alive cap and the share caps. An `EliteWave` spawns `bElite` enemies carrying `event_affixes` affixes rolled by `elites.md` R-ELT-02; what an elite is and does is `elites.md`.
 - **R-DIR-12** XP drops: every kill of a director spawn (`FDTKill.bDirector`, `07_Technical §4`) drops one XP gem at the death position worth `C.DROP.XP_SWARM`, `C.DROP.XP_TANK`, `C.DROP.XP_RUSHER` or `C.DROP.XP_TURRET` by role, times `C.DROP.XP_ELITE_MULT` for an elite, through `UDTGemSubsystem::Spawn`. Debug and stress spawns drop nothing. The gem cap and merge, pickup, magnet and the level curve are `progression.md`'s (R-PRG-07).
 - **R-DIR-13** Boss hand-off: at `C.RUN.LENGTH_TO_BOSS` regular spawns, beats and drop-ins stop, live markers are cancelled, and the director requests the boss (`Enemy.Boss.Warden`, `boss.md`). Enemies already alive stay unless `boss.md` clears them.
 - **R-DIR-14** Randomness: every director draw (role, ring angle and radius, hero choice, drop-in role and point) comes from its own stream `EDTRngStream::Director`, appended to the enum so existing stream seeds are unchanged (R-TEC-02). The same seed and the same per-step hero inputs give an identical spawn and drop-in sequence.
@@ -65,6 +65,7 @@ Timeline `Docs/09_Catalog/timeline_<arena>.csv`, one row per Harvest step, Threa
 | `dropin_interval_s` | float | Harvest only; empty = no drop-ins yet |
 | `dropin_w_rusher`, `dropin_w_turret` | float | drop-in mix; roles without an arrival form in `enemies.md` must be zero |
 | `event`, `event_count` | key, int | Threat only, event table below; Boss row: `Boss` |
+| `event_affixes`, `event_favor` | int, float | `EliteWave` only: affixes per elite, weight of favoured affixes (`elites.md` R-ELT-02) |
 | `note` | text | design note, never read by code |
 
 Event table (S1 roles only; behaviours are `enemies.md`'s):
@@ -109,7 +110,7 @@ Code: `UDTDirector` (`Director/`, a world subsystem idle until `ADTGameMode` cal
 
 ## Out of scope
 - Heat and how it changes skill checks (S5); other arenas' timelines; Bruiser, Support and later roles (S2+).
-- Enemy behaviour, telegraph shapes and durations, elite affixes, enemy bullets and aim tokens (`enemies.md`); the boss fight (`boss.md`).
+- Enemy behaviour, telegraph shapes and durations, enemy bullets and aim tokens (`enemies.md`); elite affixes (`elites.md`); the boss fight (`boss.md`).
 - Gem and chest pickup, magnet, XP curve and level timing (`progression.md`); chest hands (`offers.md`); co-op spawn rate per player count (`coop.md`).
 
 ## Open

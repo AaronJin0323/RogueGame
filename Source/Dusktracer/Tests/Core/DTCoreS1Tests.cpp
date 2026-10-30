@@ -210,7 +210,8 @@ bool FDTCoreRngS0Seeds::RunTest(const FString& Parameters)
 		TestEqual(*FString::Printf(TEXT("S0 stream %d keeps its seed"), Index), FDTRngStreams::DeriveSeed(1234, S0[Index]), Expected[Index]);
 	}
 	TestEqual(TEXT("Director appended after Loot"), static_cast<int32>(EDTRngStream::Director), static_cast<int32>(EDTRngStream::Loot) + 1);
-	TestEqual(TEXT("Director is the last stream"), static_cast<int32>(EDTRngStream::Count), static_cast<int32>(EDTRngStream::Director) + 1);
+	TestEqual(TEXT("Elite appended after Director"), static_cast<int32>(EDTRngStream::Elite), static_cast<int32>(EDTRngStream::Director) + 1);
+	TestEqual(TEXT("Elite is the last stream"), static_cast<int32>(EDTRngStream::Count), static_cast<int32>(EDTRngStream::Elite) + 1);
 	TestEqual(TEXT("Director seed pinned"), FDTRngStreams::DeriveSeed(1234, EDTRngStream::Director), -1513086827);
 
 	// Drawing Director never moves an S0 stream.

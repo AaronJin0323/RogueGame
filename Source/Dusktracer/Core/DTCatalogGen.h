@@ -265,6 +265,30 @@ namespace DTCat
 		{ EDTEnemyRole::Turret, TEXT("Enemy.Turret"), static_cast<float>(DTConst::ROLE_TURRET_HP), 0.0f, static_cast<float>(DTConst::ROLE_TURRET_RADIUS_UU), static_cast<float>(DTConst::ROLE_TURRET_CONTACT_DAMAGE), TEXT("Turret.Fire"), TEXT("Turret.Burst|Turret.Fan"), TEXT("AimLine"), static_cast<float>(DTConst::DIR_SHARE_MAX_TURRET), false, TEXT("ST_Enemies.Enemy.Turret.Name") },
 	};
 
+	// --- elites.csv: one row per EDTAffix, in order ---
+	struct FAffixRow
+	{
+		const TCHAR* Id;
+		const TCHAR* Tag;
+		const TCHAR* NameKey;
+		const TCHAR* Attack;    // empty = none
+		const TCHAR* Telegraph; // empty = none
+		float Lead_s;
+		int32 Danger;
+		bool bFavored;
+		uint32 NoRoles;         // bit per EDTEnemyRole
+		const TCHAR* Light;     // brightness per C.ELITE.BLINK_STEP_S, 0-9
+	};
+	inline constexpr FAffixRow Affixes[] =
+	{
+		{ TEXT("Armored"), TEXT("Enemy.Affix.Armored"), TEXT("ST_Enemies.Affix.Armored.Name"), TEXT(""), TEXT(""), 0.0f, 1, false, 0u, TEXT("999999999999") },
+		{ TEXT("Swift"), TEXT("Enemy.Affix.Swift"), TEXT("ST_Enemies.Affix.Swift.Name"), TEXT(""), TEXT(""), 0.0f, 2, true, (1u << static_cast<uint32>(EDTEnemyRole::Turret)), TEXT("909090909090") },
+		{ TEXT("Volatile"), TEXT("Enemy.Affix.Volatile"), TEXT("ST_Enemies.Affix.Volatile.Name"), TEXT("Affix.Volatile"), TEXT("Ring"), static_cast<float>(DTConst::AFFIX_VOLATILE_LEAD_S), 6, true, 0u, TEXT("907090009500") },
+		{ TEXT("Splitter"), TEXT("Enemy.Affix.Splitter"), TEXT("ST_Enemies.Affix.Splitter.Name"), TEXT(""), TEXT(""), 0.0f, 3, false, 0u, TEXT("909000000000") },
+		{ TEXT("Vampiric"), TEXT("Enemy.Affix.Vampiric"), TEXT("ST_Enemies.Affix.Vampiric.Name"), TEXT("Affix.Vampiric"), TEXT("AimLine"), static_cast<float>(DTConst::AFFIX_VAMPIRIC_LINK_S), 5, false, 0u, TEXT("123456765432") },
+		{ TEXT("Shielded"), TEXT("Enemy.Affix.Shielded"), TEXT("ST_Enemies.Affix.Shielded.Name"), TEXT(""), TEXT(""), 0.0f, 4, true, 0u, TEXT("012345678900") },
+	};
+
 	// --- boss_warden.csv ---
 	struct FBossAttackRow
 	{
@@ -350,26 +374,28 @@ namespace DTCat
 		float DropInWeightTurret;
 		ETimelineEvent Event;
 		int32 EventCount;
+		int32 EventAffixes; // EliteWave: affixes per elite
+		float EventFavor;   // EliteWave: weight of favoured affixes; 0 = none
 	};
 	inline constexpr FTimelineRow TimelineArena1[] =
 	{
-		{ 0.0f, ETimelinePhase::Harvest, 0.0f, 2.4f, 90, { 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 67.5f, ETimelinePhase::Harvest, 0.0f, 2.8f, 90, { 0.85f, 0.15f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 135.0f, ETimelinePhase::Harvest, 0.0f, 3.2f, 180, { 0.75f, 0.15f, 0.1f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 225.0f, ETimelinePhase::Threat, 45.0f, 2.4f, 180, { 0.55f, 0.15f, 0.3f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 2 },
-		{ 270.0f, ETimelinePhase::Harvest, 0.0f, 3.6f, 180, { 0.7f, 0.12f, 0.1f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 337.5f, ETimelinePhase::Threat, 30.0f, 2.6f, 180, { 0.6f, 0.1f, 0.15f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::SwarmRing, 40 },
-		{ 405.0f, ETimelinePhase::Harvest, 0.0f, 4.4f, 300, { 0.68f, 0.12f, 0.12f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 450.0f, ETimelinePhase::Harvest, 0.0f, 4.8f, 300, { 0.66f, 0.12f, 0.13f, 0.09f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 450.0f, ETimelinePhase::Threat, 45.0f, 3.0f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 3 },
-		{ 562.5f, ETimelinePhase::Threat, 30.0f, 3.0f, 300, { 0.5f, 0.1f, 0.3f, 0.1f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::RusherStampede, 12 },
-		{ 600.0f, ETimelinePhase::Harvest, 0.0f, 5.8f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 675.0f, ETimelinePhase::Harvest, 0.0f, 6.2f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 675.0f, ETimelinePhase::Threat, 45.0f, 3.2f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 4 },
-		{ 720.0f, ETimelinePhase::Harvest, 0.0f, 6.6f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 787.5f, ETimelinePhase::Threat, 30.0f, 3.2f, 400, { 0.55f, 0.1f, 0.15f, 0.2f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::TurretNest, 6 },
-		{ 810.0f, ETimelinePhase::Harvest, 0.0f, 7.5f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 5.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 900.0f, ETimelinePhase::Boss, 0.0f, 0.0f, 400, { 0.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::Boss, 1 },
+		{ 0.0f, ETimelinePhase::Harvest, 0.0f, 2.4f, 90, { 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 67.5f, ETimelinePhase::Harvest, 0.0f, 2.8f, 90, { 0.85f, 0.15f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 135.0f, ETimelinePhase::Harvest, 0.0f, 3.2f, 180, { 0.75f, 0.15f, 0.1f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 225.0f, ETimelinePhase::Threat, 45.0f, 2.4f, 180, { 0.55f, 0.15f, 0.3f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 2, 1, 0.0f },
+		{ 270.0f, ETimelinePhase::Harvest, 0.0f, 3.6f, 180, { 0.7f, 0.12f, 0.1f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 337.5f, ETimelinePhase::Threat, 30.0f, 2.6f, 180, { 0.6f, 0.1f, 0.15f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::SwarmRing, 40, 0, 0.0f },
+		{ 405.0f, ETimelinePhase::Harvest, 0.0f, 4.4f, 300, { 0.68f, 0.12f, 0.12f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 450.0f, ETimelinePhase::Harvest, 0.0f, 4.8f, 300, { 0.66f, 0.12f, 0.13f, 0.09f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 450.0f, ETimelinePhase::Threat, 45.0f, 3.0f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 3, 1, 0.0f },
+		{ 562.5f, ETimelinePhase::Threat, 30.0f, 3.0f, 300, { 0.5f, 0.1f, 0.3f, 0.1f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::RusherStampede, 12, 0, 0.0f },
+		{ 600.0f, ETimelinePhase::Harvest, 0.0f, 5.8f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 675.0f, ETimelinePhase::Harvest, 0.0f, 6.2f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 675.0f, ETimelinePhase::Threat, 45.0f, 3.2f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 4, 2, static_cast<float>(DTConst::ELITE_FAVORED_WEIGHT) },
+		{ 720.0f, ETimelinePhase::Harvest, 0.0f, 6.6f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 787.5f, ETimelinePhase::Threat, 30.0f, 3.2f, 400, { 0.55f, 0.1f, 0.15f, 0.2f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::TurretNest, 6, 0, 0.0f },
+		{ 810.0f, ETimelinePhase::Harvest, 0.0f, 7.5f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 5.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 900.0f, ETimelinePhase::Boss, 0.0f, 0.0f, 400, { 0.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::Boss, 1, 0, 0.0f },
 	};
 
 	// --- every cell that named a C. key, for the resolution test ---
@@ -394,6 +420,9 @@ namespace DTCat
 		{ TEXT("enemies.csv:5:hp"), TEXT("C.ROLE.TURRET_HP"), static_cast<double>(Enemies[3].Hp), static_cast<double>(DTConst::ROLE_TURRET_HP) },
 		{ TEXT("enemies.csv:5:radius_uu"), TEXT("C.ROLE.TURRET_RADIUS_UU"), static_cast<double>(Enemies[3].Radius_uu), static_cast<double>(DTConst::ROLE_TURRET_RADIUS_UU) },
 		{ TEXT("enemies.csv:5:contact_damage"), TEXT("C.ROLE.TURRET_CONTACT_DAMAGE"), static_cast<double>(Enemies[3].ContactDamage), static_cast<double>(DTConst::ROLE_TURRET_CONTACT_DAMAGE) },
+		{ TEXT("elites.csv:4:lead_s"), TEXT("C.AFFIX.VOLATILE_LEAD_S"), static_cast<double>(Affixes[2].Lead_s), static_cast<double>(DTConst::AFFIX_VOLATILE_LEAD_S) },
+		{ TEXT("elites.csv:6:lead_s"), TEXT("C.AFFIX.VAMPIRIC_LINK_S"), static_cast<double>(Affixes[4].Lead_s), static_cast<double>(DTConst::AFFIX_VAMPIRIC_LINK_S) },
+		{ TEXT("timeline_arena1.csv:14:event_favor"), TEXT("C.ELITE.FAVORED_WEIGHT"), static_cast<double>(TimelineArena1[12].EventFavor), static_cast<double>(DTConst::ELITE_FAVORED_WEIGHT) },
 	};
 
 	inline constexpr int32 NumWeapons = static_cast<int32>(UE_ARRAY_COUNT(Weapons));
@@ -402,10 +431,12 @@ namespace DTCat
 	inline constexpr int32 NumArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));
 	inline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);
 	inline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));
+	inline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));
 	inline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));
 	inline constexpr int32 NumXpLevels = static_cast<int32>(UE_ARRAY_COUNT(XpCurve));
 	inline constexpr int32 NumTimelineArena1 = static_cast<int32>(UE_ARRAY_COUNT(TimelineArena1));
 	inline constexpr int32 NumConstantRefs = static_cast<int32>(UE_ARRAY_COUNT(ConstantRefs));
 	static_assert(static_cast<int32>(UE_ARRAY_COUNT(FlagCompat)) == static_cast<int32>(EFlag::Count), "one flag_compat row per flag");
+	static_assert(static_cast<int32>(UE_ARRAY_COUNT(Affixes)) == static_cast<int32>(EDTAffix::Count), "one elites row per affix");
 	static_assert(static_cast<int32>(EFlag::Count) <= 32 && static_cast<int32>(ECap::Count) <= 32, "masks are 32-bit");
 }

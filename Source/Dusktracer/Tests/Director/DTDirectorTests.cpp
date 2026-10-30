@@ -237,6 +237,7 @@ namespace DTDirTest
 			In.StepSeconds = Dt;
 			In.StepIndex = StepIdx;
 			In.Rng = &Run.GetRng().Get(EDTRngStream::Director);
+			In.EliteRng = &Run.GetRng().Get(EDTRngStream::Elite);
 			In.View = &View;
 			In.ThreatOrigins = Threats;
 			const double Before = Dir.GetTime();
@@ -894,6 +895,7 @@ bool FDTDirEvents::RunTest(const FString& Parameters)
 			{
 			case DTCat::ETimelineEvent::EliteWave:
 				TestTrue(TEXT("EliteWave spawns elites"), S.Spawn.bElite);
+				TestEqual(TEXT("elites carry the row's affixes (T-ELT-02)"), static_cast<int32>(FMath::CountBits(S.Spawn.AffixMask)), Row.EventAffixes);
 				TestTrue(TEXT("on the threat ring"), D >= DTConst::DIR_THREAT_RING_MIN_UU - RingEps && D <= DTConst::DIR_THREAT_RING_MAX_UU + RingEps);
 				break;
 			case DTCat::ETimelineEvent::SwarmRing:

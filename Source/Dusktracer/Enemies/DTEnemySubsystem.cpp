@@ -156,7 +156,11 @@ void UDTEnemySubsystem::RequestSpawn(int32 Count)
 	PendingSpawns = FMath::Clamp(PendingSpawns + FMath::Max(0, Count), 0, DTConst::ENEMIES_CAP);
 }
 
-void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival)
+void UDTEnemySubsystem::ForwardEliteDeaths(const FDTEnemyPool& InPool, FDTTelemetryCore& Records)
+{
+}
+
+void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival, uint8 AffixMask)
 {
 	if (Count <= 0)
 	{
@@ -167,6 +171,7 @@ void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bE
 	Request.Count = FMath::Min(Count, DTConst::ENEMIES_CAP);
 	Request.bElite = bElite;
 	Request.bArrival = bArrival;
+	Request.AffixMask = AffixMask;
 }
 
 void UDTEnemySubsystem::SetKeepPopulation(int32 Count)

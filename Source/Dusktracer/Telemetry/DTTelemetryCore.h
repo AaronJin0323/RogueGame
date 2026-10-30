@@ -159,6 +159,8 @@ public:
 	 *  C.DIR.THREAT_RING_MAX_UU at the end of the step (CSV threat_actions_per_min). No JSONL line. */
 	void RecordThreatAction(FVector2f Origin, EDTEnemyRole Role, FName AttackId);
 	void RecordDirBlock(const FDTTelDirBlock& Block);
+	/** elites.md R-ELT-13; owner is the killer. */
+	void RecordEliteDeath(const FDTTelElite& Elite);
 	void RecordBossStart(FName Form, int32 Wins, int32 NumPlayers);
 	void RecordBossPhase(int32 Phase, float FightTimeSeconds, float HpFrac, bool bByTime);
 	void RecordBossCalibrated(float WindowDps, float EffectiveMax, bool bClamped);

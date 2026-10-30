@@ -57,6 +57,12 @@ namespace DTTag
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Tank);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Rusher);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Turret);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Armored);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Swift);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Volatile);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Splitter);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Vampiric);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Enemy_Affix_Shielded);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Weapon_PulseRifle);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Weapon_RingEmitter);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Weapon_OrbitalDrones);
@@ -78,5 +84,5 @@ namespace DTTag
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Mod_Fork);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Mod_Ricochet);
 
-	inline constexpr int32 NumTags = 70;
+	inline constexpr int32 NumTags = 76;
 }

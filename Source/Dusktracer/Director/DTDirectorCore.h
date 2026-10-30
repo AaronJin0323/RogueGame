@@ -51,6 +51,8 @@ struct FDTDirectorStepIn
 	int64 StepIndex = 0;
 	/** EDTRngStream::Director (R-DIR-14). */
 	FRandomStream* Rng = nullptr;
+	/** EDTRngStream::Elite (elites.md R-ELT-02); null = elites carry no affix. */
+	FRandomStream* EliteRng = nullptr;
 	/** Hero positions, kills; DropInMarkers and bThreatBlock are written. */
 	FDTWorldView* View = nullptr;
 	/** By player; a missing entry counts as alive (R-DIR-05: spawns pick a living hero). */

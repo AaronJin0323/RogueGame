@@ -31,6 +31,7 @@ OUT_TAGS_CPP = os.path.join(CORE, "DTTagsGen.cpp")
 PATHS = ["Storm", "Forge", "Tide", "Shade", "Radiance", "Quicksilver"]  # EDTPath order (Core/DTRunState.h)
 STATUSES = ["Shock", "Burn", "Chill", "Freeze"]                        # EDTStatus order (Core/DTSimTypes.h)
 ROLES = ["Swarm", "Tank", "Rusher", "Turret", "Boss"]                  # EDTEnemyRole order (Core/DTSimTypes.h)
+AFFIXES = ["Armored", "Swift", "Volatile", "Splitter", "Vampiric", "Shielded"]  # EDTAffix order (Core/DTSimTypes.h)
 TIMELINE_PHASES = ["Harvest", "Threat", "Boss"]
 TIMELINE_EVENTS = ["None", "EliteWave", "SwarmRing", "RusherStampede", "TurretNest", "Boss"]
 
@@ -450,6 +451,39 @@ def gen_enemies(ctx):
 	return out
 
 
+def gen_elites(ctx):
+	cols = ["id", "tag", "name_key", "attack", "telegraph", "lead_s", "danger", "favored", "no_roles", "light"]
+	rows = read_csv(ctx, "elites.csv", cols)
+	unique(ctx, rows, lambda r: r["id"], "affix")
+	if [r["id"] for r in rows] != AFFIXES:
+		ctx.err("elites.csv", f"rows must be the EDTAffix order {AFFIXES}")
+	lights = set()
+	out = []
+	for ai, r in enumerate(rows):
+		where = r["_where"]
+		if r["tag"] != f"Enemy.Affix.{r['id']}":
+			ctx.err(f"{where}:tag", f"expected Enemy.Affix.{r['id']}")
+		ctx.tag(r["tag"], where)
+		if not re.fullmatch(r"[0-9]+", r["light"]):
+			ctx.err(f"{where}:light", "a brightness string is digits only")
+		if r["light"] in lights:
+			ctx.err(f"{where}:light", "one pattern per affix (R-PRE-04)")
+		lights.add(r["light"])
+		mask = []
+		for role in [x for x in r["no_roles"].split("|") if x and x != "none"]:
+			if role not in ROLES:
+				ctx.err(f"{where}:no_roles", f"'{role}' is not an EDTEnemyRole")
+				continue
+			mask.append(f"(1u << static_cast<uint32>(EDTEnemyRole::{role}))")
+		ref = lambda col: f"Affixes[{ai}].{col}"
+		out.append(
+			f"\t\t{{ {cpp_str(r['id'])}, {cpp_str(r['tag'])}, {cpp_str(r['name_key'])}, {cpp_str(none_str(r['attack']))}, "
+			f"{cpp_str(none_str(r['telegraph']))}, {num(ctx, r, 'lead_s', 'float', ref('Lead_s'))}, "
+			f"{num(ctx, r, 'danger', 'int', ref('Danger'), False)}, {yes_no(ctx, r, 'favored')}, "
+			f"{' | '.join(mask) if mask else '0u'}, {cpp_str(r['light'])} }},")
+	return out
+
+
 def gen_boss(ctx):
 	cols = ["form", "phase", "enter_hp_frac", "latest_start_s", "attack", "telegraph", "signature", "windup_s",
 			"interval_s", "count", "speed_uu_s", "damage", "extent_uu", "arc_deg"]
@@ -487,7 +521,8 @@ def gen_xp(ctx):
 
 def gen_timeline(ctx, name):
 	cols = ["start_s", "phase", "duration_s", "spawn_rate_per_s", "cap", "w_swarm", "w_tank", "w_rusher", "w_turret",
-			"dropin_interval_s", "dropin_w_rusher", "dropin_w_turret", "event", "event_count"]
+			"dropin_interval_s", "dropin_w_rusher", "dropin_w_turret", "event", "event_count",
+			"event_affixes", "event_favor"]
 	rows = read_csv(ctx, name, cols, doc_only=["note"])
 	unique(ctx, rows, lambda r: (r["start_s"], r["phase"]), "timeline row")
 	cap_max = ctx.constants.get("ENEMIES.CAP", {}).get("value")
@@ -525,7 +560,8 @@ def gen_timeline(ctx, name):
 			f"{num(ctx, r, 'dropin_interval_s', 'float', ref('DropInInterval_s'))}, "
 			f"{num(ctx, r, 'dropin_w_rusher', 'float', ref('DropInWeightRusher'))}, "
 			f"{num(ctx, r, 'dropin_w_turret', 'float', ref('DropInWeightTurret'))}, ETimelineEvent::{event}, "
-			f"{num(ctx, r, 'event_count', 'int', ref('EventCount'))} }},")
+			f"{num(ctx, r, 'event_count', 'int', ref('EventCount'))}, {num(ctx, r, 'event_affixes', 'int', ref('EventAffixes'))}, "
+			f"{num(ctx, r, 'event_favor', 'float', ref('EventFavor'))} }},")
 	return out
 
 
@@ -537,6 +573,7 @@ def render(ctx):
 	modifiers = gen_modifiers(ctx, caps, flags)
 	expression = gen_expression(ctx, flags)
 	enemies = gen_enemies(ctx)
+	affixes = gen_elites(ctx)
 	boss = gen_boss(ctx)
 	xp = gen_xp(ctx)
 	timeline = gen_timeline(ctx, "timeline_arena1.csv")
@@ -698,6 +735,25 @@ def render(ctx):
 	] + enemies + [
 		"\t};",
 		"",
+		"\t// --- elites.csv: one row per EDTAffix, in order ---",
+		"\tstruct FAffixRow",
+		"\t{",
+		"\t\tconst TCHAR* Id;",
+		"\t\tconst TCHAR* Tag;",
+		"\t\tconst TCHAR* NameKey;",
+		"\t\tconst TCHAR* Attack;    // empty = none",
+		"\t\tconst TCHAR* Telegraph; // empty = none",
+		"\t\tfloat Lead_s;",
+		"\t\tint32 Danger;",
+		"\t\tbool bFavored;",
+		"\t\tuint32 NoRoles;         // bit per EDTEnemyRole",
+		"\t\tconst TCHAR* Light;     // brightness per C.ELITE.BLINK_STEP_S, 0-9",
+		"\t};",
+		"\tinline constexpr FAffixRow Affixes[] =",
+		"\t{",
+	] + affixes + [
+		"\t};",
+		"",
 		"\t// --- boss_warden.csv ---",
 		"\tstruct FBossAttackRow",
 		"\t{",
@@ -744,6 +800,8 @@ def render(ctx):
 		"\t\tfloat DropInWeightTurret;",
 		"\t\tETimelineEvent Event;",
 		"\t\tint32 EventCount;",
+		"\t\tint32 EventAffixes; // EliteWave: affixes per elite",
+		"\t\tfloat EventFavor;   // EliteWave: weight of favoured affixes; 0 = none",
 		"\t};",
 		"\tinline constexpr FTimelineRow TimelineArena1[] =",
 		"\t{",
@@ -764,11 +822,13 @@ def render(ctx):
 		"\tinline constexpr int32 NumArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));",
 		"\tinline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);",
 		"\tinline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));",
+		"\tinline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));",
 		"\tinline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));",
 		"\tinline constexpr int32 NumXpLevels = static_cast<int32>(UE_ARRAY_COUNT(XpCurve));",
 		"\tinline constexpr int32 NumTimelineArena1 = static_cast<int32>(UE_ARRAY_COUNT(TimelineArena1));",
 		"\tinline constexpr int32 NumConstantRefs = static_cast<int32>(UE_ARRAY_COUNT(ConstantRefs));",
 		"\tstatic_assert(static_cast<int32>(UE_ARRAY_COUNT(FlagCompat)) == static_cast<int32>(EFlag::Count), \"one flag_compat row per flag\");",
+		"\tstatic_assert(static_cast<int32>(UE_ARRAY_COUNT(Affixes)) == static_cast<int32>(EDTAffix::Count), \"one elites row per affix\");",
 		"\tstatic_assert(static_cast<int32>(EFlag::Count) <= 32 && static_cast<int32>(ECap::Count) <= 32, \"masks are 32-bit\");",
 		"}",
 		"",
@@ -835,7 +895,7 @@ def main(argv):
 		if stale:
 			print(f"CATALOG: FAIL ({', '.join(stale)} out of date; run python -I Tools/gen_catalog.py)")
 			return 1
-		print(f"CATALOG: PASS (8 catalogs, {len(ctx.ckeys)} C. cells resolved, "
+		print(f"CATALOG: PASS (9 catalogs, {len(ctx.ckeys)} C. cells resolved, "
 			  f"{sum(len(v) for v in ctx.tags.values())} tags)")
 		return 0
 	for path, text in outputs:

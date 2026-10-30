@@ -135,7 +135,29 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.TURRET_FIRE_RANGE_UU | 1250 | uu | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
 | C.ROLE.TURRET_TELL_S | 0.75 | s | GATED(S1) | enemies.md, R-ENM-12, R-ENM-13, T-ENM-12 |
 | C.ROLE.TURRET_PERIOD_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-12, T-ENM-12 |
-| C.ROLE.ELITE_HP_MULT | 5 | x | MEASURED(reference balance/model.md) | enemies.md R-ENM-09, director.md, T-ENM-09 |
+| C.ROLE.ELITE_HP_MULT | 5 | x | MEASURED(reference balance/model.md) | enemies.md R-ENM-09, elites.md, director.md, T-ENM-09 |
+| C.AFFIX.ARMORED_DAMAGE_TAKEN | 0.6 | ratio | MEASURED(reference balance/model.md) | elites.md, R-ELT-03, T-ELT-03 |
+| C.AFFIX.SWIFT_SPEED_MULT | 1.4 | x | GATED(S2) | elites.md, R-ELT-04, T-ELT-04 |
+| C.AFFIX.VOLATILE_RADIUS_UU | 240 | uu | GATED(S2) | elites.md, R-ELT-05, T-ELT-05 |
+| C.AFFIX.VOLATILE_LEAD_S | 0.8 | s | GATED(S2) | elites.md, R-ELT-05, T-ELT-05, 09_Catalog/elites.csv |
+| C.AFFIX.VOLATILE_DAMAGE | 15 | hp | GATED(S2) | elites.md, R-ELT-05, T-ELT-05 |
+| C.AFFIX.SPLITTER_COUNT | 3 | n | GATED(S2) | elites.md, R-ELT-06, T-ELT-06 |
+| C.AFFIX.VAMPIRIC_RANGE_UU | 420 | uu | GATED(S2) | elites.md, R-ELT-07, T-ELT-07 |
+| C.AFFIX.VAMPIRIC_LINK_S | 1.0 | s | GATED(S2) | elites.md, R-ELT-07, T-ELT-07, 09_Catalog/elites.csv |
+| C.AFFIX.VAMPIRIC_TICK_S | 1.0 | s | GATED(S2) | elites.md, R-ELT-07, T-ELT-07 |
+| C.AFFIX.VAMPIRIC_DRAIN_DPS | 4 | hp_per_s | GATED(S2) | elites.md, R-ELT-07, T-ELT-07 |
+| C.AFFIX.VAMPIRIC_HEAL_RATIO | 0.05 | ratio | GATED(S2) | elites.md, R-ELT-07, T-ELT-07 |
+| C.AFFIX.VAMPIRIC_CABLE_UU | 6 | uu | GATED(S2) | elites.md, R-ELT-07, T-ELT-07 |
+| C.AFFIX.SHIELD_HITS | 16 | n | GATED(S2) | elites.md, R-ELT-08, T-ELT-08 |
+| C.AFFIX.SHIELD_PLATES | 6 | n | GATED(S2) | elites.md, R-ELT-11, T-ELT-11 |
+| C.ELITE.FAVORED_WEIGHT | 3 | x | GATED(S2) | elites.md, R-ELT-02, T-ELT-02, 09_Catalog/timeline_arena1.csv |
+| C.ELITE.DEBUG_AFFIXES | 1 | n | GATED(S2) | elites.md, Debug/DTDebugEnemies |
+| C.ELITE.DRAW_SCALE | 1.3 | x | GATED(S2) | elites.md, R-ELT-11, T-ELT-11 |
+| C.ELITE.LIGHT_EMISSIVE | 22.0 | ratio | GATED(S2) | elites.md, R-ELT-10, T-ELT-10, T-PRE-05 |
+| C.ELITE.BLINK_STEP_S | 0.1 | s | GATED(S2) | elites.md, R-ELT-10, T-ELT-10 |
+| C.ELITE.PART_RATIO | 0.35 | ratio | GATED(S2) | elites.md, R-ELT-11, T-ELT-11 |
+| C.ELITE.SHIELD_ORBIT_DEG_S | 90 | deg_per_s | GATED(S2) | elites.md, R-ELT-11 |
+| C.ELITE.LABELS_MAX | 12 | n | GATED(S2) | elites.md, R-ELT-12, T-ELT-12 |
 | C.ENEMY_FIRE.CAP | 1024 | n | GATED(S1) | enemies.md, R-ENM-15, T-ENM-15, T-PERF-01 |
 | C.ENEMY_FIRE.SHOT_SPEED_UU_S | 650 | uu/s | GATED(S1) | enemies.md, R-ENM-12 |
 | C.ENEMY_FIRE.SHOT_RADIUS_UU | 16 | uu | GATED(S1) | enemies.md, R-ENM-16, T-ENM-20 |
