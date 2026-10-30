@@ -7,7 +7,7 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 - **R-BUL-01** Live bullets are stored densely in `FDTBulletPool` (struct of arrays, indices `[0, Num)`); removal swaps the last bullet into the hole, and one `Step` advances every live bullet exactly once, never skipping or repeating one.
 - **R-BUL-02** A bullet is removed in the step its life reaches zero or its position leaves the square `±C.ARENA.HALF_EXTENT_UU`; each removal is counted by cause.
 - **R-BUL-03** At most `C.BULLETS.CAP` bullets are live. A spawn at the cap replaces the oldest live bullet and increments the `Recycled` counter; a spawn is never dropped silently.
-- **R-BUL-04** A bullet hits distinct enemies: it may hit at most its `Pierce` enemies, never hits the same enemy twice while that enemy is among its last `C.BULLETS.HIT_MEMORY` hits, and is removed the step its pierce is exhausted.
+- **R-BUL-04** A bullet hits distinct enemies: it may hit at most its `Pierce` enemies, never hits the same enemy twice while that enemy is among its last `C.BULLETS.HIT_MEMORY` hits (remembered by enemy `Serial`, `enemies.md`), and is removed the step its pierce is exhausted.
 - **R-BUL-05** Collision queries `FDTWorldView::EnemyHash` (R-TEC-13) with the bullet radius plus the largest enemy radius in the view, then tests circles exactly; each contact appends exactly one `FDTHit` carrying the bullet's `OwnerId` and damage. The bullet system never applies damage itself (that is `EDTSimPhase::ResolveHits`).
 - **R-BUL-06** The step is deterministic: the same spawns against the same enemies give bit-identical positions and the same hit sequence.
 - **R-BUL-07** Bullets are drawn by one `UInstancedStaticMeshComponent` on one transient `ADTBulletRenderer` per world (R-TEC-11): never an Actor or component per bullet. Each frame the instances interpolate `PrevPos → Pos` with the sim alpha at height `C.SIM.PLANE_Z_UU`; instances are added or removed only at the tail when the live count changes, and transforms are written in one batch.
@@ -39,7 +39,7 @@ The player is the bullet hell: thousands of player rounds must be live at once, 
 | `FDTBulletSpawn.Pierce` | `int32` | distinct enemies it may hit; one means no pierce |
 | `FDTBulletSpawn.SourceId` | `uint16` | telemetry source (R-BUL-08); defaults to `Unknown` |
 | Pool arrays | SoA | `Pos PrevPos Vel Radius Damage LifeLeft OwnerId PierceLeft SourceId Serial HitCount HitRing` |
-| `HitRing` | `int32[C.BULLETS.HIT_MEMORY]` per bullet | last enemies hit (ring) |
+| `HitRing` | `int32[C.BULLETS.HIT_MEMORY]` per bullet | serials of the last enemies hit (ring) |
 | `FDTHit` | `Core/DTSimTypes.h` | `EnemyIndex OwnerId Damage Position SourceId`, appended to `FDTWorldView::Hits` |
 | Instance custom data | `float` × four | `RGB` linear from `Pal.Player.Core`, then emissive strength; read by `M_InstanceColor` |
 | `Fallback_BulletMaterial` | code path | `/Engine/BasicShapes/BasicShapeMaterial` when `/Game/DT/Materials/M_InstanceColor` is missing (R-TEC-05) |
@@ -70,6 +70,6 @@ API: `UDTBulletSubsystem::Spawn(const FDTBulletSpawn&)`, `GetPool()`, `GetRender
 - Niagara A/B and measured performance at the cap (`07_Technical` R-TEC-10, T-TEC-10).
 
 ## Open
-- Hit memory is keyed by enemy slot index: if an enemy dies and its slot is reused within the bullet's life, the new enemy may be skipped → resolved when the enemy system defines slot generations (S1).
+- Hit memory moves from enemy slot index to enemy `Serial` (`enemies.md` S1) → resolved by the S1 enemy work; until it lands a reused slot may be skipped.
 - Recycling scans for the oldest live bullet (linear in the cap) → keep while recycling is rare; revisit if `Recycled` climbs in play telemetry.
 - `M_InstanceColor` must be cooked for packaged builds (no hard reference yet) → resolved when the arena map or a data asset references it.
