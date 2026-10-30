@@ -2206,6 +2206,195 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamKillShocks, "KillShocksNeighbours")
 	return true;
 }
 
+// ---- Pull interval and field status (D-016) ---------------------------------------------------------------------------------------
+
+namespace DTKeeperPullTest
+{
+	using namespace DTKeeperTest;
+
+	static int32 MovesOn(const FDTKeeperHarness& H, uint32 Serial)
+	{
+		int32 Count = 0;
+		for (const FDTDisplacement& Move : H.MoveLog)
+		{
+			Count += Move.EnemySerial == Serial ? 1 : 0;
+		}
+		return Count;
+	}
+
+	static float LongestMove(const FDTKeeperHarness& H, uint32 Serial)
+	{
+		float Best = 0.0f;
+		for (const FDTDisplacement& Move : H.MoveLog)
+		{
+			Best = Move.EnemySerial == Serial ? FMath::Max(Best, Move.Delta.Size()) : Best;
+		}
+		return Best;
+	}
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamPullInterval, "PullInterval") // R-KEE-21
+{
+	using namespace DTKeeperParamTest;
+	using namespace DTKeeperExpressTest;
+	using namespace DTKeeperPullTest;
+	const int32 IntervalSteps = FMath::RoundToInt(DTConst::KEEPER_PULL_INTERVAL_S / Dt);
+	const int32 Intervals = 3;
+	const int32 Allowed = Intervals + 1; // the first pull, then one per elapsed interval
+	const auto Tide = [](FDTKeeperHarness& H, bool bBackwash)
+	{
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Pull = AddFlag(Flags, DTCat::EFlag::Pull, EDTPath::Tide);
+		Pull.Params.Set(DTFlagParam::DistanceUu, 1.0f);
+		Pull.Params.Set(DTFlagParam::RadiusUu, 200.0f);
+		if (bBackwash)
+		{
+			Pull.Params.SetWord(DTFlagParam::Target, FName(TEXT("Origin")));
+		}
+		else
+		{
+			FDTFlagEntry& Chill = AddFlag(Flags, DTCat::EFlag::StatusApply, EDTPath::Tide);
+			Chill.Params.SetWord(DTFlagParam::Status, FName(TEXT("Status.Chill")));
+			Chill.Params.SetWord(DTFlagParam::On, FName(TEXT("Pulled")));
+			Chill.Params.Set(DTFlagParam::Chance, 1.0f);
+		}
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+	};
+	{
+		FDTKeeperHarness H;
+		const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		Tide(H, false);
+		H.StepMany(IntervalSteps * Intervals);
+		const int32 Moves = MovesOn(H, Serial);
+		TestTrue(FString::Printf(TEXT("at most one pull per interval (%d in %d intervals)"), Moves, Intervals), Moves <= Allowed);
+		TestTrue(FString::Printf(TEXT("and it pulls again after each interval (%d)"), Moves), Moves >= Intervals);
+		TestEqual(TEXT("a Pulled status rides on the pull, not on every impact"), StatusesOn(H, Serial, EDTStatus::Chill), Moves);
+	}
+	{
+		// Backwash is the same flag: the struck enemy alone, toward the round's origin.
+		FDTKeeperHarness H;
+		const int32 Enemy = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Enemy];
+		Tide(H, true);
+		H.StepMany(IntervalSteps * Intervals);
+		TestTrue(FString::Printf(TEXT("a hit's own pull is held to the interval too (%d)"), MovesOn(H, Serial)), MovesOn(H, Serial) <= Allowed);
+	}
+	{
+		// Per enemy: holding one enemy does not hold another that enters reach later.
+		FDTKeeperHarness H;
+		const int32 First = H.AddEnemy(FVector2f(300.0f, 0.0f));
+		Tide(H, false);
+		H.StepMany(IntervalSteps / 2);
+		const int32 Second = H.AddEnemy(FVector2f(300.0f, 100.0f));
+		H.StepMany(IntervalSteps / 4);
+		TestTrue(TEXT("the first was pulled"), MovesOn(H, H.Enemies.GetSerials()[First]) >= 1);
+		TestTrue(TEXT("the second is pulled inside the first's interval"), MovesOn(H, H.Enemies.GetSerials()[Second]) >= 1);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFieldStatus, "FieldStatus") // R-KEE-22
+{
+	using namespace DTKeeperParamTest;
+	using namespace DTKeeperExpressTest;
+	const int32 PulseSteps = FMath::RoundToInt(DTConst::STATUS_BURN_TICK_S / Dt);
+	const auto Field = [](FDTKeeperHarness& H, const TCHAR* Status)
+	{
+		H.Patron(EDTPath::Forge);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Entry = AddFlag(Flags, DTCat::EFlag::Field, EDTPath::Forge);
+		Entry.Params.Set(DTFlagParam::RadiusUu, 120.0f);
+		Entry.Params.Set(DTFlagParam::DurationS, 2.0f);
+		if (Status)
+		{
+			Entry.Params.SetWord(DTFlagParam::Status, FName(Status));
+		}
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+	};
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	{
+		FDTKeeperHarness H;
+		H.AddEnemy(FVector2f(300.0f, 0.0f)); // takes the rounds
+		const int32 Inside = H.AddEnemy(FVector2f(350.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Inside];
+		Field(H, TEXT("Status.Burn"));
+		const int32 Pulses = 8;
+		H.StepMany(PulseSteps * Pulses);
+		int32 Burns = 0;
+		float Dps = 0.0f;
+		for (const FDTStatusApply& Apply : H.StatusLog)
+		{
+			if (Apply.Handle.Serial == Serial && Apply.Status == EDTStatus::Burn && Apply.SourceId == Forge)
+			{
+				++Burns;
+				Dps = FMath::Max(Dps, Apply.Magnitude);
+			}
+		}
+		TestTrue(FString::Printf(TEXT("a field Burns what stands in it (%d)"), Burns), Burns > 0);
+		// Many live fields overlap here; a stack replaced before its first tick would never deal damage.
+		TestTrue(FString::Printf(TEXT("once per pulse however many fields overlap (%d in %d pulses)"), Burns, Pulses), Burns <= Pulses + 1);
+		const float Plain = DTWeapons::GetLevelRow(DTWeapons::FindWeapon(PulseRifle), 1)->Damage;
+		TestEqual(TEXT("the Burn scales with the emission's damage (R-KEE-11)"), Dps, DTConst::STATUS_BURN_DPS_RATIO * Plain, 0.01f * Plain);
+	}
+	{
+		FDTKeeperHarness H;
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const int32 Watched = H.AddEnemy(FVector2f(350.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Watched];
+		Field(H, nullptr);
+		H.StepMany(PulseSteps * 8);
+		TestEqual(TEXT("a field that names no status applies none"), StatusesOn(H, Serial, EDTStatus::Burn), 0);
+	}
+	{
+		// The card: Downpour's Amp1 leaves a field that Shocks. The rifle stops on the first enemy, so the second is the field's.
+		FDTKeeperHarness H;
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		const int32 Watched = H.AddEnemy(FVector2f(350.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Watched];
+		H.Patron(EDTPath::Storm);
+		H.Bless(Blessing(TEXT("Storm.Downpour"), TEXT("Key")));
+		H.Bless(Blessing(TEXT("Storm.Downpour"), TEXT("Amp1")));
+		H.StepMany(120);
+		TestTrue(TEXT("Downpour's field Shocks"), StatusesOn(H, Serial, EDTStatus::Shock) > 0);
+	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamWhirlpoolLayer, "WhirlpoolLayer") // keepers.md Pull, expression.csv SecondKeeperLayer
+{
+	using namespace DTKeeperParamTest;
+	using namespace DTKeeperExpressTest;
+	using namespace DTKeeperPullTest;
+	const auto Run = [](bool bCast, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f)); // takes the rounds
+		const int32 Watched = H.AddEnemy(FVector2f(300.0f, 180.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Watched];
+		H.Patron(EDTPath::Storm);
+		H.Commit(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Whirlpool"), TEXT("Key")));
+		if (bCast)
+		{
+			H.Keepers.QueueIntercession(0);
+		}
+		H.StepMany(30);
+		return Serial;
+	};
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(true, H);
+		TestEqual(TEXT("during the cast impacts pull by the layer's distance_uu"), LongestMove(H, Serial), 150.0f, 1.0f);
+	}
+	{
+		FDTKeeperHarness H;
+		const uint32 Serial = Run(false, H);
+		TestEqual(TEXT("without the cast by the Key's"), LongestMove(H, Serial), 120.0f, 1.0f);
+	}
+	return true;
+}
+
 #undef DT_KEEPER_PARAM_TEST
 
 #endif // WITH_DEV_AUTOMATION_TESTS
