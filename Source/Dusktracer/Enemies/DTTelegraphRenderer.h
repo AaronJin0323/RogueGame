@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Core/DTConstantsGen.h"
 #include "Core/DTSimTypes.h"
 #include "DTTelegraphRenderer.generated.h"
 
@@ -41,6 +42,9 @@ public:
 	/** Loads the quad mesh and the material and sets the colour every instance carries; call once after spawning. */
 	void InitRender(const FLinearColor& Color, float Emissive);
 
+	/** The drawn height (default C.ENEMIES.TELEGRAPH_Z_UU; control cues sit under telegraphs, R-PRE-11). */
+	void SetDrawZ(float InZ) { DrawZ = InZ; }
+
 	/** Rebuilds the instances from Telegraphs: count follows InstancesFor of each entry; transforms batch-written. */
 	void SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraphs);
 
@@ -64,6 +68,7 @@ private:
 	float MeshSizeUU = 1.0f;
 	bool bFallbackMaterial = false;
 	float CustomData[NumCustomData] = {};
+	float DrawZ = static_cast<float>(DTConst::ENEMIES_TELEGRAPH_Z_UU);
 	TArray<FTransform> Transforms;
 	TArray<float> CustomScratch;
 	TArray<int32> RemoveScratch;

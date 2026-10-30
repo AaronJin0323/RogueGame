@@ -16,6 +16,7 @@
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTSimSubsystem.h"
 #include "Core/DTSimTypes.h"
+#include "Enemies/DTTelegraphRenderer.h"
 #include "DTWeaponSubsystem.generated.h"
 
 class UDTWeaponSubsystem;
@@ -24,13 +25,28 @@ class UDTBulletSubsystem;
 /** Palette tokens of weapon visuals (R-WPN-11, R-PRE-01): cores are Pal.Player.Core; zones the leading Keeper's colour. */
 namespace DTWeaponPalette
 {
-	/** Renderer buckets: 0 core, 1 neutral zone, 2 + EDTPath for Keeper zones. */
+	/** Renderer buckets: 0 core, 1 neutral zone, 2 + EDTPath for Keeper zones, then the Frozen wall plate (R-PRE-11). */
 	DUSKTRACER_API int32 NumBuckets();
+	DUSKTRACER_API int32 WallBucket();
 	DUSKTRACER_API FColor BucketToken(int32 Bucket);
 	DUSKTRACER_API FColor CoreToken();
 	/** Pal.Keeper.<Path>, or Pal.Player.TrailNeutral for EDTPath::None. */
 	DUSKTRACER_API FColor ZoneToken(EDTPath Path);
 	DUSKTRACER_API int32 BucketOf(const FDTWeaponVisual& Visual);
+}
+
+/**
+ * Control cues that draw as flat quads on the ground (04_Presentation R-PRE-11): two renderers of ADTTelegraphRenderer's
+ * shapes in cool tokens, under every telegraph. The Frozen wall is a flat plate instead (DTWeaponPalette::WallBucket).
+ */
+namespace DTWeaponCues
+{
+	enum EBucket : int32 { Aura, Hold, NumBuckets };
+	DUSKTRACER_API bool IsCue(const FDTWeaponVisual& Visual);
+	DUSKTRACER_API FColor Token(int32 Bucket);
+	DUSKTRACER_API int32 BucketOf(const FDTWeaponVisual& Visual);
+	/** The footprint of one cue: the aura's ring ends at its reach and thickens inward on a pulse; a hold is a square frame. */
+	DUSKTRACER_API void Append(const FDTWeaponVisual& Visual, TArray<FDTTelegraph>& Out);
 }
 
 /** Forwards one phase to the weapon subsystem (a system registers for one phase per object). */
@@ -85,6 +101,7 @@ public:
 
 private:
 	ADTBulletRenderer* EnsureRenderer(int32 Bucket);
+	ADTTelegraphRenderer* EnsureCueRenderer(int32 Bucket);
 	FDTRunState* GetRun() const;
 
 	FDTWeaponSim Sim;
@@ -95,8 +112,13 @@ private:
 	TSet<FName> Unlocked;
 	TArray<FDTWeaponVisual> Visuals;
 	TArray<TArray<FTransform>> BucketTransforms;
+	TArray<FDTTelegraph> CueShapes[DTWeaponCues::NumBuckets];
 
 	/** Bucket 0 = Pal.Player.Core (rounds' cores: drones, mines); 1 = Pal.Player.TrailNeutral; 2.. = Pal.Keeper.<Path>. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ADTBulletRenderer>> Renderers;
+
+	/** One per DTWeaponCues bucket, spawned on the first cue of that bucket. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ADTTelegraphRenderer>> CueRenderers;
 };

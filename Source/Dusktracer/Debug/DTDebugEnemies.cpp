@@ -4,6 +4,7 @@
 
 #if !UE_BUILD_SHIPPING
 
+#include "Containers/Ticker.h"
 #include "Dusktracer.h"
 #include "Core/DTConstantsGen.h"
 #include "Engine/World.h"
@@ -186,7 +187,7 @@ namespace DTDebugEnemies
 		}
 	}
 
-	/** DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude]: N = 0 or absent applies to every enemy. */
+	/** DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude] [delay_s]: N = 0 or absent applies to every enemy. */
 	static void Status(const TArray<FString>& Args, UWorld* World)
 	{
 		if (UDTEnemySubsystem* Enemies = Find(World))
@@ -201,7 +202,24 @@ namespace DTDebugEnemies
 			// Default magnitude: one Chill stack; a Burn of the swarm's HP per second (debug only, not a tuned value).
 			const float Default = Which == EDTStatus::Burn ? static_cast<float>(DTConst::ENM_SWARM_HP) : 1.0f;
 			const float Magnitude = Args.IsValidIndex(2) ? FCString::Atof(*Args[2]) : Default;
-			Enemies->RequestStatus(Which, Count, Magnitude);
+			const float Delay = Args.IsValidIndex(3) ? FCString::Atof(*Args[3]) : 0.0f;
+			if (Delay > 0.0f)
+			{
+				// Captures and scripted runs: apply after Delay wall seconds (-ExecCmds run before anything has spawned).
+				TWeakObjectPtr<UDTEnemySubsystem> Weak(Enemies);
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Which, Count, Magnitude](float)
+				{
+					if (UDTEnemySubsystem* Later = Weak.Get())
+					{
+						Later->RequestStatus(Which, Count, Magnitude);
+					}
+					return false;
+				}), Delay);
+			}
+			else
+			{
+				Enemies->RequestStatus(Which, Count, Magnitude);
+			}
 			UE_LOG(LogDT, Log, TEXT("DT.Status %s x%d magnitude %.2f queued"), *Args[0], Count, Magnitude);
 		}
 	}
@@ -228,7 +246,7 @@ namespace DTDebugEnemies
 		TEXT("DT.EnemyFire.Stats: log live rounds, cap, spawned, refused, hero hits, passed through, expired, token waits"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FireStats));
 	static FAutoConsoleCommandWithWorldAndArgs StatusCmd(TEXT("DT.Status"),
-		TEXT("DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude]: apply a status to the first N enemies (0 = all) as player 0"),
+		TEXT("DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude] [delay_s]: apply a status to the first N enemies (0 = all) as player 0"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Status));
 }
 

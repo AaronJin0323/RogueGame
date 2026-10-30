@@ -8,6 +8,7 @@
 
 #include "Tests/Combat/DTWeaponTestHarness.h"
 #include "Combat/DTWeaponCatalog.h"
+#include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Keepers/DTKeeperSim.h"
@@ -1893,6 +1894,144 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamChargedAura, "StillnessChargedAura")
 		FDTKeeperHarness H;
 		Run(false, H, Near, Far);
 		TestEqual(TEXT("without the Trait no aura"), StatusesOn(H, Near, EDTStatus::Chill), 0);
+	}
+	return true;
+}
+
+// T-PRE-11: each control cue appears exactly when the sim is doing what it shows, in a cool token that holds its contrast.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPreControlCues, "Dusktracer.Pre.ControlCues", DTWeaponTestHarness::TestFlags)
+bool FDTPreControlCues::RunTest(const FString& Parameters)
+{
+	using namespace DTKeeperExpressTest;
+	const auto Count = [](FDTKeeperHarness& H, FDTWeaponVisual::EKind Kind, FDTWeaponVisual* OutLast = nullptr)
+	{
+		TArray<FDTWeaponVisual> Visuals;
+		H.Weapons.GatherVisuals(H.Run, H.View, Visuals);
+		int32 Found = 0;
+		for (const FDTWeaponVisual& Visual : Visuals)
+		{
+			if (Visual.Kind == Kind)
+			{
+				++Found;
+				if (OutLast)
+				{
+					*OutLast = Visual;
+				}
+			}
+		}
+		return Found;
+	};
+	const auto SetupFrost = [](FDTKeeperHarness& H, bool bBlocks, bool bHold)
+	{
+		H.Patron(EDTPath::Tide);
+		FDTWeaponFlags Flags;
+		FDTFlagEntry& Frost = FrostEntry(Flags);
+		Frost.Params.Set(DTFlagParam::FrozenBlocksEnemies, bBlocks ? 1.0f : 0.0f);
+		Frost.Params.Set(DTFlagParam::FreezeUntilHit, bHold ? 1.0f : 0.0f);
+		Frost.Params.Set(DTFlagParam::HeldMax, 2.0f);
+		H.Weapons.AddFlagSource(0, TestSource, Flags);
+	};
+
+	// The wall: every enemy this player Froze, only with the card.
+	for (const bool bBlocks : { true, false })
+	{
+		FDTKeeperHarness H;
+		const FVector2f At(2000.0f, 0.0f);
+		const int32 Frozen = H.AddEnemy(At);
+		H.AddEnemy(FVector2f(2000.0f, 300.0f));
+		FreezeEnemy(H, Frozen);
+		SetupFrost(H, bBlocks, false);
+		H.StepMany(2);
+		FDTWeaponVisual Wall;
+		TestEqual(TEXT("one plate per Frozen enemy, with the card"), Count(H, FDTWeaponVisual::EKind::FrozenWall, &Wall), bBlocks ? 1 : 0);
+		if (bBlocks)
+		{
+			TestEqual(TEXT("under the enemy"), Wall.Position, At);
+			TestEqual(TEXT("sized from its radius"), Wall.Radius, static_cast<float>(DTConst::ENM_SWARM_RADIUS_UU), 0.01f);
+			TestEqual(TEXT("in the wall bucket"), DTWeaponPalette::BucketOf(Wall), DTWeaponPalette::WallBucket());
+			TestTrue(TEXT("the wall bucket is Pal.Keeper.Tide"), DTWeaponPalette::BucketToken(DTWeaponPalette::WallBucket()) == DTPal::Keeper_Tide);
+		}
+		TestEqual(TEXT("no frame while nothing is held"), Count(H, FDTWeaponVisual::EKind::FrozenHold), 0);
+	}
+
+	// The hold: exactly the held enemies, a frame of four bars around each.
+	{
+		FDTKeeperHarness H;
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			FreezeEnemy(H, H.AddEnemy(FVector2f(2000.0f, 200.0f * Index)), Dt);
+		}
+		SetupFrost(H, false, true);
+		H.StepMany(60);
+		FDTWeaponVisual Hold;
+		TestEqual(TEXT("one frame per held enemy, held_max at most"), Count(H, FDTWeaponVisual::EKind::FrozenHold, &Hold), 2);
+		TestEqual(TEXT("no plate without the wall card"), Count(H, FDTWeaponVisual::EKind::FrozenWall), 0);
+		TestTrue(TEXT("a frame is a cue"), DTWeaponCues::IsCue(Hold));
+		TArray<FDTTelegraph> Bars;
+		DTWeaponCues::Append(Hold, Bars);
+		TestEqual(TEXT("four bars"), Bars.Num(), 4);
+		const float Half = Hold.Radius * DTConst::PRE_HOLD_FRAME_RATIO;
+		for (const FDTTelegraph& Bar : Bars)
+		{
+			TestEqual(TEXT("a bar spans the frame"), Bar.Length, 2.0f * Half, 0.01f);
+			const FVector2f End = Bar.Origin + Bar.Dir * Bar.Length - Hold.Position;
+			TestEqual(TEXT("and ends on a corner"), FMath::Max(FMath::Abs(End.X), FMath::Abs(End.Y)), Half, 0.01f);
+		}
+		TestEqual(TEXT("the frame token"), DTWeaponCues::BucketOf(Hold), static_cast<int32>(DTWeaponCues::Hold));
+	}
+
+	// The aura: only with the Trait, only while a charge is held, reaching exactly charged_aura_uu.
+	for (const bool bTrait : { true, false })
+	{
+		FDTKeeperHarness H;
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Key")));
+		if (bTrait)
+		{
+			H.Bless(Blessing(TEXT("Tide.Stillness"), TEXT("Trait")));
+		}
+		TestEqual(TEXT("no ring before the charge"), Count(H, FDTWeaponVisual::EKind::StillAura), 0);
+		H.StepMany(FireSteps);
+		FDTWeaponVisual Aura;
+		TestEqual(TEXT("a ring while charged, with the Trait"), Count(H, FDTWeaponVisual::EKind::StillAura, &Aura), bTrait ? 1 : 0);
+		if (bTrait)
+		{
+			TArray<FDTTelegraph> Ring;
+			DTWeaponCues::Append(Aura, Ring);
+			TestEqual(TEXT("one ring"), Ring.Num(), 1);
+			TestTrue(TEXT("a ring shape"), Ring[0].Shape == EDTTelegraphShape::Ring);
+			TestEqual(TEXT("its outer edge is the reach"), Ring[0].Length, Aura.Radius, 0.01f);
+			FDTWeaponVisual Pulsing = Aura;
+			Pulsing.Pulse01 = 1.0f;
+			TArray<FDTTelegraph> Wide;
+			DTWeaponCues::Append(Pulsing, Wide);
+			TestEqual(TEXT("a pulse thickens it inward"), Wide[0].Width, static_cast<float>(DTConst::PRE_AURA_RING_UU + DTConst::PRE_AURA_PULSE_UU), 0.01f);
+			TestEqual(TEXT("and never past the reach"), Wide[0].Length, Aura.Radius, 0.01f);
+		}
+	}
+
+	// Cool tokens at the drawn emissive, clear of both ground references (R-PRE-05) and of the enemy hues.
+	const auto Luminance = [](const FColor& Token, float Emissive)
+	{
+		const FLinearColor C = DTPal::Linear(Token);
+		return FMath::Min(1.0f, (0.2126f * C.R + 0.7152f * C.G + 0.0722f * C.B) * Emissive);
+	};
+	for (const FColor& Token : { DTPal::Keeper_Tide, DTPal::Player_Core })
+	{
+		for (const FColor& Ground : { DTPal::Ground_Shadow, DTPal::Ground_Bright })
+		{
+			const float Contrast = (Luminance(Token, DTConst::PRE_CUE_EMISSIVE) + 0.05f) / (Luminance(Ground, 1.0f) + 0.05f);
+			TestTrue(FString::Printf(TEXT("cue contrast %.2f"), Contrast), Contrast >= DTConst::PRE_CONTRAST_MIN);
+		}
+		const float Hue = FLinearColor(Token.ReinterpretAsLinear()).LinearRGBToHSV().R;
+		TestTrue(FString::Printf(TEXT("cue hue %.0f stays cool, clear of red and magenta"), Hue), Hue > 120.0f && Hue < 260.0f);
+	}
+	for (int32 Bucket = 0; Bucket < DTWeaponCues::NumBuckets; ++Bucket)
+	{
+		for (const FColor& Forbidden : { DTPal::Telegraph, DTPal::Enemy_Bullet, DTPal::Enemy_Optic, DTPal::Elite_Light })
+		{
+			TestTrue(TEXT("no cue reads an enemy or telegraph token"), DTWeaponCues::Token(Bucket) != Forbidden);
+		}
 	}
 	return true;
 }

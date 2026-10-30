@@ -182,11 +182,10 @@ int32 ADTTelegraphRenderer::GetInstanceCount() const
 
 void ADTTelegraphRenderer::SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraphs)
 {
-	const float Z = static_cast<float>(DTConst::ENEMIES_TELEGRAPH_Z_UU);
 	Transforms.Reset();
 	for (const FDTTelegraph& Telegraph : Telegraphs)
 	{
-		AppendTransforms(Telegraph, MeshSizeUU, Z, Transforms);
+		AppendTransforms(Telegraph, MeshSizeUU, DrawZ, Transforms);
 	}
 
 	const int32 Wanted = Transforms.Num();

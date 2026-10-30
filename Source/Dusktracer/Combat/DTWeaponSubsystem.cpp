@@ -8,6 +8,11 @@
 
 int32 DTWeaponPalette::NumBuckets()
 {
+	return WallBucket() + 1;
+}
+
+int32 DTWeaponPalette::WallBucket()
+{
 	return 2 + static_cast<int32>(EDTPath::Count);
 }
 
@@ -36,6 +41,10 @@ FColor DTWeaponPalette::BucketToken(int32 Bucket)
 	{
 		return CoreToken();
 	}
+	if (Bucket == WallBucket())
+	{
+		return DTPal::Keeper_Tide;
+	}
 	return Bucket == 1 ? ZoneToken(EDTPath::None) : ZoneToken(static_cast<EDTPath>(Bucket - 2));
 }
 
@@ -45,7 +54,56 @@ int32 DTWeaponPalette::BucketOf(const FDTWeaponVisual& Visual)
 	{
 		return 0;
 	}
+	if (Visual.Kind == FDTWeaponVisual::EKind::FrozenWall)
+	{
+		return WallBucket();
+	}
 	return Visual.Path == EDTPath::None || Visual.Path >= EDTPath::Count ? 1 : 2 + static_cast<int32>(Visual.Path);
+}
+
+bool DTWeaponCues::IsCue(const FDTWeaponVisual& Visual)
+{
+	return Visual.Kind == FDTWeaponVisual::EKind::StillAura || Visual.Kind == FDTWeaponVisual::EKind::FrozenHold;
+}
+
+FColor DTWeaponCues::Token(int32 Bucket)
+{
+	return Bucket == Hold ? DTPal::Player_Core : DTPal::Keeper_Tide;
+}
+
+int32 DTWeaponCues::BucketOf(const FDTWeaponVisual& Visual)
+{
+	return Visual.Kind == FDTWeaponVisual::EKind::FrozenHold ? Hold : Aura;
+}
+
+void DTWeaponCues::Append(const FDTWeaponVisual& Visual, TArray<FDTTelegraph>& Out)
+{
+	if (Visual.Kind == FDTWeaponVisual::EKind::StillAura)
+	{
+		FDTTelegraph& Ring = Out.AddDefaulted_GetRef();
+		Ring.Shape = EDTTelegraphShape::Ring;
+		Ring.Origin = Visual.Position;
+		Ring.Length = Visual.Radius;
+		Ring.Width = static_cast<float>(DTConst::PRE_AURA_RING_UU) + Visual.Pulse01 * static_cast<float>(DTConst::PRE_AURA_PULSE_UU);
+		return;
+	}
+	if (Visual.Kind == FDTWeaponVisual::EKind::FrozenHold)
+	{
+		// Four bars, each from one corner to the next, read as a frame pinned around the hull.
+		const float Half = Visual.Radius * DTConst::PRE_HOLD_FRAME_RATIO;
+		const FVector2f Corners[] = { FVector2f(-Half, -Half), FVector2f(Half, -Half), FVector2f(Half, Half), FVector2f(-Half, Half) };
+		for (int32 Side = 0; Side < UE_ARRAY_COUNT(Corners); ++Side)
+		{
+			const FVector2f From = Corners[Side];
+			const FVector2f To = Corners[(Side + 1) % UE_ARRAY_COUNT(Corners)];
+			FDTTelegraph& Bar = Out.AddDefaulted_GetRef();
+			Bar.Shape = EDTTelegraphShape::Band;
+			Bar.Origin = Visual.Position + From;
+			Bar.Dir = (To - From).GetSafeNormal();
+			Bar.Length = 2.0f * Half;
+			Bar.Width = static_cast<float>(DTConst::PRE_HOLD_FRAME_UU);
+		}
+	}
 }
 
 void FDTWeaponPhaseAdapter::SimStep(const FDTSimContext& Context)
@@ -110,6 +168,7 @@ void UDTWeaponSubsystem::Deinitialize()
 	SimSubsystem.Reset();
 	Bullets.Reset();
 	Renderers.Reset();
+	CueRenderers.Reset();
 	Super::Deinitialize();
 }
 
@@ -208,12 +267,36 @@ ADTBulletRenderer* UDTWeaponSubsystem::EnsureRenderer(int32 Bucket)
 		if (Renderer)
 		{
 			// Cores glow like player rounds; zones stay at plain token brightness so they never outshine the fire.
-			const float Emissive = Bucket == 0 ? DTConst::BULLETS_EMISSIVE_PLAYER : 1.0f;
+			const float Emissive = Bucket == 0 ? DTConst::BULLETS_EMISSIVE_PLAYER : (Bucket == DTWeaponPalette::WallBucket() ? DTConst::PRE_CUE_EMISSIVE : 1.0f);
 			Renderer->InitRender(DTPal::Linear(DTWeaponPalette::BucketToken(Bucket)), Emissive);
 		}
 		Renderers[Bucket] = Renderer;
 	}
 	return Renderers[Bucket];
+}
+
+ADTTelegraphRenderer* UDTWeaponSubsystem::EnsureCueRenderer(int32 Bucket)
+{
+	CueRenderers.SetNum(DTWeaponCues::NumBuckets);
+	if (!CueRenderers[Bucket])
+	{
+		UWorld* World = GetWorld();
+		if (!World)
+		{
+			return nullptr;
+		}
+		FActorSpawnParameters Params;
+		Params.ObjectFlags |= RF_Transient;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ADTTelegraphRenderer* Renderer = World->SpawnActor<ADTTelegraphRenderer>(ADTTelegraphRenderer::StaticClass(), FTransform::Identity, Params);
+		if (Renderer)
+		{
+			Renderer->InitRender(DTPal::Linear(DTWeaponCues::Token(Bucket)), DTConst::PRE_CUE_EMISSIVE);
+			Renderer->SetDrawZ(static_cast<float>(DTConst::PRE_CUE_Z_UU));
+		}
+		CueRenderers[Bucket] = Renderer;
+	}
+	return CueRenderers[Bucket];
 }
 
 void UDTWeaponSubsystem::SimRender(float Alpha)
@@ -231,9 +314,18 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 	{
 		Transforms.Reset();
 	}
+	for (TArray<FDTTelegraph>& Shapes : CueShapes)
+	{
+		Shapes.Reset();
+	}
 	const double Z = DTConst::SIM_PLANE_Z_UU;
 	for (const FDTWeaponVisual& Visual : Visuals)
 	{
+		if (DTWeaponCues::IsCue(Visual))
+		{
+			DTWeaponCues::Append(Visual, CueShapes[DTWeaponCues::BucketOf(Visual)]);
+			continue;
+		}
 		TArray<FTransform>& Out = BucketTransforms[DTWeaponPalette::BucketOf(Visual)];
 		switch (Visual.Kind)
 		{
@@ -246,6 +338,16 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 			// A flat disc on the sim plane, one unit thick.
 			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, Z), FVector(Visual.Radius, Visual.Radius, 1.0f)));
 			break;
+		case FDTWeaponVisual::EKind::FrozenWall:
+		{
+			// A plate in the Tide zone colour under the hull: the same flat disc as a field, wider than the hull's corners.
+			const float Plate = Visual.Radius * DTConst::PRE_WALL_PLATE_RATIO;
+			Out.Add(FTransform(FQuat::Identity, FVector(Visual.Position.X, Visual.Position.Y, Z), FVector(Plate, Plate, 1.0f)));
+			break;
+		}
+		case FDTWeaponVisual::EKind::StillAura:
+		case FDTWeaponVisual::EKind::FrozenHold:
+			break; // drawn as cues above
 		case FDTWeaponVisual::EKind::Arc:
 		{
 			// Beads along the sweep's edge, one hero radius apart: reads as a cool arc, never a filled wedge.
@@ -282,5 +384,13 @@ void UDTWeaponSubsystem::SimRender(float Alpha)
 			Transform.SetScale3D(Transform.GetScale3D() * InvMesh);
 		}
 		Renderer->SetInstances(Transforms);
+	}
+	for (int32 Bucket = 0; Bucket < DTWeaponCues::NumBuckets; ++Bucket)
+	{
+		ADTTelegraphRenderer* Renderer = CueShapes[Bucket].Num() > 0 ? EnsureCueRenderer(Bucket) : (CueRenderers.IsValidIndex(Bucket) ? CueRenderers[Bucket].Get() : nullptr);
+		if (Renderer)
+		{
+			Renderer->SetTelegraphs(CueShapes[Bucket]);
+		}
 	}
 }

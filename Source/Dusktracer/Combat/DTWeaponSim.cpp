@@ -37,6 +37,30 @@ namespace DTWeaponSimLocal
 		return View.HeroPositions.IsValidIndex(OwnerId) ? View.HeroPositions[OwnerId] : FVector2f::ZeroVector;
 	}
 
+	/** Frost's held control as the Keeper flags state it: the sim (StepHeldControl) and the cues read the same words. */
+	struct FHeldControl
+	{
+		bool bBlocks = false;
+		int32 HeldMax = 0;
+		uint16 Source = 0;
+	};
+
+	static FHeldControl ReadHeldControl(const FDTWeaponSpec& Spec)
+	{
+		FHeldControl Out;
+		for (const FDTResolvedFlag& Flag : Spec.Flags)
+		{
+			const FDTFlagParams& Params = Flag.Entry.Params;
+			if (Flag.Entry.Flag == DTCat::EFlag::StatusApply && (Params.Has(DTFlagParam::FrozenBlocksEnemies) || Params.Has(DTFlagParam::FreezeUntilHit)))
+			{
+				Out.bBlocks |= Params.Get(DTFlagParam::FrozenBlocksEnemies) > 0.0f;
+				Out.HeldMax = Params.Get(DTFlagParam::FreezeUntilHit) > 0.0f ? FMath::RoundToInt(Params.Get(DTFlagParam::HeldMax)) : Out.HeldMax;
+				Out.Source = Flag.Entry.SourceId;
+			}
+		}
+		return Out;
+	}
+
 	static int32 NumEnemies(const FDTWorldView& View)
 	{
 		return FMath::Min3(View.EnemyPositions.Num(), View.EnemyRadii.Num(), View.EnemySerials.Num());
@@ -1814,20 +1838,10 @@ void FDTWeaponSim::StepHeldControl(const FDTSimContext& Context, int32 OwnerId, 
 		return;
 	}
 	FDTWorldView& View = *Context.View;
-	const FDTWeaponSpec& Spec = Player.Weapons[0].Spec; // Keeper flags reach every weapon alike (R-KEE-03)
-	bool bBlocks = false;
-	int32 HeldMax = 0;
-	uint16 Source = 0;
-	for (const FDTResolvedFlag& Flag : Spec.Flags)
-	{
-		const FDTFlagParams& Params = Flag.Entry.Params;
-		if (Flag.Entry.Flag == DTCat::EFlag::StatusApply && (Params.Has(DTFlagParam::FrozenBlocksEnemies) || Params.Has(DTFlagParam::FreezeUntilHit)))
-		{
-			bBlocks |= Params.Get(DTFlagParam::FrozenBlocksEnemies) > 0.0f;
-			HeldMax = Params.Get(DTFlagParam::FreezeUntilHit) > 0.0f ? FMath::RoundToInt(Params.Get(DTFlagParam::HeldMax)) : HeldMax;
-			Source = Flag.Entry.SourceId;
-		}
-	}
+	const FHeldControl Held = ReadHeldControl(Player.Weapons[0].Spec); // Keeper flags reach every weapon alike (R-KEE-03)
+	const bool bBlocks = Held.bBlocks;
+	const int32 HeldMax = Held.HeldMax;
+	const uint16 Source = Held.Source;
 	const int32 Num = FMath::Min(NumEnemies(View), Enemies->Num());
 
 	// frozen_blocks_enemies: a Frozen enemy is a wall. Anything overlapping one is pushed back out to its rim, through the
@@ -2865,5 +2879,58 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 		V.Radius = Arc.Reach;
 		V.ArcDeg = Arc.ArcDeg;
 		V.Path = PathOf(Arc.OwnerId);
+	}
+
+	// Control cues (R-PRE-11). Reads only: what StepHeldControl acts on, never a position or a timer of its own.
+	const int32 Num = Enemies ? FMath::Min(NumEnemies(View), Enemies->Num()) : 0;
+	for (int32 Owner = 0; Owner < Players.Num() && Owner < Run.GetNumPlayers(); ++Owner)
+	{
+		const FPlayerRuntime& Player = Players[Owner];
+		if (Player.Weapons.Num() == 0)
+		{
+			continue;
+		}
+		for (const FWeaponRuntime& Weapon : Player.Weapons)
+		{
+			const FDTResolvedFlag* Still = Weapon.StillCharges > 0 ? Weapon.Spec.FindFlag(DTCat::EFlag::Stillness) : nullptr;
+			const float Aura = Still ? Still->Entry.Params.Get(DTFlagParam::ChargedAuraUu) : 0.0f;
+			if (Aura > 0.0f)
+			{
+				const float Interval = Still->Entry.Params.Get(DTFlagParam::AuraIntervalS);
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::StillAura;
+				V.Position = HeroOf(View, Owner);
+				V.Radius = Aura;
+				V.Pulse01 = Interval > 0.0f ? FMath::Clamp(Player.AuraReadyIn / Interval, 0.0f, 1.0f) : 0.0f;
+				break;
+			}
+		}
+		const bool bBlocks = ReadHeldControl(Player.Weapons[0].Spec).bBlocks;
+		if (!bBlocks && Player.HeldFrozen.Num() == 0)
+		{
+			continue;
+		}
+		for (int32 Enemy = 0; Enemy < Num; ++Enemy)
+		{
+			const FDTEnemyAux& Aux = Enemies->GetAux(Enemy);
+			if (!Aux.IsFrozen())
+			{
+				continue;
+			}
+			if (bBlocks && Aux.FreezeOwner == Owner)
+			{
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::FrozenWall;
+				V.Position = View.EnemyPositions[Enemy];
+				V.Radius = View.EnemyRadii[Enemy];
+			}
+			if (Player.HeldFrozen.Contains(View.EnemySerials[Enemy]))
+			{
+				FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+				V.Kind = FDTWeaponVisual::EKind::FrozenHold;
+				V.Position = View.EnemyPositions[Enemy];
+				V.Radius = View.EnemyRadii[Enemy];
+			}
+		}
 	}
 }

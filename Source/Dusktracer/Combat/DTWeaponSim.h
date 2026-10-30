@@ -36,15 +36,17 @@ struct FDTWeaponCounters
 	int64 Impacts = 0;   // hits this weapon's emissions made, seen by the weapon system
 };
 
-/** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11). */
+/** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
 struct FDTWeaponVisual
 {
-	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc };
+	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, FrozenWall, FrozenHold };
 	EKind Kind = EKind::Drone;
 	FVector2f Position = FVector2f::ZeroVector;
 	FVector2f Dir = FVector2f(1.0f, 0.0f);
 	float Radius = 0.0f;
 	float ArcDeg = 0.0f;
+	/** StillAura: 1 as the aura pulses, falling to 0 by the next pulse. */
+	float Pulse01 = 0.0f;
 	/** Zone tint: the owner's leading Keeper, or EDTPath::None for Pal.Player.TrailNeutral. Cores ignore it. */
 	EDTPath Path = EDTPath::None;
 };
