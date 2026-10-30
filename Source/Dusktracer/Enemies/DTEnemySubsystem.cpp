@@ -41,6 +41,11 @@ void UDTEnemySubsystem::Deinitialize()
 		Renderer->Destroy();
 		Renderer = nullptr;
 	}
+	if (RoundRenderer)
+	{
+		RoundRenderer->Destroy();
+		RoundRenderer = nullptr;
+	}
 	ResolvePhase.Owner = nullptr;
 	Super::Deinitialize();
 }
@@ -64,37 +69,71 @@ void UDTEnemySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	EnsureRenderer();
 }
 
-FLinearColor UDTEnemySubsystem::GetInstanceColor()
+FLinearColor UDTEnemySubsystem::GetHullColor()
 {
-	const FLinearColor Body = DTPal::Linear(DTPal::Enemy_Body);
-	const FLinearColor Optic = DTPal::Linear(DTPal::Enemy_Optic);
-	return Body + (Optic - Body) * DTConst::ENM_OPTIC_TINT;
+	return DTPal::Linear(DTPal::Enemy_Body);
+}
+
+FLinearColor UDTEnemySubsystem::GetOpticColor()
+{
+	return DTPal::Linear(DTPal::Enemy_Optic);
+}
+
+FLinearColor UDTEnemySubsystem::GetRoundColor()
+{
+	return DTPal::Linear(DTPal::Enemy_Bullet);
 }
 
 void UDTEnemySubsystem::EnsureRenderer()
 {
-	if (Renderer)
-	{
-		return;
-	}
 	UWorld* World = GetWorld();
-	if (!World)
+	if (!World || (Renderer && RoundRenderer))
 	{
 		return;
 	}
 	FActorSpawnParameters Params;
 	Params.ObjectFlags |= RF_Transient;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Renderer = World->SpawnActor<ADTEnemyRenderer>(ADTEnemyRenderer::StaticClass(), FTransform::Identity, Params);
-	if (Renderer)
+	if (!Renderer)
 	{
-		Renderer->Setup(GetInstanceColor(), DTConst::ENM_EMISSIVE_STRENGTH);
+		Renderer = World->SpawnActor<ADTEnemyRenderer>(ADTEnemyRenderer::StaticClass(), FTransform::Identity, Params);
+		if (Renderer)
+		{
+			// R-ENM-24: the hull is a dark silhouette without emissive; the separate optic carries readability.
+			Renderer->Setup(GetHullColor(), 0.0f, GetOpticColor(), DTConst::ENEMIES_OPTIC_EMISSIVE);
+		}
 	}
+	if (!RoundRenderer)
+	{
+		RoundRenderer = World->SpawnActor<ADTEnemyBulletRenderer>(ADTEnemyBulletRenderer::StaticClass(), FTransform::Identity, Params);
+		if (RoundRenderer)
+		{
+			RoundRenderer->InitRender(GetRoundColor(), DTConst::ENEMY_FIRE_EMISSIVE);
+		}
+	}
+}
+
+void UDTEnemySubsystem::QueueSpawn(const FDTEnemySpawn& InSpawn)
+{
+	QueuedSpawns.Add(InSpawn);
 }
 
 void UDTEnemySubsystem::RequestSpawn(int32 Count)
 {
 	PendingSpawns = FMath::Clamp(PendingSpawns + FMath::Max(0, Count), 0, DTConst::ENEMIES_CAP);
+}
+
+void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival)
+{
+	if (Count <= 0)
+	{
+		return;
+	}
+	FRoleRequest& Request = RoleRequests.AddDefaulted_GetRef();
+	Request.Role = Role;
+	Request.Count = FMath::Min(Count, DTConst::ENEMIES_CAP);
+	Request.bElite = bElite;
+	Request.bArrival = bArrival;
 }
 
 void UDTEnemySubsystem::SetKeepPopulation(int32 Count)
@@ -107,6 +146,16 @@ void UDTEnemySubsystem::RequestClear()
 	bClearPending = true;
 	PendingSpawns = 0;
 	KeepPopulation = 0;
+	RoleRequests.Reset();
+	QueuedSpawns.Reset();
+}
+
+void UDTEnemySubsystem::RequestStatus(EDTStatus Status, int32 Count, float Magnitude)
+{
+	FStatusRequest& Request = StatusRequests.AddDefaulted_GetRef();
+	Request.Status = Status;
+	Request.Count = Count;
+	Request.Magnitude = Magnitude;
 }
 
 void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
@@ -116,19 +165,59 @@ void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
 		Pool.Reset(false);
 		bClearPending = false;
 	}
+	if (!Context.Run)
+	{
+		return;
+	}
+	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Spawn);
+
+	// Director spawns first, in the order they were queued.
+	for (const FDTEnemySpawn& Spec : QueuedSpawns)
+	{
+		Pool.Spawn(Spec, &Rng, true);
+	}
+	QueuedSpawns.Reset();
+
+	const FVector2f Center = Context.View && Context.View->HeroPositions.Num() ? Context.View->HeroPositions[0] : FVector2f::ZeroVector;
+	const float Ring = static_cast<float>(DTConst::ENM_SPAWN_RING_RADIUS_UU);
+	for (const FRoleRequest& Request : RoleRequests)
+	{
+		FDTEnemySpawn Template;
+		Template.Role = Request.Role;
+		Template.bElite = Request.bElite;
+		Template.bArrival = Request.bArrival;
+		Pool.SpawnRing(Template, Request.Count, Center, Ring, Rng);
+	}
+	RoleRequests.Reset();
+
 	int32 Wanted = PendingSpawns;
 	PendingSpawns = 0;
 	if (KeepPopulation > Pool.Num() + Wanted)
 	{
 		Wanted = KeepPopulation - Pool.Num();
 	}
-	if (Wanted <= 0 || !Context.Run)
+	if (Wanted > 0)
 	{
-		return;
+		Pool.SpawnRing(EDTEnemyRole::Swarm, Wanted, Center, Ring, Rng);
 	}
-	const FVector2f Center = Context.View && Context.View->HeroPositions.Num() ? Context.View->HeroPositions[0] : FVector2f::ZeroVector;
-	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Spawn);
-	Pool.SpawnRing(EDTEnemyRole::Swarm, Wanted, Center, static_cast<float>(DTConst::ENM_SPAWN_RING_RADIUS_UU), Rng);
+
+	// Debug statuses go through the same queue effects use (FDTWorldView::StatusApplies, R-ENM-21).
+	if (Context.View)
+	{
+		for (const FStatusRequest& Request : StatusRequests)
+		{
+			const int32 Count = Request.Count > 0 ? FMath::Min(Request.Count, Pool.Num()) : Pool.Num();
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				FDTStatusApply& Apply = Context.View->StatusApplies.AddDefaulted_GetRef();
+				Apply.Handle = Pool.GetHandle(Index);
+				Apply.Status = Request.Status;
+				Apply.Magnitude = Request.Magnitude;
+				Apply.OwnerId = 0;
+			}
+		}
+	}
+	StatusRequests.Reset();
 }
 
 void UDTEnemySubsystem::SimStep(const FDTSimContext& Context)
@@ -161,27 +250,56 @@ void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 void UDTEnemySubsystem::SimRender(float Alpha)
 {
 	CSV_CUSTOM_STAT(DT, LiveEnemies, Pool.Num(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(DT, LiveEnemyRounds, Pool.GetRounds().Num(), ECsvCustomStatOp::Set);
 	EnsureRenderer();
-	if (!Renderer)
-	{
-		return;
-	}
-	const int32 Count = Pool.Num();
-	const TConstArrayView<FVector2f> Pos = Pool.GetPositions();
-	const TConstArrayView<FVector2f> Prev = Pool.GetPrevPositions();
-	const TConstArrayView<FVector2f> Vel = Pool.GetVelocities();
-	const TConstArrayView<float> Radii = Pool.GetRadii();
-	const float MeshSize = Renderer->GetMeshSizeUU();
 	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
 
-	RenderTransforms.SetNum(Count, EAllowShrinking::No);
-	for (int32 Index = 0; Index < Count; ++Index)
+	if (Renderer)
 	{
-		const FVector2f At = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
-		const FVector2f& V = Vel[Index];
-		const float Yaw = V.IsNearlyZero() ? 0.0f : FMath::RadiansToDegrees(FMath::Atan2(V.Y, V.X));
-		const float Scale = 2.0f * Radii[Index] / MeshSize;
-		RenderTransforms[Index] = FTransform(FRotator(0.0f, Yaw, 0.0f), FVector(At.X, At.Y, Z), FVector(Scale));
+		const int32 Count = Pool.Num();
+		const TConstArrayView<FVector2f> Pos = Pool.GetPositions();
+		const TConstArrayView<FVector2f> Prev = Pool.GetPrevPositions();
+		const TConstArrayView<FVector2f> Facing = Pool.GetFacings();
+		const TConstArrayView<float> Radii = Pool.GetRadii();
+		const TConstArrayView<EDTEnemyRole> Roles = Pool.GetRoles();
+		const float MeshSize = Renderer->GetMeshSizeUU();
+		const float OpticScale = DTConst::ENEMIES_OPTIC_SCALE;
+
+		HullTransforms.SetNum(Count, EAllowShrinking::No);
+		OpticTransforms.SetNum(Count, EAllowShrinking::No);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FVector2f At = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
+			const FVector2f& F = Facing[Index];
+			const float Yaw = F.IsNearlyZero() ? 0.0f : FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X));
+			const float R = Radii[Index];
+			const FRotator Rot(0.0f, Yaw, 0.0f);
+			HullTransforms[Index] = FTransform(Rot, FVector(At.X, At.Y, Z), FVector(2.0f * R / MeshSize));
+
+			// The optic sits on top of the hull where the role's model language puts it (enemies.md Model language):
+			// the nose (Swarm, Rusher) or over the plate (Tank) at the front edge; the mirror head (Turret) or the hull
+			// centre (Boss) in the middle.
+			const bool bCentred = Roles[Index] == EDTEnemyRole::Turret || Roles[Index] == EDTEnemyRole::Boss;
+			const FVector2f OpticAt = bCentred ? At : At + F * ((1.0f - OpticScale) * R);
+			OpticTransforms[Index] = FTransform(Rot, FVector(OpticAt.X, OpticAt.Y, Z + R), FVector(2.0f * R * OpticScale / MeshSize));
+		}
+		Renderer->UpdateInstances(HullTransforms, OpticTransforms);
 	}
-	Renderer->UpdateInstances(RenderTransforms);
+
+	if (RoundRenderer)
+	{
+		const FDTEnemyBulletPool& Rounds = Pool.GetRounds();
+		const int32 Count = Rounds.Num();
+		const TConstArrayView<FVector2f> Pos = Rounds.GetPositions();
+		const TConstArrayView<FVector2f> Prev = Rounds.GetPrevPositions();
+		const TConstArrayView<float> Radii = Rounds.GetRadii();
+		const float InvMeshRadius = 1.0f / RoundRenderer->GetMeshRadius();
+		RoundTransforms.SetNumUninitialized(Count, EAllowShrinking::No);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FVector2f P = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
+			RoundTransforms[Index] = FTransform(FQuat::Identity, FVector(P.X, P.Y, Z), FVector(Radii[Index] * InvMeshRadius));
+		}
+		RoundRenderer->SetInstances(RoundTransforms);
+	}
 }
