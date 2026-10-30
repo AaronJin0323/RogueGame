@@ -20,7 +20,7 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- none. Bot and presentation work paused: what remains needs a human reading
+- Share cap floor rule and S1 probes on branches off `main`
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
@@ -38,7 +38,7 @@
 ## Numbers at risk
 - Bot at skill 1.0 (`Docs/Validation/S1_boss_after_fields.md`, 19 arms, 15 seeds): 201 steered runs reach the boss, 153 win; the Warden barely kills the bot, and win counts in earlier docs carry the bot's hazard-ring blind spot. T-DIR-01 PASS (630.5 s on 10 seeds, 588.6 s on 15); T-OFF-15 FAIL 200/201 (one slow build); T-DIR-02 per arm FAIL (0/19 arms in band)
 - Primary Whirlpool and Stillness are the weakest Keeper arms (4–7 of 15 at the boss). Pass 2 numbers were all reverted (logged). With no heal in S1 the band and boss reach cannot both hold
-- Cues: plain Frozen has no cue, the round core is muddy at 720p, zh card text can wrap punctuation to a line start
+- Telegraph red now on hue (#F32F27) reads about 1.8:1 against the floor, under `C.PRE.CONTRAST_MIN` (R-PRE-05; `04_Presentation` §7 Open); to fix next
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
