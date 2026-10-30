@@ -8,3 +8,7 @@ Hud.Intercession,Intercession,神临,"HUD label of the Intercession meter while 
 Hud.IntercessionReady,Intercession ready,神临就绪,"HUD label of the Intercession meter when it is full and can be called.",Intercession
 Hud.RunOver,The Reclaimer has fallen. The run is over.,回收者倒下了。本局结束。,"Shown in the middle of the screen when every player's hero is down.",Reclaimer
 Hud.AimMode,Manual aim,手动瞄准,"Aim-mode option label; the HUD shows it while the player aims by hand (mouse cursor or right stick) instead of automatically.",
+Level.Label,Lv {Level},等级 {Level},"XP bar, left of the bar: the player's current level. {Level} is a whole number.",
+Level.Up,Level up!,升级！,"Flashes beside the XP bar for a moment when the player gains a level.",
+Level.Pending,{Count} choices waiting,{Count} 个选择待定,"Beside the XP bar while level-up or chest hands are queued. {Count} is a whole number above zero.",
+Level.Tooltip,XP {XP} / {XPToNext},经验 {XP} / {XPToNext},"Beside the XP bar: experience within the current level and the amount the next level needs. Whole numbers.",

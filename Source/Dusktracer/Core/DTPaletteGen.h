@@ -26,6 +26,8 @@ namespace DTPal
 	inline constexpr FColor Rarity_Common = FColor(184, 178, 167); // #B8B2A7
 	inline constexpr FColor Rarity_Rare = FColor(95, 168, 224); // #5FA8E0
 	inline constexpr FColor Rarity_Epic = FColor(138, 124, 255); // #8A7CFF
+	inline constexpr FColor Pickup_Gem = FColor(92, 242, 160); // #5CF2A0
+	inline constexpr FColor Pickup_Chest = FColor(255, 216, 102); // #FFD866
 	inline constexpr FColor UI_Panel = FColor(21, 23, 28); // #15171C
 	inline constexpr FColor UI_Text = FColor(232, 228, 220); // #E8E4DC
 

@@ -1,5 +1,5 @@
 // HUD: the localisation round-trip line (12_Production §2 exit test), a frame-time readout, and per-player hero state
-// (combat_core.md Text: HP, dash charges, Intercession meter).
+// (combat_core.md Text: HP, dash charges, Intercession meter), and the XP bar (progression.md R-PRG-11).
 #pragma once
 
 #include "CoreMinimal.h"

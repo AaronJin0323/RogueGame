@@ -213,6 +213,9 @@ offers:
   PICKUP.MAGNET_ACCEL_UU_S2:         { value: 6000, unit: uu_per_s2, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
   PICKUP.MAGNET_SPEED_MAX_UU_S:      { value: 1800, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
   PICKUP.GEM_CAP:                    { value: 1000, unit: n, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-07] }
+  PICKUP.GEM_SIZE_UU:                { value: 24, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
+  PICKUP.CHEST_SIZE_UU:              { value: 70, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
+  PICKUP.EMISSIVE:                   { value: 3.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/progression.md, 04_Presentation.md] }
 
 combat:
   HERO.MAX_HP:                 { value: 100,  unit: hp,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-10, T-DIR-02] }
