@@ -336,3 +336,32 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.BOSS.TARGET_FIGHT_S | 80 | s | GATED(S1) | boss.md, R-BOS-09, R-BOS-10, C.RUN.BOSS_MAX |
 | C.BOSS.HP_MIN_MULT | 0.6 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
 | C.BOSS.HP_MAX_MULT | 4.0 | ratio | GATED(S1) | boss.md, R-BOS-09, T-BOS-09 |
+
+## Weapons and modifiers (02_Systems/weapons.md, modifiers.md)
+
+Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.csv` and `09_Catalog/modifiers.csv` (tagged per row); this table holds the system-wide rules.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.LOAD.FACTOR_1 | 1.0 | ratio | CORE | weapons.md, T-WPN-03 |
+| C.LOAD.FACTOR_2 | 0.7 | ratio | CORE | weapons.md, T-WPN-03 |
+| C.LOAD.FACTOR_3 | 0.55 | ratio | CORE | weapons.md, T-WPN-03 |
+| C.LOAD.FACTOR_4 | 0.45 | ratio | CORE | weapons.md, T-WPN-03 |
+| C.WEAPON.SLOTS | 4 | n | CORE | weapons.md, offers.md, T-WPN-03 |
+| C.WEAPON.LEVEL_MAX | 8 | level | CORE | weapons.md, weapons.csv, T-WPN-04 |
+| C.WEAPON.SPAWN_RATE_MAX_PER_S | 400 | /s per weapon | GATED(S1) | weapons.md, C.BULLETS.CAP, T-WPN-09 |
+| C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO | 0.8 | ratio of volley damage | GATED(S1) | weapons.md, T-WPN-10 |
+| C.WEAPON.ARC_DEG | 120 | deg | GATED(S1) | weapons.md, T-WPN-06 |
+| C.WEAPON.DRONE_ORBIT_RADIUS_UU | 160 | uu | GATED(S1) | weapons.md, T-WPN-06 |
+| C.WEAPON.DRONE_ORBIT_DEG_S | 120 | deg/s | GATED(S1) | weapons.md, T-WPN-06 |
+| C.WEAPON.MINE_ARM_S | 0.4 | s | GATED(S1) | weapons.md, T-WPN-13 |
+| C.WEAPON.MINE_PULL_TICKS | 6 | n | GATED(S1) | weapons.md, T-WPN-13 (MEASURED reference: six ticks) |
+| C.WEAPON.MINE_PULL_TICK_S | 0.2 | s | GATED(S1) | weapons.md, T-WPN-13 |
+| C.WEAPON.MINE_PULL_TICK_DAMAGE_RATIO | 0.05 | ratio of mine damage | GATED(S1) | weapons.md, T-WPN-13 (MEASURED reference) |
+| C.WEAPON.MINE_PULL_RADIUS_RATIO | 1.5 | ratio of blast radius | GATED(S1) | weapons.md, T-WPN-13 |
+| C.WEAPON.MINE_PULL_SPEED_UU_S | 300 | uu/s | GATED(S1) | weapons.md, T-WPN-13 |
+| C.WEAPON.MINE_LIVE_MAX | 4 | n per weapon | GATED(S1) | weapons.md, T-WPN-13 |
+| C.MOD.SOCKETS_PER_WEAPON | 3 | n | GATED(S1) | modifiers.md, offers.md, T-MOD-04 |
+| C.MOD.MIN_COMPATIBLE | 4 | n per weapon | GATED(S1) | modifiers.md, T-MOD-07 |
+| C.MOD.SPLIT_GENERATIONS_MAX | 2 | n | CORE | modifiers.md, keepers.md, T-MOD-05 |
+| C.MOD.CRIT_CHANCE_CAP | 0.60 | ratio | CORE | modifiers.md, combat_core.md, T-MOD-05 |

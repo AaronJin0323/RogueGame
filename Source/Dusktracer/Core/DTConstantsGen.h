@@ -286,4 +286,27 @@ namespace DTConst
 	inline constexpr int32 BOSS_TARGET_FIGHT_S = 80; // s, GATED(S1)
 	inline constexpr float BOSS_HP_MIN_MULT = 0.6f; // ratio, GATED(S1)
 	inline constexpr float BOSS_HP_MAX_MULT = 4.0f; // ratio, GATED(S1)
+	// weapons
+	inline constexpr float LOAD_FACTOR_1 = 1.0f; // ratio, CORE
+	inline constexpr float LOAD_FACTOR_2 = 0.7f; // ratio, CORE
+	inline constexpr float LOAD_FACTOR_3 = 0.55f; // ratio, CORE
+	inline constexpr float LOAD_FACTOR_4 = 0.45f; // ratio, CORE
+	inline constexpr int32 WEAPON_SLOTS = 4; // n, CORE
+	inline constexpr int32 WEAPON_LEVEL_MAX = 8; // level, CORE
+	inline constexpr int32 WEAPON_SPAWN_RATE_MAX_PER_S = 400; // per_s, GATED(S1)
+	inline constexpr float WEAPON_CONVERT_MELEE_DAMAGE_RATIO = 0.8f; // ratio, GATED(S1)
+	inline constexpr int32 WEAPON_ARC_DEG = 120; // deg, GATED(S1)
+	inline constexpr int32 WEAPON_DRONE_ORBIT_RADIUS_UU = 160; // uu, GATED(S1)
+	inline constexpr int32 WEAPON_DRONE_ORBIT_DEG_S = 120; // deg_per_s, GATED(S1)
+	inline constexpr float WEAPON_MINE_ARM_S = 0.4f; // s, GATED(S1)
+	inline constexpr int32 WEAPON_MINE_PULL_TICKS = 6; // n, GATED(S1)
+	inline constexpr float WEAPON_MINE_PULL_TICK_S = 0.2f; // s, GATED(S1)
+	inline constexpr float WEAPON_MINE_PULL_TICK_DAMAGE_RATIO = 0.05f; // ratio, GATED(S1)
+	inline constexpr float WEAPON_MINE_PULL_RADIUS_RATIO = 1.5f; // ratio, GATED(S1)
+	inline constexpr int32 WEAPON_MINE_PULL_SPEED_UU_S = 300; // uu_per_s, GATED(S1)
+	inline constexpr int32 WEAPON_MINE_LIVE_MAX = 4; // n, GATED(S1)
+	inline constexpr int32 MOD_SOCKETS_PER_WEAPON = 3; // n, GATED(S1)
+	inline constexpr int32 MOD_MIN_COMPATIBLE = 4; // n, GATED(S1)
+	inline constexpr int32 MOD_SPLIT_GENERATIONS_MAX = 2; // n, CORE
+	inline constexpr float MOD_CRIT_CHANCE_CAP = 0.6f; // ratio, CORE
 }
