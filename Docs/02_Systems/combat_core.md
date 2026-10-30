@@ -81,7 +81,7 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 
 ## Telemetry
 - `dash` record per dash: `owner dir_x dir_y charges_after` (dash rates are low; one line each is within R-TEL-04's spirit) and the CSV column `dashes_per_min`.
-- `hero_damaged` record per applied hit: `owner amount hp_after max_hp kind role attack`; the CSV column `damage_taken_per_min` is a share of max HP (`telemetry.md` §Data).
+- `hero_damaged` record per applied hit: `owner amount hp_after max_hp hit_kind role attack`; `hit_kind` is `Contact`, `Bullet`, `HazardRing` (the boss ring, attack `Hazard`), `Charge` (the Warden's and a Rusher's), `Sweep` or `DashCharge`; the CSV column `damage_taken_per_min` is a share of max HP (`telemetry.md` §Data).
 - `hero_down{owner}`; per-interval count of `intercession_denied` per player. The `intercession` record per cast is `keepers.md`'s.
 - `input_device` column: the device that last produced gameplay input (`kbm` or `pad`) at the interval end.
 

@@ -16,6 +16,7 @@
 #include "Enemies/DTEnemySubsystem.h"
 #include "Enemies/DTTelegraphRenderer.h"
 #include "Engine/Engine.h"
+#include "Telemetry/DTTelemetryRecords.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -828,6 +829,53 @@ bool FDTBossDeterminism::RunTest(const FString& Parameters)
 	TestTrue(TEXT("same seed and scripted hero: bit-identical positions, rounds and HP"), A == B);
 	const TArray<uint32> C = Trace(92);
 	TestTrue(TEXT("another seed draws other crossing lanes"), A != C);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBossHitKinds, "Dusktracer.Boss.HitKinds", DTBossTest::Flags)
+bool FDTBossHitKinds::RunTest(const FString& Parameters)
+{
+	using namespace DTBossTest;
+	// Telemetry tells the boss's direct attacks apart: a hero that crosses the arena meets Charge, Sweep and DashCharge, and
+	// one standing past the ring in phase III meets the ring (combat_core.md Telemetry).
+	TSet<FString> Seen;
+	for (int32 Seed = 201; Seed < 206; ++Seed)
+	{
+		TUniquePtr<FHarness> H = MakeUnique<FHarness>(Seed);
+		FHarness* Fight = H.Get();
+		H->HeroPath = [Fight](int64 Step)
+		{
+			// At the hull's side a sweep is in reach and a charge lands; past phase III's opening the hero stands outside the ring.
+			if (Step >= Steps(DTConst::BOSS_TARGET_FIGHT_S * 0.69f))
+			{
+				return FVector2f(3600.0f, 0.0f);
+			}
+			const bool bHull = Fight->Core.HasHull() && Fight->Pool.IsHandleValid(Fight->Core.GetHull());
+			return (bHull ? Fight->Pool.GetPositions()[Fight->HullIndex()] : FVector2f::ZeroVector) + FVector2f(300.0f, 0.0f);
+		};
+		H->Dps = 350.0f;
+		H->Begin();
+		H->Adopt();
+		H->RunSteps(Steps(DTConst::RUN_BOSS_MAX) + 2);
+		for (const FDTHeroHit& Hit : H->HeroHits)
+		{
+			const FString Attack = Hit.AttackId.ToString();
+			const FString Kind = DTTelNames::HeroHitKind(Hit.Kind);
+			Seen.Add(Kind);
+			if (Attack == TEXT("Charge") || Attack == TEXT("Sweep") || Attack == TEXT("DashCharge"))
+			{
+				TestEqual(TEXT("a direct attack is its own hit kind"), Kind, Attack);
+			}
+			else if (Attack == TEXT("Hazard"))
+			{
+				TestEqual(TEXT("the ring is the hazard ring"), Kind, FString(TEXT("HazardRing")));
+			}
+		}
+	}
+	for (const TCHAR* Kind : { TEXT("Charge"), TEXT("Sweep"), TEXT("DashCharge"), TEXT("HazardRing") })
+	{
+		TestTrue(*FString::Printf(TEXT("%s reached the hero"), Kind), Seen.Contains(Kind));
+	}
 	return true;
 }
 

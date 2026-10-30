@@ -563,7 +563,7 @@ bool FDTCmbIntakeFromView::RunTest(const FString& Parameters)
 	Sim->Register(EDTSimPhase::Hero, &StepPhase);
 	Sim->Register(EDTSimPhase::Enemies, &Publisher);
 
-	const EDTHeroHitKind Kinds[] = { EDTHeroHitKind::Contact, EDTHeroHitKind::Bullet, EDTHeroHitKind::Hazard };
+	const EDTHeroHitKind Kinds[] = { EDTHeroHitKind::Contact, EDTHeroHitKind::Bullet, EDTHeroHitKind::HazardRing };
 	const float Amounts[] = { 7.0f, 11.0f, 13.0f };
 	Sim->StepNow(1);
 	float Expected = static_cast<float>(DTConst::HERO_MAX_HP);
@@ -618,7 +618,7 @@ bool FDTCmbHitWindow::RunTest(const FString& Parameters)
 	{
 		// Ties: contact before bullet before hazard, then the lower serial.
 		FHarness H;
-		H.View.HeroHits = { MakeHit(0, 9.0f, EDTHeroHitKind::Hazard, 1), MakeHit(0, 9.0f, EDTHeroHitKind::Bullet, 1),
+		H.View.HeroHits = { MakeHit(0, 9.0f, EDTHeroHitKind::HazardRing, 1), MakeHit(0, 9.0f, EDTHeroHitKind::Bullet, 1),
 			MakeHit(0, 9.0f, EDTHeroHitKind::Contact, 8, EDTEnemyRole::Tank), MakeHit(0, 9.0f, EDTHeroHitKind::Contact, 3, EDTEnemyRole::Rusher) };
 		H.Step();
 		TestTrue(TEXT("tie goes to contact"), H.Events.Num() == 1 && H.Events[0].HitKind == EDTHeroHitKind::Contact);

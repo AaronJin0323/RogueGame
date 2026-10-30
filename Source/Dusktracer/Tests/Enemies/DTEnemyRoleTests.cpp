@@ -8,6 +8,7 @@
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
 #include "Enemies/DTEnemyPool.h"
+#include "Telemetry/DTTelemetryRecords.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -470,7 +471,7 @@ bool FDTEnmTelegraphLead::RunTest(const FString& Parameters)
 			}
 			for (const FDTHeroHit& Hit : H.View.HeroHits)
 			{
-				if (Hit.Kind == EDTHeroHitKind::Hazard)
+				if (FCString::Strcmp(DTTelNames::HeroHitKind(Hit.Kind), TEXT("Charge")) == 0)
 				{
 					++Hazards;
 					HazardStep = Step;

@@ -55,6 +55,7 @@ def read_run_end(jsonl):
 
 
 ROLES = ("Swarm", "Tank", "Rusher", "Turret")
+HAZARD_KINDS = ("HazardRing", "Charge", "Sweep", "DashCharge")  # `hit_kind` values of direct attacks (combat_core.md)
 ECON_T = 630.0  # C.LEVEL.L16_MIN: the economy columns read cumulative values here (or at the run end if earlier)
 
 
@@ -277,7 +278,8 @@ def summarise_run(folder, consts):
 		"kill_horizon_window": "" if horizon is None else round(horizon),
 		"dmg_contact_window": round(sum(v for k, v in sources.items() if k.startswith("Contact/")), 3) if sources else "",
 		"dmg_bullet_window": round(sum(v for k, v in sources.items() if k.startswith("Bullet/")), 3) if sources else "",
-		"dmg_hazard_window": round(sum(v for k, v in sources.items() if k.startswith("Hazard/")), 3) if sources else "",
+		"dmg_hazard_window": round(sum(v for k, v in sources.items() if k.split("/")[0] in HAZARD_KINDS), 3) if sources else "",
+		**{f"dmg_{hk.lower()}_window": round(sum(v for k, v in sources.items() if k.startswith(hk + "/")), 3) if sources else "" for hk in HAZARD_KINDS},
 		"dmg_rusher_window": round(sum(v for k, v in sources.items() if k.endswith("/Rusher")), 3) if sources else "",
 		"dmg_tank_window": round(sum(v for k, v in sources.items() if k.endswith("/Tank")), 3) if sources else "",
 		"dmg_turret_window": round(sum(v for k, v in sources.items() if k.endswith("/Turret")), 3) if sources else "",
@@ -369,7 +371,7 @@ def main(argv):
 			mean(r["kills_per_min"] for r in rs), mean(r["xp_pickup_of_spawned"] for r in rs), mean(r["xp_pickup_of_model"] for r in rs),
 			mean(r["level_ref_ratio_spawned"] for r in rs)))
 	lines += ["", f"Pressure sources in {fmt_band(consts['DIR.BAND_WINDOW_S']['value'])} s (share of max HP per alive minute; threat actions per minute; kill horizon uu), and boss reach:", "",
-		"| Arm | n in window | Dmg | Dashes | Contact | Rounds | Hazard | Swarm | Tank | Rusher | Turret | Threat/min | Horizon | Reached boss | Wins |",
+		"| Arm | n in window | Dmg | Dashes | Contact | Rounds | Direct attacks | Swarm | Tank | Rusher | Turret | Threat/min | Horizon | Reached boss | Wins |",
 		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
 	for label in labels:
 		rs = [r for r in runs if r["label"] == label]
