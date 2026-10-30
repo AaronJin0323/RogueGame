@@ -1,4 +1,5 @@
 #include "Game/DTGameMode.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
@@ -137,12 +138,20 @@ void ADTGameMode::RestartPlayer(AController* NewPlayer)
 		FActorSpawnParameters Params;
 		Params.ObjectFlags |= RF_Transient;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		FollowCamera = MyWorld->SpawnActor<ADTCameraPawn>(ADTCameraPawn::StaticClass(), FTransform::Identity, Params);
+		FollowCamera = MyWorld->SpawnActor<ADTCameraPawn>(ADTCameraPawn::StaticClass(), ADTCameraPawn::FollowTransform(), Params);
 	}
 	if (FollowCamera)
 	{
-		FollowCamera->AttachToActor(Hero, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		// Keep the spawn transform as the offset from the hero: the actor itself is the view (ADTCameraPawn::FollowTransform).
+		FollowCamera->AttachToActor(Hero, FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, false));
 		PC->SetViewTarget(FollowCamera);
+		// The run-start Patron hand pauses the world before the first frame, and a paused world never updates the camera
+		// manager: fill its cache now so the hand is drawn with the camera's field of view (the view point itself is the
+		// actor's transform until time passes, see ADTCameraPawn::FollowTransform).
+		if (PC->PlayerCameraManager)
+		{
+			PC->PlayerCameraManager->UpdateCamera(0.0f);
+		}
 	}
 }
 

@@ -710,13 +710,26 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	}
 
 	FShot Shot = MakeShot(Owner, Slot, Runtime, SourceOverride != 0 ? SourceOverride : Instance.SourceId, Hero);
-	// Stillness: a charge reshapes the weapon's own next volley (keeps the weapon source, R-WPN-07).
+	// Reshaping by a Keeper flag carries Keeper.<Path>; by a modifier or the weapon itself, the weapon's source (R-WPN-07, D-015).
+	auto ReshapeSource = [](uint16 FlagSource, uint16 Current)
+	{
+		for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+		{
+			if (FlagSource != 0 && FlagSource == DTWeapons::KeeperSource(static_cast<EDTPath>(Path)))
+			{
+				return FlagSource;
+			}
+		}
+		return Current;
+	};
+	// Stillness: a charge reshapes the weapon's own next volley.
 	if (!bFree && Runtime.StillCharges > 0)
 	{
 		if (const FDTResolvedFlag* Still = Spec.FindFlag(DTCat::EFlag::Stillness))
 		{
 			Shot.Damage *= Still->Entry.Params.Get(DTFlagParam::Mult, 1.0f);
 			Shot.Pierce += FMath::RoundToInt(Still->Entry.Params.Get(DTFlagParam::ChargedPierce));
+			Shot.SourceId = ReshapeSource(Still->Entry.SourceId, Shot.SourceId);
 			--Runtime.StillCharges;
 		}
 	}
@@ -728,6 +741,10 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		// R-WPN-10: the converted rounds fold into ONE arc of their summed damage x the conversion ratio.
 		Converted = Spec.ConvertRounds;
 		FShot Cleave = Shot;
+		if (const FDTResolvedFlag* Conversion = Spec.FindFlag(DTCat::EFlag::ConvertMelee))
+		{
+			Cleave.SourceId = ReshapeSource(Conversion->Entry.SourceId, Cleave.SourceId); // a Keeper cleave is the Keeper's
+		}
 		Cleave.Damage = Shot.Damage * static_cast<float>(Converted) * Spec.ConvertDamageFactor;
 		EmitArc(Context, Runtime, Cleave, Dir, Spec.ConvertArcDeg, Spec.ConvertReach, true);
 		if (Spec.MirrorSource != 0)

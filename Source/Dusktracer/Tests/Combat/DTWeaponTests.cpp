@@ -535,7 +535,7 @@ bool FDTWeaponsConversion::RunTest(const FString& Parameters)
 		TestEqual(TEXT("one hit per enemy: one arc"), H.View.Hits.Num(), 2);
 		const float Expected = L1.Damage * L1.Count * DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO * 1.6f;
 		TestEqual(TEXT("arc damage"), H.View.Hits[0].Damage, Expected, 1e-3f);
-		TestEqual(TEXT("cleave keeps the weapon source (R-WPN-07)"), H.View.Hits[0].SourceId, FDTTelemetrySources::FindOrAdd(TEXT("Weapon.PulseRifle")));
+		TestEqual(TEXT("a Keeper cleave carries the Keeper source (R-WPN-07 amended, D-015)"), H.View.Hits[0].SourceId, Forge);
 	}
 	{
 		// A partial conversion keeps Projectile and the remaining rounds.

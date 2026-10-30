@@ -16,20 +16,21 @@ ADTCameraPawn::ADTCameraPawn()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	SetRootComponent(Root);
-
+	// The camera is the root: the actor's own transform is the view (see FollowTransform).
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	Camera->SetupAttachment(Root);
+	SetRootComponent(Camera);
 	Camera->bConstrainAspectRatio = false;
 	Camera->bUsePawnControlRotation = false;
 	Camera->SetFieldOfView(static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG));
+}
 
+FTransform ADTCameraPawn::FollowTransform()
+{
 	const float PitchRad = FMath::DegreesToRadians(static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG));
 	const float Distance = ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU),
 		static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), DTCameraPawnLocal::FrameAspect);
-	Camera->SetRelativeLocation(FVector(-Distance * FMath::Cos(PitchRad), 0.0, Distance * FMath::Sin(PitchRad)));
-	Camera->SetRelativeRotation(FRotator(-static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG), 0.0f, 0.0f));
+	return FTransform(FRotator(-static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG), 0.0f, 0.0f),
+		FVector(-Distance * FMath::Cos(PitchRad), 0.0, Distance * FMath::Sin(PitchRad)));
 }
 
 float ADTCameraPawn::ComputeFramingDistance(float FrameRadius, float HorizontalFovDeg, float Aspect)
