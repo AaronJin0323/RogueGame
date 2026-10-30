@@ -2254,6 +2254,42 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamFrostCastVuln, "FrostCastVuln")
 	return true;
 }
 
+DT_KEEPER_PARAM_TEST(FDTKeeperParamTideLine, "TideLineNeedsAPull")
+{
+	using namespace DTKeeperExpressTest;
+	// D-019: a Tide variant moves the crowd only if it names Flag.Pull. Frost and Stillness Freeze it where it stands.
+	const auto Cast = [](FDTKeeperHarness& H, const TCHAR* Variant)
+	{
+		H.AddEnemy(FVector2f(-600.0f, 300.0f));
+		H.AddEnemy(FVector2f(0.0f, -900.0f));
+		H.AddEnemy(FVector2f(1500.0f, 200.0f));
+		H.Patron(EDTPath::Tide, 0, false);
+		if (Variant)
+		{
+			H.Bless(Blessing(Variant, TEXT("Key")));
+		}
+		H.StepOnce();
+		H.Keepers.QueueIntercession(0);
+		H.StepMany(2);
+	};
+	for (const TCHAR* Variant : { TEXT("Tide.Frost"), TEXT("Tide.Stillness") })
+	{
+		FDTKeeperHarness H;
+		Cast(H, Variant);
+		TestEqual(FString::Printf(TEXT("%s moves nobody"), Variant), H.MoveLog.Num(), 0);
+		TestEqual(FString::Printf(TEXT("%s still Freezes everyone in range"), Variant), H.FrozenEnemies(), 3);
+		TestTrue(FString::Printf(TEXT("%s leaves the crowd where it stood"), Variant), H.Enemies.GetPositions()[0].Equals(FVector2f(-600.0f, 300.0f)));
+	}
+	for (const TCHAR* Variant : { TEXT("Tide.Whirlpool"), static_cast<const TCHAR*>(nullptr) })
+	{
+		FDTKeeperHarness H;
+		Cast(H, Variant);
+		TestEqual(FString::Printf(TEXT("%s still pulls"), Variant ? Variant : TEXT("the base")), H.MoveLog.Num(), 3);
+		TestEqual(FString::Printf(TEXT("%s still Freezes"), Variant ? Variant : TEXT("the base")), H.FrozenEnemies(), 3);
+	}
+	return true;
+}
+
 DT_KEEPER_PARAM_TEST(FDTKeeperParamFrostLayerOnStorm, "FrostLayerOnStormCast")
 {
 	using namespace DTKeeperExpressTest;
