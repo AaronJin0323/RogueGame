@@ -51,6 +51,11 @@ public:
 	const FDTHeroState* GetState(int32 OwnerId) const { return Hero.IsValidPlayer(OwnerId) ? &Hero.GetState(OwnerId) : nullptr; }
 	bool IsDown(int32 OwnerId) const { return Hero.IsValidPlayer(OwnerId) && Hero.GetState(OwnerId).bDown; }
 	bool IsRunOver() const { return Hero.IsRunOver(); }
+	/** The device that produced this player's last stepped input (telemetry `input_device`). */
+	EDTInputDevice GetLastInputDevice(int32 OwnerId) const
+	{
+		return Hero.IsValidPlayer(OwnerId) ? Hero.GetStepInput(OwnerId).Device : EDTInputDevice::KBM;
+	}
 
 	EDTAimMode GetAimMode(int32 OwnerId) const { return Hero.GetAimMode(OwnerId); }
 	void SetAimMode(int32 OwnerId, EDTAimMode Mode) { Hero.SetAimMode(OwnerId, Mode); }

@@ -3,6 +3,7 @@
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "UObject/Package.h"
 
 namespace DTInputSetLocal
 {

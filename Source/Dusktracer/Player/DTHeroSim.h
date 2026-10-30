@@ -42,6 +42,8 @@ public:
 	bool IsValidPlayer(int32 OwnerId) const { return States.IsValidIndex(OwnerId); }
 	const FDTHeroState& GetState(int32 OwnerId) const { return States[OwnerId]; }
 	const TArray<FDTHeroState>& GetStates() const { return States; }
+	/** The input the last (or next) Step used for this player; e.g. its Device for telemetry `input_device`. */
+	const FDTHeroInput& GetStepInput(int32 OwnerId) const { return StepInputs[OwnerId]; }
 
 	/** Events of the last Step, in order. */
 	const TArray<FDTHeroEvent>& GetStepEvents() const { return StepEvents; }
