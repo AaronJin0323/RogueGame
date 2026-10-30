@@ -137,6 +137,32 @@ class Contrast(unittest.TestCase):
 		self.assertEqual(verdict["telegraph"], "FAIL")
 		self.assertIn("telegraph", failed)
 
+	def test_the_dark_band_carries_a_telegraph(self):
+		w, h, rgb = self.frame([self.OPTIC, self.TRACER, self.GEM, self.CHEST, self.TELEGRAPH, self.RIM])
+		rgb = bytearray(rgb)
+		for y in range(100, 110):  # the two columns just left of the telegraph patch, black
+			for x in (106, 107):
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = b"\x00\x00\x00"
+		read = contrast_check.measure(w, h, bytes(rgb))
+		read["hero"] = (0.7, 100)
+		self.assertLess(read["telegraph_band"][0], 0.001)
+		self.assertEqual({r[0]: r[5] for r in contrast_check.judge(read, 3.0, 20)[0]}["telegraph"], "PASS")
+
+	def test_rim_tone_comes_from_rounds_not_from_an_optic_halo(self):
+		w = h = 200
+		rgb = bytearray(self.GROUND * (w * h))
+		def ring(cx, cy, colour, centre):
+			for y in range(cy - 3, cy + 4):
+				for x in range(cx - 3, cx + 4):
+					rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes(centre if abs(x - cx) <= 1 and abs(y - cy) <= 1 else colour)
+		pale, bright = (255, 150, 200), (255, 235, 245)
+		ring(70, 100, pale, (5, 2, 3))  # a hot round: pale rim, dark centre
+		ring(100, 100, (255, 120, 190), bright)  # an optic: its halo round a bright centre
+		read = contrast_check.measure(w, h, bytes(rgb))
+		self.assertEqual(read["enemy_core"][1], 1)
+		self.assertEqual(read["enemy_rim"][1], 40)
+		self.assertAlmostEqual(read["enemy_rim"][0], contrast_check.srgb_y(*pale))
+
 	def test_a_missing_element_fails(self):
 		rows, failed = contrast_check.judge(self.readings([self.OPTIC]), 3.0, 20)
 		self.assertIn("chest", failed)

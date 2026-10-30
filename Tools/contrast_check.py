@@ -7,7 +7,7 @@ Rule R-PRE-05 is checked on the rendered frame, not on swatches, so both referen
 percentile of bare ground) and the shadow on it. Pal.Ground.Bright and Pal.Ground.Shadow are printed beside them for reference.
 Each gameplay element is found by the display colour its token renders to; its tone is the 75th percentile of its pixels'
 relative luminance (WCAG, sRGB decoded), emissive and bloom included. An enemy round is dual-tone: its rim or its dark core may
-carry a ground. The hero is read from <empty.png>, where nothing stands on it; the fight frame buries it in the crowd.
+carry a ground, and both are read from the round blobs (a dark centre inside a small magenta blob), so an optic's halo never counts. A telegraph is dual-tone too: its red or the dark band round it (R-PRE-05, Telegraph edge). The hero is read from <empty.png>, where nothing stands on it; the fight frame buries it in the crowd.
 
 The HUD is masked (HUD_MASKS, 1280x720 frames). The elite light shares the optic's hue band and blinks, so the two are one line,
 `optic`. One weather exists; the rule's second is not measured.
@@ -32,18 +32,20 @@ HUD_MASKS = ((0.0, 0.0, 1.0, 0.13), (0.0, 0.77, 0.23, 1.0))
 # name: (hue ranges in degrees, saturation range, value range). Display colours, after tone mapping and bloom.
 ELEMENTS = {
 	"telegraph": (((350, 360), (0, 22)), (0.40, 1.01), (0.70, 1.01)),
-	"enemy_rim": (((318, 346),), (0.45, 1.01), (0.70, 1.01)),
-	"optic": (((295, 350),), (0.06, 0.45), (0.86, 1.01)),
+	"enemy_rim": (((318, 346),), (0.30, 1.01), (0.70, 1.01)),  # hot rim pixels pale to s 0.3; only round blobs are read (enemy_round_tones)
+	"optic": (((295, 350),), (0.06, 0.30), (0.86, 1.01)),
 	"tracer_core": (((185, 240),), (0.0, 0.25), (0.80, 1.01)),
 	"hero": (((0, 360),), (0.0, 0.10), (0.45, 1.01)),
 	"gem": (((130, 170),), (0.30, 1.01), (0.55, 1.01)),
 	"chest": (((36, 58),), (0.35, 1.01), (0.70, 1.01)),
 }
-DUAL_TONE = {"enemy_rim": "enemy_core"}
+DUAL_TONE = {"enemy_rim": "enemy_core", "telegraph": "telegraph_band"}
 GROUND = (0.30, 0.55)  # value range of bare ground pixels; saturation below GROUND_SAT
 SHADOW = (0.08, 0.29)  # value range of the shadow on it
 GROUND_SAT = 0.50
 ENEMY_CORE_MAX_V = 0.32
+TELEGRAPH_BAND_MAX_V = 0.12  # the band is black; this admits the band and nothing lit
+TELEGRAPH_BAND_REACH_PX = 3  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: about two pixels at gameplay camera, one more of anti-aliasing
 TRACER_MIN_V = 0.70
 TRACER_MAX_S = 0.06
 
@@ -95,9 +97,10 @@ def percentile(values, p):
 	return values[min(len(values) - 1, int(p * len(values)))] if values else None
 
 
-def enemy_core_tone(rim, rgb, w):
-	"""Median luminance of the dark centres of the round blobs: the darkest pixel inside each small rim blob's box."""
-	seen, tones = set(), []
+def enemy_round_tones(rim, rgb, w):
+	"""(core tone, rounds, rim luminances) of the round blobs: small rim blobs with a dark centre, so an optic's halo is no round.
+	The core tone is the median over rounds of the darkest pixel inside each blob's box."""
+	seen, tones, rim_lums = set(), [], []
 	for start in rim:
 		if start in seen:
 			continue
@@ -113,6 +116,10 @@ def enemy_core_tone(rim, rgb, w):
 		xs, ys = [p[0] for p in blob], [p[1] for p in blob]
 		if not 4 <= len(blob) <= 200:
 			continue
+		cx, cy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
+		i = (cy * w + cx) * 3
+		if max(rgb[i], rgb[i + 1], rgb[i + 2]) / 255.0 > ENEMY_CORE_MAX_V:
+			continue
 		darkest = None
 		for y in range(min(ys), max(ys) + 1):
 			for x in range(min(xs), max(xs) + 1):
@@ -123,15 +130,31 @@ def enemy_core_tone(rim, rgb, w):
 					darkest = lum if darkest is None else min(darkest, lum)
 		if darkest is not None:
 			tones.append(darkest)
-	return percentile(tones, 0.5), len(tones)
+			rim_lums += [srgb_y(*rgb[(y * w + x) * 3:(y * w + x) * 3 + 3]) for x, y in blob]
+	return percentile(tones, 0.5), len(tones), rim_lums
+
+
+def telegraph_band_tone(red, rgb, w, h):
+	"""(median Y, pixels) of the near-black pixels just off the telegraph's red: the dark band."""
+	seen = {}
+	for x0, y0 in red:
+		for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+			for step in range(1, TELEGRAPH_BAND_REACH_PX + 1):
+				x, y = x0 + dx * step, y0 + dy * step
+				if not (0 <= x < w and 0 <= y < h) or (x, y) in red:
+					continue
+				i = (y * w + x) * 3
+				if max(rgb[i], rgb[i + 1], rgb[i + 2]) / 255.0 <= TELEGRAPH_BAND_MAX_V:
+					seen[(x, y)] = srgb_y(rgb[i], rgb[i + 1], rgb[i + 2])
+	return percentile(list(seen.values()), 0.5), len(seen)
 
 
 def measure(w, h, rgb):
-	"""{element: (tone Y, pixels)}, plus "ground", "shadow" and, when rounds show one, "enemy_core"."""
+	"""{element: (tone Y, pixels)}, plus "ground", "shadow" and, when shown, "enemy_core" and "telegraph_band"."""
 	lums = {name: [] for name in ELEMENTS}
 	lums["ground"] = []
 	lums["shadow"] = []
-	rim = set()
+	rim, red = set(), set()
 	for y in range(h):
 		for x in range(w):
 			if masked(x, y, w, h):
@@ -144,11 +167,17 @@ def measure(w, h, rgb):
 			lums[name].append(srgb_y(r, g, b))
 			if name == "enemy_rim":
 				rim.add((x, y))
+			elif name == "telegraph":
+				red.add((x, y))
 	tone = {"ground": 0.9, "shadow": 0.5}
 	out = {name: (percentile(v, tone.get(name, 0.75)), len(v)) for name, v in lums.items()}
-	core, count = enemy_core_tone(rim, rgb, w)
+	core, count, rim_lums = enemy_round_tones(rim, rgb, w)
 	if core is not None:
 		out["enemy_core"] = (core, count)
+		out["enemy_rim"] = (percentile(rim_lums, 0.75), len(rim_lums))
+	band, count = telegraph_band_tone(red, rgb, w, h)
+	if band is not None:
+		out["telegraph_band"] = (band, count)
 	return out
 
 
@@ -220,6 +249,8 @@ def main(argv):
 		f"tokens Bright {token_y('Pal.Ground.Bright'):.3f}, Shadow {token_y('Pal.Ground.Shadow'):.3f}; need {need}")
 	if "enemy_core" in readings:
 		print(f"  enemy_core   tone {readings['enemy_core'][0]:.3f} ({readings['enemy_core'][1]} rounds)")
+	if "telegraph_band" in readings:
+		print(f"  telegraph_band tone {readings['telegraph_band'][0]:.3f} ({readings['telegraph_band'][1]} px)")
 	for name, tone, pixels, cl, cd, verdict in rows:
 		if tone is None:
 			print(f"  {name:<12} {pixels} px: {verdict}")
