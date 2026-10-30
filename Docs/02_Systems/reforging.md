@@ -28,7 +28,7 @@ At `C.OFFER.REFORGING_LEVEL` the build changes kind (`00_Vision §2`; `offers.md
 - **R-RFG-17** Glacier (`Glacier`): an enemy this owner freezes becomes a pillar, at most `pillars_max`. Its Freeze holds for `pillar_s` from then. While it holds, enemies are pushed out of it and enemy rounds touching it are removed. When any of the owner's hits strike it, or its time ends, it shatters: `shatter_dmg` × the strongest per-hit damage and one Chill to enemies within `shatter_uu`. The enemy lives on unless that kills it.
 
 **Budget**
-- **R-RFG-18** A Reforging pick is one decision and one milestone hand (R-OFF-15). It adds no hand and no XP. Its power is a reading: a steered build's output after the pick stays inside the source's band, `C.REFORGE.POWER_MIN` to `C.REFORGE.POWER_MAX`, and T-OFF-15 reads no worse than a control without it. Income above about 0.85 of the model breaks T-OFF-15 (D-018), so a row that lifts XP income that far is cut, and the hand budget is not the thing that moves.
+- **R-RFG-18** A Reforging pick is one decision and one milestone hand (R-OFF-15). It adds no hand and no XP. Its power is a reading: a steered build's output after the pick stays inside the source's band, `C.REFORGE.POWER_MIN` to `C.REFORGE.POWER_MAX`, and T-OFF-15 reads no worse than a control without it. XP income past the line D-018 measured breaks T-OFF-15, so a row that lifts XP income that far is cut, and the hand budget is not the thing that moves.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -70,7 +70,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - HUMAN: at L16 a validator can say, in their own words, what changed on screen within two seconds of the pick, for each of the three cards they were offered.
 
 ## Telemetry
-- `reforge{kind, id, target, weapon_level, dormant[]}` (`owner` = the player) on a Reforging pick, after the `offer_pick`; `dormant` lists modifiers the pick put to sleep. Filler blessings are a `keeper_pick`, not a `reforge`.
+- `reforge{kind, id, target, weapon_level, dormant}` (`owner` = the player) on a Reforging pick, after the `offer_pick`; `dormant` joins with semicolons the modifiers the pick put to sleep. A filler blessing writes the blessing records and no `reforge`.
 - The bot record gains `reforge=<id>` (`none` when the hand gave only filler or the run ended first) so a batch reads per card.
 
 ## Text
