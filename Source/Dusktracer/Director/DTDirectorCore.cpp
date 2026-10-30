@@ -79,7 +79,7 @@ float FDTDirectorCore::ShareCap(EDTEnemyRole Role)
 bool FDTDirectorCore::IsAtShareCap(EDTEnemyRole Role, int32 RoleAlive, int32 TotalAlive)
 {
 	const float Cap = ShareCap(Role);
-	if (Cap >= 1.0f || TotalAlive <= 0)
+	if (Cap >= 1.0f || TotalAlive <= DTConst::DIR_SHARE_FLOOR_ALIVE)
 	{
 		return false;
 	}
