@@ -25,7 +25,7 @@ Bot runs, at 630 s or the run end (mean per arm):
 
 (Model XP is lower than 3506 where runs ended before 630 s. XP collected includes XP-gain multipliers and the elite bonus, which the spawned column leaves out, so collected/spawned can exceed 1.)
 
-XP spawned by role up to 630 s (Forge/Hammer, all killed; counts × today's drop value): Swarm 1879 × 1, Tank 120 × 4, Rusher 171 × 2, Turret 18 × 3 = 2755. The timeline asks for about 3506 worth: the alive share caps (`C.DIR.SHARE_MAX_*`, 0.08–0.10 of the alive enemies) turn most Tank, Rusher and Turret draws into Swarm when a build keeps the field small, so real spawned XP is about 0.79 of the model. Up to 300 s: Swarm 733, Tank 36, Rusher 33, Turret 2.
+XP spawned by role up to 630 s (Forge/Hammer, all killed; counts × today's drop value): Swarm 1879 × 1, Tank 120 × 4, Rusher 171 × 2, Turret 18 × 3 = 2755. The timeline asks for about 3506 worth: the alive share caps (`C.DIR.SHARE_MAX_*`, 0.08–0.10 of the alive enemies) turn most Turret and many Tank and Rusher draws into Swarm when a build keeps the field small, so real spawned XP is about 0.79 of the model. Up to 300 s: Swarm 733, Tank 36, Rusher 33, Turret 2.
 
 Other readings after the gem fix (no number changed): T-DIR-01 PASS (no-pick median 592.9 s, was 452.6); T-OFF-15 PASS (7/7 Steered runs at the boss, mean 29 decisions); Forge/Hammer wins 4/5; Storm/Tempest and Tide/Frost still die before the boss in 8 of 10 runs.
 

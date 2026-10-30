@@ -68,5 +68,5 @@ Status of the gaps above: 1 (XP income) resolved by the bug fix — Steered bots
 Remaining gaps (reported, not tuned in this pass):
 1. **Pressure split by build.** Forge/Hammer takes almost no damage in 600–780 s (0.01/min, dashes 5.7/min, below both bands); Storm/Tempest takes 0.8–2.2/min and dies (dashes 13.7, above). No arm sits in 0.30–0.50 — this is now a build-power and threat reading, measurable for T-DIR-02.
 2. **Bot pickup above the reference.** Collected / model 0.73 (Storm, Forge) vs `C.XP.REFERENCE_PICKUP_RATIO` 0.51: bot level times are early bounds (L16 ≈ 570 s). At the reference ratio the S1 timeline model itself reaches L16 only at 712 s; which side moves (drops, or the reference ratio) needs a human pickup reading (O-008).
-3. **Share caps cut the XP the timeline asks for.** Spawned XP is ~0.79 of the model for a build that clears the field, because the alive share caps redraw most Tank, Rusher and Turret spawns as Swarm.
+3. **Share caps cut the XP the timeline asks for.** Spawned XP is ~0.79 of the model for a build that clears the field, because the alive share caps redraw most Turret and many Tank and Rusher spawns as Swarm.
 4. **Storm/Tempest dies before the boss in 5/5** at L14–18; Tide/Frost reaches the boss 2/5 with a Keeper share under 0.60.
