@@ -38,7 +38,7 @@
 
 ## Numbers at risk
 - `main` after pass 1 (`Docs/Validation/S1_balance_pass1.md`): T-DIR-01 PASS (no-pick median death 592.9 s), T-OFF-15 PASS; 7/15 steered runs reach the boss; damage-taken band met only as a pooled mean
-- `dev/s1-pass2`: no tuned number survived (all reverted, logged); T-DIR-02 per arm FAIL (1/17 arms in band). With params expressed Frost recovered (boss 7–8/15), but second-Keeper Tide arms still reach it 1–2 of 15, arms without Tide 13–15. With no heal in S1 the band and boss reach cannot both hold
+- `dev/s1-pass2`: pass 2 numbers all reverted (logged); T-DIR-02 per arm FAIL (0/19 arms in band), T-DIR-01 PASS. After D-016 second-Tide arms reach the boss 8–15 of 15 (was 1–2), primary Whirlpool 5/15 (was 0) and is the weakest Keeper arm. With no heal in S1 the band and boss reach cannot both hold
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
