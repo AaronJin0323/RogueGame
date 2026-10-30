@@ -18,12 +18,13 @@ class DUSKTRACER_API ADTEnemyBulletRenderer : public AActor
 	GENERATED_BODY()
 
 public:
-	static constexpr int32 NumCustomData = 4;
+	static constexpr int32 NumCustomData = 7;
 
 	ADTEnemyBulletRenderer();
 
 	/** Loads the mesh and material; call once after spawning. */
-	void InitRender(const FLinearColor& Color, float Emissive);
+	/** Custom data: 0-2 rim linear RGB, 3 emissive strength, 4-6 core linear RGB (M_EnemyRound, R-ENM-17). */
+	void InitRender(const FLinearColor& Rim, float Emissive, const FLinearColor& Core);
 
 	/** Makes the instance count equal Transforms.Num() (adding/removing only the tail), then batch-writes all transforms. */
 	void SetInstances(TConstArrayView<FTransform> Transforms);

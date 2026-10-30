@@ -215,6 +215,10 @@ bool FDTEnemyFireNoActors::RunTest(const FString& Parameters)
 	Sim->StepNow(2);
 	const FLinearColor Color = UDTEnemySubsystem::GetRoundColor();
 	TestEqual(TEXT("round colour is the Pal.Enemy.Bullet token"), Color, DTPal::Linear(DTPal::Enemy_Bullet));
+	const FLinearColor CoreColor = UDTEnemySubsystem::GetRoundCoreColor();
+	TestEqual(TEXT("round core is the Pal.Enemy.BulletCore token"), CoreColor, DTPal::Linear(DTPal::Enemy_BulletCore));
+	TestEqual(TEXT("every instance carries the core colour"), Renderer->GetInstances()->NumCustomDataFloats, ADTEnemyBulletRenderer::NumCustomData);
+	TestEqual(TEXT("core red in the instance data"), Renderer->GetInstances()->PerInstanceSMCustomData[4], CoreColor.R, 0.0001f);
 	for (const int32 PlayerBullets : { 0, DTConst::BULLETS_CAP })
 	{
 		// Density: with no player fire and with player fire at its cap, enemy rounds draw the same.

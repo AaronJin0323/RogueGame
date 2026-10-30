@@ -8,8 +8,8 @@
 namespace DTEnemyBulletRender
 {
 	static const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_InstanceColor");
-	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_InstanceColor.M_InstanceColor");
+	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_EnemyRound");
+	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_EnemyRound.M_EnemyRound");
 	static const TCHAR* FallbackMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 }
 
@@ -34,12 +34,15 @@ UMaterialInterface* ADTEnemyBulletRenderer::Fallback_EnemyFireMaterial()
 	return LoadObject<UMaterialInterface>(nullptr, DTEnemyBulletRender::FallbackMaterialPath);
 }
 
-void ADTEnemyBulletRenderer::InitRender(const FLinearColor& Color, float Emissive)
+void ADTEnemyBulletRenderer::InitRender(const FLinearColor& Rim, float Emissive, const FLinearColor& Core)
 {
-	CustomData[0] = Color.R;
-	CustomData[1] = Color.G;
-	CustomData[2] = Color.B;
+	CustomData[0] = Rim.R;
+	CustomData[1] = Rim.G;
+	CustomData[2] = Rim.B;
 	CustomData[3] = Emissive;
+	CustomData[4] = Core.R;
+	CustomData[5] = Core.G;
+	CustomData[6] = Core.B;
 
 	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, DTEnemyBulletRender::MeshPath))
 	{

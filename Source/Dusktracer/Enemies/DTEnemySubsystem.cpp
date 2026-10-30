@@ -90,6 +90,11 @@ FLinearColor UDTEnemySubsystem::GetRoundColor()
 	return DTPal::Linear(DTPal::Enemy_Bullet);
 }
 
+FLinearColor UDTEnemySubsystem::GetRoundCoreColor()
+{
+	return DTPal::Linear(DTPal::Enemy_BulletCore);
+}
+
 FLinearColor UDTEnemySubsystem::GetTelegraphColor()
 {
 	return DTPal::Linear(DTPal::Telegraph);
@@ -127,7 +132,7 @@ void UDTEnemySubsystem::EnsureRenderer()
 		RoundRenderer = World->SpawnActor<ADTEnemyBulletRenderer>(ADTEnemyBulletRenderer::StaticClass(), FTransform::Identity, Params);
 		if (RoundRenderer)
 		{
-			RoundRenderer->InitRender(GetRoundColor(), DTConst::ENEMY_FIRE_EMISSIVE);
+			RoundRenderer->InitRender(GetRoundColor(), DTConst::ENEMY_FIRE_EMISSIVE, GetRoundCoreColor());
 		}
 	}
 	if (!TelegraphRenderer)

@@ -8,11 +8,15 @@ Assets:
                                       emissive    = that RGB x PerInstanceCustomData 3.
                                       Usable with instanced static meshes. This path and layout is the contract the bullet
                                       and enemy ISM renderers use; do not change it.
+  /Game/DT/Materials/M_EnemyRound     two-tone enemy round (R-ENM-17, R-PRE-02), same layout plus PerInstanceCustomData 4..6 =
+                                      the dark core's linear RGB: the sphere's centre (radius C.ENEMY_FIRE.CORE_RADIUS_RATIO,
+                                      as seen by the camera) is the unlit core, the rim the emissive 0..2 x 3.
   /Game/DT/Materials/M_Ground         base colour Pal.Ground.Lit (04_Presentation §3), rough, non-metallic
   /Game/DT/Maps/L_Arena_Test          ground over +-C.ARENA.HALF_EXTENT_UU, low dusk sun, sky light, sky atmosphere,
                                       unbound post-process volume enforcing 04_Presentation §4 (fixed exposure, no motion
                                       blur, no depth of field, no chromatic aberration, no lens flare, bloom threshold).
 Numbers come from Docs/constants.yaml (C.ARENA.*); colours from the token table of 04_Presentation §3.
+With the environment variable DT_ROUND_MATERIAL_ONLY set only M_EnemyRound is rebuilt (the map stays byte-identical).
 """
 
 import math
@@ -35,6 +39,7 @@ PLANE_SIZE_UU = 100.0  # the engine plane is 100 x 100 uu at scale 1
 # Palette token (04_Presentation §3). The token table is the source; this mirrors one row until a token source exists.
 PAL_GROUND_LIT = "#66625B"
 GROUND_ROUGHNESS = 0.9
+ROUND_EDGE_SHARPNESS = 40.0  # width of the core/rim edge in the material; not a tunable, it only anti-aliases
 
 AT = unreal.AssetToolsHelpers.get_asset_tools()
 EAL = unreal.EditorAssetLibrary
@@ -94,6 +99,65 @@ def build_instance_color():
     MEL.recompile_material(mat)
     EAL.save_loaded_asset(mat, only_if_is_dirty=False)
     log("M_InstanceColor built")
+    return mat
+
+
+def build_enemy_round():
+    mat = fresh_material("M_EnemyRound")
+
+    def vector3(indices, x, y):
+        cells = []
+        for row, i in enumerate(indices):
+            e = expr(mat, unreal.MaterialExpressionPerInstanceCustomData, x, y + 120 * row)
+            e.set_editor_property("data_index", i)
+            cells.append(e)
+        rg = expr(mat, unreal.MaterialExpressionAppendVector, x + 250, y)
+        MEL.connect_material_expressions(cells[0], "", rg, "A")
+        MEL.connect_material_expressions(cells[1], "", rg, "B")
+        rgb = expr(mat, unreal.MaterialExpressionAppendVector, x + 450, y)
+        MEL.connect_material_expressions(rg, "", rgb, "A")
+        MEL.connect_material_expressions(cells[2], "", rgb, "B")
+        return rgb
+
+    rim = vector3((0, 1, 2), -1100, -300)
+    core = vector3((4, 5, 6), -1100, 100)
+    strength = expr(mat, unreal.MaterialExpressionPerInstanceCustomData, -600, 450)
+    strength.set_editor_property("data_index", 3)
+
+    # Fresnel is 1 - N.V: on a sphere it passes 1 - sqrt(1 - r^2) at the view radius r, wherever the camera stands.
+    ratio = float(C["ENEMY_FIRE.CORE_RADIUS_RATIO"])
+    fresnel = expr(mat, unreal.MaterialExpressionFresnel, -900, 500)
+    fresnel.set_editor_property("exponent", 1.0)
+    fresnel.set_editor_property("base_reflect_fraction", 0.0)
+    edge = expr(mat, unreal.MaterialExpressionConstant, -900, 650)
+    edge.set_editor_property("r", 1.0 - math.sqrt(1.0 - ratio * ratio))
+    past_edge = expr(mat, unreal.MaterialExpressionSubtract, -700, 550)
+    MEL.connect_material_expressions(fresnel, "", past_edge, "A")
+    MEL.connect_material_expressions(edge, "", past_edge, "B")
+    sharp = expr(mat, unreal.MaterialExpressionConstant, -700, 700)
+    sharp.set_editor_property("r", ROUND_EDGE_SHARPNESS)
+    scaled = expr(mat, unreal.MaterialExpressionMultiply, -500, 600)
+    MEL.connect_material_expressions(past_edge, "", scaled, "A")
+    MEL.connect_material_expressions(sharp, "", scaled, "B")
+    mask = expr(mat, unreal.MaterialExpressionSaturate, -350, 600)
+    MEL.connect_material_expressions(scaled, "", mask, "")
+
+    base = expr(mat, unreal.MaterialExpressionLinearInterpolate, -200, -100)
+    MEL.connect_material_expressions(core, "", base, "A")
+    MEL.connect_material_expressions(rim, "", base, "B")
+    MEL.connect_material_expressions(mask, "", base, "Alpha")
+    lit = expr(mat, unreal.MaterialExpressionMultiply, -350, 200)
+    MEL.connect_material_expressions(rim, "", lit, "A")
+    MEL.connect_material_expressions(strength, "", lit, "B")
+    emissive = expr(mat, unreal.MaterialExpressionMultiply, -200, 300)
+    MEL.connect_material_expressions(lit, "", emissive, "A")
+    MEL.connect_material_expressions(mask, "", emissive, "B")
+    MEL.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    MEL.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    MEL.recompile_material(mat)
+    EAL.save_loaded_asset(mat, only_if_is_dirty=False)
+    log(f"M_EnemyRound built (core radius ratio {ratio})")
     return mat
 
 
@@ -209,7 +273,12 @@ def main():
     for d in (MAT_DIR, "/Game/DT/Maps"):
         if not EAL.does_directory_exist(d):
             EAL.make_directory(d)
+    if os.environ.get("DT_ROUND_MATERIAL_ONLY"):
+        build_enemy_round()
+        log("DONE")
+        return
     build_instance_color()
+    build_enemy_round()
     ground = build_ground()
     build_map(ground)
     log("DONE")

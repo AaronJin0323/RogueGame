@@ -85,6 +85,7 @@ public:
 	static FLinearColor GetHullColor();
 	static FLinearColor GetOpticColor();
 	static FLinearColor GetRoundColor();
+	static FLinearColor GetRoundCoreColor();
 	static FLinearColor GetTelegraphColor();
 
 	/** Sends every threat action Pool started in its last step to Records (ThreatAction{Role, AttackId}, threat_actions_per_min). */
