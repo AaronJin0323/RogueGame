@@ -133,3 +133,47 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TEL.TTK_PERCENTILE | 0.50 | ratio | CORE | telemetry.md (`swarm_ttk_s` column), C.TTK.SWARM_STEERED_MAX |
 | C.TEL.NEAREST_PERCENTILE | 0.10 | ratio | CORE | telemetry.md (`nearest_enemy_p10_uu` column) |
 | C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01 |
+
+## Combat and director (02_Systems/combat_core.md, director.md)
+
+Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `balance/model.md`, `balance/pressure_proposal.md`, `balance/playtest5_verification.md`. Timeline rows live in `09_Catalog/timeline_arena1.csv`.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.HERO.MAX_HP | 100 | hp | GATED(S1) | combat_core.md, T-CMB-10, T-DIR-02 |
+| C.HERO.RADIUS_UU | 40 | uu | GATED(S1) | combat_core.md, T-CMB-03, T-CMB-08 |
+| C.HERO.MOVE_SPEED_UU_S | 600 | uu/s | GATED(S1) | combat_core.md, T-CMB-03 |
+| C.HERO.HURT_IFRAMES_S | 0.4 | s | GATED(S1) | combat_core.md, T-CMB-09 |
+| C.HERO.STICK_DEADZONE | 0.2 | ratio | GATED(S1) | combat_core.md, T-CMB-02 |
+| C.HERO.INPUT_BUFFER_S | 0.15 | s | GATED(S1) | combat_core.md, T-CMB-02 |
+| C.HERO.INTERCESSION_CHARGE_S | 60.0 | s | GATED(S1) | combat_core.md, keepers.md, T-CMB-11 |
+| C.DASH.DURATION_S | 0.25 | s | GATED(S1) | combat_core.md, T-CMB-06 |
+| C.DASH.DISTANCE_UU | 450 | uu | GATED(S1) | combat_core.md, T-CMB-06 |
+| C.DASH.COOLDOWN_S | 3.0 | s | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
+| C.DASH.CHARGES | 1 | n | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
+| C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09 |
+| C.DIR.NOPICK_DEATH_BAND_S | 480–720 | s | GATED(S1) | director.md, T-DIR-01 |
+| C.DIR.BOT_RUNS | 10 | n | GATED(S1) | director.md, T-DIR-01 |
+| C.DIR.BREATH_S | 6.0 | s | GATED(S1) | director.md, T-DIR-04 |
+| C.DIR.SPAWN_RING_MIN_UU | 1350 | uu | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.SPAWN_RING_MAX_UU | 1700 | uu | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.THREAT_RING_MIN_UU | 1000 | uu | GATED(S1) | director.md, T-DIR-06, T-DIR-07 |
+| C.DIR.THREAT_RING_MAX_UU | 1200 | uu | GATED(S1) | director.md, T-DIR-06, T-DIR-07 |
+| C.DIR.SHARE_MAX_TANK | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.SHARE_MAX_RUSHER | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.SHARE_MAX_TURRET | 0.08 | ratio | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.THREAT_SHARE_MIN | 0.25 | ratio | GATED(S1) | director.md, 09_Catalog/timeline_*.csv, T-DIR-06 |
+| C.DIR.DROPIN_LEAD_S | 1.0 | s | GATED(S1) | director.md, T-DIR-07 |
+| C.DIR.DROPIN_THREAT_MULT | 2 | x | GATED(S1) | director.md, T-DIR-07 |
+| C.DIR.DROPIN_ACTIVE_MAX | 1 | n | GATED(S1) | director.md, T-DIR-08 |
+| C.DIR.DROPIN_ACTIVE_MAX_THREAT | 2 | n | GATED(S1) | director.md, T-DIR-08 |
+| C.DIR.DROPIN_GAP_MIN_S | 1.5 | s | GATED(S1) | director.md, T-DIR-08 |
+| C.DIR.THREAT_ACTIONS_MIN | 4 | /min | GATED(S1) | director.md, T-DIR-09 |
+| C.SCALE.HP_PER_MIN | 0.16 | /min | GATED(S1) | director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10 |
+| C.SCALE.DMG_PER_MIN | 0.0667 | /min | GATED(S1) | director.md, T-DIR-02, T-DIR-10 |
+| C.DROP.XP_SWARM | 1 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_TANK | 4 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_RUSHER | 2 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_TURRET | 3 | xp | GATED(S1) | director.md, progression.md, T-DIR-12 |
+| C.DROP.XP_ELITE_MULT | 5 | x | GATED(S1) | director.md, T-DIR-12 |
+| C.DROP.GEMS_MAX | 2000 | n | GATED(S1) | director.md, T-DIR-12 |

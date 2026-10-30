@@ -91,3 +91,41 @@ caps:
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
+combat:
+  HERO.MAX_HP:                 { value: 100,  unit: hp,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-10, T-DIR-02] }
+  HERO.RADIUS_UU:              { value: 40,   unit: uu,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-03, T-CMB-08] }
+  HERO.MOVE_SPEED_UU_S:        { value: 600,  unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/combat_core.md, T-CMB-03] }
+  HERO.HURT_IFRAMES_S:         { value: 0.4,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-09] }
+  HERO.STICK_DEADZONE:         { value: 0.2,  unit: ratio, tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-02] }
+  HERO.INPUT_BUFFER_S:         { value: 0.15, unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-02] }
+  HERO.INTERCESSION_CHARGE_S:  { value: 60.0, unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, 02_Systems/keepers.md, T-CMB-11] }
+  DASH.DURATION_S:             { value: 0.25, unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06] }
+  DASH.DISTANCE_UU:            { value: 450,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06] }
+  DASH.COOLDOWN_S:             { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
+  DASH.CHARGES:                { value: 1,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
+  DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09] }
+  DIR.NOPICK_DEATH_BAND_S:     { value: [480, 720], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-01] }
+  DIR.BOT_RUNS:                { value: 10,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-01] }
+  DIR.BREATH_S:                { value: 6.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-04] }
+  DIR.SPAWN_RING_MIN_UU:       { value: 1350, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.SPAWN_RING_MAX_UU:       { value: 1700, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.THREAT_RING_MIN_UU:      { value: 1000, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-06, T-DIR-07] }
+  DIR.THREAT_RING_MAX_UU:      { value: 1200, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-06, T-DIR-07] }
+  DIR.SHARE_MAX_TANK:          { value: 0.10, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.SHARE_MAX_RUSHER:        { value: 0.10, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.SHARE_MAX_TURRET:        { value: 0.08, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
+  DIR.THREAT_SHARE_MIN:        { value: 0.25, unit: ratio, tag: GATED(S1),  dependents: [02_Systems/director.md, 09_Catalog/timeline_*.csv, T-DIR-06] }
+  DIR.DROPIN_LEAD_S:           { value: 1.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-07] }
+  DIR.DROPIN_THREAT_MULT:      { value: 2,    unit: x,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-07] }
+  DIR.DROPIN_ACTIVE_MAX:       { value: 1,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-08] }
+  DIR.DROPIN_ACTIVE_MAX_THREAT: { value: 2,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-08] }
+  DIR.DROPIN_GAP_MIN_S:        { value: 1.5,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-08] }
+  DIR.THREAT_ACTIONS_MIN:      { value: 4,    unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-09] }
+  SCALE.HP_PER_MIN:            { value: 0.16, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10] }
+  SCALE.DMG_PER_MIN:           { value: 0.0667, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-10] }
+  DROP.XP_SWARM:               { value: 1,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_TANK:                { value: 4,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_RUSHER:              { value: 2,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_TURRET:              { value: 3,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_ELITE_MULT:          { value: 5,    unit: x,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-12] }
+  DROP.GEMS_MAX:               { value: 2000, unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-12] }
