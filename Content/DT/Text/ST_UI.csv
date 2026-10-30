@@ -2,3 +2,9 @@ Key,en,zh-Hans,Context,Kw
 Product.Name,Dusktracer,曳光,"The game's name. The two names share an image; neither translates the other (Docs/Glossary.md).",
 Product.Tagline,You are the bullet hell.,弹幕即你。,Title-screen tagline under the game's name.,
 Test.LocRoundTrip,Language check: this line is English.,语言检查：这一行是中文。,"S0 exit test string, not shown to players: rendered in both en and zh-Hans to prove both cultures load and CJK glyphs display.",
+Hud.Hp,HP {Hp} / {MaxHp},生命 {Hp} / {MaxHp},"HUD, above the hero's HP bar. {Hp} and {MaxHp} are formatted whole numbers.",
+Hud.Dash,Dash,冲刺,"HUD label before the dash charge pips (one pip per charge, the next one filling as it refills).",
+Hud.Intercession,Intercession,神临,"HUD label of the Intercession meter while it charges. The one ultimate (Docs/Glossary.md).",Intercession
+Hud.IntercessionReady,Intercession ready,神临就绪,"HUD label of the Intercession meter when it is full and can be called.",Intercession
+Hud.RunOver,The Reclaimer has fallen. The run is over.,回收者倒下了。本局结束。,"Shown in the middle of the screen when every player's hero is down.",Reclaimer
+Hud.AimMode,Manual aim,手动瞄准,"Aim-mode option label; the HUD shows it while the player aims by hand (mouse cursor or right stick) instead of automatically.",

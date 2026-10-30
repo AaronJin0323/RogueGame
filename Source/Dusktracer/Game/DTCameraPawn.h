@@ -1,4 +1,4 @@
-// Fixed top-down camera over the arena origin (S0; player movement and follow come with the hero in S1).
+// Top-down follow camera of player 0's hero (02_Systems/combat_core.md; shared co-op framing is coop.md).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,7 +9,9 @@ class UCameraComponent;
 
 /**
  * Looks down at C.ARENA.CAMERA_PITCH_DEG with a horizontal field of view of C.ARENA.CAMERA_FOV_DEG, placed so that a
- * circle of C.ARENA.CAMERA_FRAME_RADIUS_UU around the pawn fits the screen height (the stress swarm).
+ * circle of C.ARENA.CAMERA_FRAME_RADIUS_UU around its root fits the screen height (the stress swarm). Not possessed:
+ * ADTGameMode attaches it to player 0's ADTHero and makes it the view target, so it follows the hero exactly as drawn
+ * (interpolated at the sim alpha). With no hero it stays at the arena origin.
  */
 UCLASS()
 class DUSKTRACER_API ADTCameraPawn : public APawn

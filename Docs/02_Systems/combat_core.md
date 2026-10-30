@@ -65,18 +65,18 @@ Input mapping (assets in `Content/DT/Input/`, built headless, R-TEC-06):
 Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `HeroDamaged{Amount, HpAfter, MaxHp, Kind, SourceRole, AttackId}`, `HeroDown`, `Intercession{Path}`, `IntercessionDenied`.
 
 ## Acceptance
-- T-CMB-01 PLANNED(S1) `Dusktracer.Combat.Hero.PerPlayerState`: two players step independently; `HeroPositions` holds both; the pawn adds no movement component and moving it by hand does not change the sim state.
-- T-CMB-02 PLANNED(S1) `Dusktracer.Combat.Hero.InputEdges`: one press across several frames in one step dashes once; one press with two steps in one frame dashes once; a press with no charge dashes when the charge returns inside `C.HERO.INPUT_BUFFER_S` and not after; stick input inside the dead zone moves nothing.
-- T-CMB-03 PLANNED(S1) `Dusktracer.Combat.Hero.Move`: a diagonal key pair moves at `C.HERO.MOVE_SPEED_UU_S`, not faster; full speed on the first step; the hero stops at the arena edge less its radius; an enemy in the path does not block it.
-- T-CMB-04 PLANNED(S1) `Dusktracer.Combat.Hero.Aim`: `Auto` points at the nearest enemy and holds when none; `Manual` follows a cursor point and a stick; a neutral stick holds the last direction.
-- T-CMB-05 PLANNED(S1) `Dusktracer.Combat.Input.NoFireAction`: both mapping contexts bind exactly the five actions above; no action fires weapons; weapons fire with no input.
-- T-CMB-06 PLANNED(S1) `Dusktracer.Combat.Hero.Dash`: a dash covers `C.DASH.DISTANCE_UU` in `C.DASH.DURATION_S` along move input, or the last move direction with none; charges refill one per cooldown; damage during the dash is discarded; one `Dash` event per dash.
-- T-CMB-07 PLANNED(S1) `Dusktracer.Combat.Hero.DashBudget`: from the generated constants, base charges and cooldown sustain at least the upper end of `C.DASHES.BAND_MIN10_13` per minute.
-- T-CMB-08 PLANNED(S1) `Dusktracer.Combat.Hero.IntakeFromView`: a contact, a bullet and a hazard `FDTHeroHit` each deal their amount, read one step after they were published; `HeroHits` is empty after the hero phase; the hero adds no contact of its own.
-- T-CMB-09 PLANNED(S1) `Dusktracer.Combat.Hero.HitWindow`: three contacts and a bullet in one step apply only the largest; nothing applies for `C.HERO.HURT_IFRAMES_S`; a pile of enemies deals at most one hit per window; one `HeroDamaged` per applied hit.
-- T-CMB-10 PLANNED(S1) `Dusktracer.Combat.Hero.Death`: lethal damage downs the hero once and emits `HeroDown` once; a downed hero ignores input; one of two players down keeps the run going; both down ends it with `Death`.
-- T-CMB-11 PLANNED(S1) `Dusktracer.Combat.Hero.Intercession`: the meter starts empty and fills in `C.HERO.INTERCESSION_CHARGE_S`; a press when full emits one event and empties it; a press when not full emits `IntercessionDenied` only; a paused sim does not fill it.
-- T-CMB-12 PLANNED(S1) `Dusktracer.Combat.Hero.Determinism`: a recorded input sequence replayed twice gives bit-identical hero states; the bot input path gives the same states as the same inputs fed by the harness.
+- T-CMB-01 `Dusktracer.Combat.Hero.PerPlayerState`: two players step independently; `HeroPositions` holds both; the pawn adds no movement component and moving it by hand does not change the sim state.
+- T-CMB-02 `Dusktracer.Combat.Hero.InputEdges`: one press across several frames in one step dashes once; one press with two steps in one frame dashes once; a press with no charge dashes when the charge returns inside `C.HERO.INPUT_BUFFER_S` and not after; stick input inside the dead zone moves nothing.
+- T-CMB-03 `Dusktracer.Combat.Hero.Move`: a diagonal key pair moves at `C.HERO.MOVE_SPEED_UU_S`, not faster; full speed on the first step; the hero stops at the arena edge less its radius; an enemy in the path does not block it.
+- T-CMB-04 `Dusktracer.Combat.Hero.Aim`: `Auto` points at the nearest enemy and holds when none; `Manual` follows a cursor point and a stick; a neutral stick holds the last direction.
+- T-CMB-05 `Dusktracer.Combat.Input.NoFireAction`: both mapping contexts bind exactly the five actions above; no action fires weapons; weapons fire with no input.
+- T-CMB-06 `Dusktracer.Combat.Hero.Dash`: a dash covers `C.DASH.DISTANCE_UU` in `C.DASH.DURATION_S` along move input, or the last move direction with none; charges refill one per cooldown; damage during the dash is discarded; one `Dash` event per dash.
+- T-CMB-07 `Dusktracer.Combat.Hero.DashBudget`: from the generated constants, base charges and cooldown sustain at least the upper end of `C.DASHES.BAND_MIN10_13` per minute.
+- T-CMB-08 `Dusktracer.Combat.Hero.IntakeFromView`: a contact, a bullet and a hazard `FDTHeroHit` each deal their amount, read one step after they were published; `HeroHits` is empty after the hero phase; the hero adds no contact of its own.
+- T-CMB-09 `Dusktracer.Combat.Hero.HitWindow`: three contacts and a bullet in one step apply only the largest; nothing applies for `C.HERO.HURT_IFRAMES_S`; a pile of enemies deals at most one hit per window; one `HeroDamaged` per applied hit.
+- T-CMB-10 `Dusktracer.Combat.Hero.Death`: lethal damage downs the hero once and emits `HeroDown` once; a downed hero ignores input; one of two players down keeps the run going; both down ends it with `Death`.
+- T-CMB-11 `Dusktracer.Combat.Hero.Intercession`: the meter starts empty and fills in `C.HERO.INTERCESSION_CHARGE_S`; a press when full emits one event and empties it; a press when not full emits `IntercessionDenied` only; a paused sim does not fill it.
+- T-CMB-12 `Dusktracer.Combat.Hero.Determinism`: a recorded input sequence replayed twice gives bit-identical hero states; the bot input path gives the same states as the same inputs fed by the harness.
 - HUMAN: on KBM and on pad only, in the S1 slice, a validator moves, dashes through a telegraphed charge line and fires the Intercession without reading the controls page; they never look for a fire button; dashes per minute in the band window of a steered run land in `C.DASHES.BAND_MIN10_13` (telemetry `dashes_per_min`).
 
 ## Telemetry
@@ -98,3 +98,10 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 ## Open
 - Aim assist is omitted because no S1 weapon needs precise aim → revisit if `weapons.md` adds a manual-aim weapon or pad validators miss in `Manual`.
 - Intercession charge by time only, as in the previous project; whether kills should also charge it → resolved by S1 sessions against `C.INTERCESSION.BAND`.
+- S1 implementation notes (non-behavioural, from the hero package):
+  - Hero events (`Dash`, `HeroDamaged`, `HeroDown`, `Intercession`, `IntercessionDenied`) carry `OwnerId` but are published by `UDTHeroSubsystem` (`OnHeroEvent`, `OnIntercession(OwnerId, Path)`, the step's event list), not through `FDTRunState::ApplyEvent`: `EDTGameEventKind` (frozen Core) has no such kinds yet → route them through `ApplyEvent` when Core adds them.
+  - The input actions and both mapping contexts are built in C++ with `NewObject` at startup (`Player/DTInputSet`), not saved under `Content/DT/Input/`: still headless, no binary assets.
+  - "Down" is not a world-view field (frozen Core): weapons ask `UDTHeroSubsystem::IsDown(OwnerId)`.
+  - A press with the meter not full emits `IntercessionDenied` at once when the meter cannot fill inside `C.HERO.INPUT_BUFFER_S`; otherwise it waits in the buffer (no deny cue asset yet).
+  - Stats are `FDTHeroStats` (identity multipliers) until `FDTStatSet` exists; a dash charge gained from stats arrives charged. The aim mode is set with `DT.Hero.AimMode` until the settings save (S3). The HUD Intercession meter is a bar, not a ring, until the HUD pass.
+  - T-CMB-05 checks the mappings and that aim is published with no input; that weapons fire with no input is `weapons.md`'s tests.
