@@ -19,7 +19,7 @@ if errorlevel 1 (
 )
 
 set "CFG=%ROOT%\Config\Localization\Game_Gather.ini;%ROOT%\Config\Localization\Game_Import.ini;%ROOT%\Config\Localization\Game_Compile.ini"
-"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%ROOT%\Dusktracer.uproject" -run=GatherText -config="%CFG%" -unattended -nopause -LiveCoding=false -ABSLOG="%LOG%"
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%ROOT%\Dusktracer.uproject" -run=GatherText -config="%CFG%" -unattended -nopause -nullrhi -nosplash -LiveCoding=false -ABSLOG="%LOG%"
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
 	findstr /C:"Error:" "%LOG%"
