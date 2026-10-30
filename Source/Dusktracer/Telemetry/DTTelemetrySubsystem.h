@@ -5,6 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Core/DTSimSubsystem.h"
 #include "Core/DTSimTypes.h"
+#include "Player/DTHeroSubsystem.h"
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetryWriter.h"
 #include "DTTelemetrySubsystem.generated.h"
@@ -13,6 +14,8 @@
  * Game/PIE worlds only. Registers for EDTSimPhase::Director (the end of each step, R-TEL-01) and observes every run
  * event through FDTRunState's sink (R-TEL-02). A session runs from StartSession (the game mode, with the run seed) to
  * EndSession (end of play, or world teardown); output is flushed off the game thread at every interval and at the end.
+ * Hero events (combat_core.md: dash, hero_damaged, hero_down, intercession_denied) reach it through the hero subsystem's
+ * OnHeroEvent, bound at begin play; the hero's last input device is read at every step end (CSV input_device).
  */
 UCLASS()
 class DUSKTRACER_API UDTTelemetrySubsystem : public UWorldSubsystem, public IDTSimSystem
@@ -59,9 +62,14 @@ public:
 	static FString GetBuildHash();
 
 private:
+	/** Forwards one hero event to the record API (no-op without a session). */
+	void HandleHeroEvent(const FDTHeroEvent& Event);
+
 	FDTTelemetryCore Core;
 	FDTTelemetryWriter Writer;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
+	TWeakObjectPtr<UDTHeroSubsystem> Heroes;
+	FDelegateHandle HeroEventHandle;
 	TArray<int32> LevelScratch;
 	TArray<int64> XpScratch;
 };

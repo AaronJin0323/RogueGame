@@ -42,11 +42,52 @@ void UDTTelemetrySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		SimSystem->Register(EDTSimPhase::Director, this);
 		SimSystem->GetRun().SetEventSink(&Core);
 	}
+	// combat_core.md producers: every hero event of a step reaches the record API; the hero subsystem stays unaware of it.
+	if (UDTHeroSubsystem* HeroSystem = InWorld.GetSubsystem<UDTHeroSubsystem>())
+	{
+		Heroes = HeroSystem;
+		HeroEventHandle = HeroSystem->OnHeroEvent.AddUObject(this, &UDTTelemetrySubsystem::HandleHeroEvent);
+	}
+}
+
+void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
+{
+	switch (Event.Kind)
+	{
+	case EDTHeroEventKind::Dash:
+		Core.RecordDash(Event.OwnerId, Event.Dir, Event.ChargesAfter);
+		break;
+	case EDTHeroEventKind::HeroDamaged:
+	{
+		FDTHeroHit Hit;
+		Hit.PlayerId = Event.OwnerId;
+		Hit.Damage = Event.Amount;
+		Hit.Kind = Event.HitKind;
+		Hit.SourceRole = Event.SourceRole;
+		Hit.AttackId = Event.AttackId;
+		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp);
+		break;
+	}
+	case EDTHeroEventKind::HeroDown:
+		Core.RecordHeroDown(Event.OwnerId);
+		break;
+	case EDTHeroEventKind::IntercessionDenied:
+		Core.RecordIntercessionDenied(Event.OwnerId);
+		break;
+	default:
+		break; // Intercession: the cast record is the Keeper system's (keepers.md), with what it hit
+	}
 }
 
 void UDTTelemetrySubsystem::Deinitialize()
 {
 	EndSession(TEXT("world_end"));
+	if (UDTHeroSubsystem* HeroSystem = Heroes.Get())
+	{
+		HeroSystem->OnHeroEvent.Remove(HeroEventHandle);
+	}
+	Heroes.Reset();
+	HeroEventHandle.Reset();
 	if (UDTSimSubsystem* SimSystem = Sim.Get())
 	{
 		SimSystem->Unregister(this);
@@ -93,7 +134,7 @@ void UDTTelemetrySubsystem::StartSession(int32 RunSeed, int32 NumPlayers)
 	}
 	Config.Build = GetBuildHash();
 	Config.Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
-	Config.InputDevice = TEXT("unknown"); // S1: the hero's input reports the last device used
+	Config.InputDevice = TEXT("unknown"); // no input yet; the CSV column reads the hero's last device at each step end
 	Config.WallStart = Now.ToIso8601();
 
 	Writer.Open(FDTTelemetryWriter::MakeBaseName(RunSeed, Now));
@@ -160,6 +201,15 @@ void UDTTelemetrySubsystem::SimStep(const FDTSimContext& Context)
 		}
 		Sample.Levels = LevelScratch;
 		Sample.XpTotals = XpScratch;
+		if (const UDTHeroSubsystem* HeroSystem = Heroes.Get())
+		{
+			const int32 NumHeroes = FMath::Min(Context.Run->GetNumPlayers(), HeroSystem->GetNumHeroes());
+			for (int32 Player = 0; Player < NumHeroes; ++Player)
+			{
+				Core.SetInputDevice(Player,
+					HeroSystem->GetLastInputDevice(Player) == EDTInputDevice::Pad ? EDTTelInputDevice::Pad : EDTTelInputDevice::Kbm);
+			}
+		}
 	}
 
 	const int32 IntervalBefore = Core.GetIntervalIndex();
