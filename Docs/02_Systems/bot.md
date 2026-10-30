@@ -10,14 +10,14 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 - **R-BOT-03** At skill `1.0` v2 moves, dashes and casts exactly as v1 does on the same world: the difference between v1 and v2 at that setting is the card rules (R-BOT-09, R-BOT-10) and nothing else. Skill `1.0` is the bot's ceiling, a bound on perfect reactions, and is not a skilled human.
 
 **Skill: what lower means** (`FDTBotSkillProfile`, one pure function of skill, every field monotonic)
-- **R-BOT-04** Reaction: below `1.0` the bot decides on the world as it was one reaction time ago, carried forward along each object's velocity. What it already tracks stays where a player expects it; a new round, a rusher's turn or a telegraph reaches its decisions late. The hero's own position is always current. Input also changes at a limited rate (`HoldS`), as a hand does.
+- **R-BOT-04** Reaction: below `1.0` the bot decides on the world as it was one reaction time ago, carried forward along each object's velocity. What it already tracks stays where a player expects it; a new round, a rusher's turn or a telegraph reaches its decisions late. The hero's own position is always current. Input also changes at a limited rate (`HoldS`), as a hand does. A slower player knows it reacts late and leaves more room: the clearance `MarginUU` grows as skill falls, because the skill `1.0` clearance holds only at zero latency.
 - **R-BOT-05** Missed cues (`Harness/H07 §5`): each telegraph is noticed or missed once, when it first reaches the bot, with probability `CueMissP`; a missed cue stays unseen until it ends. The boss's hazard ring is never missed: it stands on screen for the whole phase.
 - **R-BOT-06** Attention: below `1.0` the bot tracks only the `AttentionRounds` nearest enemy rounds, within a shorter `ThreatRangeUU` and a shorter look-ahead `HorizonS`. Enemy bodies are always all seen: a crowd is not a cue one can miss.
 - **R-BOT-07** Dodge error: below `1.0` the chosen direction carries a stick error that drifts slowly (time constant `StickTauS`) rather than a new random angle per decision, a dash is pressed later (`ImminentS`), it lands where the hero was heading unless a plan roll (`DashPlanP`) passes, and Intercession waits for a larger crowd (`CastCrowd`).
 - **R-BOT-08** Aim: v2 stays in the default `Auto` aim (`combat_core.md` R-CMB-04) at every skill. A player has to opt into `Manual`, so a weaker player has no aim error to model. V1 below `1.0` switches to `Manual` with noise on each decision; that stays as it is under R-BOT-01 and is why v1's sub-`1.0` numbers are not a player.
 
 **Cards** (Steered policy; None and Random are unchanged)
-- **R-BOT-09** Reach fit: the bot records how far the nearest enemy rim stays from the hero over the last `ReachWindowS` of the run, and weighs a new weapon, an upgrade and (at half weight) a modifier by the share of those samples the weapon's reach covers. Reach is read from `DTCat::WeaponLevels` for the card's weapon, at its owned level: `radius_uu` for `MeleeArc`, `range_uu` for the others. A weapon the bot's range cannot use loses to one it can, whatever its Path fit. Before `ReachMinSamples` samples the share is its reach over `ReachPriorUU`.
+- **R-BOT-09** Reach fit: the bot records how far the nearest enemy rim stays from the hero over the last `ReachWindowS` of the run, and weighs a new weapon, an upgrade and (at half weight) a modifier by the share of those samples the weapon's reach covers. Reach is read from `DTCat::WeaponLevels` for the card's weapon, at its owned level: `radius_uu` for `MeleeArc`, `range_uu` for the others. A weapon the bot's range cannot use loses to one it can, whatever its Path fit; but reach chooses between weapons, not whether to own a second: below two weapons a new weapon still beats an upgrade (`SecondWeaponFloor`). Before `ReachMinSamples` samples the share is its reach over `ReachPriorUU`.
 - **R-BOT-10** Second Keeper: until the second Keeper holds a blessing, its blessings outrank every card but the archetype's own Key and first Amp; after that they still outrank upgrades (`SecondFirstScore`, `SecondNextScore`). A second Keeper does not sit unblessed through a run of upgrades.
 - **R-BOT-11** Card error: below `1.0` the bot reads each card's value through a taste: a score offset fixed per content id for the whole run (`TasteScore`), so it keeps misjudging the same card rather than rolling dice per hand. The fit terms of R-BOT-09 and R-BOT-10 count at weight `skill`: a weak player sees them less. Keeper cards take no taste: the Patron and second Keeper name the arm, and an arm must stay the arm it says it is.
 
@@ -31,7 +31,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 | Constant | Key | Tag | Dependents |
 |---|---|---|---|
 | Skill profile | `DTBotSkillTuning::*`, `DTBotTuning::StickTauS` | tool parameter | R-BOT-04…08, T-BOT-03 |
-| Card scores | `DTBotTuning::ReachPenalty`, `ModReachShare`, `SecondFirstScore`, `SecondNextScore`, `DTBotSkillTuning::MaxTasteScore` | tool parameter | R-BOT-09…11 |
+| Card scores | `DTBotTuning::ReachPenalty`, `ModReachShare`, `SecondWeaponFloor`, `SecondFirstScore`, `SecondNextScore`, `DTBotSkillTuning::MaxTasteScore` | tool parameter | R-BOT-09…11 |
 | Reach sampling | `DTBotTuning::ReachSampleS`, `ReachWindowS`, `ReachMinSamples`, `ReachPriorUU` | tool parameter | R-BOT-09 |
 
 ## Data
@@ -39,7 +39,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 |---|---|---|
 | `FDTBotConfig::Version` | `int32` | `1` or `2`; default `1` (R-BOT-01) |
 | `FDTBotConfig::Skill` | `float` | clamped to the unit range; v1 and v2 read it differently |
-| `FDTBotSkillProfile` | struct | `ReactionS HoldS CueMissP AttentionRounds ThreatRangeUU HorizonS StickErrDeg DashPlanP ImminentS CastCrowd TasteScore FitAwareness` |
+| `FDTBotSkillProfile` | struct | `ReactionS HoldS MarginUU CueMissP AttentionRounds ThreatRangeUU HorizonS StickErrDeg DashPlanP ImminentS CastCrowd TasteScore FitAwareness` |
 | `FDTBotPerception` | class | ring of past frames, the attended rounds, the cue list (R-BOT-04…06) |
 
 ## Acceptance
@@ -51,7 +51,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - T-BOT-06 `Dusktracer.Bot.Attention`: past `AttentionRounds` the farther rounds are not seen; every body is.
 - T-BOT-07 `Dusktracer.Bot.StickError`: the error's step from one decision to the next is well below its spread; it stays inside what the profile allows; no error at skill `1.0`.
 - T-BOT-08 `Dusktracer.Bot.AimAuto`: v2 leaves the aim stick neutral at every skill; a run below `1.0` stays in `Auto`.
-- T-BOT-09 `Dusktracer.Bot.CardReach`: with the hero's range sampled wider than the Arc Blade, Orbital Drones win that hand and an Arc Blade upgrade loses to a usable one; with a close range the blade stands.
+- T-BOT-09 `Dusktracer.Bot.CardReach`: with the hero's range sampled wider than the Arc Blade, Orbital Drones win that hand and an Arc Blade upgrade loses to a usable one; with a close range the blade stands; with one weapon owned the blade still beats an upgrade.
 - T-BOT-10 `Dusktracer.Bot.CardSecond`: with no second-Keeper blessing owned the Key beats an upgrade and a new weapon; after one, a second-Keeper card still beats an upgrade; the archetype's own Key still comes first.
 - T-BOT-11 `Dusktracer.Bot.CardTaste`: no taste at skill `1.0`; below it the same card reads the same score across hands of a run, differs by seed, and Keeper hands ignore it.
 - T-BOT-12 `Tools/tools_test.py` `BotHistogram`: death minutes bin per arm, wins and timeouts stay out of the histogram, `Tools/bot_compare.py` lines up two batches.

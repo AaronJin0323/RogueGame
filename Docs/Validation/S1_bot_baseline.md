@@ -95,3 +95,5 @@ Checks: `T-DIR-01: PASS (median end 592.9 s over 10 seeds; 1 run(s) did not die)
 Two instrument fixes, no game change (`S1_boss_after_fields.md`): the hazard ring scores by the distance outside it, so the bot walks in from past its look-ahead; the wall band no longer closes the pickup reward for a chest. Win counts in every earlier section carry the ring blind spot and read low.
 
 Later bot changes: `S1_boss_after_fields.md` (ring grade, chests at walls); `S1_probes.md` §5 (ring grade `RingGradeUU`), §1 (probe route, off in runs).
+
+Bot v2 (`02_Systems/bot.md`, `S2_bot_v2.md`) sits beside this bot. Every command here stays v1: `-BotVersion` defaults to 1 and v1's input stream is unchanged (R-BOT-01).

@@ -586,7 +586,7 @@ bool FDTBotSkillProfileTest::RunTest(const FString& Parameters)
 	for (int32 Tenth = 1; Tenth <= 10; ++Tenth)
 	{
 		const FDTBotSkillProfile P = FDTBotSkillProfile::FromSkill(static_cast<float>(Tenth) / 10.0f);
-		TestTrue(TEXT("reaction and hold shrink"), P.ReactionS < Last.ReactionS && P.HoldS < Last.HoldS);
+		TestTrue(TEXT("reaction, hold and clearance shrink"), P.ReactionS < Last.ReactionS && P.HoldS < Last.HoldS && P.MarginUU < Last.MarginUU);
 		TestTrue(TEXT("fewer cues missed"), P.CueMissP < Last.CueMissP);
 		TestTrue(TEXT("more attention, range and look-ahead"), P.AttentionRounds > Last.AttentionRounds && P.ThreatRangeUU > Last.ThreatRangeUU && P.HorizonS > Last.HorizonS);
 		TestTrue(TEXT("less stick error, an earlier dash, more dash plans"), P.StickErrDeg < Last.StickErrDeg && P.ImminentS > Last.ImminentS && P.DashPlanP > Last.DashPlanP);
@@ -596,7 +596,7 @@ bool FDTBotSkillProfileTest::RunTest(const FString& Parameters)
 	const FDTBotSkillProfile Top = FDTBotSkillProfile::FromSkill(1.0f);
 	const FDTBotSkillProfile Defaults;
 	TestTrue(TEXT("skill 1 is v1's heuristics exactly"), Top.HorizonS == Defaults.HorizonS && Top.ImminentS == Defaults.ImminentS && Top.ThreatRangeUU == Defaults.ThreatRangeUU
-		&& Top.CastCrowd == Defaults.CastCrowd && Top.AttentionRounds == MAX_int32 && Top.ReactionS == 0.0f);
+		&& Top.CastCrowd == Defaults.CastCrowd && Top.MarginUU == Defaults.MarginUU && Top.AttentionRounds == MAX_int32 && Top.ReactionS == 0.0f);
 
 	// R-BOT-03: on the same worlds v2 at skill 1.0 presses what v1 presses.
 	FDTBotConfig V1;
@@ -879,6 +879,10 @@ bool FDTBotCardReach::RunTest(const FString& Parameters)
 	Far.Reset(V2Config(EDTPath::Tide, TEXT("Stillness"), EDTPath::Storm, 1.0f));
 	SampleRange(Far, 400.0f);
 	TestEqual(TEXT("kiting past its reach, the seed 6 hand goes to the drones"), Far.ChooseCard(Hand, Player), 1);
+
+	FDTOfferHand Second;
+	Second.Cards = { MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"), TEXT("Weapon.PulseRifle")), MakeCard(EDTCardKind::Weapon, TEXT("Weapon.ArcBlade")) };
+	TestEqual(TEXT("reach chooses between weapons, not whether to own a second"), Far.ChooseCard(Second, Player), 1);
 
 	FDTOfferHand Upgrades;
 	Upgrades.Cards = { MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.ArcBlade"), TEXT("Weapon.ArcBlade")), MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"), TEXT("Weapon.PulseRifle")) };

@@ -33,6 +33,8 @@ struct DUSKTRACER_API FDTBotSkillProfile
 	/** R-BOT-04: how old the world the bot decides on is; how long an input is held. */
 	float ReactionS = 0.0f;
 	float HoldS = 0.0f;
+	/** R-BOT-04: clearance added to every collision radius; a player who reacts late leaves more room. */
+	float MarginUU = 18.0f;
 	/** R-BOT-05: share of telegraphs missed. */
 	float CueMissP = 0.0f;
 	/** R-BOT-06: enemy rounds tracked, how far threats are considered, look-ahead for moving threats. */

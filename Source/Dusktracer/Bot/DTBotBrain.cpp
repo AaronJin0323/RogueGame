@@ -9,8 +9,6 @@
 namespace DTBotTuning
 {
 	constexpr int32 NumDirs = 16;
-	/** Clearance added to every collision radius. */
-	constexpr float MarginUU = 18.0f;
 	constexpr float RoundWeight = 1000.0f;
 	constexpr float BodyWeight = 400.0f;
 	constexpr float TelegraphWeight = 700.0f;
@@ -49,6 +47,8 @@ namespace DTBotTuning
 	constexpr float ReachPriorUU = 400.0f;
 	constexpr float ReachPenalty = 60.0f;
 	constexpr float ModReachShare = 0.5f;
+	/** A second weapon still beats an upgrade whatever its reach (a hair over WeaponUpgrade's 60): reach chooses between weapons. */
+	constexpr float SecondWeaponFloor = 61.0f;
 	constexpr float SecondFirstScore = 94.0f;
 	constexpr float SecondNextScore = 65.0f;
 	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
@@ -260,7 +260,7 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 		const FVector2f RVel = World.RoundVel.IsValidIndex(Index) ? World.RoundVel[Index] : FVector2f::ZeroVector;
 		float T = 0.0f;
 		const float D = ClosestApproach(Rel, RVel - Vel, Horizon, T);
-		const float R = HeroR + (World.RoundRadius.IsValidIndex(Index) ? World.RoundRadius[Index] : 0.0f) + MarginUU;
+		const float R = HeroR + (World.RoundRadius.IsValidIndex(Index) ? World.RoundRadius[Index] : 0.0f) + Profile.MarginUU;
 		if (D < R)
 		{
 			Score += RoundWeight * (1.0f - T / (Horizon + 0.1f)) * (1.0f + (R - D) / R);
@@ -277,7 +277,7 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 		const FVector2f EVel = World.EnemyVel.IsValidIndex(Index) ? World.EnemyVel[Index] : FVector2f::ZeroVector;
 		float T = 0.0f;
 		const float D = ClosestApproach(Rel, EVel - Vel, Horizon, T);
-		const float R = HeroR + (World.EnemyRadius.IsValidIndex(Index) ? World.EnemyRadius[Index] : 0.0f) + MarginUU;
+		const float R = HeroR + (World.EnemyRadius.IsValidIndex(Index) ? World.EnemyRadius[Index] : 0.0f) + Profile.MarginUU;
 		if (D < R)
 		{
 			Score += BodyWeight * (1.0f - T / (Horizon + 0.1f)) * (1.0f + (R - D) / R);
@@ -298,7 +298,7 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 	float Score = 0.0f;
 	for (const FDTTelegraph& Tele : World.Telegraphs)
 	{
-		if (InTelegraph(Tele, P, HeroR + MarginUU))
+		if (InTelegraph(Tele, P, HeroR + Profile.MarginUU))
 		{
 			if (Tele.Shape == EDTTelegraphShape::HazardRing)
 			{
@@ -784,6 +784,10 @@ float FDTBotBrain::CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Han
 		return Score; // the arm's identity (R-BOT-11)
 	case EDTCardKind::Weapon:
 		Score -= Aware * ReachPenalty * (1.0f - ReachUse(WeaponReach(Card.ContentId, Player)));
+		if (Player.Weapons.Num() < 2)
+		{
+			Score = FMath::Max(Score, SecondWeaponFloor);
+		}
 		break;
 	case EDTCardKind::WeaponUpgrade:
 		Score -= Aware * ReachPenalty * (1.0f - ReachUse(WeaponReach(Card.TargetWeapon.IsNone() ? Card.ContentId : Card.TargetWeapon, Player)));

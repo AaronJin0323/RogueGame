@@ -5,16 +5,18 @@
 // read from here. A change is recorded in Docs/Validation/S2_bot_v2.md.
 namespace DTBotSkillTuning
 {
-	constexpr float MaxReactionS = 0.45f;
-	constexpr float MaxHoldS = 0.18f;
-	constexpr float MaxCueMissP = 0.5f;
+	constexpr float MaxReactionS = 0.26f;
+	constexpr float MaxHoldS = 0.1f;
+	constexpr float MaxCueMissP = 0.4f;
 	/** Rounds tracked at skill 0 and just below skill 1 (at 1 there is no limit). */
 	constexpr int32 MinAttentionRounds = 10;
 	constexpr int32 MaxAttentionRounds = 80;
 	constexpr float MinThreatRangeUU = 800.0f;
-	constexpr float MinHorizonS = 0.3f;
-	constexpr float MaxStickErrDeg = 30.0f;
-	constexpr float MinImminentS = 0.12f;
+	constexpr float MinHorizonS = 0.4f;
+	constexpr float MaxStickErrDeg = 10.0f;
+	/** Clearance a slower player leaves on top of the skill 1 clearance: it knows it reacts late (R-BOT-04). */
+	constexpr float MaxExtraMarginUU = 120.0f;
+	constexpr float MinImminentS = 0.16f;
 	constexpr int32 MaxCastCrowd = 24;
 	constexpr float MaxTasteScore = 30.0f;
 	constexpr int32 CueSalt = 0x0C0E;
@@ -36,6 +38,7 @@ FDTBotSkillProfile FDTBotSkillProfile::FromSkill(float Skill)
 	FDTBotSkillProfile P;
 	P.ReactionS = D * MaxReactionS;
 	P.HoldS = D * MaxHoldS;
+	P.MarginUU = Top.MarginUU + D * MaxExtraMarginUU;
 	P.CueMissP = D * MaxCueMissP;
 	P.AttentionRounds = FMath::RoundToInt32(FMath::Lerp(static_cast<float>(MinAttentionRounds), static_cast<float>(MaxAttentionRounds), S));
 	P.ThreatRangeUU = FMath::Lerp(MinThreatRangeUU, Top.ThreatRangeUU, S);
