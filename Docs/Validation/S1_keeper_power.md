@@ -37,7 +37,7 @@ What B2 explains:
 
 **B3, BUG: Frost's cast never pays its `frozen_vuln`.** The variant is `Flag.StatusApply{status=Status.Freeze;scope=Screen;duration_s=4.0;frozen_vuln=0.50}`. `TidePull` reads only `duration_s`; nothing folds the clause into the flags, so the card's "Frozen take +50 %" (`ST_Keepers`, Tide.Frost.Ult.Desc) stays the Key's 30 %. `scope=Screen` needs no reader: `C.INTERCESSION.TIDE_RADIUS_UU` equals the camera frame radius.
 
-**B4, BUG: Frost's layer does nothing on two Storm variants.** `Flag.StatusApply{status=Status.Chill;stacks=2;on=IntercessionHit}` rides only on `FDTKeeperSim::HitCircle`. Tempest and Downpour casts reshape weapon flags and never call it, so "Intercession hits add 2 Chill" has no hit to ride. Storm/Tempest:Frost reads 8 133 against 8 240 with no layer, and in `Status` the Chill count does not rise.
+**B4, BUG: Frost's layer does nothing on two Storm variants.** `Flag.StatusApply{status=Status.Chill;stacks=2;on=IntercessionHit}` rides only on `FDTKeeperSim::HitCircle`. Tempest and Downpour casts reshape weapon flags and never call it, so "Intercession hits add 2 Chill" has no hit to ride. Storm/Tempest:Frost reads 8 133 against 8 240 with no layer, and its Chill applications are the enchantment's alone (739 with the cast, 420 without; 2 893 with the fix).
 
 ### 1.3 T-KEE-18, per group
 

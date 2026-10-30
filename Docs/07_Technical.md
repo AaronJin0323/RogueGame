@@ -91,6 +91,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 | Field | Written by (phase) | Read by | Cleared |
 |---|---|---|---|
 | `HeroPositions`, `HeroAimDirs`, `HeroIntangible` | hero (Hero) | all; weapons; enemy fire | overwritten each step |
+| `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`) | overwritten each step; a touch the hero refused never sets it |
 | `HeroHits` (`FDTHeroHit[]`) | enemies: contact, enemy rounds; boss hazards (Enemies) | hero, next step | by the hero after reading |
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
 | `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
