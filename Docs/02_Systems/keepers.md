@@ -107,26 +107,26 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `FDTKeeperRunState` | inside `FDTPlayerRunState` (R-TEC-01) | `Primary Second Owned[] Favor[Path] Tier[Path] Leading[Path] CommitDone` |
 
 ## Acceptance
-- T-KEE-01 `Dusktracer.Keepers.Catalog`: the generated defs hold three Keepers × `C.KEEPER.ARCHETYPES_PER_KEEPER` × `C.KEEPER.BLESSINGS_PER_ARCHETYPE` blessings with the right ids; no other Path is offerable. PLANNED(S1)
-- T-KEE-02 `Dusktracer.Keepers.NoStatOnly`: every Key has one flag (its archetype's, unique); a stat-only Amp fixture is rejected at load. PLANNED(S1)
-- T-KEE-03 `Dusktracer.Keepers.FlagsOnAllWeapons`: a blessing taken with two weapons applies once to both and to a third acquired later; a non-native weapon gets the fallback. PLANNED(S1)
-- T-KEE-04 `Dusktracer.Keepers.Prerequisites`: Amps are ineligible without the Key; the Trait needs `C.KEEPER.TRAIT_PREREQ_CARDS` cards. PLANNED(S1)
-- T-KEE-05 `Dusktracer.Keepers.PrimarySecond`: the Patron pick fixes the primary; before commitment only primary blessings are granted; after it only primary and second; the third never. PLANNED(S1)
-- T-KEE-06 `Dusktracer.Keepers.LeadingArchetype`: most cards wins, tie goes to the latest card, no Key gives none. PLANNED(S1)
-- T-KEE-07 `Dusktracer.Keepers.Tiers`: tiers unlock exactly at the thresholds, follow a leading-archetype change and are never lost. PLANNED(S1)
-- T-KEE-08 `Dusktracer.Keepers.TierLineLength`: every tier line in `ST_Keepers` en and zh-Hans is within limits. PLANNED(S1)
-- T-KEE-09 `Dusktracer.Keepers.Enchantment`: trail colours as specified, core unchanged; status proc rates over a seeded sample match the chances; same seed, same procs. PLANNED(S1)
-- T-KEE-10 `Dusktracer.Keepers.StatusProcs`: procs append one status application in the Effects phase with the hit's owner and the Keeper source, take effect the next step, and use only `C.STATUS.*` behaviour. PLANNED(S1)
-- T-KEE-11 `Dusktracer.Keepers.BurnMagnitude`: a Burn application carries the ratio × the hit's damage; Furnace's bonus raises the stack cap. PLANNED(S1)
-- T-KEE-12 `Dusktracer.Keepers.FrostThreshold`: Frost's application freezes at its lower threshold and for its scaled length; without Frost the defaults apply. PLANNED(S1)
-- T-KEE-13 `Dusktracer.Keepers.Sources`: children, chains, echoes, cleaves, slams, ticks, status and Intercession damage carry the granting Keeper's source; layer hits the second's. PLANNED(S1)
-- T-KEE-14 `Dusktracer.Keepers.IntercessionCompose`: base, variant by leading archetype, layer only after commitment, variant shape wins a conflict. PLANNED(S1)
+- T-KEE-01 `Dusktracer.Keepers.Catalog`: the generated defs hold three Keepers × `C.KEEPER.ARCHETYPES_PER_KEEPER` × `C.KEEPER.BLESSINGS_PER_ARCHETYPE` blessings with the right ids; no other Path is offerable.
+- T-KEE-02 `Dusktracer.Keepers.NoStatOnly`: every Key has one flag (its archetype's, unique); a stat-only Amp fixture is rejected at load.
+- T-KEE-03 `Dusktracer.Keepers.FlagsOnAllWeapons`: a blessing taken with two weapons applies once to both and to a third acquired later; a non-native weapon gets the fallback.
+- T-KEE-04 `Dusktracer.Keepers.Prerequisites`: Amps are ineligible without the Key; the Trait needs `C.KEEPER.TRAIT_PREREQ_CARDS` cards.
+- T-KEE-05 `Dusktracer.Keepers.PrimarySecond`: the Patron pick fixes the primary; before commitment only primary blessings are granted; after it only primary and second; the third never.
+- T-KEE-06 `Dusktracer.Keepers.LeadingArchetype`: most cards wins, tie goes to the latest card, no Key gives none.
+- T-KEE-07 `Dusktracer.Keepers.Tiers`: tiers unlock exactly at the thresholds, follow a leading-archetype change and are never lost.
+- T-KEE-08 `Dusktracer.Keepers.TierLineLength`: every tier line in `ST_Keepers` en and zh-Hans is within limits.
+- T-KEE-09 `Dusktracer.Keepers.Enchantment`: trail colours as specified, core unchanged; status proc rates over a seeded sample match the chances; same seed, same procs.
+- T-KEE-10 `Dusktracer.Keepers.StatusProcs`: procs append one status application in the Effects phase with the hit's owner and the Keeper source, take effect the next step, and use only `C.STATUS.*` behaviour.
+- T-KEE-11 `Dusktracer.Keepers.BurnMagnitude`: a Burn application carries the ratio × the hit's damage; Furnace's bonus raises the stack cap.
+- T-KEE-12 `Dusktracer.Keepers.FrostThreshold`: Frost's application freezes at its lower threshold and for its scaled length; without Frost the defaults apply.
+- T-KEE-13 `Dusktracer.Keepers.Sources`: children, chains, echoes, cleaves, slams, ticks, status and Intercession damage carry the granting Keeper's source; layer hits the second's.
+- T-KEE-14 `Dusktracer.Keepers.IntercessionCompose`: base, variant by leading archetype, layer only after commitment, variant shape wins a conflict.
 - T-KEE-15 `Dusktracer.Keepers.IntercessionBand` (bot probe): every combination per primary within the band of its mean. PLANNED(S1)
-- T-KEE-16 `Dusktracer.Keepers.SecondCompat`: an incompatible second-Keeper blessing is never offered; none excluded without a leading archetype; owned ones stay when the leader changes. PLANNED(S1)
-- T-KEE-17 `Dusktracer.Keepers.NoFitMultiplier`: the same blessing set gives identical flag parameters on fit and off-fit weapons. PLANNED(S1)
+- T-KEE-16 `Dusktracer.Keepers.SecondCompat`: an incompatible second-Keeper blessing is never offered; none excluded without a leading archetype; owned ones stay when the leader changes.
+- T-KEE-17 `Dusktracer.Keepers.NoFitMultiplier`: the same blessing set gives identical flag parameters on fit and off-fit weapons.
 - T-KEE-18 `Dusktracer.Keepers.Budget` (bot ablation, `Tools/power_split.py`): Keeper share, package gain and archetype band hold for the nine showcase builds. PLANNED(S1)
-- T-KEE-19 `Dusktracer.Keepers.PerPlayer`: two owners with different Keepers never affect each other's weapons, procs or offers. PLANNED(S1)
-- T-KEE-20 `Dusktracer.Keepers.ExpressionCsv`: the generator rejects a missing row, an unknown tag and an asymmetric incompatibility, and builds headless. PLANNED(S1)
+- T-KEE-19 `Dusktracer.Keepers.PerPlayer`: two owners with different Keepers never affect each other's weapons, procs or offers.
+- T-KEE-20 `Dusktracer.Keepers.ExpressionCsv`: the generator rejects a missing row, an unknown tag and an asymmetric incompatibility, and builds headless.
 - HUMAN: after one run, ≥ two of three validators name their archetype in their own words (`00_Vision §4`); the trail shows the primary colour from the first blessing and the second only at the tip.
 
 ## Telemetry
@@ -150,3 +150,10 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 
 ## Open
 - All `GATED(S1)` values → resolved by bot ablation and the S1 validation sessions (O-008).
+- Implemented in `Source/Dusktracer/Keepers/` (S1 keepers package). Notes from that build, for the next spec pass:
+  - Tier lines and Intercession overlays fold into one flag source per Keeper (`Keeper.<Path>`): a `+x` adds, a plain value replaces. A tier clause with `every_n_volley` and its own `pattern` is a separate per-volley entry (Tempest's ring); the others (Downpour, Whirlpool) change the per-hit entry because the weapon system has no per-volley Echo or Pull.
+  - The Intercession bases name mechanics without every number: child damage, chain range and damage, ring damage and knockback, and the Tide line's gap are read from the Path's own cards in `expression.csv` (first card naming the parameter); a screen-wide scope is `C.ARENA.CAMERA_FRAME_RADIUS_UU`.
+  - Frost's `frozen_vuln` is expressed by the Keeper layer as an extra `Keeper.Tide` hit on Frozen enemies (no other system owns it). The Whirlpool Key has no damage term (pull and Chill), so its Keeper damage share is zero until `crush_dmg`.
+  - Not yet expressed by any system: `crush_dmg`, `pulled_vuln`, `dmg_vs_shocked`, `return_same_target`, `fork_on_kill`, `retarget`, `burning_explode_on_death_uu`, `spread_burn_*`, Slam's `dash_cooldown_reset`, Stillness's `time_scale`. Each is a Keeper parameter, so the owner is this page plus `weapons.md`.
+  - Intercession state is per player inside the Keeper system (keyed by `OwnerId`), not in `FDTPlayerRunState`; moving it there is a `Core/` change.
+  - Keyword notes (`ST_Keywords`) are not written yet: that table is outside this package's files.
