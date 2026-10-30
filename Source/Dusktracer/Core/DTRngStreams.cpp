@@ -17,6 +17,14 @@ int32 FDTRngStreams::DeriveSeed(int32 InRunSeed, EDTRngStream Stream)
 	return static_cast<int32>(static_cast<uint32>(Mixed ^ (Mixed >> 32)));
 }
 
+int32 FDTRngStreams::DerivePlayerSeed(int32 InRunSeed, EDTRngStream Stream, int32 PlayerIndex)
+{
+	// Mix the shared stream's seed with the player index: a different 64-bit input than any DeriveSeed call.
+	const uint64 Base = static_cast<uint64>(static_cast<uint32>(DeriveSeed(InRunSeed, Stream)));
+	const uint64 Mixed = DTRng::SplitMix64((Base << 32) | static_cast<uint64>(static_cast<uint32>(PlayerIndex) + 1u));
+	return static_cast<int32>(static_cast<uint32>(Mixed ^ (Mixed >> 32)));
+}
+
 void FDTRngStreams::Reset(int32 InRunSeed)
 {
 	RunSeed = InRunSeed;

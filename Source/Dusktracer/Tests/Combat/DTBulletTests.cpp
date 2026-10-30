@@ -37,6 +37,12 @@ namespace DTBulletTest
 	{
 		View.EnemyPositions = Positions;
 		View.EnemyRadii.Init(Radius, Positions.Num());
+		// Serials as a pool publishes them (never zero, R-ENM-23); bullets only collide with enemies that have one.
+		View.EnemySerials.SetNum(Positions.Num());
+		for (int32 Index = 0; Index < Positions.Num(); ++Index)
+		{
+			View.EnemySerials[Index] = static_cast<uint32>(Index) + 1u;
+		}
 		View.EnemyHash.Build(View.EnemyPositions);
 	}
 }

@@ -56,6 +56,7 @@ FDTEnemyPool::FDTEnemyPool()
 	Speed.Reserve(Capacity);
 	Role.Reserve(Capacity);
 	Dead.Reserve(Capacity);
+	Serial.Reserve(Capacity);
 	NextVel.Reserve(Capacity);
 }
 
@@ -70,8 +71,10 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 	Speed.Reset();
 	Role.Reset();
 	Dead.Reset();
+	Serial.Reset();
 	if (bResetCounters)
 	{
+		NextSerial = 1;
 		RefusedSpawns = 0;
 		TotalKills = 0;
 		KillRate.Reset();
@@ -97,6 +100,8 @@ int32 FDTEnemyPool::Spawn(EDTEnemyRole InRole, const FVector2f& Position)
 	Speed.Add(Def.Speed);
 	Role.Add(InRole);
 	Dead.Add(0);
+	Serial.Add(NextSerial);
+	NextSerial = NextSerial == MAX_uint32 ? 1u : NextSerial + 1u; // 4e9 spawns: wrap past zero, never hand it out
 	return Pos.Num() - 1;
 }
 
@@ -208,6 +213,7 @@ void FDTEnemyPool::Publish(FDTWorldView& View) const
 {
 	View.EnemyPositions = Pos;
 	View.EnemyRadii = Radius;
+	View.EnemySerials = Serial;
 	View.EnemyHash.Build(Pos);
 }
 
@@ -219,6 +225,10 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run)
 		if (!Pos.IsValidIndex(Hit.EnemyIndex) || Dead[Hit.EnemyIndex])
 		{
 			continue; // already killed by an earlier hit this step: one death, one Kill event
+		}
+		if (Hit.EnemySerial != 0 && Serial[Hit.EnemyIndex] != Hit.EnemySerial)
+		{
+			continue; // stale handle: the slot now holds another enemy (R-ENM-23)
 		}
 		const int32 Index = Hit.EnemyIndex;
 		const float Dealt = FMath::Min(FMath::Max(0.0f, Hit.Damage), Hp[Index]);
@@ -256,6 +266,7 @@ void FDTEnemyPool::SwapRemove(int32 Index)
 	Speed.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Role.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Dead.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+	Serial.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 }
 
 int32 FDTEnemyPool::Compact()

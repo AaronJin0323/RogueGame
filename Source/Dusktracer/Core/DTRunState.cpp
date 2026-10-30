@@ -8,6 +8,7 @@ void FDTRunState::Start(int32 RunSeed, int32 NumPlayers)
 	for (int32 Index = 0; Index < Players.Num(); ++Index)
 	{
 		Players[Index].PlayerIndex = Index;
+		Players[Index].Offer.Rng.Initialize(FDTRngStreams::DerivePlayerSeed(RunSeed, EDTRngStream::Offer, Index));
 	}
 }
 
@@ -32,7 +33,7 @@ bool FDTRunState::ApplyEvent(const FDTGameEvent& Event)
 		break;
 	case EDTGameEventKind::Pickup:
 		++Owner.Pickups;
-		Owner.Xp += Event.Amount;
+		Owner.XPTotal += Event.Amount;
 		break;
 	}
 	if (Sink)

@@ -42,8 +42,8 @@ bool FDTTecRunStatePerPlayer::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("P0 kills untouched by P1's kill"), Run.GetPlayer(0).Kills, 0);
 	TestEqual(TEXT("P1 kill counted"), Run.GetPlayer(1).Kills, 1);
-	TestEqual(TEXT("P0 xp"), Run.GetPlayer(0).Xp, static_cast<int64>(7));
-	TestEqual(TEXT("P1 xp untouched"), Run.GetPlayer(1).Xp, static_cast<int64>(0));
+	TestEqual(TEXT("P0 xp"), Run.GetPlayer(0).XPTotal, static_cast<int64>(7));
+	TestEqual(TEXT("P1 xp untouched"), Run.GetPlayer(1).XPTotal, static_cast<int64>(0));
 	TestEqual(TEXT("P1 damage"), Run.GetPlayer(1).DamageDealt, static_cast<int64>(40));
 
 	TestFalse(TEXT("unowned event rejected"), Run.ApplyEvent({ EDTGameEventKind::Kill, INDEX_NONE, 0 }));
