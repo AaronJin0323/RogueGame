@@ -21,7 +21,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 - **R-TEC-01** Run state is per player. Everything a run owns (weapons, blessings, favour, offer state, XP) lives in `FDTPlayerRunState`, indexed by player; there is no single-player shortcut. Every hit, kill and pickup event carries an `OwnerId`.
   - T-TEC-01 `Dusktracer.Tec.RunState.PerPlayer`: two players' states are independent; events route to their owner.
-- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot) derived from the run seed. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
+- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot, Director; new streams are appended so existing seeds never change) derived from the run seed. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
   - T-TEC-02 `Dusktracer.Tec.Rng.Streams`: same seed → same sequences; streams are independent; different seeds differ.
 - **R-TEC-03** The whole simulation (hero, enemies, bullets, director, bot) advances in fixed steps of `1 / C.SIM.FIXED_HZ` from an accumulator, at most `C.SIM.MAX_SUBSTEPS` per frame. Time beyond that cap is dropped and counted (a hitch slows the game instead of spiralling); the leftover fraction of a step is carried, and rendering interpolates with it.
   - T-TEC-03 `Dusktracer.Tec.FixedStep.Accumulator`: step counts and remainder for slow, exact, fast and hitching frames.
@@ -46,7 +46,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 - **R-TEC-13** Proximity queries go through `FDTSpatialHash` (uniform grid of `C.HASH.CELL_UU` over `±C.ARENA.HALF_EXTENT_UU`, rebuilt every step by counting sort); a query never misses a point inside its circle, and points outside the arena clamp into edge cells.
   - T-TEC-13 `Dusktracer.Tec.SpatialHash.Query`: brute-force oracle over random points, including points outside the arena.
-- **R-TEC-14** Gameplay systems never tick themselves: they implement `IDTSimSystem` and register with `UDTSimSubsystem` for one `EDTSimPhase`; within a step, phases run in enum order. Systems exchange data only through `FDTWorldView` (enemy positions and hash, hits, hero positions).
+- **R-TEC-14** Gameplay systems never tick themselves: they implement `IDTSimSystem` and register with `UDTSimSubsystem` for one `EDTSimPhase`; within a step, phases run in enum order. Systems exchange data only through `FDTWorldView` (enemy positions and hash, hits, hero positions; from S1 also hero hits, hero aim directions and drop-in markers — `combat_core.md`, `director.md`).
   - T-TEC-14 `Dusktracer.Tec.Sim.PhaseOrder`: phase order beats registration order; unregistered systems stop.
 
 ## 3. Folders and naming
