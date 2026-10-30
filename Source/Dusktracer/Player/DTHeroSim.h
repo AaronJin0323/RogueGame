@@ -24,7 +24,7 @@ private:
 
 /**
  * Every player's hero state, stepped once per fixed step. Deterministic: no engine state, no randomness (R-CMB-12).
- * Reads last step's HeroHits and the enemy view; writes HeroPositions, HeroAimDirs, HeroIntangible; clears HeroHits.
+ * Reads last step's HeroHits and the enemy view; writes HeroPositions, HeroAimDirs, HeroIntangible, HeroHurt; clears HeroHits.
  */
 class DUSKTRACER_API FDTHeroSim
 {

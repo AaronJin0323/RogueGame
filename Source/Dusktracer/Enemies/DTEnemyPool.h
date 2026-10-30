@@ -286,6 +286,8 @@ private:
 	TArray<int64> PullReadyStep; // first step a Pull may reach this enemy again (R-KEE-21)
 	uint32 NextSerial = 1; // never zero; reset only with the counters (a new run)
 	uint32 NextBurnOrder = 1;
+	/** Damage below a whole point not yet reported, by (owner << 16) | source (ApplyHits). */
+	TMap<uint32, float> DamageCarry;
 
 	FDTEnemyBulletPool Rounds;
 	TArray<FDTOrphanAttack> Orphans;

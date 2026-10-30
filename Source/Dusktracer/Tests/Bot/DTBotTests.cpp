@@ -305,12 +305,45 @@ bool FDTBotProbeScript::RunTest(const FString& Parameters)
 	TestEqual(TEXT("field"), Script.Field, 120);
 	TestEqual(TEXT("hp"), Script.HpScale, 26.8f, 0.001f);
 	TestEqual(TEXT("cast"), Script.CastAtS, 62.0f, 0.001f);
+	FDTProbeScript Dashes;
+	TestTrue(TEXT("cast dashes"), Dashes.Parse(TEXT("patron Forge\ncast_dash_s 1\n"), Error) && FMath::IsNearlyEqual(Dashes.CastDashS, 1.0f));
 	FDTProbeScript Again;
 	TestTrue(TEXT("the build round-trips"), Again.Parse(Script.ToText(), Error) && Again.ToText() == Script.ToText());
 	TestFalse(TEXT("an unknown key is refused"), Script.Parse(TEXT("patron Storm\nnonsense 1\n"), Error));
 	TestFalse(TEXT("no patron is refused"), Script.Parse(TEXT("field 3\n"), Error));
 	FDTProbeScript None;
 	TestTrue(TEXT("no cast by default"), None.Parse(TEXT("patron Tide\n"), Error) && None.CastAtS < 0.0f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotProbeRouteCrowd, "Dusktracer.Bot.ProbeRouteFollowsCrowd", DTBotTest::Flags)
+bool FDTBotProbeRouteCrowd::RunTest(const FString& Parameters)
+{
+	FDTHeroState Hero;
+	Hero.Pos = FVector2f(400.0f, 0.0f);
+	Hero.DashCharges = 2;
+	FDTBotConfig Config;
+	Config.bProbeRoute = true;
+	Config.CastStep = 600;
+	Config.CastDashSteps = 60;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.StepSeconds = 1.0f / DTConst::SIM_FIXED_HZ;
+	World.StepIndex = DTConst::SIM_FIXED_HZ + 1; // a walking leg
+	TArray<FVector2f> Far = { FVector2f(400.0f, -1500.0f) };
+	World.EnemyPos = Far;
+	TestTrue(TEXT("a walking leg with nothing in reach heads for the crowd"), FVector2f::DotProduct(Brain.Decide(World).Move, FVector2f(0.0f, -1.0f)) > 0.9f);
+	TArray<FVector2f> Near = { FVector2f(400.0f, -200.0f) };
+	World.EnemyPos = Near;
+	TestTrue(TEXT("a crowd in reach leaves the orbit as it is"), FVector2f::DotProduct(Brain.Decide(World).Move, FVector2f(0.0f, 1.0f)) > 0.9f);
+	World.StepIndex = 660;
+	TestTrue(TEXT("during a cast with cast dashes the route dashes"), Brain.Decide(World).bDashPress);
+	World.StepIndex = 420;
+	TestTrue(TEXT("the plain schedule still dashes"), World.StepIndex % (6 * DTConst::SIM_FIXED_HZ) != 0 || Brain.Decide(World).bDashPress);
+	World.StepIndex = 480 + 60;
+	TestFalse(TEXT("no cast dash before the cast"), Brain.Decide(World).bDashPress);
 	return true;
 }
 

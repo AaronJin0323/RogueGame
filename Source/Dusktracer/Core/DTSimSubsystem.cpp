@@ -29,6 +29,7 @@ void UDTSimSubsystem::StartRun(int32 RunSeed, int32 NumPlayers)
 	View.HeroPositions.Init(FVector2f::ZeroVector, Run.GetNumPlayers());
 	View.HeroAimDirs.Init(FVector2f(1.0f, 0.0f), Run.GetNumPlayers());
 	View.HeroIntangible.Init(false, Run.GetNumPlayers());
+	View.HeroHurt.Init(false, Run.GetNumPlayers());
 	StepIndex = 0;
 	UE_LOG(LogDT, Log, TEXT("Run start seed=%d players=%d"), RunSeed, Run.GetNumPlayers());
 }

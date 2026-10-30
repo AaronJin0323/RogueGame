@@ -130,6 +130,31 @@ bool FDTEnmSlotGenerations::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCoreHitFractions, "Dusktracer.Core.Hit.FractionsAddUp", DTCoreS1Test::Flags)
+bool FDTCoreHitFractions::RunTest(const FString& Parameters)
+{
+	// A field ticks a fraction of a point each step: the events must add up to what the enemy lost (R-TEL-05).
+	FDTRunState Run;
+	Run.Start(1, 1);
+	FDTEnemyPool Pool;
+	Pool.Spawn(EDTEnemyRole::Swarm, FVector2f::ZeroVector);
+	Pool.SetHp(0, 100000.0f);
+	FDTHit Tick;
+	Tick.EnemyIndex = 0;
+	Tick.OwnerId = 0;
+	Tick.Damage = 0.1f;
+	for (int32 Step = 0; Step < 1000; ++Step)
+	{
+		Pool.ApplyHits(TArray<FDTHit>{ Tick }, Run);
+	}
+	TestTrue(TEXT("1000 ticks of 0.1 report 100 damage"), FMath::Abs(Run.GetPlayer(0).DamageDealt - 100) <= 1);
+	Tick.Damage = 40.0f;
+	const int64 Before = Run.GetPlayer(0).DamageDealt;
+	Pool.ApplyHits(TArray<FDTHit>{ Tick }, Run);
+	TestTrue(TEXT("a whole hit still reports itself"), FMath::Abs(Run.GetPlayer(0).DamageDealt - Before - 40) <= 1);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCoreHitFields, "Dusktracer.Core.Hit.S1Fields", DTCoreS1Test::Flags)
 bool FDTCoreHitFields::RunTest(const FString& Parameters)
 {

@@ -61,6 +61,7 @@ namespace DTKeeperTest
 			View.HeroPositions.Init(FVector2f::ZeroVector, Run.GetNumPlayers());
 			View.HeroAimDirs.Init(FVector2f(1.0f, 0.0f), Run.GetNumPlayers());
 			View.HeroIntangible.Init(false, Run.GetNumPlayers());
+			View.HeroHurt.Init(false, Run.GetNumPlayers());
 		}
 
 		FDTSimContext Context()
@@ -2173,10 +2174,9 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamAfterHit, "AfterHitTakenMult")
 		{
 			H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Amp1")));
 		}
-		FDTHeroHit& Taken = H.View.HeroHits.AddDefaulted_GetRef();
-		Taken.PlayerId = 0;
+		H.View.HeroHurt[0] = true;
 		H.StepOnce();
-		H.View.HeroHits.Reset();
+		H.View.HeroHurt[0] = false;
 	};
 	const float Ratio = DTKeepers::PathParam(EDTPath::Forge, DTCat::EFlag::Slam, DTFlagParam::DmgRatio, 0.0f);
 	{
@@ -2195,6 +2195,91 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamAfterHit, "AfterHitTakenMult")
 		Run(false, H);
 		TestEqual(TEXT("without the card the slam is plain"), BiggestHit(H, Forge), Ratio * PlainDamage(), 0.01f);
 	}
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamHitTakenOnly, "HitTakenNeedsAHit")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	FDTKeeperHarness H;
+	H.AddEnemy(FVector2f(200.0f, 0.0f));
+	H.Patron(EDTPath::Forge);
+	H.Bless(Blessing(TEXT("Forge.Slam"), TEXT("Key")));
+	FDTHeroHit& Touch = H.View.HeroHits.AddDefaulted_GetRef();
+	Touch.PlayerId = 0;
+	Touch.Damage = 5.0f;
+	H.StepMany(3);
+	TestEqual(TEXT("a touch the hero refused slams nothing"), H.Damage(Forge), 0.0);
+	H.View.HeroHits.Reset();
+	H.View.HeroHurt[0] = true;
+	H.StepOnce();
+	H.View.HeroHurt[0] = false;
+	TestTrue(TEXT("a hit that cost HP slams"), H.Damage(Forge) > 0.0);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFrostCastVuln, "FrostCastVuln")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	// One frozen enemy, struck through the cast: the extra is frozen_vuln of the hit, and the cast's value replaces the Key's.
+	const auto Ratio = [Tide](bool bCast)
+	{
+		FDTKeeperHarness H;
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Patron(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Frost"), TEXT("Key")));
+		FDTStatusApply Freeze;
+		Freeze.Handle = H.Enemies.GetHandle(0);
+		Freeze.Status = EDTStatus::Freeze;
+		Freeze.OwnerId = 0;
+		Freeze.FreezeScale = 100.0f;
+		H.View.StatusApplies.Add(Freeze);
+		H.StepOnce();
+		if (bCast)
+		{
+			H.Keepers.QueueIntercession(0);
+		}
+		H.StepMany(120);
+		double Biggest = 0.0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Biggest = Hit.SourceId == Tide ? FMath::Max<double>(Biggest, Hit.Damage) : Biggest;
+		}
+		return Biggest / static_cast<double>(PlainDamage());
+	};
+	TestEqual(TEXT("the Key alone pays its frozen_vuln"), Ratio(false), 0.30, 0.01);
+	TestEqual(TEXT("the cast pays the card's frozen_vuln"), Ratio(true), 0.50, 0.01);
+	return true;
+}
+
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFrostLayerOnStorm, "FrostLayerOnStormCast")
+{
+	using namespace DTKeeperExpressTest;
+	const uint16 Tide = DTKeepers::KeeperSource(EDTPath::Tide);
+	const auto Chills = [Tide](bool bCast)
+	{
+		FDTKeeperHarness H;
+		H.AddBlock(300.0f);
+		H.Patron(EDTPath::Storm);
+		H.Bless(Blessing(TEXT("Storm.Tempest"), TEXT("Key")));
+		H.Commit(EDTPath::Tide);
+		H.Bless(Blessing(TEXT("Tide.Frost"), TEXT("Key")));
+		if (bCast)
+		{
+			H.Keepers.QueueIntercession(0);
+		}
+		H.StepMany(120);
+		int32 Twos = 0;
+		for (const FDTStatusApply& Apply : H.StatusLog)
+		{
+			Twos += Apply.Status == EDTStatus::Chill && Apply.SourceId == Tide && FMath::IsNearlyEqual(Apply.Magnitude, 2.0f) ? 1 : 0;
+		}
+		return Twos;
+	};
+	TestEqual(TEXT("no cast, no layer"), Chills(false), 0);
+	TestTrue(TEXT("a Storm cast's hits carry the Frost layer's Chill"), Chills(true) > 0);
 	return true;
 }
 

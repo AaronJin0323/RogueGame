@@ -252,6 +252,7 @@ void FDTHeroSim::Step(const FDTSimContext& Context)
 		}
 	}
 
+	View.HeroHurt.Init(false, States.Num());
 	for (int32 OwnerId = 0; OwnerId < States.Num(); ++OwnerId)
 	{
 		const int32 HitIndex = HitScratch[OwnerId];
@@ -304,6 +305,7 @@ void FDTHeroSim::StepPlayer(int32 OwnerId, const FDTSimContext& Context, const F
 		S.Hp -= Amount;
 		S.HurtIFramesLeft = DTConst::HERO_HURT_IFRAMES_S;
 		++S.HitsTaken;
+		Context.View->HeroHurt[OwnerId] = true;
 		FDTHeroEvent Event;
 		Event.Kind = EDTHeroEventKind::HeroDamaged;
 		Event.Amount = Amount;

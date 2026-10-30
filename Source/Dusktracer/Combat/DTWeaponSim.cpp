@@ -1250,7 +1250,7 @@ void FDTWeaponSim::StepSlamTriggers(const FDTSimContext& Context, FDTBulletPool*
 	const bool bIntangible = View.HeroIntangible.IsValidIndex(OwnerId) && View.HeroIntangible[OwnerId];
 	const bool bDashLanding = Player.bWasIntangible && !bIntangible;
 	Player.bWasIntangible = bIntangible;
-	const bool bHitTaken = View.HeroHits.ContainsByPredicate([OwnerId](const FDTHeroHit& Hit) { return Hit.PlayerId == OwnerId; });
+	const bool bHitTaken = View.HeroHurt.IsValidIndex(OwnerId) && View.HeroHurt[OwnerId];
 	Player.bSlamBoosted |= bHitTaken;
 	if (!bDashLanding && !bHitTaken)
 	{

@@ -228,6 +228,22 @@ bool FDTCmbPerPlayerState::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCmbHurtPublished, "Dusktracer.Combat.Hero.HurtPublished", DTHeroTest::Flags)
+bool FDTCmbHurtPublished::RunTest(const FString& Parameters)
+{
+	using namespace DTHeroTest;
+	FHarness H;
+	H.Steps(1);
+	TestFalse(TEXT("no hit, no hurt"), H.View.HeroHurt[0]);
+	H.View.HeroHits.Add(MakeHit(0, 10.0f));
+	H.Steps(1);
+	TestTrue(TEXT("a hit that costs HP is published"), H.View.HeroHurt[0]);
+	H.View.HeroHits.Add(MakeHit(0, 10.0f));
+	H.Steps(1);
+	TestFalse(TEXT("a touch inside the i-frames is not"), H.View.HeroHurt[0]);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCmbHeal, "Dusktracer.Combat.Hero.Heal", DTHeroTest::Flags) // T-OFF-16
 bool FDTCmbHeal::RunTest(const FString& Parameters)
 {

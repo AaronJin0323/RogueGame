@@ -175,6 +175,8 @@ struct FDTWorldView
 	TArray<FVector2f> HeroPositions;
 	TArray<FVector2f> HeroAimDirs;
 	TArray<bool> HeroIntangible;
+	/** The hero lost HP to a hit this step: a touch refused by i-frames or a dash never sets it (Slam's HitTaken reads this). */
+	TArray<bool> HeroHurt;
 	// Enemies -> hero next step; cleared by the hero after reading.
 	TArray<FDTHeroHit> HeroHits;
 

@@ -33,6 +33,8 @@ struct DUSKTRACER_API FDTProbeScript
 	float WindowS = 0.0f;
 	/** Below zero: no cast. */
 	float CastAtS = -1.0f;
+	/** Above zero: while the cast runs the route dashes this often (Slam's variant is its dash landings). */
+	float CastDashS = 0.0f;
 
 	/** Replaces this script with Text; false and a reason on a bad line or a missing patron. */
 	bool Parse(const FString& Text, FString& OutError);

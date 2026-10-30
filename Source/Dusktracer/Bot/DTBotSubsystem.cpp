@@ -150,6 +150,7 @@ void UDTBotSubsystem::StartProbe(const FDTProbeScript& Script, int32 Seed)
 	Config.Seed = Seed;
 	Config.bProbeRoute = true;
 	Config.CastStep = Script.CastAtS < 0.0f ? FDTBotConfig::CastNever : FMath::RoundToInt64(Script.CastAtS * DTConst::SIM_FIXED_HZ);
+	Config.CastDashSteps = FMath::RoundToInt32(Script.CastDashS * DTConst::SIM_FIXED_HZ);
 	Activate(Config);
 	Probe = Script;
 	bProbe = bActive;

@@ -6,9 +6,9 @@ Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5]            write
         python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
 
 A scene (Source/Dusktracer/Bot/DTProbeScript.h) is a build, a refilled swarm field and a window: the hero takes no damage and
-walks one fixed route in the crowd (stand, walk, dash; FDTBotBrain::ProbeInput), the same steps for every build, the director
-is off and no hand opens. Damage is the sum of the `hit` records inside the window. No hit lands on the hero, so a trigger on
-a hit taken (Slam's) never fires here.
+walks one route in the crowd (stand, walk, dash; FDTBotBrain::ProbeInput), the same steps for every build unless a cast moved
+the crowd out of reach, then its walking legs go to the nearest enemy; the director is off and no hand opens. Damage is the sum
+of the `hit` records inside the window. No hit lands on the hero, so a trigger on a hit taken (Slam's) never fires here.
 
 T-KEE-15 (R-KEE-15, C.INTERCESSION.BAND): for every variant x layer combination of a primary Keeper, the marginal damage of one
 cast (with-cast minus no-cast, same build, seed and field) lies within +-band of that Keeper's combination mean. The build of a
@@ -39,6 +39,7 @@ FIELD = 120
 FIELD_HP_MULT = 10.0  # the Handoff's field: at 1x a strong build wipes it every frame and every ablation reads the same
 FIELD_MINUTE = 10.5  # C.LEVEL.L16_MIN in minutes: the swarm a level 16 build meets
 CAST_WINDOW_S = 12.0  # long enough for every variant's window and the Freeze after it
+CAST_DASH_S = 1.0  # Slam's variant refills the dash on every landing: its cast is as many dashes as a player presses
 ABLATE_WARMUP_S = 8.0  # the field walks in from the spawn ring
 ABLATE_WINDOW_S = 10.0
 # The steered median at level 16 across the battery (S1_probes.md); one loadout, so a combination differs only by its cards.
@@ -79,7 +80,7 @@ def cards(path, name, columns):
 	return [f"Blessing.{path}.{name}.{c}" for c in columns]
 
 
-def scene(patron, second, blessings, weapons, field, hp_scale, warmup, window, cast_at=None):
+def scene(patron, second, blessings, weapons, field, hp_scale, warmup, window, cast_at=None, cast_dash=None):
 	"""Probe script text (DTProbeScript.h). weapons: [(id, level, [mods])]."""
 	lines = [f"patron {patron}"]
 	if second:
@@ -89,6 +90,8 @@ def scene(patron, second, blessings, weapons, field, hp_scale, warmup, window, c
 	lines += [f"field {field}", f"hp_scale {hp_scale:g}", f"warmup_s {warmup:g}", f"window_s {window:g}"]
 	if cast_at is not None:
 		lines.append(f"cast_at_s {cast_at:g}")
+	if cast_dash is not None:
+		lines.append(f"cast_dash_s {cast_dash:g}")
 	return "\n".join(lines) + "\n"
 
 
@@ -154,7 +157,8 @@ def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT):
 		for arm, at, jobs in (("cast", cast_at, cast_jobs), ("plain", None, plain_jobs)):
 			script = os.path.join(out_dir, f"{tag}-{arm}.txt")
 			with open(script, "w", encoding="utf-8", newline="\n") as f:
-				f.write(scene(path, second, blessings, weapons, FIELD, hp, cast_at, CAST_WINDOW_S, at))
+				dash = CAST_DASH_S if name == "Slam" and at is not None else None
+				f.write(scene(path, second, blessings, weapons, FIELD, hp, cast_at, CAST_WINDOW_S, at, dash))
 			for seed in range(1, seeds + 1):
 				# A seed per combination: two runs of one seed start minutes apart, so telemetry names never collide.
 				jobs.append([f"{tag}-{arm}", index * 100 + seed, os.path.abspath(script)])

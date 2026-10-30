@@ -363,6 +363,10 @@ void FDTKeeperSim::StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapo
 		{
 			Enchant(Context, Player, Hit, Enemy);
 		}
+		if (Player.Cast.bActive && Player.Cast.Plan.Base == EDTPath::Storm)
+		{
+			ApplyLayerStatus(Context, Hit.OwnerId, Player, Enemy, Hit.Damage); // a Storm cast's hits are its rounds', never its own
+		}
 		// Frost: a Frozen enemy takes frozen_vuln more from every hit; the extra is Keeper damage (R-KEE-13).
 		if (Hit.bFrozen && FrozenVuln[Hit.OwnerId] > 0.0f)
 		{
@@ -480,6 +484,15 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 			AddNum(Pool, ParamStillMoveUu, Still->GetNum(ParamPoolRadiusUu));
 			AddNum(Pool, ParamChargeS, Context.StepSeconds);
 			Player.Overlay[Base].Add(Pool);
+		}
+		if (const FDTSpecClause* Frost = FindClause(Plan.VariantSpec, DTCat::EFlag::StatusApply))
+		{
+			if (Frost->HasNum(ParamFrozenVuln))
+			{
+				FDTSpecClause Vuln = MakeClause(DTCat::EFlag::StatusApply);
+				AddNum(Vuln, ParamFrozenVuln, Frost->GetNum(ParamFrozenVuln));
+				Player.Overlay[Base].Add(Vuln);
+			}
 		}
 		break;
 	default:

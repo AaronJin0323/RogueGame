@@ -59,6 +59,10 @@ bool FDTProbeScript::Parse(const FString& Text, FString& OutError)
 		{
 			CastAtS = FCString::Atof(*Words[1]);
 		}
+		else if (Key == TEXT("cast_dash_s") && bOneArg)
+		{
+			CastDashS = FCString::Atof(*Words[1]);
+		}
 		else
 		{
 			OutError = FString::Printf(TEXT("bad line: %s"), *Raw);

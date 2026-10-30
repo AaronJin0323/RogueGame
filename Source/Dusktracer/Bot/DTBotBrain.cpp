@@ -50,6 +50,8 @@ namespace DTBotTuning
 	constexpr int32 ProbeLegS = 1;
 	constexpr int32 ProbeDashS = 6;
 	constexpr float ProbeOrbitUU = 400.0f;
+	/** With no enemy this close a walking leg goes to the nearest one: a player walks to a crowd a cast moved. The Arc Blade's reach at its top levels. */
+	constexpr float ProbeReachUU = 300.0f;
 
 	/** The wall band's share of FDTBotBrain::DangerAt. */
 	static float WallDanger(const FVector2f& P)
@@ -359,14 +361,29 @@ FDTHeroInput FDTBotBrain::ProbeInput(const FDTBotWorld& World)
 	const FDTHeroState& S = *World.Hero;
 	FDTHeroInput In;
 	const int64 Leg = World.StepIndex / (ProbeLegS * DTConst::SIM_FIXED_HZ);
-	if (Leg % 2 == 1 || World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0)
+	const bool bCasting = Config.CastDashSteps > 0 && Config.CastStep >= 0 && World.StepIndex >= Config.CastStep &&
+		World.StepIndex < Config.CastStep + FMath::RoundToInt64(DTConst::INTERCESSION_FORGE_DURATION_S * DTConst::SIM_FIXED_HZ);
+	const bool bDash = World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0 || (bCasting && World.StepIndex % Config.CastDashSteps == 0);
+	if (Leg % 2 == 1 || bDash)
 	{
+		FVector2f Nearest = S.Pos;
+		float BestD2 = TNumericLimits<float>::Max();
+		for (const FVector2f& E : World.EnemyPos)
+		{
+			const float D2 = FVector2f::DistSquared(E, S.Pos);
+			if (D2 < BestD2)
+			{
+				BestD2 = D2;
+				Nearest = E;
+			}
+		}
 		const FVector2f Out = S.Pos.GetSafeNormal();
 		const float Radial = FMath::Clamp((FVector2f(S.Pos).Size() - ProbeOrbitUU) / ProbeOrbitUU, -1.0f, 1.0f);
 		const FVector2f Tangent(-Out.Y, Out.X);
-		In.Move = (Out.IsNearlyZero() ? FVector2f(1.0f, 0.0f) : Tangent - Out * Radial).GetSafeNormal();
+		In.Move = World.EnemyPos.Num() > 0 && BestD2 > ProbeReachUU * ProbeReachUU ? (Nearest - S.Pos).GetSafeNormal()
+			: (Out.IsNearlyZero() ? FVector2f(1.0f, 0.0f) : Tangent - Out * Radial).GetSafeNormal();
 	}
-	In.bDashPress = World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0 && S.DashCharges > 0;
+	In.bDashPress = bDash && S.DashCharges > 0;
 	Stats.DashPresses += In.bDashPress ? 1 : 0;
 	if (Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0)
 	{
