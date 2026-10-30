@@ -294,7 +294,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DIR.THREAT_RING_MAX_UU | 1200 | uu | GATED(S1) | director.md, T-DIR-06, T-DIR-07 |
 | C.DIR.SHARE_MAX_TANK | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
 | C.DIR.SHARE_MAX_RUSHER | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
-| C.DIR.SHARE_MAX_TURRET | 0.08 | ratio | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.SHARE_MAX_TURRET | 0.25 | ratio | GATED(S1) | director.md, T-DIR-05 |
 | C.DIR.THREAT_SHARE_MIN | 0.25 | ratio | GATED(S1) | director.md, 09_Catalog/timeline_*.csv, T-DIR-06 |
 | C.DIR.DROPIN_LEAD_S | 1.0 | s | GATED(S1) | director.md, T-DIR-07 |
 | C.DIR.DROPIN_THREAT_MULT | 2 | x | GATED(S1) | director.md, T-DIR-07 |

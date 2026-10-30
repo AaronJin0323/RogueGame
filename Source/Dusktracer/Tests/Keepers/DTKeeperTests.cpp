@@ -574,11 +574,12 @@ bool FDTKeepersTiers::RunTest(const FString& Parameters)
 	H.Bless(Blessing(TEXT("Storm.Tempest"), TEXT("Amp1")));
 	TestEqual(TEXT("below C.TIER.FAVOR_T1: no tier"), H.P().Keepers.Tier[Storm], 0);
 	const FDTFlagEntry* Split = H.Built(EDTPath::Storm, DTCat::EFlag::Split);
-	TestTrue(TEXT("no tier line yet: chance 0.25"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), 0.25f));
+	const float KeyChance = DTKeepers::PathParam(EDTPath::Storm, DTCat::EFlag::Split, DTFlagParam::Chance, 0.0f);
+	TestTrue(TEXT("no tier line yet: the Key's chance"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), KeyChance));
 	H.Bless(Blessing(TEXT("Storm.Tempest"), TEXT("Amp2")));
 	TestEqual(TEXT("T1 at exactly C.TIER.FAVOR_T1"), H.P().Keepers.Tier[Storm], 1);
 	Split = H.Built(EDTPath::Storm, DTCat::EFlag::Split);
-	TestTrue(TEXT("Tempest Tier1 changes the Split flag: chance +0.10"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), 0.35f, 1e-4f));
+	TestTrue(TEXT("Tempest Tier1 changes the Split flag: chance +0.10"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), KeyChance + 0.10f, 1e-4f));
 	// Arc Grid catches up and leads on the tie (latest card): the tier lines follow the leader, the tier stays.
 	H.Bless(Blessing(TEXT("Storm.ArcGrid"), TEXT("Key")));
 	H.Bless(Blessing(TEXT("Storm.ArcGrid"), TEXT("Amp1")));
@@ -587,7 +588,7 @@ bool FDTKeepersTiers::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Arc Grid leads"), H.P().Keepers.Leading[Storm], FName(TEXT("Archetype.Storm.ArcGrid")));
 	Split = H.Built(EDTPath::Storm, DTCat::EFlag::Split);
 	const FDTFlagEntry* Chain = H.Built(EDTPath::Storm, DTCat::EFlag::Chain);
-	TestTrue(TEXT("Tempest's tier line left with the lead"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), 0.25f));
+	TestTrue(TEXT("Tempest's tier line left with the lead"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), KeyChance));
 	TestTrue(TEXT("Arc Grid T1: jumps 2 + 1"), Chain && FMath::IsNearlyEqual(Chain->Params.Get(DTFlagParam::Jumps), 3.0f));
 	TestTrue(TEXT("Arc Grid T2: range 350 + 90"), Chain && FMath::IsNearlyEqual(Chain->Params.Get(DTFlagParam::RangeUu), 440.0f));
 	H.Bless(Blessing(TEXT("Storm.Tempest"), TEXT("Trait")));
@@ -1138,7 +1139,8 @@ DT_KEEPER_KEY_TEST(FDTKeepersKeyStillness, "Stillness")
 	{
 		Strongest = Hit.SourceId == DTKeepers::KeeperSource(EDTPath::Tide) ? FMath::Max(Strongest, Hit.Damage) : Strongest;
 	}
-	TestTrue(TEXT("standing still charges a volley: x mult damage"), Strongest >= 2.0f * Plain - KINDA_SMALL_NUMBER);
+	const float Mult = DTKeepers::PathParam(EDTPath::Tide, DTCat::EFlag::Stillness, DTFlagParam::Mult, 0.0f);
+	TestTrue(TEXT("standing still charges a volley: x mult damage"), Strongest >= Mult * Plain - KINDA_SMALL_NUMBER);
 	TestTrue(FString::Printf(TEXT("Keeper share %.3f > 0"), H.KeeperShare(EDTPath::Tide)), H.KeeperShare(EDTPath::Tide) > 0.0);
 	return true;
 }
