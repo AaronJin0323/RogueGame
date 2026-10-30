@@ -1397,6 +1397,8 @@ void FDTWeaponSim::SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const 
 	Field.Radius = Params.Get(DTFlagParam::RadiusUu) * (1.0f + Params.Get(DTFlagParam::RadiusScale));
 	Field.TimeLeft = Params.Get(DTFlagParam::DurationS);
 	Field.DamagePerSecond = Params.Get(DTFlagParam::Dps) * BaseDamage;
+	Field.BaseDamage = BaseDamage;
+	Field.Params = Params;
 }
 
 void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
@@ -1436,6 +1438,11 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 		}
 		Echoes.RemoveAt(Index);
 	}
+	// R-KEE-22: statuses land on one grid, so overlapping fields of a source are one application per enemy per pulse.
+	const int64 PulseSteps = FMath::Max<int64>(1, FMath::RoundToInt64(DTConst::STATUS_BURN_TICK_S / Dt));
+	const bool bStatusPulse = Context.StepIndex % PulseSteps == 0;
+	TSet<uint64> Pulsed;
+	TArray<int32> InField;
 	for (int32 Index = 0; Index < Fields.Num();)
 	{
 		FField& Field = Fields[Index];
@@ -1447,6 +1454,25 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 		}
 		// A field ticks every step for its damage per second (a tick is a hit, never an impact).
 		HitCircle(Context, Field.OwnerId, Field.Slot, Field.SourceId, Field.Position, Field.Radius, Field.DamagePerSecond * Dt, false, nullptr);
+		if (bStatusPulse && !Field.Params.GetWord(DTFlagParam::Status).IsNone())
+		{
+			EnemiesInCircle(*Context.View, Field.Position, Field.Radius + MaxEnemyRadius, InField);
+			for (const int32 Enemy : InField)
+			{
+				const float Reach = Field.Radius + Context.View->EnemyRadii[Enemy]; // the field's damage reach
+				if (FVector2f::DistSquared(Field.Position, Context.View->EnemyPositions[Enemy]) > Reach * Reach)
+				{
+					continue;
+				}
+				const uint32 Serial = Context.View->EnemySerials[Enemy];
+				bool bAlready = false;
+				Pulsed.Add((static_cast<uint64>(Field.SourceId) << 32) | Serial, &bAlready);
+				if (!bAlready)
+				{
+					ApplyStatus(Context, Field.Params, FDTEnemyHandle{ Enemy, Serial }, Field.BaseDamage, Field.OwnerId, Field.SourceId);
+				}
+			}
+		}
 		++Index;
 	}
 	for (int32 Index = 0; Index < Arcs.Num();)
