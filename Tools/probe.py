@@ -55,9 +55,9 @@ SHOWCASE = {
 }
 # The nine S2 arms (keepers.md §9); ablation --stage S2 reads these.
 SHOWCASE_S2 = {
-	"Steered-Shade-Hound": ("Shade", "Hound"), "Steered-Shade-Hunters": ("Shade", "Hunters"), "Steered-Shade-Economy": ("Shade", "Economy"),
-	"Steered-Radiance-Lance": ("Radiance", "Lance"), "Steered-Radiance-Prism": ("Radiance", "Prism"), "Steered-Radiance-Solar": ("Radiance", "Solar"),
-	"Steered-Quicksilver-Vector": ("Quicksilver", "Vector"), "Steered-Quicksilver-Momentum": ("Quicksilver", "Momentum"), "Steered-Quicksilver-Rebound": ("Quicksilver", "Rebound"),
+	"Steered-Shade-Hound-Storm": ("Shade", "Hound"), "Steered-Shade-Hunters-Forge": ("Shade", "Hunters"), "Steered-Shade-Economy-Storm": ("Shade", "Economy"),
+	"Steered-Radiance-Lance-Storm": ("Radiance", "Lance"), "Steered-Radiance-Prism-Storm": ("Radiance", "Prism"), "Steered-Radiance-Solar-Tide": ("Radiance", "Solar"),
+	"Steered-Quicksilver-Vector-Forge": ("Quicksilver", "Vector"), "Steered-Quicksilver-Momentum-Storm": ("Quicksilver", "Momentum"), "Steered-Quicksilver-Rebound-Storm": ("Quicksilver", "Rebound"),
 }
 CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra")
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")

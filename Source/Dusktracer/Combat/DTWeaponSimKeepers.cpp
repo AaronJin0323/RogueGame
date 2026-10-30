@@ -665,7 +665,13 @@ void FDTWeaponSim::StepNovas(const FDTSimContext& Context)
 void FDTWeaponSim::AccrueSun(const FDTWorldView& View)
 {
 	using namespace DTWeaponSimKeepersLocal;
-	if (!Enemies)
+	bool bAny = false;
+	for (int32 Owner = 0; Owner < Players.Num(); ++Owner)
+	{
+		const FDTFlagEntry* Nova = KeeperEntry(Owner, DTCat::EFlag::Nova);
+		bAny |= Nova && Nova->Params.Get(ParamSunShare) > 0.0f;
+	}
+	if (!bAny || !Enemies)
 	{
 		return;
 	}
