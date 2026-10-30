@@ -60,6 +60,18 @@ void UDTTelemetrySubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+UDTTelemetrySubsystem* UDTTelemetrySubsystem::Find(const UObject* WorldContext)
+{
+	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	return World ? World->GetSubsystem<UDTTelemetrySubsystem>() : nullptr;
+}
+
+void UDTTelemetrySubsystem::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits)
+{
+	UDTSimSubsystem* SimSystem = Sim.Get();
+	Core.BeginResolve(StepIndex, Hits, SimSystem ? TConstArrayView<uint32>(SimSystem->GetView().EnemySerials) : TConstArrayView<uint32>());
+}
+
 FString UDTTelemetrySubsystem::GetBuildHash()
 {
 	return FString(TEXT(DT_BUILD_HASH));
@@ -140,11 +152,14 @@ void UDTTelemetrySubsystem::SimStep(const FDTSimContext& Context)
 	if (Context.Run)
 	{
 		LevelScratch.SetNum(Context.Run->GetNumPlayers(), EAllowShrinking::No);
+		XpScratch.SetNum(Context.Run->GetNumPlayers(), EAllowShrinking::No);
 		for (int32 Player = 0; Player < LevelScratch.Num(); ++Player)
 		{
 			LevelScratch[Player] = Context.Run->GetPlayer(Player).Level;
+			XpScratch[Player] = Context.Run->GetPlayer(Player).XPTotal;
 		}
 		Sample.Levels = LevelScratch;
+		Sample.XpTotals = XpScratch;
 	}
 
 	const int32 IntervalBefore = Core.GetIntervalIndex();
@@ -186,11 +201,11 @@ namespace DTTelemetryConsole
 			const FDTTelemetryRow R = Core.ComputeRow(Player);
 			const double PerUnit = R.ElapsedSeconds > 0.0 ? DTConst::TEL_RATE_UNIT_S / R.ElapsedSeconds : 0.0;
 			UE_LOG(LogDT, Log, TEXT("DT.Stats interval=%d t=%.1fs (+%.1fs) player=%d kills/min=%.1f hits/min=%.1f dmg/min=%.1f ttk=%s "
-				"nearest=%s level=%d live bullets=%d enemies=%d recycled=%lld refused=%lld"),
+				"nearest=%s level=%d taken/min=%.3f dashes/min=%.1f threats/min=%.1f device=%s live bullets=%d enemies=%d recycled=%lld refused=%lld"),
 				R.Interval, R.RunTimeSeconds, R.ElapsedSeconds, R.Player, R.Kills * PerUnit, R.Hits * PerUnit, R.DamageDealt * PerUnit,
 				R.bHasTtk ? *FString::Printf(TEXT("%.3fs"), R.SwarmTtkSeconds) : TEXT("-"),
 				R.bHasNearest ? *FString::Printf(TEXT("%.0fuu"), R.NearestEnemyUU) : TEXT("-"),
-				R.Level, R.LiveBullets, R.LiveEnemies, R.RecycledBullets, R.RefusedSpawns);
+				R.Level, R.DamageTakenShare * PerUnit, R.Dashes * PerUnit, R.ThreatActions * PerUnit, DTTelNames::InputDevice(R.InputDevice), R.LiveBullets, R.LiveEnemies, R.RecycledBullets, R.RefusedSpawns);
 		}
 		UE_LOG(LogDT, Log, TEXT("DT.Stats files: %s (.jsonl)"), *Telemetry->GetWriter().GetCsvPath());
 	}
