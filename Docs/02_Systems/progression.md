@@ -76,7 +76,7 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 - Minor hands at XP midpoints: folded into the decision budget (`offers.md` R-OFF-15), not built.
 
 ## Open
-- The reference income is from a twenty-minute timeline with different content → re-measure L8, L16 and the boss-time level with bot v1 on the S1 director timeline and retune `C.XP.GROWTH` first (a hundredth moves L16 by roughly forty seconds in the reference model).
+- The reference income is from a twenty-minute timeline with different content. Measured on S1 (`Docs/Validation/S1_balance_pass1.md`): at `C.XP.REFERENCE_PICKUP_RATIO` the S1 timeline's full-pickup model reaches L8 inside `C.XP.ANCHOR_TOLERANCE_S` of `C.LEVEL.L8_MIN` but L16 well after `C.LEVEL.L16_MIN`, while Bot v1 collects well above that ratio and reaches L16 before it; a drop-value TUNE toward the anchors was not met and reverted. The curve stays (the gap is income, not the curve) → decide between the drops and a re-measured reference ratio from the first human pickup readings (O-008).
 - Magnet acceleration, top speed, collection distance and the gem cap have no measured reference → set by feel in the first S1 human session.
 - Until `FDTStatSet` exists the XP-gain and pickup-radius stats are `FDTProgressionStats` on the gem subsystem (`SetStats`); a downed hero neither binds nor keeps gems (treated as absent) → revisit with co-op revive.
 - Pickup draw sizes and emissive are first guesses → judged in the first S1 capture against R-PRE-05.

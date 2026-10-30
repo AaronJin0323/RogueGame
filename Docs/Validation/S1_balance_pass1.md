@@ -47,4 +47,25 @@ Swarm stays 1 (it is ~70 % of the income: Swarm 2 would put L8 at 219 s); the th
 Alternatives measured on the model and rejected: Tank 5, Rusher 3, Turret 3 (L16 648 s, L21 at boss time); Tank 6, Rusher 3, Turret 4 (L8 282 s, L16 616 s, both nearer the edge); Swarm 2 (L8 219 s, outside tolerance).
 
 ## 5. Results
-Pending the re-measure (`S1_bot_baseline.md` commands, same seeds).
+Re-measure with the `S1_bot_baseline.md` commands and seeds, drops at Tank 5, Rusher 3, Turret 4 (commit 767e40d):
+
+| Arm | Build | Level @630 | t L8 s | t L16 s (runs) | Reached boss | Decisions at the boss | Collected / model |
+|---|---|---|---|---|---|---|---|
+| None (10) | gem fix | 9.5 | 378 | — (0) | 1 alive at 1100 s | — | 0.35 |
+| None (10) | + drops | 9.5 (deaths identical) | 372 | — (0) | 1 | — | 0.31 |
+| Storm/Tempest (5) | gem fix | 14.2 | 239 | 570 (2) | 0 | — | 0.74 |
+| Storm/Tempest (5) | + drops | 15.6 | 229 | 524 (3) | 1 | 32 | 0.68 |
+| Forge/Hammer (5) | gem fix | 17.2 | 249 | 570 (5) | 5 (4 wins) | 28–30 | 0.73 |
+| Forge/Hammer (5) | + drops | 18.4 | 234 | 520 (5) | 5 (4 wins) | 30–31 | 0.69 |
+| Tide/Frost (5) | gem fix | 11.0 | 354 | 681 (2) | 2 | 27–28 | 0.48 |
+| Tide/Frost (5) | + drops | 10.8 | 347 | 662 (2) | 1 (1 win) | 30 | 0.40 |
+
+(Collected / model falls with the drops because the model rises by the full 1.2× while the spawned XP rises by only ~1.1×: few threat roles actually spawn under the share caps.)
+
+Against the hypothesis: Storm/Tempest reached L16 in 3/5 (was 2/5), Tide/Frost stayed at 2/5, and T-OFF-15 failed (6/7 runs at the boss inside 28 ± 3, mean 30.6; Storm/Tempest seed 1 took 32 decisions). **Not met → reverted** (64b2387; `H04 §3` step 7, the log keeps both the attempt and the revert). The batteries after the revert equal the gem-fix batteries exactly (deterministic seeds).
+
+What the pass leaves (numbers: `S1_bot_baseline.md`, re-measure section):
+- **The XP economy works for the bot:** Steered bots reach L8 at 239–354 s and L16 at 570–681 s; 9 of 15 Steered runs reach L16, 7 reach the boss (Forge/Hammer 4 wins); T-DIR-01 and T-OFF-15 pass; Keeper share at L16 is measurable (3 of 9 L16 runs pass `C.POWER.KEEPER_SHARE_L16`).
+- **Reference ratio vs bot:** R-PRG-03 still reads L16 at 712 s for a player collecting 0.51 of the model, while the bot collects ~0.73 and runs ahead of the anchors. The drop change helps the first and hurts the second; the next move needs a human pickup reading (O-008) to decide between the drops (re-apply this change) and `C.XP.REFERENCE_PICKUP_RATIO` (re-measure it on S1). No bot change: making the tool collect less to imitate a stationary sim would not make it more human.
+- **Share caps** keep real income at ~0.79 of the timeline model for a build that clears the field (gap, director layer).
+- **Pressure (T-DIR-02) is now measurable and split by build:** Forge/Hammer 0.01 damage share/min and 5.7 dashes/min in 600–780 s; Storm/Tempest 0.8–2.2/min and dies; no arm sits inside 0.30–0.50 on its own.

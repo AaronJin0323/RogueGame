@@ -43,3 +43,30 @@ Checks: `T-DIR-01: FAIL (median end 452.6 s over 10 seeds, band 480-720 s)`; `T-
 - Kites from the centroid of enemies within 1300 uu, dodges telegraph footprints (Band, AimLine, Ring, Arc, RingGap/SpiralLane lanes, HazardRing) and enemy rounds and bodies by closest approach over 0.6 s, dashes when a hit is under 0.22 s away, casts Intercession at a full meter with 12 enemies within 700 uu. Its heuristics are tool parameters in `DTBotBrain.cpp` (`DTBotTuning`), not game numbers.
 - Pickup ratio 0.12–0.17 is well below the reference human 0.51; the bot is a weaker collector than a player, which lowers levels further.
 - No rerolls, banishes or locks; Steered card order: archetype blessings (Key first) > new weapon (fit to the Path +10) > upgrade > second-Keeper blessing > other blessing > modifier > Reserve.
+
+## Re-measure after S1 balance pass 1 (2026-10-30)
+Same commands and seeds, on the pass-1 branch: hero telemetry bound, the gem-wipe bug fixed (every director drop used to empty the floor, `S1_balance_pass1.md` §1), `Tools/pressure.py` reading the window from telemetry. The drop-value TUNE of that pass was not met and was reverted, so every number is the game's numbers as before; this table is the gem fix alone. `-Out` may now be relative (`BotRuns.ps1` resolves it).
+
+| Measure | Band | None (10) | Storm/Tempest (5) | Forge/Hammer (5) | Tide/Frost (5) |
+|---|---|---|---|---|---|
+| Outcome | — | 9 deaths, 1 alive at 1100 s | 5 deaths | **4 boss wins**, 1 death in the boss fight | 5 deaths (2 in the boss fight) |
+| Median death s | no-pick: 480–720 | **592.9** (417–743) | 551.7 (272–664) | 955.3 (940–977) | 478.2 (390–984) |
+| Level at 630 s (mean) | L16 ref at 622 s | 9.5 | 14.2 | 17.2 | 11.0 |
+| t L8 / t L16 s (runs reaching) | `C.LEVEL.L8_MIN` 300, `C.LEVEL.L16_MIN` 630 | 378 (10) / — (0) | 239 (5) / 570 (2) | 249 (5) / 570 (5) | 354 (5) / 681 (2) |
+| Decisions (mean) | 28 ± 3 | 0 (declined) | 16.4 | 29.6 | 16.6 |
+| Damage taken, share / min, 600–780 s (telemetry) | 0.30–0.50 | 0.223 (n=4) | 1.526 (n=2) | 0.011 (n=5) | 0.052 (n=2) |
+| Dashes / min, 600–780 s (telemetry) | 6–10 | 10.25 | 13.70 | 5.67 | 6.67 |
+| Keeper damage share (whole run) / POWER at L16 | ≥ 0.60 at L16 | 0.17 / n/a | 0.38 / 0 of 2 pass | 0.64 / 3 of 5 pass | 0.22 / 0 of 2 pass |
+| Reserve share | ≤ 0.10 | 0.0 | 0.0 | 0.0 | 0.0 |
+| XP collected / full-pickup model (to 630 s) | reference 0.51 | 0.35 | 0.74 | 0.73 | 0.48 |
+| Gems collected / dropped (count, old column) | — | 0.88 | 0.96 | 0.96 | 0.92 |
+
+Checks: `T-DIR-01: PASS (median end 592.9 s over 10 seeds, band 480-720 s; 1 run(s) did not die)`; `T-OFF-15: PASS (7/7 runs at the boss with decisions 28+-3 and Reserve share <= 0.1; mean decisions 29)`; `Tools/pressure.py --check` (T-DIR-02 is human-measured; bot readings are bounds): Steered batteries `PASS (mean over 9 reading(s): damage taken 0.357/min, dashes 7.67/min)` only because the pooled mean averages Forge/Hammer's 0.01 with Storm/Tempest's 0.8–2.2 — no arm is inside the band on its own; no-pick `FAIL (0.223/min, 10.25 dashes/min)`.
+
+Status of the gaps above: 1 (XP income) resolved by the bug fix — Steered bots now level ahead of the anchors (they collect ~0.73 of the model against the reference 0.51); 2 (no-pick death) now inside the band; 3 (Steered deaths before the boss) 7 of 15 runs reach the boss, Storm/Tempest none; 6 and 7 (hero telemetry, `gems_left`) fixed. Still open: 4 (pressure) and 5 (Tide/Frost weak), and the new readings below.
+
+Remaining gaps (reported, not tuned in this pass):
+1. **Pressure split by build.** Forge/Hammer takes almost no damage in 600–780 s (0.01/min, dashes 5.7/min, below both bands); Storm/Tempest takes 0.8–2.2/min and dies (dashes 13.7, above). No arm sits in 0.30–0.50 — this is now a build-power and threat reading, measurable for T-DIR-02.
+2. **Bot pickup above the reference.** Collected / model 0.73 (Storm, Forge) vs `C.XP.REFERENCE_PICKUP_RATIO` 0.51: bot level times are early bounds (L16 ≈ 570 s). At the reference ratio the S1 timeline model itself reaches L16 only at 712 s; which side moves (drops, or the reference ratio) needs a human pickup reading (O-008).
+3. **Share caps cut the XP the timeline asks for.** Spawned XP is ~0.79 of the model for a build that clears the field, because the alive share caps redraw most Tank, Rusher and Turret spawns as Swarm.
+4. **Storm/Tempest dies before the boss in 5/5** at L14–18; Tide/Frost reaches the boss 2/5 with a Keeper share under 0.60.
