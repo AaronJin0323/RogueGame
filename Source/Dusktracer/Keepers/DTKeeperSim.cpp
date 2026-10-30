@@ -474,10 +474,7 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 		Cast.TimeLeft = DTConst::INTERCESSION_FORGE_DURATION_S;
 		break;
 	case EDTPath::Tide:
-		if (!FindClause(Plan.VariantSpec, DTCat::EFlag::Stillness))
-		{
-			TidePull(Context, OwnerId, Player);
-		}
+		TidePull(Context, OwnerId, Player);
 		Cast.TimeLeft = DTConst::INTERCESSION_TIDE_FREEZE_S;
 		if (const FDTSpecClause* Still = FindClause(Plan.VariantSpec, DTCat::EFlag::Stillness))
 		{
