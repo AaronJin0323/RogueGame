@@ -20,13 +20,13 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- `dev/s1-pass2` (local, not pushed): Part A gaps + balance pass 2, gate PASS at `91aa600` (197 tests). Holds feel-changing work until the owner plays `main`. Evidence: `Docs/Validation/S1_balance_pass2.md` on that branch
-- Express Tide's unread params on a branch off `dev/s1-pass2`
+- `dev/s1-pass2` (local, not pushed): gaps, balance pass 2, Keeper params expressed; gate PASS at `ac55c81` (215 tests), perf PASS (scene grants no blessings). Holds feel-changing work until the owner plays `main`. Evidence on that branch: `Docs/Validation/S1_balance_pass2.md`, `S1_tide_expression.md`
+- Pull rule (per-enemy interval, new D-nnn) and the Field `status` / layer radius gaps, on a branch off `dev/s1-pass2`
 
 ## Queue (next 5)
 1. Owner playtest of `main` (feel check before validators; `Harness/H03 §4`: no feel-changing merge past an unplayed checkpoint), then merge `dev/s1-pass2`
-2. Re-run the `:Tide` arms after the params are expressed; the Tide split decides pressure and Keeper share readings
-3. RULE candidates from pass 2: Pull at Key level, share caps on a floor of alive enemies
+2. Re-run the `:Tide` arms after the Pull rule; `Whirlpool.Key` is the suspect (boss 1 of 77 with it, 7 of 13 without)
+3. RULE candidate from pass 2: share caps on a floor of alive enemies
 4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
 
@@ -38,7 +38,7 @@
 
 ## Numbers at risk
 - `main` after pass 1 (`Docs/Validation/S1_balance_pass1.md`): T-DIR-01 PASS (no-pick median death 592.9 s), T-OFF-15 PASS; 7/15 steered runs reach the boss; damage-taken band met only as a pooled mean
-- `dev/s1-pass2`: no tuned number survived (all reverted, logged); T-DIR-02 per arm FAIL. Tide is the split: arms with it reach the boss 0–2 of 15, arms without it 13–15. With no heal in S1 the band and boss reach cannot both hold
+- `dev/s1-pass2`: no tuned number survived (all reverted, logged); T-DIR-02 per arm FAIL (1/17 arms in band). With params expressed Frost recovered (boss 7–8/15), but second-Keeper Tide arms still reach it 1–2 of 15, arms without Tide 13–15. With no heal in S1 the band and boss reach cannot both hold
 - Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
 
 ## Pointers (do not inline)
