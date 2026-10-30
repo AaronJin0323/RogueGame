@@ -7,6 +7,7 @@ Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 import json
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +37,32 @@ class HitKind(unittest.TestCase):
 
 	def test_old_runs_keep_other_kinds(self):
 		self.assertEqual(pressure.hero_hit_kind(self.record('{"kind":"hero_damaged","kind":"Contact","attack":null}')), "Contact")
+
+
+class OfferPick(unittest.TestCase):
+	NEW = '{"t":1.0,"step":60,"kind":"offer_pick","owner":0,"hand_id":3,"slot":1,"card_kind":"Mod","id":"Mod.Split"}\n'
+	OLD = '{"t":1.0,"step":60,"kind":"offer_pick","owner":0,"hand_id":3,"slot":1,"kind":"Mod","id":"Mod.Split"}\n'
+
+	def test_new_line_keeps_both_kinds_in_a_plain_reader(self):
+		rec = json.loads(self.NEW)
+		self.assertEqual((rec["kind"], rec["card_kind"]), ("offer_pick", "Mod"))
+
+	def test_old_line_keeps_the_record_kind(self):
+		self.assertEqual(json.loads(self.OLD, object_pairs_hook=pressure.first_wins)["kind"], "offer_pick")
+
+	def test_a_run_reads_the_same_with_either_line(self):
+		head = '{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}\n'
+		hit = '{"t":601.0,"step":1,"kind":"hero_damaged","owner":0,"amount":10,"max_hp":100,"hit_kind":"Bullet","role":"Turret"}\n'
+		end = '{"t":700.0,"step":2,"kind":"run_end","owner":-1}\n'
+		reads = []
+		for pick in (self.NEW, self.OLD):
+			with tempfile.TemporaryDirectory() as folder:
+				path = os.path.join(folder, "run.jsonl")
+				with open(path, "w", encoding="utf-8") as f:
+					f.write(head + pick + hit + end)
+				reads.append(pressure.window_from_jsonl(path, 600.0, 780.0))
+		self.assertEqual(reads[0], reads[1])
+		self.assertAlmostEqual(reads[0][0][0], 0.1 / (100.0 / 60.0))
 
 
 class Intercession(unittest.TestCase):

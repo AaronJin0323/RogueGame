@@ -109,7 +109,7 @@ API: `UDTOfferSubsystem::BuildHand(OwnerId, HandKind)`, `Reroll / Banish(Slot) /
 ## Telemetry
 JSONL records (`telemetry.md` format; `owner` = the player):
 - `offer{hand_id, hand_kind, level, reroll_of, guarantee_filled, rerolls_left, banish_left, lock_left, cards[{slot, kind, id, target, rarity, weight, guaranteed, locked, reserve}]}` — every hand shown, and again after every reroll or banish refill: all cards and their weights, always.
-- `offer_pick{hand_id, slot, kind, id, target, rarity, wall_decide_s}` · `offer_tool{hand_id, tool, slot, id}`; Keeper choices also emit `keeper_commit` (`keepers.md`).
+- `offer_pick{hand_id, slot, card_kind, id, target, rarity, wall_decide_s}` · `offer_tool{hand_id, tool, slot, id}`; Keeper choices also emit `keeper_commit` (`keepers.md`).
 - `run_end` adds per player: `decisions`, `hands_by_kind{}`, `reserve_cards`, `cards_offered`, `wall_paused_s`. Hands pause the sim, so time in a hand is wall time (`wall_*`, excluded from determinism, `telemetry.md` R-TEL-08).
 
 ## Text

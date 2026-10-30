@@ -62,12 +62,14 @@ What this says:
 | gem | 0.616–0.617 | 4.11–4.12 | 10.6 | PASS |
 | chest | 0.63–0.64 | 4.20–4.27 | 10.8–11.0 | PASS |
 
+The tracer row spans capture spread, not an emissive range: every player core draws at the one `C.BULLETS.EMISSIVE_PLAYER` 4.0 whatever the bullet count, because R-PRE-06's scale-down with live player bullets is not built, so a dimmed core has no reading yet and this row is redone when it lands.
+
 Two captures on the final map and constants. The floor moved first: the band needs lit Y 0.10, and `C.ARENA.SUN_LUX` 10.5 reached Y 0.106. That held the round at 3.03–3.04, one quantised core step (Y 0.003, 2.94) under the rule, so the lift went to 11. The round then took `C.ENEMY_FIRE.DRAW_RADIUS_RATIO` 1.8: the core reads Y 0.001–0.002 on 6 captures, against 0.002–0.003 at 1.5 on 4. Rim emissive was tried and dropped: 3.5, 6 and 10 give rim Y 0.34, 0.37 and 0.39, and past that the tonemapper only pales the rim. The rim alone reads 2.6 against lit ground; the rule and the token table let the core carry that ground.
 
 Judged against the tokens rather than the frame, `Pal.Ground.Shadow` passes everywhere, and `Pal.Ground.Bright` (Y 0.193, shown by no pixel of this frame) still reads under 3 for gem 2.7, tracer core 2.6–2.7 and chest 2.8. One weather exists, so the second is not measured. The elite light has no reading of its own.
 
 ## 4. Hit kinds
-`hero_damaged` now carries `hit_kind`, values `Contact Bullet HazardRing Charge Sweep DashCharge`; a Rusher's charge is `Charge` with role `Rusher`. Tests `Dusktracer.Boss.HitKinds` and `Dusktracer.Telemetry.Records.Combat` seen failing first. `Tools/pressure.py` reads old runs too, splitting an old `Hazard` by `attack`. `bot_summary.py` keeps the combined column as "Direct attacks" and adds one per kind. **`offer_pick` has the same fault**, repeating `kind` for the card kind (`offers.md`); it is out of this task, and `first_wins` stays for it.
+`hero_damaged` now carries `hit_kind`, values `Contact Bullet HazardRing Charge Sweep DashCharge`; a Rusher's charge is `Charge` with role `Rusher`. Tests `Dusktracer.Boss.HitKinds` and `Dusktracer.Telemetry.Records.Combat` seen failing first. `Tools/pressure.py` reads old runs too, splitting an old `Hazard` by `attack`. `bot_summary.py` keeps the combined column as "Direct attacks" and adds one per kind. `offer_pick` had the same fault, repeating `kind` for the card kind; it is now `card_kind` (`offers.md`), and `first_wins` stays for old runs.
 
 Damage to the hero during boss fights, 201 fights:
 
@@ -121,5 +123,4 @@ Steered arms: reached boss 201 → 201, wins 153 → 164. Only the boss phase mo
 2. Package gain near 1.0 on Furnace, Frost and Whirlpool: a run of the same ablation with no second Keeper would separate the cause.
 3. Contrast in the second weather, an elite light reading of its own, gem, tracer core and chest against a floor at `Pal.Ground.Bright`.
 4. Both probes are readings, not gate steps: they fail, and nothing should be tuned against a bot field alone. They can join the nightly set of S2.
-5. `offer_pick`'s repeated `kind`.
-6. No probe covers a Tank-heavy field or the boss.
+5. No probe covers a Tank-heavy field or the boss.

@@ -34,8 +34,8 @@ PLAYTESTS = os.path.join(dtconst.ROOT, "Saved", "Playtests")
 
 
 def first_wins(pairs):
-	"""JSON object hook: the record's own `kind` comes first; `offer_pick` repeats `kind` for the card kind, and so did
-	`hero_damaged` for the hit kind before the field became `hit_kind` (combat_core.md)."""
+	"""JSON object hook for old runs: the record's own `kind` comes first; `offer_pick` repeated `kind` for the card kind before
+	the field became `card_kind` (offers.md), and `hero_damaged` for the hit kind before `hit_kind` (combat_core.md)."""
 	out = {}
 	for key, value in pairs:
 		out.setdefault(key, value)
