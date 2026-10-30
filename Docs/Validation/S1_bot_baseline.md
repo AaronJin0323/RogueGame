@@ -93,3 +93,5 @@ Checks: `T-DIR-01: PASS (median end 592.9 s over 10 seeds; 1 run(s) did not die)
 
 ## Bot changes after D-016 (2026-10-30)
 Two instrument fixes, no game change (`S1_boss_after_fields.md`): the hazard ring scores by the distance outside it, so the bot walks in from past its look-ahead; the wall band no longer closes the pickup reward for a chest. Win counts in every earlier section carry the ring blind spot and read low.
+
+Later bot changes: `S1_boss_after_fields.md` (ring grade, chests at walls); `S1_probes.md` §5 (ring grade `RingGradeUU`), §1 (probe route, off in runs).
