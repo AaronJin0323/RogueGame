@@ -67,6 +67,12 @@ public:
 	bool Banish(int32 OwnerId, int32 Slot);
 	bool Lock(int32 OwnerId, int32 Slot);
 	bool Pick(int32 OwnerId, int32 Slot);
+	/**
+	 * Tool path for the Bot v1 no-pick arm (director.md R-DIR-01): closes the open hand with no pick and no effect; not a
+	 * decision. Never offered to players; the run-start Patron hand cannot be declined (D-013). Returns false when no
+	 * declinable hand is open.
+	 */
+	bool Decline(int32 OwnerId);
 
 	/** Opens queued hands and sets the pause now (Tick does this every frame). */
 	void UpdateFlow();
