@@ -57,7 +57,7 @@ if (-not (Test-Path $Locres) -or (Get-Item $Locres).LastWriteTime -lt (Get-Item 
 # --- run ----------------------------------------------------------------------------------------------------------
 if (Test-Path $Log) { Remove-Item $Log -Force }
 if (Test-Path $Shot) { Remove-Item $Shot -Force }
-$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-ResX=1280", "-ResY=720", "-LiveCoding=false", "-nosplash",
+$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=1280", "-ResY=720", "-LiveCoding=false", "-nosplash",
 	"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))
 if (-not $Director) { $ArgList += "-DTNoDirector" }
 if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }

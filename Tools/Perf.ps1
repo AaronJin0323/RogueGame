@@ -73,7 +73,7 @@ try {
 	$Before = @(if (Test-Path $CsvDir) { Get-ChildItem $CsvDir -Filter *.csv | ForEach-Object { $_.FullName } })
 
 	if (Test-Path $Log) { Remove-Item $Log -Force }
-	$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
+	$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
 		"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", ("-DTCsvAfter={0}" -f $Warmup), "-csvStartOnEvent=DTPerfStart",
 		"-csvCaptureOnEventFrameCount=$Frames", "-ExitAfterCsvProfiling", "-csvGpuStats")
 	if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
