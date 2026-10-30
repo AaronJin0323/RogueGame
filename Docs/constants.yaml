@@ -251,9 +251,9 @@ combat:
   SCALE.HP_PER_MIN:            { value: 0.16, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, C.TTK.SWARM_STEERED_MAX, T-DIR-10] }
   SCALE.DMG_PER_MIN:           { value: 0.0667, unit: per_min, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-10] }
   DROP.XP_SWARM:               { value: 1,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
-  DROP.XP_TANK:                { value: 5,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
-  DROP.XP_RUSHER:              { value: 3,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
-  DROP.XP_TURRET:              { value: 4,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_TANK:                { value: 4,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_RUSHER:              { value: 2,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
+  DROP.XP_TURRET:              { value: 3,    unit: xp,    tag: GATED(S1),  dependents: [02_Systems/director.md, 02_Systems/progression.md, T-DIR-12] }
   DROP.XP_ELITE_MULT:          { value: 5,    unit: x,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-12] }
 
 boss:
