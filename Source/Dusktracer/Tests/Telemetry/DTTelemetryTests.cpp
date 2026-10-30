@@ -85,6 +85,56 @@ namespace DTTelemetryTest
 		return Sum;
 	}
 
+	/**
+	 * Removes every "wall" / "wall_*" field (R-TEL-08: wall-clock fields exist only where sim time cannot measure the
+	 * quantity, and tools never compare them). Wall values are numbers or strings.
+	 */
+	static FString StripWall(const FString& Jsonl)
+	{
+		FString Out;
+		Out.Reserve(Jsonl.Len());
+		const int32 N = Jsonl.Len();
+		int32 I = 0;
+		while (I < N)
+		{
+			if (Jsonl[I] == TEXT('"') && I > 0 && (Jsonl[I - 1] == TEXT(',') || Jsonl[I - 1] == TEXT('{')))
+			{
+				const int32 KeyEnd = Jsonl.Find(TEXT("\""), ESearchCase::CaseSensitive, ESearchDir::FromStart, I + 1);
+				const FString Key = KeyEnd != INDEX_NONE ? Jsonl.Mid(I + 1, KeyEnd - I - 1) : FString();
+				if ((Key == TEXT("wall") || Key.StartsWith(TEXT("wall_"), ESearchCase::CaseSensitive)) && KeyEnd + 1 < N && Jsonl[KeyEnd + 1] == TEXT(':'))
+				{
+					int32 J = KeyEnd + 2;
+					if (J < N && Jsonl[J] == TEXT('"'))
+					{
+						for (++J; J < N && Jsonl[J] != TEXT('"'); J += Jsonl[J] == TEXT('\\') ? 2 : 1)
+						{
+						}
+						++J;
+					}
+					else
+					{
+						while (J < N && Jsonl[J] != TEXT(',') && Jsonl[J] != TEXT('}'))
+						{
+							++J;
+						}
+					}
+					if (Out.EndsWith(TEXT(",")))
+					{
+						Out.LeftChopInline(1);
+					}
+					else if (J < N && Jsonl[J] == TEXT(','))
+					{
+						++J;
+					}
+					I = J;
+					continue;
+				}
+			}
+			Out += Jsonl[I++];
+		}
+		return Out;
+	}
+
 	/** A small real fight: a swarm ring closing on hero 0 and an emitter at the origin, every system hooked like the subsystems. */
 	struct FFight
 	{
@@ -96,7 +146,8 @@ namespace DTTelemetryTest
 		FString Csv;
 		FString Jsonl;
 
-		void Play(int32 Seed, int32 Steps, const FString& Wall)
+		/** WallDecide: the wall time the "player" spends in each hand (differs between otherwise identical runs). */
+		void Play(int32 Seed, int32 Steps, const FString& Wall, double WallDecide = 1.0)
 		{
 			Run.Start(Seed, 1);
 			Run.SetEventSink(&Core);
@@ -113,12 +164,39 @@ namespace DTTelemetryTest
 			const int32 Swarm = 64;
 			const int32 Spokes = 32;
 			const int32 FireEvery = 4;
+			const uint16 Lance = FDTTelemetrySources::RegisterWeapon(TEXT("TestDetLance"));
+
+			// S1 producers before the first step: the Patron hand, its pick (wall time!) and the commitment.
+			FDTOfferHand Patron;
+			Patron.HandId = 0;
+			Patron.HandKind = EDTHandKind::Patron;
+			FDTOfferCard Storm;
+			Storm.Kind = EDTCardKind::Keeper;
+			Storm.ContentId = TEXT("Keeper.Storm");
+			Patron.Cards = { Storm };
+			Core.RecordOffer(0, Patron, Run.GetPlayer(0).Offer);
+			Core.RecordOfferPick(0, 0, 0, Storm, WallDecide);
+			Core.RecordKeeperCommit(0, EDTTelKeeperRole::Patron, EDTPath::Storm, NAME_None);
+			Core.SetInputDevice(0, EDTTelInputDevice::Kbm);
+			Core.RecordWeaponAcquired(0, Lance);
 			for (int32 Step = 0; Step < Steps; ++Step)
 			{
 				Context.StepIndex = Step;
 				if (Step == 0)
 				{
 					Enemies.SpawnRing(EDTEnemyRole::Swarm, Swarm, FVector2f::ZeroVector, Ring, Run.GetRng().Get(EDTRngStream::Spawn));
+				}
+				if (Step % 30 == 7)
+				{
+					Core.RecordDash(0, FVector2f(1.0f, 0.0f), 1);
+					FDTHeroHit Taken;
+					Taken.PlayerId = 0;
+					Taken.Damage = 3.0f;
+					Core.RecordHeroDamaged(0, Taken, 3.0f, 97.0f, 100.0f);
+					Core.RecordThreatAction(FVector2f(400.0f, 0.0f), EDTEnemyRole::Rusher, TEXT("Charge"));
+					Core.RecordStatusApplied(0, EDTStatus::Shock);
+					Core.RecordWeaponEmissions(0, Lance, 4, 1);
+					Core.RecordXp(0, 2, 3);
 				}
 				Core.OnEnemiesSpawned(Step, false, Enemies.Num());
 				Enemies.StepEnemies(Context);
@@ -141,9 +219,23 @@ namespace DTTelemetryTest
 				{
 					Hit.SourceId = FDTTelemetrySources::Stress; // what a source-aware emitter will stamp
 				}
-				Core.BeginResolve(Step, View.Hits);
+				Core.BeginResolve(Step, View.Hits, Enemies.GetSerials());
 				Enemies.ResolveHits(Context);
 				Core.EndResolve(Enemies.Num());
+				if (Step == Steps / 2)
+				{
+					FDTOfferHand Level;
+					Level.HandId = 1;
+					Level.Level = 2;
+					FDTOfferCard Card;
+					Card.Kind = EDTCardKind::WeaponUpgrade;
+					Card.ContentId = TEXT("Weapon.TestDetLance");
+					Card.Weight = 1.0f;
+					Level.Cards = { Card, Card };
+					Core.RecordOffer(0, Level, Run.GetPlayer(0).Offer);
+					Core.RecordOfferPick(0, 1, 1, Card, 2.0 * WallDecide);
+					Core.RecordWeaponLevel(0, Lance, 2);
+				}
 
 				FDTTelemetrySample Sample;
 				Sample.LiveBullets = Bullets.Num();
@@ -530,25 +622,30 @@ bool FDTTelDeterminism::RunTest(const FString& Parameters)
 	FFight A;
 	FFight B;
 	FFight C;
-	A.Play(11, Steps, TEXT("2026-01-01T00:00:00.000Z"));
-	B.Play(11, Steps, TEXT("2026-06-30T23:59:59.000Z"));
-	C.Play(12, Steps, TEXT("2026-01-01T00:00:00.000Z"));
+	A.Play(11, Steps, TEXT("2026-01-01T00:00:00.000Z"), 1.25);
+	B.Play(11, Steps, TEXT("2026-06-30T23:59:59.000Z"), 7.5);
+	C.Play(12, Steps, TEXT("2026-01-01T00:00:00.000Z"), 1.25);
 
 	TestTrue(TEXT("the fight kills something"), SumKills(A.Jsonl) > 0);
 	TestEqual(TEXT("no mirror desync in a real fight"), A.Core.GetMirrorDesyncs(), static_cast<int64>(0));
 	TestEqual(TEXT("four interval rows"), Lines(A.Csv).Num(), 1 + 4);
 	TestEqual(TEXT("same seed and steps -> identical CSV"), A.Csv, B.Csv);
 
-	// JSONL: identical except the wall-clock field of run_start.
-	TArray<FString> LinesA = Lines(A.Jsonl);
-	TArray<FString> LinesB = Lines(B.Jsonl);
-	TestEqual(TEXT("same number of JSONL records"), LinesA.Num(), LinesB.Num());
-	if (LinesA.Num() > 1 && LinesA.Num() == LinesB.Num())
+	// JSONL: identical once the wall-clock fields (run_start.wall, offer_pick.wall_decide_s, run_end wall_paused_s) are gone.
+	TestNotEqual(TEXT("the wall fields really differ between the runs"), A.Jsonl, B.Jsonl);
+	const FString StrippedA = StripWall(A.Jsonl);
+	const FString StrippedB = StripWall(B.Jsonl);
+	TestEqual(TEXT("same number of JSONL records"), Lines(StrippedA).Num(), Lines(StrippedB).Num());
+	TestTrue(TEXT("identical JSONL without wall / wall_* fields"), StrippedA == StrippedB);
+	TestFalse(TEXT("no wall field survives the strip"), StrippedA.Contains(TEXT("\"wall")));
+	for (const TCHAR* Kind : { TEXT("offer"), TEXT("offer_pick"), TEXT("keeper_commit"), TEXT("dash"), TEXT("hero_damaged"), TEXT("xp"),
+		TEXT("status"), TEXT("weapon"), TEXT("weapon_acquired"), TEXT("weapon_level") })
 	{
-		LinesA.RemoveAt(0);
-		LinesB.RemoveAt(0);
-		TestTrue(TEXT("identical JSONL after run_start"), LinesA == LinesB);
+		TestTrue(FString::Printf(TEXT("the fight writes %s records"), Kind), CountKind(StrippedA, Kind) > 0);
 	}
+	TestEqual(TEXT("the strip removes exactly the wall fields"),
+		StripWall(TEXT("{\"a\":1,\"wall\":\"x,\\\"y\",\"wall_decide_s\":1.5000,\"b\":{\"wall_paused_s\":2.0},\"walls\":3}\n{\"wall\":\"z\",\"c\":2}\n")),
+		FString(TEXT("{\"a\":1,\"b\":{},\"walls\":3}\n{\"c\":2}\n")));
 	TestNotEqual(TEXT("another seed differs"), A.Csv, C.Csv);
 	bool bAnyTtk = false;
 	for (const FString& Row : Lines(A.Csv))
