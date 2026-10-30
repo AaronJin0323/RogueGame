@@ -1,6 +1,6 @@
 # S1 share cap floor — D-018 (2026-10-31)
 
-Question: does a share cap that binds only above `C.DIR.SHARE_FLOOR_ALIVE` give clearing builds the timeline's Turrets and lift spawned XP above 0.85 of the model, with T-DIR-01 in band and T-OFF-15 no worse than 200/201? Bot v1 at skill 1.0, seeds 1..15, 19 arms, `Tools/BotRuns.ps1 -Parallel 4`. Control `Saved/BotRuns/after_bot`; three arms × two seeds on the unchanged tree read identically, so later commits did not move the sim.
+Question: does a share cap that binds only above a floor of alive enemies give clearing builds the timeline's Turrets and lift spawned XP above 0.85 of the model, with T-DIR-01 in band and T-OFF-15 no worse than 200/201? Bot v1 at skill 1.0, seeds 1..15, 19 arms, `Tools/BotRuns.ps1 -Parallel 4`. Control `Saved/BotRuns/after_bot`; three arms × two seeds on the unchanged tree read identically, so later commits did not move the sim.
 
 **Verdict: not met at either value; the rule is reverted.** 30 overshoots and costs boss reach. 15 is close on every clause and misses two: XP / model 0.8499 and T-OFF-15 194/201.
 
@@ -59,10 +59,10 @@ Each cell is control / floor 30 / floor 15. Turrets are the mean spawned in 400�
 Window damage on arms with few survivors swings on a handful of runs (Slam:Tide 0.89, Furnace:Tide 0.55); read boss reach there instead.
 
 ## 4. What this shows
-1. **At 30 the mechanism works and the game breaks.** Turrets and XP overshoot, and the deaths are not the Turrets' rounds alone: Forge/Furnace goes from 13 to 4 at the boss with deaths from 400 s on. The floor gives a strong build the whole timeline, and the timeline was never survived in full.
-2. **At 15 strong builds get stronger.** Wins rise from 153 to 171 and no arm class loses boss reach, because the added XP outweighs the added Turrets at skill 1.0. Rounds damage barely moves (0.03 → 0.04/min), so the floor does not supply the pressure pass 2 wanted. It buys income. At skill 0.5 this could read differently; not measured.
+1. **At 30 the mechanism works and the game breaks.** Turrets and XP overshoot, and boss reach falls from 201 to 142: Forge/Furnace goes from 13 to 4 of 15, with deaths from 405 s on. I did not trace those deaths by source. The floor gives a strong build the whole timeline, and the timeline was never survived in full.
+2. **At 15 strong builds get stronger.** Wins rise from 153 to 171 and boss reach holds at 201 in total, though it moves by arm (Tempest and ArcGrid 13 → 11, Furnace:Tide 8 → 6, Slam:Tide 10 → 8). At skill 1.0 the added XP seems to outweigh the added Turrets. Rounds damage on the no-Tide strong arms barely moves (about 0.03 → 0.04/min), so the floor does not supply the pressure pass 2 wanted. It buys income. At skill 0.5 this could read differently; not measured.
 3. **XP and T-OFF-15 pull against each other.** Spawned XP above 0.85 and T-OFF-15 at 200/201 share almost no room: the curve (R-PRG-03) is calibrated so 28 ± 3 decisions fit the current income. More income needs a curve or budget change, which this brief did not allow.
-4. **No-pick moved 53 s for reasons this reading cannot separate.** Its field passes both floors by about 70 s, so the shift is a small early change spreading through a chaotic run (Turret counts equal the control at floor 15). T-DIR-01 stayed in band, but a median that moves 53 s on so small a cause is a thin base for tuning against it.
+4. **No-pick moved 53 s for reasons this reading cannot separate.** Its field passes both floors by about 70 s, so the shift is most likely a small early change spreading through a chaotic run. T-DIR-01 stayed in band, but a median that moves 53 s on so small a cause is a thin base for tuning against it.
 
 ## 5. Left as it was
 Rule, constant, test and spec are back to the state before D-018. No other number moved. The XP gap stands at 0.79. Open questions go to `director.md` Open.
