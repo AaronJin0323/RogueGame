@@ -11,6 +11,7 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
+#include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 
 namespace DTHUDLocal
@@ -211,4 +212,10 @@ void ADTHUD::DrawHUD()
 	}
 
 	DrawHeroes();
+
+	// The offer screen draws over everything while a hand is open (offers.md R-OFF-13).
+	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
+	{
+		Offers->DrawScreen(Canvas);
+	}
 }

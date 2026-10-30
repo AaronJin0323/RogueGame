@@ -14,6 +14,9 @@ public:
 	{
 		FDefaultGameModuleImpl::StartupModule();
 		LOCTABLE_FROMFILE_GAME("ST_UI", "ST_UI", "DT/Text/Generated/ST_UI.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Weapons", "ST_Weapons", "DT/Text/Generated/ST_Weapons.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Modifiers", "ST_Modifiers", "DT/Text/Generated/ST_Modifiers.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Keepers", "ST_Keepers", "DT/Text/Generated/ST_Keepers.csv");
 	}
 };
 
