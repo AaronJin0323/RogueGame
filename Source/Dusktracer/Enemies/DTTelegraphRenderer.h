@@ -20,7 +20,11 @@ class UMaterialInterface;
  *   Ring: an annulus around Origin, outer radius Length, thickness Width (Width <= 0 or >= Length: a filled disc),
  *         drawn as RingSegments quads.
  *   Arc: the same annulus restricted to a sector centred on Dir; Width is then the sector's full angle in degrees and
- *        the sector is filled from the centre (no producer yet; boss.md sweep sector).
+ *        the sector is filled from the centre (the boss sweep, boss.md).
+ *   RingGap, SpiralLane (boss.md R-BOS-07): the disc of radius Length around Origin, filled from the centre, minus the
+ *        dodge lane: a sector of Width degrees centred on Dir is left undrawn.
+ *   HazardRing (boss.md hazard): everything outside the circle of radius Length around Origin, out past the arena
+ *        corners (C.ARENA.HALF_EXTENT_UU times sqrt 2), drawn as RingSegments quads whose inner edges are tangent to it.
  */
 UCLASS(NotPlaceable, Transient)
 class DUSKTRACER_API ADTTelegraphRenderer : public AActor

@@ -136,7 +136,11 @@ enum class EDTTelegraphShape : uint8
 	Band,
 	Ring,
 	Arc,
-	AimLine
+	AimLine,
+	// Boss shapes (boss.md R-BOS-05, R-BOS-07, boss_warden.csv `telegraph`).
+	RingGap,    // a ring of rounds from Origin out to Length, minus its dodge lane: a gap of Width degrees centred on Dir
+	SpiralLane, // a spiral's footprint as RingGap: Dir is the rotating lane sector, Width its full angle in degrees
+	HazardRing  // the shrinking arena: everything outside the circle of radius Length around Origin
 };
 
 /** A projected telegraph (enemies.md Data), published per step by enemies and the boss, drawn in Pal.Telegraph. */

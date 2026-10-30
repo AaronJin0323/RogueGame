@@ -69,14 +69,35 @@ void UDTSimSubsystem::StepNow(int32 Steps)
 	for (int32 Step = 0; Step < Steps; ++Step)
 	{
 		RunOneStep();
+		OnStepEnd.Broadcast();
 	}
+}
+
+int32 UDTSimSubsystem::AdvanceFrame(float DeltaTime)
+{
+	if (bPauseRequested)
+	{
+		return 0; // paused at a step boundary: the accumulator holds, no phase runs (R-TEC-14)
+	}
+	const int32 Due = Clock.Advance(DeltaTime);
+	int32 Ran = 0;
+	while (Ran < Due)
+	{
+		RunOneStep();
+		OnStepEnd.Broadcast();
+		++Ran;
+		if (bPauseRequested)
+		{
+			break; // the steps still due are dropped: sim time does not pass while paused
+		}
+	}
+	return Ran;
 }
 
 void UDTSimSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	const int32 Steps = Clock.Advance(DeltaTime);
-	StepNow(Steps);
+	AdvanceFrame(DeltaTime);
 	const float Alpha = Clock.GetAlpha();
 	for (const TArray<IDTSimSystem*>& PhaseSystems : Systems)
 	{

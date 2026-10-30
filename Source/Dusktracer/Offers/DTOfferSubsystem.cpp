@@ -58,6 +58,10 @@ void UDTOfferSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UDTOfferSubsystem::Deinitialize()
 {
+	if (UDTSimSubsystem* SimSys = Sim.Get())
+	{
+		SimSys->OnStepEnd.Remove(StepEndHandle);
+	}
 	Flows.Reset();
 	Screen = nullptr;
 	Super::Deinitialize();
@@ -69,6 +73,10 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	// The run starts in ADTGameMode::BeginPlay, right after this; pausing now means the run-start Patron hand opens
 	// (first Tick, which runs while paused) before the sim steps once (R-OFF-08, D-013).
 	SetPaused(true);
+	if (UDTSimSubsystem* SimSys = Sim.Get())
+	{
+		StepEndHandle = SimSys->OnStepEnd.AddUObject(this, &UDTOfferSubsystem::HandleStepEnd);
+	}
 }
 
 TStatId UDTOfferSubsystem::GetStatId() const
@@ -276,6 +284,11 @@ void UDTOfferSubsystem::UpdateFlow()
 	}
 	SetPaused(IsAnyHandOpen());
 	SetCursor(IsAnyHandOpen() && !IsAutoPick());
+	UDTSimSubsystem* SimSys = Sim.Get();
+	if (SimSys && SimSys->IsPauseRequested() && !IsAnyHandOpen() && !IsAnyHandPending())
+	{
+		SimSys->ClearPauseRequest();
+	}
 }
 
 void UDTOfferSubsystem::Tick(float DeltaTime)
@@ -559,6 +572,33 @@ void UDTOfferSubsystem::ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome)
 }
 
 // ---- pause, cursor, input -----------------------------------------------------------------------------------------------
+
+bool UDTOfferSubsystem::IsAnyHandPending() const
+{
+	const FDTRunState* Run = GetRun();
+	if (!Run)
+	{
+		return false;
+	}
+	for (int32 Owner = 0; Owner < Run->GetNumPlayers(); ++Owner)
+	{
+		if (Run->GetPlayer(Owner).Offer.PendingHands.Num() > 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UDTOfferSubsystem::HandleStepEnd()
+{
+	// A level-up or chest inside this step queued a hand: stop on this step, not at the frame boundary (R-TEC-14).
+	UDTSimSubsystem* SimSys = Sim.Get();
+	if (SimSys && !SimSys->IsPauseRequested() && IsAnyHandPending())
+	{
+		SimSys->RequestPause();
+	}
+}
 
 bool UDTOfferSubsystem::CanUnpause() const
 {

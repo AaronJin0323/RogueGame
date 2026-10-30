@@ -281,6 +281,16 @@ namespace DTConst
 	inline constexpr int32 BOSS_TARGET_FIGHT_S = 80; // s, GATED(S1)
 	inline constexpr float BOSS_HP_MIN_MULT = 0.6f; // ratio, GATED(S1)
 	inline constexpr float BOSS_HP_MAX_MULT = 4.0f; // ratio, GATED(S1)
+	inline constexpr int32 BOSS_WALK_SPEED_UU_S = 260; // uu_per_s, GATED(S1)
+	inline constexpr float BOSS_OPENING_WALK_S = 1.2f; // s, GATED(S1)
+	inline constexpr float BOSS_CHARGE_RECOVER_S = 0.9f; // s, GATED(S1)
+	inline constexpr float BOSS_STANDOFF_HULL_RADII = 2.6f; // ratio, GATED(S1)
+	inline constexpr int32 BOSS_SWEEP_RANGE_UU = 900; // uu, GATED(S1)
+	inline constexpr float BOSS_SPIRAL_LANE_RATE_RATIO = 0.25f; // ratio, GATED(S1)
+	inline constexpr int32 BOSS_ADDS_ALIVE_MAX = 4; // n, GATED(S1)
+	inline constexpr int32 BOSS_HAZARD_MIN_RADIUS_UU = 1300; // uu, GATED(S1)
+	inline constexpr float BOSS_HAZARD_GRACE_S = 0.25f; // s, GATED(S1)
+	inline constexpr float BOSS_ROUND_LIFE_S = 9.0f; // s, GATED(S1)
 	// weapons
 	inline constexpr float LOAD_FACTOR_1 = 1.0f; // ratio, CORE
 	inline constexpr float LOAD_FACTOR_2 = 0.7f; // ratio, CORE

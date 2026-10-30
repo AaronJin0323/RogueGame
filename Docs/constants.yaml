@@ -274,6 +274,17 @@ boss:
   BOSS.TARGET_FIGHT_S:         { value: 80, unit: s, tag: GATED(S1), dependents: [02_Systems/boss.md, R-BOS-09, R-BOS-10, C.RUN.BOSS_MAX] }
   BOSS.HP_MIN_MULT:            { value: 0.6, unit: ratio, tag: GATED(S1), dependents: [02_Systems/boss.md, R-BOS-09, T-BOS-09] }
   BOSS.HP_MAX_MULT:            { value: 4.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/boss.md, R-BOS-09, T-BOS-09] }
+  # Form I behaviour numbers from the boss_warden.csv notes column (doc-only, not emitted; D-014), plus walk speed and round life.
+  BOSS.WALK_SPEED_UU_S:        { value: 260, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/boss.md, R-BOS-03] }
+  BOSS.OPENING_WALK_S:         { value: 1.2, unit: s, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv, R-BOS-02, T-BOS-02] }
+  BOSS.CHARGE_RECOVER_S:       { value: 0.9, unit: s, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv] }
+  BOSS.STANDOFF_HULL_RADII:    { value: 2.6, unit: ratio, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv, R-BOS-03] }
+  BOSS.SWEEP_RANGE_UU:         { value: 900, unit: uu, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv] }
+  BOSS.SPIRAL_LANE_RATE_RATIO: { value: 0.25, unit: ratio, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv, R-BOS-07] }
+  BOSS.ADDS_ALIVE_MAX:         { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv] }
+  BOSS.HAZARD_MIN_RADIUS_UU:   { value: 1300, unit: uu, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv, R-BOS-10, T-BOS-10] }
+  BOSS.HAZARD_GRACE_S:         { value: 0.25, unit: s, tag: GATED(S1), dependents: [02_Systems/boss.md, 09_Catalog/boss_warden.csv] }
+  BOSS.ROUND_LIFE_S:           { value: 9.0, unit: s, tag: GATED(S1), dependents: [02_Systems/boss.md, R-BOS-05, T-BOS-08] }
 
 weapons:
   LOAD.FACTOR_1:               { value: 1.0,  unit: ratio, tag: CORE,       dependents: [02_Systems/weapons.md, T-WPN-03] }

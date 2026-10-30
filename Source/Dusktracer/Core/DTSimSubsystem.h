@@ -29,8 +29,24 @@ public:
 	void Register(EDTSimPhase Phase, IDTSimSystem* System);
 	void Unregister(IDTSimSystem* System);
 
-	/** Runs exactly Steps fixed steps now, independent of frame time (tests, bots, deterministic replays). */
+	/** Runs exactly Steps fixed steps now, independent of frame time (tests, bots, deterministic replays). Ignores the pause request. */
 	void StepNow(int32 Steps);
+
+	/**
+	 * One frame of the fixed-step clock (what Tick runs): adds DeltaTime and runs the steps due, checking the pause request
+	 * between steps (07_Technical R-TEC-14). A request made during a step (from OnStepEnd) stops the loop after that step;
+	 * the steps still due are dropped, so sim time does not pass while paused. While the request stands no time is added
+	 * and no step runs. Returns the number of steps run.
+	 */
+	int32 AdvanceFrame(float DeltaTime);
+
+	/** Pause at the next step boundary (an open hand in solo, offers.md R-OFF-11): held until ClearPauseRequest. */
+	void RequestPause() { bPauseRequested = true; }
+	void ClearPauseRequest() { bPauseRequested = false; }
+	bool IsPauseRequested() const { return bPauseRequested; }
+
+	/** Broadcast after every step (both AdvanceFrame and StepNow), before the pause check: systems that queue a pause bind here. */
+	FSimpleMulticastDelegate OnStepEnd;
 
 	FDTRunState& GetRun() { return Run; }
 	FDTWorldView& GetView() { return View; }
@@ -44,5 +60,6 @@ private:
 	FDTRunState Run;
 	FDTWorldView View;
 	int64 StepIndex = 0;
+	bool bPauseRequested = false;
 	TArray<IDTSimSystem*> Systems[static_cast<int32>(EDTSimPhase::Count)];
 };
