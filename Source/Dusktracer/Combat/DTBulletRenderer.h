@@ -24,6 +24,8 @@ public:
 
 	/** Loads the mesh and material; call once after spawning. */
 	void InitRender(const FLinearColor& Color, float Emissive);
+	/** Control cues: the unlit M_CueColor instead of the lit bullet material (R-PRE-11), when it exists; same custom data. */
+	void UseCueMaterial();
 
 	/** Makes the instance count equal Transforms.Num() (adding/removing only the tail), then batch-writes all transforms. */
 	void SetInstances(TConstArrayView<FTransform> Transforms);

@@ -10,8 +10,8 @@ namespace DTTelegraphRender
 {
 	// Asset paths (not tunables). The engine plane is a flat square in XY facing +Z.
 	static const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Plane.Plane");
-	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_InstanceColor");
-	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_InstanceColor.M_InstanceColor");
+	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_CueColor");
+	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_CueColor.M_CueColor");
 	static const TCHAR* FallbackMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 
 	/** One quad centred at Center, its local X along Axis, XSize by YSize uu. */

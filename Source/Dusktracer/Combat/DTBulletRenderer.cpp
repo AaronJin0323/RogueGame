@@ -8,6 +8,8 @@
 namespace DTBulletRender
 {
 	static const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	static const TCHAR* CueMaterialPackage = TEXT("/Game/DT/Materials/M_CueColor");
+	static const TCHAR* CueMaterialPath = TEXT("/Game/DT/Materials/M_CueColor.M_CueColor");
 	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_InstanceColor");
 	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_InstanceColor.M_InstanceColor");
 	static const TCHAR* FallbackMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
@@ -63,6 +65,17 @@ void ADTBulletRenderer::InitRender(const FLinearColor& Color, float Emissive)
 	if (Material)
 	{
 		Instances->SetMaterial(0, Material);
+	}
+}
+
+void ADTBulletRenderer::UseCueMaterial()
+{
+	if (FPackageName::DoesPackageExist(DTBulletRender::CueMaterialPackage))
+	{
+		if (UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, DTBulletRender::CueMaterialPath))
+		{
+			Instances->SetMaterial(0, Material);
+		}
 	}
 }
 

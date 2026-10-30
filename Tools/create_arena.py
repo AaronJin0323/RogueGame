@@ -10,13 +10,15 @@ Assets:
                                       and enemy ISM renderers use; do not change it.
   /Game/DT/Materials/M_EnemyRound     two-tone enemy round (R-ENM-17, R-PRE-02), same layout plus PerInstanceCustomData 4..6 =
                                       the dark core's linear RGB: the sphere's centre (radius C.ENEMY_FIRE.CORE_RADIUS_RATIO,
-                                      as seen by the camera) is the unlit core, the rim the emissive 0..2 x 3.
+                                      as seen by the camera) is the dark core, the rim the emissive 0..2 x 3. Unlit.
+  /Game/DT/Materials/M_CueColor       unlit flat colour for telegraphs and control cues (R-PRE-03, R-PRE-11): emissive = PerInstanceCustomData
+                                      0..2 x 3, nothing else. A lit quad takes the warm sun and the tonemapper then slides it off its token.
   /Game/DT/Materials/M_Ground         base colour Pal.Ground.Lit (04_Presentation §3), rough, non-metallic
   /Game/DT/Maps/L_Arena_Test          ground over +-C.ARENA.HALF_EXTENT_UU, low dusk sun, sky light, sky atmosphere,
                                       unbound post-process volume enforcing 04_Presentation §4 (fixed exposure, no motion
                                       blur, no depth of field, no chromatic aberration, no lens flare, bloom threshold).
 Numbers come from Docs/constants.yaml (C.ARENA.*); colours from the token table of 04_Presentation §3.
-With the environment variable DT_ROUND_MATERIAL_ONLY set only M_EnemyRound is rebuilt (the map stays byte-identical).
+With the environment variable DT_UNLIT_MATERIALS_ONLY set only M_EnemyRound and M_CueColor are rebuilt (the map stays byte-identical).
 """
 
 import math
@@ -142,22 +144,45 @@ def build_enemy_round():
     mask = expr(mat, unreal.MaterialExpressionSaturate, -350, 600)
     MEL.connect_material_expressions(scaled, "", mask, "")
 
-    base = expr(mat, unreal.MaterialExpressionLinearInterpolate, -200, -100)
-    MEL.connect_material_expressions(core, "", base, "A")
-    MEL.connect_material_expressions(rim, "", base, "B")
-    MEL.connect_material_expressions(mask, "", base, "Alpha")
+    # Unlit: the sun must not lift the dark core, nor a highlight smear it (R-PRE-02 is judged on the rendered frame).
     lit = expr(mat, unreal.MaterialExpressionMultiply, -350, 200)
     MEL.connect_material_expressions(rim, "", lit, "A")
     MEL.connect_material_expressions(strength, "", lit, "B")
-    emissive = expr(mat, unreal.MaterialExpressionMultiply, -200, 300)
-    MEL.connect_material_expressions(lit, "", emissive, "A")
-    MEL.connect_material_expressions(mask, "", emissive, "B")
-    MEL.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    emissive = expr(mat, unreal.MaterialExpressionLinearInterpolate, -200, 200)
+    MEL.connect_material_expressions(core, "", emissive, "A")
+    MEL.connect_material_expressions(lit, "", emissive, "B")
+    MEL.connect_material_expressions(mask, "", emissive, "Alpha")
     MEL.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
     mat.set_editor_property("used_with_instanced_static_meshes", True)
     MEL.recompile_material(mat)
     EAL.save_loaded_asset(mat, only_if_is_dirty=False)
     log(f"M_EnemyRound built (core radius ratio {ratio})")
+    return mat
+
+
+def build_cue_color():
+    mat = fresh_material("M_CueColor")
+    data = []
+    for i in range(4):
+        e = expr(mat, unreal.MaterialExpressionPerInstanceCustomData, -900, -200 + 120 * i)
+        e.set_editor_property("data_index", i)
+        data.append(e)
+    rg = expr(mat, unreal.MaterialExpressionAppendVector, -600, -150)
+    MEL.connect_material_expressions(data[0], "", rg, "A")
+    MEL.connect_material_expressions(data[1], "", rg, "B")
+    rgb = expr(mat, unreal.MaterialExpressionAppendVector, -400, -100)
+    MEL.connect_material_expressions(rg, "", rgb, "A")
+    MEL.connect_material_expressions(data[2], "", rgb, "B")
+    emissive = expr(mat, unreal.MaterialExpressionMultiply, -200, 50)
+    MEL.connect_material_expressions(rgb, "", emissive, "A")
+    MEL.connect_material_expressions(data[3], "", emissive, "B")
+    MEL.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    MEL.recompile_material(mat)
+    EAL.save_loaded_asset(mat, only_if_is_dirty=False)
+    log("M_CueColor built")
     return mat
 
 
@@ -273,12 +298,14 @@ def main():
     for d in (MAT_DIR, "/Game/DT/Maps"):
         if not EAL.does_directory_exist(d):
             EAL.make_directory(d)
-    if os.environ.get("DT_ROUND_MATERIAL_ONLY"):
+    if os.environ.get("DT_UNLIT_MATERIALS_ONLY"):
         build_enemy_round()
+        build_cue_color()
         log("DONE")
         return
     build_instance_color()
     build_enemy_round()
+    build_cue_color()
     ground = build_ground()
     build_map(ground)
     log("DONE")

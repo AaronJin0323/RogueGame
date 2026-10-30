@@ -14,7 +14,7 @@ class UMaterialInterface;
  * Transient actor spawned by UDTEnemySubsystem; one per world, never one per telegraph. Every telegraph becomes one or
  * more instances of a flat quad (the engine plane) at C.ENEMIES.TELEGRAPH_Z_UU: above the floor, below the hulls and
  * rounds at C.SIM.PLANE_Z_UU. Instance custom data: 0-2 linear RGB (Pal.Telegraph), 3 emissive strength
- * (C.ENEMIES.TELEGRAPH_EMISSIVE), read by /Game/DT/Materials/M_InstanceColor. Density LOD never dims it (R-PRE-06).
+ * (C.ENEMIES.TELEGRAPH_EMISSIVE), read by the unlit /Game/DT/Materials/M_CueColor. Density LOD never dims it (R-PRE-06).
  *
  * Footprints (the shape's damage area):
  *   Band, AimLine: one quad from Origin along Dir, Length long and Width wide.
@@ -59,7 +59,7 @@ public:
 	bool IsUsingFallbackMaterial() const { return bFallbackMaterial; }
 
 private:
-	/** R-TEC-05 fallback when M_InstanceColor is missing: the engine basic-shape material (no per-instance colour). */
+	/** R-TEC-05 fallback when M_CueColor is missing: the engine basic-shape material (no per-instance colour). */
 	static UMaterialInterface* Fallback_TelegraphMaterial();
 
 	UPROPERTY(VisibleAnywhere)
