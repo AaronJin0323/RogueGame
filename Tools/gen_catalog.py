@@ -29,7 +29,7 @@ OUT_TAGS_H = os.path.join(CORE, "DTTagsGen.h")
 OUT_TAGS_CPP = os.path.join(CORE, "DTTagsGen.cpp")
 
 PATHS = ["Storm", "Forge", "Tide", "Shade", "Radiance", "Quicksilver"]  # EDTPath order (Core/DTRunState.h)
-STATUSES = ["Shock", "Burn", "Chill", "Freeze"]                        # EDTStatus order (Core/DTSimTypes.h)
+STATUSES = ["Shock", "Burn", "Chill", "Freeze", "Mark", "Blind"]       # EDTStatus order (Core/DTSimTypes.h)
 ROLES = ["Swarm", "Tank", "Rusher", "Turret", "Boss"]                  # EDTEnemyRole order (Core/DTSimTypes.h)
 TIMELINE_PHASES = ["Harvest", "Threat", "Boss"]
 TIMELINE_EVENTS = ["None", "EliteWave", "SwarmRing", "RusherStampede", "TurretNest", "Boss"]
@@ -382,13 +382,21 @@ def gen_expression(ctx, flags):
 	effect_cols = ["Key", "Amp1", "Amp2", "Trait", "Tier1", "Tier2", "Tier3"]
 	cols = ["Path", "Archetype", "Speciality", "KeyFlag"] + effect_cols + [
 		"EnchantLook", "EnchantStatus", "IntercessionVariant", "SecondKeeperLayer", "IncompatFlags", "DuoReactions",
-		"TextPrefix"]
+		"TextPrefix", "Stage"]
 	rows = read_csv(ctx, "expression.csv", cols, doc_only=["Tag", "Source"])
 	unique(ctx, rows, lambda r: r["Archetype"], "archetype")
 	check_flag_refs(ctx, rows, flags)
 	out = []
+	last_stage = 0
+	s1_rows = 0
 	for r in rows:
 		where = r["_where"]
+		# S1 rows come first: DTCat::NumArchetypes is the S1 catalog, DTCat::NumAllArchetypes every row (keepers.md R-KEE-23).
+		row_stage = int(stage(ctx, r, "Stage"))
+		if row_stage < last_stage:
+			ctx.err(f"{where}:Stage", "rows must be sorted by stage")
+		last_stage = row_stage
+		s1_rows += row_stage <= 1
 		m = re.fullmatch(r"Keeper\.([A-Za-z]+)", r["Path"])
 		path = m.group(1) if m else ""
 		if path not in PATHS:
@@ -418,8 +426,8 @@ def gen_expression(ctx, flags):
 			f"{flag_expr(ctx, r['KeyFlag'], f'{where}:KeyFlag', flags, allow_empty=False)}, {{ {effects} }}, "
 			f"{{ {blessings} }}, {cpp_str(r['EnchantLook'])}, {cpp_str(r['EnchantStatus'])}, "
 			f"{cpp_str(r['IntercessionVariant'])}, {cpp_str(r['SecondKeeperLayer'])}, {inc_mask}, "
-			f"{cpp_str(r['DuoReactions'])}, {cpp_str(r['TextPrefix'])} }},")
-	return out
+			f"{cpp_str(r['DuoReactions'])}, {cpp_str(r['TextPrefix'])}, {row_stage} }},")
+	return out, s1_rows
 
 
 def gen_enemies(ctx):
@@ -535,7 +543,7 @@ def render(ctx):
 	caps, flags, compat = gen_flag_compat(ctx)
 	weapons, levels, max_caps = gen_weapons(ctx, caps)
 	modifiers = gen_modifiers(ctx, caps, flags)
-	expression = gen_expression(ctx, flags)
+	expression, s1_archetypes = gen_expression(ctx, flags)
 	enemies = gen_enemies(ctx)
 	boss = gen_boss(ctx)
 	xp = gen_xp(ctx)
@@ -671,6 +679,8 @@ def render(ctx):
 		"\t\tuint32 IncompatFlags; // FlagBit mask (keepers.md R-KEE-16)",
 		"\t\tconst TCHAR* DuoReactions;",
 		"\t\tconst TCHAR* TextPrefix;",
+		"\t\t/** 1 = the S1 catalog; 2 = an unlockable S2 Keeper (keepers.md R-KEE-23). */",
+		"\t\tint32 Stage;",
 		"\t};",
 		"\tinline constexpr FArchetypeRow Archetypes[] =",
 		"\t{",
@@ -761,7 +771,9 @@ def render(ctx):
 		"\tinline constexpr int32 NumWeapons = static_cast<int32>(UE_ARRAY_COUNT(Weapons));",
 		"\tinline constexpr int32 NumWeaponLevels = static_cast<int32>(UE_ARRAY_COUNT(WeaponLevels));",
 		"\tinline constexpr int32 NumModifiers = static_cast<int32>(UE_ARRAY_COUNT(Modifiers));",
-		"\tinline constexpr int32 NumArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));",
+		"\t/** The S1 rows, which come first (Stage 1); NumAllArchetypes counts every row. Runtime code walks every row. */",
+		f"\tinline constexpr int32 NumArchetypes = {s1_archetypes};",
+		"\tinline constexpr int32 NumAllArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));",
 		"\tinline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);",
 		"\tinline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));",
 		"\tinline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));",
