@@ -233,6 +233,10 @@ bool FDTEnemyFireNoActors::RunTest(const FString& Parameters)
 		Bullets->SimRender(0.5f);
 		TestEqual(TEXT("rounds at the cap"), Enemies->GetPool().GetRounds().Num(), DTConst::ENEMY_FIRE_CAP);
 		TestEqual(TEXT("one instance per round"), Renderer->GetInstanceCount(), DTConst::ENEMY_FIRE_CAP);
+		FTransform First;
+		Renderer->GetInstances()->GetInstanceTransform(0, First);
+		TestEqual(TEXT("drawn at C.ENEMY_FIRE.DRAW_RADIUS_RATIO of the hit radius"), static_cast<float>(First.GetScale3D().X) * Renderer->GetMeshRadius(),
+			static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU * DTConst::ENEMY_FIRE_DRAW_RADIUS_RATIO), 0.01f);
 		TestTrue(TEXT("instance colours are the enemy tokens at full emissive"), InstancesCarry(Renderer->GetInstances(), Color, DTConst::ENEMY_FIRE_EMISSIVE));
 		const TArray<float>& Data = Renderer->GetInstances()->PerInstanceSMCustomData;
 		const int32 Stride = ADTEnemyBulletRenderer::NumCustomData;

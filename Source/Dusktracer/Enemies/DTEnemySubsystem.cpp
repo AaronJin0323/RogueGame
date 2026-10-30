@@ -331,7 +331,8 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 		const TConstArrayView<FVector2f> Pos = Rounds.GetPositions();
 		const TConstArrayView<FVector2f> Prev = Rounds.GetPrevPositions();
 		const TConstArrayView<float> Radii = Rounds.GetRadii();
-		const float InvMeshRadius = 1.0f / RoundRenderer->GetMeshRadius();
+		// Drawn wider than the hit circle (R-ENM-17): at gameplay camera a round is a few pixels, too few to show its core.
+		const float InvMeshRadius = static_cast<float>(DTConst::ENEMY_FIRE_DRAW_RADIUS_RATIO) / RoundRenderer->GetMeshRadius();
 		RoundTransforms.SetNumUninitialized(Count, EAllowShrinking::No);
 		for (int32 Index = 0; Index < Count; ++Index)
 		{

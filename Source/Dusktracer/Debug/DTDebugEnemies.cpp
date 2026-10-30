@@ -187,6 +187,32 @@ namespace DTDebugEnemies
 		}
 	}
 
+	/** DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio]: captures of enemy rounds without an attack in frame; they drift outward, away from a hero at the origin. */
+	static void FireRing(const TArray<FString>& Args, UWorld* World)
+	{
+		if (UDTEnemySubsystem* Enemies = Find(World))
+		{
+			const int32 Count = ParseCount(Args, 0, 24);
+			const float Radius = Args.IsValidIndex(1) ? FCString::Atof(*Args[1]) : 600.0f;
+			const float Speed = (Args.IsValidIndex(2) ? FCString::Atof(*Args[2]) : 0.1f) * static_cast<float>(DTConst::ENEMY_FIRE_SHOT_SPEED_UU_S);
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				const float Angle = UE_TWO_PI * Index / FMath::Max(1, Count);
+				const FVector2f Dir(FMath::Cos(Angle), FMath::Sin(Angle));
+				FDTEnemyRoundSpawn Spawn;
+				Spawn.Position = Dir * Radius;
+				Spawn.Velocity = Dir * Speed;
+				Spawn.Radius = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU);
+				Spawn.Damage = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_DAMAGE);
+				Spawn.Life = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_LIFE_S);
+				Spawn.TargetPlayer = 0;
+				Spawn.AttackId = FName(TEXT("Turret.Fire"));
+				Enemies->GetPool().GetRounds().Spawn(Spawn);
+			}
+			UE_LOG(LogDT, Log, TEXT("DT.EnemyFire.Ring %d rounds at %.0f uu"), Count, Radius);
+		}
+	}
+
 	/** DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude] [delay_s]: N = 0 or absent applies to every enemy. */
 	static void Status(const TArray<FString>& Args, UWorld* World)
 	{
@@ -245,6 +271,9 @@ namespace DTDebugEnemies
 	static FAutoConsoleCommandWithWorldAndArgs FireStatsCmd(TEXT("DT.EnemyFire.Stats"),
 		TEXT("DT.EnemyFire.Stats: log live rounds, cap, spawned, refused, hero hits, passed through, expired, token waits"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FireStats));
+	static FAutoConsoleCommandWithWorldAndArgs FireRingCmd(TEXT("DT.EnemyFire.Ring"),
+		TEXT("DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio]: spawn a ring of enemy rounds flying outward (captures of round readability)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FireRing));
 	static FAutoConsoleCommandWithWorldAndArgs StatusCmd(TEXT("DT.Status"),
 		TEXT("DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude] [delay_s]: apply a status to the first N enemies (0 = all) as player 0"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Status));
