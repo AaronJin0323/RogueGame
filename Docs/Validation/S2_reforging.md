@@ -8,7 +8,7 @@ Class: SYSTEM. Layer: `Combat/` (evolutions, Path transformations, one enemy-rou
 & Tools\BotRuns.ps1 -Arms <the 19 arms> -Seeds 15 -BotVersion 2 -Skill 1.0 -Parallel 12 -Check T-OFF-15 -Out Saved\BotRuns\rfg2
 python -I Tools\bot_compare.py control=<control> reforge=Saved\BotRuns\rfg2
 ```
-Control: the same battery on a build of `dev/s2` at 5bcac1c, before this branch. The first battery, `rfg1`, was stopped part way by the scheduler because runs showed Unreal's splash window; it was thrown away whole and is not read here. `rfg2` ran with `-nosplash`.
+Control: the same battery on a build of `dev/s2` at 584c0e5, before this branch. The first battery, `rfg1`, was stopped part way by the scheduler because runs showed Unreal's splash window; it was thrown away whole and is not read here. `rfg2` ran with `-nosplash`.
 
 The batch ran on the game code of aaebc2a. Commits after it changed tests, docs, tools and the name of one telemetry field (`kind` to `reforge_kind`: it repeated the record's own key), so no sim number moved.
 
