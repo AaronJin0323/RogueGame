@@ -28,7 +28,9 @@ param(
 	[int]$Parallel = 1,
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[string]$Jobs = "",
-	[double]$Stagger = 1.5
+	[double]$Stagger = 1.5,
+	# Non-starter ids to put in the run pool (DT.Unlock, D-013), comma-separated; "S2" = every S2 row of the catalogs plus the S1 non-starters.
+	[string[]]$Unlock = @()
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -52,6 +54,14 @@ if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "y
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
 Write-Host ("botruns: arms {0}, seeds {1}..{2}, version {3}, skill {4}, {5} steps/frame -> {6}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $BotVersion, $Skill, $Steps, $Out)
+
+$Unlock = @($Unlock | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+if ($Unlock -contains "S2") {
+	$Unlock = @(foreach ($Csv in @("weapons.csv", "modifiers.csv")) {
+		Import-Csv (Join-Path $Root "Docs\09_Catalog\$Csv") | Where-Object { $_.starter -eq "no" } | ForEach-Object { $_.id } | Sort-Object -Unique
+	})
+}
+$UnlockArg = if ($Unlock.Count) { @("-ExecCmds=`"" + (($Unlock | ForEach-Object { "DT.Unlock $_" }) -join ',') + "`"") } else { @() }
 
 $Missing = 0
 function Finish-Run($Run) {
@@ -94,7 +104,7 @@ function Start-Run($Label, $Seed, $Extra) {
 	$Record = Join-Path $RunDir "bot.csv"
 	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
 		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotVersion=$BotVersion", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
-		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $Extra
+		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $UnlockArg + $Extra
 	Reap-Runs ([Math]::Max(1, $Parallel))
 	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
 	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }

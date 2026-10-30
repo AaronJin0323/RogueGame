@@ -356,6 +356,11 @@ weapons:
   WEAPON.CHILD_SPEED_UU_S:     { value: 900,  unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
   WEAPON.CHILD_RANGE_UU:       { value: 450,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
   WEAPON.CHILD_RADIUS_UU:      { value: 10,   unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
+  WEAPON.CONE_DEG:             { value: 40,   unit: deg,   tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-14] }
+  WEAPON.LINE_SECTORS:         { value: 72,   unit: n,     tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-15] }
+  WEAPON.SEEKER_TURN_DEG_S:    { value: 360,  unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/weapons.md, T-WPN-17] }
+  WEAPON.SPIRAL_DEG_S:         { value: 300,  unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/weapons.md, T-WPN-18] }
+  WEAPON.STREAM_ECHO_EVERY_N:  { value: 4,    unit: n,     tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-18] }
   MOD.SOCKETS_PER_WEAPON:      { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, 02_Systems/offers.md, T-MOD-04] }
   MOD.MIN_COMPATIBLE:          { value: 4,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, T-MOD-07] }
   MOD.SPLIT_GENERATIONS_MAX:   { value: 2,    unit: n,     tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/keepers.md, T-MOD-05] }

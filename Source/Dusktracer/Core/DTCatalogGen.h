@@ -69,7 +69,7 @@ namespace DTCat
 	inline constexpr FFlagCompatRow FlagCompat[] =
 	{
 		{ TEXT("Flag.Split"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::Native, ECompat::None }, { TEXT(""), TEXT("children fan from the lance end point"), TEXT("every Nth activation emits a ring of children from the hero"), TEXT("every Nth sweep emits a ring of children from the hero"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
-		{ TEXT("Flag.Echo"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("the detonation repeats at the same point"), TEXT("delayed copies of every Nth stream round"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
+		{ TEXT("Flag.Echo"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("the detonation repeats at the same point"), TEXT("delayed strikes on every Nth stream hit"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.ConvertOrbit"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT("the lance sweeps once around the hero"), TEXT("+1 drone"), TEXT("the sweep becomes a full spin"), TEXT("shells circle the hero before landing"), TEXT("mines circle the hero before they drop"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.ConvertMelee"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT("the lance becomes a long thrust arc"), TEXT("+drone contact area"), TEXT("+arc size"), TEXT(""), TEXT("+blast area"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.Slam"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
@@ -115,11 +115,11 @@ namespace DTCat
 		{ TEXT("Weapon.OrbitalDrones"), 1, true, { ECap::Orbit, ECap::Projectile }, 2, CapBit(ECap::Orbit) | CapBit(ECap::Projectile), TEXT("Orbiter"), TEXT("NearestToDrone"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 16, 8, TEXT("Blade Halo (S2)") },
 		{ TEXT("Weapon.ArcBlade"), 1, true, { ECap::Melee, ECap::Area }, 2, CapBit(ECap::Melee) | CapBit(ECap::Area), TEXT("MeleeArc"), TEXT("Nearest"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 24, 8, TEXT("Cyclone (S2)") },
 		{ TEXT("Weapon.GravityMine"), 1, false, { ECap::Mine, ECap::Area }, 2, CapBit(ECap::Mine) | CapBit(ECap::Area), TEXT("Mine"), TEXT("DensestCell"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 32, 8, TEXT("Singularity (S2)") },
-		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 0, TEXT("Flechette (S2)") },
-		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Sweep Beam (S2)") },
-		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 0, TEXT("Carpet (S2)") },
-		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Murmuration (S2)") },
-		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Vortex (S2)") },
+		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 8, TEXT("Flechette (S2)") },
+		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 48, 8, TEXT("Sweep Beam (S2)") },
+		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 56, 8, TEXT("Carpet (S2)") },
+		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 64, 8, TEXT("Murmuration (S2)") },
+		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 72, 8, TEXT("Vortex (S2)") },
 	};
 	struct FWeaponLevelRow
 	{
@@ -176,6 +176,46 @@ namespace DTCat
 		{ 4, 6, 67.0f, 2, 1.76f, 22.5f, 0.0f, 700.0f, 0, 212.5f }, // Weapon.GravityMine L6
 		{ 4, 7, 67.0f, 2, 1.76f, 28.12f, 0.0f, 700.0f, 0, 265.6f }, // Weapon.GravityMine L7
 		{ 4, 8, 67.0f, 2, 1.408f, 28.12f, 0.0f, 700.0f, 0, 265.6f }, // Weapon.GravityMine L8
+		{ 5, 1, 3.0f, 12, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L1
+		{ 5, 2, 5.0f, 12, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L2
+		{ 5, 3, 5.0f, 16, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L3
+		{ 5, 4, 5.0f, 16, 0.48f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L4
+		{ 5, 5, 5.0f, 16, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L5
+		{ 5, 6, 7.0f, 16, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L6
+		{ 5, 7, 7.0f, 20, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L7
+		{ 5, 8, 7.0f, 20, 0.384f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L8
+		{ 6, 1, 30.0f, 1, 1.6f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L1
+		{ 6, 2, 42.0f, 1, 1.6f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L2
+		{ 6, 3, 42.0f, 1, 1.28f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L3
+		{ 6, 4, 42.0f, 1, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L4
+		{ 6, 5, 42.0f, 2, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L5
+		{ 6, 6, 57.0f, 2, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L6
+		{ 6, 7, 57.0f, 2, 1.024f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L7
+		{ 6, 8, 57.0f, 2, 1.024f, 21.88f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L8
+		{ 7, 1, 18.0f, 1, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L1
+		{ 7, 2, 24.0f, 1, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L2
+		{ 7, 3, 24.0f, 2, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L3
+		{ 7, 4, 24.0f, 2, 1.12f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L4
+		{ 7, 5, 24.0f, 2, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L5
+		{ 7, 6, 32.0f, 2, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L6
+		{ 7, 7, 32.0f, 3, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L7
+		{ 7, 8, 32.0f, 3, 1.12f, 25.0f, 900.0f, 1000.0f, 0, 234.4f }, // Weapon.FlakMortar L8
+		{ 8, 1, 9.0f, 4, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L1
+		{ 8, 2, 12.0f, 4, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L2
+		{ 8, 3, 12.0f, 6, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L3
+		{ 8, 4, 12.0f, 6, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L4
+		{ 8, 5, 16.0f, 6, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L5
+		{ 8, 6, 16.0f, 8, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L6
+		{ 8, 7, 16.0f, 8, 0.704f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L7
+		{ 8, 8, 16.0f, 8, 0.704f, 11.25f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L8
+		{ 9, 1, 4.0f, 1, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L1
+		{ 9, 2, 5.0f, 1, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L2
+		{ 9, 3, 5.0f, 2, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L3
+		{ 9, 4, 5.0f, 2, 0.056f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L4
+		{ 9, 5, 5.0f, 2, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L5
+		{ 9, 6, 5.0f, 3, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L6
+		{ 9, 7, 7.0f, 3, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L7
+		{ 9, 8, 7.0f, 3, 0.0448f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L8
 	};
 
 	// --- modifiers.csv ---
@@ -205,6 +245,12 @@ namespace DTCat
 		{ TEXT("Mod.Conduit"), 1, true, EFlag::StatusApply, 0u, 0u, { { TEXT("chance"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Conduit") },
 		{ TEXT("Mod.Fork"), 1, false, EFlag::None, CapBit(ECap::Aimed) | CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Mine), 0u, { { TEXT("extra_rounds"), 2.0f }, { TEXT("angle_deg"), 15.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm), TEXT("ST_Modifiers.Fork") },
 		{ TEXT("Mod.Ricochet"), 1, false, EFlag::Ricochet, CapBit(ECap::Projectile), CapBit(ECap::Orbit), { { TEXT("bounces"), 2.0f }, { TEXT("seek_range_uu"), 400.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm), TEXT("ST_Modifiers.Ricochet") },
+		{ TEXT("Mod.Homing"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Beam), { { TEXT("turn_deg_s"), 240.0f }, { TEXT("seek_range_uu"), 500.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Homing") },
+		{ TEXT("Mod.OrbitLock"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Beam), { { TEXT("hold_s"), 2.0f }, { TEXT("range_ratio"), 1.5f }, { TEXT("orbit_radius_uu"), static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU) } }, 3, PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.OrbitLock") },
+		{ TEXT("Mod.Boomerang"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing), { { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 0, PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Boomerang") },
+		{ TEXT("Mod.SpreadWave"), 2, false, EFlag::None, CapBit(ECap::Expiry) | CapBit(ECap::Orbit), CapBit(ECap::Lob), { { TEXT("reach_uu"), 150.0f }, { TEXT("arc_deg"), 90.0f }, { TEXT("wave_damage_ratio"), 0.5f } }, 3, PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.SpreadWave") },
+		{ TEXT("Mod.Spillover"), 2, false, EFlag::None, 0u, 0u, { { TEXT("seek_range_uu"), 300.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge), TEXT("ST_Modifiers.Spillover") },
+		{ TEXT("Mod.Refit"), 2, false, EFlag::None, 0u, 0u, { { TEXT("interval_s"), 60.0f }, { TEXT("modifiers_fitted"), 3.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Refit") },
 	};
 
 	// --- expression.csv: one row per archetype ---
@@ -402,6 +448,7 @@ namespace DTCat
 	struct FConstantRef { const TCHAR* Cell; const TCHAR* Key; double Table; double Constant; };
 	inline constexpr FConstantRef ConstantRefs[] =
 	{
+		{ TEXT("modifiers.csv:13:value_3"), TEXT("C.WEAPON.DRONE_ORBIT_RADIUS_UU"), static_cast<double>(Modifiers[11].Params[2].Value), static_cast<double>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU) },
 		{ TEXT("enemies.csv:2:hp"), TEXT("C.ENM.SWARM_HP"), static_cast<double>(Enemies[0].Hp), static_cast<double>(DTConst::ENM_SWARM_HP) },
 		{ TEXT("enemies.csv:2:speed_uu_s"), TEXT("C.ENM.SWARM_SPEED_UU_S"), static_cast<double>(Enemies[0].Speed_uu_s), static_cast<double>(DTConst::ENM_SWARM_SPEED_UU_S) },
 		{ TEXT("enemies.csv:2:radius_uu"), TEXT("C.ENM.SWARM_RADIUS_UU"), static_cast<double>(Enemies[0].Radius_uu), static_cast<double>(DTConst::ENM_SWARM_RADIUS_UU) },

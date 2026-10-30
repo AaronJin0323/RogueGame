@@ -361,6 +361,11 @@ namespace DTConst
 	inline constexpr int32 WEAPON_CHILD_SPEED_UU_S = 900; // uu_per_s, GATED(S1)
 	inline constexpr int32 WEAPON_CHILD_RANGE_UU = 450; // uu, GATED(S1)
 	inline constexpr int32 WEAPON_CHILD_RADIUS_UU = 10; // uu, GATED(S1)
+	inline constexpr int32 WEAPON_CONE_DEG = 40; // deg, GATED(S2)
+	inline constexpr int32 WEAPON_LINE_SECTORS = 72; // n, GATED(S2)
+	inline constexpr int32 WEAPON_SEEKER_TURN_DEG_S = 360; // deg_per_s, GATED(S2)
+	inline constexpr int32 WEAPON_SPIRAL_DEG_S = 300; // deg_per_s, GATED(S2)
+	inline constexpr int32 WEAPON_STREAM_ECHO_EVERY_N = 4; // n, GATED(S2)
 	inline constexpr int32 MOD_SOCKETS_PER_WEAPON = 3; // n, GATED(S1)
 	inline constexpr int32 MOD_MIN_COMPATIBLE = 4; // n, GATED(S1)
 	inline constexpr int32 MOD_SPLIT_GENERATIONS_MAX = 2; // n, CORE

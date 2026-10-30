@@ -6,12 +6,11 @@
 #include "CoreMinimal.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
+#include "Combat/DTBulletPool.h"
 #include "Combat/DTWeaponCompose.h"
 #include "Combat/DTWeaponFlags.h"
 
-class FDTBulletPool;
 class FDTEnemyPool;
-struct FDTBulletSpawn;
 
 /** Result of an inventory change (offers and debug commands read it). */
 enum class EDTWeaponResult : uint8
@@ -82,6 +81,8 @@ public:
 
 	/** The read side of enemy state: statuses, elite and role, death records (R-KEE-10: read in Effects, never written). */
 	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
+	/** Non-starter ids in the run pool (DT.Unlock): Mod.Refit draws only from the pool. */
+	void Unlock(FName Id) { Unlocked.Add(Id); }
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
@@ -125,6 +126,20 @@ private:
 		float Damage = 0.0f;
 		uint16 SourceId = 0;
 		bool bCharged = false;
+		/** Where it came from (a mine: its own position; a shell: the hero at launch). */
+		FVector2f Origin = FVector2f::ZeroVector;
+	};
+
+	/** A Flak shell in the air: bursts at Target when its flight ends (R-WPN-16); no pool round. */
+	struct FShell
+	{
+		FVector2f Origin = FVector2f::ZeroVector;
+		FVector2f Target = FVector2f::ZeroVector;
+		float Flight = 0.0f;
+		float Left = 0.0f;
+		float Damage = 0.0f;
+		uint16 SourceId = 0;
+		bool bCharged = false;
 	};
 
 	struct FWeaponRuntime
@@ -138,6 +153,11 @@ private:
 		float DroneTimer = 0.0f;
 		int32 NextDrone = 0;
 		TArray<FMine> Mines;
+		TArray<FShell> Shells;
+		float SpiralDeg = 0.0f;
+		/** Hits of the stream so far (Echo's fallback on Continuous, R-WPN-08). */
+		int32 StreamHits = 0;
+		float RefitReadyIn = 0.0f;
 		int32 StillCharges = 0;
 		int32 MeleeActivations = 0;
 		float ChainTriggerReadyIn = 0.0f;
@@ -217,6 +237,11 @@ private:
 		int32 BouncesLeft = 0;
 		bool bCharged = false;
 		bool bEmber = false;
+		/** Non-zero: a moving round; the pool reports its moves (R-BUL-09). */
+		uint32 RoundId = 0;
+		int32 Pierce = 1;
+		bool bBoomerang = false;
+		bool bReturning = false;
 	};
 
 	struct FField
@@ -294,6 +319,17 @@ private:
 		int32 Bounces = 0;
 		bool bCharged = false;
 		bool bEmber = false;
+		FDTBulletMotion Motion;
+	};
+
+	/** A kill's estimated overkill, waiting to see that the kill happened (R-MOD-14). */
+	struct FOverkill
+	{
+		uint32 Serial = 0;
+		int32 OwnerId = INDEX_NONE;
+		int8 Slot = INDEX_NONE;
+		uint16 SourceId = 0;
+		float Damage = 0.0f;
 	};
 
 	/** A shot of Slot's own rounds (spec speed, radius, life, pierce, damage, weapon source). */
@@ -312,13 +348,18 @@ private:
 		const FVector2f& Position, const FVector2f& Dir);
 	/** One sweep: one FDTHit per enemy inside the arc (R-WPN-06), plus an ArcSweep impact. Returns enemies hit. */
 	int32 EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FShot& Shot, const FVector2f& Dir,
-		float ArcDeg, float Reach, bool bCleave);
+		float ArcDeg, float Reach, bool bCleave, bool bImpacts = true);
 
 	bool FindNearest(const FDTWorldView& View, const FVector2f& From, float Range, uint32 ExcludeSerial, int32& OutEnemy) const;
 	/** The DensestCell targets: up to Count cell centres ranked by enemies within Range of the hero. */
 	void FindDensestCells(const FDTWorldView& View, const FVector2f& Hero, float Range, int32 Count, TArray<FVector2f>& Out) const;
 
-	/** Fires one volley of an Aimed, Radial, MeleeArc or Mine weapon. Returns false when it found no target. */
+	/** DensestLine (R-WPN-15): the bearing sector holding the most enemies in Range, as a direction. False when none. */
+	bool FindDensestLine(const FDTWorldView& View, const FVector2f& Hero, float Range, FVector2f& OutDir) const;
+	/** Enemies within Range of From, lowest index first (the RandomAlive draw must not depend on hash order). */
+	void EnemiesInRange(const FDTWorldView& View, const FVector2f& From, float Range, TArray<int32>& Out) const;
+
+	/** Fires one volley of any pattern but Orbiter. Returns false when it found no target. */
 	bool FireVolley(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, uint16 SourceOverride, bool bFree);
 	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. */
@@ -327,6 +368,8 @@ private:
 	void PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
 		float Damage, uint16 SourceId, bool bCharged);
 	void StepMines(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
+	void LaunchShell(FWeaponRuntime& Runtime, const FShot& Shot, const FVector2f& Target);
+	void StepShells(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
 	void Detonate(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FMine& Mine);
 
 	/** Activation-time expressions: Split fallback rings, Slam counters (R-WPN-08). */
@@ -346,6 +389,11 @@ private:
 		float Radius, float Damage, bool bRollCrit, const FDTWeaponSpec* Spec, TArray<FDTEnemyHandle>* OutHit = nullptr);
 
 	void ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bullets, const FImpact& Impact);
+	/** Mod.Spillover: replays the step's hits against enemy health, so overkill is known before ResolveHits spends it. */
+	void EstimateOverkill(const FDTWorldView& View);
+	void SpillOverkill(const FDTSimContext& Context);
+	/** Mod.Refit: a random pool modifier into the first weapon with a free socket that can use one. */
+	bool TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Player, FWeaponRuntime& Source);
 	void EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FImpact& Impact,
 		const FDTFlagEntry& Entry, bool bRing, const FVector2f& From);
 	void ApplyStatus(const FDTSimContext& Context, const FDTFlagParams& Params, const FDTEnemyHandle& Handle,
@@ -385,6 +433,10 @@ private:
 	TArray<FImpact> Impacts;
 	TArray<FPendingStatus> PendingStatuses;
 	TArray<FArcMark> ArcMarks;
+	TArray<FOverkill> Overkills;
+	TSet<FName> Unlocked;
+	const FDTBulletPool* LastBullets = nullptr;
+	uint32 NextRoundId = 0;
 	/** Enemies struck this step by a melee arc or a slam whose flag carries burning_explode_on_death_uu. */
 	TSet<uint32> StepCleaved;
 	TSet<uint32> StepSlammed;

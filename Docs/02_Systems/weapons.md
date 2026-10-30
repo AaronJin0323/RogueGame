@@ -1,7 +1,7 @@
-# Weapons — S1 slice
+# Weapons — S1 slice, S2 arsenal
 
 ## Intent
-Weapons are the carriers of the build: each one is a base pattern that fills the screen with cool player fire, and the Keepers change *how* it behaves (`00_Vision §2`, pillars two and three). A weapon is a data row with capability tags, not a class: it declares what it can express, emits rounds into the bullet pool or hits through the shared hit list, and never decides damage outcomes itself. S1 ships the five weapons with stage `S1` in `09_Catalog/weapons.csv`; the other five rows are S2.
+Weapons are the carriers of the build: each one is a base pattern that fills the screen with cool player fire, and the Keepers change *how* it behaves (`00_Vision §2`, pillars two and three). A weapon is a data row with capability tags, not a class: it declares what it can express, emits rounds into the bullet pool or hits through the shared hit list, and never decides damage outcomes itself. S1 ships the five weapons with stage `S1` in `09_Catalog/weapons.csv`; the five with stage `S2` joined with the arsenal slice.
 
 **The S1 five and why.** Each covers a capability the others lack, and Storm, Forge and Tide each get natural fits (D-002):
 
@@ -13,7 +13,15 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 | `Weapon.ArcBlade` | Melee, Area | the melee carrier: no rounds at all, hits through `FDTHit` | Forge, Tide |
 | `Weapon.GravityMine` | Mine, Area | the mine carrier and native Pull: Tide control and Forge zones | Forge, Tide |
 
-S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob), `Weapon.SeekerSwarm` (Homing), `Weapon.SpiralProjector` (Continuous). Their caps and fits are already in the catalog so the matrix and `flag_compat.csv` are exercised against all twelve capability tags.
+**The S2 five** (level rows from `reference/balance/weapons.csv`, all non-starters until meta, S3: `DT.Unlock`):
+
+| Weapon | Pattern, target | Rule | Identity |
+|---|---|---|---|
+| `Weapon.ScatterCannon` | Cone, Nearest | R-WPN-14 | close-range pellets |
+| `Weapon.RailLance` | Line, DensestLine | R-WPN-15 | a slow lance through a crowd's longest line |
+| `Weapon.FlakMortar` | Lob, DensestCell | R-WPN-16 | shells that burst on landing |
+| `Weapon.SeekerSwarm` | Homing, RandomAlive | R-WPN-17 | missiles that pick their own targets |
+| `Weapon.SpiralProjector` | Spiral, None | R-WPN-18 | an unaimed stream, the Ring's danmaku sibling |
 
 ## Rules
 **List and capability tags**
@@ -27,7 +35,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - **R-WPN-04** A weapon levels from the first level to `C.WEAPON.LEVEL_MAX`; each level is one catalog row, and consecutive rows differ on exactly one axis of `damage`, `count`, `cooldown_s` or size (`radius_uu` with `area_r_uu`). Level values are the base the composition starts from (R-WPN-09); leveling is an offer pick (`offers.md`).
 
 **L16 Reforging**
-- **R-WPN-05** In S1 no weapon contributes a card to the L16 hand: the S1 hand is the blessing filler of `offers.md` R-OFF-09. Weapon evolutions (the `evolution` column) and Path transformations are S2. Any later reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
+- **R-WPN-05** In S1 and the arsenal slice no weapon contributes a card to the L16 hand: the S1 hand is the blessing filler of `offers.md` R-OFF-09. Weapon evolutions (the `evolution` column) and Path transformations are S2. Any later reforge that swaps a weapon's caps re-runs modifier compatibility (`modifiers.md` R-MOD-08).
 
 **Ballistics and the bullet-subsystem interface**
 - **R-WPN-06** Weapons step in `EDTSimPhase::Weapons`, per player, after `Enemies` published `FDTWorldView`. By carrier:
@@ -58,6 +66,11 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 **Readability, targeting, determinism**
 - **R-WPN-11** Every round, drone bolt, arc, slam ring, field and mine a weapon draws has the cool `Pal.Player.Core` core; tails, arcs, rings and zones take the leading Keeper's `Pal.Keeper.<Path>` or `Pal.Player.TrailNeutral` (R-PRE-01, R-PRE-02). No weapon visual uses red or magenta; melee arcs are never red.
 - **R-WPN-12** Targeting is per pattern (`target` column): `Nearest` (to the hero), `NearestToDrone`, `DensestCell` (the enemy-hash cell holding the most enemies within `range_uu`), `None` (Radial fires on cooldown regardless). Ties break on the lowest enemy index. A targeted weapon with no enemy in range does not fire and keeps its cooldown ready. When the player's aim mode is `Manual` (`combat_core.md` R-CMB-04), a `Nearest` weapon fires along `FDTWorldView::HeroAimDirs` instead, whenever ready. Crit is rolled once per emission (a round, or one arc or mine hit) against the composed `CritChance`; a crit multiplies that emission's damage by `CritMult` and sets `bCrit` on its hits. All weapon randomness draws from the `Combat` stream (R-TEC-02); the same seed and inputs give the same emissions and hits.
+- **R-WPN-14** Cone: `count` pellets spaced evenly across `C.WEAPON.CONE_DEG`, centred on the target; the spread is geometry, never a roll. A `Mirror` copies each pellet backwards; a `Fork` adds rounds at its own angles.
+- **R-WPN-15** Line: enemies within `range_uu` are binned by bearing into `C.WEAPON.LINE_SECTORS` sectors; the sector holding the most (ties: lowest enemy index, R-WPN-12) gives the aim, the mean bearing of its enemies. Rounds leave as `Aimed` lanes. `pierce` counts enemies, so the source's pierce plus the first hit is the row's value.
+- **R-WPN-16** Lob: `count` shells go to the densest cells as a Mine's do, repeating the densest cells when the crowd is thin. A shell is weapon state, not a pool round: it flies for distance over `speed_uu_s`, touches nothing on the way and lands as a detonation (one hit per enemy within `area_r_uu`, `Detonation` reactions, `Weapon.<Name>` source). A round-carried flag or modifier that needs flight does not reach it; its hits pull to the launch point for `Mod.Backwash`.
+- **R-WPN-17** Homing: each missile draws its own target from the enemies within `range_uu` (`Combat` stream), leaves on a fan of `C.WEAPON.CONE_DEG` around that bearing and steers at `C.WEAPON.SEEKER_TURN_DEG_S` (`bullets.md` R-BUL-09). A missile whose target dies seeks the nearest enemy within `range_uu`.
+- **R-WPN-18** Spiral: `count` arms, spaced evenly, each firing one round every `cooldown_s`, regardless of targets; the stream turns by `C.WEAPON.SPIRAL_DEG_S` × `cooldown_s` per volley. Echo on the stream (`Continuous` first in the walk) is `fallback`: every `C.WEAPON.STREAM_ECHO_EVERY_N`-th stream hit strikes again after the flag's delay. A conversion folds its rounds into an arc as on any round pattern (R-WPN-10).
 - **R-WPN-13** A Gravity Mine is placed at its target cell, arms after `C.WEAPON.MINE_ARM_S`, then pulls for `C.WEAPON.MINE_PULL_TICKS` ticks of `C.WEAPON.MINE_PULL_TICK_S`: each tick moves enemies within `area_r_uu` × `C.WEAPON.MINE_PULL_RADIUS_RATIO` toward it at `C.WEAPON.MINE_PULL_SPEED_UU_S` (as `FDTDisplacement` entries in `FDTWorldView::Displacements`, `07_Technical §4`, never by writing enemy positions) and hits them for `damage` × `C.WEAPON.MINE_PULL_TICK_DAMAGE_RATIO`; then it detonates, one `FDTHit` per enemy within `area_r_uu`. At most `C.WEAPON.MINE_LIVE_MAX` mines per weapon are live; placing one more detonates the oldest at once.
 
 ## Numbers
@@ -72,12 +85,13 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 | Drone orbit | C.WEAPON.DRONE_ORBIT_RADIUS_UU, C.WEAPON.DRONE_ORBIT_DEG_S | GATED(S1) | R-WPN-06, T-WPN-06 |
 | Mine arm, pull, live cap | C.WEAPON.MINE_ARM_S, C.WEAPON.MINE_PULL_TICKS, C.WEAPON.MINE_PULL_TICK_S, C.WEAPON.MINE_PULL_TICK_DAMAGE_RATIO, C.WEAPON.MINE_PULL_RADIUS_RATIO, C.WEAPON.MINE_PULL_SPEED_UU_S, C.WEAPON.MINE_LIVE_MAX | GATED(S1) | R-WPN-13, T-WPN-13 |
 | Bullet cap | C.BULLETS.CAP | CORE | R-WPN-09 |
-| Per-level stats | `09_Catalog/weapons.csv` rows | GATED(S1), from MEASURED `reference/balance/weapons.csv` | R-WPN-04, T-WPN-04 |
+| Per-level stats | `09_Catalog/weapons.csv` rows | GATED(S1), GATED(S2), from MEASURED `reference/balance/weapons.csv` | R-WPN-04, T-WPN-04 |
+| Cone, line, spiral, seeker | C.WEAPON.CONE_DEG, C.WEAPON.LINE_SECTORS, C.WEAPON.SPIRAL_DEG_S, C.WEAPON.SEEKER_TURN_DEG_S, C.WEAPON.STREAM_ECHO_EVERY_N | GATED(S2) | R-WPN-14, R-WPN-15, R-WPN-17, R-WPN-18 |
 
 ## Data
 | Field | Type | Notes |
 |---|---|---|
-| `weapons.csv` | catalog | `id stage starter caps pattern target fits level damage count cooldown_s radius_uu speed_uu_s range_uu pierce area_r_uu evolution tag ref`; `starter` = in the starter pool (`offers.md` R-OFF-07); S2 rows carry no level stats yet |
+| `weapons.csv` | catalog | `id stage starter caps pattern target fits level damage count cooldown_s radius_uu speed_uu_s range_uu pierce area_r_uu evolution tag ref`; `starter` = in the starter pool (`offers.md` R-OFF-07); every row carries its reach (bot v2 reads it, `bot.md` R-BOT-09) |
 | `flag_compat.csv` | catalog | one row per `Flag.*` (all eighteen), one column per `Cap.*`, cell `native` / `fallback:<text>` / `none` |
 | `UDTWeaponDef` | data asset, generated from the catalog | `Id` (`Weapon.*` tag), `Caps` (ordered `Cap.*`), `Pattern`, `Target`, `Levels[]`, `TextKey` |
 | `FDTWeaponInstance` | per player, in the run state | `Def`, `Level`, `AcquiredOrder`, `Cooldown`, `Sockets[]` (`Mod.*`), `Conversion`, `ShotCounter`, `SourceId` |
@@ -99,6 +113,12 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - T-WPN-11 `Dusktracer.Weapons.Palette`: every weapon visual's core is `Pal.Player.Core` and no weapon visual resolves to a red or magenta token (pairs with T-PRE-01).
 - T-WPN-12 `Dusktracer.Weapons.Determinism`: same seed and inputs give identical emissions and hits; a targeted weapon with no enemy in range does not fire (in `Manual` aim a `Nearest` weapon fires along the aim); crit rates over a seeded sample match the composed chance.
 - T-WPN-13 `Dusktracer.Weapons.Mine`: arm, pull ticks, detonation and the live cap behave as stated; enemy positions change only through displacement requests.
+- T-WPN-14 `Dusktracer.Arsenal.ScatterCannon`: count pellets across the cone, centred on the target; no target, no shot.
+- T-WPN-15 `Dusktracer.Arsenal.RailLance`: the lance takes the densest line over the nearest enemy and strikes as many enemies as its pierce.
+- T-WPN-16 `Dusktracer.Arsenal.FlakMortar`: no pool round, no hit in flight, one hit per enemy in the blast at landing; no target, no shell.
+- T-WPN-17 `Dusktracer.Arsenal.SeekerSwarm`: missiles reach enemies off their launch bearing, spread over the living, same seed same hits; a dead target is replaced.
+- T-WPN-18 `Dusktracer.Arsenal.SpiralProjector`: fires with no enemy at the stated rate, each round turned on from the last, one per arm; Echo strikes through its fallback.
+- `Dusktracer.Arsenal.Catalog`: ten weapons with full level tracks, a reach and a fit; sixteen modifiers with a fit (T-WPN-01 over the arsenal).
 - HUMAN: a validator can say in their own words what each S1 weapon does, and can see the difference when a Keeper flag changes it (split fans on the Ring Emitter, a cleave from the Pulse Rifle, the mine's pull).
 
 ## Telemetry
@@ -109,7 +129,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label; budget two rows per weapon plus one; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.
 
 ## Out of scope
-- Weapon evolutions and fusions (S2, `evolution` column); the five S2 weapons' level rows.
+- Weapon evolutions and fusions (S2, `evolution` column).
 - How the `starter` column becomes the run pool, the starting loadout (`offers.md` R-OFF-07, `C.POOL.STARTER_WEAPONS`), the L16 hand (`offers.md` R-OFF-09).
 - Flag meanings and parameters, status procs (`keepers.md`); status behaviour and `ResolveHits` (`enemies.md`).
 - Per-weapon trails and VFX assets (`04_Presentation`).
@@ -117,7 +137,9 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 ## Open
 - Source credit for conversions keeps the weapon's source, which may understate the Keeper share at L16 → checked against `Tools/power_split.py` on the first steered bot runs.
 - The MEASURED reference shows Gravity Mine an order of magnitude over every other weapon in a dense crowd, and Ring Emitter and Drones never one-shot a late swarm → tuned in the S1 catalog pass against `C.TTK.SWARM_STEERED_MAX`.
-- Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass.
+- Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass. The S2 five's are logged with hypotheses in `number_change_log.csv` and read in `Validation/S2_arsenal.md`.
+- `ConvertMelee` folds a Scatter Cannon's whole volley, or the Spiral's stream at its own cadence, into arcs (R-WPN-10) → read in the Keeper arms of `Validation/S2_arsenal.md`; no number changed yet.
+- A Lob's cells are chosen at launch; a shell does not follow the crowd.
 - Implementation notes (S1 build): the flag seam is `UDTWeaponSubsystem::AddFlagSource(OwnerId, SourceTag, FDTWeaponFlags)`; entries stack per (flag, telemetry source, `on` word), so Keeper lines with another trigger need their own `on` (`Volley`, `Pulled`, `ChainHit`, `Cleave`). Split children of a carrier with no round speed (arcs, mines) use `C.WEAPON.CHILD_*`. Field ticks every fixed step. Hit-taken and dash-landing slams fire once per player, from the highest-load weapon carrying Slam.
 - `FDTWeaponSim::SetEnemies` gives the weapon side a read-only view of the enemy pool: status masks at impact (`FImpact::StatusMask`, a lethal hit still reads it), elites and the boss, and the step's death records (`FDTEnemyPool::GetStepDeaths`). Weapons still write only hits, statuses and displacements.
 - Not yet expressed, for lack of an S1 source or input → with keepers/enemies: Stillness `window_s`, ConvertOrbit native, Seek, Hunter, Nova, Charge, VolleyOnDash, SpeedScale, Push, Ricochet fallbacks; a key-only ConvertMelee size fallback (drones, mine) reads only `radius_scale`.

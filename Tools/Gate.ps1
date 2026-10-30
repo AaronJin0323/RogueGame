@@ -2,7 +2,7 @@
 #   & Tools\Gate.ps1 [-AllFiles] [-Base origin/main] [-Skip build,shipping,...]     (from PowerShell)
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
-# Steps: secrets, docs, constants, catalog, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
+# Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
 # shipping (T-TEC-12), tests, smoke, contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), then the steps that do not exist yet: pad, scope; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
@@ -36,7 +36,7 @@ function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_$Step.log") -Encoding utf8
 	Report $Step (($Out | Select-String "^${Verdict}:" | Select-Object -Last 1).Line)
-	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG)"; Fail $Step }
+	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX)"; Fail $Step }
 }
 
 function Ubt([string]$Step, [string]$Target, [string]$Config, [string]$Extra = "") {
@@ -54,6 +54,7 @@ Invoke-PyStep "secrets" "Tools\secret_scan.py" "SECRETS"
 Invoke-PyStep "docs" "Tools\docs_lint.py" "DOCS"
 Invoke-PyStep "constants" "Tools\gen_constants.py" "CONSTANTS" @("--check")
 Invoke-PyStep "catalog" "Tools\gen_catalog.py" "CATALOG" @("--check")
+Invoke-PyStep "matrix" "Tools\gen_matrix.py" "MATRIX" @("--check")
 Invoke-PyStep "loc" "Tools\loc_build.py" "LOC" @("--check")
 Invoke-PyStep "tools" "Tools\tools_test.py" "TOOLS"
 

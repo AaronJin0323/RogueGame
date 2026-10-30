@@ -6,7 +6,7 @@
 #include "Core/DTCatalogGen.h"
 #include "Combat/DTWeaponFlags.h"
 
-/** Fire pattern (weapons.csv `pattern`); S2 kinds are parsed but not fired in S1. */
+/** Fire pattern (weapons.csv `pattern`). */
 enum class EDTWeaponPattern : uint8
 {
 	Aimed,

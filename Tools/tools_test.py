@@ -14,8 +14,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
+import gen_matrix  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
+
+
+class Matrix(unittest.TestCase):
+	FLAGS = {"Flag.Split": {"Projectile": "native", "Orbit": "fallback:ring", "Area": "none"}}
+
+	def mod(self, flag="", required="", blocked=""):
+		return {"flag": flag, "required_caps": required, "blocked_caps": blocked}
+
+	def test_required_is_any_of(self):
+		self.assertTrue(gen_matrix.compatible(["Aimed"], self.mod(required="Aimed;Melee"), {}))
+		self.assertFalse(gen_matrix.compatible(["Radial"], self.mod(required="Aimed;Melee"), {}))
+
+	def test_blocked_wins(self):
+		self.assertFalse(gen_matrix.compatible(["Aimed", "Homing"], self.mod(required="Aimed", blocked="Homing"), {}))
+
+	def test_flag_walks_caps_in_order(self):
+		self.assertTrue(gen_matrix.compatible(["Area", "Projectile"], self.mod("Flag.Split"), self.FLAGS))
+		self.assertFalse(gen_matrix.compatible(["Orbit", "Projectile"], self.mod("Flag.Split"), self.FLAGS))
+
+	def test_committed_matrix_is_generated(self):
+		with open(gen_matrix.OUT, encoding="utf-8", newline="") as f:
+			self.assertEqual(f.read(), gen_matrix.render())
+
+	def test_a_hand_edit_is_caught(self):
+		self.assertNotEqual(gen_matrix.render().replace("yes", "no", 1), gen_matrix.render())
 
 
 class HitKind(unittest.TestCase):

@@ -35,7 +35,7 @@ namespace DTWeaponTest
 		return Flags;
 	}
 
-	static bool IsS1(int32 Weapon) { return DTCat::Weapons[Weapon].Stage == 1; }
+	static bool IsS1(int32 Weapon) { return DTCat::Weapons[Weapon].NumLevels > 0; }
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsCatalogRows, "Dusktracer.Weapons.CatalogRows", DTWeaponTestHarness::TestFlags) // T-WPN-01
@@ -72,7 +72,7 @@ bool FDTWeaponsCatalogRows::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("%s spec count from the row"), Row.Id), Spec.Count, L1->Count);
 		TestEqual(FString::Printf(TEXT("%s spec cooldown from the row"), Row.Id), Spec.Cooldown, L1->Cooldown_s);
 	}
-	TestEqual(TEXT("five S1 weapons"), S1, 5);
+	TestEqual(TEXT("all ten weapons have level rows"), S1, 10);
 	return true;
 }
 

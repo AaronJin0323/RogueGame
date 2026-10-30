@@ -364,4 +364,37 @@ bool FDTBulletsHitSource::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBulletMotionTest, "Dusktracer.Bullets.Motion", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter) // T-BUL-09
+bool FDTBulletMotionTest::RunTest(const FString& Parameters)
+{
+	const float Step = 1.0f / static_cast<float>(DTConst::SIM_FIXED_HZ);
+	FDTWorldView View;
+	View.HeroPositions.Add(FVector2f::ZeroVector);
+	FDTBulletPool Pool(16);
+	// A moving bullet swapped into a freed slot keeps its motion: motion moves with the bullet, not the slot.
+	FDTBulletSpawn Short;
+	Short.Velocity = FVector2f(100.0f, 0.0f);
+	Short.Life = 1.5f * Step;
+	Short.OwnerId = 0;
+	Pool.Spawn(Short);
+	FDTBulletSpawn Orbit;
+	Orbit.Velocity = FVector2f(100.0f, 0.0f);
+	Orbit.Life = 10.0f;
+	Orbit.OwnerId = 0;
+	Orbit.Motion.OrbitLeft = 1.0f;
+	Orbit.Motion.OrbitRadius = 100.0f;
+	Orbit.Motion.OrbitDegS = 90.0f;
+	Orbit.Motion.RoundId = 7;
+	Pool.Spawn(Orbit);
+	for (int32 Index = 0; Index < 10; ++Index)
+	{
+		Pool.Step(Step, View);
+	}
+	TestEqual(TEXT("the short bullet expired"), Pool.Num(), 1);
+	TestTrue(TEXT("the moving bullet keeps its orbit through the swap"), FMath::Abs(Pool.GetPositions()[0].Size() - 100.0f) < 0.01f);
+	TestEqual(TEXT("a mirrored moving round is reported"), Pool.GetRoundReports().Num(), 1);
+	TestTrue(TEXT("report position is the pool's"), Pool.GetRoundReports()[0].Position == Pool.GetPositions()[0]);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

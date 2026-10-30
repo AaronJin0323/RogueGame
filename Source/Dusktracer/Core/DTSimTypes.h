@@ -201,6 +201,9 @@ struct FDTWorldView
 	TArray<float> EnemyRadii;
 	TArray<uint32> EnemySerials;
 	FDTSpatialHash EnemyHash;
+	// Weapons -> Bullets: where a released orbiting round aims first (the live boss hull, R-BUL-09).
+	bool bBossAlive = false;
+	FVector2f BossPosition = FVector2f::ZeroVector;
 
 	// Appended by weapons, bullets, enemies (Burn), effects (next step); consumed and cleared in ResolveHits.
 	TArray<FDTHit> Hits;

@@ -65,6 +65,24 @@ struct FDTWeaponSpec
 	float ForkAngleDeg = 0.0f;
 	uint16 ChainTriggerSource = 0;
 	float ChainTriggerIntervalS = 0.0f;
+	/** Steering of the weapon's own rounds: Mod.Homing, or the Seeker Swarm's pattern. */
+	float HomingTurnDegS = 0.0f;
+	float HomingSeekUu = 0.0f;
+	float OrbitHoldS = 0.0f;
+	float OrbitRadiusUu = 0.0f;
+	float OrbitRangeRatio = 0.0f;
+	bool bBoomerang = false;
+	uint16 WaveSource = 0;
+	float WaveDamageRatio = 0.0f;
+	float WaveArcDeg = 0.0f;
+	float WaveReachUu = 0.0f;
+	uint16 SpilloverSource = 0;
+	float SpilloverSeekUu = 0.0f;
+	uint16 RefitSource = 0;
+	float RefitIntervalS = 0.0f;
+	int32 RefitFitted = 0;
+	/** Sources of every socketed modifier composed in (none dormant). */
+	TArray<uint16, TInlineAllocator<4>> ModSources;
 
 	// The active pattern conversion (R-WPN-10), when it is native (it reshapes the rounds).
 	DTCat::EFlag Conversion = DTCat::EFlag::None;
