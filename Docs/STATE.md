@@ -20,12 +20,12 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- Share cap floor rule and S1 probes on branches off `main`
+- S1 probes and telegraph contrast on branches off `main`
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
 2. Slow Tide/Stillness:Storm seed 6 misses T-OFF-15 at 24 decisions; 4 of 12 boss deaths still ring damage, untraced
-3. RULE candidate from pass 2: share caps on a floor of alive enemies
+3. Share cap floor tried and reverted (D-018): income above about 0.85 of the model pushes fast arms past the decision budget, so closing the XP gap moves the XP curve or hand budget too
 4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
 5. S1 validation sessions (O-008), then the S1 exit note
 
