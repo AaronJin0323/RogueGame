@@ -2523,6 +2523,12 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			// pulled_vuln: a pulled enemy takes more from every hit; the extra is Keeper damage (as frozen_vuln, R-KEE-13).
 			const float Vuln = Params.Get(DTFlagParam::PulledVuln);
 			FPlayerRuntime& Puller = Players[Impact.OwnerId];
+			// R-KEE-21: one pull per enemy per interval, whoever pulls; what a pull carries (crush, the mark, on=Pulled) rides on it.
+			const int64 PullSteps = FMath::Max<int64>(1, FMath::RoundToInt64(DTConst::KEEPER_PULL_INTERVAL_S / Context.StepSeconds));
+			const auto MayPull = [this, &Context, PullSteps](const FDTEnemyHandle& Handle)
+			{
+				return !Enemies || Enemies->TryPull(Handle, Context.StepIndex, PullSteps);
+			};
 			if (Vuln > 0.0f && HitEnemy != INDEX_NONE && Puller.PulledUntilStep.Contains(Impact.EnemySerial))
 			{
 				FDTHit& Extra = View.Hits.AddDefaulted_GetRef();
@@ -2540,7 +2546,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				{
 					const FVector2f To = Impact.Origin - View.EnemyPositions[HitEnemy];
 					const float Dist = To.Size();
-					if (Dist > KINDA_SMALL_NUMBER)
+					if (Dist > KINDA_SMALL_NUMBER && MayPull(FDTEnemyHandle{ HitEnemy, Impact.EnemySerial }))
 					{
 						FDTDisplacement& Move = View.Displacements.AddDefaulted_GetRef();
 						Move.EnemyIndex = HitEnemy;
@@ -2593,7 +2599,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				}
 				const FVector2f To = Impact.Position - View.EnemyPositions[Enemy];
 				const float Dist = To.Size();
-				if (Dist > Radius || Dist <= KINDA_SMALL_NUMBER)
+				if (Dist > Radius || Dist <= KINDA_SMALL_NUMBER || !MayPull(FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }))
 				{
 					continue;
 				}

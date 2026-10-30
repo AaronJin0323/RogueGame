@@ -76,7 +76,7 @@ public:
 	void SetAimManual(int32 OwnerId, bool bManual);
 
 	/** The read side of enemy state: statuses, elite and role, death records (R-KEE-10: read in Effects, never written). */
-	void SetEnemies(const FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
+	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
@@ -223,6 +223,9 @@ private:
 		float Radius = 0.0f;
 		float TimeLeft = 0.0f;
 		float DamagePerSecond = 0.0f;
+		/** The emission's damage (a Burn scales with it, R-KEE-11) and the flag's params, for the status it names. */
+		float BaseDamage = 0.0f;
+		FDTFlagParams Params;
 	};
 
 	struct FEcho
@@ -385,7 +388,7 @@ private:
 	TArray<int32> Candidates;
 	TArray<int32> Priority;
 	bool bPriorityBuilt = false;
-	const FDTEnemyPool* Enemies = nullptr;
+	FDTEnemyPool* Enemies = nullptr;
 	int32 WeaponsHitsEnd = 0;
 	int32 MaxGeneration = 0;
 	int64 LastStep = -1;

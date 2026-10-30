@@ -246,6 +246,9 @@ public:
 	void SetFacing(int32 Index, const FVector2f& Dir);
 	void SetPattern(int32 Index, EDTFirePattern InPattern) { Aux[Index].Pattern = InPattern; }
 
+	/** keepers.md R-KEE-21: true when Handle may be pulled at StepIndex, and holds it for IntervalSteps; false for a stale handle or one still held. */
+	bool TryPull(const FDTEnemyHandle& Handle, int64 StepIndex, int64 IntervalSteps);
+
 private:
 	void SwapRemove(int32 Index);
 	void ResolveInit(TConstArrayView<FVector2f> Heroes);
@@ -280,6 +283,7 @@ private:
 	TArray<uint8> Dead;
 	TArray<uint32> Serial;
 	TArray<FDTEnemyAux> Aux;
+	TArray<int64> PullReadyStep; // first step a Pull may reach this enemy again (R-KEE-21)
 	uint32 NextSerial = 1; // never zero; reset only with the counters (a new run)
 	uint32 NextBurnOrder = 1;
 
