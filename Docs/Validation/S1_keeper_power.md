@@ -63,3 +63,117 @@ What B2 explains:
 3. Re-read both probes, then TUNE only what is still (c).
 
 Prediction, to be checked rather than assumed: after B2 Slam's cast turns positive, Frost and Whirlpool stop being carried by slams, and Forge's T-KEE-18 passes fall. B2 also weakens every real run holding Slam, so boss reach may fall on those arms.
+
+**Read back after the fixes:** the prediction held for Slam and for Frost and Whirlpool's carry. B2 was the largest single fault: every Slam number in `S1_probes.md` carried it. A1 did not lift with B2 (below), so the field moved to 40×.
+
+## 2. Bugs fixed
+Class BUG, each seen failing first. Replaces the fault; no new mechanism.
+
+| Bug | Fix | Test |
+|---|---|---|
+| B1 | `ApplyHits` reports whole points and carries the fraction per owner and source | `Dusktracer.Core.Hit.FractionsAddUp` |
+| B2 | the hero publishes `View.HeroHurt` when a hit costs HP; `StepSlamTriggers` reads that, not the touches | `Dusktracer.Combat.Hero.HurtPublished`, `Dusktracer.Keepers.Param.HitTakenNeedsAHit` (`AfterHitTakenMult` moved to the new field) |
+| B3 | a Frost cast folds its `frozen_vuln` into the Tide flags for the window | `Dusktracer.Keepers.Param.FrostCastVuln` |
+| B4 | on a Storm cast the weapons' hits carry the layer's status | `Dusktracer.Keepers.Param.FrostLayerOnStormCast` |
+
+Probe: A2, a walking leg with no enemy within 300 uu heads for the nearest one (plain runs barely change, the crowd stays in reach); A3, `cast_dash_s 1` on Slam's cast scenes only; `Dusktracer.Bot.ProbeRouteFollowsCrowd`. A1, below.
+
+Effect of the bug fixes alone on the same 15 seeds and 19 arms: steered runs at the boss 201 → 192, wins 164 → 143. This is mostly B2, which handed every Slam holder free slams. T-DIR-01 PASS 588.6 s unchanged, T-OFF-15 191/192.
+
+## 3. The field: 10× still has a ceiling
+With B2 gone, at 10× full DPS still reads 2 156–5 346 with 160–176 kills in 10 s on the strong arms, and round 1's numbers moved no gain (below). The same builds at 40× read 2 620–11 626 with kills down to 1–88, and the gains spread: Furnace 1.45 → 1.91, Hammer 1.77 → 2.89, Downpour 4.11 → 4.84, Frost 1.20 → 0.87. At 10× Forge read 16 of 18 in band on T-KEE-15 only because the ceiling pressed its combinations together; at 40× it is 8 of 18. **`FIELD_HP_MULT` is now 40.** Kill-driven effects (shatter, explosion, Chain forks) count for less at 40× than in a run, as they did at 10× than at 1×.
+
+## 4. Numbers (TUNE), three rounds
+One hypothesis per change, written to `number_change_log.csv` before measuring. Verdicts follow the line as written, boss clause included.
+
+| Round | Field | Change | Target | Reading | Verdict |
+|---|---|---|---|---|---|
+| 1 | 10× | Downpour Key `dmg` 0.50 → 0.35 | gain ≤ 2.8 | 3.50 | reverted |
+| 1 | 10× | Tempest Key `child_dmg` 0.45 → 0.65 | gain ≥ 1.9 | 1.48 | reverted |
+| 1 | 10× | Slam Key `n` 6 → 4 | gain ≥ 1.5 | 1.20 | reverted |
+| 1 | 10× | Furnace Key `dps` 0.30 → 0.45 | gain ≥ 1.8 | 1.45 | reverted |
+| 1 | 10× | Frost Trait `shatter_dmg` 0.50 → 1.00 | gain ≥ 1.5 | 1.18 | reverted |
+| 1 | 10× | Whirlpool Key `crush_dmg` 0.10 → 0.25 | gain ≥ 1.3 | 0.98 | reverted |
+| 2 | 40× | Downpour Key `dmg` 0.50 → 0.30 | gain ≤ 3.2, casts ≤ 36 000, boss ≥ 13 | 4.36, 39 500–46 400, 12 | reverted |
+| 2 | 40× | Tempest Amp1 `child_dmg` +0.10 → +0.30 | gain ≥ 1.7, boss ≥ 10 | 1.72, 9 | reverted |
+| 2 | 40× | Slam Key `n` 6 → 4 | gain ≥ 1.5, boss ≥ 14 | 1.29, 12 | reverted |
+| 2 | 40× | Furnace Key `dps` 0.30 → 0.36 | gain 2.0–2.4, boss ≥ 11 | 2.21, 12 | **kept** |
+| 2 | 40× | Hammer Key `dmg_mult` 1.6 → 1.3 | gain ≤ 2.4, boss ≥ 13 | 3.58, 13 | reverted |
+| 2 | 40× | Tempest variant `children` 5 → 8 | casts ≥ 16 000 | 10 100–11 200, no movement; not traced | reverted |
+| 2 | 40× | Arc Grid variant `links_per_enemy` 3 → 5 | casts ≥ 26 000 | 35 400–38 500 | **kept** |
+| 2 | 40× | Slam variant `radius_uu` 500 → 350 | casts ≤ 61 000 | 61 500–69 700 | reverted |
+| 3 | 40× | Downpour variant `count` 2 → 1 | casts ≤ 42 000, boss stays 15 | 21 800–37 800, 13, wins 15 → 11 | reverted |
+| 3 | 40× | Tempest variant `child_dmg` new 0.90 | casts ≥ 18 000 | 27 200–36 000 on five of seven layers | **kept** |
+| 3 | 40× | Furnace variant `duration_s` 8 → 10 | +15 % on most layers | +39–46 % on three Tide layers, ≤ +12 % on the other three | reverted |
+
+Round 1 was read on the ceiling, which §3 found afterwards; its two re-tried levers (Slam `n`, Furnace `dps`) were re-read at 40× and that is said here rather than hidden. Round 1's Tempest `child_dmg` also moved the no-pick arm (588.6 → 607.4 s, T-DIR-01 still PASS), because the Storm base reads the Key's value and every arm has a Patron; the later Tempest changes stay off it. Note that round 1 as a set read better on the arms than anything kept: 213 at the boss, 162 wins, Frost 13/10, Stillness 10/7, Stillness:Storm 8/8. No hypothesis named that, so it is not kept, and which number did it is unknown. It is the first thing to try next.
+
+## 5. Results
+Before = `Saved/Probes/ik`, `ab` and `after_probes`. After = final tree, 40× field (`Saved/Probes/ik_final`, `ab_final`, `Saved/BotRuns/final`, in the worktree).
+
+**T-KEE-15: FAIL, 3/57 → 15/57 in band.** Casts that lose damage 23 → 17, 16 of them Tide.
+
+| Keeper | Mean before | In band before | Mean after | In band after | Range after |
+|---|---|---|---|---|---|
+| Storm | 15 538 | 3/19 | 37 920 | 8/19 | −1 454 to 62 524 |
+| Forge | 13 983 | 0/18 | 48 762 | 7/18 | 18 969 to 77 105 |
+| Tide | −4 868 | 0/20 | −3 004 | 0/20 (no band) | −30 987 to 40 169 |
+
+- All Slam casts are positive, 42 748–77 105, and now over the band by 1.45–1.58 on five of six.
+- Downpour stays 1.37–1.65. Cutting it costs real runs (round 3), so it stands.
+- Forge with Tide layers on Furnace is 0.39–0.50, and two combinations sit at zero, Arc Grid:Hammer 3 937 (SD 5 369) and Tempest:Furnace −1 454. Not traced.
+
+**T-KEE-18: FAIL, gain 0/9 → 1/9, share 5/9 → 4/9, archetype band 2/9 → 5/9.**
+
+| Arm | Builds | Full DPS | Share | Loss without blessings | Gain before | Gain after | Band |
+|---|---|---|---|---|---|---|---|
+| Forge/Furnace | 15 | 10 288 | 0.601 PASS | 0.862 | 0.90 | **2.05 PASS** | IN |
+| Forge/Hammer | 14 | 12 629 | 0.800 PASS | 0.933 | 1.49 | 2.88 | OUT |
+| Forge/Slam | 14 | 8 470 | 0.554 | 0.853 | 1.99 | 1.20 | IN |
+| Storm/ArcGrid | 14 | 4 277 | 0.389 | 0.788 | 2.97 | 3.30 | OUT |
+| Storm/Downpour | 15 | 7 498 | 0.443 | 0.857 | 5.10 | 4.86 | IN |
+| Storm/Tempest | 13 | 2 782 | 0.320 | 0.580 | 1.33 | 1.37 | OUT |
+| Tide/Frost | 12 | 6 102 | 0.579 | 0.681 | 1.03 | 0.90 | IN |
+| Tide/Stillness | 9 | 6 838 | 0.680 PASS | 0.862 | 1.13 | 1.26 | IN |
+| Tide/Whirlpool | 10 | 6 368 | 0.792 PASS | 0.827 | 0.85 | 1.23 | OUT |
+
+Mean share 0.683 → 0.573: the old figure was inflated by A1 and B2, as §1.3 said. Forge/Slam's pass and its 1.99 were the HitTaken fault.
+
+**Bot, 15 seeds, 19 arms.** Reached boss / wins / median end s / Keeper share at L16.
+
+| Arm | Control (`after_probes`) | Final |
+|---|---|---|
+| None | 0 / 0 / 589 / — | 0 / 0 / 589 / — |
+| Forge-Furnace | 13 / 11 / 986 / 0.45 | 14 / 10 / 985 / 0.58 |
+| Forge-Furnace-Tide | 8 / 3 / 920 / 0.37 | 6 / 6 / 815 / 0.55 |
+| Forge-Hammer | 14 / 13 / 978 / 0.59 | 14 / 13 / 963 / 0.62 |
+| Forge-Hammer-Tide | 13 / 7 / 974 / 0.59 | 13 / 10 / 968 / 0.64 |
+| Forge-Slam | 14 / 12 / 994 / 0.48 | 14 / 11 / 977 / 0.47 |
+| Forge-Slam-Tide | 10 / 7 / 950 / 0.44 | 10 / 3 / 943 / 0.48 |
+| Storm-ArcGrid | 13 / 12 / 970 / 0.51 | 12 / 11 / 979 / 0.51 |
+| Storm-ArcGrid-Forge | 15 / 13 / 987 / 0.58 | 15 / 12 / 977 / 0.58 |
+| Storm-Downpour | 15 / 15 / 994 / 0.59 | 15 / 14 / 974 / 0.59 |
+| Storm-Downpour-Forge | 15 / 15 / 965 / 0.61 | 15 / 14 / 991 / 0.62 |
+| Storm-Tempest | 13 / 10 / 989 / 0.41 | 10 / 6 / 982 / 0.43 |
+| Storm-Tempest-Forge | 15 / 13 / 990 / 0.42 | 15 / 14 / 987 / 0.46 |
+| Tide-Frost | 11 / 9 / 956 / 0.39 | 10 / 8 / 960 / 0.40 |
+| Tide-Frost-Storm | 11 / 10 / 954 / 0.37 | 11 / 9 / 969 / 0.37 |
+| Tide-Stillness | 7 / 5 / 875 / 0.25 | 6 / 3 / 833 / 0.32 |
+| Tide-Stillness-Storm | 6 / 5 / 564 / 0.23 | 5 / 4 / 575 / 0.23 |
+| Tide-Whirlpool | 4 / 1 / 580 / 0.34 | 6 / 3 / 864 / 0.36 |
+| Tide-Whirlpool-Storm | 4 / 3 / 556 / 0.27 | 5 / 2 / 529 / 0.27 |
+
+Steered: at the boss 201 → 196, wins 164 → 153. T-DIR-01 PASS 588.6 s, unchanged. T-OFF-15 FAIL 195/196, the same single miss as the control (Tide/Stillness:Storm seed 6, 24 decisions). `Tools/pressure.py --check` FAIL 0/19, unchanged. Keeper share by attribution rises on Furnace because B1 now counts its Field.
+
+## 6. What cannot be forced
+- **Tide's cast has no damage band, and that is a design reason.** The base deals nothing: it moves and freezes. A probe where no hit reaches the hero cannot credit that, and the cast's freeze costs the build's own reach. With the crowd followed, the mean is still −3 004. A trial with no line on Frost and Stillness (built, measured, not kept: `Saved/Probes/ik_rule`) moved those 13 combinations to mean −392, 0 of 13 in band, so the line accounts for most of the loss and not for the missing band. R-KEE-15's "retune toward the mean" has nothing to aim at. **RULE candidates, not taken:** (1) Frost and Stillness drop the line, as their card text and the Handoff read; (2) a Tide cast deals damage of its own; (3) R-KEE-15 judges Tide on something other than marginal damage.
+- **The share formula cannot pass Storm.** `share` divides by the drops of levels and extra weapons, and a Storm flag multiplies a weapon's hits, so those drops rise with the Keeper's own power. Arc Grid and Downpour lose 79–86 % without blessings and read 0.39–0.44. Gain 3.30 and 4.86 say the same builds are over their band. No number satisfies both: lifting the Keeper raises the drops with it, and rounds 1–2 moved share by at most 0.04. **RULE candidate:** read R-KEE-18's share on `loss` for arms whose flags multiply weapons.
+- **Package gain on Tide.** Frost 0.90, Whirlpool 1.23, Stillness 1.26. Control spends the crowd's reach on safety, so a no-damage field reads it as a loss. Round 1 moved gain by at most 0.07 while the arms rose. The band may not suit a control package.
+- **Slam and Tempest are real weakness left unsolved.** Three levers tried on each; two would lift gain and cost boss reach. Tempest's `chance` stays out (`S1_balance_pass2.md` §6).
+
+## 7. What reads wrong
+- The boss numbers fell for a good reason, but they fell: Slam arms in particular lose wins (Forge-Slam-Tide 7 → 3).
+- Tempest `child_dmg` 0.90 in the variant is a number the card text does not show; it only raises what the cast's fan deals.
+- `C.INTERCESSION.RETUNE_STEP_MAX` is ×2: Tempest's variant `child_dmg` 0.45 → 0.90 sits at that limit, Arc Grid's links under it.
+- `Tide/Whirlpool:Furnace` reads 40 169 with SD 31 555, a chain of Burn deaths on three seeds. Do not read a mean into it.
+- All of this is a bound at skill 1.0 and no number here has met a human (O-008).

@@ -157,7 +157,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: S2 (the S1 hand is `offers.md` R-OFF-09). Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
 
 ## Open
-- All `GATED(S1)` values → resolved by the probes (`Docs/Validation/S1_probes.md`, which read both bands today) and the S1 validation sessions (O-008).
+- All `GATED(S1)` values → resolved by the probes (`Docs/Validation/S1_keeper_power.md`, which reads both bands today and lists the RULE candidates for R-KEE-15 and R-KEE-18) and the S1 validation sessions (O-008).
 - Implemented in `Source/Dusktracer/Keepers/` (S1 keepers package). Notes from that build, for the next spec pass:
   - Tier lines and Intercession overlays fold into one flag source per Keeper (`Keeper.<Path>`): a `+x` adds, a plain value replaces. A tier clause with `every_n_volley` and its own `pattern` is a separate per-volley entry (Tempest's ring); the others (Downpour, Whirlpool) change the per-hit entry because the weapon system has no per-volley Echo or Pull.
   - The Intercession bases name mechanics without every number: child damage, chain range and damage, ring damage and knockback, and the Tide line's gap are read from the Path's own cards in `expression.csv` (first card naming the parameter); a screen-wide scope is `C.ARENA.CAMERA_FRAME_RADIUS_UU`.
