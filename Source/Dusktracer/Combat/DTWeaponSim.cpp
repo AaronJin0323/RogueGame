@@ -1789,17 +1789,6 @@ void FDTWeaponSim::EmitSlam(const FDTSimContext& Context, FDTBulletPool* Bullets
 // ------------------------------------------------------------------------------------------------------------------
 // Reforging (reforging.md)
 
-void FDTWeaponSim::AddFlash(int32 OwnerId, const FVector2f& Position, const FVector2f& Dir, float Reach, float ArcDeg, float Seconds)
-{
-	FArcFlash& Flash = Arcs.AddDefaulted_GetRef();
-	Flash.OwnerId = OwnerId;
-	Flash.Position = Position;
-	Flash.Dir = Dir;
-	Flash.Reach = Reach;
-	Flash.ArcDeg = ArcDeg;
-	Flash.TimeLeft = Seconds;
-}
-
 float FDTWeaponSim::BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const
 {
 	const float Base = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);

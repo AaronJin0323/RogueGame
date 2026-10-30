@@ -508,7 +508,6 @@ private:
 		const FVector2f& Origin, float Damage, bool bCharged);
 
 	// --- reforging.md -------------------------------------------------------------------------------------------
-	void AddFlash(int32 OwnerId, const FVector2f& Position, const FVector2f& Dir, float Reach, float ArcDeg, float Seconds);
 	/** Blade Halo (R-RFG-07): one blade's touch per turn. */
 	void StepBlades(const FDTSimContext& Context, FDTPlayerRunState& Player, int32 Slot, FWeaponRuntime& Runtime);
 	float BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const;
