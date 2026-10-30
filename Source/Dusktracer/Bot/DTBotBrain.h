@@ -40,6 +40,8 @@ struct DUSKTRACER_API FDTBotConfig
 	int64 CastStep = CastAuto;
 	/** A probe's fixed route instead of the danger scoring: the same steps for every build, in the crowd (ProbeInput). */
 	bool bProbeRoute = false;
+	/** Probe route, from CastStep for C.INTERCESSION.FORGE_DURATION_S: a dash every this many steps; 0 = the plain route's dashes. */
+	int32 CastDashSteps = 0;
 
 	static const TCHAR* PolicyName(EDTBotPolicy Policy);
 	static EDTBotPolicy ParsePolicy(const FString& Text);

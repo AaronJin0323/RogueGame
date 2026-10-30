@@ -190,6 +190,7 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 		RefusedSpawns = 0;
 		TotalKills = 0;
 		KillRate.Reset();
+		DamageCarry.Reset();
 		Counters = FDTEnemyCounters();
 	}
 	else
@@ -1185,7 +1186,12 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 		}
 		const float Dealt = FMath::Min(Damage, FMath::Max(0.0f, Hp[Index]));
 		Hp[Index] -= Damage;
-		Run.ApplyEvent({ EDTGameEventKind::Hit, Hit.OwnerId, FMath::RoundToInt32(Dealt) });
+		// The event holds whole points: the rest carries to this owner and source's next hit, so a field's ticks add up (R-TEL-05).
+		float& Carry = DamageCarry.FindOrAdd((static_cast<uint32>(Hit.OwnerId) << 16) | Hit.SourceId);
+		Carry += Dealt;
+		const int32 Whole = FMath::RoundToInt32(Carry);
+		Carry -= static_cast<float>(Whole);
+		Run.ApplyEvent({ EDTGameEventKind::Hit, Hit.OwnerId, Whole });
 		if (Hp[Index] <= 0.0f)
 		{
 			Dead[Index] = 1;

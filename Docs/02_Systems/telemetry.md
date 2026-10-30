@@ -41,7 +41,7 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `recycled_bullets`, `refused_spawns` | int | during the interval (R-BUL-03, R-ENM-01) |
 | `threat_actions_per_min` | float | threat actions started within the threat ring of this player's hero (`director.md`, `enemies.md`) |
 | `nearest_enemy_uu` | float | `C.TEL.NEAREST_PERCENTILE` over steps of the nearest enemy to this player's hero |
-| `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt |
+| `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt; an event holds whole points and the fraction carries per owner and source, so ticks below one point add up |
 | `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` (`Dusktracer.Build.cs`: short git hash, `+dirty` with local changes) or `unknown` without git; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
 
 JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run).
