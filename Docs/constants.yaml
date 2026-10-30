@@ -153,6 +153,7 @@ keepers:
   KEEPER.BLESSINGS_PER_ARCHETYPE: { value: 4,  unit: n,     tag: CORE,       dependents: [02_Systems/keepers.md, 09_Catalog/expression.csv, T-KEE-01] }
   KEEPER.TRAIT_PREREQ_CARDS:   { value: 2,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, 02_Systems/offers.md, T-KEE-04] }
   KEEPER.PACKAGE_GAIN_BAND:    { value: [2.0, 2.4], unit: x, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-18] }
+  KEEPER.PULL_INTERVAL_S:      { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, R-KEE-21, T-KEE-21] }
   TIER.FAVOR_PER_BLESSING:     { value: 1,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T1:               { value: 3,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T2:               { value: 6,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }

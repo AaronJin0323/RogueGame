@@ -64,6 +64,7 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 | `Role` | `EDTEnemyRole[]` | `Swarm Tank Rusher Turret` (`Boss` for the Warden hull, `boss.md`) |
 | `Serial` | `uint32[]` | identity across steps (R-ENM-23) |
 | `HpScale`, `DmgScale` | `float[]` | director multipliers at spawn time (`FDTEnemySpawn`, `director.md`) |
+| `PullReadyStep` | `int64[]` | first sim step a `Flag.Pull` may reach this enemy again (`keepers.md` R-KEE-21); swapped with the slot |
 | `Flags`, `BeatId` | per enemy | `Elite Arrival Director` (debug spawns lack `Director` and drop nothing); beat tag; copied into `FDTKill` |
 | `Facing`, `State`, `StateLeft`, `Cooldown`, `AimDir`, `PatternId`, `LastFireStep` | per enemy | role state machine (R-ENM-10…12, R-ENM-18) |
 | status fields | per enemy | `StatusMask`, `ShockLeft`, `Burn[C.STATUS.BURN_STACK_SLOTS]{Left Dps TickLeft Owner Source}`, `BurnCap`, `ChillStacks`, `ChillLeft`, `FreezeLeft`, last owner and source per status |
