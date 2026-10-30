@@ -264,8 +264,8 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	Finish(Core, Csv, Jsonl);
 	TestTrue(TEXT("dash line"), Jsonl.Contains(Head(TEXT("dash"), 1) + TEXT(",\"dir_x\":0.6000,\"dir_y\":0.8000,\"charges_after\":0}\n")));
 	TestTrue(TEXT("hero_damaged line"), Jsonl.Contains(Head(TEXT("hero_damaged"), 0)
-		+ TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\"}\n")));
-	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null}\n")));
+		+ TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\"}\n")));
+	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null}\n")));
 	TestTrue(TEXT("hero_down line"), Jsonl.Contains(Head(TEXT("hero_down"), 0) + TEXT("}\n")));
 	TestTrue(TEXT("intercession_denied per interval"), Jsonl.Contains(Head(TEXT("intercession_denied"), 1, StepsPerInterval())
 		+ TEXT(",\"interval\":0,\"count\":2}\n")));

@@ -63,6 +63,9 @@ namespace DTBossCoreLocal
 	}
 
 	static FName AttackId(int32 Row) { return FName(DTCat::BossWarden[Row].Attack); }
+	static const FName AttackCharge(TEXT("Charge"));
+	static const FName AttackSweep(TEXT("Sweep"));
+	static const FName AttackDashCharge(TEXT("DashCharge"));
 
 	/** R-ENM-13: never less than the minimum lead, whatever the row says. */
 	static float Lead(int32 Row)
@@ -418,7 +421,9 @@ void FDTBossCore::AddHeroHit(FDTWorldView& View, int32 Player, float Damage, FNa
 	FDTHeroHit& Hit = View.HeroHits.AddDefaulted_GetRef();
 	Hit.PlayerId = Player;
 	Hit.Damage = Damage;
-	Hit.Kind = EDTHeroHitKind::Hazard;
+	Hit.Kind = AttackIdIn == DTBossCoreLocal::AttackCharge ? EDTHeroHitKind::Charge
+		: AttackIdIn == DTBossCoreLocal::AttackSweep ? EDTHeroHitKind::Sweep
+		: AttackIdIn == DTBossCoreLocal::AttackDashCharge ? EDTHeroHitKind::DashCharge : EDTHeroHitKind::HazardRing;
 	Hit.SourceRole = EDTEnemyRole::Boss;
 	Hit.AttackId = AttackIdIn;
 	Hit.EnemySerial = Hull.Serial;

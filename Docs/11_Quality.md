@@ -15,6 +15,8 @@ One command runs them all on the merged tree: `& Tools\Gate.ps1` from PowerShell
 | `build` | editor build, 0 compiler warnings | `Tools/Build.bat` | live |
 | `nonunity` | each `.cpp` compiles alone (R-TEC-09) | UBT `-SingleFile` per changed file (`-AllFiles` for all) | live |
 | `shipping` | test/debug code leaking into Shipping (R-TEC-12) | `Tools/Build.bat Shipping` (game target) | live |
+| `tools` | `Tools/tools_test.py`: the logic of the Python tools (hit kinds, probes, contrast) | Python, stdlib | live |
+| `contrast` | T-PRE-05 on an off-screen late frame (`Tools/contrast_check.py`, `Tools/Smoke.ps1 -Contrast`); an element below `C.PRE.CONTRAST_MIN` or not found fails, unless `Docs/Validation/contrast_debts.txt` names it | game `-RenderOffScreen` | live |
 | `tests` | automation suite `Dusktracer`, headless; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `UnrealEditor-Cmd -nullrhi` | live |
 | `smoke` | rendered run on the arena, goldens, contrast | `Tools/Smoke.ps1` | NOT RUN until the S0 arena exists |
 | `pad` | packaged build accepts gamepad input | `Tools/PadCheck.ps1` | NOT RUN until the first package |

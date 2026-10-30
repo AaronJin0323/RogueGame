@@ -11,16 +11,20 @@
 //   -DTBotMaxSeconds=<s>                dt.Bot.MaxSeconds  ends the telemetry session ("bot_timeout") at this sim time
 //   -DTBotQuit                          dt.Bot.Quit        quits the process once the run is over and telemetry is written
 //   -DTBotOut=<file.csv>                                   writes the bot record (below) at run end
+//   -DTProbe=<file>                                        runs a probe scene instead of a run (DTProbeScript.h; Tools/probe.py);
+//                                                          pair with -DTNoDirector: the bot fights the script's field with its build
 // Bot record (Tools/BotRuns.ps1 reads it): hero events are counted from UDTHeroSubsystem::OnHeroEvent per sim minute,
 // because the telemetry CSV does not receive hero events yet (damage_taken_per_min, dashes_per_min stay 0 on main):
 //   <file.csv>      minute,t_end_s,dmg_share,dashes,hits,level,hp,alive   (dmg_share = sum of Amount / MaxHp at the hit)
 //   <file.csv>.txt  key=value: outcome end_s level_630 steps dash_presses intercession_presses picks declines input_hash
+//   <file.csv>.L16  the build at C.TEL.POWER_CHECK_LEVEL as a probe script (Tools/probe.py ablates it)
 // While active: dt.Offer.AutoPick is forced to 0 (the bot answers the hands), and player 0's pawn stops latching input.
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Bot/DTBotBrain.h"
+#include "Bot/DTProbeScript.h"
 #include "DTBotSubsystem.generated.h"
 
 class UDTSimSubsystem;
@@ -45,6 +49,8 @@ public:
 	void Activate(const FDTBotConfig& Config);
 	void Deactivate();
 	bool IsActive() const { return bActive; }
+	/** Starts Script as a probe scene: the bot takes its Patron, then the build, the field and the timings apply after the first step. */
+	void StartProbe(const FDTProbeScript& Script, int32 Seed);
 
 	/** Opens queued hands and answers every open hand of player 0. Returns the number of hands answered. */
 	int32 ServiceOffers();
@@ -72,6 +78,8 @@ private:
 	void HandleBossDefeated(int64 StepIndex);
 	void HandleHeroEvent(const FDTHeroEvent& Event);
 	void WriteRecord() const;
+	void ApplyProbe();
+	void WriteBuildSnapshot();
 
 	struct FMinute
 	{
@@ -88,6 +96,11 @@ private:
 	double EndSeconds = 0.0;
 	FString OutPath;
 	FDelegateHandle HeroEventHandle;
+
+	FDTProbeScript Probe;
+	bool bProbe = false;
+	bool bProbeApplied = false;
+	bool bSnapshotDone = false;
 
 	FDTBotBrain Brain;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;

@@ -42,7 +42,7 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `threat_actions_per_min` | float | threat actions started within the threat ring of this player's hero (`director.md`, `enemies.md`) |
 | `nearest_enemy_uu` | float | `C.TEL.NEAREST_PERCENTILE` over steps of the nearest enemy to this player's hero |
 | `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt |
-| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` or `unknown`; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
+| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` (`Dusktracer.Build.cs`: short git hash, `+dirty` with local changes) or `unknown` without git; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
 
 JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run).
 
@@ -83,6 +83,5 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 - Ablation-based value budget (`model.md`): the S2 gate may replace attribution by ablation.
 
 ## Open
-- Build hash is `unknown` until the build defines `DT_BUILD_HASH` → resolved by a one-line build rule change.
 - S1 writer API (non-behavioural choices, `Telemetry/DTTelemetryCore.h` `Record*`/`Set*`, types in `DTTelemetryRecords.h`; producers call `UDTTelemetrySubsystem::Find(this)->Records()`): `run_end` puts the per-player fields of `offers.md`/`progression.md` under `per_player{owner: {...}}` and the run's `gems_*` at top level; `cards_offered`/`reserve_cards` count every shown card (rerolls and refills included), `hands_by_kind` counts a hand once, `decisions` excludes the Patron hand, `wall_paused_s` sums `offer_pick.wall_decide_s`; the per-interval count of `intercession_denied` is a record `intercession_denied{interval count}`; `weapon` is written for every owned weapon each interval; "within the threat ring" = within `C.DIR.THREAT_RING_MAX_UU` of the hero at the step end; source maps are ordered by name; the slot mirror (R-TEL-03, kept; `FDTWorldView::Kills` is not needed) skips stale-serial hits like the pool (R-ENM-23) → revisit with the S1 producers.
-- Hero producers (`combat_core.md`) reach telemetry through `UDTHeroSubsystem::OnHeroEvent`, bound by the telemetry subsystem at begin play (the hero stays unaware of telemetry); `input_device` is read from the hero at each step end. `hero_damaged` repeats the key `kind` for the hit kind (`combat_core.md` §Telemetry), so a plain JSON parser keeps the hit kind as the record kind; `Tools/pressure.py` keeps the first `kind` → rename the field (`hit_kind`) when `combat_core.md` is next opened.
+- Hero producers (`combat_core.md`) reach telemetry through `UDTHeroSubsystem::OnHeroEvent`, bound by the telemetry subsystem at begin play (the hero stays unaware of telemetry); `input_device` is read from the hero at each step end.

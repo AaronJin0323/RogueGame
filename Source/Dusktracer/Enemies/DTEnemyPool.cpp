@@ -973,7 +973,7 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 						FDTHeroHit& Hit = View.HeroHits.AddDefaulted_GetRef();
 						Hit.PlayerId = Hero;
 						Hit.Damage = O.Damage;
-						Hit.Kind = EDTHeroHitKind::Hazard;
+						Hit.Kind = EDTHeroHitKind::Charge;
 						Hit.SourceRole = EDTEnemyRole::Rusher;
 						Hit.AttackId = FDTEnemyRoleDef::Get(EDTEnemyRole::Rusher).AttackId;
 						Hit.EnemySerial = O.EnemySerial;

@@ -75,7 +75,12 @@ enum class EDTHeroHitKind : uint8
 {
 	Contact,
 	Bullet,
-	Hazard
+	/** The boss's phase III hazard ring (boss_warden.csv attack `Hazard`). */
+	HazardRing,
+	/** A charge band: the Warden's Charge, a Rusher's charge. */
+	Charge,
+	Sweep,
+	DashCharge
 };
 
 /** Damage to a hero, written in Enemies (contact, enemy rounds, boss hazards), read by the hero next step. */

@@ -18,6 +18,8 @@ namespace DTBotTuning
 	constexpr float BodyWeight = 400.0f;
 	constexpr float TelegraphWeight = 700.0f;
 	constexpr float HazardWeight = 900.0f;
+	/** Outside a live hazard ring, the danger gains one HazardWeight step per this many uu. */
+	constexpr float RingGradeUU = 60.0f;
 	/** Bodies inside this radius push the bot away (crowd pressure). */
 	constexpr float CrowdRadiusUU = 650.0f;
 	constexpr float CrowdWeight = 14.0f;
@@ -44,6 +46,10 @@ namespace DTBotTuning
 	constexpr float MaxMoveNoiseDeg = 35.0f;
 	constexpr float MaxAimNoiseDeg = 20.0f;
 	constexpr int32 SeedSalt = 0x0B07;
+	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
+	constexpr int32 ProbeLegS = 1;
+	constexpr int32 ProbeDashS = 6;
+	constexpr float ProbeOrbitUU = 400.0f;
 
 	/** The wall band's share of FDTBotBrain::DangerAt. */
 	static float WallDanger(const FVector2f& P)
@@ -279,9 +285,10 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 			if (Tele.Shape == EDTTelegraphShape::HazardRing)
 			{
 				// Graded by the distance outside: from past the look-ahead every move lands in the hazard, and a flat score would
-				// leave only the kite, which points away from the boss, so outward (S1_boss_after_fields.md).
+				// leave only the kite, which points away from the boss, so outward (S1_boss_after_fields.md). The grade is steep: a
+				// round in the way costs one hit, the live ring one every interval until it is crossed (S1_probes.md).
 				const float Outside = FMath::Max(0.0f, FVector2f::Distance(P, Tele.Origin) - Tele.Length);
-				Score += HazardWeight * (0.3f + Tele.Progress) * (1.0f + Outside / FMath::Max(Tele.Length, 1.0f));
+				Score += HazardWeight * (0.3f + Tele.Progress) * (1.0f + Outside / RingGradeUU);
 			}
 			else
 			{
@@ -346,6 +353,29 @@ FVector2f FDTBotBrain::ChooseDash(const FDTBotWorld& World) const
 	return Best;
 }
 
+FDTHeroInput FDTBotBrain::ProbeInput(const FDTBotWorld& World)
+{
+	using namespace DTBotTuning;
+	const FDTHeroState& S = *World.Hero;
+	FDTHeroInput In;
+	const int64 Leg = World.StepIndex / (ProbeLegS * DTConst::SIM_FIXED_HZ);
+	if (Leg % 2 == 1 || World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0)
+	{
+		const FVector2f Out = S.Pos.GetSafeNormal();
+		const float Radial = FMath::Clamp((FVector2f(S.Pos).Size() - ProbeOrbitUU) / ProbeOrbitUU, -1.0f, 1.0f);
+		const FVector2f Tangent(-Out.Y, Out.X);
+		In.Move = (Out.IsNearlyZero() ? FVector2f(1.0f, 0.0f) : Tangent - Out * Radial).GetSafeNormal();
+	}
+	In.bDashPress = World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0 && S.DashCharges > 0;
+	Stats.DashPresses += In.bDashPress ? 1 : 0;
+	if (Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0)
+	{
+		In.bIntercessionPress = true;
+		++Stats.IntercessionPresses;
+	}
+	return In;
+}
+
 FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 {
 	using namespace DTBotTuning;
@@ -354,6 +384,10 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 	if (S.bDown)
 	{
 		return FDTHeroInput();
+	}
+	if (Config.bProbeRoute)
+	{
+		return ProbeInput(World);
 	}
 	FDTHeroInput In = Held;
 	In.bDashPress = false;
@@ -487,7 +521,9 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 			ImminentSteps = 0;
 		}
 
-		if (S.Intercession01 >= 1.0f && Crowd >= IntercessionCrowd)
+		const bool bCast = Config.CastStep == FDTBotConfig::CastAuto ? S.Intercession01 >= 1.0f && Crowd >= IntercessionCrowd
+			: Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0;
+		if (bCast)
 		{
 			In.bIntercessionPress = true;
 			++Stats.IntercessionPresses;

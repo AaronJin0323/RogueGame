@@ -16,6 +16,7 @@
 #include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Enemies/DTEnemySubsystem.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -240,6 +241,144 @@ bool FDTBotHazardRingInward::RunTest(const FString& Parameters)
 
 // R-DIR-16 clamps a chest to the arena, so it can lie against a wall. The wall band must not stop the bot fetching it, or
 // a run misses its chest hand and the magnet with it (S1_boss_after_fields.md, T-OFF-15).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotHazardRingThroughRounds, "Dusktracer.Bot.HazardRingThroughRounds", DTBotTest::Flags)
+bool FDTBotHazardRingThroughRounds::RunTest(const FString& Parameters)
+{
+	// Rounds in the way cost one hit; the live ring costs one every interval until it is crossed. A hero outside it goes in
+	// through rounds that would stop a walk anywhere else (S1_probes.md, the three ring deaths).
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Seed = 5;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+
+	FDTHeroState Hero;
+	Hero.Pos = FVector2f(-2300.0f, -2300.0f); // 3253 uu out, 453 past the ring, clear of the walls
+	Hero.Hp = 60.0f;
+	Hero.DashCharges = 0;
+	const FVector2f In = (-Hero.Pos).GetSafeNormal();
+	const FVector2f Across(-In.Y, In.X);
+
+	FDTTelegraph Ring;
+	Ring.Shape = EDTTelegraphShape::HazardRing;
+	Ring.Origin = FVector2f::ZeroVector;
+	Ring.Length = 2800.0f;
+	Ring.Progress = 1.0f;
+
+	// A curtain of rounds across the way in, drifting outward.
+	TArray<FVector2f> RoundPos;
+	TArray<FVector2f> RoundVel;
+	TArray<float> RoundRadius;
+	for (int32 Row = 0; Row < 3; ++Row)
+	{
+		for (int32 Col = -5; Col <= 5; ++Col)
+		{
+			RoundPos.Add(Hero.Pos + In * (160.0f + 120.0f * Row) + Across * (80.0f * Col));
+			RoundVel.Add(-In * 200.0f);
+			RoundRadius.Add(12.0f);
+		}
+	}
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.StepSeconds = 1.0f / DTConst::SIM_FIXED_HZ;
+	World.StepIndex = 0;
+	TArray<FDTTelegraph> Telegraphs = { Ring };
+	World.Telegraphs = Telegraphs;
+	World.RoundPos = RoundPos;
+	World.RoundVel = RoundVel;
+	World.RoundRadius = RoundRadius;
+	const FDTHeroInput Input = Brain.Decide(World);
+	const float Dot = FVector2f::DotProduct(Input.Move, In);
+	TestTrue(*FString::Printf(TEXT("the bot walks in through the rounds (dot %.2f)"), Dot), Dot > 0.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotProbeScript, "Dusktracer.Bot.ProbeScript", DTBotTest::Flags)
+bool FDTBotProbeScript::RunTest(const FString& Parameters)
+{
+	const FString Text = TEXT("patron Storm\nsecond Tide\nbless Blessing.Storm.Tempest.Key\nweapon Weapon.PulseRifle 6 Mod.A Mod.B\nfield 120\nhp_scale 26.8\nwarmup_s 62\nwindow_s 12\ncast_at_s 62\n");
+	FDTProbeScript Script;
+	FString Error;
+	TestTrue(TEXT("parses"), Script.Parse(Text, Error));
+	TestTrue(TEXT("keepers"), Script.Patron == EDTPath::Storm && Script.Second == EDTPath::Tide);
+	TestTrue(TEXT("weapon"), Script.Weapons.Num() == 1 && Script.Weapons[0].Level == 6 && Script.Weapons[0].Mods.Num() == 2);
+	TestEqual(TEXT("field"), Script.Field, 120);
+	TestEqual(TEXT("hp"), Script.HpScale, 26.8f, 0.001f);
+	TestEqual(TEXT("cast"), Script.CastAtS, 62.0f, 0.001f);
+	FDTProbeScript Again;
+	TestTrue(TEXT("the build round-trips"), Again.Parse(Script.ToText(), Error) && Again.ToText() == Script.ToText());
+	TestFalse(TEXT("an unknown key is refused"), Script.Parse(TEXT("patron Storm\nnonsense 1\n"), Error));
+	TestFalse(TEXT("no patron is refused"), Script.Parse(TEXT("field 3\n"), Error));
+	FDTProbeScript None;
+	TestTrue(TEXT("no cast by default"), None.Parse(TEXT("patron Tide\n"), Error) && None.CastAtS < 0.0f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotProbeScene, "Dusktracer.Bot.ProbeScene", DTBotTest::Flags)
+bool FDTBotProbeScene::RunTest(const FString& Parameters)
+{
+	// The scene the probes stand on: the build and the HP-scaled field are in place, no hand opens, the hero cannot die,
+	// and the cast is the script's: one press in the cast arm, none in the other, same seed.
+	for (const bool bCast : { true, false })
+	{
+		FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+		UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), TEXT("DTBotProbeWorld")));
+		Context.SetCurrentWorld(World);
+		World->InitializeActorsForPlay(FURL());
+		World->BeginPlay();
+		UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+		UDTBotSubsystem* Bot = World->GetSubsystem<UDTBotSubsystem>();
+		UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+		const UDTHeroSubsystem* Heroes = World->GetSubsystem<UDTHeroSubsystem>();
+		const UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+		if (TestTrue(TEXT("systems"), Sim && Bot && Telemetry && Heroes && Enemies))
+		{
+			Sim->StartRun(7, 1);
+			Telemetry->StartSession(7, 1);
+			FDTProbeScript Script;
+			FString Error;
+			const FString Text = FString::Printf(TEXT("patron Storm\nsecond Tide\nbless Blessing.Storm.Tempest.Key\nbless Blessing.Tide.Frost.Key\nweapon Weapon.PulseRifle 3\nfield 30\nhp_scale 5\nwarmup_s %f\nwindow_s 2\n%s"),
+				19.0f, bCast ? TEXT("cast_at_s 19\n") : TEXT(""));
+			TestTrue(TEXT("script"), Script.Parse(Text, Error));
+			Bot->StartProbe(Script, 7);
+			const int32 MaxSteps = 25 * DTConst::SIM_FIXED_HZ;
+			while (Sim->GetStepIndex() < MaxSteps && !Bot->IsRunFinished())
+			{
+				if (Bot->RunSteps(MaxSteps) == 0)
+				{
+					break;
+				}
+			}
+			TestTrue(TEXT("the run ends with the window"), Bot->IsRunFinished() && !Bot->IsVictory());
+			const FDTPlayerRunState& Player = Sim->GetRun().GetPlayer(0);
+			TestTrue(TEXT("Patron and second"), Player.Keepers.Primary == EDTPath::Storm && Player.Keepers.Second == EDTPath::Tide && Player.Keepers.bCommitDone);
+			TestEqual(TEXT("blessings"), Player.Keepers.Owned.Num(), 2);
+			TestTrue(TEXT("weapon at its level"), Player.Weapons.Num() == 1 && Player.Weapons[0].Level == 3);
+			TestEqual(TEXT("no hand answered after the Patron"), Bot->GetBrain().GetStats().Picks, 1);
+			TestEqual(TEXT("the field stands"), Enemies->GetLiveCount(), 30);
+			TestTrue(TEXT("the field has the script's HP scale"), Enemies->GetPool().GetHpScales().Num() > 0 && FMath::IsNearlyEqual(Enemies->GetPool().GetHpScales()[0], 5.0f));
+			TestEqual(TEXT("casts"), Heroes->GetState(0)->Intercessions, bCast ? 1 : 0);
+			TestFalse(TEXT("the hero is standing"), Heroes->GetState(0)->bDown);
+			TestTrue(TEXT("the route stays in the crowd"), Heroes->GetState(0)->Pos.Size() < 800.0f);
+			TestTrue(TEXT("the route dashes"), Heroes->GetState(0)->Dashes > 3);
+			Telemetry->EndSession(TEXT("test"));
+			IFileManager::Get().Delete(*Telemetry->GetWriter().GetCsvPath(), false, true, true);
+			IFileManager::Get().Delete(*Telemetry->GetWriter().GetJsonlPath(), false, true, true);
+			Bot->Deactivate();
+		}
+		for (AActor* Actor : FActorRange(World))
+		{
+			if (Actor)
+			{
+				Actor->RouteEndPlay(EEndPlayReason::LevelTransition);
+			}
+		}
+		World->DestroyWorld(true);
+		GEngine->DestroyWorldContext(World);
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotChestAtWall, "Dusktracer.Bot.ChestAtWall", DTBotTest::Flags)
 bool FDTBotChestAtWall::RunTest(const FString& Parameters)
 {

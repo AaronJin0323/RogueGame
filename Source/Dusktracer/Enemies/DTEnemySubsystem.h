@@ -61,6 +61,8 @@ public:
 	void RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite = false, bool bArrival = false);
 	/** Keeps the swarm population topped up to Count every step (0 turns it off). */
 	void SetKeepPopulation(int32 Count);
+	/** HP scale of the enemies the keep-alive tops up (a probe's field); 1 = the catalog's HP. */
+	void SetKeepHpScale(float Scale) { KeepHpScale = Scale; }
 	/** Removes every enemy and enemy round at the start of the next step and stops any keep target. */
 	void RequestClear();
 	/** Debug (DT.Status): applies Status to the first Count enemies (all when Count <= 0) at the next Enemies phase. */
@@ -130,5 +132,6 @@ private:
 	TArray<FStatusRequest> StatusRequests;
 	int32 PendingSpawns = 0;
 	int32 KeepPopulation = 0;
+	float KeepHpScale = 1.0f;
 	bool bClearPending = false;
 };

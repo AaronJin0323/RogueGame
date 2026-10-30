@@ -107,7 +107,10 @@ namespace DTTelNames
 		{
 		case EDTHeroHitKind::Contact: return TEXT("Contact");
 		case EDTHeroHitKind::Bullet: return TEXT("Bullet");
-		default: return TEXT("Hazard");
+		case EDTHeroHitKind::Charge: return TEXT("Charge");
+		case EDTHeroHitKind::Sweep: return TEXT("Sweep");
+		case EDTHeroHitKind::DashCharge: return TEXT("DashCharge");
+		default: return TEXT("HazardRing");
 		}
 	}
 }
@@ -277,7 +280,7 @@ void FDTTelemetryCore::RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, flo
 	P->DamageTakenShare += Share;
 	P->RunDamageTakenShare += Share;
 	JsonlOut += FDTTelJson(JsonHead(TEXT("hero_damaged"), Owner)).Num(TEXT("amount"), Amount).Num(TEXT("hp_after"), HpAfter)
-		.Num(TEXT("max_hp"), MaxHp).Str(TEXT("kind"), DTTelNames::HeroHitKind(Hit.Kind)).Str(TEXT("role"), DTTelNames::EnemyRole(Hit.SourceRole))
+		.Num(TEXT("max_hp"), MaxHp).Str(TEXT("hit_kind"), DTTelNames::HeroHitKind(Hit.Kind)).Str(TEXT("role"), DTTelNames::EnemyRole(Hit.SourceRole))
 		.Name(TEXT("attack"), Hit.AttackId).Line();
 }
 

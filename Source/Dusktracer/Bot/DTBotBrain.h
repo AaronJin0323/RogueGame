@@ -33,6 +33,13 @@ struct DUSKTRACER_API FDTBotConfig
 	float Skill = 1.0f;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
+	/** Intercession presses: CastAuto = when the meter is full and a crowd is near; CastNever = none (a probe's no-cast arm);
+	 * a step index = one press at the first decision from that step on (a probe's cast). */
+	static constexpr int64 CastAuto = -1;
+	static constexpr int64 CastNever = -2;
+	int64 CastStep = CastAuto;
+	/** A probe's fixed route instead of the danger scoring: the same steps for every build, in the crowd (ProbeInput). */
+	bool bProbeRoute = false;
 
 	static const TCHAR* PolicyName(EDTBotPolicy Policy);
 	static EDTBotPolicy ParsePolicy(const FString& Text);
@@ -93,6 +100,8 @@ private:
 	float ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, float Speed) const;
 	float ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, float Horizon, float* OutSoonest) const;
 	FVector2f ChooseDash(const FDTBotWorld& World) const;
+	/** One step of the probe route (FDTBotConfig::bProbeRoute). */
+	FDTHeroInput ProbeInput(const FDTBotWorld& World);
 	float CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
 	int32 ReactionSteps() const;
 

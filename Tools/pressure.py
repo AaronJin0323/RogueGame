@@ -34,11 +34,23 @@ PLAYTESTS = os.path.join(dtconst.ROOT, "Saved", "Playtests")
 
 
 def first_wins(pairs):
-	"""JSON object hook: the record's own `kind` comes first; hero_damaged repeats `kind` for the hit kind (combat_core.md)."""
+	"""JSON object hook: the record's own `kind` comes first; `offer_pick` repeats `kind` for the card kind, and so did
+	`hero_damaged` for the hit kind before the field became `hit_kind` (combat_core.md)."""
 	out = {}
 	for key, value in pairs:
 		out.setdefault(key, value)
 	return out
+
+
+def hero_hit_kind(fields):
+	"""The hit kind of a `hero_damaged` record, new (`hit_kind`) or old (a second `kind`, a single `Hazard` split by `attack`)."""
+	if "hit_kind" in fields:
+		return fields["hit_kind"]
+	legacy = fields.get("legacy_hit_kind")
+	if legacy != "Hazard":
+		return legacy
+	attack = fields.get("attack") or ""
+	return {"Hazard": "HazardRing", "Rusher.Charge": "Charge"}.get(attack, attack)
 
 
 def window_from_jsonl(path, lo, hi):
@@ -105,7 +117,8 @@ def window_from_csv(path, lo, hi):
 
 
 def sources_from_jsonl(path, lo, hi, owner=0):
-	"""{"<kind>/<role>": damage share of max HP} of `owner` inside the window, with the attack id when there is one."""
+	"""{"<hit kind>/<role>": damage share of max HP} of `owner` inside the window. Runs before the rename repeat `kind`
+	for the hit kind, and their `Hazard` covers the ring, Charge, Sweep and DashCharge: `attack` splits it (hero_hit_kind)."""
 	out = {}
 	with open(path, encoding="utf-8") as f:
 		for line in f:
@@ -116,12 +129,12 @@ def sources_from_jsonl(path, lo, hi, owner=0):
 			except ValueError:
 				continue
 			fields = {}
-			hit_kind = None
 			for key, value in rec:
 				if key == "kind":
-					hit_kind = value  # the second `kind` is the hit kind
+					fields.setdefault("legacy_hit_kind", value) if "kind" in fields else fields.setdefault("kind", value)
 				else:
 					fields[key] = value
+			hit_kind = hero_hit_kind(fields)
 			t = float(fields.get("t", 0.0))
 			max_hp = float(fields.get("max_hp") or 0.0)
 			if fields.get("owner", -1) != owner or not lo <= t < hi or max_hp <= 0:

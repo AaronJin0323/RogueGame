@@ -1,0 +1,5 @@
+# R-PRE-05 elements that read below C.PRE.CONTRAST_MIN today (Tools/contrast_check.py, gate step `contrast`).
+# A debt prints as KNOWN and does not fail the gate; a new failure does. Remove a line when its element passes.
+# Readings: Docs/Validation/S1_probes.md §3.
+telegraph
+enemy_rim
