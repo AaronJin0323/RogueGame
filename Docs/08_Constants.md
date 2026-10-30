@@ -45,11 +45,21 @@
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
 | C.PRE.CUE_EMISSIVE | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CUE_Z_UU | 1 | uu | GATED(S1) | 04_Presentation R-PRE-11, Combat/DTWeaponSubsystem |
-| C.PRE.AURA_RING_UU | 12 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.AURA_RING_UU | 24 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.AURA_PULSE_UU | 24 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.WALL_PLATE_RATIO | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.HOLD_FRAME_RATIO | 1.9 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.HOLD_FRAME_UU | 10 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CUE_HUE_EMISSIVE | 1.1 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.ZONE_Z_UU | 0.5 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.ZONE_HALF_UU | 0.4 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.FROZEN_CUE_RATIO | 2.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.FROZEN_CUE_UU | 12 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CHARGE_RING_RATIO | 2.2 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CHARGE_RING_UU | 14 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CHARGE_RING_GAP_UU | 28 | uu | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CHARGE_TICKS | 12 | n | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
+| C.PRE.CHARGE_TICK_FILL | 0.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 
 ## 4. Budgets (from `G02` §07 and D-003)
 
@@ -93,7 +103,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENM.KILL_RATE_WINDOW_S | 1.0 | s | GATED(S0) | enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S |
 | C.ENEMIES.OPTIC_EMISSIVE | 14.0 | ratio | GATED(S1) | enemies.md, R-ENM-24, T-ENM-24 |
 | C.ENEMIES.OPTIC_SCALE | 0.35 | ratio | GATED(S1) | enemies.md R-ENM-24 (optic size as a fraction of the hull; grey box) |
-| C.ENEMIES.TELEGRAPH_EMISSIVE | 2.0 | ratio | GATED(S1) | enemies.md, R-ENM-13, 04_Presentation.md |
+| C.ENEMIES.TELEGRAPH_EMISSIVE | 1.1 | ratio | GATED(S1) | enemies.md, R-ENM-13, 04_Presentation.md |
 | C.ENEMIES.TELEGRAPH_Z_UU | 2 | uu | GATED(S1) | enemies.md R-ENM-13 (telegraph quads above the floor, below hulls and rounds at C.SIM.PLANE_Z_UU) |
 | C.ENEMIES.TELEGRAPH_LEAD_MIN_S | 0.75 | s | GATED(S1) | enemies.md, boss.md, R-ENM-13, T-ENM-13, R-BOS-05 |
 | C.ROLE.SWARM_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
@@ -133,6 +143,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENEMY_FIRE.FAN_SPREAD_DEG | 14 | deg | GATED(S1) | enemies.md, R-ENM-20, T-ENM-20 |
 | C.ENEMY_FIRE.EMISSIVE | 3.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, 04_Presentation.md |
 | C.ENEMY_FIRE.CORE_RADIUS_RATIO | 0.6 | ratio | GATED(S1) | enemies.md, R-ENM-17, Tools/create_arena.py |
+| C.ENEMY_FIRE.DRAW_RADIUS_RATIO | 1.5 | ratio | GATED(S1) | enemies.md, R-ENM-17, Enemies/DTEnemySubsystem |
 | C.AIM.TOKENS | 3 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.TOKENS_THREAT | 4 | n | GATED(S1) | enemies.md, R-ENM-18, T-ENM-18 |
 | C.AIM.FAN_MIN_RANGE_UU | 600 | uu | GATED(S1) | enemies.md, R-ENM-19, T-ENM-19 |

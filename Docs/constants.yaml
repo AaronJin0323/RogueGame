@@ -33,11 +33,21 @@ presentation:
   PRE.DENSITY_LOD_KILLS_PER_S: { value: 20,   unit: per_s, tag: GATED(S1),  dependents: [04_Presentation.md, T-PRE-06] }
   PRE.CUE_EMISSIVE:            { value: 1.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.CUE_Z_UU:                { value: 1,    unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, Combat/DTWeaponSubsystem] }
-  PRE.AURA_RING_UU:            { value: 12,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.AURA_RING_UU:            { value: 24,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.AURA_PULSE_UU:           { value: 24,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.WALL_PLATE_RATIO:        { value: 1.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.HOLD_FRAME_RATIO:        { value: 1.9,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
   PRE.HOLD_FRAME_UU:           { value: 10,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CUE_HUE_EMISSIVE:        { value: 1.1,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.ZONE_Z_UU:               { value: 0.5,  unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.ZONE_HALF_UU:            { value: 0.4,  unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.FROZEN_CUE_RATIO:        { value: 2.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.FROZEN_CUE_UU:           { value: 12,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CHARGE_RING_RATIO:       { value: 2.2,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CHARGE_RING_UU:          { value: 14,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CHARGE_RING_GAP_UU:      { value: 28,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CHARGE_TICKS:            { value: 12,   unit: n,     tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
+  PRE.CHARGE_TICK_FILL:        { value: 0.6,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-11, T-PRE-11] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
@@ -62,7 +72,7 @@ enemies:
   ENM.KILL_RATE_WINDOW_S:      { value: 1.0,  unit: s,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S, T-ENM-05] }
   ENEMIES.OPTIC_EMISSIVE:      { value: 14.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, T-ENM-24] }
   ENEMIES.OPTIC_SCALE:         { value: 0.35, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, Enemies/DTEnemySubsystem] }
-  ENEMIES.TELEGRAPH_EMISSIVE:  { value: 2.0,  unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, 04_Presentation.md] }
+  ENEMIES.TELEGRAPH_EMISSIVE:  { value: 1.1,  unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, 04_Presentation.md] }
   ENEMIES.TELEGRAPH_Z_UU:      { value: 2, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, Enemies/DTTelegraphRenderer] }
   ENEMIES.TELEGRAPH_LEAD_MIN_S:{ value: 0.75, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, 02_Systems/boss.md, R-ENM-13, T-ENM-13, R-BOS-05] }
   ROLE.SWARM_CONTACT_DAMAGE:   { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }
@@ -102,6 +112,7 @@ enemies:
   ENEMY_FIRE.FAN_SPREAD_DEG:   { value: 14, unit: deg, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-20, T-ENM-20] }
   ENEMY_FIRE.EMISSIVE:         { value: 3.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, 04_Presentation.md] }
   ENEMY_FIRE.CORE_RADIUS_RATIO: { value: 0.6, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, Tools/create_arena.py] }
+  ENEMY_FIRE.DRAW_RADIUS_RATIO: { value: 1.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-17, Enemies/DTEnemySubsystem] }
   AIM.TOKENS:                  { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.TOKENS_THREAT:           { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-18, T-ENM-18] }
   AIM.FAN_MIN_RANGE_UU:        { value: 600, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-19, T-ENM-19] }
