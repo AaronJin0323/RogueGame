@@ -1,9 +1,10 @@
-// Bot v1 (S1 tool): it drives player 0 only through LatchInput and the offer API, deterministically.
+// The bot (Docs/02_Systems/bot.md): it drives player 0 only through LatchInput and the offer API, deterministically.
 // The long bot-run checks (T-DIR-01 no-pick death band, T-OFF-15 decision budget) live in Tools/BotRuns.ps1 -Check.
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Bot; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
 #include "Bot/DTBotBrain.h"
+#include "Bot/DTBotPerception.h"
 #include "Bot/DTBotSubsystem.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
@@ -38,6 +39,7 @@ namespace DTBotTest
 		int32 Picks = 0;
 		int32 Level = 0;
 		int32 Weapons = 0;
+		bool bManualAim = false;
 		FString Csv;
 		FString Jsonl;
 	};
@@ -58,7 +60,7 @@ namespace DTBotTest
 		return Out;
 	}
 
-	static FRunResult Play(int32 Seed, EDTBotPolicy Policy)
+	static FRunResult Play(int32 Seed, EDTBotPolicy Policy, int32 Version = 1)
 	{
 		FRunResult Result;
 		FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
@@ -81,7 +83,8 @@ namespace DTBotTest
 			Config.Policy = Policy;
 			Config.Path = EDTPath::Storm;
 			Config.Archetype = FName(TEXT("Tempest"));
-			Config.Skill = 0.6f; // exercises the noise stream and manual aim as well
+			Config.Version = Version;
+			Config.Skill = 0.6f; // exercises the noise stream and manual aim as well (v1), the profile (v2)
 			Config.Seed = Seed;
 			Bot->Activate(Config);
 			const int32 Steps = RunSeconds * DTConst::SIM_FIXED_HZ;
@@ -109,6 +112,7 @@ namespace DTBotTest
 				Result.Pos = State->Pos;
 				Result.Hp = State->Hp;
 				Result.Dashes = State->Dashes;
+				Result.bManualAim = Heroes->GetAimMode(0) == EDTAimMode::Manual;
 			}
 			Result.Level = Sim->GetRun().GetPlayer(0).Level;
 			Result.Weapons = Sim->GetRun().GetPlayer(0).Weapons.Num();
@@ -128,13 +132,25 @@ namespace DTBotTest
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotDeterminism, "Dusktracer.Bot.Determinism", DTBotTest::Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotDeterminism, "Dusktracer.Bot.Determinism", DTBotTest::Flags) // T-BOT-02
 bool FDTBotDeterminism::RunTest(const FString& Parameters)
 {
 	using namespace DTBotTest;
 	const FRunResult A = Play(21, EDTBotPolicy::Steered);
 	const FRunResult B = Play(21, EDTBotPolicy::Steered);
 	const FRunResult C = Play(22, EDTBotPolicy::Steered);
+	const FRunResult V2A = Play(21, EDTBotPolicy::Steered, 2);
+	const FRunResult V2B = Play(21, EDTBotPolicy::Steered, 2);
+	const FRunResult V2C = Play(22, EDTBotPolicy::Steered, 2);
+	TestTrue(TEXT("v2 played"), V2A.Steps > 0 && V2A.Picks >= 1);
+	TestEqual(TEXT("v2, same seed: same input stream"), V2A.InputHash, V2B.InputHash);
+	TestEqual(TEXT("v2, same seed: same hero position"), V2A.Pos, V2B.Pos);
+	TestEqual(TEXT("v2, same seed: identical telemetry CSV"), V2A.Csv, V2B.Csv);
+	TestTrue(TEXT("v2, same seed: identical telemetry JSONL except wall fields"), StripWall(V2A.Jsonl) == StripWall(V2B.Jsonl));
+	TestNotEqual(TEXT("v2, another seed gives another input stream"), V2A.InputHash, V2C.InputHash);
+	TestNotEqual(TEXT("v2 is not v1 on the same seed"), V2A.InputHash, A.InputHash);
+	TestTrue(TEXT("v1 below skill 1 stays in Manual aim"), A.bManualAim);
+	TestFalse(TEXT("T-BOT-08: v2 below skill 1 stays in Auto aim"), V2A.bManualAim);
 
 	TestTrue(TEXT("the bot latched one input per step (plus the first)"), A.Inputs >= A.Steps && A.Steps > 0);
 	TestTrue(TEXT("the Patron hand was answered through the offer API"), A.Picks >= 1);
@@ -497,6 +513,452 @@ bool FDTBotDodge::RunTest(const FString& Parameters)
 	Shot.Hero = &Still;
 	const FDTHeroInput Dodge = Brain.Decide(Shot);
 	TestTrue(TEXT("a round about to hit: the bot moves or dashes off its line"), Dodge.bDashPress || FMath::Abs(Dodge.Move.X) > 0.5f);
+	return true;
+}
+
+// ---- Bot v2 (bot.md) ----------------------------------------------------------------------------------------------------
+
+namespace DTBotTest
+{
+	static FDTOfferCard MakeCard(EDTCardKind Kind, const TCHAR* Id, const TCHAR* Target = nullptr)
+	{
+		FDTOfferCard C;
+		C.Kind = Kind;
+		C.ContentId = FName(Id);
+		C.TargetWeapon = Target ? FName(Target) : NAME_None;
+		return C;
+	}
+
+	static FDTBotConfig V2Config(EDTPath Path, const TCHAR* Archetype, EDTPath Second, float Skill, int32 Seed = 5)
+	{
+		FDTBotConfig Config;
+		Config.Policy = EDTBotPolicy::Steered;
+		Config.Version = 2;
+		Config.Path = Path;
+		Config.Archetype = FName(Archetype);
+		Config.SecondPath = Second;
+		Config.Skill = Skill;
+		Config.Seed = Seed;
+		return Config;
+	}
+
+	/** Steps the brain with one enemy this far from the hero until its range samples stand (R-BOT-09). */
+	static void SampleRange(FDTBotBrain& Brain, float Range)
+	{
+		static FDTHeroState Hero;
+		Hero.Hp = Hero.MaxHp = 100.0f;
+		const FVector2f Pos[] = { FVector2f(Range, 0.0f) };
+		const FVector2f Vel[] = { FVector2f::ZeroVector };
+		const float Radius[] = { 0.0f };
+		FDTBotWorld World;
+		World.Hero = &Hero;
+		World.EnemyPos = Pos;
+		World.EnemyVel = Vel;
+		World.EnemyRadius = Radius;
+		const int32 Steps = 30 * DTConst::SIM_FIXED_HZ;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			World.StepIndex = Step;
+			Brain.Decide(World);
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotVersion, "Dusktracer.Bot.Version", DTBotTest::Flags) // T-BOT-01
+bool FDTBotVersion::RunTest(const FString& Parameters)
+{
+	FDTBotConfig Config;
+	TestEqual(TEXT("the default is v1"), Config.Version, 1);
+	TestEqual(TEXT("2 is known"), FDTBotConfig::KnownVersion(2), 2);
+	TestEqual(TEXT("an unknown version is the default"), FDTBotConfig::KnownVersion(7), 1);
+	TestTrue(TEXT("a record names its version"), Config.Describe().EndsWith(TEXT("version=1")));
+	FDTBotBrain Brain;
+	Config.Skill = 0.3f;
+	Brain.Reset(Config);
+	TestTrue(TEXT("v1 never reads the skill profile"), Brain.GetPerception().IsPassThrough() && Brain.GetProfile().HorizonS == FDTBotSkillProfile().HorizonS);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotSkillProfileTest, "Dusktracer.Bot.SkillProfile", DTBotTest::Flags) // T-BOT-03
+bool FDTBotSkillProfileTest::RunTest(const FString& Parameters)
+{
+	FDTBotSkillProfile Last = FDTBotSkillProfile::FromSkill(0.0f);
+	for (int32 Tenth = 1; Tenth <= 10; ++Tenth)
+	{
+		const FDTBotSkillProfile P = FDTBotSkillProfile::FromSkill(static_cast<float>(Tenth) / 10.0f);
+		TestTrue(TEXT("reaction and hold shrink"), P.ReactionS < Last.ReactionS && P.HoldS < Last.HoldS);
+		TestTrue(TEXT("fewer cues missed"), P.CueMissP < Last.CueMissP);
+		TestTrue(TEXT("more attention, range and look-ahead"), P.AttentionRounds > Last.AttentionRounds && P.ThreatRangeUU > Last.ThreatRangeUU && P.HorizonS > Last.HorizonS);
+		TestTrue(TEXT("less stick error, an earlier dash, more dash plans"), P.StickErrDeg < Last.StickErrDeg && P.ImminentS > Last.ImminentS && P.DashPlanP > Last.DashPlanP);
+		TestTrue(TEXT("casts sooner, less taste, more awareness"), P.CastCrowd <= Last.CastCrowd && P.TasteScore < Last.TasteScore && P.FitAwareness > Last.FitAwareness);
+		Last = P;
+	}
+	const FDTBotSkillProfile Top = FDTBotSkillProfile::FromSkill(1.0f);
+	const FDTBotSkillProfile Defaults;
+	TestTrue(TEXT("skill 1 is v1's heuristics exactly"), Top.HorizonS == Defaults.HorizonS && Top.ImminentS == Defaults.ImminentS && Top.ThreatRangeUU == Defaults.ThreatRangeUU
+		&& Top.CastCrowd == Defaults.CastCrowd && Top.AttentionRounds == MAX_int32 && Top.ReactionS == 0.0f);
+
+	// R-BOT-03: on the same worlds v2 at skill 1.0 presses what v1 presses.
+	FDTBotConfig V1;
+	V1.Policy = EDTBotPolicy::Steered;
+	V1.Seed = 9;
+	FDTBotConfig V2 = V1;
+	V2.Version = 2;
+	FDTBotBrain A;
+	FDTBotBrain B;
+	A.Reset(V1);
+	B.Reset(V2);
+	FDTHeroState Hero;
+	Hero.Hp = Hero.MaxHp = 100.0f;
+	Hero.DashCharges = 2;
+	TArray<FVector2f> EnemyPos;
+	TArray<FVector2f> EnemyVel;
+	TArray<float> EnemyRadius;
+	FRandomStream Rng(77);
+	for (int32 Index = 0; Index < 40; ++Index)
+	{
+		EnemyPos.Add(FVector2f(Rng.FRandRange(-1200.0f, 1200.0f), Rng.FRandRange(-1200.0f, 1200.0f)));
+		EnemyVel.Add(FVector2f(Rng.FRandRange(-300.0f, 300.0f), Rng.FRandRange(-300.0f, 300.0f)));
+		EnemyRadius.Add(30.0f);
+	}
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.EnemyPos = EnemyPos;
+	World.EnemyVel = EnemyVel;
+	World.EnemyRadius = EnemyRadius;
+	bool bSame = true;
+	for (int32 Step = 0; Step < 240; ++Step)
+	{
+		World.StepIndex = Step;
+		for (int32 Index = 0; Index < EnemyPos.Num(); ++Index)
+		{
+			EnemyPos[Index] += EnemyVel[Index] * World.StepSeconds;
+		}
+		const FDTHeroInput InA = A.Decide(World);
+		const FDTHeroInput InB = B.Decide(World);
+		bSame &= InA.Move == InB.Move && InA.AimStick == InB.AimStick && InA.bDashPress == InB.bDashPress && InA.bIntercessionPress == InB.bIntercessionPress;
+		Hero.Pos += InA.Move * 2.0f;
+	}
+	TestTrue(TEXT("v2 at skill 1.0 gives v1's inputs"), bSame);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotReaction, "Dusktracer.Bot.Reaction", DTBotTest::Flags) // T-BOT-04
+bool FDTBotReaction::RunTest(const FString& Parameters)
+{
+	FDTHeroState Hero;
+	const TArray<FVector2f> RoundPos = { FVector2f(500.0f, 0.0f) };
+	const TArray<FVector2f> RoundVel = { FVector2f(-600.0f, 0.0f) };
+	const TArray<float> RoundRadius = { 12.0f };
+	for (const float Skill : { 1.0f, 0.3f })
+	{
+		const FDTBotSkillProfile Profile = FDTBotSkillProfile::FromSkill(Skill);
+		const int32 Delay = FMath::RoundToInt32(Profile.ReactionS * DTConst::SIM_FIXED_HZ);
+		FDTBotPerception Perception;
+		Perception.Reset(Profile, 3);
+		FDTBotWorld World;
+		World.Hero = &Hero;
+		World.StepSeconds = 1.0f / DTConst::SIM_FIXED_HZ;
+		for (int32 Step = 0; Step < 40; ++Step)
+		{
+			World.StepIndex = Step;
+			Perception.Push(World);
+			Perception.Perceive(World);
+		}
+		// The round appears, then flies on; the bot sees it only once its frame is a reaction old.
+		for (int32 Step = 0; Step <= Delay; ++Step)
+		{
+			const TArray<FVector2f> Moved = { RoundPos[0] + RoundVel[0] * World.StepSeconds * static_cast<float>(Step) };
+			World.RoundPos = Moved;
+			World.RoundVel = RoundVel;
+			World.RoundRadius = RoundRadius;
+			Perception.Push(World);
+			const FDTBotWorld Seen = Perception.Perceive(World);
+			TestEqual(TEXT("seen only after the reaction"), Seen.RoundPos.Num(), Step >= Delay ? 1 : 0);
+			if (Step >= Delay)
+			{
+				TestTrue(TEXT("carried forward to where it is now"), FVector2f::Distance(Seen.RoundPos[0], Moved[0]) < 1.0f);
+			}
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCueMiss, "Dusktracer.Bot.CueMiss", DTBotTest::Flags) // T-BOT-05
+bool FDTBotCueMiss::RunTest(const FString& Parameters)
+{
+	const FDTBotSkillProfile Profile = FDTBotSkillProfile::FromSkill(0.3f);
+	FDTBotPerception Perception;
+	Perception.Reset(Profile, 3);
+	FDTHeroState Hero;
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.StepSeconds = 1.0f / DTConst::SIM_FIXED_HZ;
+	constexpr int32 NumCues = 2000;
+	for (int32 Index = 0; Index < NumCues; ++Index)
+	{
+		FDTTelegraph Tele;
+		Tele.Origin = FVector2f(static_cast<float>(Index) * 400.0f, 0.0f);
+		const TArray<FDTTelegraph> One = { Tele };
+		World.Telegraphs = One;
+		Perception.Push(World);
+		Perception.Perceive(World);
+	}
+	const int32 Judged = Perception.GetCuesJudged();
+	const float Share = static_cast<float>(Perception.GetCuesMissed()) / static_cast<float>(Judged);
+	TestTrue(TEXT("every cue that reached the bot was judged"), Judged > NumCues * 0.9f);
+	TestTrue(*FString::Printf(TEXT("missed share %.3f near %.3f"), Share, Profile.CueMissP), FMath::Abs(Share - Profile.CueMissP) < 0.04f);
+
+	// One cue over many steps: one judgement, and its verdict holds to the end.
+	FDTBotPerception Held;
+	Held.Reset(Profile, 11);
+	for (int32 Pass = 0; Pass < 40; ++Pass)
+	{
+		FDTTelegraph Tele;
+		Tele.Origin = FVector2f(100.0f, 0.0f);
+		Tele.Progress = static_cast<float>(Pass) / 40.0f;
+		const TArray<FDTTelegraph> One = { Tele };
+		World.Telegraphs = One;
+		Held.Push(World);
+		Held.Perceive(World);
+	}
+	TestEqual(TEXT("a cue is judged once"), Held.GetCuesJudged(), 1);
+
+	// The ring is on screen for the whole phase.
+	FDTBotPerception Ring;
+	Ring.Reset(FDTBotSkillProfile::FromSkill(0.0f), 4);
+	for (int32 Pass = 0; Pass < 300; ++Pass)
+	{
+		FDTTelegraph Tele;
+		Tele.Shape = EDTTelegraphShape::HazardRing;
+		Tele.Origin = FVector2f(static_cast<float>(Pass) * 400.0f, 0.0f);
+		const TArray<FDTTelegraph> One = { Tele };
+		World.Telegraphs = One;
+		Ring.Push(World);
+		Ring.Perceive(World);
+	}
+	TestTrue(TEXT("rings were judged"), Ring.GetCuesJudged() > 100);
+	TestEqual(TEXT("the hazard ring is never missed"), Ring.GetCuesMissed(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotAttention, "Dusktracer.Bot.Attention", DTBotTest::Flags) // T-BOT-06
+bool FDTBotAttention::RunTest(const FString& Parameters)
+{
+	const FDTBotSkillProfile Profile = FDTBotSkillProfile::FromSkill(0.0f);
+	FDTBotPerception Perception;
+	Perception.Reset(Profile, 3);
+	FDTHeroState Hero;
+	TArray<FVector2f> Pos;
+	TArray<FVector2f> Vel;
+	TArray<float> Radius;
+	for (int32 Index = 0; Index < 50; ++Index)
+	{
+		Pos.Add(FVector2f(100.0f + static_cast<float>(Index) * 10.0f, 0.0f));
+		Vel.Add(FVector2f::ZeroVector);
+		Radius.Add(10.0f);
+	}
+	FDTBotWorld World;
+	World.Hero = &Hero;
+	World.EnemyPos = Pos;
+	World.EnemyVel = Vel;
+	World.EnemyRadius = Radius;
+	World.RoundPos = Pos;
+	World.RoundVel = Vel;
+	World.RoundRadius = Radius;
+	Perception.Push(World);
+	const FDTBotWorld Seen = Perception.Perceive(World);
+	TestEqual(TEXT("the nearest rounds only"), Seen.RoundPos.Num(), Profile.AttentionRounds);
+	bool bNearest = true;
+	for (const FVector2f& P : Seen.RoundPos)
+	{
+		bNearest &= P.X < 100.0f + static_cast<float>(Profile.AttentionRounds) * 10.0f;
+	}
+	TestTrue(TEXT("the kept rounds are the nearest"), bNearest);
+	TestEqual(TEXT("every body is seen"), Seen.EnemyPos.Num(), Pos.Num());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotStickError, "Dusktracer.Bot.StickError", DTBotTest::Flags) // T-BOT-07
+bool FDTBotStickError::RunTest(const FString& Parameters)
+{
+	// A far chest straight ahead: the only thing moving the direction is the stick error.
+	auto Angles = [](float Skill)
+	{
+		FDTBotBrain Brain;
+		Brain.Reset(DTBotTest::V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, Skill));
+		FDTHeroState Hero;
+		Hero.Hp = Hero.MaxHp = 100.0f;
+		const FVector2f Chest[] = { FVector2f(3000.0f, 0.0f) };
+		FDTBotWorld World;
+		World.Hero = &Hero;
+		World.Chests = Chest;
+		TArray<float> Out;
+		const int32 Hold = 1 + FMath::RoundToInt32(Brain.GetProfile().HoldS * DTConst::SIM_FIXED_HZ);
+		for (int32 Step = 0; Step < 60000; ++Step)
+		{
+			World.StepIndex = Step;
+			const FDTHeroInput In = Brain.Decide(World);
+			if (Step % Hold == 0)
+			{
+				Out.Add(FMath::RadiansToDegrees(FMath::Atan2(In.Move.Y, In.Move.X)));
+			}
+		}
+		return Out;
+	};
+	const TArray<float> Top = Angles(1.0f);
+	bool bStraight = true;
+	for (const float A : Top)
+	{
+		bStraight &= FMath::IsNearlyZero(A, 0.001f);
+	}
+	TestTrue(TEXT("no error at skill 1"), bStraight);
+
+	const TArray<float> Low = Angles(0.3f);
+	double Sum = 0.0;
+	double Sum2 = 0.0;
+	double Steps = 0.0;
+	for (int32 Index = 0; Index < Low.Num(); ++Index)
+	{
+		Sum += Low[Index];
+		Sum2 += Low[Index] * Low[Index];
+		if (Index > 0)
+		{
+			Steps += FMath::Abs(Low[Index] - Low[Index - 1]);
+		}
+	}
+	const double Mean = Sum / Low.Num();
+	const double Spread = FMath::Sqrt(Sum2 / Low.Num() - Mean * Mean);
+	const double MeanStep = Steps / (Low.Num() - 1);
+	const float Want = FDTBotSkillProfile::FromSkill(0.3f).StickErrDeg;
+	TestTrue(*FString::Printf(TEXT("spread %.1f near the profile's %.1f"), Spread, Want), FMath::Abs(Spread - Want) < Want * 0.25);
+	TestTrue(*FString::Printf(TEXT("a drift, not a jitter: step %.1f, spread %.1f"), MeanStep, Spread), MeanStep < Spread * 0.75); // a fresh angle per decision steps about 1.13 spreads
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotAimAuto, "Dusktracer.Bot.AimAuto", DTBotTest::Flags) // T-BOT-08
+bool FDTBotAimAuto::RunTest(const FString& Parameters)
+{
+	for (const float Skill : { 1.0f, 0.6f, 0.3f })
+	{
+		FDTBotBrain Brain;
+		Brain.Reset(DTBotTest::V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, Skill));
+		FDTHeroState Hero;
+		Hero.Hp = Hero.MaxHp = 100.0f;
+		const FVector2f Pos[] = { FVector2f(300.0f, 40.0f) };
+		FDTBotWorld World;
+		World.Hero = &Hero;
+		World.EnemyPos = Pos;
+		for (int32 Step = 0; Step < 120; ++Step)
+		{
+			World.StepIndex = Step;
+			TestTrue(TEXT("the aim stick stays neutral"), Brain.Decide(World).AimStick.IsNearlyZero());
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardReach, "Dusktracer.Bot.CardReach", DTBotTest::Flags) // T-BOT-09
+bool FDTBotCardReach::RunTest(const FString& Parameters)
+{
+	using namespace DTBotTest;
+	FDTPlayerRunState Player;
+	FDTWeaponInstance Rifle;
+	Rifle.Id = FName(TEXT("Weapon.PulseRifle"));
+	Player.Weapons.Add(Rifle);
+	FDTWeaponInstance Blade;
+	Blade.Id = FName(TEXT("Weapon.ArcBlade"));
+	Blade.Level = 1;
+	FDTOfferHand Hand;
+	Hand.Cards = { MakeCard(EDTCardKind::Weapon, TEXT("Weapon.ArcBlade")), MakeCard(EDTCardKind::Weapon, TEXT("Weapon.OrbitalDrones")) };
+
+	TestEqual(TEXT("the blade's reach is its radius"), FDTBotBrain::WeaponReach(FName(TEXT("Weapon.ArcBlade")), Player), 220.0f);
+	TestEqual(TEXT("the rifle's reach is its range"), FDTBotBrain::WeaponReach(FName(TEXT("Weapon.PulseRifle")), Player), 900.0f);
+
+	FDTBotBrain Far;
+	Far.Reset(V2Config(EDTPath::Tide, TEXT("Stillness"), EDTPath::Storm, 1.0f));
+	SampleRange(Far, 400.0f);
+	TestEqual(TEXT("kiting past its reach, the seed 6 hand goes to the drones"), Far.ChooseCard(Hand, Player), 1);
+
+	FDTOfferHand Upgrades;
+	Upgrades.Cards = { MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.ArcBlade"), TEXT("Weapon.ArcBlade")), MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"), TEXT("Weapon.PulseRifle")) };
+	FDTPlayerRunState Both = Player;
+	Both.Weapons.Add(Blade);
+	TestEqual(TEXT("an upgrade of a weapon out of reach loses to a usable one"), Far.ChooseCard(Upgrades, Both), 1);
+	const FDTOfferCard Mod = MakeCard(EDTCardKind::Mod, TEXT("Mod.SplitCore"), TEXT("Weapon.ArcBlade"));
+	const FDTOfferCard ModRifle = MakeCard(EDTCardKind::Mod, TEXT("Mod.SplitCore"), TEXT("Weapon.PulseRifle"));
+	TestTrue(TEXT("a modifier on it loses half as much"), Far.ScoreCard(Mod, Upgrades, Both) < Far.ScoreCard(ModRifle, Upgrades, Both));
+
+	FDTBotBrain Close;
+	Close.Reset(V2Config(EDTPath::Tide, TEXT("Stillness"), EDTPath::Storm, 1.0f));
+	SampleRange(Close, 150.0f);
+	TestTrue(TEXT("in reach the blade keeps its full score"), Close.ScoreCard(Hand.Cards[0], Hand, Player) > 70.0f);
+
+	FDTBotBrain Weak;
+	Weak.Reset(V2Config(EDTPath::Tide, TEXT("Stillness"), EDTPath::Storm, 0.0f));
+	SampleRange(Weak, 400.0f);
+	TestTrue(TEXT("skill 0 sees no reach fit"), FMath::Abs(Weak.ScoreCard(Hand.Cards[0], Hand, Player) - Weak.CardTaste(Hand.Cards[0].ContentId) - 80.0f) < 0.001f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardSecond, "Dusktracer.Bot.CardSecond", DTBotTest::Flags) // T-BOT-10
+bool FDTBotCardSecond::RunTest(const FString& Parameters)
+{
+	using namespace DTBotTest;
+	FDTBotBrain Brain;
+	Brain.Reset(V2Config(EDTPath::Forge, TEXT("Hammer"), EDTPath::Storm, 1.0f));
+	FDTPlayerRunState Player;
+	Player.Keepers.Primary = EDTPath::Forge;
+	Player.Keepers.Second = EDTPath::Storm;
+	FDTOfferHand Hand;
+	Hand.Cards = { MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"), TEXT("Weapon.PulseRifle")), MakeCard(EDTCardKind::Weapon, TEXT("Weapon.RingEmitter")),
+		MakeCard(EDTCardKind::Blessing, TEXT("Blessing.Storm.Tempest.Key")) };
+	TestEqual(TEXT("an unblessed second Keeper beats an upgrade and a new weapon"), Brain.ChooseCard(Hand, Player), 2);
+	Hand.Cards.Add(MakeCard(EDTCardKind::Blessing, TEXT("Blessing.Forge.Hammer.Key")));
+	TestEqual(TEXT("the archetype's own Key still comes first"), Brain.ChooseCard(Hand, Player), 3);
+
+	Player.Keepers.Owned.Add(FName(TEXT("Blessing.Storm.Tempest.Key")));
+	FDTOfferHand Next;
+	Next.Cards = { MakeCard(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"), TEXT("Weapon.PulseRifle")), MakeCard(EDTCardKind::Blessing, TEXT("Blessing.Storm.Tempest.Amp1")) };
+	TestEqual(TEXT("after the first blessing it still beats an upgrade"), Brain.ChooseCard(Next, Player), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardTaste, "Dusktracer.Bot.CardTaste", DTBotTest::Flags) // T-BOT-11
+bool FDTBotCardTaste::RunTest(const FString& Parameters)
+{
+	using namespace DTBotTest;
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	FDTBotBrain Top;
+	Top.Reset(V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, 1.0f));
+	TestEqual(TEXT("no taste at skill 1"), Top.CardTaste(Rifle), 0.0f);
+
+	FDTBotBrain Low;
+	Low.Reset(V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, 0.3f, 5));
+	TestEqual(TEXT("the same card reads the same across a run"), Low.CardTaste(Rifle), Low.CardTaste(Rifle));
+	TestTrue(TEXT("inside the profile"), FMath::Abs(Low.CardTaste(Rifle)) <= Low.GetProfile().TasteScore);
+	int32 Differs = 0;
+	for (int32 Seed = 6; Seed < 16; ++Seed)
+	{
+		FDTBotBrain Other;
+		Other.Reset(V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, 0.3f, Seed));
+		Differs += Other.CardTaste(Rifle) != Low.CardTaste(Rifle) ? 1 : 0;
+	}
+	TestTrue(TEXT("another seed tastes another way"), Differs > 5);
+	TestNotEqual(TEXT("another card tastes another way"), Low.CardTaste(Rifle), Low.CardTaste(FName(TEXT("Weapon.RingEmitter"))));
+
+	FDTPlayerRunState Player;
+	FDTOfferHand Patron;
+	Patron.HandKind = EDTHandKind::Patron;
+	Patron.Cards = { MakeCard(EDTCardKind::Keeper, TEXT("Keeper.Tide")), MakeCard(EDTCardKind::Keeper, TEXT("Keeper.Storm")) };
+	bool bArm = true;
+	for (int32 Seed = 1; Seed < 40; ++Seed)
+	{
+		FDTBotBrain Other;
+		Other.Reset(V2Config(EDTPath::Storm, TEXT("Tempest"), EDTPath::None, 0.0f, Seed));
+		bArm &= Other.ChooseCard(Patron, Player) == 1;
+	}
+	TestTrue(TEXT("a Keeper hand takes no taste: the arm stays the arm"), bArm);
 	return true;
 }
 
