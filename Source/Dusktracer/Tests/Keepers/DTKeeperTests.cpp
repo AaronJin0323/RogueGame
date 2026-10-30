@@ -12,6 +12,9 @@
 #include "Core/DTPaletteGen.h"
 #include "Keepers/DTKeeperSim.h"
 #include "Keepers/DTKeeperSpec.h"
+#include "Internationalization/StringTable.h"
+#include "Internationalization/StringTableCore.h"
+#include "Internationalization/StringTableRegistry.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Offers/DTOfferGenerator.h"
@@ -1461,5 +1464,29 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamDashReset, "DashCooldownReset")
 }
 
 #undef DT_KEEPER_PARAM_TEST
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTKeepersKeywords, "Dusktracer.Keepers.Keywords", DTWeaponTestHarness::TestFlags) // T-KEE-22
+bool FDTKeepersKeywords::RunTest(const FString& Parameters)
+{
+	FStringTableConstPtr Table = FStringTableRegistry::Get().FindStringTable(FName(TEXT("ST_Keywords")));
+	if (!TestTrue(TEXT("ST_Keywords is registered"), Table.IsValid()))
+	{
+		return true;
+	}
+	TSet<FString> Ids = { TEXT("Status.Shock"), TEXT("Status.Burn"), TEXT("Status.Chill"), TEXT("Status.Freeze"), TEXT("Flag.Ricochet") };
+	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	{
+		Ids.Add(DTCat::FlagIds[static_cast<int32>(DTCat::Archetypes[Row].KeyFlag)]);
+	}
+	for (const FString& Id : Ids)
+	{
+		for (const TCHAR* Part : { TEXT(".Name"), TEXT(".Desc") })
+		{
+			FString Text;
+			TestTrue(FString::Printf(TEXT("%s%s exists"), *Id, Part), Table->GetSourceString(Id + Part, Text) && !Text.IsEmpty());
+		}
+	}
+	return true;
+}
 
 #endif // WITH_DEV_AUTOMATION_TESTS
