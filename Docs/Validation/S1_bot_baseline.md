@@ -70,3 +70,23 @@ Remaining gaps (reported, not tuned in this pass):
 2. **Bot pickup above the reference.** Collected / model 0.73 (Storm, Forge) vs `C.XP.REFERENCE_PICKUP_RATIO` 0.51: bot level times are early bounds (L16 ≈ 570 s). At the reference ratio the S1 timeline model itself reaches L16 only at 712 s; which side moves (drops, or the reference ratio) needs a human pickup reading (O-008).
 3. **Share caps cut the XP the timeline asks for.** Spawned XP is ~0.79 of the model for a build that clears the field, because the alive share caps redraw most Turret and many Tank and Rusher spawns as Swarm.
 4. **Storm/Tempest dies before the boss in 5/5** at L14–18; Tide/Frost reaches the boss 2/5 with a Keeper share under 0.60.
+
+## Re-measure after S1 balance pass 2 (2026-10-30)
+Part A (Keeper parameters, Reserve effects) and the arc contact-point fix are in; every tuned number of that pass was reverted (`S1_balance_pass2.md` §6). `-Parallel 14` reads identically to serial runs. All nine archetypes, seeds 1..5; `Steered:<Path>:<Archetype>:<SecondPath>` picks the second Keeper.
+
+| Arm | Boss | Wins | Median end s | Dmg share/min | Keeper share L16 |
+|---|---|---|---|---|---|
+| None (10) | 1/10 | 0 | 592.9 | 0.223 | — |
+| Storm/Tempest | 1/5 | 0 | 749 | 0.22 | 0.43 |
+| Storm/ArcGrid | 0/5 | 0 | 481 | 0.17 | 0.46 |
+| Storm/Downpour | 1/5 | 1 | 398 | 0.11 | 0.44 |
+| Forge/Hammer | 5/5 | 4 | 956 | 0.02 | 0.59 |
+| Forge/Furnace | 5/5 | 3 | 995 | 0.02 | 0.41 |
+| Forge/Slam | 5/5 | 0 | 949 | 0.04 | 0.44 |
+| Tide/Frost | 2/5 | 0 | 847 | 0.12 | 0.26 |
+| Tide/Whirlpool | 0/5 | 0 | 89 | — | — |
+| Tide/Stillness | 0/5 | 0 | 724 | 0.34 | 0.32 |
+| Storm/Tempest:Forge | 5/5 | 4 | 993 | 0.01 | 0.36 |
+| Storm/ArcGrid:Forge | 5/5 | 3 | 970 | 0.02 | 0.59 |
+
+Checks: `T-DIR-01: PASS (median end 592.9 s over 10 seeds; 1 run(s) did not die)`; `T-OFF-15: PASS (29/29 runs at the boss, mean decisions 28.7)`; `Tools/pressure.py --check` now judges per arm: FAIL, 0/10 arms inside both bands. Gap 1 above reads differently now: the bot's fixed second Keeper decides the arm. Tide as a Keeper is what loses (0–2 of 15 at the boss), not Storm (`S1_balance_pass2.md` §6).
