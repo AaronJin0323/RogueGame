@@ -356,7 +356,7 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.WEAPON.SLOTS | 4 | n | CORE | weapons.md, offers.md, T-WPN-03 |
 | C.WEAPON.LEVEL_MAX | 8 | level | CORE | weapons.md, weapons.csv, T-WPN-04 |
 | C.WEAPON.SPAWN_RATE_MAX_PER_S | 400 | /s per weapon | GATED(S1) | weapons.md, C.BULLETS.CAP, T-WPN-09 |
-| C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO | 0.55 | ratio of volley damage | GATED(S1) | weapons.md, T-WPN-10 |
+| C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO | 0.8 | ratio of volley damage | GATED(S1) | weapons.md, T-WPN-10 |
 | C.WEAPON.ARC_DEG | 120 | deg | GATED(S1) | weapons.md, T-WPN-06 |
 | C.WEAPON.DRONE_ORBIT_RADIUS_UU | 160 | uu | GATED(S1) | weapons.md, T-WPN-06 |
 | C.WEAPON.DRONE_ORBIT_DEG_S | 120 | deg/s | GATED(S1) | weapons.md, T-WPN-06 |

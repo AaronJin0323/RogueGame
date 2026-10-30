@@ -300,7 +300,7 @@ namespace DTConst
 	inline constexpr int32 WEAPON_SLOTS = 4; // n, CORE
 	inline constexpr int32 WEAPON_LEVEL_MAX = 8; // level, CORE
 	inline constexpr int32 WEAPON_SPAWN_RATE_MAX_PER_S = 400; // per_s, GATED(S1)
-	inline constexpr float WEAPON_CONVERT_MELEE_DAMAGE_RATIO = 0.55f; // ratio, GATED(S1)
+	inline constexpr float WEAPON_CONVERT_MELEE_DAMAGE_RATIO = 0.8f; // ratio, GATED(S1)
 	inline constexpr int32 WEAPON_ARC_DEG = 120; // deg, GATED(S1)
 	inline constexpr int32 WEAPON_DRONE_ORBIT_RADIUS_UU = 160; // uu, GATED(S1)
 	inline constexpr int32 WEAPON_DRONE_ORBIT_DEG_S = 120; // deg_per_s, GATED(S1)

@@ -295,7 +295,7 @@ weapons:
   WEAPON.SLOTS:                { value: 4,    unit: n,     tag: CORE,       dependents: [02_Systems/weapons.md, 02_Systems/offers.md, T-WPN-03] }
   WEAPON.LEVEL_MAX:            { value: 8,    unit: level, tag: CORE,       dependents: [02_Systems/weapons.md, 09_Catalog/weapons.csv, T-WPN-04] }
   WEAPON.SPAWN_RATE_MAX_PER_S: { value: 400,  unit: per_s, tag: GATED(S1),  dependents: [02_Systems/weapons.md, C.BULLETS.CAP, T-WPN-09] }
-  WEAPON.CONVERT_MELEE_DAMAGE_RATIO: { value: 0.55, unit: ratio, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-10] }
+  WEAPON.CONVERT_MELEE_DAMAGE_RATIO: { value: 0.8, unit: ratio, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-10] }
   WEAPON.ARC_DEG:              { value: 120,  unit: deg,   tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-06] }
   WEAPON.DRONE_ORBIT_RADIUS_UU: { value: 160, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-06] }
   WEAPON.DRONE_ORBIT_DEG_S:    { value: 120,  unit: deg_per_s, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-06] }
