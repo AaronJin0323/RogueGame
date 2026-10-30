@@ -126,8 +126,8 @@ def ablate(build, config, path, name):
 	return second, blessings, weapons
 
 
-def field_hp(consts):
-	return (1.0 + consts["SCALE.HP_PER_MIN"]["value"] * FIELD_MINUTE) * FIELD_HP_MULT
+def field_hp(consts, mult=FIELD_HP_MULT):
+	return (1.0 + consts["SCALE.HP_PER_MIN"]["value"] * FIELD_MINUTE) * mult
 
 
 def write_jobs(out_dir, jobs):
@@ -138,11 +138,11 @@ def write_jobs(out_dir, jobs):
 	print(f"PROBE: {len(jobs)} scene(s) -> {out_dir}")
 
 
-def gen_intercession(out_dir, seeds):
+def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	cast_at = ABLATE_WARMUP_S  # a probe's meter is full from the start (UDTBotSubsystem::ApplyProbe)
-	hp = field_hp(consts)
+	hp = field_hp(consts, mult)
 	columns = ("Key", "Amp1", "Amp2", "Trait")
 	cast_jobs, plain_jobs = [], []
 	for index, (variant, layer) in enumerate(combinations(read_archetypes())):
@@ -161,10 +161,10 @@ def gen_intercession(out_dir, seeds):
 	write_jobs(out_dir, cast_jobs + plain_jobs)
 
 
-def gen_ablation(out_dir, builds_root, seeds):
+def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
-	hp = field_hp(consts)
+	hp = field_hp(consts, mult)
 	by_config = {c: [] for c in CONFIGS}
 	count = 0
 	for label, (path, name) in SHOWCASE.items():
@@ -339,11 +339,12 @@ def main(argv):
 		return 2
 	command, target = argv[1], argv[2]
 	seeds = int(argv[argv.index("--seeds") + 1]) if "--seeds" in argv else None
+	mult = float(argv[argv.index("--hp-mult") + 1]) if "--hp-mult" in argv else FIELD_HP_MULT
 	if command == "intercession":
-		gen_intercession(target, seeds or 5)
+		gen_intercession(target, seeds or 5, mult)
 		return 0
 	if command == "ablation":
-		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1)
+		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1, mult)
 		return 0
 	if command != "read":
 		print(__doc__)
