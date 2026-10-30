@@ -460,7 +460,7 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 		Card.ContentId = DTWeapons::ModifierId(Mod);
 		AddCard(Card);
 	}
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		Keys.AddUnique(TPair<FString, FString>(KeepersTable, ArchetypeKey(Row) + TEXT(".Name")));
 		for (int32 Column = 0; Column < UE_ARRAY_COUNT(ColumnNames); ++Column)
@@ -470,7 +470,7 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 			AddCard(Card);
 		}
 	}
-	for (EDTPath Path : DTOffers::RunKeepers())
+	for (EDTPath Path : DTOffers::AllKeepers())
 	{
 		Card.Kind = EDTCardKind::Keeper;
 		Card.ContentId = DTOffers::KeeperId(Path);

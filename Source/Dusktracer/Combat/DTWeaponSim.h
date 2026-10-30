@@ -38,7 +38,7 @@ struct FDTWeaponCounters
 /** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
 struct FDTWeaponVisual
 {
-	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, StillCharge, FrozenWall, FrozenHold, FrozenPlain };
+	enum class EKind : uint8 { Drone, Mine, MineZone, Field, Arc, StillAura, StillCharge, FrozenWall, FrozenHold, FrozenPlain, Marked };
 	EKind Kind = EKind::Drone;
 	FVector2f Position = FVector2f::ZeroVector;
 	FVector2f Dir = FVector2f(1.0f, 0.0f);
@@ -83,6 +83,41 @@ public:
 	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 	/** Non-starter ids in the run pool (DT.Unlock): Mod.Refit draws only from the pool. */
 	void Unlock(FName Id) { Unlocked.Add(Id); }
+
+	// --- S2 Keeper state the weapons read (keepers.md §9) ----------------------------------------------------------
+	/** Marks an enemy for OwnerId for C.STATUS.MARK_S plus the owner's mark_s, from StepIndex on (R-KEE-24). */
+	void ApplyMark(int32 OwnerId, uint32 Serial, int64 StepIndex);
+	bool IsMarked(int32 OwnerId, uint32 Serial) const;
+	bool IsBlinded(int32 OwnerId, uint32 Serial) const;
+	/** Effects: records every Mark and Blind application of the step in the owner's state (the enchantment writes them too). */
+	void AbsorbStatuses(const FDTSimContext& Context);
+	/** Marks every enemy within Radius of Center. */
+	void MarkCircle(const FDTSimContext& Context, int32 OwnerId, const FVector2f& Center, float Radius, uint16 SourceId);
+	/** Kills every non-boss enemy OwnerId marked at or below Below of its HP, as SourceId. Returns how many. */
+	int32 ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId);
+	int32 GetLiveHunters(int32 OwnerId) const;
+	/** Raises Count hunters at At with this life and share of the best weapon's damage, under max_live (R-KEE-27). */
+	void RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio);
+	int32 GetDebt(int32 OwnerId) const;
+	/** Adds Debt; at debt_max it resets and the owner's next volley is a payday (R-KEE-29). */
+	void AddDebt(int32 OwnerId, int32 Debt);
+	bool IsPaydayReady(int32 OwnerId) const;
+	/** Makes the next volley a payday at Mult, executing at or below ExecuteBelow. */
+	void ForcePayday(int32 OwnerId, float Mult, float ExecuteBelow);
+	float GetMomentum(int32 OwnerId) const;
+	/** Raises Momentum to at least Stacks; bHold stops it fading until the next call (R-KEE-34). */
+	void GrantMomentum(int32 OwnerId, float Stacks, bool bHold);
+	/** Seconds of dash cooldown earned since the last call. */
+	float TakeDashRefund(int32 OwnerId);
+	/** Dash refills earned since the last call (free_every). */
+	int32 TakeDashRefills(int32 OwnerId);
+	/** Enemy's HP now, 0 without a pool. */
+	float HpOf(int32 Enemy) const;
+	/** The most crit damage any of OwnerId's weapons has (the beam's crit). */
+	float BestCritMult(int32 OwnerId) const;
+	bool GetDensestLine(const FDTWorldView& View, const FVector2f& Hero, float Range, FVector2f& OutDir) const { return FindDensestLine(View, Hero, Range, OutDir); }
+	/** A narrow flash along Dir (a beam's cue, R-KEE-36). */
+	void AddFlash(int32 OwnerId, const FVector2f& Position, const FVector2f& Dir, float Reach, float ArcDeg, float Seconds);
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */

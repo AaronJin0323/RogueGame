@@ -10,6 +10,7 @@
 #include "Core/DTSimSubsystem.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Telemetry/DTTelemetrySources.h"
 
 namespace DTDebugWeapons
@@ -78,13 +79,14 @@ namespace DTDebugWeapons
 		UDTWeaponSubsystem* Weapons = Find(World);
 		if (!Weapons || Args.Num() < 1)
 		{
-			UE_LOG(LogDT, Log, TEXT("DT.Unlock <Weapon.*|Mod.*>"));
+			UE_LOG(LogDT, Log, TEXT("DT.Unlock <Weapon.*|Mod.*|Keeper.*>"));
 			return;
 		}
 		const FName Raw(*Args[0]);
 		const int32 Weapon = DTWeapons::FindWeapon(Raw);
 		const int32 Mod = DTWeapons::FindModifier(Raw);
-		const FName Id = Weapon != INDEX_NONE ? DTWeapons::WeaponId(Weapon) : (Mod != INDEX_NONE ? DTWeapons::ModifierId(Mod) : NAME_None);
+		const bool bKeeper = DTOffers::ParseKeeper(Raw) != EDTPath::None;
+		const FName Id = Weapon != INDEX_NONE ? DTWeapons::WeaponId(Weapon) : (Mod != INDEX_NONE ? DTWeapons::ModifierId(Mod) : (bKeeper ? Raw : NAME_None));
 		if (Id.IsNone())
 		{
 			UE_LOG(LogDT, Warning, TEXT("DT.Unlock %s: unknown id"), *Args[0]);
@@ -137,7 +139,7 @@ namespace DTDebugWeapons
 		TEXT("DT.Mod <WeaponId> <ModId> [player]: socket a modifier into an owned weapon (compatibility enforced)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Mod));
 	static FAutoConsoleCommandWithWorldAndArgs UnlockCmd(TEXT("DT.Unlock"),
-		TEXT("DT.Unlock <Id>: put a non-starter weapon or modifier in the run pool (D-013: Gravity Mine, Fork, Ricochet)"),
+		TEXT("DT.Unlock <Id>: put a non-starter weapon, modifier or Keeper in the run pool (D-013: Gravity Mine, Fork, Ricochet; keepers.md R-KEE-23)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Unlock));
 	static FAutoConsoleCommandWithWorldAndArgs StatsCmd(TEXT("DT.Weapons.Stats"),
 		TEXT("DT.Weapons.Stats: per weapon level, load rank, composed numbers, spawned/throttled/impacts, sockets and flags"),

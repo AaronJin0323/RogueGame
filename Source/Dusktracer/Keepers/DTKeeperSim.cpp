@@ -156,6 +156,11 @@ const FDTIntercessionPlan& FDTKeeperSim::GetActivePlan(int32 OwnerId) const
 	return IsCasting(OwnerId) ? Players[OwnerId].Cast.Plan : None;
 }
 
+FDTKeeperSim::FHeroRiders FDTKeeperSim::GetHeroRiders(int32 OwnerId) const
+{
+	return FHeroRiders();
+}
+
 void FDTKeeperSim::ResetRun()
 {
 	Captured.Reset();

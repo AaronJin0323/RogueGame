@@ -69,6 +69,14 @@ public:
 
 	const FDTKeeperCounters& GetCounters(int32 OwnerId) const;
 
+	/** What Keeper flags ask of the hero (keepers.md R-KEE-34): the subsystem writes them into FDTHeroStats. */
+	struct FHeroRiders
+	{
+		float DashCooldownMul = 1.0f;
+		int32 DashCharges = 0;
+	};
+	FHeroRiders GetHeroRiders(int32 OwnerId) const;
+
 private:
 	struct FCapturedHit
 	{

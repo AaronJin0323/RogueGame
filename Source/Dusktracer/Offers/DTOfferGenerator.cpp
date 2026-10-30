@@ -188,20 +188,51 @@ EDTPath DTOffers::ParseKeeper(FName Id)
 
 // ---- catalog reads --------------------------------------------------------------------------------------------------
 
+namespace DTOfferGenLocal
+{
+	static TArray<EDTPath> PathsOf(int32 MaxStage)
+	{
+		uint32 Mask = 0;
+		for (const DTCat::FArchetypeRow& Row : DTCat::Archetypes)
+		{
+			Mask |= Row.Stage <= MaxStage ? DTCat::PathBit(Row.Path) : 0u;
+		}
+		TArray<EDTPath> Out;
+		for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+		{
+			if (Mask & DTCat::PathBit(static_cast<EDTPath>(Path)))
+			{
+				Out.Add(static_cast<EDTPath>(Path));
+			}
+		}
+		return Out;
+	}
+}
+
 TArray<EDTPath> DTOffers::RunKeepers()
 {
-	uint32 Mask = 0;
-	for (const DTCat::FArchetypeRow& Row : DTCat::Archetypes)
-	{
-		Mask |= DTCat::PathBit(Row.Path);
-	}
+	return DTOfferGenLocal::PathsOf(1);
+}
+
+TArray<EDTPath> DTOffers::AllKeepers()
+{
+	return DTOfferGenLocal::PathsOf(TNumericLimits<int32>::Max());
+}
+
+TArray<EDTPath> DTOffers::RunKeepers(const FDTOfferPool& Pool)
+{
+	// R-KEE-23: an unlocked Keeper always has a seat, so it leads, in Path order; the S1 Keepers follow.
 	TArray<EDTPath> Out;
-	for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+	for (const EDTPath Path : AllKeepers())
 	{
-		if (Mask & DTCat::PathBit(static_cast<EDTPath>(Path)))
+		if (Pool.Unlocked.Contains(KeeperId(Path)))
 		{
-			Out.Add(static_cast<EDTPath>(Path));
+			Out.Add(Path);
 		}
+	}
+	for (const EDTPath Path : RunKeepers())
+	{
+		Out.AddUnique(Path);
 	}
 	return Out;
 }
@@ -213,7 +244,7 @@ FDTBlessingInfo DTOffers::FindBlessing(FName Id)
 	{
 		return Info;
 	}
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		for (int32 Column = 0; Column < DTOfferGenLocal::NumColumns; ++Column)
 		{
@@ -337,14 +368,14 @@ bool DTOffers::IsModInPool(int32 Mod, const FDTOfferPool& Pool)
 
 bool DTOffers::IsStarterKey(int32 Archetype)
 {
-	return Archetype >= 0 && Archetype < DTCat::NumArchetypes && Archetype < DTConst::POOL_STARTER_BLESSINGS;
+	return Archetype >= 0 && Archetype < DTCat::NumAllArchetypes && Archetype < DTConst::POOL_STARTER_BLESSINGS;
 }
 
 // ---- Keeper state -----------------------------------------------------------------------------------------------------
 
 int32 DTOffers::OwnedInArchetype(const FDTKeeperRunState& Keepers, int32 Archetype)
 {
-	if (Archetype < 0 || Archetype >= DTCat::NumArchetypes)
+	if (Archetype < 0 || Archetype >= DTCat::NumAllArchetypes)
 	{
 		return 0;
 	}
@@ -361,7 +392,7 @@ int32 DTOffers::LeadingArchetype(const FDTKeeperRunState& Keepers, EDTPath Path)
 	int32 Best = INDEX_NONE;
 	int32 BestCount = 0;
 	int32 BestLatest = INDEX_NONE;
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		const DTCat::FArchetypeRow& Archetype = DTCat::Archetypes[Row];
 		if (Archetype.Path != Path || !Keepers.Owned.Contains(FName(Archetype.BlessingIds[0])))
@@ -487,7 +518,7 @@ float DTOffers::Weight(const FDTPlayerRunState& Player, const FDTOfferCard& Card
 			W *= DTConst::OFFER_WEIGHT_COMMITTED;
 		}
 		W *= 1.0f + DTConst::OFFER_WEIGHT_MOMENTUM * static_cast<float>(OwnedInArchetype(Player.Keepers, Info.Archetype));
-		for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+		for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 		{
 			if (Row != Info.Archetype && DTCat::Archetypes[Row].Path == Info.Path
 				&& OwnedInArchetype(Player.Keepers, Row) >= DTConst::OFFER_MOMENTUM_DAMP_AFTER)
@@ -575,7 +606,7 @@ TArray<FDTOfferCard> DTOffers::Candidates(const FDTPlayerRunState& Player, const
 		const int32 Leading = LeadingArchetype(Player.Keepers, Patron);
 		Excluded = Leading == INDEX_NONE ? 0u : DTCat::Archetypes[Leading].IncompatFlags;
 	}
-	for (int32 Row = 0; Row < DTCat::NumArchetypes; ++Row)
+	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
 		const DTCat::FArchetypeRow& Archetype = DTCat::Archetypes[Row];
 		const bool bPatron = ValidPath(Patron) && Archetype.Path == Patron;
@@ -686,7 +717,7 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 	if (Kind == EDTHandKind::Patron || Kind == EDTHandKind::Keeper)
 	{
 		TArray<FDTOfferCard> Keepers;
-		for (EDTPath Path : RunKeepers())
+		for (EDTPath Path : RunKeepers(Pool))
 		{
 			if (Kind == EDTHandKind::Keeper && Path == Player.Offer.PatronPath)
 			{
@@ -707,6 +738,19 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		else
 		{
+			// R-KEE-23: an unlocked Keeper keeps its seat at the commitment too.
+			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size;)
+			{
+				if (Pool.Unlocked.Contains(Keepers[Index].ContentId))
+				{
+					Hand.Cards.Add(Keepers[Index]);
+					Keepers.RemoveAt(Index);
+				}
+				else
+				{
+					++Index;
+				}
+			}
 			FDTOfferCard Drawn;
 			while (Hand.Cards.Num() < Size && DrawFrom(Keepers, Rng, [](const FDTOfferCard&) { return true; }, Drawn))
 			{

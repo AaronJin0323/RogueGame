@@ -218,6 +218,17 @@ void UDTWeaponSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	BulletsPhase.Phase = EDTSimPhase::Bullets;
 	EffectsPhase.Owner = this;
 	EffectsPhase.Phase = EDTSimPhase::Effects;
+	// keepers.md R-KEE-23: the Patron hand opens before any console command runs, so a launch names its Keepers up front.
+	FString UnlockArg;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-DTUnlock="), UnlockArg))
+	{
+		TArray<FString> Ids;
+		UnlockArg.ParseIntoArray(Ids, TEXT(","));
+		for (const FString& Id : Ids)
+		{
+			Unlock(FName(*Id));
+		}
+	}
 }
 
 void UDTWeaponSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -323,7 +334,7 @@ bool UDTWeaponSubsystem::IsInPool(FName Id) const
 	{
 		return DTCat::Modifiers[Mod].bStarter || Unlocked.Contains(DTWeapons::ModifierId(Mod));
 	}
-	return false;
+	return Unlocked.Contains(Id); // a Keeper.<Path> (keepers.md R-KEE-23)
 }
 
 int32 UDTWeaponSubsystem::GetRendererCount() const

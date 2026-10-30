@@ -40,6 +40,10 @@ enum class EDTStatus : uint8
 	Burn,
 	Chill,
 	Freeze,
+	/** Keeper state, per owner (keepers.md R-KEE-24): FDTEnemyPool refuses it. */
+	Mark,
+	/** Reaches enemies as a short Freeze (keepers.md R-KEE-25); FDTEnemyPool refuses the status itself. */
+	Blind,
 	Count
 };
 

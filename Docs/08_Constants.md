@@ -237,20 +237,20 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.INTERCESSION.FORGE_RING_RADIUS_UU | 600 | uu | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.TIDE_RADIUS_UU | 2000 | uu | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.TIDE_FREEZE_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
-| C.STATUS.MARK_S | 5.0 | s | GATED(S2) | keepers.md, R-KEE-24, T-KEE-23 |
-| C.STATUS.BLIND_S | 0.30 | s | GATED(S2) | keepers.md, R-KEE-25, T-KEE-23 |
-| C.KEEPER.SEEK_FALLBACK_DMG | 0.25 | ratio | GATED(S2) | keepers.md, R-KEE-26, T-KEE-24 |
-| C.KEEPER.RICOCHET_FALLBACK_RATE | 0.15 | ratio | GATED(S2) | keepers.md, R-KEE-34, T-KEE-24 |
-| C.INTERCESSION.SHADE_DURATION_S | 6.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.SHADE_TURN_DEG_S | 90 | deg_per_s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.SHADE_EXECUTE_BELOW | 0.30 | ratio | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_CHARGE_S | 0.5 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_BEAM_S | 2.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_BEAM_TICK_S | 0.1 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_BEAM_WIDTH_UU | 120 | uu | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_BEAM_DMG | 0.5 | ratio | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.RADIANCE_FAN_DEG | 60 | deg | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
-| C.INTERCESSION.QUICKSILVER_DURATION_S | 4.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-25 |
+| C.STATUS.MARK_S | 5.0 | s | GATED(S2) | keepers.md, R-KEE-24, T-KEE-24 |
+| C.STATUS.BLIND_S | 0.30 | s | GATED(S2) | keepers.md, R-KEE-25, T-KEE-25 |
+| C.KEEPER.SEEK_FALLBACK_DMG | 0.25 | ratio | GATED(S2) | keepers.md, R-KEE-26, T-KEE-26 |
+| C.KEEPER.RICOCHET_FALLBACK_RATE | 0.15 | ratio | GATED(S2) | keepers.md, R-KEE-34, T-KEE-34 |
+| C.INTERCESSION.SHADE_DURATION_S | 6.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.SHADE_TURN_DEG_S | 90 | deg_per_s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.SHADE_EXECUTE_BELOW | 0.30 | ratio | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_CHARGE_S | 0.5 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_BEAM_S | 2.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_BEAM_TICK_S | 0.1 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_BEAM_WIDTH_UU | 120 | uu | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_BEAM_DMG | 0.5 | ratio | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.RADIANCE_FAN_DEG | 60 | deg | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
+| C.INTERCESSION.QUICKSILVER_DURATION_S | 4.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
 | C.INTERCESSION.RETUNE_STEP_MAX | 2.0 | × per pass | GATED(S1) | keepers.md R-KEE-15, T-KEE-15 (weak ×2 up, strong ×0.5 down) |
 
 ## Offers and progression (02_Systems/offers.md, progression.md)

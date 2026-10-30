@@ -68,7 +68,7 @@ namespace DTWeaponSimLocal
 
 	static bool ParseStatus(const FString& Word, EDTStatus& Out)
 	{
-		static const TCHAR* Names[] = { TEXT("Status.Shock"), TEXT("Status.Burn"), TEXT("Status.Chill"), TEXT("Status.Freeze") };
+		static const TCHAR* Names[] = { TEXT("Status.Shock"), TEXT("Status.Burn"), TEXT("Status.Chill"), TEXT("Status.Freeze"), TEXT("Status.Mark"), TEXT("Status.Blind") };
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
 		{
 			if (Word.StartsWith(Names[Index]))
