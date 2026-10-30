@@ -108,7 +108,7 @@ if (-not (Skipped "tests")) {
 	$Log = Join-Path $LogDir "Gate_tests.log"
 	if (Test-Path $Log) { Remove-Item $Log }
 	& (Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe") $Project -ExecCmds="Automation RunTests Dusktracer;Quit" `
-		-unattended -nopause -nullrhi -LiveCoding=false "-ABSLOG=$Log" | Out-Null
+		-unattended -nopause -nullrhi -nosplash -LiveCoding=false "-ABSLOG=$Log" | Out-Null
 	$All = @(Select-String -Path $Log -Pattern "Test Completed\. Result=\{")
 	$Failed = @($All | Where-Object { $_.Line -notmatch "Result=\{Success\}" })
 	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===")

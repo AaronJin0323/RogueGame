@@ -90,7 +90,7 @@ function Start-Run($Label, $Seed, $Extra) {
 	New-Item -ItemType Directory -Force $RunDir | Out-Null
 	$Log = Join-Path $RunDir "run.log"
 	$Record = Join-Path $RunDir "bot.csv"
-	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
+	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-nosplash", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
 		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
 		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $Extra
 	Reap-Runs ([Math]::Max(1, $Parallel))
