@@ -121,3 +121,48 @@ keepers:
   INTERCESSION.TIDE_RADIUS_UU: { value: 2000, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.TIDE_FREEZE_S:  { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-14] }
   INTERCESSION.RETUNE_STEP_MAX: { value: 2.0, unit: x,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-15] }
+
+offers:
+  OFFER.SECOND_KEEPER_LEVEL:         { value: 8, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-08] }
+  OFFER.REFORGING_LEVEL:             { value: 16, unit: level, tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/progression.md, T-OFF-09] }
+  OFFER.REFORGING_CARDS:             { value: 3, unit: n, tag: CORE, dependents: [02_Systems/offers.md, T-OFF-09] }
+  OFFER.KEEPER_CHOICES:              { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-08] }
+  OFFER.CHEST_CARDS:                 { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-14] }
+  OFFER.WEIGHT_BASE:                 { value: 1.0, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_FAVOR:                { value: 0.3, unit: x_per_favor, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_WEAPON_LEVEL:         { value: 0.25, unit: x_per_level, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_COMMITTED:            { value: 1.5, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_MOMENTUM:             { value: 0.5, unit: x_per_card, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_OTHER_ARCHETYPE:      { value: 0.8, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.MOMENTUM_DAMP_AFTER:         { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_MOD_AMPLIFIES:        { value: 2.0, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_MOD_NO_AMPLIFY:       { value: 0.7, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_WEAPON_FIT:           { value: 1.5, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.GUARANTEE_BLESSING_P:        { value: 0.7, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-06] }
+  OFFER.MIN_COMMITTED_BLESSINGS:     { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-06] }
+  OFFER.RARITY_RARE_P:               { value: 0.18, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-05] }
+  OFFER.RARITY_EPIC_P:               { value: 0.04, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-05] }
+  OFFER.RARE_UPGRADE_LEVELS:         { value: 2, unit: level, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-05] }
+  OFFER.EPIC_UPGRADE_LEVELS:         { value: 3, unit: level, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-05] }
+  OFFER.FORCE_WEAPON_LEVEL:          { value: 5, unit: level, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-11] }
+  OFFER.FORCE_WEAPON_BELOW:          { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-11] }
+  OFFER.INPUT_GUARD_S:               { value: 0.4, unit: s, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-11] }
+  OFFER.RESERVE_RESTORE_HP_RATIO:    { value: 0.3, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-12] }
+  OFFER.RESERVE_HONE_DAMAGE_RATIO:   { value: 0.04, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-12] }
+  OFFER.RESERVE_SPARE_REROLLS:       { value: 1, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-12] }
+  OFFER.RESERVE_SALVAGE_RADIUS_RATIO: { value: 0.1, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-12] }
+  OFFER.RESERVE_MEND_MAX_HP:         { value: 10, unit: hp, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-12] }
+  OFFER.RESERVE_SHARE_MAX:           { value: 0.1, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-15] }
+  OFFER.BUDGET_LEVEL_HANDS:          { value: 20, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, 02_Systems/progression.md, C.DECISIONS.PER_RUN, T-OFF-15] }
+  OFFER.BUDGET_CHEST_HANDS:          { value: 6, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, director.md, C.DECISIONS.PER_RUN, T-OFF-15] }
+  OFFER.BUDGET_MILESTONES:           { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, 02_Systems/progression.md, C.DECISIONS.PER_RUN, T-OFF-15] }
+  OFFER.DECISIONS_TOLERANCE:         { value: 3, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-15] }
+  OFFER.PAUSED_S_PER_MIN_MAX:        { value: 15, unit: s_per_min, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-15] }
+  XP.GROWTH:                         { value: 1.055, unit: x, tag: GATED(S1), dependents: [02_Systems/progression.md, 09_Catalog/xp_curve.csv, T-PRG-02] }
+  XP.ANCHOR_TOLERANCE_S:             { value: 30, unit: s, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-03] }
+  XP.REFERENCE_PICKUP_RATIO:         { value: 0.51, unit: ratio, tag: MEASURED(reference balance/model.md), dependents: [02_Systems/progression.md, 09_Catalog/xp_curve.csv, T-PRG-03] }
+  PICKUP.RADIUS_UU:                  { value: 150, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
+  PICKUP.COLLECT_RADIUS_UU:          { value: 40, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
+  PICKUP.MAGNET_ACCEL_UU_S2:         { value: 6000, unit: uu_per_s2, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
+  PICKUP.MAGNET_SPEED_MAX_UU_S:      { value: 1800, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-08] }
+  PICKUP.GEM_CAP:                    { value: 1000, unit: n, tag: GATED(S1), dependents: [02_Systems/progression.md, T-PRG-07] }

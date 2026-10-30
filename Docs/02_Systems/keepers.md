@@ -34,7 +34,7 @@ Flags as blessings use them (the weapon side, caps and fallbacks are `weapons.md
 | `Stillness` | standing still charges the next volley of every weapon; dashing keeps the charge, walking spends it |
 
 ### 3. Primary, second and leading archetype
-- **R-KEE-05** The **primary Keeper** is the Keeper of the first blessing the player takes; it never changes in the run. Until the L8 commitment (`offers.md`) only primary blessings are granted. At the L8 commitment the player picks one **second Keeper** from the other S1 Keepers; it never changes after. The third S1 Keeper's blessings are never granted to that player.
+- **R-KEE-05** The **primary Keeper** (Patron) is the Keeper the player picks in the run-start Patron hand (`offers.md` R-OFF-08); it never changes in the run. Until the L8 commitment (`offers.md`) only primary blessings are granted. At the L8 commitment the player picks one **second Keeper** from the other S1 Keepers; it never changes after. The third S1 Keeper's blessings are never granted to that player.
 - **R-KEE-06** A Keeper's **leading archetype** for a player is the archetype with the most owned cards among those whose Key is owned; a tie goes to the archetype of the most recently taken card; with no Key owned there is none. It is re-evaluated on every pick and read by tiers (R-KEE-07), the Intercession (R-KEE-14) and compatibility (R-KEE-16).
 - **R-KEE-16** After the commitment, a second-Keeper blessing is offered only if none of its flags is listed in `IncompatFlags` of the primary's leading archetype; with no leading archetype nothing is excluded. The pairs are symmetric and mechanical: `Split`–`ConvertMelee` (converted rounds never fly, so never split), `Chain`–`Field` (field ticks are not hits, so never chain), `Slam`–`Stillness` (dash-in versus hold still). A change of leading archetype never removes owned blessings.
 
@@ -113,7 +113,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - T-KEE-02 `Dusktracer.Keepers.NoStatOnly`: every Key has one flag (its archetype's, unique); a stat-only Amp fixture is rejected at load. PLANNED(S1)
 - T-KEE-03 `Dusktracer.Keepers.FlagsOnAllWeapons`: a blessing taken with two weapons applies once to both and to a third acquired later; a non-native weapon gets the fallback. PLANNED(S1)
 - T-KEE-04 `Dusktracer.Keepers.Prerequisites`: Amps are ineligible without the Key; the Trait needs `C.KEEPER.TRAIT_PREREQ_CARDS` cards. PLANNED(S1)
-- T-KEE-05 `Dusktracer.Keepers.PrimarySecond`: the first blessing fixes the primary; before commitment only primary blessings are granted; after it only primary and second; the third never. PLANNED(S1)
+- T-KEE-05 `Dusktracer.Keepers.PrimarySecond`: the Patron pick fixes the primary; before commitment only primary blessings are granted; after it only primary and second; the third never. PLANNED(S1)
 - T-KEE-06 `Dusktracer.Keepers.LeadingArchetype`: most cards wins, tie goes to the latest card, no Key gives none. PLANNED(S1)
 - T-KEE-07 `Dusktracer.Keepers.Tiers`: tiers unlock exactly at the thresholds, follow a leading-archetype change and are never lost. PLANNED(S1)
 - T-KEE-08 `Dusktracer.Keepers.TierLineLength`: every tier line in `ST_Keepers` en and zh-Hans is within limits. PLANNED(S1)

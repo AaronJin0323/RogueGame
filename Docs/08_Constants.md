@@ -167,3 +167,51 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.INTERCESSION.TIDE_RADIUS_UU | 2000 | uu | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.TIDE_FREEZE_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.INTERCESSION.RETUNE_STEP_MAX | 2.0 | × per pass | GATED(S1) | keepers.md R-KEE-15, T-KEE-15 (weak ×2 up, strong ×0.5 down) |
+
+## Offers and progression (02_Systems/offers.md, progression.md)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.OFFER.SECOND_KEEPER_LEVEL | 8 | level | CORE | 02_Systems/offers.md, 02_Systems/progression.md, T-OFF-08 |
+| C.OFFER.REFORGING_LEVEL | 16 | level | CORE | 02_Systems/offers.md, 02_Systems/progression.md, T-OFF-09 |
+| C.OFFER.REFORGING_CARDS | 3 | n | CORE | 02_Systems/offers.md, T-OFF-09 |
+| C.OFFER.KEEPER_CHOICES | 3 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-08 |
+| C.OFFER.CHEST_CARDS | 3 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-14 |
+| C.OFFER.WEIGHT_BASE | 1.0 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_FAVOR | 0.3 | x/favor | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_WEAPON_LEVEL | 0.25 | x/level | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_COMMITTED | 1.5 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_MOMENTUM | 0.5 | x/card | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_OTHER_ARCHETYPE | 0.8 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.MOMENTUM_DAMP_AFTER | 2 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_MOD_AMPLIFIES | 2.0 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_MOD_NO_AMPLIFY | 0.7 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_WEAPON_FIT | 1.5 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.GUARANTEE_BLESSING_P | 0.7 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-06 |
+| C.OFFER.MIN_COMMITTED_BLESSINGS | 2 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-06 |
+| C.OFFER.RARITY_RARE_P | 0.18 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-05 |
+| C.OFFER.RARITY_EPIC_P | 0.04 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-05 |
+| C.OFFER.RARE_UPGRADE_LEVELS | 2 | level | GATED(S1) | 02_Systems/offers.md, T-OFF-05 |
+| C.OFFER.EPIC_UPGRADE_LEVELS | 3 | level | GATED(S1) | 02_Systems/offers.md, T-OFF-05 |
+| C.OFFER.FORCE_WEAPON_LEVEL | 5 | level | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
+| C.OFFER.FORCE_WEAPON_BELOW | 2 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
+| C.OFFER.INPUT_GUARD_S | 0.4 | s | GATED(S1) | 02_Systems/offers.md, T-OFF-11 |
+| C.OFFER.RESERVE_RESTORE_HP_RATIO | 0.3 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
+| C.OFFER.RESERVE_HONE_DAMAGE_RATIO | 0.04 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
+| C.OFFER.RESERVE_SPARE_REROLLS | 1 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
+| C.OFFER.RESERVE_SALVAGE_RADIUS_RATIO | 0.1 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
+| C.OFFER.RESERVE_MEND_MAX_HP | 10 | hp | GATED(S1) | 02_Systems/offers.md, T-OFF-12 |
+| C.OFFER.RESERVE_SHARE_MAX | 0.1 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-15 |
+| C.OFFER.BUDGET_LEVEL_HANDS | 20 | n | GATED(S1) | 02_Systems/offers.md, 02_Systems/progression.md, C.DECISIONS.PER_RUN, T-OFF-15 |
+| C.OFFER.BUDGET_CHEST_HANDS | 6 | n | GATED(S1) | 02_Systems/offers.md, director.md, C.DECISIONS.PER_RUN, T-OFF-15 |
+| C.OFFER.BUDGET_MILESTONES | 2 | n | GATED(S1) | 02_Systems/offers.md, 02_Systems/progression.md, C.DECISIONS.PER_RUN, T-OFF-15 |
+| C.OFFER.DECISIONS_TOLERANCE | 3 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-15 |
+| C.OFFER.PAUSED_S_PER_MIN_MAX | 15 | s/min | GATED(S1) | 02_Systems/offers.md, T-OFF-15 |
+| C.XP.GROWTH | 1.055 | x | GATED(S1) | 02_Systems/progression.md, 09_Catalog/xp_curve.csv, T-PRG-02 |
+| C.XP.ANCHOR_TOLERANCE_S | 30 | s | GATED(S1) | 02_Systems/progression.md, T-PRG-03 |
+| C.XP.REFERENCE_PICKUP_RATIO | 0.51 | ratio | MEASURED(reference balance/model.md) | 02_Systems/progression.md, 09_Catalog/xp_curve.csv, T-PRG-03 |
+| C.PICKUP.RADIUS_UU | 150 | uu | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
+| C.PICKUP.COLLECT_RADIUS_UU | 40 | uu | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
+| C.PICKUP.MAGNET_ACCEL_UU_S2 | 6000 | uu/s2 | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
+| C.PICKUP.MAGNET_SPEED_MAX_UU_S | 1800 | uu/s | GATED(S1) | 02_Systems/progression.md, T-PRG-08 |
+| C.PICKUP.GEM_CAP | 1000 | n | GATED(S1) | 02_Systems/progression.md, T-PRG-07 |
