@@ -245,9 +245,9 @@ namespace DTConst
 	inline constexpr int32 DIR_SPAWN_RING_MAX_UU = 1700; // uu, GATED(S1)
 	inline constexpr int32 DIR_THREAT_RING_MIN_UU = 1000; // uu, GATED(S1)
 	inline constexpr int32 DIR_THREAT_RING_MAX_UU = 1200; // uu, GATED(S1)
-	inline constexpr float DIR_SHARE_MAX_TANK = 0.15f; // ratio, GATED(S1)
+	inline constexpr float DIR_SHARE_MAX_TANK = 0.1f; // ratio, GATED(S1)
 	inline constexpr float DIR_SHARE_MAX_RUSHER = 0.1f; // ratio, GATED(S1)
-	inline constexpr float DIR_SHARE_MAX_TURRET = 0.25f; // ratio, GATED(S1)
+	inline constexpr float DIR_SHARE_MAX_TURRET = 0.08f; // ratio, GATED(S1)
 	inline constexpr float DIR_THREAT_SHARE_MIN = 0.25f; // ratio, GATED(S1)
 	inline constexpr float DIR_DROPIN_LEAD_S = 1.0f; // s, GATED(S1)
 	inline constexpr int32 DIR_DROPIN_THREAT_MULT = 2; // x, GATED(S1)
@@ -300,7 +300,7 @@ namespace DTConst
 	inline constexpr int32 WEAPON_SLOTS = 4; // n, CORE
 	inline constexpr int32 WEAPON_LEVEL_MAX = 8; // level, CORE
 	inline constexpr int32 WEAPON_SPAWN_RATE_MAX_PER_S = 400; // per_s, GATED(S1)
-	inline constexpr float WEAPON_CONVERT_MELEE_DAMAGE_RATIO = 0.8f; // ratio, GATED(S1)
+	inline constexpr float WEAPON_CONVERT_MELEE_DAMAGE_RATIO = 0.55f; // ratio, GATED(S1)
 	inline constexpr int32 WEAPON_ARC_DEG = 120; // deg, GATED(S1)
 	inline constexpr int32 WEAPON_DRONE_ORBIT_RADIUS_UU = 160; // uu, GATED(S1)
 	inline constexpr int32 WEAPON_DRONE_ORBIT_DEG_S = 120; // deg_per_s, GATED(S1)

@@ -294,7 +294,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DIR.THREAT_RING_MAX_UU | 1200 | uu | GATED(S1) | director.md, T-DIR-06, T-DIR-07 |
 | C.DIR.SHARE_MAX_TANK | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
 | C.DIR.SHARE_MAX_RUSHER | 0.1 | ratio | GATED(S1) | director.md, T-DIR-05 |
-| C.DIR.SHARE_MAX_TURRET | 0.25 | ratio | GATED(S1) | director.md, T-DIR-05 |
+| C.DIR.SHARE_MAX_TURRET | 0.08 | ratio | GATED(S1) | director.md, T-DIR-05 |
 | C.DIR.THREAT_SHARE_MIN | 0.25 | ratio | GATED(S1) | director.md, 09_Catalog/timeline_*.csv, T-DIR-06 |
 | C.DIR.DROPIN_LEAD_S | 1.0 | s | GATED(S1) | director.md, T-DIR-07 |
 | C.DIR.DROPIN_THREAT_MULT | 2 | x | GATED(S1) | director.md, T-DIR-07 |
@@ -356,7 +356,7 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.WEAPON.SLOTS | 4 | n | CORE | weapons.md, offers.md, T-WPN-03 |
 | C.WEAPON.LEVEL_MAX | 8 | level | CORE | weapons.md, weapons.csv, T-WPN-04 |
 | C.WEAPON.SPAWN_RATE_MAX_PER_S | 400 | /s per weapon | GATED(S1) | weapons.md, C.BULLETS.CAP, T-WPN-09 |
-| C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO | 0.8 | ratio of volley damage | GATED(S1) | weapons.md, T-WPN-10 |
+| C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO | 0.55 | ratio of volley damage | GATED(S1) | weapons.md, T-WPN-10 |
 | C.WEAPON.ARC_DEG | 120 | deg | GATED(S1) | weapons.md, T-WPN-06 |
 | C.WEAPON.DRONE_ORBIT_RADIUS_UU | 160 | uu | GATED(S1) | weapons.md, T-WPN-06 |
 | C.WEAPON.DRONE_ORBIT_DEG_S | 120 | deg/s | GATED(S1) | weapons.md, T-WPN-06 |
