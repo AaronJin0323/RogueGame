@@ -9,7 +9,7 @@
 /**
  * Default pawn ADTHero (one per local player, OwnerId = local player index) at the origin, followed by the ADTCameraPawn
  * (player 0); HUD ADTHUD. On BeginPlay starts a run seeded from -DTSeed=<n> (default 0) and its telemetry session
- * (02_Systems/telemetry.md); EndPlay ends the session. When every hero is down the run ends with reason Death
+ * (02_Systems/telemetry.md) and the director (UDTDirector; -DTNoDirector keeps it off); EndPlay ends the session. When every hero is down the run ends with reason Death
  * (telemetry session ended "death"; the sim keeps stepping so debug and measurement paths still run).
  *
  * Measurement hooks for Tools/Smoke.ps1 and Tools/Perf.ps1 (compiled out of Shipping, R-TEC-12):
