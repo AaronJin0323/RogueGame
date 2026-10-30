@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Enemies/DTEnemySubsystem.h"
+#include "Enemies/DTElite.h"
 
 namespace DTDebugEnemies
 {
@@ -86,19 +87,43 @@ namespace DTDebugEnemies
 		return false;
 	}
 
-	static void QueueRole(UDTEnemySubsystem* Enemies, EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival)
+	/** `elite` rolls (elites.md Debug), `elite=Armored+Swift` names the affixes, `elite=none` is the bare elite. */
+	static bool ParseElite(const TArray<FString>& Args, int32 From, uint8& OutMask)
+	{
+		OutMask = DTElite::RollMask;
+		for (int32 Index = From; Index < Args.Num(); ++Index)
+		{
+			if (Args[Index].Equals(TEXT("elite"), ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+			FString Names;
+			if (Args[Index].Split(TEXT("="), nullptr, &Names) && Args[Index].StartsWith(TEXT("elite="), ESearchCase::IgnoreCase))
+			{
+				if (!DTElite::ParseMask(Names, OutMask))
+				{
+					UE_LOG(LogDT, Warning, TEXT("DT.Spawn: unknown affix in %s; rolling instead"), *Args[Index]);
+					OutMask = DTElite::RollMask;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static void QueueRole(UDTEnemySubsystem* Enemies, EDTEnemyRole Role, int32 Count, bool bElite, uint8 AffixMask, bool bArrival)
 	{
 		if (Role == EDTEnemyRole::Boss)
 		{
 			UE_LOG(LogDT, Warning, TEXT("DT.Spawn: the boss hull is spawned by the boss system (DT.Boss), not here"));
 			return;
 		}
-		Enemies->RequestSpawnRole(Role, Count, bElite, bArrival);
+		Enemies->RequestSpawnRole(Role, Count, bElite, bArrival, AffixMask);
 		UE_LOG(LogDT, Log, TEXT("DT.Spawn %s x%d%s%s queued (live %d, cap %d)"), RoleName(Role), Count, bElite ? TEXT(" elite") : TEXT(""),
 			bArrival ? TEXT(" arrival") : TEXT(""), Enemies->GetLiveCount(), DTConst::ENEMIES_CAP);
 	}
 
-	/** DT.Spawn <N> [Role] [elite] [arrival] */
+	/** DT.Spawn <N> [Role] [elite[=A+B|none]] [arrival] */
 	static void Spawn(const TArray<FString>& Args, UWorld* World)
 	{
 		if (UDTEnemySubsystem* Enemies = Find(World))
@@ -107,7 +132,9 @@ namespace DTDebugEnemies
 			EDTEnemyRole Role = EDTEnemyRole::Swarm;
 			if (Args.IsValidIndex(1) && ParseRole(Args[1], Role))
 			{
-				QueueRole(Enemies, Role, Count, HasFlag(Args, 2, TEXT("elite")), HasFlag(Args, 2, TEXT("arrival")));
+				uint8 Mask = 0;
+				const bool bElite = ParseElite(Args, 2, Mask);
+				QueueRole(Enemies, Role, Count, bElite, Mask, HasFlag(Args, 2, TEXT("arrival")));
 				return;
 			}
 			Enemies->RequestSpawn(Count);
@@ -115,7 +142,7 @@ namespace DTDebugEnemies
 		}
 	}
 
-	/** DT.Spawn.Role <Role> [N] [elite] [arrival] */
+	/** DT.Spawn.Role <Role> [N] [elite[=A+B|none]] [arrival] */
 	static void SpawnRole(const TArray<FString>& Args, UWorld* World)
 	{
 		if (UDTEnemySubsystem* Enemies = Find(World))
@@ -123,10 +150,12 @@ namespace DTDebugEnemies
 			EDTEnemyRole Role = EDTEnemyRole::Swarm;
 			if (!Args.IsValidIndex(0) || !ParseRole(Args[0], Role))
 			{
-				UE_LOG(LogDT, Warning, TEXT("DT.Spawn.Role <Swarm|Tank|Rusher|Turret> [N] [elite] [arrival]"));
+				UE_LOG(LogDT, Warning, TEXT("DT.Spawn.Role <Swarm|Tank|Rusher|Turret> [N] [elite[=A+B|none]] [arrival]"));
 				return;
 			}
-			QueueRole(Enemies, Role, ParseCount(Args, 1, 1), HasFlag(Args, 1, TEXT("elite")), HasFlag(Args, 1, TEXT("arrival")));
+			uint8 Mask = 0;
+			const bool bElite = ParseElite(Args, 1, Mask);
+			QueueRole(Enemies, Role, ParseCount(Args, 1, 1), bElite, Mask, HasFlag(Args, 1, TEXT("arrival")));
 		}
 	}
 
@@ -251,10 +280,10 @@ namespace DTDebugEnemies
 	}
 
 	static FAutoConsoleCommandWithWorldAndArgs SpawnCmd(TEXT("DT.Spawn"),
-		TEXT("DT.Spawn <N> [Role] [elite] [arrival]: spawn N enemies (default swarm) on a ring around hero 0 (capped at C.ENEMIES.CAP)"),
+		TEXT("DT.Spawn <N> [Role] [elite[=A+B|none]] [arrival]: spawn N enemies (default swarm) on a ring around hero 0 (capped at C.ENEMIES.CAP)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Spawn));
 	static FAutoConsoleCommandWithWorldAndArgs SpawnRoleCmd(TEXT("DT.Spawn.Role"),
-		TEXT("DT.Spawn.Role <Swarm|Tank|Rusher|Turret> [N] [elite] [arrival]: spawn N enemies of a role on a ring around hero 0"),
+		TEXT("DT.Spawn.Role <Swarm|Tank|Rusher|Turret> [N] [elite[=A+B|none]] [arrival]: spawn N enemies of a role on a ring around hero 0"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnRole));
 	static FAutoConsoleCommandWithWorldAndArgs KeepCmd(TEXT("DT.Spawn.Keep"),
 		TEXT("DT.Spawn.Keep <N>: keep the swarm population topped up to N (0 = off; default the cap)"),

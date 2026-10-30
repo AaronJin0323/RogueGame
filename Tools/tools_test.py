@@ -140,6 +140,11 @@ class BotHistogram(unittest.TestCase):
 		lines = bot_compare.compare([("a", self.ROWS)], (2, 2))
 		self.assertIn("| None | 0/1 0 1.0 |", lines)
 
+	def test_hit_note(self):
+		rows = [{"hits": "8", "hits_still": "2", "hits_wall": "1"}, {"hits": "2", "hits_still": "0", "hits_wall": "0"}, {"hits": ""}]
+		self.assertEqual(bot_compare.hit_note(rows), "5.0 hits/run, 20% stick at rest, 10% at a wall")
+		self.assertEqual(bot_compare.hit_note(self.ROWS), "no hit counts")
+
 
 class BotLabel(unittest.TestCase):
 	"""T-BOT-13: a batch names its version and skill, says when it mixes them, and old records read as v1."""

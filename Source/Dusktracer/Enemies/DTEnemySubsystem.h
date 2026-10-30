@@ -5,6 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Core/DTSimSubsystem.h"
 #include "Core/DTSimTypes.h"
+#include "Enemies/DTElite.h"
 #include "Enemies/DTEnemyBulletRenderer.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Enemies/DTEnemyRenderer.h"
@@ -58,7 +59,7 @@ public:
 	/** Debug: queues Count swarm enemies on a ring of C.ENM.SPAWN_RING_RADIUS_UU around hero 0 (cap respected at spawn). */
 	void RequestSpawn(int32 Count);
 	/** Debug: as RequestSpawn for any role, optionally elite or arriving (not Director: drops nothing). */
-	void RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite = false, bool bArrival = false);
+	void RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite = false, bool bArrival = false, uint8 AffixMask = DTElite::RollMask);
 	/** Keeps the swarm population topped up to Count every step (0 turns it off). */
 	void SetKeepPopulation(int32 Count);
 	/** HP scale of the enemies the keep-alive tops up (a probe's field); 1 = the catalog's HP. */
@@ -92,6 +93,8 @@ public:
 
 	/** Sends every threat action Pool started in its last step to Records (ThreatAction{Role, AttackId}, threat_actions_per_min). */
 	static void ForwardThreatActions(const FDTEnemyPool& InPool, FDTTelemetryCore& Records);
+	/** Sends the elite deaths of Pool's last ResolveHits to Records (elites.md R-ELT-13). */
+	static void ForwardEliteDeaths(const FDTEnemyPool& InPool, FDTTelemetryCore& Records);
 
 private:
 	struct FRoleRequest
@@ -100,6 +103,7 @@ private:
 		int32 Count = 0;
 		bool bElite = false;
 		bool bArrival = false;
+		uint8 AffixMask = 0;
 	};
 	struct FStatusRequest
 	{
@@ -127,6 +131,7 @@ private:
 	TArray<FTransform> HullTransforms;
 	TArray<FTransform> OpticTransforms;
 	TArray<FTransform> RoundTransforms;
+	TArray<FDTElitePart> EliteParts;
 	TArray<FDTEnemySpawn> QueuedSpawns;
 	TArray<FRoleRequest> RoleRequests;
 	TArray<FStatusRequest> StatusRequests;

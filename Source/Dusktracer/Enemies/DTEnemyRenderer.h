@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Enemies/DTElite.h"
 #include "DTEnemyRenderer.generated.h"
 
 class UInstancedStaticMeshComponent;
@@ -24,11 +25,15 @@ public:
 	/** Resizes each part's instance list to its transforms and writes every transform in one batch. */
 	void UpdateInstances(TConstArrayView<FTransform> HullTransforms, TConstArrayView<FTransform> OpticTransforms);
 
+	/** Elite light and affix parts (elites.md R-ELT-10, R-ELT-11): colours change per instance per frame. */
+	void UpdateParts(TConstArrayView<FDTElitePart> InParts);
+
 	/** Edge length of the mesh in uu (scale = size / this). */
 	float GetMeshSizeUU() const { return MeshSizeUU; }
 
 	UInstancedStaticMeshComponent* GetHull() const { return Hull; }
 	UInstancedStaticMeshComponent* GetOptic() const { return Optic; }
+	UInstancedStaticMeshComponent* GetParts() const { return Parts; }
 	bool IsUsingFallbackMaterial() const { return bFallbackMaterial; }
 
 private:
@@ -40,9 +45,14 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UInstancedStaticMeshComponent> Optic;
 
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UInstancedStaticMeshComponent> Parts;
+
 	TArray<float> HullData;
 	TArray<float> OpticData;
 	TArray<int32> RemoveScratch;
+	TArray<FTransform> PartTransforms;
+	TArray<float> PartData;
 	float MeshSizeUU = 1.0f;
 	bool bFallbackMaterial = false;
 };

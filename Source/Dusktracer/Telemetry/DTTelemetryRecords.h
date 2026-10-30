@@ -106,6 +106,22 @@ struct FDTTelBossEnd
 	TArray<FDTTelBossPlayer> PerPlayer;
 };
 
+/** elite (elites.md §Telemetry): one per elite death. */
+struct FDTTelElite
+{
+	uint32 Serial = 0;
+	EDTEnemyRole Role = EDTEnemyRole::Swarm;
+	uint8 AffixMask = 0;
+	int32 OwnerId = INDEX_NONE;
+	uint16 SourceId = 0;
+	float AliveSeconds = 0.0f;
+	int32 ShieldAbsorbed = 0;
+	int32 ShieldLeft = 0;
+	float Drained = 0.0f;
+	float Healed = 0.0f;
+	int32 BeatId = INDEX_NONE;
+};
+
 /** Spelling helpers shared by the writers and tests. */
 namespace DTTelNames
 {

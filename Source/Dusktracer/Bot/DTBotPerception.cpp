@@ -16,6 +16,8 @@ namespace DTBotSkillTuning
 	constexpr float MaxStickErrDeg = 10.0f;
 	/** Clearance a slower player leaves on top of the skill 1 clearance: it knows it reacts late (R-BOT-04). */
 	constexpr float MaxExtraMarginUU = 120.0f;
+	/** R-BOT-14: at skill 0 past any body's whole clearance: a leaving path counts nothing unless nearly on top of the body. */
+	constexpr float MaxLeaveUU = 240.0f;
 	constexpr float MinImminentS = 0.16f;
 	constexpr int32 MaxCastCrowd = 24;
 	constexpr float MaxTasteScore = 30.0f;
@@ -39,6 +41,7 @@ FDTBotSkillProfile FDTBotSkillProfile::FromSkill(float Skill)
 	P.ReactionS = D * MaxReactionS;
 	P.HoldS = D * MaxHoldS;
 	P.MarginUU = Top.MarginUU + D * MaxExtraMarginUU;
+	P.LeaveUU = D * MaxLeaveUU;
 	P.CueMissP = D * MaxCueMissP;
 	P.AttentionRounds = FMath::RoundToInt32(FMath::Lerp(static_cast<float>(MinAttentionRounds), static_cast<float>(MaxAttentionRounds), S));
 	P.ThreatRangeUU = FMath::Lerp(MinThreatRangeUU, Top.ThreatRangeUU, S);

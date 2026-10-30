@@ -1,0 +1,12 @@
+Key,en,zh-Hans,Context,Kw
+Enemy.Swarm.Name,Scrapwing,碎翼,Role name (Enemy.Swarm; zh_glossary §4).,
+Enemy.Tank.Name,Bulwark,壁垒,Role name (Enemy.Tank; zh_glossary §4).,
+Enemy.Rusher.Name,Courser,驿骑,Role name (Enemy.Rusher; zh_glossary §4).,
+Enemy.Turret.Name,Flare Pylon,耀柱,Role name (Enemy.Turret; zh_glossary §4).,
+Affix.Armored.Name,Armored,重甲,Elite affix label under the hull (elites.md R-ELT-12).,
+Affix.Swift.Name,Swift,迅捷,Elite affix label under the hull (elites.md R-ELT-12).,
+Affix.Volatile.Name,Volatile,易爆,Elite affix label under the hull: explodes on death.,
+Affix.Splitter.Name,Splitter,分裂,Elite affix label under the hull: drops Scrapwings on death.,
+Affix.Vampiric.Name,Vampiric,吸血,Elite affix label under the hull.,
+Affix.Shielded.Name,Shielded,护盾,Elite affix label under the hull.,
+Affix.Join,{0} · {1},{0} · {1},"Joins two affix names on one label, lead affix first.",

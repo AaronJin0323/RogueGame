@@ -40,6 +40,8 @@ namespace DTBotTuning
 	constexpr int32 SeedSalt = 0x0B07;
 	/** Bot v2 (bot.md): how fast the stick error drifts; the range samples; what an unusable weapon loses; the second Keeper's scores. */
 	constexpr float StickTauS = 0.5f;
+	/** R-BOT-14: how far ahead a move is checked against the wall; about one held input. */
+	constexpr float WallProbeUU = 10.0f;
 	constexpr float ReachSampleS = 0.25f;
 	constexpr float ReachWindowS = 60.0f;
 	constexpr int32 ReachMinSamples = 20;
@@ -99,6 +101,26 @@ namespace DTBotTuning
 		const float VV = RelVel.SizeSquared();
 		OutT = VV > UE_SMALL_NUMBER ? FMath::Clamp(-FVector2f::DotProduct(Rel, RelVel) / VV, 0.0f, Horizon) : 0.0f;
 		return (Rel + RelVel * OutT).Size();
+	}
+
+	/**
+	 * One object's share of ThreatAlong: D and T are its closest approach on this path. The time weight reads an approach at
+	 * T == 0 at full strength and one still coming discounted, so read plainly a path that walks off a body inside the clearance
+	 * scores worse than standing to wait for it. R-BOT-14 turns that off below skill 1.0 (Leave > 0): a path only leaving the
+	 * object counts nothing, and a path that passes without touching counts its depth in the clearance, not a hit.
+	 */
+	static float PathThreat(float Weight, float T, float Horizon, float D, float Contact, float R, float Leave, float& Soonest)
+	{
+		if (D >= R || (T <= 0.0f && D >= R - Leave))
+		{
+			return 0.0f;
+		}
+		const bool bBrush = Leave > 0.0f && D >= Contact;
+		if (!bBrush)
+		{
+			Soonest = FMath::Min(Soonest, T);
+		}
+		return Weight * (1.0f - T / (Horizon + 0.1f)) * ((bBrush ? 0.0f : 1.0f) + (R - D) / R);
 	}
 }
 
@@ -260,12 +282,8 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 		const FVector2f RVel = World.RoundVel.IsValidIndex(Index) ? World.RoundVel[Index] : FVector2f::ZeroVector;
 		float T = 0.0f;
 		const float D = ClosestApproach(Rel, RVel - Vel, Horizon, T);
-		const float R = HeroR + (World.RoundRadius.IsValidIndex(Index) ? World.RoundRadius[Index] : 0.0f) + Profile.MarginUU;
-		if (D < R)
-		{
-			Score += RoundWeight * (1.0f - T / (Horizon + 0.1f)) * (1.0f + (R - D) / R);
-			Soonest = FMath::Min(Soonest, T);
-		}
+		const float Contact = HeroR + (World.RoundRadius.IsValidIndex(Index) ? World.RoundRadius[Index] : 0.0f);
+		Score += PathThreat(RoundWeight, T, Horizon, D, Contact, Contact + Profile.MarginUU, Profile.LeaveUU, Soonest);
 	}
 	for (int32 Index = 0; Index < World.EnemyPos.Num(); ++Index)
 	{
@@ -277,12 +295,8 @@ float FDTBotBrain::ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, f
 		const FVector2f EVel = World.EnemyVel.IsValidIndex(Index) ? World.EnemyVel[Index] : FVector2f::ZeroVector;
 		float T = 0.0f;
 		const float D = ClosestApproach(Rel, EVel - Vel, Horizon, T);
-		const float R = HeroR + (World.EnemyRadius.IsValidIndex(Index) ? World.EnemyRadius[Index] : 0.0f) + Profile.MarginUU;
-		if (D < R)
-		{
-			Score += BodyWeight * (1.0f - T / (Horizon + 0.1f)) * (1.0f + (R - D) / R);
-			Soonest = FMath::Min(Soonest, T);
-		}
+		const float Contact = HeroR + (World.EnemyRadius.IsValidIndex(Index) ? World.EnemyRadius[Index] : 0.0f);
+		Score += PathThreat(BodyWeight, T, Horizon, D, Contact, Contact + Profile.MarginUU, Profile.LeaveUU, Soonest);
 	}
 	if (OutSoonest)
 	{
@@ -325,6 +339,16 @@ float FDTBotBrain::DangerAt(const FDTBotWorld& World, const FVector2f& P, float 
 		}
 	}
 	return Score + WallDanger(P);
+}
+
+FVector2f FDTBotBrain::OpenPart(const FVector2f& Pos, const FVector2f& Dir) const
+{
+	using namespace DTBotTuning;
+	if (Profile.LeaveUU <= 0.0f)
+	{
+		return Dir;
+	}
+	return (Clamp(Pos + Dir * WallProbeUU) - Pos) / WallProbeUU;
 }
 
 float FDTBotBrain::ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, float Speed) const
@@ -469,7 +493,7 @@ void FDTBotBrain::ChooseMove(const FDTBotWorld& World, float Speed, FVector2f& O
 	float BestScore = ScoreMove(World, FVector2f::ZeroVector, Speed);
 	for (int32 Index = 0; Index < NumDirs; ++Index)
 	{
-		const FVector2f Dir = DirAt(Index);
+		const FVector2f Dir = OpenPart(S.Pos, DirAt(Index));
 		float Danger = ScoreMove(World, Dir, Speed);
 		if (PickupWeight == ChestWeight)
 		{
@@ -487,7 +511,7 @@ void FDTBotBrain::ChooseMove(const FDTBotWorld& World, float Speed, FVector2f& O
 		if (Score < BestScore)
 		{
 			BestScore = Score;
-			OutDir = Dir;
+			OutDir = DirAt(Index);
 		}
 	}
 }
@@ -664,7 +688,7 @@ FDTHeroInput FDTBotBrain::DecideV2(const FDTBotWorld& Now)
 		In.AimStick = FVector2f::ZeroVector; // R-BOT-08: Auto aim at every skill
 
 		float Soonest = TNumericLimits<float>::Max();
-		ThreatAlong(World, BestDir * Speed, Profile.ImminentS, &Soonest);
+		ThreatAlong(World, OpenPart(S.Pos, BestDir) * Speed, Profile.ImminentS, &Soonest);
 		bool bImminent = Soonest <= Profile.ImminentS;
 		for (const FDTTelegraph& Tele : World.Telegraphs)
 		{

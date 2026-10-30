@@ -69,6 +69,12 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Tank, "Enemy.Tank");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Rusher, "Enemy.Rusher");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Turret, "Enemy.Turret");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Armored, "Enemy.Affix.Armored");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Swift, "Enemy.Affix.Swift");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Volatile, "Enemy.Affix.Volatile");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Splitter, "Enemy.Affix.Splitter");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Vampiric, "Enemy.Affix.Vampiric");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Shielded, "Enemy.Affix.Shielded");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_PulseRifle, "Weapon.PulseRifle");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_RingEmitter, "Weapon.RingEmitter");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_OrbitalDrones, "Weapon.OrbitalDrones");

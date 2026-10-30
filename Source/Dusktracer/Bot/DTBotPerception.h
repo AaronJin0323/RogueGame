@@ -35,6 +35,8 @@ struct DUSKTRACER_API FDTBotSkillProfile
 	float HoldS = 0.0f;
 	/** R-BOT-04: clearance added to every collision radius; a player who reacts late leaves more room. */
 	float MarginUU = 18.0f;
+	/** R-BOT-14: how far inside the clearance a body stops counting once the path is leaving it; a blocked wall move is no move. 0 at skill 1.0, v1's reading. */
+	float LeaveUU = 0.0f;
 	/** R-BOT-05: share of telegraphs missed. */
 	float CueMissP = 0.0f;
 	/** R-BOT-06: enemy rounds tracked, how far threats are considered, look-ahead for moving threats. */

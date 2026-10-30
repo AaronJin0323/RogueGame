@@ -100,6 +100,8 @@ public:
 
 private:
 	float ScoreMove(const FDTBotWorld& World, const FVector2f& Dir, float Speed) const;
+	/** R-BOT-14: Dir without the part the arena wall stops; Dir itself where the profile leaves walls unread (v1, skill 1.0). */
+	FVector2f OpenPart(const FVector2f& Pos, const FVector2f& Dir) const;
 	float ThreatAlong(const FDTBotWorld& World, const FVector2f& Vel, float Horizon, float* OutSoonest) const;
 	FVector2f ChooseDash(const FDTBotWorld& World) const;
 	/** The kite, pickup and danger scoring shared by both versions: the best direction and the enemies within the cast radius. */

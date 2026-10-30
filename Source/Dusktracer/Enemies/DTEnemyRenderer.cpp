@@ -35,6 +35,9 @@ ADTEnemyRenderer::ADTEnemyRenderer()
 	Optic = DTEnemyRender::MakePart(this, TEXT("Optic"));
 	Optic->SetupAttachment(Hull);
 	Optic->SetCastShadow(false);
+	Parts = DTEnemyRender::MakePart(this, TEXT("Parts"));
+	Parts->SetupAttachment(Hull);
+	Parts->SetCastShadow(false);
 }
 
 void ADTEnemyRenderer::Setup(const FLinearColor& HullColor, float HullEmissive, const FLinearColor& OpticColor, float OpticEmissive)
@@ -44,6 +47,7 @@ void ADTEnemyRenderer::Setup(const FLinearColor& HullColor, float HullEmissive, 
 	{
 		Hull->SetStaticMesh(Mesh);
 		Optic->SetStaticMesh(Mesh);
+		Parts->SetStaticMesh(Mesh);
 		MeshSizeUU = FMath::Max(UE_KINDA_SMALL_NUMBER, 2.0f * static_cast<float>(Mesh->GetBounds().BoxExtent.X));
 	}
 	else
@@ -63,6 +67,7 @@ void ADTEnemyRenderer::Setup(const FLinearColor& HullColor, float HullEmissive, 
 	{
 		Hull->SetMaterial(0, Material);
 		Optic->SetMaterial(0, Material);
+		Parts->SetMaterial(0, Material);
 	}
 
 	HullData = { HullColor.R, HullColor.G, HullColor.B, HullEmissive };
@@ -101,6 +106,30 @@ void ADTEnemyRenderer::Sync(UInstancedStaticMeshComponent* Part, TConstArrayView
 	else if (Have > 0)
 	{
 		Part->MarkRenderStateDirty();
+	}
+}
+
+void ADTEnemyRenderer::UpdateParts(TConstArrayView<FDTElitePart> InParts)
+{
+	PartTransforms.Reset();
+	for (const FDTElitePart& Part : InParts)
+	{
+		PartTransforms.Add(Part.Transform);
+	}
+	PartData.SetNumZeroed(NumCustomData);
+	Sync(Parts, PartTransforms, PartData);
+	for (int32 Index = 0; Index < InParts.Num(); ++Index)
+	{
+		const FDTElitePart& Part = InParts[Index];
+		PartData[0] = Part.Color.R;
+		PartData[1] = Part.Color.G;
+		PartData[2] = Part.Color.B;
+		PartData[3] = Part.Emissive;
+		Parts->SetCustomData(Index, PartData, false);
+	}
+	if (InParts.Num() > 0)
+	{
+		Parts->MarkRenderStateDirty();
 	}
 }
 
