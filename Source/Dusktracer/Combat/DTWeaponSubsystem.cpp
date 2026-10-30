@@ -5,6 +5,8 @@
 #include "Dusktracer.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 int32 DTWeaponPalette::NumBuckets()
 {
