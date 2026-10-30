@@ -86,7 +86,7 @@ finally {
 $Text = Read-Log
 $Lines = $Text -split "`r?`n"
 $Started = $Text -match "LogDT: Run start"
-$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error ===|Unhandled Exception|appError called" })
+$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|appError called" })
 $Ensure = @($Lines | Where-Object { $_ -match "Ensure condition failed|LogOutputDevice: Error: Ensure" })
 $DTErr = @($Lines | Where-Object { $_ -match "LogDT: (Error|Fatal)" })
 $OtherErr = @($Lines | Where-Object { $_ -match "Error:" -and $_ -notmatch "LogDT:" })

@@ -110,9 +110,12 @@ if (-not (Skipped "tests")) {
 		-unattended -nopause -nullrhi -LiveCoding=false "-ABSLOG=$Log" | Out-Null
 	$All = @(Select-String -Path $Log -Pattern "Test Completed\. Result=\{")
 	$Failed = @($All | Where-Object { $_.Line -notmatch "Result=\{Success\}" })
-	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error ===")
-	Report "tests" ("{0} run, {1} failed, floor {2}, {3} crash marker(s)" -f $All.Count, $Failed.Count, $Floor, $Crash.Count)
-	if ($All.Count -eq 0 -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
+	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===")
+	# A crash can stop the run early, so every test found must have completed.
+	$FoundLine = Select-String -Path $Log -Pattern "Found (\d+) automation tests" | Select-Object -First 1
+	$Found = if ($FoundLine) { [int]$FoundLine.Matches[0].Groups[1].Value } else { 0 }
+	Report "tests" ("{0} run of {1} found, {2} failed, floor {3}, {4} crash marker(s)" -f $All.Count, $Found, $Failed.Count, $Floor, $Crash.Count)
+	if ($All.Count -eq 0 -or $All.Count -ne $Found -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
 		$Failed + $Crash | Select-Object -First 12 | ForEach-Object { "    " + $_.Line }; Fail "tests"
 	}
 }
