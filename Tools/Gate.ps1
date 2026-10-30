@@ -134,7 +134,7 @@ if (-not (Skipped "smoke")) {
 if (-not (Skipped "contrast")) {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.
 	$Scene = "DT.God 1,DT.Dir.Time 700,DT.Gems.Drop 30 4 700,DT.Spawn.Role Swarm 6 elite,DT.Spawn.Role Turret 18,DT.Spawn.Role Rusher 8,DT.Bullets 800"
-	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Name contrast -Director -Contrast -Seconds 12 -Cmds $Scene 2>&1
+	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name contrast -Director -Contrast -Seconds 12 -Cmds $Scene *>&1
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_contrast.log") -Encoding utf8
 	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")

@@ -5,8 +5,10 @@ Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5]            write
         & Tools\\BotRuns.ps1 -Jobs <dir>\\jobs.csv -Parallel 14 -Out <dir>\\runs   runs them headless
         python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
 
-A scene (Source/Dusktracer/Bot/DTProbeScript.h) is a build, a refilled swarm field and a window: Bot v1 moves the hero, which
-takes no damage, the director is off and no hand opens. Damage is the sum of the `hit` records inside the window.
+A scene (Source/Dusktracer/Bot/DTProbeScript.h) is a build, a refilled swarm field and a window: the hero takes no damage and
+walks one fixed route in the crowd (stand, walk, dash; FDTBotBrain::ProbeInput), the same steps for every build, the director
+is off and no hand opens. Damage is the sum of the `hit` records inside the window. No hit lands on the hero, so a trigger on
+a hit taken (Slam's) never fires here.
 
 T-KEE-15 (R-KEE-15, C.INTERCESSION.BAND): for every variant x layer combination of a primary Keeper, the marginal damage of one
 cast (with-cast minus no-cast, same build, seed and field) lies within +-band of that Keeper's combination mean. The build of a
@@ -37,8 +39,8 @@ FIELD = 120
 FIELD_HP_MULT = 10.0  # the Handoff's field: at 1x a strong build wipes it every frame and every ablation reads the same
 FIELD_MINUTE = 10.5  # C.LEVEL.L16_MIN in minutes: the swarm a level 16 build meets
 CAST_WINDOW_S = 12.0  # long enough for every variant's window and the Freeze after it
-ABLATE_WARMUP_S = 10.0  # the field walks in from the spawn ring
-ABLATE_WINDOW_S = 15.0
+ABLATE_WARMUP_S = 8.0  # the field walks in from the spawn ring
+ABLATE_WINDOW_S = 10.0
 # The steered median at level 16 across the battery (S1_probes.md); one loadout, so a combination differs only by its cards.
 LOADOUT = [("Weapon.PulseRifle", 4), ("Weapon.ArcBlade", 3), ("Weapon.OrbitalDrones", 3)]
 # The nine showcase arms: run folder label -> (Path, Archetype).
@@ -139,7 +141,7 @@ def write_jobs(out_dir, jobs):
 def gen_intercession(out_dir, seeds):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
-	cast_at = consts["HERO.INTERCESSION_CHARGE_S"]["value"] + 2.0
+	cast_at = ABLATE_WARMUP_S  # a probe's meter is full from the start (UDTBotSubsystem::ApplyProbe)
 	hp = field_hp(consts)
 	columns = ("Key", "Amp1", "Amp2", "Trait")
 	cast_jobs, plain_jobs = [], []
@@ -228,7 +230,7 @@ def band_check(values, band):
 	mean = statistics.mean(values.values())
 	out = {}
 	for key, v in values.items():
-		ratio = v / mean if mean > 0 else float("nan")
+		ratio = v / mean if mean > 0 else float("nan")  # a mean at or below zero has no band around it
 		out[key] = (ratio, mean > 0 and abs(ratio - 1.0) <= band + 1e-9)
 	return out, mean
 

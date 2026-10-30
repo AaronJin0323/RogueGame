@@ -46,6 +46,10 @@ namespace DTBotTuning
 	constexpr float MaxMoveNoiseDeg = 35.0f;
 	constexpr float MaxAimNoiseDeg = 20.0f;
 	constexpr int32 SeedSalt = 0x0B07;
+	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
+	constexpr int32 ProbeLegS = 1;
+	constexpr int32 ProbeDashS = 6;
+	constexpr float ProbeOrbitUU = 400.0f;
 
 	/** The wall band's share of FDTBotBrain::DangerAt. */
 	static float WallDanger(const FVector2f& P)
@@ -349,6 +353,29 @@ FVector2f FDTBotBrain::ChooseDash(const FDTBotWorld& World) const
 	return Best;
 }
 
+FDTHeroInput FDTBotBrain::ProbeInput(const FDTBotWorld& World)
+{
+	using namespace DTBotTuning;
+	const FDTHeroState& S = *World.Hero;
+	FDTHeroInput In;
+	const int64 Leg = World.StepIndex / (ProbeLegS * DTConst::SIM_FIXED_HZ);
+	if (Leg % 2 == 1 || World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0)
+	{
+		const FVector2f Out = S.Pos.GetSafeNormal();
+		const float Radial = FMath::Clamp((FVector2f(S.Pos).Size() - ProbeOrbitUU) / ProbeOrbitUU, -1.0f, 1.0f);
+		const FVector2f Tangent(-Out.Y, Out.X);
+		In.Move = (Out.IsNearlyZero() ? FVector2f(1.0f, 0.0f) : Tangent - Out * Radial).GetSafeNormal();
+	}
+	In.bDashPress = World.StepIndex % (ProbeDashS * DTConst::SIM_FIXED_HZ) == 0 && S.DashCharges > 0;
+	Stats.DashPresses += In.bDashPress ? 1 : 0;
+	if (Config.CastStep >= 0 && World.StepIndex >= Config.CastStep && Stats.IntercessionPresses == 0)
+	{
+		In.bIntercessionPress = true;
+		++Stats.IntercessionPresses;
+	}
+	return In;
+}
+
 FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 {
 	using namespace DTBotTuning;
@@ -357,6 +384,10 @@ FDTHeroInput FDTBotBrain::Decide(const FDTBotWorld& World)
 	if (S.bDown)
 	{
 		return FDTHeroInput();
+	}
+	if (Config.bProbeRoute)
+	{
+		return ProbeInput(World);
 	}
 	FDTHeroInput In = Held;
 	In.bDashPress = false;

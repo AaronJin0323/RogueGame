@@ -148,6 +148,7 @@ void UDTBotSubsystem::StartProbe(const FDTProbeScript& Script, int32 Seed)
 	Config.Policy = EDTBotPolicy::Steered;
 	Config.Path = Script.Patron;
 	Config.Seed = Seed;
+	Config.bProbeRoute = true;
 	Config.CastStep = Script.CastAtS < 0.0f ? FDTBotConfig::CastNever : FMath::RoundToInt64(Script.CastAtS * DTConst::SIM_FIXED_HZ);
 	Activate(Config);
 	Probe = Script;
@@ -205,6 +206,12 @@ void UDTBotSubsystem::ApplyProbe()
 		}
 	}
 	Heroes->SetNoDamage(true); // the probe reads damage dealt; a hero that dies ends the window
+	if (const FDTHeroState* State = Heroes->GetState(0))
+	{
+		FDTHeroStats Stats = State->Stats;
+		Stats.IntercessionCooldownMul = 0.0f; // the meter is full from the start; only the script presses it
+		Heroes->SetStats(0, Stats);
+	}
 	Enemies->SetKeepHpScale(Probe.HpScale);
 	Enemies->SetKeepPopulation(Probe.Field);
 	UE_LOG(LogDT, Log, TEXT("Bot: probe applied: %d blessing(s), %d weapon(s), field %d at HP scale %.2f, window %.1f + %.1f s, cast at %.1f s"),

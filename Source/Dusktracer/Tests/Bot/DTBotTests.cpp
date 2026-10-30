@@ -338,10 +338,10 @@ bool FDTBotProbeScene::RunTest(const FString& Parameters)
 			FDTProbeScript Script;
 			FString Error;
 			const FString Text = FString::Printf(TEXT("patron Storm\nsecond Tide\nbless Blessing.Storm.Tempest.Key\nbless Blessing.Tide.Frost.Key\nweapon Weapon.PulseRifle 3\nfield 30\nhp_scale 5\nwarmup_s %f\nwindow_s 2\n%s"),
-				DTConst::HERO_INTERCESSION_CHARGE_S + 1.0f, bCast ? *FString::Printf(TEXT("cast_at_s %f\n"), DTConst::HERO_INTERCESSION_CHARGE_S + 1.0f) : TEXT(""));
+				19.0f, bCast ? TEXT("cast_at_s 19\n") : TEXT(""));
 			TestTrue(TEXT("script"), Script.Parse(Text, Error));
 			Bot->StartProbe(Script, 7);
-			const int32 MaxSteps = (DTConst::HERO_INTERCESSION_CHARGE_S + 4) * DTConst::SIM_FIXED_HZ;
+			const int32 MaxSteps = 25 * DTConst::SIM_FIXED_HZ;
 			while (Sim->GetStepIndex() < MaxSteps && !Bot->IsRunFinished())
 			{
 				if (Bot->RunSteps(MaxSteps) == 0)
@@ -359,6 +359,8 @@ bool FDTBotProbeScene::RunTest(const FString& Parameters)
 			TestTrue(TEXT("the field has the script's HP scale"), Enemies->GetPool().GetHpScales().Num() > 0 && FMath::IsNearlyEqual(Enemies->GetPool().GetHpScales()[0], 5.0f));
 			TestEqual(TEXT("casts"), Heroes->GetState(0)->Intercessions, bCast ? 1 : 0);
 			TestFalse(TEXT("the hero is standing"), Heroes->GetState(0)->bDown);
+			TestTrue(TEXT("the route stays in the crowd"), Heroes->GetState(0)->Pos.Size() < 800.0f);
+			TestTrue(TEXT("the route dashes"), Heroes->GetState(0)->Dashes > 3);
 			Telemetry->EndSession(TEXT("test"));
 			IFileManager::Get().Delete(*Telemetry->GetWriter().GetCsvPath(), false, true, true);
 			IFileManager::Get().Delete(*Telemetry->GetWriter().GetJsonlPath(), false, true, true);
