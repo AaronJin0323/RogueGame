@@ -59,7 +59,7 @@ namespace DTConst
 	inline constexpr float ENM_KILL_RATE_WINDOW_S = 1.0f; // s, GATED(S0)
 	inline constexpr float ENEMIES_OPTIC_EMISSIVE = 14.0f; // ratio, GATED(S1)
 	inline constexpr float ENEMIES_OPTIC_SCALE = 0.35f; // ratio, GATED(S1)
-	inline constexpr float ENEMIES_TELEGRAPH_EMISSIVE = 12.0f; // ratio, GATED(S1)
+	inline constexpr float ENEMIES_TELEGRAPH_EMISSIVE = 2.0f; // ratio, GATED(S1)
 	inline constexpr int32 ENEMIES_TELEGRAPH_Z_UU = 2; // uu, GATED(S1)
 	inline constexpr float ENEMIES_TELEGRAPH_LEAD_MIN_S = 0.75f; // s, GATED(S1)
 	inline constexpr int32 ROLE_SWARM_CONTACT_DAMAGE = 6; // hp, GATED(S1)

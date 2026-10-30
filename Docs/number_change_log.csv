@@ -10,3 +10,4 @@ date,constant,from,to,evidence,hypothesis_or_decision,remeasure_job,result
 2026-10-30,C.ENM.OPTIC_TINT,0.35,removed,[G],R-ENM-24: the separate optic part carries readability; the S0 hull tint is no longer read anywhere,none,met
 2026-10-30,C.ENM.EMISSIVE_STRENGTH,2.0,removed,[G],R-ENM-24: the hull draws without emissive; the S0 hull emissive is no longer read anywhere,none,met
 2026-10-30,C.ENEMIES.TELEGRAPH_Z_UU,new,2,[G],R-ENM-13 telegraph renderer: quads just above the floor and below hulls and rounds,S1 capture of a Rusher band and Turret line in both weathers,pending
+2026-10-30,C.ENEMIES.TELEGRAPH_EMISSIVE,12.0,2.0,[M] screenshot: red bloomed to salmon/white,TUNE: telegraphs must read as saturated Pal.Telegraph red (R-PRE-03),re-shoot Rusher+Turret telegraphs,met (red reads distinct from magenta optics)
