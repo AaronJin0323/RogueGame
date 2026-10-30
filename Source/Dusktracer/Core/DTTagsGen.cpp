@@ -73,4 +73,10 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Conduit, "Mod.Conduit");
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Fork, "Mod.Fork");
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Ricochet, "Mod.Ricochet");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Homing, "Mod.Homing");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_OrbitLock, "Mod.OrbitLock");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Boomerang, "Mod.Boomerang");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_SpreadWave, "Mod.SpreadWave");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Spillover, "Mod.Spillover");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Refit, "Mod.Refit");
 }
