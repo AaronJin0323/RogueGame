@@ -6,7 +6,7 @@ Goal: make the S1 numbers readable. No gameplay rule and no tuned number changed
 |---|---|
 | T-KEE-15, `C.INTERCESSION.BAND` | measurable; **FAIL**, 3 of 57 combinations in band; Tide's mean cast is negative |
 | T-KEE-18, `C.POWER.KEEPER_SHARE_L16` and package gain | measurable; **FAIL**: share 5 of 9 arms (mean 0.683), gain 0 of 9, archetype band 2 of 9 |
-| T-PRE-05, `C.PRE.CONTRAST_MIN` | automated, repeatable, gate step `contrast`; 5 of 7 elements pass; **telegraph 2.65 and enemy round 2.39–2.69 fail** against lit ground |
+| T-PRE-05, `C.PRE.CONTRAST_MIN` | automated, repeatable, gate step `contrast`; 7 of 7 elements pass in the one weather that exists (§3) |
 | `hit_kind` | renamed; no schema version exists to bump (R-TEL-06 pins only the CSV) |
 | `Hazard` split | `HazardRing`, `Charge`, `Sweep`, `DashCharge` |
 | Ring deaths | a bot fault, fixed: runs with 4+ ring hits that die 7 → 0, wins 153 → 164 of 201 |
@@ -50,19 +50,21 @@ What this says:
 - The archetype band fails on spread: 0.415 to 0.966.
 
 ## 3. Contrast (T-PRE-05)
-`Tools/contrast_check.py` on a 1280×720 `-RenderOffScreen` capture: a staged late frame (director at 700 s, Turrets, Rushers, elites, gems, chests, player rounds), hero read from the `arena_empty` shot, where the crowd does not cover it. R-PRE-05 is checked on the rendered frame, so both references are read from it: lit ground Y 0.098, shadow on it Y 0.014. The tokens `Pal.Ground.Bright` 0.193 and `Pal.Ground.Shadow` 0.032 are printed beside them. The rendered ground never reaches the Bright token here; judged against the token, gems would also read under 3 (2.7), which is a reference no pixel in this frame shows.
+`Tools/contrast_check.py` on a 1280×720 `-RenderOffScreen` capture: a staged late frame (director at 700 s, Turrets, Rushers, elites, gems, chests, player rounds), hero read from the `arena_empty` shot, where the crowd does not cover it. R-PRE-05 is checked on the rendered frame, so both references are read from it: lit ground Y 0.112, shadow on it Y 0.013. Before the lift (`C.ARENA.SUN_LUX` 10) lit ground read Y 0.098 and the shadow Y 0.014. A telegraph and a round are dual-tone, so each row shows the tone that carries lit ground.
 
 | Element | Tone Y | vs lit ground | vs shadow | Verdict |
 |---|---|---|---|---|
-| telegraph | 0.341 | 2.63–2.65 | 6.1 | **FAIL** |
-| enemy round (rim; dark core Y 0.02 is no better) | 0.30–0.33 | 2.39–2.69 | 5.5–5.9 | **FAIL** |
-| optic and elite light (one line: same hue, the elite blinks) | 0.849 | 6.09 | 14 | PASS |
-| player tracer core | 0.54–0.63 | 3.99–4.57 | 9–10 | PASS |
-| hero | 0.706 | 5.12 | 11.8 | PASS |
-| gem | 0.61–0.62 | 4.45–4.54 | 10.2 | PASS |
-| chest | 0.72–0.73 | 5.20–5.27 | 12 | PASS |
+| telegraph (band Y 0.000 on lit ground; red Y 0.21 on shadow) | 0.208–0.211 | 3.21–3.23 | 4.11–4.15 | PASS |
+| enemy round (core Y 0.002 on lit ground; rim Y 0.37 on shadow) | 0.367–0.368 | 3.14 | 6.65–6.67 | PASS |
+| optic and elite light (one line: same hue, the elite blinks) | 0.855 | 5.59 | 14.4 | PASS |
+| player tracer core | 0.58–0.61 | 3.91–4.06 | 10.1–10.5 | PASS |
+| hero | 0.725–0.734 | 4.79–4.84 | 12.4–12.5 | PASS |
+| gem | 0.616–0.617 | 4.11–4.12 | 10.6 | PASS |
+| chest | 0.63–0.64 | 4.20–4.27 | 10.8–11.0 | PASS |
 
-Four captures gave the same verdict on every element, so it is a gate step. An element below the rule fails the step unless `Docs/Validation/contrast_debts.txt` names it; an element not found always fails. **The two debts are real failures**, the ones D-008 said only the rendered check could decide; they print as `KNOWN` on every gate. R-PRE-05's fix is the scene or the emissive, never the rule, and materials were out of this task. One weather exists, so the second weather is not measured. The elite light has no reading of its own. `04_Presentation.md` still marks T-PRE-05 PLANNED(S0), outside this task's files.
+Two captures on the final map and constants. The floor moved first: the band needs lit Y 0.10, and `C.ARENA.SUN_LUX` 10.5 reached Y 0.106. That held the round at 3.03–3.04, one quantised core step (Y 0.003, 2.94) under the rule, so the lift went to 11. The round then took `C.ENEMY_FIRE.DRAW_RADIUS_RATIO` 1.8: the core reads Y 0.001–0.002 on 6 captures, against 0.002–0.003 at 1.5 on 4. Rim emissive was tried and dropped: 3.5, 6 and 10 give rim Y 0.34, 0.37 and 0.39, and past that the tonemapper only pales the rim. The rim alone reads 2.6 against lit ground; the rule and the token table let the core carry that ground.
+
+Judged against the tokens rather than the frame, `Pal.Ground.Shadow` passes everywhere, and `Pal.Ground.Bright` (Y 0.193, shown by no pixel of this frame) still reads under 3 for gem 2.7, tracer core 2.6–2.7 and chest 2.8. One weather exists, so the second is not measured. The elite light has no reading of its own.
 
 ## 4. Hit kinds
 `hero_damaged` now carries `hit_kind`, values `Contact Bullet HazardRing Charge Sweep DashCharge`; a Rusher's charge is `Charge` with role `Rusher`. Tests `Dusktracer.Boss.HitKinds` and `Dusktracer.Telemetry.Records.Combat` seen failing first. `Tools/pressure.py` reads old runs too, splitting an old `Hazard` by `attack`. `bot_summary.py` keeps the combined column as "Direct attacks" and adds one per kind. **`offer_pick` has the same fault**, repeating `kind` for the card kind (`offers.md`); it is out of this task, and `first_wins` stays for it.
@@ -117,7 +119,7 @@ Steered arms: reached boss 201 → 201, wins 153 → 164. Only the boss phase mo
 ## 7. What remains
 1. Why a cast loses damage on Slam and most of Tide, and whether the 12 s window or the route causes any of it.
 2. Package gain near 1.0 on Furnace, Frost and Whirlpool: a run of the same ablation with no second Keeper would separate the cause.
-3. Telegraph and enemy round contrast against lit ground (a material or ground change), the second weather, an elite light reading of its own.
+3. Contrast in the second weather, an elite light reading of its own, gem, tracer core and chest against a floor at `Pal.Ground.Bright`.
 4. Both probes are readings, not gate steps: they fail, and nothing should be tuned against a bot field alone. They can join the nightly set of S2.
-5. `offer_pick`'s repeated `kind`. T-PRE-05's PLANNED mark in `04_Presentation.md`.
+5. `offer_pick`'s repeated `kind`.
 6. No probe covers a Tank-heavy field or the boss.
