@@ -105,6 +105,28 @@ enemies:
   ROLE.TURRET_TELL_S:          { value: 0.75, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12, R-ENM-13, T-ENM-12] }
   ROLE.TURRET_PERIOD_S:        { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12, T-ENM-12] }
   ROLE.ELITE_HP_MULT:          { value: 5, unit: x, tag: MEASURED(reference balance/model.md), dependents: [02_Systems/enemies.md, 02_Systems/director.md, R-ENM-09, T-ENM-09] }
+  AFFIX.ARMORED_DAMAGE_TAKEN: { value: 0.6, unit: ratio, tag: MEASURED(reference balance/model.md), dependents: [02_Systems/elites.md, R-ELT-03, T-ELT-03] }
+  AFFIX.SWIFT_SPEED_MULT: { value: 1.4, unit: x, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-04, T-ELT-04] }
+  AFFIX.VOLATILE_RADIUS_UU: { value: 240, unit: uu, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-05, T-ELT-05] }
+  AFFIX.VOLATILE_LEAD_S: { value: 0.8, unit: s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-05, T-ELT-05, 09_Catalog/elites.csv] }
+  AFFIX.VOLATILE_DAMAGE: { value: 15, unit: hp, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-05, T-ELT-05] }
+  AFFIX.SPLITTER_COUNT: { value: 3, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-06, T-ELT-06] }
+  AFFIX.VAMPIRIC_RANGE_UU: { value: 420, unit: uu, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07] }
+  AFFIX.VAMPIRIC_LINK_S: { value: 1.0, unit: s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07, 09_Catalog/elites.csv] }
+  AFFIX.VAMPIRIC_TICK_S: { value: 1.0, unit: s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07] }
+  AFFIX.VAMPIRIC_DRAIN_DPS: { value: 4, unit: hp_per_s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07] }
+  AFFIX.VAMPIRIC_HEAL_RATIO: { value: 0.05, unit: ratio, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07] }
+  AFFIX.VAMPIRIC_CABLE_UU: { value: 6, unit: uu, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-07, T-ELT-07] }
+  AFFIX.SHIELD_HITS: { value: 16, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-08, T-ELT-08] }
+  AFFIX.SHIELD_PLATES: { value: 6, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11, T-ELT-11] }
+  ELITE.FAVORED_WEIGHT: { value: 3, unit: x, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-02, T-ELT-02, 09_Catalog/timeline_arena1.csv] }
+  ELITE.DEBUG_AFFIXES: { value: 1, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, Debug/DTDebugEnemies] }
+  ELITE.DRAW_SCALE: { value: 1.3, unit: x, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11, T-ELT-11] }
+  ELITE.LIGHT_EMISSIVE: { value: 22.0, unit: ratio, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-10, T-ELT-10, T-PRE-05] }
+  ELITE.BLINK_STEP_S: { value: 0.1, unit: s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-10, T-ELT-10] }
+  ELITE.PART_RATIO: { value: 0.35, unit: ratio, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11, T-ELT-11] }
+  ELITE.SHIELD_ORBIT_DEG_S: { value: 90, unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11] }
+  ELITE.LABELS_MAX: { value: 12, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-12, T-ELT-12] }
   ENEMY_FIRE.CAP:              { value: 1024, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-15, T-ENM-15, T-PERF-01] }
   ENEMY_FIRE.SHOT_SPEED_UU_S:  { value: 650, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12] }
   ENEMY_FIRE.SHOT_RADIUS_UU:   { value: 16, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-16, T-ENM-20] }
@@ -334,6 +356,11 @@ weapons:
   WEAPON.CHILD_SPEED_UU_S:     { value: 900,  unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
   WEAPON.CHILD_RANGE_UU:       { value: 450,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
   WEAPON.CHILD_RADIUS_UU:      { value: 10,   unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, Combat/DTWeaponSim, T-WPN-08] }
+  WEAPON.CONE_DEG:             { value: 40,   unit: deg,   tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-14] }
+  WEAPON.LINE_SECTORS:         { value: 72,   unit: n,     tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-15] }
+  WEAPON.SEEKER_TURN_DEG_S:    { value: 360,  unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/weapons.md, T-WPN-17] }
+  WEAPON.SPIRAL_DEG_S:         { value: 300,  unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/weapons.md, T-WPN-18] }
+  WEAPON.STREAM_ECHO_EVERY_N:  { value: 4,    unit: n,     tag: GATED(S2),  dependents: [02_Systems/weapons.md, T-WPN-18] }
   MOD.SOCKETS_PER_WEAPON:      { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, 02_Systems/offers.md, T-MOD-04] }
   MOD.MIN_COMPATIBLE:          { value: 4,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, T-MOD-07] }
   MOD.SPLIT_GENERATIONS_MAX:   { value: 2,    unit: n,     tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/keepers.md, T-MOD-05] }

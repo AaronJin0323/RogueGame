@@ -69,7 +69,7 @@ namespace DTCat
 	inline constexpr FFlagCompatRow FlagCompat[] =
 	{
 		{ TEXT("Flag.Split"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::Native, ECompat::None }, { TEXT(""), TEXT("children fan from the lance end point"), TEXT("every Nth activation emits a ring of children from the hero"), TEXT("every Nth sweep emits a ring of children from the hero"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
-		{ TEXT("Flag.Echo"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("the detonation repeats at the same point"), TEXT("delayed copies of every Nth stream round"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
+		{ TEXT("Flag.Echo"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("the detonation repeats at the same point"), TEXT("delayed strikes on every Nth stream hit"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.ConvertOrbit"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT("the lance sweeps once around the hero"), TEXT("+1 drone"), TEXT("the sweep becomes a full spin"), TEXT("shells circle the hero before landing"), TEXT("mines circle the hero before they drop"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.ConvertMelee"), { ECompat::Native, ECompat::Fallback, ECompat::Fallback, ECompat::Fallback, ECompat::Native, ECompat::Fallback, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT("the lance becomes a long thrust arc"), TEXT("+drone contact area"), TEXT("+arc size"), TEXT(""), TEXT("+blast area"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
 		{ TEXT("Flag.Slam"), { ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::Native, ECompat::None, ECompat::None, ECompat::None, ECompat::None, ECompat::None }, { TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("") } },
@@ -115,11 +115,11 @@ namespace DTCat
 		{ TEXT("Weapon.OrbitalDrones"), 1, true, { ECap::Orbit, ECap::Projectile }, 2, CapBit(ECap::Orbit) | CapBit(ECap::Projectile), TEXT("Orbiter"), TEXT("NearestToDrone"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 16, 8, TEXT("Blade Halo (S2)") },
 		{ TEXT("Weapon.ArcBlade"), 1, true, { ECap::Melee, ECap::Area }, 2, CapBit(ECap::Melee) | CapBit(ECap::Area), TEXT("MeleeArc"), TEXT("Nearest"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 24, 8, TEXT("Cyclone (S2)") },
 		{ TEXT("Weapon.GravityMine"), 1, false, { ECap::Mine, ECap::Area }, 2, CapBit(ECap::Mine) | CapBit(ECap::Area), TEXT("Mine"), TEXT("DensestCell"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 32, 8, TEXT("Singularity (S2)") },
-		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 0, TEXT("Flechette (S2)") },
-		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Sweep Beam (S2)") },
-		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 0, TEXT("Carpet (S2)") },
-		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Murmuration (S2)") },
-		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 40, 0, TEXT("Vortex (S2)") },
+		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 8, TEXT("Flechette (S2)") },
+		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 48, 8, TEXT("Sweep Beam (S2)") },
+		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 56, 8, TEXT("Carpet (S2)") },
+		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 64, 8, TEXT("Murmuration (S2)") },
+		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 72, 8, TEXT("Vortex (S2)") },
 	};
 	struct FWeaponLevelRow
 	{
@@ -176,6 +176,46 @@ namespace DTCat
 		{ 4, 6, 67.0f, 2, 1.76f, 22.5f, 0.0f, 700.0f, 0, 212.5f }, // Weapon.GravityMine L6
 		{ 4, 7, 67.0f, 2, 1.76f, 28.12f, 0.0f, 700.0f, 0, 265.6f }, // Weapon.GravityMine L7
 		{ 4, 8, 67.0f, 2, 1.408f, 28.12f, 0.0f, 700.0f, 0, 265.6f }, // Weapon.GravityMine L8
+		{ 5, 1, 3.0f, 12, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L1
+		{ 5, 2, 5.0f, 12, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L2
+		{ 5, 3, 5.0f, 16, 0.6f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L3
+		{ 5, 4, 5.0f, 16, 0.48f, 10.0f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L4
+		{ 5, 5, 5.0f, 16, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L5
+		{ 5, 6, 7.0f, 16, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L6
+		{ 5, 7, 7.0f, 20, 0.48f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L7
+		{ 5, 8, 7.0f, 20, 0.384f, 12.5f, 1500.0f, 650.0f, 1, 0.0f }, // Weapon.ScatterCannon L8
+		{ 6, 1, 30.0f, 1, 1.6f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L1
+		{ 6, 2, 42.0f, 1, 1.6f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L2
+		{ 6, 3, 42.0f, 1, 1.28f, 14.0f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L3
+		{ 6, 4, 42.0f, 1, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L4
+		{ 6, 5, 42.0f, 2, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L5
+		{ 6, 6, 57.0f, 2, 1.28f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L6
+		{ 6, 7, 57.0f, 2, 1.024f, 17.5f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L7
+		{ 6, 8, 57.0f, 2, 1.024f, 21.88f, 1200.0f, 1600.0f, 13, 0.0f }, // Weapon.RailLance L8
+		{ 7, 1, 18.0f, 1, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L1
+		{ 7, 2, 24.0f, 1, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L2
+		{ 7, 3, 24.0f, 2, 1.4f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L3
+		{ 7, 4, 24.0f, 2, 1.12f, 16.0f, 900.0f, 1000.0f, 0, 150.0f }, // Weapon.FlakMortar L4
+		{ 7, 5, 24.0f, 2, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L5
+		{ 7, 6, 32.0f, 2, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L6
+		{ 7, 7, 32.0f, 3, 1.12f, 20.0f, 900.0f, 1000.0f, 0, 187.5f }, // Weapon.FlakMortar L7
+		{ 7, 8, 32.0f, 3, 1.12f, 25.0f, 900.0f, 1000.0f, 0, 234.4f }, // Weapon.FlakMortar L8
+		{ 8, 1, 9.0f, 4, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L1
+		{ 8, 2, 12.0f, 4, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L2
+		{ 8, 3, 12.0f, 6, 1.1f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L3
+		{ 8, 4, 12.0f, 6, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L4
+		{ 8, 5, 16.0f, 6, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L5
+		{ 8, 6, 16.0f, 8, 0.88f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L6
+		{ 8, 7, 16.0f, 8, 0.704f, 9.0f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L7
+		{ 8, 8, 16.0f, 8, 0.704f, 11.25f, 900.0f, 1200.0f, 1, 0.0f }, // Weapon.SeekerSwarm L8
+		{ 9, 1, 4.0f, 1, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L1
+		{ 9, 2, 5.0f, 1, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L2
+		{ 9, 3, 5.0f, 2, 0.07f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L3
+		{ 9, 4, 5.0f, 2, 0.056f, 10.0f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L4
+		{ 9, 5, 5.0f, 2, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L5
+		{ 9, 6, 5.0f, 3, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L6
+		{ 9, 7, 7.0f, 3, 0.056f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L7
+		{ 9, 8, 7.0f, 3, 0.0448f, 12.5f, 450.0f, 1350.0f, 1, 0.0f }, // Weapon.SpiralProjector L8
 	};
 
 	// --- modifiers.csv ---
@@ -205,6 +245,12 @@ namespace DTCat
 		{ TEXT("Mod.Conduit"), 1, true, EFlag::StatusApply, 0u, 0u, { { TEXT("chance"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Conduit") },
 		{ TEXT("Mod.Fork"), 1, false, EFlag::None, CapBit(ECap::Aimed) | CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Mine), 0u, { { TEXT("extra_rounds"), 2.0f }, { TEXT("angle_deg"), 15.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm), TEXT("ST_Modifiers.Fork") },
 		{ TEXT("Mod.Ricochet"), 1, false, EFlag::Ricochet, CapBit(ECap::Projectile), CapBit(ECap::Orbit), { { TEXT("bounces"), 2.0f }, { TEXT("seek_range_uu"), 400.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm), TEXT("ST_Modifiers.Ricochet") },
+		{ TEXT("Mod.Homing"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Beam), { { TEXT("turn_deg_s"), 240.0f }, { TEXT("seek_range_uu"), 500.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Homing") },
+		{ TEXT("Mod.OrbitLock"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing) | CapBit(ECap::Beam), { { TEXT("hold_s"), 2.0f }, { TEXT("range_ratio"), 1.5f }, { TEXT("orbit_radius_uu"), static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU) } }, 3, PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.OrbitLock") },
+		{ TEXT("Mod.Boomerang"), 2, false, EFlag::None, CapBit(ECap::Projectile), CapBit(ECap::Orbit) | CapBit(ECap::Homing), { { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 0, PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Boomerang") },
+		{ TEXT("Mod.SpreadWave"), 2, false, EFlag::None, CapBit(ECap::Expiry) | CapBit(ECap::Orbit), CapBit(ECap::Lob), { { TEXT("reach_uu"), 150.0f }, { TEXT("arc_deg"), 90.0f }, { TEXT("wave_damage_ratio"), 0.5f } }, 3, PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.SpreadWave") },
+		{ TEXT("Mod.Spillover"), 2, false, EFlag::None, 0u, 0u, { { TEXT("seek_range_uu"), 300.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge), TEXT("ST_Modifiers.Spillover") },
+		{ TEXT("Mod.Refit"), 2, false, EFlag::None, 0u, 0u, { { TEXT("interval_s"), 60.0f }, { TEXT("modifiers_fitted"), 3.0f }, { TEXT(""), 0.0f } }, 2, PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), TEXT("ST_Modifiers.Refit") },
 	};
 
 	// --- expression.csv: one row per archetype ---
@@ -263,6 +309,30 @@ namespace DTCat
 		{ EDTEnemyRole::Tank, TEXT("Enemy.Tank"), static_cast<float>(DTConst::ROLE_TANK_HP), static_cast<float>(DTConst::ROLE_TANK_SPEED_UU_S), static_cast<float>(DTConst::ROLE_TANK_RADIUS_UU), static_cast<float>(DTConst::ROLE_TANK_CONTACT_DAMAGE), TEXT(""), TEXT(""), TEXT(""), static_cast<float>(DTConst::DIR_SHARE_MAX_TANK), false, TEXT("ST_Enemies.Enemy.Tank.Name") },
 		{ EDTEnemyRole::Rusher, TEXT("Enemy.Rusher"), static_cast<float>(DTConst::ROLE_RUSHER_HP), static_cast<float>(DTConst::ROLE_RUSHER_SPEED_UU_S), static_cast<float>(DTConst::ROLE_RUSHER_RADIUS_UU), static_cast<float>(DTConst::ROLE_RUSHER_CONTACT_DAMAGE), TEXT("Rusher.Charge"), TEXT(""), TEXT("Band"), static_cast<float>(DTConst::DIR_SHARE_MAX_RUSHER), false, TEXT("ST_Enemies.Enemy.Rusher.Name") },
 		{ EDTEnemyRole::Turret, TEXT("Enemy.Turret"), static_cast<float>(DTConst::ROLE_TURRET_HP), 0.0f, static_cast<float>(DTConst::ROLE_TURRET_RADIUS_UU), static_cast<float>(DTConst::ROLE_TURRET_CONTACT_DAMAGE), TEXT("Turret.Fire"), TEXT("Turret.Burst|Turret.Fan"), TEXT("AimLine"), static_cast<float>(DTConst::DIR_SHARE_MAX_TURRET), false, TEXT("ST_Enemies.Enemy.Turret.Name") },
+	};
+
+	// --- elites.csv: one row per EDTAffix, in order ---
+	struct FAffixRow
+	{
+		const TCHAR* Id;
+		const TCHAR* Tag;
+		const TCHAR* NameKey;
+		const TCHAR* Attack;    // empty = none
+		const TCHAR* Telegraph; // empty = none
+		float Lead_s;
+		int32 Danger;
+		bool bFavored;
+		uint32 NoRoles;         // bit per EDTEnemyRole
+		const TCHAR* Light;     // brightness per C.ELITE.BLINK_STEP_S, 0-9
+	};
+	inline constexpr FAffixRow Affixes[] =
+	{
+		{ TEXT("Armored"), TEXT("Enemy.Affix.Armored"), TEXT("ST_Enemies.Affix.Armored.Name"), TEXT(""), TEXT(""), 0.0f, 1, false, 0u, TEXT("999999999999") },
+		{ TEXT("Swift"), TEXT("Enemy.Affix.Swift"), TEXT("ST_Enemies.Affix.Swift.Name"), TEXT(""), TEXT(""), 0.0f, 2, true, (1u << static_cast<uint32>(EDTEnemyRole::Turret)), TEXT("909090909090") },
+		{ TEXT("Volatile"), TEXT("Enemy.Affix.Volatile"), TEXT("ST_Enemies.Affix.Volatile.Name"), TEXT("Affix.Volatile"), TEXT("Ring"), static_cast<float>(DTConst::AFFIX_VOLATILE_LEAD_S), 6, true, 0u, TEXT("907090009500") },
+		{ TEXT("Splitter"), TEXT("Enemy.Affix.Splitter"), TEXT("ST_Enemies.Affix.Splitter.Name"), TEXT(""), TEXT(""), 0.0f, 3, false, 0u, TEXT("909000000000") },
+		{ TEXT("Vampiric"), TEXT("Enemy.Affix.Vampiric"), TEXT("ST_Enemies.Affix.Vampiric.Name"), TEXT("Affix.Vampiric"), TEXT("AimLine"), static_cast<float>(DTConst::AFFIX_VAMPIRIC_LINK_S), 5, false, 0u, TEXT("135799975310") },
+		{ TEXT("Shielded"), TEXT("Enemy.Affix.Shielded"), TEXT("ST_Enemies.Affix.Shielded.Name"), TEXT(""), TEXT(""), 0.0f, 4, true, 0u, TEXT("012345678999") },
 	};
 
 	// --- boss_warden.csv ---
@@ -350,32 +420,35 @@ namespace DTCat
 		float DropInWeightTurret;
 		ETimelineEvent Event;
 		int32 EventCount;
+		int32 EventAffixes; // EliteWave: affixes per elite
+		float EventFavor;   // EliteWave: weight of favoured affixes; 0 = none
 	};
 	inline constexpr FTimelineRow TimelineArena1[] =
 	{
-		{ 0.0f, ETimelinePhase::Harvest, 0.0f, 2.4f, 90, { 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 67.5f, ETimelinePhase::Harvest, 0.0f, 2.8f, 90, { 0.85f, 0.15f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 135.0f, ETimelinePhase::Harvest, 0.0f, 3.2f, 180, { 0.75f, 0.15f, 0.1f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0 },
-		{ 225.0f, ETimelinePhase::Threat, 45.0f, 2.4f, 180, { 0.55f, 0.15f, 0.3f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 2 },
-		{ 270.0f, ETimelinePhase::Harvest, 0.0f, 3.6f, 180, { 0.7f, 0.12f, 0.1f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 337.5f, ETimelinePhase::Threat, 30.0f, 2.6f, 180, { 0.6f, 0.1f, 0.15f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::SwarmRing, 40 },
-		{ 405.0f, ETimelinePhase::Harvest, 0.0f, 4.4f, 300, { 0.68f, 0.12f, 0.12f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 450.0f, ETimelinePhase::Harvest, 0.0f, 4.8f, 300, { 0.66f, 0.12f, 0.13f, 0.09f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 450.0f, ETimelinePhase::Threat, 45.0f, 3.0f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 3 },
-		{ 562.5f, ETimelinePhase::Threat, 30.0f, 3.0f, 300, { 0.5f, 0.1f, 0.3f, 0.1f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::RusherStampede, 12 },
-		{ 600.0f, ETimelinePhase::Harvest, 0.0f, 5.8f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 675.0f, ETimelinePhase::Harvest, 0.0f, 6.2f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 675.0f, ETimelinePhase::Threat, 45.0f, 3.2f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 4 },
-		{ 720.0f, ETimelinePhase::Harvest, 0.0f, 6.6f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 787.5f, ETimelinePhase::Threat, 30.0f, 3.2f, 400, { 0.55f, 0.1f, 0.15f, 0.2f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::TurretNest, 6 },
-		{ 810.0f, ETimelinePhase::Harvest, 0.0f, 7.5f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 5.0f, 0.7f, 0.3f, ETimelineEvent::None, 0 },
-		{ 900.0f, ETimelinePhase::Boss, 0.0f, 0.0f, 400, { 0.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::Boss, 1 },
+		{ 0.0f, ETimelinePhase::Harvest, 0.0f, 2.4f, 90, { 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 67.5f, ETimelinePhase::Harvest, 0.0f, 2.8f, 90, { 0.85f, 0.15f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 135.0f, ETimelinePhase::Harvest, 0.0f, 3.2f, 180, { 0.75f, 0.15f, 0.1f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 225.0f, ETimelinePhase::Threat, 45.0f, 2.4f, 180, { 0.55f, 0.15f, 0.3f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 2, 1, 0.0f },
+		{ 270.0f, ETimelinePhase::Harvest, 0.0f, 3.6f, 180, { 0.7f, 0.12f, 0.1f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 337.5f, ETimelinePhase::Threat, 30.0f, 2.6f, 180, { 0.6f, 0.1f, 0.15f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::SwarmRing, 40, 0, 0.0f },
+		{ 405.0f, ETimelinePhase::Harvest, 0.0f, 4.4f, 300, { 0.68f, 0.12f, 0.12f, 0.08f }, 12.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 450.0f, ETimelinePhase::Harvest, 0.0f, 4.8f, 300, { 0.66f, 0.12f, 0.13f, 0.09f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 450.0f, ETimelinePhase::Threat, 45.0f, 3.0f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 3, 1, 0.0f },
+		{ 562.5f, ETimelinePhase::Threat, 30.0f, 3.0f, 300, { 0.5f, 0.1f, 0.3f, 0.1f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::RusherStampede, 12, 0, 0.0f },
+		{ 600.0f, ETimelinePhase::Harvest, 0.0f, 5.8f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 10.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 675.0f, ETimelinePhase::Harvest, 0.0f, 6.2f, 300, { 0.64f, 0.12f, 0.14f, 0.1f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 675.0f, ETimelinePhase::Threat, 45.0f, 3.2f, 300, { 0.5f, 0.15f, 0.2f, 0.15f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::EliteWave, 4, 2, static_cast<float>(DTConst::ELITE_FAVORED_WEIGHT) },
+		{ 720.0f, ETimelinePhase::Harvest, 0.0f, 6.6f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 7.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 787.5f, ETimelinePhase::Threat, 30.0f, 3.2f, 400, { 0.55f, 0.1f, 0.15f, 0.2f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::TurretNest, 6, 0, 0.0f },
+		{ 810.0f, ETimelinePhase::Harvest, 0.0f, 7.5f, 400, { 0.62f, 0.12f, 0.15f, 0.11f }, 5.0f, 0.7f, 0.3f, ETimelineEvent::None, 0, 0, 0.0f },
+		{ 900.0f, ETimelinePhase::Boss, 0.0f, 0.0f, 400, { 0.0f, 0.0f, 0.0f, 0.0f }, 0.0f, 0.0f, 0.0f, ETimelineEvent::Boss, 1, 0, 0.0f },
 	};
 
 	// --- every cell that named a C. key, for the resolution test ---
 	struct FConstantRef { const TCHAR* Cell; const TCHAR* Key; double Table; double Constant; };
 	inline constexpr FConstantRef ConstantRefs[] =
 	{
+		{ TEXT("modifiers.csv:13:value_3"), TEXT("C.WEAPON.DRONE_ORBIT_RADIUS_UU"), static_cast<double>(Modifiers[11].Params[2].Value), static_cast<double>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU) },
 		{ TEXT("enemies.csv:2:hp"), TEXT("C.ENM.SWARM_HP"), static_cast<double>(Enemies[0].Hp), static_cast<double>(DTConst::ENM_SWARM_HP) },
 		{ TEXT("enemies.csv:2:speed_uu_s"), TEXT("C.ENM.SWARM_SPEED_UU_S"), static_cast<double>(Enemies[0].Speed_uu_s), static_cast<double>(DTConst::ENM_SWARM_SPEED_UU_S) },
 		{ TEXT("enemies.csv:2:radius_uu"), TEXT("C.ENM.SWARM_RADIUS_UU"), static_cast<double>(Enemies[0].Radius_uu), static_cast<double>(DTConst::ENM_SWARM_RADIUS_UU) },
@@ -394,6 +467,9 @@ namespace DTCat
 		{ TEXT("enemies.csv:5:hp"), TEXT("C.ROLE.TURRET_HP"), static_cast<double>(Enemies[3].Hp), static_cast<double>(DTConst::ROLE_TURRET_HP) },
 		{ TEXT("enemies.csv:5:radius_uu"), TEXT("C.ROLE.TURRET_RADIUS_UU"), static_cast<double>(Enemies[3].Radius_uu), static_cast<double>(DTConst::ROLE_TURRET_RADIUS_UU) },
 		{ TEXT("enemies.csv:5:contact_damage"), TEXT("C.ROLE.TURRET_CONTACT_DAMAGE"), static_cast<double>(Enemies[3].ContactDamage), static_cast<double>(DTConst::ROLE_TURRET_CONTACT_DAMAGE) },
+		{ TEXT("elites.csv:4:lead_s"), TEXT("C.AFFIX.VOLATILE_LEAD_S"), static_cast<double>(Affixes[2].Lead_s), static_cast<double>(DTConst::AFFIX_VOLATILE_LEAD_S) },
+		{ TEXT("elites.csv:6:lead_s"), TEXT("C.AFFIX.VAMPIRIC_LINK_S"), static_cast<double>(Affixes[4].Lead_s), static_cast<double>(DTConst::AFFIX_VAMPIRIC_LINK_S) },
+		{ TEXT("timeline_arena1.csv:14:event_favor"), TEXT("C.ELITE.FAVORED_WEIGHT"), static_cast<double>(TimelineArena1[12].EventFavor), static_cast<double>(DTConst::ELITE_FAVORED_WEIGHT) },
 	};
 
 	inline constexpr int32 NumWeapons = static_cast<int32>(UE_ARRAY_COUNT(Weapons));
@@ -402,10 +478,12 @@ namespace DTCat
 	inline constexpr int32 NumArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));
 	inline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);
 	inline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));
+	inline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));
 	inline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));
 	inline constexpr int32 NumXpLevels = static_cast<int32>(UE_ARRAY_COUNT(XpCurve));
 	inline constexpr int32 NumTimelineArena1 = static_cast<int32>(UE_ARRAY_COUNT(TimelineArena1));
 	inline constexpr int32 NumConstantRefs = static_cast<int32>(UE_ARRAY_COUNT(ConstantRefs));
 	static_assert(static_cast<int32>(UE_ARRAY_COUNT(FlagCompat)) == static_cast<int32>(EFlag::Count), "one flag_compat row per flag");
+	static_assert(static_cast<int32>(UE_ARRAY_COUNT(Affixes)) == static_cast<int32>(EDTAffix::Count), "one elites row per affix");
 	static_assert(static_cast<int32>(EFlag::Count) <= 32 && static_cast<int32>(ECap::Count) <= 32, "masks are 32-bit");
 }

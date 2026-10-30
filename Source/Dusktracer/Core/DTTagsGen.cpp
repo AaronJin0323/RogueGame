@@ -53,6 +53,12 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Tank, "Enemy.Tank");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Rusher, "Enemy.Rusher");
 	UE_DEFINE_GAMEPLAY_TAG(Enemy_Turret, "Enemy.Turret");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Armored, "Enemy.Affix.Armored");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Swift, "Enemy.Affix.Swift");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Volatile, "Enemy.Affix.Volatile");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Splitter, "Enemy.Affix.Splitter");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Vampiric, "Enemy.Affix.Vampiric");
+	UE_DEFINE_GAMEPLAY_TAG(Enemy_Affix_Shielded, "Enemy.Affix.Shielded");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_PulseRifle, "Weapon.PulseRifle");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_RingEmitter, "Weapon.RingEmitter");
 	UE_DEFINE_GAMEPLAY_TAG(Weapon_OrbitalDrones, "Weapon.OrbitalDrones");
@@ -73,4 +79,10 @@ namespace DTTag
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Conduit, "Mod.Conduit");
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Fork, "Mod.Fork");
 	UE_DEFINE_GAMEPLAY_TAG(Mod_Ricochet, "Mod.Ricochet");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Homing, "Mod.Homing");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_OrbitLock, "Mod.OrbitLock");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Boomerang, "Mod.Boomerang");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_SpreadWave, "Mod.SpreadWave");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Spillover, "Mod.Spillover");
+	UE_DEFINE_GAMEPLAY_TAG(Mod_Refit, "Mod.Refit");
 }

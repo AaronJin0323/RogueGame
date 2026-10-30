@@ -1,0 +1,7 @@
+id,tag,name_key,attack,telegraph,lead_s,danger,favored,no_roles,light
+Armored,Enemy.Affix.Armored,ST_Enemies.Affix.Armored.Name,none,none,,1,no,none,999999999999
+Swift,Enemy.Affix.Swift,ST_Enemies.Affix.Swift.Name,none,none,,2,yes,Turret,909090909090
+Volatile,Enemy.Affix.Volatile,ST_Enemies.Affix.Volatile.Name,Affix.Volatile,Ring,C.AFFIX.VOLATILE_LEAD_S,6,yes,none,907090009500
+Splitter,Enemy.Affix.Splitter,ST_Enemies.Affix.Splitter.Name,none,none,,3,no,none,909000000000
+Vampiric,Enemy.Affix.Vampiric,ST_Enemies.Affix.Vampiric.Name,Affix.Vampiric,AimLine,C.AFFIX.VAMPIRIC_LINK_S,5,no,none,135799975310
+Shielded,Enemy.Affix.Shielded,ST_Enemies.Affix.Shielded.Name,none,none,,4,yes,none,012345678999

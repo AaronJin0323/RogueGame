@@ -9,13 +9,15 @@
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponCompose.h"
 #include "Core/DTCatalogGen.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Telemetry/DTTelemetrySources.h"
 
 namespace DTModifierTest
 {
 	using namespace DTWeaponTestHarness;
 
-	static bool IsS1Weapon(int32 Weapon) { return DTCat::Weapons[Weapon].Stage == 1 && DTCat::Weapons[Weapon].NumLevels > 0; }
+	static bool IsS1Weapon(int32 Weapon) { return DTCat::Weapons[Weapon].NumLevels > 0; }
 
 	/** Every cap list a weapon can have in S1: declared, and under a full or partial ConvertMelee / ConvertOrbit. */
 	static TArray<FDTCapList> CapVariants(int32 Weapon)
@@ -88,7 +90,7 @@ bool FDTModifiersNeverIncompatible::RunTest(const FString& Parameters)
 			TestEqual(Pair + TEXT(": composition applies it only when compatible"), !Forced.Sockets[0].bDormant, bCompatible);
 			const uint16 Source = DTWeapons::ModifierSource(Mod);
 			const bool bApplied = Spec.Flags.ContainsByPredicate([Source](const FDTResolvedFlag& F) { return F.Entry.SourceId == Source; }) ||
-				Spec.MirrorSource == Source || Spec.ForkSource == Source || Spec.ChainTriggerSource == Source;
+				Spec.ModSources.Contains(Source);
 			if (!bCompatible)
 			{
 				TestFalse(Pair + TEXT(": incompatible never applied"), bApplied);
@@ -114,11 +116,16 @@ bool FDTModifiersMatrixGenerated::RunTest(const FString& Parameters)
 	struct FCell { const TCHAR* Weapon; const TCHAR* Mods; };
 	const FCell Expected[] =
 	{
-		{ TEXT("Weapon.PulseRifle"), TEXT("SplitCore ScatterShell Pierce Mirror ChainTrigger LingeringField Backwash Conduit Fork Ricochet") },
-		{ TEXT("Weapon.RingEmitter"), TEXT("SplitCore ScatterShell Pierce ChainTrigger LingeringField Backwash Conduit Ricochet") },
-		{ TEXT("Weapon.OrbitalDrones"), TEXT("Pierce ChainTrigger LingeringField Backwash Conduit Fork") },
-		{ TEXT("Weapon.ArcBlade"), TEXT("Mirror ChainTrigger LingeringField Backwash Conduit") },
-		{ TEXT("Weapon.GravityMine"), TEXT("ScatterShell ChainTrigger LingeringField Conduit Fork") },
+		{ TEXT("Weapon.PulseRifle"), TEXT("SplitCore ScatterShell Pierce Mirror ChainTrigger LingeringField Backwash Conduit Fork Ricochet Homing OrbitLock Boomerang SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.ScatterCannon"), TEXT("SplitCore ScatterShell Pierce Mirror ChainTrigger LingeringField Backwash Conduit Fork Ricochet Homing OrbitLock Boomerang SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.RailLance"), TEXT("SplitCore ScatterShell Pierce Mirror ChainTrigger LingeringField Backwash Conduit Fork Ricochet Boomerang SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.FlakMortar"), TEXT("ScatterShell Mirror ChainTrigger LingeringField Backwash Conduit Fork Spillover Refit") },
+		{ TEXT("Weapon.SeekerSwarm"), TEXT("SplitCore Pierce ChainTrigger LingeringField Backwash Conduit Fork Ricochet Spillover Refit") },
+		{ TEXT("Weapon.SpiralProjector"), TEXT("SplitCore ScatterShell Pierce ChainTrigger LingeringField Backwash Conduit Ricochet Homing OrbitLock Boomerang SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.RingEmitter"), TEXT("SplitCore ScatterShell Pierce ChainTrigger LingeringField Backwash Conduit Ricochet Homing OrbitLock Boomerang SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.OrbitalDrones"), TEXT("Pierce ChainTrigger LingeringField Backwash Conduit Fork SpreadWave Spillover Refit") },
+		{ TEXT("Weapon.ArcBlade"), TEXT("Mirror ChainTrigger LingeringField Backwash Conduit Spillover Refit") },
+		{ TEXT("Weapon.GravityMine"), TEXT("ScatterShell ChainTrigger LingeringField Conduit Fork Spillover Refit") },
 	};
 	for (const FCell& Cell : Expected)
 	{
@@ -142,6 +149,34 @@ bool FDTModifiersMatrixGenerated::RunTest(const FString& Parameters)
 		}
 	}
 	TestFalse(TEXT("unknown ids are never compatible"), DTModCompat::IsCompatible(FName(TEXT("Weapon.Nope")), FName(TEXT("Mod.Pierce"))));
+
+	// The generated matrix.csv (Tools/gen_matrix.py) says what IsCompatible says, cell by cell.
+	TArray<FString> Lines;
+	const FString MatrixPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Docs/09_Catalog/matrix.csv"));
+	TestTrue(TEXT("matrix.csv exists"), FFileHelper::LoadFileToStringArray(Lines, *MatrixPath));
+	TArray<FString> Weapons;
+	int32 Cells = 0;
+	for (const FString& Line : Lines)
+	{
+		if (Line.StartsWith(TEXT("#")))
+		{
+			continue;
+		}
+		TArray<FString> Parts;
+		Line.ParseIntoArray(Parts, TEXT(","), false);
+		if (Weapons.Num() == 0)
+		{
+			Weapons = Parts;
+			continue;
+		}
+		for (int32 Col = 1; Col < Parts.Num() && Col < Weapons.Num(); ++Col)
+		{
+			TestEqual(FString::Printf(TEXT("matrix %s x %s"), *Parts[0], *Weapons[Col]),
+				DTModCompat::IsCompatible(FName(*Weapons[Col]), FName(*Parts[0])), Parts[Col] == TEXT("yes"));
+			++Cells;
+		}
+	}
+	TestEqual(TEXT("every cell present"), Cells, DTWeapons::NumWeapons() * DTWeapons::NumModifiers());
 	return true;
 }
 
@@ -151,7 +186,8 @@ bool FDTModifiersSpecialisers::RunTest(const FString& Parameters)
 	using namespace DTModifierTest;
 	using namespace DTWeaponTestHarness;
 	const TCHAR* Banned[] = { TEXT("damage_mult"), TEXT("dmg_mult"), TEXT("fire_rate"), TEXT("cooldown"), TEXT("size"), TEXT("crit"), TEXT("scale") };
-	const TCHAR* NonFlagBehaviours[] = { TEXT("Mod.Pierce"), TEXT("Mod.Mirror"), TEXT("Mod.ChainTrigger"), TEXT("Mod.Fork") };
+	const TCHAR* NonFlagBehaviours[] = { TEXT("Mod.Pierce"), TEXT("Mod.Mirror"), TEXT("Mod.ChainTrigger"), TEXT("Mod.Fork"), TEXT("Mod.Homing"), TEXT("Mod.OrbitLock"),
+		TEXT("Mod.Boomerang"), TEXT("Mod.SpreadWave"), TEXT("Mod.Spillover"), TEXT("Mod.Refit") };
 	for (int32 Mod = 0; Mod < DTWeapons::NumModifiers(); ++Mod)
 	{
 		const DTCat::FModifierRow& Row = DTCat::Modifiers[Mod];
@@ -344,7 +380,7 @@ bool FDTModifiersCoverage::RunTest(const FString& Parameters)
 		int32 Starter = 0, All = 0;
 		for (int32 Mod = 0; Mod < DTWeapons::NumModifiers(); ++Mod)
 		{
-			if (DTCat::Modifiers[Mod].Stage != 1 || !DTModCompat::IsCompatible(Weapon, Mod))
+			if (!DTModCompat::IsCompatible(Weapon, Mod))
 			{
 				continue;
 			}

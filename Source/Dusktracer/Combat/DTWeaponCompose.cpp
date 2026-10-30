@@ -110,6 +110,11 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 			Spec.Range = Spec.Radius; // a sweep reaches as far as it targets
 		}
 	}
+	else if (Spec.Pattern == EDTWeaponPattern::Homing)
+	{
+		Spec.HomingTurnDegS = static_cast<float>(DTConst::WEAPON_SEEKER_TURN_DEG_S);
+		Spec.HomingSeekUu = Spec.Range;
+	}
 
 	// Player flags first: the conversion decides the effective caps every other check uses (R-WPN-02, R-WPN-10).
 	TArray<FDTFlagEntry> Entries = StackEntries(PlayerFlags);
@@ -171,6 +176,7 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 		}
 		const uint16 Source = DTWeapons::ModifierSource(Mod);
 		const FString Name = DTWeapons::ShortName(DTCat::Modifiers[Mod].Id);
+		Spec.ModSources.Add(Source);
 		if (Name == TEXT("Pierce"))
 		{
 			Spec.Pierce += FMath::RoundToInt(DTWeapons::ModifierParam(Mod, TEXT("pierce_add")));
@@ -190,6 +196,39 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 		{
 			Spec.ChainTriggerSource = Source;
 			Spec.ChainTriggerIntervalS = FMath::Max(Spec.ChainTriggerIntervalS, DTWeapons::ModifierParam(Mod, TEXT("min_interval_s")));
+		}
+		else if (Name == TEXT("Homing"))
+		{
+			Spec.HomingTurnDegS = DTWeapons::ModifierParam(Mod, TEXT("turn_deg_s"));
+			Spec.HomingSeekUu = DTWeapons::ModifierParam(Mod, TEXT("seek_range_uu"));
+		}
+		else if (Name == TEXT("OrbitLock"))
+		{
+			Spec.OrbitHoldS = DTWeapons::ModifierParam(Mod, TEXT("hold_s"));
+			Spec.OrbitRadiusUu = DTWeapons::ModifierParam(Mod, TEXT("orbit_radius_uu"));
+			Spec.OrbitRangeRatio = DTWeapons::ModifierParam(Mod, TEXT("range_ratio"));
+		}
+		else if (Name == TEXT("Boomerang"))
+		{
+			Spec.bBoomerang = true;
+		}
+		else if (Name == TEXT("SpreadWave"))
+		{
+			Spec.WaveSource = Source;
+			Spec.WaveDamageRatio = DTWeapons::ModifierParam(Mod, TEXT("wave_damage_ratio"));
+			Spec.WaveArcDeg = DTWeapons::ModifierParam(Mod, TEXT("arc_deg"));
+			Spec.WaveReachUu = DTWeapons::ModifierParam(Mod, TEXT("reach_uu"));
+		}
+		else if (Name == TEXT("Spillover"))
+		{
+			Spec.SpilloverSource = Source;
+			Spec.SpilloverSeekUu = DTWeapons::ModifierParam(Mod, TEXT("seek_range_uu"));
+		}
+		else if (Name == TEXT("Refit"))
+		{
+			Spec.RefitSource = Source;
+			Spec.RefitIntervalS = DTWeapons::ModifierParam(Mod, TEXT("interval_s"));
+			Spec.RefitFitted = FMath::RoundToInt(DTWeapons::ModifierParam(Mod, TEXT("modifiers_fitted")));
 		}
 		FDTFlagEntry ModEntry;
 		if (DTWeapons::ModifierFlagEntry(Mod, Source, ModEntry))

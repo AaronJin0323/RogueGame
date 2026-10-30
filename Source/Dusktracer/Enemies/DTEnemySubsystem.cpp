@@ -156,7 +156,27 @@ void UDTEnemySubsystem::RequestSpawn(int32 Count)
 	PendingSpawns = FMath::Clamp(PendingSpawns + FMath::Max(0, Count), 0, DTConst::ENEMIES_CAP);
 }
 
-void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival)
+void UDTEnemySubsystem::ForwardEliteDeaths(const FDTEnemyPool& InPool, FDTTelemetryCore& Records)
+{
+	for (const FDTEliteDeath& Death : InPool.GetStepEliteDeaths())
+	{
+		FDTTelElite Elite;
+		Elite.Serial = Death.Serial;
+		Elite.Role = Death.Role;
+		Elite.AffixMask = Death.AffixMask;
+		Elite.OwnerId = Death.OwnerId;
+		Elite.SourceId = Death.SourceId;
+		Elite.AliveSeconds = Death.AliveSeconds;
+		Elite.ShieldAbsorbed = Death.ShieldAbsorbed;
+		Elite.ShieldLeft = Death.ShieldLeft;
+		Elite.Drained = Death.Drained;
+		Elite.Healed = Death.Healed;
+		Elite.BeatId = Death.BeatId;
+		Records.RecordEliteDeath(Elite);
+	}
+}
+
+void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bElite, bool bArrival, uint8 AffixMask)
 {
 	if (Count <= 0)
 	{
@@ -167,6 +187,7 @@ void UDTEnemySubsystem::RequestSpawnRole(EDTEnemyRole Role, int32 Count, bool bE
 	Request.Count = FMath::Min(Count, DTConst::ENEMIES_CAP);
 	Request.bElite = bElite;
 	Request.bArrival = bArrival;
+	Request.AffixMask = AffixMask;
 }
 
 void UDTEnemySubsystem::SetKeepPopulation(int32 Count)
@@ -203,6 +224,7 @@ void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
 		return;
 	}
 	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Spawn);
+	Pool.SpawnEliteChildren(&Rng); // before telemetry stamps this step's spawns (R-ELT-06)
 
 	// Director spawns first, in the order they were queued.
 	for (const FDTEnemySpawn& Spec : QueuedSpawns)
@@ -219,6 +241,16 @@ void UDTEnemySubsystem::ApplyRequests(const FDTSimContext& Context)
 		Template.Role = Request.Role;
 		Template.bElite = Request.bElite;
 		Template.bArrival = Request.bArrival;
+		if (Request.bElite && Request.AffixMask == DTElite::RollMask)
+		{
+			for (int32 Index = 0; Index < Request.Count; ++Index)
+			{
+				Template.AffixMask = DTElite::Roll(Request.Role, DTConst::ELITE_DEBUG_AFFIXES, 0.0f, Context.Run->GetRng().Get(EDTRngStream::Elite));
+				Pool.SpawnRing(Template, 1, Center, Ring, Rng);
+			}
+			continue;
+		}
+		Template.AffixMask = Request.AffixMask;
 		Pool.SpawnRing(Template, Request.Count, Center, Ring, Rng);
 	}
 	RoleRequests.Reset();
@@ -285,6 +317,7 @@ void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 	if (Telemetry)
 	{
 		Telemetry->EndResolve(Pool.Num());
+		ForwardEliteDeaths(Pool, Telemetry->Records());
 	}
 }
 
@@ -306,25 +339,35 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 		const float MeshSize = Renderer->GetMeshSizeUU();
 		const float OpticScale = DTConst::ENEMIES_OPTIC_SCALE;
 
+		const TConstArrayView<uint8> Flags = Pool.GetFlags();
 		HullTransforms.SetNum(Count, EAllowShrinking::No);
-		OpticTransforms.SetNum(Count, EAllowShrinking::No);
+		OpticTransforms.Reset();
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector2f At = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
 			const FVector2f& F = Facing[Index];
 			const float Yaw = F.IsNearlyZero() ? 0.0f : FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X));
-			const float R = Radii[Index];
+			const bool bElite = (Flags[Index] & DTEnemyFlags::Elite) != 0;
+			const float R = Radii[Index] * (bElite ? static_cast<float>(DTConst::ELITE_DRAW_SCALE) : 1.0f); // R-ELT-11
 			const FRotator Rot(0.0f, Yaw, 0.0f);
 			HullTransforms[Index] = FTransform(Rot, FVector(At.X, At.Y, Z), FVector(2.0f * R / MeshSize));
+			if (bElite)
+			{
+				continue; // its light is an elite part (R-ELT-10)
+			}
 
 			// The optic sits on top of the hull where the role's model language puts it (enemies.md Model language):
 			// the nose (Swarm, Rusher) or over the plate (Tank) at the front edge; the mirror head (Turret) or the hull
 			// centre (Boss) in the middle.
 			const bool bCentred = Roles[Index] == EDTEnemyRole::Turret || Roles[Index] == EDTEnemyRole::Boss;
 			const FVector2f OpticAt = bCentred ? At : At + F * ((1.0f - OpticScale) * R);
-			OpticTransforms[Index] = FTransform(Rot, FVector(OpticAt.X, OpticAt.Y, Z + R), FVector(2.0f * R * OpticScale / MeshSize));
+			OpticTransforms.Emplace(Rot, FVector(OpticAt.X, OpticAt.Y, Z + R), FVector(2.0f * R * OpticScale / MeshSize));
 		}
 		Renderer->UpdateInstances(HullTransforms, OpticTransforms);
+		const UDTSimSubsystem* SimForTime = Sim.Get();
+		const float Seconds = SimForTime ? static_cast<float>(SimForTime->GetStepIndex()) / static_cast<float>(DTConst::SIM_FIXED_HZ) : 0.0f;
+		DTElite::BuildParts(Pool, Alpha, Seconds, MeshSize, EliteParts);
+		Renderer->UpdateParts(EliteParts);
 	}
 
 	if (RoundRenderer)

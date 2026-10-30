@@ -210,7 +210,8 @@ bool FDTCoreRngS0Seeds::RunTest(const FString& Parameters)
 		TestEqual(*FString::Printf(TEXT("S0 stream %d keeps its seed"), Index), FDTRngStreams::DeriveSeed(1234, S0[Index]), Expected[Index]);
 	}
 	TestEqual(TEXT("Director appended after Loot"), static_cast<int32>(EDTRngStream::Director), static_cast<int32>(EDTRngStream::Loot) + 1);
-	TestEqual(TEXT("Director is the last stream"), static_cast<int32>(EDTRngStream::Count), static_cast<int32>(EDTRngStream::Director) + 1);
+	TestEqual(TEXT("Elite appended after Director"), static_cast<int32>(EDTRngStream::Elite), static_cast<int32>(EDTRngStream::Director) + 1);
+	TestEqual(TEXT("Elite is the last stream"), static_cast<int32>(EDTRngStream::Count), static_cast<int32>(EDTRngStream::Elite) + 1);
 	TestEqual(TEXT("Director seed pinned"), FDTRngStreams::DeriveSeed(1234, EDTRngStream::Director), -1513086827);
 
 	// Drawing Director never moves an S0 stream.
@@ -284,25 +285,18 @@ bool FDTCoreCatalogTables::RunTest(const FString& Parameters)
 	int32 S1Weapons = 0, StarterWeapons = 0;
 	for (const DTCat::FWeaponRow& W : DTCat::Weapons)
 	{
-		if (W.Stage == 1)
+		S1Weapons += W.Stage == 1 ? 1 : 0;
+		TestEqual(*FString::Printf(TEXT("%s has eight levels"), W.Id), W.NumLevels, 8);
+		for (int32 L = 0; L < W.NumLevels; ++L)
 		{
-			++S1Weapons;
-			TestEqual(*FString::Printf(TEXT("%s has eight levels"), W.Id), W.NumLevels, 8);
-			for (int32 L = 0; L < W.NumLevels; ++L)
-			{
-				const DTCat::FWeaponLevelRow& Row = DTCat::WeaponLevels[W.FirstLevel + L];
-				TestTrue(*FString::Printf(TEXT("%s L%d belongs to it"), W.Id, L + 1), Row.Level == L + 1 && &DTCat::Weapons[Row.Weapon] == &W);
-			}
-		}
-		else
-		{
-			TestEqual(*FString::Printf(TEXT("%s (S2) has no level stats yet"), W.Id), W.NumLevels, 0);
+			const DTCat::FWeaponLevelRow& Row = DTCat::WeaponLevels[W.FirstLevel + L];
+			TestTrue(*FString::Printf(TEXT("%s L%d belongs to it"), W.Id, L + 1), Row.Level == L + 1 && &DTCat::Weapons[Row.Weapon] == &W);
 		}
 		StarterWeapons += W.bStarter ? 1 : 0;
 		TestTrue(*FString::Printf(TEXT("%s has capabilities"), W.Id), W.NumCaps > 0 && W.CapMask != 0);
 	}
 	TestEqual(TEXT("five S1 weapons"), S1Weapons, 5);
-	TestTrue(TEXT("S2 rows present"), DTCat::NumWeapons >= 5);
+	TestEqual(TEXT("ten weapons"), DTCat::NumWeapons, 10);
 	TestEqual(TEXT("starter weapons = C.POOL.STARTER_WEAPONS"), StarterWeapons, DTConst::POOL_STARTER_WEAPONS);
 
 	int32 StarterMods = 0;
@@ -310,7 +304,7 @@ bool FDTCoreCatalogTables::RunTest(const FString& Parameters)
 	{
 		StarterMods += M.bStarter ? 1 : 0;
 	}
-	TestEqual(TEXT("ten modifiers"), DTCat::NumModifiers, 10);
+	TestEqual(TEXT("sixteen modifiers"), DTCat::NumModifiers, 16);
 	TestEqual(TEXT("starter modifiers = C.POOL.STARTER_MODIFIERS"), StarterMods, DTConst::POOL_STARTER_MODIFIERS);
 	TestEqual(TEXT("nine archetypes"), DTCat::NumArchetypes, 9);
 	TestEqual(TEXT("eighteen flags in flag_compat"), DTCat::NumFlags, 18);

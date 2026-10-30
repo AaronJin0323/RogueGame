@@ -33,6 +33,18 @@ enum class EDTEnemyRole : uint8
 	Count
 };
 
+/** Elite affixes (Enemy.Affix.<Name>, elites.md), in 09_Catalog/elites.csv order; bits of an affix mask. */
+enum class EDTAffix : uint8
+{
+	Armored,
+	Swift,
+	Volatile,
+	Splitter,
+	Vampiric,
+	Shielded,
+	Count
+};
+
 /** Enemy statuses (Status.<Name>, enemies.md R-ENM-21). */
 enum class EDTStatus : uint8
 {
@@ -80,7 +92,11 @@ enum class EDTHeroHitKind : uint8
 	/** A charge band: the Warden's Charge, a Rusher's charge. */
 	Charge,
 	Sweep,
-	DashCharge
+	DashCharge,
+	/** A Volatile elite's death blast (elites.md R-ELT-05). */
+	Blast,
+	/** A Vampiric elite's drain (elites.md R-ELT-07). */
+	Drain
 };
 
 /** Damage to a hero, written in Enemies (contact, enemy rounds, boss hazards), read by the hero next step. */
@@ -185,6 +201,9 @@ struct FDTWorldView
 	TArray<float> EnemyRadii;
 	TArray<uint32> EnemySerials;
 	FDTSpatialHash EnemyHash;
+	// Weapons -> Bullets: where a released orbiting round aims first (the live boss hull, R-BUL-09).
+	bool bBossAlive = false;
+	FVector2f BossPosition = FVector2f::ZeroVector;
 
 	// Appended by weapons, bullets, enemies (Burn), effects (next step); consumed and cleared in ResolveHits.
 	TArray<FDTHit> Hits;

@@ -94,7 +94,7 @@ public:
 	void SetAimManual(int32 OwnerId, bool bManual) { Sim.SetAimManual(OwnerId, bManual); }
 
 	/** D-013: Gravity Mine, Fork and Ricochet reach the run pool only through DT.Unlock until meta (S3). */
-	void Unlock(FName Id) { Unlocked.Add(Id); }
+	void Unlock(FName Id) { Unlocked.Add(Id); Sim.Unlock(Id); }
 	/** True for a starter row (weapons.csv / modifiers.csv `starter`) or an unlocked id. */
 	bool IsInPool(FName Id) const;
 

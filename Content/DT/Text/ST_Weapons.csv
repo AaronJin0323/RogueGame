@@ -9,3 +9,13 @@ ArcBlade.Name,Arc Blade,弧刃,Offer card name of Weapon.ArcBlade (weapons.md Te
 ArcBlade.Desc,Sweeps a wide blade at the closest enemy.,朝最近的敌人挥出宽弧刃。,"Offer card line of Weapon.ArcBlade: names the pattern, never a catalog number.",
 GravityMine.Name,Gravity Mine,引力雷,Offer card name of Weapon.GravityMine (weapons.md Text).,
 GravityMine.Desc,"Drops a mine on a crowd: it pulls them in, then detonates.",在敌群中布雷：先把敌人吸过来，再引爆。,"Offer card line of Weapon.GravityMine: names the pattern, never a catalog number.",Flag.Pull
+ScatterCannon.Name,Scatter Cannon,霰弹炮,Offer card name of Weapon.ScatterCannon (weapons.md Text).,
+ScatterCannon.Desc,Blasts a cone of pellets at close range.,向近处的敌人喷出一片扇形霰弹。,"Offer card line of Weapon.ScatterCannon: names the pattern, never a catalog number.",
+RailLance.Name,Rail Lance,磁轨长枪,Offer card name of Weapon.RailLance (weapons.md Text).,
+RailLance.Desc,"A slow, piercing lance down the densest line.",朝敌人最密集的一线射出缓慢但能穿透的长枪。,"Offer card line of Weapon.RailLance: names the pattern, never a catalog number.",
+FlakMortar.Name,Flak Mortar,破片迫击炮,Offer card name of Weapon.FlakMortar (weapons.md Text).,
+FlakMortar.Desc,Lobs shells onto the thickest crowd; they burst on landing.,向敌群最密处抛射炮弹，落地爆炸。,"Offer card line of Weapon.FlakMortar: names the pattern, never a catalog number.",
+SeekerSwarm.Name,Seeker Swarm,猎蜂,Offer card name of Weapon.SeekerSwarm (weapons.md Text).,
+SeekerSwarm.Desc,Launches micro-missiles that hunt down random enemies.,发射微型导弹，自动追击随机的敌人。,"Offer card line of Weapon.SeekerSwarm: names the pattern, never a catalog number.",
+SpiralProjector.Name,Spiral Projector,旋射器,Offer card name of Weapon.SpiralProjector (weapons.md Text).,
+SpiralProjector.Desc,Spins out an endless spiral of rounds.,旋转射出连绵不绝的螺旋弹幕。,"Offer card line of Weapon.SpiralProjector: names the pattern, never a catalog number.",

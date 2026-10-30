@@ -21,7 +21,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 - **R-TEC-01** Run state is per player. Everything a run owns (weapons, blessings, favour, offer state, XP) lives in `FDTPlayerRunState`, indexed by player; there is no single-player shortcut. Every hit, kill and pickup event carries an `OwnerId`.
   - T-TEC-01 `Dusktracer.Tec.RunState.PerPlayer`: two players' states are independent; events route to their owner.
-- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot, Director; new streams are appended so existing seeds never change) derived from the run seed. S1 users: Spawn (enemies), Offer (offers, per player), Combat (weapon crits in Weapons, Keeper procs in Effects, in phase order), Boss, Director. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
+- **R-TEC-02** Randomness comes only from per-system streams (`EDTRngStream`: Spawn, Offer, Combat, Boss, Weather, Loot, Director, Elite; new streams are appended so existing seeds never change) derived from the run seed. S1 users: Spawn (enemies), Offer (offers, per player), Combat (weapon crits in Weapons, Keeper procs in Effects, in phase order), Boss, Director. Drawing from one stream never changes another. `FMath::Rand*` and unseeded streams are forbidden in gameplay code.
   - T-TEC-02 `Dusktracer.Tec.Rng.Streams`: same seed â†’ same sequences; streams are independent; different seeds differ.
 - **R-TEC-03** The whole simulation (hero, enemies, bullets, director, bot) advances in fixed steps of `1 / C.SIM.FIXED_HZ` from an accumulator, at most `C.SIM.MAX_SUBSTEPS` per frame. Time beyond that cap is dropped and counted (a hitch slows the game instead of spiralling); the leftover fraction of a step is carried, and rendering interpolates with it.
   - T-TEC-03 `Dusktracer.Tec.FixedStep.Accumulator`: step counts and remainder for slow, exact, fast and hitching frames.
@@ -94,6 +94,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 | `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`) | overwritten each step; a touch the hero refused never sets it |
 | `HeroHits` (`FDTHeroHit[]`) | enemies: contact, enemy rounds; boss hazards (Enemies) | hero, next step | by the hero after reading |
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
+| `bBossAlive`, `BossPosition` | weapons (Weapons) | bullets (R-BUL-09) | overwritten |
 | `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
 | `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends) | at the next `ResolveHits` |
 | `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step | after applying |

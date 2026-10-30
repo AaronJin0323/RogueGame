@@ -14,6 +14,8 @@
 #include "Boss/DTBossSubsystem.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
+#include "Enemies/DTElite.h"
+#include "Enemies/DTEnemySubsystem.h"
 #include "Game/DTGameMode.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
@@ -37,6 +39,7 @@ namespace DTHUDLocal
 	constexpr float RunOverScale = 2.0f;
 	// Exponential smoothing of the readout so it is legible; the measured numbers come from Tools/Perf.ps1.
 	constexpr double Smoothing = 0.1;
+	constexpr float EliteLabelGapPx = 26.0f; // under the hull at gameplay camera (elites.md R-ELT-12)
 }
 
 /** Smoothed frame and game-thread time from the engine's performance tracking (same source as stat unit). */
@@ -177,6 +180,37 @@ void ADTHUD::DrawHeroes()
 	}
 }
 
+void ADTHUD::DrawEliteLabels()
+{
+	const UDTEnemySubsystem* Enemies = GetWorld() ? GetWorld()->GetSubsystem<UDTEnemySubsystem>() : nullptr;
+	const UDTHeroSubsystem* Hero = GetWorld() ? GetWorld()->GetSubsystem<UDTHeroSubsystem>() : nullptr;
+	if (!Enemies || !Canvas || !GEngine)
+	{
+		return;
+	}
+	const FDTEnemyPool& Pool = Enemies->GetPool();
+	const FDTHeroState* First = Hero && Hero->GetNumHeroes() > 0 ? Hero->GetState(0) : nullptr;
+	DTElite::LabelledElites(Pool, First ? First->Pos : FVector2f::ZeroVector, LabelScratch);
+	UFont* const Font = GEngine->GetSmallFont();
+	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
+	for (const int32 Index : LabelScratch)
+	{
+		const FVector2f At = Pool.GetPositions()[Index];
+		const FVector Screen = Project(FVector(At.X, At.Y, Z));
+		if (Screen.Z <= 0.0f || Screen.X < 0.0f || Screen.Y < 0.0f || Screen.X > Canvas->ClipX || Screen.Y > Canvas->ClipY)
+		{
+			continue;
+		}
+		const FText Label = DTElite::LabelText(Pool.GetAux(Index).AffixMask);
+		float Width = 0.0f;
+		float Height = 0.0f;
+		Canvas->TextSize(Font, Label.ToString(), Width, Height);
+		FCanvasTextItem Item(FVector2D(Screen.X - 0.5f * Width, Screen.Y + DTHUDLocal::EliteLabelGapPx), Label, Font, DTHUDLocal::UIText);
+		Item.EnableShadow(FLinearColor::Black);
+		Canvas->DrawItem(Item);
+	}
+}
+
 void ADTHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -216,6 +250,7 @@ void ADTHUD::DrawHUD()
 			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)), 1.0f);
 	}
 
+	DrawEliteLabels();
 	DrawHeroes();
 	// Above the world HUD; only the offer screen draws over it (progression.md R-PRG-11).
 	FDTXPBar::Draw(Canvas, GetWorld(), Font);

@@ -32,7 +32,7 @@ namespace DTWeaponTestHarness
 		bool bResolve = true;
 		/** Every hit of every step, as ResolveHits saw it. */
 		TArray<FDTHit> HitLog;
-		/** Kills to hand Effects next step (the enemy package fills View.Kills; these tests do it by hand). */
+		/** Extra kills to hand Effects next step, on top of what ResolveHits fills. */
 		TArray<FDTKill> PendingKills;
 
 		explicit FDTHarness(int32 Seed = 7, int32 NumPlayers = 1)
@@ -80,9 +80,10 @@ namespace DTWeaponTestHarness
 			else
 			{
 				View.Hits.Reset();
+				View.Kills.Reset();
 			}
 			Enemies.Publish(View);
-			View.Kills = PendingKills;
+			View.Kills.Append(PendingKills);
 			PendingKills.Reset();
 			Weapons.StepEffects(Ctx, &Bullets);
 			++Step;

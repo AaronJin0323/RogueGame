@@ -73,6 +73,17 @@ struct FDTEnemyAux
 	int32 FreezeOwner = INDEX_NONE;
 	uint16 FreezeSource = 0;
 
+	// Elite (elites.md Data).
+	uint8 AffixMask = 0;
+	int32 ShieldHitsLeft = 0;
+	int32 ShieldAbsorbed = 0;
+	int32 DrainTarget = INDEX_NONE; // the hero on the cable
+	float DrainLinkLeft = 0.0f;     // seconds until the cable drains
+	float DrainTickLeft = 0.0f;     // seconds to the next drain, once linked
+	float Drained = 0.0f;
+	float Healed = 0.0f;
+	float AliveSeconds = 0.0f;
+
 	bool IsFrozen() const { return FreezeLeft > 0.0f; }
 	int32 NumBurnStacks() const;
 };
@@ -106,6 +117,41 @@ struct FDTOrphanAttack
 	bool bCloseFan = false;
 	bool bLanded = false;
 	uint32 EnemySerial = 0;
+};
+
+/** A Volatile elite's blast waiting to land (elites.md R-ELT-05); outlives its unit, like an orphan attack. */
+struct FDTEliteBlast
+{
+	FVector2f Origin = FVector2f::ZeroVector;
+	float Left = 0.0f; // seconds until it lands
+	EDTEnemyRole Role = EDTEnemyRole::Swarm;
+	uint32 EnemySerial = 0;
+	bool bCounted = false; // its threat action is counted on its first Enemies step
+};
+
+/** Splitter children owed by a death, spawned at the start of the next Enemies phase (elites.md R-ELT-06). */
+struct FDTEliteChildren
+{
+	FVector2f Origin = FVector2f::ZeroVector;
+	float HpScale = 1.0f;
+	float DmgScale = 1.0f;
+	bool bDirector = false;
+};
+
+/** One elite's end (elites.md R-ELT-13): the enemy subsystem forwards it to telemetry. */
+struct FDTEliteDeath
+{
+	uint32 Serial = 0;
+	EDTEnemyRole Role = EDTEnemyRole::Swarm;
+	uint8 AffixMask = 0;
+	int32 OwnerId = INDEX_NONE;
+	uint16 SourceId = 0;
+	float AliveSeconds = 0.0f;
+	int32 ShieldAbsorbed = 0;
+	int32 ShieldLeft = 0;
+	float Drained = 0.0f;
+	float Healed = 0.0f;
+	int32 BeatId = INDEX_NONE;
 };
 
 /** One threat action started this step (enemies.md Telemetry ThreatAction{Role, AttackId}); the subsystem forwards it to telemetry. */
@@ -183,6 +229,10 @@ public:
 	/** Applies one status (R-ENM-21). Returns false when ignored (stale handle) or refused. */
 	bool ApplyStatus(const FDTStatusApply& Apply);
 
+	/** Spawns the Splitter children owed by last step's deaths (elites.md R-ELT-06). StepEnemies calls it; the subsystem calls it
+	 *  earlier, before telemetry stamps the step's spawns, with the Spawn stream. Rng may be null. */
+	void SpawnEliteChildren(FRandomStream* Rng);
+
 	/** Swap-removes every dead enemy (an arrival dying mid-telegraph leaves its attack behind). Returns the number removed. */
 	int32 Compact();
 
@@ -233,6 +283,9 @@ public:
 	const FDTEnemyBulletPool& GetRounds() const { return Rounds; }
 	FDTEnemyBulletPool& GetRounds() { return Rounds; }
 	TConstArrayView<FDTOrphanAttack> GetOrphanAttacks() const { return Orphans; }
+	TConstArrayView<FDTEliteBlast> GetEliteBlasts() const { return Blasts; }
+	/** Elite deaths of the last ResolveHits (elites.md R-ELT-13). */
+	TConstArrayView<FDTEliteDeath> GetStepEliteDeaths() const { return StepEliteDeaths; }
 
 	/** Volley directions (R-ENM-19, R-ENM-20): Count rounds Spread degrees apart around Aim; an even count is shifted half a
 	 *  step so one round flies exactly along Aim, to the left on even volleys and to the right on odd ones. */
@@ -256,11 +309,13 @@ private:
 	void TickStatuses(float Dt, TArray<FDTHit>* OutHits);
 	void AssignTokens(TConstArrayView<FVector2f> Heroes, bool bThreatBlock);
 	void StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2f> Heroes);
-	void PublishTelegraphs(TArray<FDTTelegraph>& Out) const;
+	void PublishTelegraphs(TArray<FDTTelegraph>& Out, TConstArrayView<FVector2f> Heroes) const;
 	void FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFirePattern InPattern, bool bClose, int32 Volley,
 		int32 Target, float InDmgScale, uint32 InSerial);
 	void StepOrphans(float Dt, FDTWorldView& View);
-	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin);
+	void StepElites(float Dt, FDTWorldView& View);
+	void StepBlasts(float Dt, FDTWorldView& View);
+	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin, FName AttackId = NAME_None);
 	void AppendContacts(FDTWorldView& View) const;
 	int32 NearestHero(const FVector2f& At, TConstArrayView<FVector2f> Heroes, FVector2f* OutDelta = nullptr) const;
 	float ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius) const;
@@ -291,6 +346,9 @@ private:
 
 	FDTEnemyBulletPool Rounds;
 	TArray<FDTOrphanAttack> Orphans;
+	TArray<FDTEliteBlast> Blasts;
+	TArray<FDTEliteChildren> PendingChildren;
+	TArray<FDTEliteDeath> StepEliteDeaths;
 	TArray<FDTThreatAction> StepThreats;
 	TArray<FDTEnemyDeath> StepDeaths;
 	bool bFireEnabled = true;
