@@ -1,6 +1,7 @@
 #include "Combat/DTReforge.h"
 
 #include "Combat/DTWeaponCompose.h"
+#include "Core/DTSimTypes.h"
 
 namespace DTReforgeLocal
 {
@@ -155,6 +156,56 @@ int32 DTReforge::PrimarySlot(TConstArrayView<FDTWeaponInstance> Weapons)
 
 void DTReforge::ApplyEvolution(int32 Row, const DTCat::FWeaponLevelRow& Level, FDTWeaponSpec& Spec)
 {
+	Spec.EvolveRow = Row;
+	Spec.Evolve = Evolution(Row);
+	const float Total = Level.Damage * static_cast<float>(Level.Count); // the row's damage times count
+	const auto Get = [Row](const TCHAR* Name) { return Param(Row, Name); };
+	switch (Spec.Evolve)
+	{
+	case EDTEvolve::OrbitLaunch: // R-RFG-05
+		Spec.Count = 1;
+		Spec.Cooldown = Get(TEXT("launch_s"));
+		Spec.Pierce = FMath::RoundToInt(Get(TEXT("pierce")));
+		Spec.bBoomerang = true;
+		Spec.Damage = Total * Get(TEXT("dmg_ratio"));
+		break;
+	case EDTEvolve::EmbedBlast: // R-RFG-06
+		Spec.Count = FMath::RoundToInt(Get(TEXT("pellets")));
+		Spec.Damage = Total / static_cast<float>(FMath::Max(1, Spec.Count));
+		break;
+	case EDTEvolve::ContactBlades: // R-RFG-07
+		Spec.Count = FMath::RoundToInt(Get(TEXT("blades")));
+		Spec.Damage = Level.Damage * Get(TEXT("dmg_ratio"));
+		break;
+	case EDTEvolve::SweepBeam: // R-RFG-08
+		Spec.Count = 1;
+		Spec.Range = Get(TEXT("reach_uu"));
+		Spec.Cooldown = FMath::Max(Spec.Cooldown, Get(TEXT("beam_s")));
+		Spec.Damage = Total * Get(TEXT("dmg_ratio"));
+		break;
+	case EDTEvolve::MoveSpin: // R-RFG-10
+		Spec.Count = 1;
+		Spec.ArcDeg = Get(TEXT("arc_deg"));
+		Spec.Cooldown = 1.0f / Get(TEXT("hits_s"));
+		Spec.Damage = Total * Get(TEXT("dmg_ratio"));
+		break;
+	case EDTEvolve::Persist: // R-RFG-11
+		Spec.Pierce = FMath::RoundToInt(Get(TEXT("pierce")));
+		Spec.LifeOverride = Get(TEXT("life_s"));
+		Spec.Damage = Level.Damage * Get(TEXT("dmg_ratio"));
+		break;
+	case EDTEvolve::PulseWall: // R-RFG-12
+		Spec.Cooldown = FMath::Max(Spec.Cooldown, Get(TEXT("grow_s")) + Get(TEXT("hold_s")));
+		break;
+	case EDTEvolve::Vortex: // R-RFG-13
+		Spec.Range = Get(TEXT("vortex_uu"));
+		break;
+	case EDTEvolve::Merge: // R-RFG-14
+		Spec.AreaRadius *= Get(TEXT("blast_ratio"));
+		break;
+	default:
+		break; // Carpet (R-RFG-09) changes only what a landing does
+	}
 }
 
 int32 DTReforge::OwnedPathRow(const FDTPlayerRunState& Player, EDTPathReforge PathKind)

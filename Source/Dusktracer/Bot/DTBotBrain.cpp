@@ -846,7 +846,22 @@ float FDTBotBrain::ScoreCard(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 
 int32 FDTBotBrain::ReforgePick(const FDTOfferHand& Hand, int32 Seed)
 {
-	return INDEX_NONE;
+	// R-BOT-15: Reforging cards hold their slot order (R-RFG-02), so walking the slots from the seed cycles the sources.
+	TArray<int32> Slots;
+	for (int32 Index = 0; Index < Hand.Cards.Num(); ++Index)
+	{
+		if (Hand.Cards[Index].Kind == EDTCardKind::Reforging)
+		{
+			Slots.Add(Index);
+		}
+	}
+	if (Slots.Num() == 0)
+	{
+		return INDEX_NONE;
+	}
+	const int32 Cycle = DTConst::OFFER_REFORGING_CARDS;
+	const int32 Want = ((Seed % Cycle) + Cycle) % Cycle;
+	return Slots[Want % Slots.Num()];
 }
 
 int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player)
@@ -866,6 +881,12 @@ int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState&
 		break;
 	case EDTBotPolicy::Steered:
 	{
+		const int32 Reforge = Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? ReforgePick(Hand, Config.Seed) : INDEX_NONE;
+		if (Reforge != INDEX_NONE)
+		{
+			Slot = Reforge;
+			break;
+		}
 		float Best = -TNumericLimits<float>::Max();
 		for (int32 Index = 0; Index < Hand.Cards.Num(); ++Index)
 		{

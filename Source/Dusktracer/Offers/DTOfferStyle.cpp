@@ -1,4 +1,6 @@
 #include "Offers/DTOfferStyle.h"
+
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
@@ -16,6 +18,7 @@ namespace DTOfferStyleLocal
 	const TCHAR* const WeaponsTable = TEXT("ST_Weapons");
 	const TCHAR* const ModifiersTable = TEXT("ST_Modifiers");
 	const TCHAR* const KeywordsTable = TEXT("ST_Keywords");
+	const TCHAR* const ReforgingTable = TEXT("ST_Reforging");
 	const TCHAR* const ReserveNames[] = { TEXT("Restore"), TEXT("Hone"), TEXT("SpareTerms"), TEXT("Salvage"), TEXT("Mend") };
 	static_assert(UE_ARRAY_COUNT(ReserveNames) == static_cast<int32>(EDTReserveKind::Count), "one text id per Reserve kind");
 	constexpr double MetresPerUu = 0.01;
@@ -187,8 +190,12 @@ static bool DTOfferTextKey(const FDTOfferCard& Card, const TCHAR* Suffix, FStrin
 		OutKey = FString::Printf(TEXT("Offer.Reserve.%s.%s"), ReserveNames[static_cast<int32>(Reserve)], bName ? TEXT("Name") : TEXT("Rules"));
 		return true;
 	}
+	case EDTCardKind::Reforging:
+		OutTable = ReforgingTable;
+		OutKey = FString::Printf(TEXT("%s.%s"), *Card.ContentId.ToString(), Suffix);
+		return true;
 	default:
-		return false; // Reforging cards have no S1 source (R-OFF-09)
+		return false;
 	}
 }
 
@@ -295,6 +302,24 @@ FText DTOfferText::Line(const FDTOfferCard& Card, const FDTPlayerRunState& Playe
 		Args.Add(TEXT("Keeper"), Name(KeeperCard));
 		Args.Add(TEXT("Archetype"), FromTable(KeepersTable, ArchetypeKey(Info.Archetype) + TEXT(".Name")));
 		return FText::Format(Ui(TEXT("Offer.Line.Archetype")), Args);
+	}
+	case EDTCardKind::Reforging:
+	{
+		FFormatNamedArguments Args;
+		if (Card.TargetWeapon.IsNone())
+		{
+			const int32 Row = DTReforge::FindRow(Card.ContentId);
+			FDTOfferCard KeeperCard;
+			KeeperCard.Kind = EDTCardKind::Keeper;
+			KeeperCard.ContentId = Row != INDEX_NONE ? FName(DTCat::Reforges[Row].Source) : NAME_None;
+			Args.Add(TEXT("Keeper"), Name(KeeperCard));
+			return FText::Format(Ui(TEXT("Offer.Line.PathReforge")), Args);
+		}
+		FDTOfferCard Target;
+		Target.Kind = EDTCardKind::Weapon;
+		Target.ContentId = Card.TargetWeapon;
+		Args.Add(TEXT("Weapon"), Name(Target));
+		return FText::Format(Ui(TEXT("Offer.Line.Evolves")), Args);
 	}
 	default:
 		return FText::GetEmpty();
@@ -492,7 +517,7 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 	{
 		Keys.AddUnique(TPair<FString, FString>(UiTable, DTOfferStyle::HandTitleKey(static_cast<EDTHandKind>(Kind))));
 	}
-	for (const TCHAR* Key : { TEXT("Offer.Line.NewWeapon"), TEXT("Offer.Line.Upgrade"), TEXT("Offer.Line.Target"), TEXT("Offer.Line.Archetype"),
+	for (const TCHAR* Key : { TEXT("Offer.Line.Evolves"), TEXT("Offer.Line.PathReforge"), TEXT("Offer.Line.NewWeapon"), TEXT("Offer.Line.Upgrade"), TEXT("Offer.Line.Target"), TEXT("Offer.Line.Archetype"),
 		TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock"), TEXT("Offer.Tool.Button"),
 		TEXT("Offer.Marker.Guaranteed"), TEXT("Offer.Marker.Held"), TEXT("Offer.Hint.Pick"), TEXT("Offer.Hint.Guard"), TEXT("Offer.Hint.Focus") })
 	{

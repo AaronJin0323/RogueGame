@@ -168,7 +168,7 @@ void FDTBulletPool::RememberHit(int32 Index, uint32 EnemySerial)
 	++HitCount[Index];
 }
 
-bool FDTBulletPool::FindSeekTarget(const FVector2f& From, float Range, const FDTWorldView& View, int32 NumEnemies, int32& OutEnemy)
+bool FDTBulletPool::FindSeekTarget(const FVector2f& From, float Range, const FDTWorldView& View, int32 NumEnemies, int32& OutEnemy, int32 SkipHitsOf)
 {
 	OutEnemy = INDEX_NONE;
 	if (NumEnemies == 0 || View.EnemyHash.Num() == 0 || Range <= 0.0f)
@@ -180,7 +180,7 @@ bool FDTBulletPool::FindSeekTarget(const FVector2f& From, float Range, const FDT
 	float Best = Range * Range;
 	for (const int32 Enemy : SeekScratch)
 	{
-		if (Enemy < 0 || Enemy >= NumEnemies)
+		if (Enemy < 0 || Enemy >= NumEnemies || (SkipHitsOf != INDEX_NONE && HasHit(SkipHitsOf, View.EnemySerials[Enemy])))
 		{
 			continue;
 		}
@@ -261,6 +261,10 @@ void FDTBulletPool::StepMotion(int32 Index, float Dt, const FDTWorldView& View, 
 			return;
 		}
 	}
+	if (M.CurlDegS != 0.0f)
+	{
+		Vel[Index] = Vel[Index].GetRotated(M.CurlDegS * Dt);
+	}
 	if (M.TurnDegS <= 0.0f)
 	{
 		return;
@@ -283,7 +287,7 @@ void FDTBulletPool::StepMotion(int32 Index, float Dt, const FDTWorldView& View, 
 	if (Target == INDEX_NONE)
 	{
 		M.TargetSerial = 0;
-		if (!FindSeekTarget(Pos[Index], M.SeekUu, View, NumEnemies, Target))
+		if (!FindSeekTarget(Pos[Index], M.SeekUu, View, NumEnemies, Target, M.bRetarget ? Index : INDEX_NONE))
 		{
 			return; // nothing near: fly on
 		}
@@ -384,6 +388,10 @@ void FDTBulletPool::Step(float Dt, FDTWorldView& View)
 				Hit.bPierce = (Moves[Index] ? Motion[Index].Pierce : PierceLeft[Index] + HitCount[Index]) > 1;
 				++Counters.Hits;
 				RememberHit(Index, EnemySerial);
+				if (Moves[Index] && Motion[Index].bRetarget)
+				{
+					Motion[Index].TargetSerial = 0;
+				}
 				if (--PierceLeft[Index] <= 0)
 				{
 					if (Moves[Index] && Motion[Index].bBoomerang && !Motion[Index].bReturning)

@@ -150,7 +150,11 @@ FDTCapList DTWeapons::DeclaredCaps(int32 Weapon)
 
 FDTCapList DTWeapons::EffectiveCaps(int32 Weapon, DTCat::EFlag Conversion, bool bConvertsEveryRound)
 {
-	const FDTCapList Declared = DeclaredCaps(Weapon);
+	return EffectiveCaps(DeclaredCaps(Weapon), Conversion, bConvertsEveryRound);
+}
+
+FDTCapList DTWeapons::EffectiveCaps(const FDTCapList& Declared, DTCat::EFlag Conversion, bool bConvertsEveryRound)
+{
 	DTCat::ECap Added = DTCat::ECap::Count;
 	if (Conversion == DTCat::EFlag::ConvertMelee)
 	{

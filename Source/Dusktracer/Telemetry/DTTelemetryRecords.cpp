@@ -467,6 +467,20 @@ void FDTTelemetryCore::SetGemsLive(int32 Count)
 
 // ---- weapons.md ---------------------------------------------------------------------------------------------------------
 
+void FDTTelemetryCore::RecordReforge(int32 Owner, bool bEvolve, FName Id, FName Target, int32 WeaponLevel, TConstArrayView<FName> Dormant)
+{
+	if (RecordOwner(Owner))
+	{
+		TArray<FString> Names;
+		for (const FName& Name : Dormant)
+		{
+			Names.Add(Name.ToString());
+		}
+		JsonlOut += FDTTelJson(JsonHead(TEXT("reforge"), Owner)).Str(TEXT("kind"), bEvolve ? TEXT("Evolve") : TEXT("Path")).Name(TEXT("id"), Id)
+			.Name(TEXT("target"), Target).Int(TEXT("weapon_level"), WeaponLevel).Str(TEXT("dormant"), *FString::Join(Names, TEXT(";"))).Line();
+	}
+}
+
 void FDTTelemetryCore::RecordWeaponAcquired(int32 Owner, uint16 Source)
 {
 	if (FPlayerInterval* P = RecordOwner(Owner))

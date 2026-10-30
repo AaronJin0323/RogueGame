@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Core/DTRunState.h"
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponFlags.h"
 
@@ -91,6 +92,14 @@ struct FDTWeaponSpec
 	float ConvertArcDeg = 0.0f;
 	float ConvertReach = 0.0f;
 	float ConvertDamageFactor = 0.0f;
+
+	/** The evolution this weapon runs (reforging.md R-RFG-04); its row's parameters are read through DTReforge::Param. */
+	EDTEvolve Evolve = EDTEvolve::None;
+	int32 EvolveRow = INDEX_NONE;
+	/** Glacier reads strikes on pillars, so rounds report their hits (R-RFG-17). */
+	bool bTrackRounds = false;
+	/** Round life when an evolution sets it (R-RFG-11); 0 = range over speed. */
+	float LifeOverride = 0.0f;
 
 	/** Every flag entry the weapon carries after stacking and caps, with its resolution. */
 	TArray<FDTResolvedFlag> Flags;

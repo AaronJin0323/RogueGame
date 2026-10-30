@@ -710,7 +710,11 @@ bool FDTOfferReforgingTest::RunTest(const FString& Parameters)
 		}
 		if (Legal.Num() > 0)
 		{
-			TestEqual(TEXT("Reforging: the first card is the best legal blessing"), Hand.Cards[0].Weight, Best);
+			const FDTOfferCard* First = Hand.Cards.FindByPredicate([](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Blessing; });
+				if (First)
+				{
+					TestEqual(TEXT("Reforging: the first filler is the best legal blessing"), First->Weight, Best);
+				}
 		}
 		FDTPlayerRunState Copy = Sim.P();
 		TestTrue(TEXT("Reforging: the first card is pickable"), DTOffers::ApplyPickState(Copy, Hand.HandKind, Hand.Cards[0]).bValid);

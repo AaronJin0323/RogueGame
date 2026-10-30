@@ -120,7 +120,11 @@ bool FDTReforgeCatalog::RunTest(const FString& Parameters)
 		TestFalse(FString::Printf(TEXT("%s has a name"), DTCat::Reforges[Row].Id), FText::FromStringTable(FName(Table), Key).IsEmpty());
 		TestTrue(TEXT("a rules key"), DTOfferText::DescKey(Card, Table, Key));
 		TestFalse(FString::Printf(TEXT("%s has a rules line"), DTCat::Reforges[Row].Id), DTOfferText::Desc(Card).IsEmpty());
-		TestTrue(FString::Printf(TEXT("%s has keyword notes"), DTCat::Reforges[Row].Id), DTOfferText::Keywords(Card).Num() > 0);
+		for (const FString& Keyword : DTOfferText::Keywords(Card))
+		{
+			TestFalse(FString::Printf(TEXT("%s: %s resolves"), DTCat::Reforges[Row].Id, *Keyword), DTOfferText::KeywordName(Keyword).IsEmpty());
+		}
+		TestTrue(FString::Printf(TEXT("%s (Path) has keyword notes"), DTCat::Reforges[Row].Id), DTCat::Reforges[Row].bEvolve || DTOfferText::Keywords(Card).Num() > 0);
 	}
 	return true;
 }
@@ -230,7 +234,8 @@ bool FDTReforgeCaps::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("socketed"), H.Weapons.Socket(H.Run, 0, 0, DTWeapons::ModifierId(Mod)), EDTWeaponResult::Ok);
 	P.Weapons[0].Evolve = DTReforge::FindEvolve(P.Weapons[0].Def);
-	const FDTWeaponSpec Spec = H.Weapons.ComposeSlot(H.Run, 0, 0);
+	H.StepOnce();
+	const FDTWeaponSpec Spec = H.Weapons.GetLastSpec(0, 0);
 	TestTrue(TEXT("the row's caps"), Spec.EffectiveCaps == Evolved);
 	TestEqual(TEXT("still socketed"), P.Weapons[0].Sockets.Num(), 1);
 	TestTrue(TEXT("dormant"), P.Weapons[0].Sockets[0].bDormant);
@@ -339,13 +344,23 @@ bool FDTReforgeCarpet::RunTest(const FString& Parameters)
 	const int32 Row = GiveEvolved(H, TEXT("Weapon.FlakMortar"), 1);
 	const float Walk = DTReforge::Param(Row, TEXT("walk_uu"));
 	const int32 Blasts = FMath::RoundToInt(DTReforge::Param(Row, TEXT("blasts")));
-	H.AddEnemy(FVector2f(300.0f, 0.0f));
-	const int32 Tail = H.AddEnemy(FVector2f(300.0f + Walk, 0.0f));
+	for (int32 Index = 0; Index < 8; ++Index)
+	{
+		H.AddEnemy(FVector2f(300.0f, 0.0f)); // the densest cell, so the shell goes here
+	}
+	for (int32 Index = -6; Index <= 6; ++Index)
+	{
+		H.AddEnemy(FVector2f(300.0f + Walk, 80.0f * Index)); // a screen across the line's end, one enemy a cell
+	}
 	H.StepOnce();
 	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
-	const int32 Before = HitsOn(H, H.Enemies.GetSerials()[Tail]);
 	RunSteps(H, FMath::RoundToInt((1.0f + DTReforge::Param(Row, TEXT("step_s")) * Blasts) / Dt));
-	TestTrue(TEXT("the line reaches its end"), HitsOn(H, H.Enemies.GetSerials()[Tail]) > Before);
+	float Furthest = 0.0f;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		Furthest = FMath::Max(Furthest, Hit.Position.X);
+	}
+	TestTrue(TEXT("the line reaches its end"), Furthest > 300.0f + 0.9f * Walk);
 	const int32 Settled = H.HitLog.Num();
 	RunSteps(H, 120);
 	TestEqual(TEXT("a strike does not walk"), H.HitLog.Num(), Settled);
@@ -459,8 +474,13 @@ bool FDTReforgeSingularity::RunTest(const FString& Parameters)
 	const int32 Row = GiveEvolved(H, TEXT("Weapon.GravityMine"), 8);
 	H.AddEnemy(FVector2f(300.0f, 0.0f));
 	H.AddEnemy(FVector2f(-300.0f, 0.0f));
-	RunSteps(H, 150);
-	TestEqual(TEXT("one live mine"), H.Weapons.GetLiveMines(0, 0), 1);
+	int32 MostLive = 0;
+	for (int32 Step = 0; Step < 300; ++Step)
+	{
+		H.StepOnce();
+		MostLive = FMath::Max(MostLive, H.Weapons.GetLiveMines(0, 0));
+	}
+	TestEqual(TEXT("one live mine"), MostLive, 1);
 	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
 	const DTCat::FWeaponLevelRow& L8 = *DTWeapons::GetLevelRow(Spec.Weapon, 8);
 	TestNearlyEqual(TEXT("the larger blast"), Spec.AreaRadius, L8.AreaR_uu * DTReforge::Param(Row, TEXT("blast_ratio")), 0.1f);
@@ -507,8 +527,8 @@ bool FDTReforgeKiln::RunTest(const FString& Parameters)
 			H.Weapons.AddFlagSource(0, TEXT("Test.Burn"), StatusFlag(EDTPath::Forge, TEXT("Status.Burn")));
 		}
 		H.Run.GetPlayer(0).PathReforges.Add(Row);
+		const int32 Near = H.AddEnemy(FVector2f(280.0f, 2000.0f), ToughHp); // first: removing the other leaves its index alone
 		H.AddEnemy(FVector2f(200.0f, 0.0f), 40.0f);
-		const int32 Near = H.AddEnemy(FVector2f(280.0f, 900.0f), ToughHp);
 		RunSteps(H, 60);
 		TestEqual(FString::Printf(TEXT("a husk only from a Burning death (%d)"), bBurn), H.Weapons.GetLiveHusks() > 0, bBurn);
 		H.Enemies.SetPosition(Near, FVector2f(200.0f, 40.0f));

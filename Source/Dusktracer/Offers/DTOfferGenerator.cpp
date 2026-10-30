@@ -1,4 +1,5 @@
 #include "Offers/DTOfferGenerator.h"
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
 
@@ -558,7 +559,7 @@ TArray<FDTOfferCard> DTOffers::Candidates(const FDTPlayerRunState& Player, const
 				continue;
 			}
 			const FDTCapList Caps = Pool.SlotCaps.IsValidIndex(Slot) && Pool.SlotCaps[Slot].Mask != 0
-				? Pool.SlotCaps[Slot] : DTWeapons::DeclaredCaps(Owned.Def);
+				? Pool.SlotCaps[Slot] : DTReforge::DeclaredCaps(Owned);
 			if (DTModCompat::IsCompatible(Caps, Mod))
 			{
 				Add(EDTCardKind::Mod, Id, Owned.Id);
@@ -722,6 +723,31 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 	// --- Reforging (R-OFF-09): sources, then the highest-weight legal blessings of the chosen Keepers, Epic; then Reserve.
 	if (Kind == EDTHandKind::Reforging)
 	{
+		// R-RFG-02: Patron, second Keeper, primary weapon; a source with no eligible card yields its slot.
+		const auto AddSource = [&Hand, Size](int32 Row, FName Target)
+		{
+			if (Row != INDEX_NONE && Hand.Cards.Num() < Size)
+			{
+				FDTOfferCard& Card = Hand.Cards.AddDefaulted_GetRef();
+				Card.Kind = EDTCardKind::Reforging;
+				Card.ContentId = DTReforge::RowId(Row);
+				Card.TargetWeapon = Target;
+				Card.Rarity = EDTRarity::Epic;
+			}
+		};
+		for (const EDTPath Path : { Player.Offer.PatronPath, Player.Offer.SecondPath })
+		{
+			const int32 Row = DTReforge::FindPath(Path);
+			if (!Player.PathReforges.Contains(Row))
+			{
+				AddSource(Row, NAME_None);
+			}
+		}
+		const int32 Primary = DTReforge::PrimarySlot(Player.Weapons);
+		if (Primary != INDEX_NONE && Player.Weapons[Primary].Evolve == INDEX_NONE && Player.Weapons[Primary].Level >= DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL)
+		{
+			AddSource(DTReforge::FindEvolve(Player.Weapons[Primary].Def), Player.Weapons[Primary].Id);
+		}
 		TArray<FDTOfferCard> Blessings = Pool2.FilterByPredicate([](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Blessing; });
 		Blessings.StableSort([](const FDTOfferCard& A, const FDTOfferCard& B)
 		{
@@ -1004,8 +1030,30 @@ FDTPickOutcome DTOffers::ApplyPickState(FDTPlayerRunState& Player, EDTHandKind H
 		Out.bValid = Out.Reserve != EDTReserveKind::Count;
 		break;
 	case EDTCardKind::Reforging:
-		// S2: transformations and evolutions have no source in S1 (R-OFF-09); the card is never built.
+	{
+		const int32 Row = DTReforge::FindRow(Card.ContentId);
+		Out.ReforgeRow = Row;
+		if (Row == INDEX_NONE)
+		{
+			break;
+		}
+		if (DTCat::Reforges[Row].bEvolve)
+		{
+			int32 Slot = INDEX_NONE;
+			if (OwnsWeapon(Player, Card.TargetWeapon, &Slot))
+			{
+				Player.Weapons[Slot].Evolve = Row;
+				Out.Weapon = Card.TargetWeapon;
+				Out.bValid = true;
+			}
+		}
+		else
+		{
+			Player.PathReforges.AddUnique(Row);
+			Out.bValid = true;
+		}
 		break;
+	}
 	}
 	return Out;
 }

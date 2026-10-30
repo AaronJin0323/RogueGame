@@ -118,9 +118,14 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 		Spec.HomingSeekUu = Spec.Range;
 	}
 
+	if (Instance.Evolve != INDEX_NONE)
+	{
+		DTReforge::ApplyEvolution(Instance.Evolve, *Row, Spec); // R-RFG-04
+	}
+
 	// Player flags first: the conversion decides the effective caps every other check uses (R-WPN-02, R-WPN-10).
 	TArray<FDTFlagEntry> Entries = StackEntries(PlayerFlags);
-	const FDTCapList Declared = DTWeapons::DeclaredCaps(Weapon);
+	const FDTCapList Declared = DTReforge::DeclaredCaps(Instance);
 	int32 ConversionIndex = INDEX_NONE;
 	for (int32 Index = 0; Index < Entries.Num(); ++Index)
 	{
@@ -156,7 +161,7 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 		Instance.Conversion = 0xFF;
 	}
 	Spec.Conversion = NativeConversion;
-	Spec.EffectiveCaps = DTWeapons::EffectiveCaps(Weapon, NativeConversion, Spec.bConvertsEveryRound);
+	Spec.EffectiveCaps = DTWeapons::EffectiveCaps(Declared, NativeConversion, Spec.bConvertsEveryRound);
 
 	// 2. Modifiers: re-checked on the effective caps; an incompatible one is dormant, never removed (R-MOD-08).
 	TArray<FDTFlagEntry> ModEntries;
@@ -281,6 +286,6 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 	Spec.LoadFactor = LoadFactor(LoadRank);
 	Spec.Damage *= Spec.LoadFactor;
 
-	Spec.Life = Spec.Speed > 0.0f ? Spec.Range / Spec.Speed : 0.0f;
+	Spec.Life = Spec.LifeOverride > 0.0f ? Spec.LifeOverride : (Spec.Speed > 0.0f ? Spec.Range / Spec.Speed : 0.0f);
 	return Spec;
 }
