@@ -14,6 +14,7 @@
 #include "Core/DTSimTypes.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Enemies/DTEnemySubsystem.h"
+#include "Enemies/DTTelegraphRenderer.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -428,6 +429,40 @@ bool FDTBossTelegraphs::RunTest(const FString& Parameters)
 		{
 			TestTrue(*FString::Printf(TEXT("%s: wind-up at least the minimum lead"), R.Attack), R.Windup_s >= DTConst::ENEMIES_TELEGRAPH_LEAD_MIN_S - 1.0e-4f);
 		}
+	}
+
+	// The boss shapes' footprints as drawn (Enemies/DTTelegraphRenderer).
+	{
+		const float Mesh = 100.0f;
+		FDTTelegraph Gap;
+		Gap.Shape = EDTTelegraphShape::RingGap;
+		Gap.Origin = FVector2f(200.0f, -100.0f);
+		Gap.Dir = FVector2f(0.0f, 1.0f);
+		Gap.Length = 600.0f;
+		Gap.Width = 36.0f;
+		TArray<FTransform> Out;
+		ADTTelegraphRenderer::AppendTransforms(Gap, Mesh, 0.0f, Out);
+		TestEqual(TEXT("RingGap: the disc minus the lane in segments"), Out.Num(), ADTTelegraphRenderer::InstancesFor(Gap));
+		bool bOutsideLane = Out.Num() > 0;
+		for (const FTransform& Q : Out)
+		{
+			const FVector2f C(Q.GetLocation().X - Gap.Origin.X, Q.GetLocation().Y - Gap.Origin.Y);
+			bOutsideLane &= FMath::IsNearlyEqual(C.Size(), 300.0f, 0.5f)
+				&& FMath::Abs(FDTBossCore::WrapDeg(FMath::RadiansToDegrees(FMath::Atan2(C.Y, C.X)) - 90.0f)) > 0.5f * Gap.Width;
+		}
+		TestTrue(TEXT("RingGap: no quad in the lane"), bOutsideLane);
+		FDTTelegraph Hazard;
+		Hazard.Shape = EDTTelegraphShape::HazardRing;
+		Hazard.Length = 1300.0f;
+		Out.Reset();
+		ADTTelegraphRenderer::AppendTransforms(Hazard, Mesh, 0.0f, Out);
+		TestEqual(TEXT("HazardRing: RingSegments quads"), Out.Num(), ADTTelegraphRenderer::RingSegments);
+		bool bOutside = Out.Num() > 0;
+		for (const FTransform& Q : Out)
+		{
+			bOutside &= FVector2D(Q.GetLocation().X, Q.GetLocation().Y).Size() > Hazard.Length;
+		}
+		TestTrue(TEXT("HazardRing: drawn outside the safe circle"), bOutside);
 	}
 
 	FHarness H(21);
@@ -879,6 +914,22 @@ bool FDTBossWorld::RunTest(const FString& Parameters)
 		Sim->StepNow(Steps(DTConst::BOSS_PHASE_SHIFT_S + 0.2f));
 		const bool bHazard = Sim->GetView().Telegraphs.ContainsByPredicate([](const FDTTelegraph& T) { return T.Shape == EDTTelegraphShape::HazardRing; });
 		TestTrue(TEXT("the hazard ring telegraph is published"), bHazard);
+		Sim->StepNow(Steps(DTConst::ENEMIES_TELEGRAPH_LEAD_MIN_S + 0.1f));
+		const TConstArrayView<FDTTelegraph> Telegraphs = Sim->GetView().Telegraphs;
+		const bool bSpiral = Telegraphs.ContainsByPredicate([](const FDTTelegraph& T) { return T.Shape == EDTTelegraphShape::SpiralLane; });
+		TestTrue(TEXT("the spiral lane telegraph is published"), bSpiral);
+		// Drawn: one instance per quad of every published telegraph, boss shapes included.
+		if (ADTTelegraphRenderer* Renderer = Enemies->GetTelegraphRenderer())
+		{
+			Enemies->SimRender(0.0f);
+			int32 Expected = 0;
+			for (const FDTTelegraph& T : Telegraphs)
+			{
+				Expected += ADTTelegraphRenderer::InstancesFor(T);
+			}
+			TestEqual(TEXT("the renderer draws every boss telegraph"), Renderer->GetInstanceCount(), Expected);
+			TestTrue(TEXT("boss shapes are tessellated"), Expected > Telegraphs.Num());
+		}
 	}
 
 	for (AActor* Actor : FActorRange(World))
