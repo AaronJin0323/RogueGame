@@ -100,7 +100,7 @@ API: `UDTOfferSubsystem::BuildHand(OwnerId, HandKind)`, `Reroll / Banish(Slot) /
 - T-OFF-12 `Dusktracer.Offers.Reserve`: with an exhausted pool every hand still reaches its card count; Reserve cards fill only empty slots, at most one per kind, never with a legal card left out.
 - T-OFF-13 `Dusktracer.Offers.CardIdentity` (with T-PRE-08): every card kind maps to a unique border, icon and label key, and Reserve is distinct from all five content kinds.
 - T-OFF-14 `Dusktracer.Offers.ChestHand`: chest hands have `C.OFFER.CHEST_CARDS` cards, rarity at least Rare, no guaranteed slot, no Keeper or Reforging card; queued hands open in order, one at a time per player.
-- T-OFF-15 `Dusktracer.Offers.Budget`: the budget constants sum to `C.DECISIONS.PER_RUN`; a steered headless run takes `C.DECISIONS.PER_RUN` ± `C.OFFER.DECISIONS_TOLERANCE` decisions with a Reserve share within `C.OFFER.RESERVE_SHARE_MAX`. The bot telemetry run (decisions, paused seconds per minute, Reserve share) lands with bot v1 (bot bound, GATED until calibrated against humans).
+- T-OFF-15 `Dusktracer.Offers.Budget`: the budget constants sum to `C.DECISIONS.PER_RUN`; a steered headless run takes `C.DECISIONS.PER_RUN` ± `C.OFFER.DECISIONS_TOLERANCE` decisions with a Reserve share within `C.OFFER.RESERVE_SHARE_MAX`. The bot run is `Tools/BotRuns.ps1 -Arms Steered:<Path>:<Archetype> -Check T-OFF-15` (decisions and Reserve share of Steered runs that reach `C.RUN.LENGTH_TO_BOSS`; bot bound, GATED until calibrated against humans; paused seconds are wall time and a bot answers at once, so they are a human measure).
 - HUMAN: on the first offer screen a validator with a gamepad and one with keyboard and mouse can pick, reroll, banish and lock without help; each names a card's kind (weapon, modifier, blessing, Keeper; Reforging cards from S2) at a glance; at L16 they see a choice of three, never one card.
 
 ## Telemetry
@@ -120,6 +120,8 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 
 ## Open
 - `Reserve.Restore` and `Reserve.Salvage` are logged no-ops until the hero has a heal entry point and progression has a pickup-radius stat; `Reserve.Hone` writes `FDTWeaponHeroStats` directly until `FDTStatSet` owns the damage slice.
-- Unattended runs (`-unattended`, `dt.Offer.AutoPick`) take the first card of every hand, so smoke and perf runs never wait on a hand; the run-start Patron is then the first Keeper in Path order.
+- Unattended runs (`-unattended`, `dt.Offer.AutoPick`) take the first card of every hand, so smoke and perf runs never wait on a hand; the run-start Patron is then the first Keeper in Path order. Bot v1 turns `dt.Offer.AutoPick` off and answers hands itself.
+- `UDTOfferSubsystem::Decline` closes the open hand with no pick (not a decision, no telemetry pick); it exists only for the Bot v1 no-pick arm (`director.md` T-DIR-01) and is never offered to players; the Patron hand cannot be declined.
+- T-OFF-15's bot run is live and its first reading cannot pass: Steered bots stay far below L8 and take a handful of decisions before dying, almost never reaching the boss, against `C.DECISIONS.PER_RUN` (`Docs/Validation/S1_bot_baseline.md`); XP income, not the hand budget, is the first gap.
 - Weight values come from a 20-minute run with more content → re-tuned from bot telemetry once the S1 pool exists (`10_Tuning`).
 - `Reserve.Hone` adds non-Keeper damage → its share is reported by `Tools/power_split.py` as Other; revisit if it moves `C.POWER.KEEPER_SHARE_L16`.
