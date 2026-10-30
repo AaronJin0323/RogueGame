@@ -91,3 +91,26 @@ caps:
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
+weapons:
+  LOAD.FACTOR_1:               { value: 1.0,  unit: ratio, tag: CORE,       dependents: [02_Systems/weapons.md, T-WPN-03] }
+  LOAD.FACTOR_2:               { value: 0.7,  unit: ratio, tag: CORE,       dependents: [02_Systems/weapons.md, T-WPN-03] }
+  LOAD.FACTOR_3:               { value: 0.55, unit: ratio, tag: CORE,       dependents: [02_Systems/weapons.md, T-WPN-03] }
+  LOAD.FACTOR_4:               { value: 0.45, unit: ratio, tag: CORE,       dependents: [02_Systems/weapons.md, T-WPN-03] }
+  WEAPON.SLOTS:                { value: 4,    unit: n,     tag: CORE,       dependents: [02_Systems/weapons.md, 02_Systems/offers.md, T-WPN-03] }
+  WEAPON.LEVEL_MAX:            { value: 8,    unit: level, tag: CORE,       dependents: [02_Systems/weapons.md, 09_Catalog/weapons.csv, T-WPN-04] }
+  WEAPON.SPAWN_RATE_MAX_PER_S: { value: 400,  unit: per_s, tag: GATED(S1),  dependents: [02_Systems/weapons.md, C.BULLETS.CAP, T-WPN-09] }
+  WEAPON.CONVERT_MELEE_DAMAGE_RATIO: { value: 0.8, unit: ratio, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-10] }
+  WEAPON.ARC_DEG:              { value: 120,  unit: deg,   tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-06] }
+  WEAPON.DRONE_ORBIT_RADIUS_UU: { value: 160, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-06] }
+  WEAPON.DRONE_ORBIT_DEG_S:    { value: 120,  unit: deg_per_s, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-06] }
+  WEAPON.MINE_ARM_S:           { value: 0.4,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_PULL_TICKS:      { value: 6,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_PULL_TICK_S:     { value: 0.2,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_PULL_TICK_DAMAGE_RATIO: { value: 0.05, unit: ratio, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_PULL_RADIUS_RATIO: { value: 1.5, unit: ratio, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_PULL_SPEED_UU_S: { value: 300,  unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/weapons.md, T-WPN-13] }
+  WEAPON.MINE_LIVE_MAX:        { value: 4,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/weapons.md, T-WPN-13] }
+  MOD.SOCKETS_PER_WEAPON:      { value: 3,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, 02_Systems/offers.md, T-MOD-04] }
+  MOD.MIN_COMPATIBLE:          { value: 4,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, T-MOD-07] }
+  MOD.SPLIT_GENERATIONS_MAX:   { value: 2,    unit: n,     tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/keepers.md, T-MOD-05] }
+  MOD.CRIT_CHANCE_CAP:         { value: 0.60, unit: ratio, tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/combat_core.md, T-MOD-05] }

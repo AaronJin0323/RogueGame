@@ -1,0 +1,19 @@
+flag,Projectile,Beam,Orbit,Melee,Lob,Mine,Continuous,Homing,Area,Radial,Expiry,Aimed
+Flag.Split,native,fallback:children fan from the lance end point,fallback:every Nth activation emits a ring of children from the hero,fallback:every Nth sweep emits a ring of children from the hero,native,native,native,native,none,none,native,none
+Flag.Echo,native,native,native,native,native,fallback:the detonation repeats at the same point,fallback:delayed copies of every Nth stream round,native,none,none,none,none
+Flag.ConvertOrbit,native,fallback:the lance sweeps once around the hero,fallback:+1 drone,fallback:the sweep becomes a full spin,fallback:shells circle the hero before landing,fallback:mines circle the hero before they drop,native,native,none,none,none,none
+Flag.ConvertMelee,native,fallback:the lance becomes a long thrust arc,fallback:+drone contact area,fallback:+arc size,native,fallback:+blast area,native,native,none,none,none,none
+Flag.Slam,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Field,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Pull,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Push,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Stillness,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Seek,native,fallback:+damage vs the target class,fallback:drones pick the target class first,fallback:+damage vs the target class,fallback:shells land on the target class,fallback:mines drop on the target class,native,fallback:+turn rate,none,none,none,none
+Flag.Hunter,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Charge,native,native,native,fallback:every Nth sweep is charged,native,native,fallback:every Nth stream round is charged,none,none,none,none,none
+Flag.Nova,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.VolleyOnDash,native,native,native,fallback:a sweep at the dash landing,native,native,native,none,none,none,none,none
+Flag.SpeedScale,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.Ricochet,native,fallback:+pierce,fallback:+orbit speed,fallback:+sweep speed,fallback:the shell bounces once before bursting,fallback:the mine hops once to the next cluster,native,native,none,none,none,none
+Flag.Chain,native,native,native,native,native,native,native,none,none,none,none,none
+Flag.StatusApply,native,native,native,native,native,native,native,none,none,none,none,none
