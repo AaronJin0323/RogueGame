@@ -319,8 +319,10 @@ function Invoke-ShippingRun([string]$Tag, [string]$Culture, [string]$UserDir, [i
 	$Before = if (Test-Path $Save) { (Get-Item $Save).LastWriteTimeUtc.Ticks } else { 0 }
 	$Proc = Start-Game "Shipping" $UserDir @("-unattended", "-DTPoolGate", "-DTMetaFile=`"$Save`"", "-culture=$Culture", "-DTSeed=$RunSeed") -Tool
 	$Watch = [Diagnostics.Stopwatch]::StartNew()
+	$script:RunFileAt = -1.0
 	$Over = Watch-Game $Proc $Timeout {
 		$File = Get-RunFiles $UserDir "jsonl" | Where-Object { $Known -notcontains $_.Name } | Select-Object -Last 1
+		if ($File -and $script:RunFileAt -lt 0) { $script:RunFileAt = $Watch.Elapsed.TotalSeconds }
 		$File -and ([IO.File]::ReadAllText($File.FullName) -match '"kind":"run_end"') -and (Test-Path $Save) -and ((Get-Item $Save).LastWriteTimeUtc.Ticks -ne $Before)
 	}
 	$Alive = -not $Proc.HasExited
@@ -334,7 +336,8 @@ function Invoke-ShippingRun([string]$Tag, [string]$Culture, [string]$UserDir, [i
 	if ($Run.Culture -ne $Culture) { Note-Fail "$Tag run_start reads culture '$($Run.Culture)'" }
 	if ($Run.Seed -ne "$RunSeed") { Note-Fail "$Tag run_start reads seed '$($Run.Seed)'" }
 	$Hands = Test-Gated $Tag $Run
-	Write-Host ("pkghub: {0} Shipping done in {1:n0} s, patron {2}, steps {3}, retained {4}, {5} hand(s) offered" -f $Tag, $Watch.Elapsed.TotalSeconds, $Run.Patron, $Run.Steps, $Run.Retained, $Hands)
+	Write-Host ("pkghub: {0} Shipping done in {1:n0} s, run file at {2:n1} s, patron {3}, steps {4}, retained {5}, {6} hand(s) offered" -f $Tag, $Watch.Elapsed.TotalSeconds, $script:RunFileAt, $Run.Patron, $Run.Steps, $Run.Retained, $Hands)
+	if ($script:RunFileAt -lt 0 -or $script:RunFileAt -ge $BootWait) { Note-Fail "$Tag a run's file took $($script:RunFileAt) s, so D's $BootWait s proves no hub" }
 	return $Run
 }
 
