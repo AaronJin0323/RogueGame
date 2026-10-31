@@ -70,7 +70,7 @@ namespace DTReforgeTest
 		return Count;
 	}
 
-	/** Hits of a source that claim a weapon slot: a Keeper hit claims none, so no proc feeds on it (keepers.md §1, R-KEE-13). */
+	/** Hits of a source that claim a weapon slot: a Keeper hit claims none, so no proc feeds on it (T-RFG-22, R-KEE-13). */
 	static int32 SlottedHits(const FDTHarness& H, uint16 Source)
 	{
 		int32 Count = 0;

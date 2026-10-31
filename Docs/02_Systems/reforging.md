@@ -27,10 +27,10 @@ At `C.OFFER.REFORGING_LEVEL` the build changes kind (`00_Vision §2`; `offers.md
 - **R-RFG-16** Kiln (`Kiln`): an enemy that dies Burning leaves a husk for `husk_s`, at most `husks_max` live; a new husk at the cap is not made. Each `cleave_s` a husk strikes enemies within `cleave_r_uu` for `dmg` × the owner's strongest per-hit damage.
 - **R-RFG-17** Glacier (`Glacier`): an enemy this owner freezes becomes a pillar, at most `pillars_max`. Its Freeze holds for `pillar_s` from then. While it holds, enemies are pushed out of it and enemy rounds touching it are removed. When any of the owner's hits strike it, or its time ends, it shatters: `shatter_dmg` × the strongest per-hit damage and one Chill to enemies within `shatter_uu`. The enemy lives on unless that kills it.
 
-**Path transformations of the S2 Keepers** (`build_depth_spec` 1.3 as reworked by D-41 in `keeper_identity_spec`; they run only when a run unlocks that Keeper, `keepers.md` R-KEE-23)
+**Path transformations of the S2 Keepers** (`build_depth_spec` as reworked by D-41 in `keeper_identity_spec`; they run only when a run unlocks that Keeper, `keepers.md` R-KEE-23)
 - **R-RFG-19** Collection (`Collection`): a kill of an enemy this owner Marked raises a Shade, at most `shades_max`; at the cap the oldest goes. A Shade sits on the drone orbit around the hero, and when an enemy is in the range of the owner's first weapon (acquisition order, the source's word) it fires that weapon's pattern at `dmg` of its damage on that weapon's cooldown, from its seat, with no walk and no end. Its hits carry that weapon's slot, so modifiers and flags react, and the source `Keeper.Shade`, as a hunter's do (R-KEE-27, R-KEE-28). A Shade counts against no hunter cap. **Adapted:** the source says "base pattern"; the composed pattern is what the hunters already fire.
-- **R-RFG-20** Zenith (`Zenith`): an owner with no `Flag.Charge` card gains that flag at `every_n` and `mult`, and one with no `Flag.Nova` card gains that flag at `nova_uu` and `nova_dmg`; a card's own flag wins, so its numbers stand. Each charged shot also fans `lances` lances along its line over `fan_deg`, from where it left, each for `lance_dmg` of the charged shot with `lance_pierce` pierce, generation one, running no reaction (R-KEE-32). **Invented:** a build with no Charge card gets one, or the card reads dead in Prism and Solar; the fan at the muzzle rather than at the hit, so it works at every cap and a shot with 99 pierce splits once; `fan_deg`, `lance_pierce`.
-- **R-RFG-21** Slipstream Drive (`Slipstream`): `dash_charges` more dash charges. An owner with no `Flag.VolleyOnDash` card gains it at `dmg_mult`, one with no `Flag.SpeedScale` card gains it at the row's numbers; a card's own flag wins. Momentum has no cap while this row is owned: it leaks `leak_per_s` of what is held each second, so a level stands where speed balances the leak, and a faster hero stands higher. A card's `stacks_max` still names when its at-the-cap lines run. **Invented:** the leak. "Without a cap" taken flat gains 6 stacks a second at walking speed for a whole run, and each stack raises damage and rate together; the leak keeps the words and bounds the walk, at 40 stacks.
+- **R-RFG-20** Zenith (`Zenith`): an owner with no `Flag.Charge` card gains that flag at `every_n` and `mult`, and one with no `Flag.Nova` card gains that flag at `nova_uu` and `nova_dmg`; a card's own flag wins, so its numbers stand. Each charged shot also fans `lances` lances along its line over `fan_deg`, from where it left, each for `lance_dmg` of the charged shot with `lance_pierce` pierce, generation one, running no reaction (R-KEE-32). **Invented:** a build with no Charge card gets one, or the card reads dead in Prism and Solar; the fan at the muzzle rather than at the hit, so it works at every cap and a piercing shot splits once; `fan_deg`, `lance_pierce`.
+- **R-RFG-21** Slipstream Drive (`Slipstream`): `dash_charges` more dash charges. An owner with no `Flag.VolleyOnDash` card gains it at `dmg_mult`, one with no `Flag.SpeedScale` card gains it at the row's numbers; a card's own flag wins. Momentum has no cap while this row is owned: it leaks `leak_per_s` of what is held each second, so a level stands where speed balances the leak, and a faster hero stands higher. A card's `stacks_max` still names when its at-the-cap lines run. **Invented:** the leak. "Without a cap" taken flat gains stacks at walking speed for a whole run, and each stack raises damage and rate together; the leak keeps the words and bounds the walk.
 - **R-RFG-22** A Path row's hits are Keeper hits: they carry no weapon slot, so no proc feeds on them (`keepers.md` §2, R-KEE-13). Collection's are the exception R-RFG-19 names.
 
 **Budget**
@@ -41,7 +41,7 @@ At `C.OFFER.REFORGING_LEVEL` the build changes kind (`00_Vision §2`; `offers.md
 |---|---|---|---|
 | Evolution eligibility | C.OFFER.REFORGE_EVOLVE_MIN_LEVEL | GATED(S2) | R-RFG-02, T-RFG-02 |
 | Power band after the pick | C.REFORGE.POWER_MIN, C.REFORGE.POWER_MAX | GATED(S2) | R-RFG-18 |
-| Row parameters | `09_Catalog/reforging.csv` `effect` | GATED(S2) | R-RFG-05…17, R-RFG-19…21 |
+| Row parameters | `09_Catalog/reforging.csv` `effect` | GATED(S2) | R-RFG-05…17, R-RFG-19, R-RFG-20, R-RFG-21 |
 
 Named-in-source values and first guesses are told apart in each row's `ref` and in `number_change_log.csv`.
 
@@ -76,6 +76,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - T-RFG-19 `Dusktracer.Reforging.Collection`: a Marked death raises a Shade, a plain death none; the cap holds, the oldest replaced; it is no hunter; it rides the orbit and fires the first weapon at the stated share.
 - T-RFG-20 `Dusktracer.Reforging.Zenith`: a build with no Charge card charges and fans lances, on a round weapon and a melee one; lances never split; a card's Charge wins; an overkill bursts.
 - T-RFG-21 `Dusktracer.Reforging.Slipstream`: a dash fires the weapons; one more charge; Momentum passes any card's cap, reaches the weapons, stands higher when faster, and stops under the leak's balance.
+- T-RFG-22 `Dusktracer.Reforging.Overload`, `.Kiln`, `.Glacier`: discharges, cleaves and shatters report no weapon slot.
 - HUMAN: at L16 a validator can say, in their own words, what changed on screen within two seconds of the pick, for each of the three cards they were offered.
 
 ## Telemetry
@@ -83,7 +84,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - The bot record gains `reforge=<id>` (`none` when the hand gave only filler or the run ended first) so a batch reads per card, and `reforge_read=pillars:n;pillar_s:s;by_hit:n;by_time:n;discharges:n;husks:n;shades:n`, what the Path rows did in the run.
 
 ## Text
-- Table `ST_Reforging`: `<Id>.Name`, `<Id>.Desc` per row (`Transform.Storm.Name`), en + zh-Hans, with `Kw`. Names and most rules from `reference/text_tables/ST_Fusions.csv` and `zh_overrides.csv`; Collection, Zenith and Slipstream Drive keep the D-41 names there, with their `{0}` and "3" and "+1" taken out. Lines name no catalog number (`weapons.md` Text). `ST_UI`: `Offer.Line.Evolves` (binding line, `{Weapon}`), `Offer.Line.PathReforge` (binding line, `{Keeper}`).
+- Table `ST_Reforging`: `<Id>.Name`, `<Id>.Desc` per row (`Transform.Storm.Name`), en + zh-Hans, with `Kw`. Names and most rules from `reference/text_tables/ST_Fusions.csv` and `zh_overrides.csv`; Collection, Zenith and Slipstream Drive keep the D-41 names there, with their numbers taken out. Lines name no catalog number (`weapons.md` Text). `ST_UI`: `Offer.Line.Evolves` (binding line, `{Weapon}`), `Offer.Line.PathReforge` (binding line, `{Keeper}`).
 
 ## Out of scope
 - Fusions (R-OFF-09 names three sources; fusions are not one), the sealed card and a second hand at L24 (`offers.md` Out of scope, S3+), Slack Water (needs water, arena two), refunds for dormant modifiers.
@@ -91,9 +92,9 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 
 ## Open
 - Hit source of an evolved weapon stays `Weapon.<Name>`, so `Tools/power_split.py` and T-KEE-18 count it outside the Keeper share → read once a human reading exists.
-- Cyclone asks for motion and Stillness asks for rest; a Stillness build can take Cyclone and fight itself → a dead pairing to read, not yet forbidden.
-- A pillar shatters on the owner's next hit, and auto-fire hits what is near, so pillars close to the hero may not last → read in `Validation/S2_reforging.md`.
-- Few steered primaries reach `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL` by the hand, so the third source mostly yields to filler → traced against human weapon levels (`Validation/S2_reforging.md`).
+- Cyclone asks for motion and Stillness asks for rest: the first spin carries a charge gathered at rest (T-RFG-10), but at rest the weapon is silent → a poor pairing, no bug; forbidden only by a human reading.
+- A pillar shatters on the owner's next hit, and most end that way, well short of `pillar_s` (`Validation/S2_reforging.md`) → what the rule says; a human reading decides if it is a wall.
+- Few steered primaries reach `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL` by the hand: the cause is the bot's card scores, not the offers (`Validation/S2_reforging.md`) → human weapon levels at the hand are still unread.
 - The power band is unread: output after the pick matches the control, which may be a field cap → a measure that a full-clear build cannot saturate, before any row moves.
 - Fusions are named by `build_depth_spec` and absent from R-OFF-09 → stays out unless a decision adds a fourth source.
-- Path rows are eligible at any Favor (source), so a Path whose status the build never applies is a weak card → the hand has two others; read it.
+- Path rows are eligible at any Favor (source), so a Path whose status the build never applies is a weak card → the hand has two others; read it. Collection needs Marks, and a second-Keeper Shade Marks at the second's chance only.
