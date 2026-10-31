@@ -119,7 +119,7 @@ EDTPathReforge DTReforge::PathReforge(int32 Row)
 	{
 		return EDTPathReforge::None;
 	}
-	static const TCHAR* const Names[] = { TEXT(""), TEXT("Overload"), TEXT("Kiln"), TEXT("Glacier") };
+	static const TCHAR* const Names[] = { TEXT(""), TEXT("Overload"), TEXT("Kiln"), TEXT("Glacier"), TEXT("Collection"), TEXT("Zenith"), TEXT("Slipstream") };
 	for (int32 Index = 1; Index < UE_ARRAY_COUNT(Names); ++Index)
 	{
 		if (FCString::Strcmp(DTCat::Reforges[Row].Behaviour, Names[Index]) == 0)

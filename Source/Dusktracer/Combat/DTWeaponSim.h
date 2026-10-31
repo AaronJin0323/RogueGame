@@ -105,6 +105,8 @@ public:
 	/** Kills every non-boss enemy OwnerId marked at or below Below of its HP, as SourceId. Returns how many. */
 	int32 ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId);
 	int32 GetLiveHunters(int32 OwnerId) const;
+	/** Collection's Shades alive (R-RFG-19). */
+	int32 GetLiveShades(int32 OwnerId) const;
 	/** Raises Count hunters at At with this life and share of the best weapon's damage, under max_live (R-KEE-27). */
 	void RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio);
 	int32 GetDebt(int32 OwnerId) const;

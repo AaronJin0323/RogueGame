@@ -23,13 +23,16 @@ enum class EDTEvolve : uint8
 	Merge
 };
 
-/** What a Path transformation does (reforging.csv `behaviour`, R-RFG-15..17). */
+/** What a Path transformation does (reforging.csv `behaviour`, R-RFG-15..17, R-RFG-19..21). */
 enum class EDTPathReforge : uint8
 {
 	None,
 	Overload,
 	Kiln,
-	Glacier
+	Glacier,
+	Collection,
+	Zenith,
+	Slipstream
 };
 
 struct FDTWeaponSpec;

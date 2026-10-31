@@ -70,6 +70,17 @@ namespace DTReforgeTest
 		return Count;
 	}
 
+	/** Hits of a source that claim a weapon slot: a Keeper hit claims none, so no proc feeds on it (keepers.md §1, R-KEE-13). */
+	static int32 SlottedHits(const FDTHarness& H, uint16 Source)
+	{
+		int32 Count = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Count += Hit.SourceId == Source && Hit.WeaponSlot != INDEX_NONE ? 1 : 0;
+		}
+		return Count;
+	}
+
 	/** A committed player: Storm Patron, Forge second, with Weapon at Level. */
 	static void Commit(FDTHarness& H, const TCHAR* Weapon, int32 Level)
 	{
@@ -102,9 +113,9 @@ bool FDTReforgeCatalog::RunTest(const FString& Parameters)
 				DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat != DTCat::ECompat::None);
 		}
 	}
-	for (const EDTPath Path : { EDTPath::Storm, EDTPath::Forge, EDTPath::Tide })
+	for (const EDTPath Path : { EDTPath::Storm, EDTPath::Forge, EDTPath::Tide, EDTPath::Shade, EDTPath::Radiance, EDTPath::Quicksilver })
 	{
-		TestTrue(TEXT("an S1 Keeper has a Path row"), DTReforge::FindPath(Path) != INDEX_NONE);
+		TestTrue(FString::Printf(TEXT("Keeper %d has a Path row"), static_cast<int32>(Path)), DTReforge::FindPath(Path) != INDEX_NONE);
 	}
 	for (int32 Row = 0; Row < DTCat::NumReforges; ++Row)
 	{
@@ -508,6 +519,7 @@ bool FDTReforgeOverload::RunTest(const FString& Parameters)
 	const float Cooldown = DTReforge::Param(Row, TEXT("cooldown_s"));
 	const int32 PerSecond = HitsOn(H, H.Enemies.GetSerials()[Near], Storm);
 	TestTrue(TEXT("the cooldown holds"), static_cast<float>(PerSecond) <= 2.0f * 2.0f / Cooldown + 1.0f);
+	TestEqual(TEXT("a discharge carries no weapon slot"), SlottedHits(H, Storm), 0);
 	return true;
 }
 
@@ -536,6 +548,7 @@ bool FDTReforgeKiln::RunTest(const FString& Parameters)
 		if (bBurn)
 		{
 			TestTrue(TEXT("a husk strikes"), HitsOn(H, H.Enemies.GetSerials()[Near], Forge) > 0);
+			TestEqual(TEXT("a husk's cleave carries no weapon slot"), SlottedHits(H, Forge), 0);
 			RunSteps(H, FMath::RoundToInt(DTReforge::Param(Row, TEXT("husk_s")) / Dt));
 			TestEqual(TEXT("and ends"), H.Weapons.GetLiveHusks(), 0);
 		}
@@ -577,6 +590,288 @@ bool FDTReforgeGlacier::RunTest(const FString& Parameters)
 	RunSteps(H, 30);
 	TestEqual(TEXT("a strike shatters it"), H.Weapons.GetLivePillars(), 0);
 	TestTrue(TEXT("the shatter is the Keeper's"), H.CountHitsFrom(Tide) > 0);
+	TestEqual(TEXT("a shatter carries no weapon slot"), SlottedHits(H, Tide), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeGlacierNeighbour, "Dusktracer.Reforging.GlacierNeighbour", DTWeaponTestHarness::TestFlags) // T-RFG-17
+bool FDTReforgeGlacierNeighbour::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// A shatter is a Keeper hit (keepers.md §1): it must not read as the owner's weapon striking the next pillar, or one hit takes a whole wall.
+	const int32 Row = DTReforge::FindPath(EDTPath::Tide);
+	FDTHarness H;
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	const int32 Struck = H.AddEnemy(FVector2f(300.0f, 0.0f));
+	const int32 Near = H.AddEnemy(FVector2f(300.0f, 80.0f));
+	FreezeEnemy(H, Struck);
+	FreezeEnemy(H, Near);
+	RunSteps(H, 2);
+	TestEqual(TEXT("two pillars"), H.Weapons.GetLivePillars(), 2);
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 0.0f; // the nearest is struck first
+	int32 Steps = 0;
+	while (H.Weapons.GetLivePillars() == 2 && Steps++ < 60)
+	{
+		RunSteps(H, 1);
+	}
+	H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+	RunSteps(H, 6);
+	TestEqual(TEXT("a shatter leaves the next pillar standing"), H.Weapons.GetLivePillars(), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCollection, "Dusktracer.Reforging.Collection", DTWeaponTestHarness::TestFlags) // T-RFG-19
+bool FDTReforgeCollection::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Shade);
+	const uint16 Shade = DTWeapons::KeeperSource(EDTPath::Shade);
+	uint32 NextSerial = 900000;
+	const auto Kill = [&NextSerial](FDTHarness& H, const FVector2f& At, bool bMarked)
+	{
+		FDTKill Dead;
+		Dead.EnemySerial = ++NextSerial;
+		Dead.OwnerId = 0;
+		Dead.Position = At;
+		if (bMarked)
+		{
+			H.Weapons.ApplyMark(0, Dead.EnemySerial, H.Step);
+		}
+		H.PendingKills.Add(Dead);
+		H.StepOnce();
+	};
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.ArcBlade")), 8);
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	H.StepOnce();
+	Kill(H, FVector2f(5000.0f, 0.0f), false);
+	TestEqual(TEXT("a plain death raises nothing"), H.Weapons.GetLiveShades(0), 0);
+	Kill(H, FVector2f(5000.0f, 0.0f), true);
+	TestEqual(TEXT("a Marked death raises a Shade"), H.Weapons.GetLiveShades(0), 1);
+	TestEqual(TEXT("a Shade is not a hunter"), H.Weapons.GetLiveHunters(0), 0);
+	const int32 Max = FMath::RoundToInt(DTReforge::Param(Row, TEXT("shades_max")));
+	for (int32 Index = 0; Index < Max + 3; ++Index)
+	{
+		Kill(H, FVector2f(5000.0f, 0.0f), true);
+	}
+	TestEqual(TEXT("the cap holds, the oldest replaced"), H.Weapons.GetLiveShades(0), Max);
+
+	// One Shade: it circles the hero and fires the first weapon, not the highest-load one, at the stated share.
+	FDTHarness S;
+	S.Weapons.Give(S.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	S.Weapons.Give(S.Run, 0, FName(TEXT("Weapon.ArcBlade")), 8);
+	S.Run.GetPlayer(0).PathReforges.Add(Row);
+	S.StepOnce();
+	Kill(S, FVector2f(5000.0f, 0.0f), true);
+	S.AddEnemy(FVector2f(350.0f, 0.0f));
+	S.HitLog.Reset();
+	S.StepMany(FMath::RoundToInt(3.0f / Dt));
+	TestTrue(TEXT("it fires"), S.CountHitsFrom(Shade) > 0);
+	const FDTWeaponSpec& First = S.Weapons.GetLastSpec(0, 0);
+	float Largest = 0.0f;
+	for (const FDTHit& Hit : S.HitLog)
+	{
+		Largest = Hit.SourceId == Shade ? FMath::Max(Largest, Hit.Damage) : Largest;
+	}
+	TestTrue(TEXT("the stated share of the first weapon"), Largest <= First.Damage * First.CritMult * DTReforge::Param(Row, TEXT("dmg")) + 0.01f);
+	TArray<FDTWeaponVisual> Seen;
+	S.Weapons.GatherVisuals(S.Run, S.View, Seen);
+	const FDTWeaponVisual* Core = Seen.FindByPredicate([](const FDTWeaponVisual& V) { return V.Kind == FDTWeaponVisual::EKind::Drone; });
+	TestTrue(TEXT("it stays on the orbit"), Core && FMath::IsNearlyEqual(Core->Position.Size(), static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU), 1.0f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeZenith, "Dusktracer.Reforging.Zenith", DTWeaponTestHarness::TestFlags) // T-RFG-20
+bool FDTReforgeZenith::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Radiance);
+	const uint16 Radiance = DTWeapons::KeeperSource(EDTPath::Radiance);
+	const int32 Lances = FMath::RoundToInt(DTReforge::Param(Row, TEXT("lances")));
+	const int32 Every = FMath::RoundToInt(DTReforge::Param(Row, TEXT("every_n")));
+	const auto Scene = [Row](bool bOwned, const TCHAR* Weapon, int32 Steps, FDTWeaponCounters& Out)
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, FName(Weapon), 8);
+		if (bOwned)
+		{
+			H.Run.GetPlayer(0).PathReforges.Add(Row);
+		}
+		for (int32 Index = 0; Index < 5; ++Index)
+		{
+			H.AddEnemy(FVector2f(200.0f, -200.0f + 100.0f * Index));
+		}
+		H.StepMany(Steps);
+		Out = H.Weapons.GetCounters(0, 0);
+		return H.CountHitsFrom(DTWeapons::KeeperSource(EDTPath::Radiance));
+	};
+	FDTWeaponCounters Plain;
+	FDTWeaponCounters Owned;
+	const int32 Steps = FMath::RoundToInt(6.0f / Dt);
+	TestEqual(TEXT("not owned: no charged shot, no lance"), Scene(false, TEXT("Weapon.PulseRifle"), Steps, Plain), 0);
+	TestTrue(TEXT("owned: a build with no Charge card still charges and splits"), Scene(true, TEXT("Weapon.PulseRifle"), Steps, Owned) > 0);
+	TestTrue(TEXT("lances are extra rounds"), Owned.Spawned >= Plain.Spawned + Lances);
+	FDTWeaponCounters Arc;
+	FDTWeaponCounters ArcPlain;
+	Scene(false, TEXT("Weapon.ArcBlade"), Steps, ArcPlain);
+	TestTrue(TEXT("a melee weapon charges too"), Scene(true, TEXT("Weapon.ArcBlade"), Steps, Arc) > 0);
+	TestTrue(TEXT("and fires lances"), Arc.Spawned >= ArcPlain.Spawned + Lances);
+
+	// A lance neither splits nor charges again; an owner of Flag.Charge keeps its own every_n.
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 8);
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	FDTWeaponFlags Own;
+	FDTFlagEntry& Entry = Own.Add(DTCat::EFlag::Charge, Radiance, EDTFlagTier::Key);
+	Entry.Params.Set(DTFlagParam::EveryN, static_cast<float>(Every + 1));
+	Entry.Params.Set(DTFlagParam::Mult, 2.0f);
+	H.Weapons.AddFlagSource(0, TEXT("Test.Charge"), Own);
+	H.AddEnemy(FVector2f(200.0f, 0.0f));
+	H.StepMany(Steps);
+	TestEqual(TEXT("a lance never splits"), H.Weapons.GetMaxGeneration(), 1);
+	TestEqual(TEXT("the card's Charge wins over the row's"), H.Weapons.GetLastSpec(0, 0).FindFlag(DTCat::EFlag::Charge)->Entry.Params.Get(DTFlagParam::EveryN), static_cast<float>(Every + 1));
+
+	// Overkill bursts in light: a weak enemy's death hits its neighbour.
+	FDTHarness N;
+	N.Weapons.Give(N.Run, 0, FName(TEXT("Weapon.PulseRifle")), 8);
+	N.Run.GetPlayer(0).PathReforges.Add(Row);
+	N.AddEnemy(FVector2f(200.0f, 0.0f), 1.0f);
+	const int32 Next = N.AddEnemy(FVector2f(200.0f + 0.5f * DTReforge::Param(Row, TEXT("nova_uu")), 300.0f), ToughHp);
+	N.Enemies.SetPosition(Next, FVector2f(200.0f, 0.5f * DTReforge::Param(Row, TEXT("nova_uu"))));
+	RunSteps(N, FMath::RoundToInt(1.0f / Dt));
+	TestTrue(TEXT("an overkill bursts"), HitsOn(N, N.Enemies.GetSerials()[Next], Radiance) > 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeSlipstream, "Dusktracer.Reforging.Slipstream", DTWeaponTestHarness::TestFlags) // T-RFG-21
+bool FDTReforgeSlipstream::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Quicksilver);
+	const auto Dash = [](FDTHarness& H)
+	{
+		H.View.HeroIntangible[0] = true;
+		H.StepOnce();
+		H.View.HeroIntangible[0] = false;
+		H.StepOnce();
+	};
+	const auto Scene = [Row, &Dash](bool bOwned)
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+		if (bOwned)
+		{
+			H.Run.GetPlayer(0).PathReforges.Add(Row);
+		}
+		H.AddEnemy(FVector2f(100.0f, 0.0f));
+		H.StepOnce();
+		Dash(H);
+		H.StepMany(60);
+		return H.CountHitsFrom(DTWeapons::KeeperSource(EDTPath::Quicksilver));
+	};
+	TestEqual(TEXT("not owned: a dash fires nothing"), Scene(false), 0);
+	TestTrue(TEXT("owned: a dash fires every weapon"), Scene(true) > 0);
+
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	H.Run.GetPlayer(0).PathReforges.Add(Row);
+	H.StepOnce();
+	H.StepOnce();
+	TestEqual(TEXT("a dash charge more"), H.Weapons.GetDuoHero(0).DashCharges, FMath::RoundToInt(DTReforge::Param(Row, TEXT("dash_charges"))));
+	const float Base = H.Weapons.GetLastSpec(0, 0).Damage;
+	float Previous = 0.0f;
+	float Peak = 0.0f;
+	const float Stride = static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) * Dt;
+	for (int32 Step = 0; Step < FMath::RoundToInt(10.0f / Dt); ++Step)
+	{
+		H.View.HeroPositions[0].X += Stride;
+		H.StepOnce();
+		Peak = H.Weapons.GetMomentum(0);
+		if (Step == FMath::RoundToInt(1.0f / Dt))
+		{
+			Previous = Peak;
+		}
+	}
+	TestTrue(TEXT("power rises with distance"), Peak > Previous && Previous > 0.0f);
+	TestTrue(TEXT("past any card's cap"), Peak > 30.0f);
+	TestTrue(TEXT("it reaches the weapons"), H.Weapons.GetLastSpec(0, 0).Damage > Base);
+	const float Slow = Peak;
+	FDTHarness Q;
+	Q.Weapons.Give(Q.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+	Q.Run.GetPlayer(0).PathReforges.Add(Row);
+	Q.StepOnce();
+	for (int32 Step = 0; Step < FMath::RoundToInt(30.0f / Dt); ++Step)
+	{
+		Q.View.HeroPositions[0].X += 2.0f * Stride;
+		Q.StepOnce();
+	}
+	TestTrue(TEXT("faster goes higher, and the leak bounds it"), Q.Weapons.GetMomentum(0) > Slow &&
+		Q.Weapons.GetMomentum(0) < 2.0f * static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) / 100.0f * DTReforge::Param(Row, TEXT("per_100uu")) / DTReforge::Param(Row, TEXT("leak_per_s")) + 1.0f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallLook, "Dusktracer.Reforging.PulseWallLook", DTWeaponTestHarness::TestFlags) // T-RFG-12
+bool FDTReforgePulseWallLook::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+	H.AddEnemy(FVector2f(300.0f, 0.0f));
+	H.StepMany(FMath::RoundToInt((DTReforge::Param(Row, TEXT("grow_s")) + 0.2f) / Dt));
+	TArray<FDTWeaponVisual> Seen;
+	H.Weapons.GatherVisuals(H.Run, H.View, Seen);
+	const float Radius = DTReforge::Param(Row, TEXT("radius_uu"));
+	TestFalse(TEXT("the wall is no filled disc"), Seen.ContainsByPredicate([](const FDTWeaponVisual& V) { return V.Kind == FDTWeaponVisual::EKind::Field; }));
+	TestTrue(TEXT("it draws its outer edge"), Seen.ContainsByPredicate([Radius](const FDTWeaponVisual& V)
+	{
+		return V.Kind == FDTWeaponVisual::EKind::Arc && V.ArcDeg >= 360.0f && FMath::IsNearlyEqual(V.Radius, Radius, 1.0f);
+	}));
+	const float Inner = Radius - DTReforge::Param(Row, TEXT("band_uu"));
+	TestTrue(TEXT("and the inner edge of what hurts"), Seen.ContainsByPredicate([Inner](const FDTWeaponVisual& V)
+	{
+		return V.Kind == FDTWeaponVisual::EKind::Arc && V.ArcDeg >= 360.0f && FMath::IsNearlyEqual(V.Radius, Inner, 1.0f);
+	}));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCycloneStillness, "Dusktracer.Reforging.CycloneStillness", DTWeaponTestHarness::TestFlags) // T-RFG-10
+bool FDTReforgeCycloneStillness::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// The dead-pairing lead: what a charge gathered at rest does to a weapon that fires only in motion.
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.ArcBlade"));
+	FDTWeaponFlags Flags;
+	FDTFlagEntry& Entry = Flags.Add(DTCat::EFlag::Stillness, DTWeapons::KeeperSource(EDTPath::Tide), EDTFlagTier::Key);
+	Entry.Params.Set(DTFlagParam::StillMoveUu, 20.0f);
+	Entry.Params.Set(DTFlagParam::ChargeS, 0.5f);
+	Entry.Params.Set(DTFlagParam::Mult, 3.0f);
+	H.Weapons.AddFlagSource(0, TEXT("Test.Still"), Flags);
+	const int32 Enemy = H.AddEnemy(FVector2f(100.0f, 0.0f));
+	RunSteps(H, FMath::RoundToInt(1.0f / Dt));
+	TestEqual(TEXT("at rest it holds fire"), H.HitLog.Num(), 0);
+	const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+	const float Stride = 2.0f * DTReforge::Param(Row, TEXT("move_min_uu_s")) * Dt;
+	H.View.HeroPositions[0].Y += Stride;
+	H.StepOnce();
+	H.View.HeroPositions[0].Y += Stride;
+	H.StepOnce();
+	float Largest = 0.0f;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		Largest = Hit.EnemySerial == H.Enemies.GetSerials()[Enemy] ? FMath::Max(Largest, Hit.Damage) : Largest;
+	}
+	TestTrue(TEXT("the charge is not lost: the first spin carries it"), Largest >= Spec.Damage * 2.9f);
 	return true;
 }
 

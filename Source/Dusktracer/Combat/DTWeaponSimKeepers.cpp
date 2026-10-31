@@ -273,6 +273,11 @@ int32 FDTWeaponSim::GetLiveHunters(int32 OwnerId) const
 	return Hunters.FilterByPredicate([OwnerId](const FHunter& H) { return H.OwnerId == OwnerId; }).Num();
 }
 
+int32 FDTWeaponSim::GetLiveShades(int32 OwnerId) const
+{
+	return 0;
+}
+
 void FDTWeaponSim::RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio)
 {
 	const FDTFlagEntry* Entry = KeeperEntry(OwnerId, DTCat::EFlag::Hunter);
