@@ -476,3 +476,10 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.SETTINGS.CVD_DELTA_E_MIN | 20 | delta_e | CORE | settings.md, T-SET-11 |
 | C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN | 15 | delta_e | CORE | settings.md, T-SET-11 |
 | C.SETTINGS.RUN_OVER_GUARD_S | 1.0 | s | GATED(S3) | settings.md, T-SET-21 |
+
+## Narrative (03_Narrative.md)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.NARR.PREWIN_LAYER_MAX | 2 | layer | CORE | 03_Narrative.md, T-NAR-03, T-NAR-06 |
+| C.NARR.LAYER_MAX | 3 | layer | CORE | 03_Narrative.md, T-NAR-03 |

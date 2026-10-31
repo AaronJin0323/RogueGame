@@ -411,6 +411,85 @@ class Contrast(unittest.TestCase):
 		self.assertFalse(contrast_check.masked(640, 400, 1280, 720))
 
 
+class Story(unittest.TestCase):
+	"""03_Narrative: T-NAR-01, T-NAR-02, T-NAR-03, T-NAR-04, T-NAR-05 and T-NAR-07, on the real tables and on planted faults."""
+
+	DISCOVERIES = {"Survive10", "Win"}
+
+	def row(self, key="Codex.Test.Row", layer="1", unlock="Start", en="Plain.", zh="平实。"):
+		return {"Key": key, "en": en, "zh-Hans": zh, "Context": "", "Kw": "", "Layer": layer, "Unlock": unlock, "_line": 2}
+
+	def layer_faults(self, row):
+		return loc_build.check_row_layer("t", row, self.DISCOVERIES, 2, 3)
+
+	def real(self):
+		tables, errors = loc_build.load_tables(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+		self.assertEqual(errors, [])
+		return [list(t) for t in tables]
+
+	def test_real_tables_pass(self):
+		self.assertEqual(loc_build.check_story(self.real()), [])
+
+	def test_layer_three_before_a_win_fails(self):
+		for unlock in ("Start", "Tier.3", "Run.L8", "Kill.Tank", "Discovery.Survive10"):
+			self.assertIn("reachable before the first win", " ".join(self.layer_faults(self.row(layer="3", unlock=unlock))))
+
+	def test_layer_three_after_a_win_passes(self):
+		for unlock in ("Win", "Wins3.FormIII", "Discovery.Win", "Kill.Boss"):
+			self.assertEqual(self.layer_faults(self.row(layer="3", unlock=unlock)), [])
+
+	def test_layer_four_and_blank_fail(self):
+		self.assertIn("not in 0..3", self.layer_faults(self.row(layer="4", unlock="Win"))[0])
+		self.assertIn("not in 0..3", self.layer_faults(self.row(layer=""))[0])
+
+	def test_unknown_unlock_fails(self):
+		self.assertIn("unknown Unlock", self.layer_faults(self.row(unlock="Discovery.Nope"))[0])
+
+	def test_truth_word_below_its_layer_fails(self):
+		self.assertIn("'ROOT'", self.layer_faults(self.row(en="ROOT is here."))[0])
+		self.assertIn("'Yard'", self.layer_faults(self.row(layer="1", en="The Yard."))[0])
+		self.assertEqual(self.layer_faults(self.row(layer="2", en="The Yard.")), [])
+
+	def test_moved_row_in_real_tables_fails(self):
+		tables = self.real()
+		for name, rows in tables:
+			for r in rows:
+				if r["Key"] == "Codex.Root.Title":
+					r["Unlock"] = "Start"
+		self.assertIn("reachable before the first win", " ".join(loc_build.check_story(tables)))
+
+	def test_act_two_row_and_scope_count_fail(self):
+		tables = self.real()
+		codex = dict(tables)["ST_Codex"]
+		codex.append(self.row(key="Codex.Facet.Storm", layer="3", unlock="Win"))
+		text = " ".join(loc_build.check_story(tables))
+		self.assertIn("out of the v0.1 scope", text)
+		codex.pop()
+		codex[:] = [r for r in codex if r["Key"] != "Codex.Recollection.Win"]
+		self.assertIn("14 Recollections", " ".join(loc_build.check_story(tables)))
+
+	def test_keeper_line_caps(self):
+		tables = self.real()
+		lines = dict(tables)["ST_KeeperLines"]
+		for r in lines:
+			if r["Key"] == "Keeper.Storm.Tier1":
+				r["en"] = "one two three four five six seven eight nine ten eleven twelve thirteen"
+		self.assertIn("Keeper line is 13 words", " ".join(loc_build.check_story(tables)))
+		for r in lines:
+			if r["Key"] == "Keeper.Storm.Tier1":
+				r["en"], r["zh-Hans"] = "Short.", "字" * 21
+		self.assertIn("21 chars", " ".join(loc_build.check_story(tables)))
+
+	def test_retired_name_fails_in_any_column(self):
+		row = {"Key": "A.B", "en": "x", "zh-Hans": "甲", "Context": "See RH.Codex.ShowLayer.", "Kw": "", "_line": 2}
+		self.assertTrue(any("retired name" in v for v in loc_build.check_row("ST_Test", row)))
+
+	def test_generated_csv_carries_layer_as_metadata(self):
+		text = loc_build.ue_string_table_csv([self.row(layer="3", unlock="Win")])
+		self.assertTrue(text.startswith("Key,SourceString,Comment,Kw,Layer,Unlock\n"))
+		self.assertIn('"3","Win"', text)
+
+
 class Loc(unittest.TestCase):
 	def row(self, en, zh, key="Test.Row", context=""):
 		return {"Key": key, "en": en, "zh-Hans": zh, "Context": context, "Kw": "", "_line": 2}

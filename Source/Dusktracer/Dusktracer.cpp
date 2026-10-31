@@ -21,6 +21,10 @@ public:
 		LOCTABLE_FROMFILE_GAME("ST_Reactions", "ST_Reactions", "DT/Text/Generated/ST_Reactions.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Enemies", "ST_Enemies", "DT/Text/Generated/ST_Enemies.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Reforging", "ST_Reforging", "DT/Text/Generated/ST_Reforging.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Codex", "ST_Codex", "DT/Text/Generated/ST_Codex.csv");
+		LOCTABLE_FROMFILE_GAME("ST_KeeperLines", "ST_KeeperLines", "DT/Text/Generated/ST_KeeperLines.csv");
+		LOCTABLE_FROMFILE_GAME("ST_World", "ST_World", "DT/Text/Generated/ST_World.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Discoveries", "ST_Discoveries", "DT/Text/Generated/ST_Discoveries.csv");
 	}
 };
 

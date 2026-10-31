@@ -1,0 +1,43 @@
+Key,en,zh-Hans,Context,Kw,Layer,Unlock
+Keeper.Storm.Short,Storm,雷,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Storm.Path,Storm,雷霆,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Storm.Designation,ATMOS,ATMOS,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Storm.Tier1,Faster. The sky does not wait for you.,快点。天可不会等你。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Storm.Tier2,Good. Now make them regret standing.,很好。让它们后悔没倒下。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Storm.Tier3,I remember being this angry. I remember it being enough.,我记得这种愤怒。那时，它就够了。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Storm.PassedOver,Slow choice. I will remember it.,选得太慢了。我会记住的。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
+Keeper.Forge.Short,Forge,炉,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Forge.Path,Forge,炉火,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Forge.Designation,FOUNDRY,FOUNDRY,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Forge.Tier1,Tolerances within spec. Proceed.,精度合格。继续。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Forge.Tier2,You were not always this well made.,你以前可没造得这么好。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Forge.Tier3,I did not make you. I only ever repaired you.,我从没造过你。我只是一直在修你。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Forge.PassedOver,"A second-rate fitting. It will hold, for now.",次等的搭配。先凑合着用。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
+Keeper.Tide.Short,Tide,潮,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Tide.Path,Tide,寒潮,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Tide.Designation,CISTERN,CISTERN,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Tide.Tier1,Cold slows everything. Even this.,冷会让一切慢下来。这也一样。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Tide.Tier2,Do not hurry back. They will send you anyway.,别急着回来。反正他们还会再送你来。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Tide.Tier3,I kept the part of us that stops. You kept the rest.,能停下的那部分在我这。其余在你那。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Tide.PassedOver,Good. Go with them. I will wait.,也好，跟他们去吧。我会等你。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
+Keeper.Shade.Short,Shade,幽,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Shade.Path,Shade,幽影,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Shade.Designation,LEDGER,LEDGER,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Shade.Tier1,Entry opened. Debts noted.,已开账。欠的都记下了。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Shade.Tier2,"Every name you take, I already hold.",你杀的每一个，名字早在我账上。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Shade.Tier3,An entry older than all of us. I may not read it.,有一笔账比我们都早。我无权翻看。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Shade.PassedOver,Noted. Your account with me stays open.,记下了。你欠我的，还没完。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
+Keeper.Radiance.Short,Light,曜,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Radiance.Path,Radiance,曜光,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Radiance.Designation,LUMEN,LUMEN,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Radiance.Tier1,Look closer. Everything here casts a shadow.,看仔细。这里的一切都有影子。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Radiance.Tier2,You see it now. You will not be allowed to keep it.,你现在看见了。可他们不会让你一直看见。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Radiance.Tier3,Ask the right question and I cannot lie. None of us can.,问对了问题，我就没法说谎。我们都一样。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Radiance.PassedOver,"You looked, and still chose wrong.",你看过了，还是选错了。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
+Keeper.Quicksilver.Short,Ways,驰,"HUD short name, zh_glossary §3.",,0,Start
+Keeper.Quicksilver.Path,Quicksilver,驰驿,"Path build name with tiers and Favor bars, zh_glossary §3.",,0,Start
+Keeper.Quicksilver.Designation,RELAY,RELAY,"Founder designation, the same string in every culture; do not translate.",,1,Start
+Keeper.Quicksilver.Tier1,Move. Standing still is how they count you.,动起来。停着不动，就会被他们盯上。,"Tier 1 line, one HUD toast at Path Tier 1. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.1
+Keeper.Quicksilver.Tier2,"Everything in the Keep passes through me. Including you, every time.",守境的一切都由我运送。你也是，每一次。,"Tier 2 line, one HUD toast at Path Tier 2. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Tier.2
+Keeper.Quicksilver.Tier3,I would run from this too. Nowhere in me to run to.,我也想逃。可我哪儿也去不了。,"Tier 3 line, one HUD toast at Path Tier 3. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,2,Tier.3
+Keeper.Quicksilver.PassedOver,Fine. I carry you either way.,随你。反正都是我送你去。,"Passed-over line, one HUD toast at the L8 commitment. <= 12 words en / 20 chars zh, system register, no exclamation marks.",,1,Run.L8
