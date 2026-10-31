@@ -20,7 +20,7 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade/Radiance/Quicksilver landed (gate 322 tests, perf PASS; T-KEE-15 and T-KEE-18 FAIL on the new Keepers, untuned). L16 Reforging and duo reactions on branches off it
+- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade/Radiance/Quicksilver (T-KEE-15 and T-KEE-18 FAIL on them, untuned), L16 Reforging, duo reactions behind `Reaction.Duos` landed (`c8b7a5d`: gate 383 tests, perf p95 2.76 ms; no human has played any of it). Duos show no bot lift, Steam fights its own arm, Repossession barely fires (`S2_duos.md`). Reforging rows for Keepers 4–6 and evolution reach next
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
