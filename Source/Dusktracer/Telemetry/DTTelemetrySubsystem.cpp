@@ -66,6 +66,8 @@ void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 		Hit.SourceRole = Event.SourceRole;
 		Hit.AttackId = Event.AttackId;
 		Hit.Position = Event.SourcePos;
+		Hit.RoundVelocity = Event.RoundVelocity;
+		Hit.RoundFlightSeconds = Event.RoundFlightSeconds;
 		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp, Event.HeroPos);
 		break;
 	}

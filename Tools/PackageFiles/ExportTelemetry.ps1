@@ -38,7 +38,9 @@ try {
 	}
 
 	$Lines = @("Dusktracer run data. Gameplay numbers only: seed, build hash, culture, last input device, combat numbers per interval,",
-		"cards offered and picked, Keeper and weapon choices, and the local start time. No name, account, machine name, path or hardware.",
+		"hero positions on the arena (one every few seconds and at each hit taken), cards offered and picked, Keeper and weapon choices,",
+		"and the start time, UTC inside each file and local in its name, so the two show the time zone.",
+		"No name, account, machine name, path or hardware.",
 		"Exported $Stamp. Files:", "")
 	$Lines += $Runs | Sort-Object Name | ForEach-Object { "{0}  {1} bytes" -f $_.Name, $_.Length }
 	if ($Extra.Count) { $Lines += @("", "Added with -IncludeLogs (can name the Windows user and the machine):"); $Lines += $Extra | ForEach-Object { $_.Name } }

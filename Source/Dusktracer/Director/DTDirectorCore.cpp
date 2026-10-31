@@ -671,6 +671,7 @@ void FDTDirectorCore::Step(const FDTDirectorStepIn& In, IDTDirectorSink& Sink)
 	{
 		View.DropInMarkers.Reset();
 		View.bThreatBlock = false;
+		Open.AlivePeak = FMath::Max(Open.AlivePeak, AliveTotal); // the hull and its adds never pass through Emit
 		Time += StepSeconds;
 		return;
 	}

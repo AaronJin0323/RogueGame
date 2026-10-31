@@ -252,6 +252,8 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	Hit.SourceRole = EDTEnemyRole::Turret;
 	Hit.AttackId = TEXT("Burst");
 	Hit.Position = FVector2f(120.4f, -30.6f);
+	Hit.RoundVelocity = FVector2f(600.4f, -800.6f);
+	Hit.RoundFlightSeconds = 0.75f;
 	Core.RecordHeroDamaged(0, Hit, 10.0f, 90.0f, 100.0f, FVector2f(100.0f, -50.5f));
 	FDTHeroHit Contact;
 	Core.RecordHeroDamaged(0, Contact, 5.0f, 85.0f, 100.0f, FVector2f::ZeroVector);
@@ -272,7 +274,7 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	TestTrue(TEXT("dash line"), Jsonl.Contains(Head(TEXT("dash"), 1) + TEXT(",\"dir_x\":0.6000,\"dir_y\":0.8000,\"charges_after\":0}\n")));
 	TestTrue(TEXT("hero_damaged line"), Jsonl.Contains(Head(TEXT("hero_damaged"), 0)
 		+ FString::Printf(TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\",")
-			TEXT("\"hero_x\":100,\"hero_y\":%d,\"src_x\":120,\"src_y\":-31}\n"), FMath::RoundToInt32(-50.5f))));
+			TEXT("\"hero_x\":100,\"hero_y\":%d,\"src_x\":120,\"src_y\":-31,\"vel_x\":600,\"vel_y\":-801,\"flight_s\":0.7500}\n"), FMath::RoundToInt32(-50.5f))));
 	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null,\"hero_x\":0,\"hero_y\":0,\"src_x\":0,\"src_y\":0}\n")));
 	TestTrue(TEXT("hero_down line"), Jsonl.Contains(Head(TEXT("hero_down"), 0) + TEXT("}\n")));
 	TestTrue(TEXT("intercession_denied per interval"), Jsonl.Contains(Head(TEXT("intercession_denied"), 1, StepsPerInterval())
@@ -456,9 +458,9 @@ bool FDTTelRecBoss::RunTest(const FString& Parameters)
 	End.HpLeftFrac = 0.0f;
 	End.Phase = 3;
 	FDTTelBossPlayer Player;
-	Player.DamageTakenByAttack.Add(TEXT("Spiral"), 0.3f);
-	Player.DamageTakenByAttack.Add(TEXT("Charge"), 0.125f);
-	Player.DamageTakenByAttack.Add(NAME_None, 0.05f);
+	Player.RawDamageByAttack.Add(TEXT("Spiral"), 0.3f);
+	Player.RawDamageByAttack.Add(TEXT("Charge"), 0.125f);
+	Player.RawDamageByAttack.Add(NAME_None, 0.05f);
 	Player.Dashes = 21;
 	Player.HitsPerRing = 0.5f;
 	End.PerPlayer = { Player };
@@ -473,7 +475,7 @@ bool FDTTelRecBoss::RunTest(const FString& Parameters)
 	TestTrue(TEXT("boss_phase line"), Jsonl.Contains(Head(TEXT("boss_phase"), -1)
 		+ FString::Printf(TEXT(",\"phase\":2,\"fight_time_s\":41.5000,\"hp_frac\":%.4f,\"by_time\":false}\n"), 0.66f)));
 	TestTrue(TEXT("boss_end line (attacks by name, contact named)"), Jsonl.Contains(Head(TEXT("boss_end"), -1)
-		+ TEXT(",\"outcome\":\"win\",\"fight_time_s\":160.0000,\"hp_left_frac\":0.0000,\"phase\":3,\"per_player\":{\"0\":{\"damage_taken_by_attack\":"
+		+ TEXT(",\"outcome\":\"win\",\"fight_time_s\":160.0000,\"hp_left_frac\":0.0000,\"phase\":3,\"per_player\":{\"0\":{\"damage_raw_by_attack\":"
 			"{\"Charge\":0.1250,\"Contact\":0.0500,\"Spiral\":0.3000},\"dashes\":21,\"hits_per_ring\":0.5000}}}\n")));
 	return true;
 }

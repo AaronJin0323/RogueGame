@@ -157,7 +157,8 @@ public:
 	void RecordDash(int32 Owner, FVector2f Dir, int32 ChargesAfter);
 	/**
 	 * hero_damaged per applied hit (Amount after the hero's own reductions) and the CSV column damage_taken_per_min.
-	 * HeroPos is where the hit found the hero; Hit.Position is where it came from (R-TEL-10).
+	 * HeroPos is where the hit found the hero; Hit.Position is where it came from, and a round adds its velocity and flight time
+	 * (R-TEL-10).
 	 */
 	void RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp, FVector2f HeroPos);
 	void RecordHeroDown(int32 Owner);

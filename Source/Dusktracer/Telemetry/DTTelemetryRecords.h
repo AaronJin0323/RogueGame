@@ -89,8 +89,8 @@ struct FDTTelDirBlock
 /** One player's part of boss_end (boss.md §Telemetry). */
 struct FDTTelBossPlayer
 {
-	/** By catalog attack id (contact = NAME_None, written "Contact"). */
-	TMap<FName, float> DamageTakenByAttack;
+	/** Raw (R-TEL-11), by catalog attack id (contact = NAME_None, written "Contact"). */
+	TMap<FName, float> RawDamageByAttack;
 	int32 Dashes = 0;
 	float HitsPerRing = 0.0f;
 };

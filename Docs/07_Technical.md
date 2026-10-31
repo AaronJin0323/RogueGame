@@ -105,7 +105,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 
 Shared structs (`Core/DTSimTypes.h`); an enemy is named across steps by `Serial` (`enemies.md` R-ENM-23), within the step by index:
 - `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce}`: `Damage` is final (crit, load and stats applied by the emitter); `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits.
-- `FDTHeroHit{PlayerId Damage Kind(Contact Bullet Hazard) SourceRole AttackId EnemySerial Position}`: damage already scaled by the enemy's `DmgScale`; `Position` is where the hit came from, read by telemetry only (`telemetry.md` R-TEL-10).
+- `FDTHeroHit{PlayerId Damage Kind(Contact Bullet Hazard) SourceRole AttackId EnemySerial Position RoundVelocity RoundFlightSeconds}`: damage already scaled by the enemy's `DmgScale`; `Position` is where the hit came from, a round's firing point for a round, and the last three are read by telemetry only (`telemetry.md` R-TEL-10).
 - `FDTKill{EnemySerial Role Position OwnerId SourceId WeaponSlot bElite bDirector BeatId}`.
 - `FDTDisplacement{EnemyIndex EnemySerial Delta OwnerId}`: a stale serial is ignored; the boss hull ignores every displacement (`boss.md`).
 

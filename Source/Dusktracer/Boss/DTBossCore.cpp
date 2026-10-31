@@ -300,7 +300,7 @@ void FDTBossCore::Finish(const FString& InOutcome, int64 StepIndex, IDTBossSink&
 	for (int32 Player = 0; Player < DamageByAttack.Num(); ++Player)
 	{
 		FDTTelBossPlayer& Rec = EndRec.PerPlayer.AddDefaulted_GetRef();
-		Rec.DamageTakenByAttack = DamageByAttack[Player];
+		Rec.RawDamageByAttack = DamageByAttack[Player];
 		Rec.HitsPerRing = static_cast<float>(RingHits.IsValidIndex(Player) ? RingHits[Player] : 0) / static_cast<float>(RingCount);
 	}
 	Sink.BossEnd(EndRec);

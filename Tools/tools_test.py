@@ -109,8 +109,8 @@ class Casts(unittest.TestCase):
 		b = '{"kind":"intercession","owner":0,"variant":"V","damage":1,"damage_raw":2.0,"complete":false}'
 		self.assertEqual(self.read([a, b]), (2, 100.0, 300.0, "V"))
 
-	def test_an_old_run_has_no_raw_mean(self):
-		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, 100.0, None, "V"))
+	def test_a_record_from_before_the_window_counts_as_a_cast_and_reads_no_damage(self):
+		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, None, None, "V"))
 
 
 class Intercession(unittest.TestCase):

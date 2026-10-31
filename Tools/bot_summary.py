@@ -16,7 +16,7 @@ Per arm it also reports the pressure sources in that window (damage by hit kind 
 the boss reach, the Keeper share at C.TEL.POWER_CHECK_LEVEL (`sources` records up to the level-up), damage per Intercession cast
 and the swarm TTK against C.TTK.SWARM_STEERED_MAX, each read per arm because a pooled mean hides builds that miss in opposite
 directions. A cast's damage is applied and raw over its window (keepers.md §Telemetry): passive Keeper damage in the window counts,
-so it is attribution, never the marginal R-KEE-15 reading.
+so it is attribution, never the marginal R-KEE-15 reading; a run from before that window counts its casts and reads no cast damage.
 """
 
 import csv
@@ -212,7 +212,9 @@ def keeper_share_until(jsonl, t_cut):
 
 def read_casts(jsonl):
 	"""(casts, mean applied damage per cast, mean raw damage per cast, variant) of player 0's Intercession records. A cast the run
-	cut short counts as a cast but not in the means; a run from before `damage_raw` has no raw mean."""
+	cut short counts as a cast but not in the means. A record from before the cast window (it has no `complete`) meant something
+	else by `damage`: raw, area strikes only, 0 for a cast that reshapes shots (keepers.md §Telemetry). It counts as a cast too and
+	its damage reads nothing, so it can neither pass for the window reading nor feed the cast band."""
 	casts, damage, raw, variant = 0, [], [], ""
 	with open(jsonl, encoding="utf-8") as f:
 		for line in f:
@@ -221,10 +223,9 @@ def read_casts(jsonl):
 				if rec.get("owner") == 0 and "damage" in rec:
 					casts += 1
 					variant = rec.get("variant") or variant
-					if rec.get("complete", True):
+					if rec.get("complete"):
 						damage.append(float(rec["damage"]))
-						if "damage_raw" in rec:
-							raw.append(float(rec["damage_raw"]))
+						raw.append(float(rec["damage_raw"]))
 	return casts, (statistics.mean(damage) if damage else None), (statistics.mean(raw) if raw else None), variant
 
 

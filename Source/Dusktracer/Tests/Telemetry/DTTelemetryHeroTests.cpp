@@ -9,6 +9,7 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
+#include "Enemies/DTEnemyBulletPool.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Enemies/DTEnemyTypes.h"
 #include "Engine/Engine.h"
@@ -255,6 +256,60 @@ bool FDTTelRunEnd::RunTest(const FString& Parameters)
 		FDateTime Wall;
 		TestTrue(TEXT("wall parses"), At != INDEX_NONE && FDateTime::ParseIso8601(*Start[0].Mid(At + Field.Len()).LeftChop(2), Wall));
 		TestTrue(TEXT("wall is UTC, as its Z says"), FMath::Abs((FDateTime::UtcNow() - Wall).GetTotalMinutes()) < 5.0);
+	}
+	Scene.Close();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelRoundSource, "Dusktracer.Telemetry.RoundSource", DTTelHeroTest::Flags) // T-TEL-10 in a real world
+bool FDTTelRoundSource::RunTest(const FString& Parameters)
+{
+	using namespace DTTelHeroTest;
+	FWorld Scene(TEXT("DTTelRoundSourceWorld"));
+	UWorld* World = Scene.World;
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	UDTHeroSubsystem* Heroes = World->GetSubsystem<UDTHeroSubsystem>();
+	UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+	FString Jsonl;
+	const float Speed = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_SPEED_UU_S);
+	const float Range = 3.0f * static_cast<float>(DTConst::HERO_RADIUS_UU + DTConst::ENEMY_FIRE_SHOT_RADIUS_UU);
+	FVector2f FiredFrom = FVector2f::ZeroVector;
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("telemetry"), Telemetry) && TestNotNull(TEXT("heroes"), Heroes) && TestNotNull(TEXT("enemies"), Enemies))
+	{
+		Sim->StartRun(47, 1);
+		Telemetry->StartSession(47, 1);
+		Sim->StepNow(1);
+
+		// A round fired from well outside the touch: the record must say where from, not where it landed.
+		FiredFrom = Sim->GetView().HeroPositions[0] + FVector2f(Range, 0.0f);
+		FDTEnemyRoundSpawn Round;
+		Round.Position = FiredFrom;
+		Round.Velocity = FVector2f(-Speed, 0.0f);
+		Round.Radius = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU);
+		Round.Damage = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_DAMAGE);
+		Round.Life = DTConst::ENEMY_FIRE_SHOT_LIFE_S;
+		Round.TargetPlayer = 0;
+		Round.AttackId = FName(TEXT("Turret.Fire"));
+		Enemies->GetPool().GetRounds().Spawn(Round);
+		for (int32 Step = 0; Step < 2 * DTConst::SIM_FIXED_HZ && Heroes->GetState(0)->HitsTaken == 0; ++Step)
+		{
+			Sim->StepNow(1);
+		}
+		TakeSession(*Telemetry, TEXT("test"), Jsonl);
+	}
+
+	const TArray<FString> Damaged = OfKind(Jsonl, TEXT("hero_damaged"));
+	if (TestEqual(TEXT("the round's hit"), Damaged.Num(), 1))
+	{
+		const double Step = 1.0 / DTConst::SIM_FIXED_HZ;
+		TestTrue(TEXT("hit_kind Bullet"), Damaged[0].Contains(TEXT("\"hit_kind\":\"Bullet\"")));
+		TestEqual(TEXT("src_x is the firing point"), Number(Damaged[0], TEXT("src_x")), static_cast<double>(FMath::RoundToInt32(FiredFrom.X)));
+		TestEqual(TEXT("src_y is the firing point"), Number(Damaged[0], TEXT("src_y")), static_cast<double>(FMath::RoundToInt32(FiredFrom.Y)));
+		TestEqual(TEXT("vel_x is the round's"), Number(Damaged[0], TEXT("vel_x")), static_cast<double>(FMath::RoundToInt32(-Speed)));
+		TestEqual(TEXT("vel_y is the round's"), Number(Damaged[0], TEXT("vel_y")), 0.0);
+		const double Reach = DTConst::HERO_RADIUS_UU + DTConst::ENEMY_FIRE_SHOT_RADIUS_UU;
+		TestEqual(TEXT("flight_s is the time it flew"), Number(Damaged[0], TEXT("flight_s")), (Range - Reach) / Speed, 1.5 * Step);
 	}
 	Scene.Close();
 	return true;

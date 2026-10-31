@@ -1115,6 +1115,9 @@ bool FDTDirRunEndClose::RunTest(const FString& Parameters)
 		Add.OwnerId = 0;
 		H.ExtraKills.Add(Add);
 		H.ExtraKills.Add(Add);
+		H.Alive.SetNum(7); // the hull and its adds: spawned by the boss, gone before the end
+		H.Step();
+		H.Alive.Reset();
 		H.Step();
 		H.Dir.CloseRun(TEXT("victory"), H);
 		if (TestEqual(TEXT("the fight's record"), H.Blocks.Num(), Ended + 1))
@@ -1124,6 +1127,7 @@ bool FDTDirRunEndClose::RunTest(const FString& Parameters)
 			TestEqual(TEXT("ended by the victory"), Fight.EndedBy, FString(TEXT("victory")));
 			TestEqual(TEXT("from boss time"), static_cast<double>(Fight.StartSeconds), static_cast<double>(DTConst::RUN_LENGTH_TO_BOSS), 1.5 * Dt);
 			TestEqual(TEXT("holds the fight's kills"), Fight.Kills, 2);
+			TestEqual(TEXT("its peak is the fight's, not its two ends'"), Fight.AlivePeak, 7);
 		}
 	}
 	{

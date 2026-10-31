@@ -316,6 +316,8 @@ void FDTHeroSim::StepPlayer(int32 OwnerId, const FDTSimContext& Context, const F
 		Event.AttackId = Hit->AttackId;
 		Event.HeroPos = S.Pos;
 		Event.SourcePos = Hit->Position;
+		Event.RoundVelocity = Hit->RoundVelocity;
+		Event.RoundFlightSeconds = Hit->RoundFlightSeconds;
 		Emit(Event, OwnerId, Context.StepIndex);
 		if (S.Hp <= 0.0f)
 		{
