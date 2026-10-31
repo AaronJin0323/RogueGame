@@ -53,6 +53,8 @@ Press counts, picks and declines match too. Telemetry is a side reading on 6 of 
 | `-DTSeed=0`, `-DTSeed=2147483647`, tool with no seed | exact, 0 for the tool |
 | `-DTSeed=2147483648`, `-DTSeed=3276732767` | rejected: exit code 2, no run file |
 
+The package half ran on package `2d14922` through `Tools/PadCheck.ps1`, on the real Shipping build: `Play_en.bat`, `Play_zh-Hans.bat` and a bare `Dusktracer.exe` each read a fresh seed, `-DTSeed=9107` is exact with and without `-unattended`, and `-DTSeed=3276732767` exits with code 2 and no run file. The owner's Playtests folder held 142 files before and after. `pad` still reads NOT RUN, because a real pad needs a human.
+
 The two controls show it fails on the bug itself:
 
 | Control | Reading |
@@ -79,6 +81,14 @@ The first versions of `SeedCheck` showed windows on the owner's desktop, against
 The project path is now required first, launches run on the hidden desktop, and unattended launches go first, so a stale build fails before any launch that could prompt.
 
 `Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured.
+
+## For the merge into dev/s2 and dev/s3
+Their launchers carry the old line, which this replaces. Their restart path needs three changes by hand:
+- `ADTGameMode::GetCommandLineSeed` is gone here and is still called there. `ParseSeed` must fall back to `UDTSimSubsystem::GetLaunchSeed`, or a launch with no seed runs on 0 again. The gate's `seed` step fails if it does.
+- `ParseSeed` reads `-DTSeed` through `FParse::Value` and the map's option through `LexFromString`. Both should go through `FDTRunSeed::ParseValue`.
+- `NextSeed` is a second draw; it should use `FDTRunSeed::FreshFromEntropy`, so that one place holds.
+
+`Tools\Play.bat` on `dev/s2` passes `%CULTUREARG%`. `SeedCheck` reads the expanded line, so that needs no change.
 
 ## Not verified
 - A person double-clicking a launcher: full screen, on a real display. The launches here swap `-fullscreen` for off-screen flags.

@@ -234,8 +234,9 @@ else {
 }
 if ($script:Failures.Count -eq 0) {
 	foreach ($Label in $Human.Keys) { Expect-Fresh $Label $Human[$Label] }
-	$Replay = if ($Package) { @("-DTSeed=9107") } else { @($Project, "-game", "-DTSeed=9107") }
-	Expect-Seed "replay by hand, no -unattended" ($Replay + $OffScreen) 9107
+	$Replay = @("-DTSeed=9107") + $OffScreen
+	if (-not $Package) { $Replay = @($Project, "-game") + $Replay }
+	Expect-Seed "replay by hand, no -unattended" $Replay 9107
 }
 
 $Line = "{0} human launches on fresh seeds, {1} exact, {2} rejected" -f $script:Fresh.Count, $script:Exact, $script:Rejected
