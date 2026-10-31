@@ -477,6 +477,55 @@ def spec_pairs(ctx, where, text, limit):
 	return params[:limit] + [f"{{ {cpp_str('')}, 0.0f }}"] * max(0, limit - len(params)), min(len(params), limit)
 
 
+def gen_tree(ctx, expression, reforge_ids):
+	"""tree.csv (meta.md R-MET-20, R-MET-21): the node table, checked against the pillar and the catalogs it unlocks."""
+	cols = ["id", "class", "ranks", "cost", "grant", "grant_per_rank", "requires", "unlocks", "text_key"]
+	rows = read_csv(ctx, "tree.csv", cols, doc_only=["tag", "ref"])
+	unique(ctx, rows, lambda r: r["id"], "tree node")
+	ids = {r["id"] for r in rows}
+	blessings = set(re.findall(r'"(Blessing\.[A-Za-z]+\.[A-Za-z0-9]+\.(?:Key|Amp1|Amp2|Trait))"', "".join(expression).replace("TEXT(", "")))
+	gated = {b for b in blessings if not b.endswith(".Key")} | {r for r in reforge_ids if r.startswith("Transform.")}
+	seen = set()
+	out = []
+	for index, r in enumerate(rows):
+		where = r["_where"]
+		m = re.fullmatch(r"Branch\.([A-Za-z]+)\.(Blessing4|Blessing5|Reforge)", r["id"])
+		trunk = re.fullmatch(r"Trunk\.[A-Z][A-Za-z0-9]*", r["id"])
+		if not trunk and not (m and m.group(1) in PATHS):
+			ctx.err(f"{where}:id", "a node is Trunk.<Name> or Branch.<Path>.<Blessing4|Blessing5|Reforge>")
+		path = m.group(1) if m and m.group(1) in PATHS else "None"
+		grant = r["grant"] or "None"
+		if r["class"] not in ("pool", "utility"):
+			ctx.err(f"{where}:class", "R-MET-20: a node is pool or utility, never a stat")
+		if grant not in ("None", "Reroll", "Banish", "Lock"):
+			ctx.err(f"{where}:grant", "R-MET-20: a node grants an offer tool or nothing")
+		unlocks = [x for x in r["unlocks"].split(";") if x]
+		if (r["class"] == "pool") != bool(unlocks) or (r["class"] == "utility") != (grant != "None"):
+			ctx.err(where, "a pool node unlocks content and grants nothing; a utility node grants a tool and unlocks nothing")
+		for item in unlocks:
+			if item not in gated:
+				ctx.err(f"{where}:unlocks", f"'{item}' is not an Amp, a Trait or a Path row of the catalogs")
+			if item in seen:
+				ctx.err(f"{where}:unlocks", f"'{item}' is unlocked by two nodes")
+			seen.add(item)
+		requires = [x for x in r["requires"].split(";") if x]
+		for item in requires:
+			keeper = re.fullmatch(r"Keeper\.([A-Za-z]+)", item)
+			if item not in ids and not (keeper and keeper.group(1) in PATHS):
+				ctx.err(f"{where}:requires", f"'{item}' is neither a node nor a Keeper.<Path>")
+		if not re.fullmatch(r"Tree(\.[A-Z][A-Za-z0-9]*)+", r["text_key"]):
+			ctx.err(f"{where}:text_key", "expects the Tree.* stem of a Name and a Desc row of ST_Tree")
+		ranks = num(ctx, r, "ranks", "int", allow_empty=False)
+		cost = num(ctx, r, "cost", "int", f"DTCat::TreeNodes[{index}].Cost", allow_empty=False)
+		per_rank = num(ctx, r, "grant_per_rank", "int", f"DTCat::TreeNodes[{index}].GrantPerRank")
+		out.append(
+			f"\t\t{{ {cpp_str(r['id'])}, ETreeClass::{r['class'].capitalize()}, EDTPath::{path}, {ranks}, {cost}, ETreeGrant::{grant}, {per_rank}, "
+			f"{cpp_str(r['requires'])}, {cpp_str(r['unlocks'])}, {cpp_str(r['text_key'])} }},")
+	for item in sorted(gated - seen):
+		ctx.err("tree.csv", f"'{item}' has no node: it could never enter a person's pool")
+	return out
+
+
 def gen_reactions(ctx):
 	cols = ["Pair", "PathA", "PathB", "Reaction", "Duo"]
 	rows = read_csv(ctx, "reactions.csv", cols, doc_only=["Source"])
@@ -656,6 +705,7 @@ def render(ctx):
 		if w not in reforge_ids:
 			ctx.err("weapons.csv:evolution", f"'{w}' has no row in reforging.csv")
 	expression, s1_archetypes = gen_expression(ctx, flags)
+	tree = gen_tree(ctx, expression, reforge_ids)
 	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
 	affixes = gen_elites(ctx)
@@ -933,6 +983,27 @@ def render(ctx):
 	] + timeline + [
 		"\t};",
 		"",
+		"\t// --- tree.csv: no node raises a number in a run (meta.md R-MET-20) ---",
+		"\tenum class ETreeClass : uint8 { Pool, Utility };",
+		"\tenum class ETreeGrant : uint8 { None, Reroll, Banish, Lock };",
+		"\tstruct FTreeNodeRow",
+		"\t{",
+		"\t\tconst TCHAR* Id;",
+		"\t\tETreeClass Class;",
+		"\t\tEDTPath Path;",
+		"\t\tint32 Ranks;",
+		"\t\tint32 Cost;",
+		"\t\tETreeGrant Grant;",
+		"\t\tint32 GrantPerRank;",
+		"\t\tconst TCHAR* Requires;",
+		"\t\tconst TCHAR* Unlocks;",
+		"\t\tconst TCHAR* TextKey;",
+		"\t};",
+		"\tinline constexpr FTreeNodeRow TreeNodes[] =",
+		"\t{",
+	] + tree + [
+		"\t};",
+		"",
 		"\t// --- every cell that named a C. key, for the resolution test ---",
 		"\tstruct FConstantRef { const TCHAR* Cell; const TCHAR* Key; double Table; double Constant; };",
 		"\tinline constexpr FConstantRef ConstantRefs[] =",
@@ -948,6 +1019,7 @@ def render(ctx):
 		f"\tinline constexpr int32 NumArchetypes = {s1_archetypes};",
 		"\tinline constexpr int32 NumAllArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));",
 		"\tinline constexpr int32 NumReactions = static_cast<int32>(UE_ARRAY_COUNT(Reactions));",
+		"\tinline constexpr int32 NumTreeNodes = static_cast<int32>(UE_ARRAY_COUNT(TreeNodes));",
 		"\tinline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);",
 		"\tinline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));",
 		"\tinline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));",
@@ -1023,7 +1095,7 @@ def main(argv):
 		if stale:
 			print(f"CATALOG: FAIL ({', '.join(stale)} out of date; run python -I Tools/gen_catalog.py)")
 			return 1
-		print(f"CATALOG: PASS (10 catalogs, {len(ctx.ckeys)} C. cells resolved, "
+		print(f"CATALOG: PASS (11 catalogs, {len(ctx.ckeys)} C. cells resolved, "
 			  f"{sum(len(v) for v in ctx.tags.values())} tags)")
 		return 0
 	for path, text in outputs:

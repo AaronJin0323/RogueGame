@@ -39,7 +39,9 @@ param(
 	# R-BOT-18: makes each named weapon the primary and carries it to its evolution. "All" = every row of Docs/09_Catalog/weapons.csv.
 	[string[]]$Carry = @(),
 	# R-BOT-18: that arm's control, which takes the Path card at the Reforging hand.
-	[switch]$CarryHold
+	[switch]$CarryHold,
+	# meta.md R-MET-23: reads the fresh-save pool, a person's first run, instead of the full pool (-DTPoolGate, no save).
+	[switch]$FreshPool
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -153,6 +155,7 @@ foreach ($Arm in $Arms) {
 		$Label = ($Parts -join '-') + $(if ($Weapon) { "-Carry-" + ($Weapon -replace '^Weapon\.', '') } else { "" })
 		foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
 			$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
+			if ($FreshPool) { $Extra += "-DTPoolGate" }
 			if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
 			if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
 			if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }

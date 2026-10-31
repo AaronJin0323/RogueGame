@@ -2,6 +2,7 @@
 #include "Dusktracer.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Meta/DTTree.h"
 #include "Misc/App.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/CommandLine.h"
@@ -33,6 +34,36 @@ namespace DTMetaSubsystemLocal
 				Session->Profile.Runs = FMath::Max(Session->Profile.Runs, Session->Profile.Wins);
 				Session->Write();
 			}
+		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdCurrency(TEXT("DT.Meta.Currency"), TEXT("Set this session's balance and write the file (Tools/MetaCheck.ps1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			FDTMetaSession* Session = UDTMetaSubsystem::FindSession(World);
+			if (Session && Args.Num() == 1)
+			{
+				Session->Profile.Currency = FCString::Atoi64(*Args[0]);
+				Session->Write();
+			}
+		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdBuy(TEXT("DT.Tree.Buy"), TEXT("DT.Tree.Buy <node|All>: buy a rank through DTTree::Buy; All buys every node it can, in catalog order (Tools/MetaCheck.ps1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			FDTMetaSession* Session = UDTMetaSubsystem::FindSession(World);
+			if (!Session || Args.Num() != 1)
+			{
+				return;
+			}
+			if (Args[0] != TEXT("All"))
+			{
+				UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy %s: result %d"), *Args[0], static_cast<int32>(DTTree::Buy(*Session, FName(*Args[0]))));
+				return;
+			}
+			int32 Bought = 0;
+			for (const DTCat::FTreeNodeRow& Node : DTCat::TreeNodes)
+			{
+				Bought += DTTree::Buy(*Session, FName(Node.Id)) == EDTTreeBuy::Ok ? 1 : 0;
+			}
+			UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy All: %d bought"), Bought);
 		}));
 #endif
 }
@@ -73,4 +104,15 @@ int32 UDTMetaSubsystem::GetWins(const UObject* WorldContext)
 {
 	const FDTMetaSession* Found = FindSession(WorldContext);
 	return Found ? Found->Profile.Wins : 0;
+}
+
+bool UDTMetaSubsystem::GatesPool()
+{
+	return !IsToolRun() || FParse::Param(FCommandLine::Get(), TEXT("DTPoolGate"));
+}
+
+FDTPoolGrant UDTMetaSubsystem::GetRunGrant(const UObject* WorldContext)
+{
+	const FDTMetaSession* Found = FindSession(WorldContext);
+	return Found ? DTTree::MakeGrant(Found->Profile, GatesPool()) : FDTPoolGrant();
 }

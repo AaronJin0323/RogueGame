@@ -483,6 +483,11 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.META.CURRENCY_HEAT_BONUS | 0.15 | ratio | GATED(S3) | meta.md, T-MET-02 |
 | C.META.ACT_START | 1 | n | CORE | meta.md, T-MET-09 |
 | C.META.ACT_MAX | 3 | n | CORE | meta.md, T-MET-09 |
+| C.TREE.COST_TOOL | 400 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.COST_BLESSING4 | 300 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.COST_BLESSING5 | 500 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.COST_REFORGE | 800 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.TOOL_PER_RANK | 1 | n | GATED(S3) | meta.md, tree.csv, T-MET-20 |
 
 ## Narrative (03_Narrative.md)
 

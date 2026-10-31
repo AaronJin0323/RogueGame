@@ -379,6 +379,37 @@ bool DTOffers::IsStarterKey(int32 Archetype)
 	return Archetype >= 0 && Archetype < DTCat::NumAllArchetypes && Archetype < DTConst::POOL_STARTER_BLESSINGS;
 }
 
+bool DTOffers::IsTreeLocked(FName Id)
+{
+	static const TSet<FName> Locked = []
+	{
+		TSet<FName> Out;
+		for (const DTCat::FTreeNodeRow& Node : DTCat::TreeNodes)
+		{
+			TArray<FString> Ids;
+			FString(Node.Unlocks).ParseIntoArray(Ids, TEXT(";"));
+			for (const FString& Item : Ids)
+			{
+				Out.Add(FName(*Item));
+			}
+		}
+		return Out;
+	}();
+	return Locked.Contains(Id);
+}
+
+bool DTOffers::IsOpen(FName Id, const FDTOfferPool& Pool)
+{
+	return !Pool.bMetaGate || !IsTreeLocked(Id) || Pool.Unlocked.Contains(Id);
+}
+
+void DTOffers::ApplyGrant(FDTPlayerOfferState& Tools, const FDTPoolGrant& Grant)
+{
+	Tools.RerollsLeft += Grant.Rerolls;
+	Tools.BanishLeft += Grant.Banishes;
+	Tools.LockLeft += Grant.Locks;
+}
+
 // ---- Keeper state -----------------------------------------------------------------------------------------------------
 
 int32 DTOffers::OwnedInArchetype(const FDTKeeperRunState& Keepers, int32 Archetype)
@@ -641,7 +672,7 @@ TArray<FDTOfferCard> DTOffers::Candidates(const FDTPlayerRunState& Player, const
 		for (int32 Column = 0; Column < NumColumns; ++Column)
 		{
 			const FName Id(Archetype.BlessingIds[Column]);
-			if (Player.Keepers.Owned.Contains(Id) || Banished.Contains(Id))
+			if (Player.Keepers.Owned.Contains(Id) || Banished.Contains(Id) || !IsOpen(Id, Pool))
 			{
 				continue;
 			}
@@ -813,7 +844,7 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		for (const EDTPath Path : { Player.Offer.PatronPath, Player.Offer.SecondPath })
 		{
 			const int32 Row = DTReforge::FindPath(Path);
-			if (!Player.PathReforges.Contains(Row))
+			if (!Player.PathReforges.Contains(Row) && IsOpen(DTReforge::RowId(Row), Pool))
 			{
 				AddSource(Row, NAME_None);
 			}

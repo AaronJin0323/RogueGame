@@ -1,7 +1,7 @@
-# Meta — the save, the currency and the run-end autosave (S3 row)
+# Meta — the save, the currency, the run-end autosave and the Tree (S3 row)
 
 ## Intent
-Every run feeds the next: what a run earns outlives it, in one versioned save that later systems (Tree, Discoveries, Hub, story) write into without a new file. Pillar: meta widens the pool, it never raises a number. Nothing in the save reaches the sim while the save is empty, and no tool run ever touches a player's save.
+Every run feeds the next: what a run earns outlives it, in one versioned save that later systems (Tree, Discoveries, Hub, story) write into without a new file. Pillar: meta widens the pool, it never raises a number. A tool run never touches a player's save and always sees the full pool; only a person's run reads what the save unlocked.
 
 Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row and the day-0 list: currency formula, tree of a trunk plus six branches, save with a version from the first write, a validator and a migration table), `reference/original_docs/01_GameDesign.md §8`, `02_TechnicalDesign_s1-16.md §10`, `reference/specs/full_game_specs.md §2.1` and `§5.1`, and `G01_Name.md` (slot `DTMeta.sav`; the currency's name is unchanged). `[invented]` marks what the source does not give; it is this spec's choice and the first thing to revisit.
 
@@ -27,8 +27,8 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 
 ### Tool runs and the sim
 - **R-MET-14** Tool runs have no save: a process that is `-unattended`, under automation, a bot (`-DTBot*`) or given `-DTNoSave` neither reads nor writes the file, and banks nothing into its profile; the award is still computed, for the line and for telemetry. `-DTMetaFile=<path>` names an isolated save and overrides this, as `-DTSettingsFile` does (`settings.md` R-SET-05). Every launcher in `Tools/` but `Play.bat` is `-unattended`; `Play.bat` is the person's launch and the one that saves.
-- **R-MET-15** Files under `Source/Dusktracer/Meta/` are read by the listed files only (T-MET-15), and the one sim reader is the boss. A new reader is added to that list on purpose.
-- **R-MET-16** Determinism: with an empty profile a seed plays exactly as it does with no save: same steps, same input hash, same CSV. The `run_award` record is the only addition to the JSONL, and it holds no save field. This holds for any profile with `Wins` at `0`, because nothing else of the save reaches a system until a later spec says so; such a spec restates this rule for its reader.
+- **R-MET-15** Files under `Source/Dusktracer/Meta/` are read by the listed files only (T-MET-15). The sim's readers are the boss (R-MET-17) and the offer system (R-MET-22). A new reader is added to that list on purpose.
+- **R-MET-16** Determinism: in a tool run a seed plays exactly as it does with no save, whatever the profile holds but `Wins`: same steps, same input hash, same CSV. The `run_award` record is the only addition to the JSONL, and it holds no save field. A person's run is the other case: the offer system reads the Tree there (R-MET-22), so an empty profile plays the narrower first-run pool (R-MET-25). That run's seed still replays for that profile; only `-DTPoolGate` lets a tool ask for it (R-MET-23).
 - **R-MET-17** Wins feed the form choice (`boss.md` R-BOS-01) at the start of the fight, read once from the session. No save or no game instance reads `0`.
 
 ### What later systems build on
@@ -56,6 +56,29 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Branch: unlock that Keeper's Fusion | pool | kept | `Branch.<Path>.Reforge` |
 | Branch: begin the run with one of this Keeper's blessings | stat | cut: a free card is a head start | none |
 
+- **R-MET-21** The catalog is `09_Catalog/tree.csv`: `Trunk.Reroll`, `Trunk.Banish`, `Trunk.Lock` and, per Path, `Blessing4`, `Blessing5`, `Reforge`, each of one rank, generated as `DTCat::TreeNodes`. A branch runs in that order: each node needs the one before. A branch of an S2 Keeper needs `Keeper.<Path>` in `Unlocked` first, so nothing is sold for a Keeper the profile cannot meet `[invented]`. `requires` names a node (one rank) or an id of `Unlocked`; `unlocks` names the ids a purchase writes. The generator fails on a class other than `pool` or `utility`, a grant other than the three tools, a Key or an evolution in `unlocks`, an id two nodes unlock, and an Amp, Trait or Path row no node unlocks.
+- **R-MET-22** Blessing #4 and #5 follow `build_depth_spec` §2.2, the source's own re-pointing of those nodes to a Keeper with three archetypes: `Blessing4` opens the Amp1, Amp2 and Trait of the Keeper's first two `expression.csv` rows, `Blessing5` those of its third. The source's capstones through Discoveries are not carried: a Trait opens with its archetype and still needs `C.KEEPER.TRAIT_PREREQ_CARDS` `[invented]`. `Reforge` opens `Transform.<Path>`. An id any node names is Tree-locked: in a gated run it enters the pool only from `Unlocked`, and a shut Path row yields its slot (`offers.md` R-OFF-09). The offer system reads the save once per world, so a purchase counts from the next run. `Weapon.*`, `Mod.*`, `Keeper.*` and `Reaction.Duos` in `Unlocked` go down the `DT.Unlock` route, so a Discovery only has to add the id.
+- **R-MET-23** Only a person's launch is gated. A tool run (R-MET-14) reads the full pool of today: every Tree-locked id in, weapons and modifiers by the `starter` column plus `-DTUnlock`, tool counts at `C.OFFER.*`, whether or not it names a `-DTMetaFile`, so every bot battery and hash stays valid. `-DTPoolGate` gates a tool run on purpose, with the save it names or an empty profile: `Tools/BotRuns.ps1 -FreshPool` reads a first run that way, and `Tools/MetaCheck.ps1` a full Tree.
+- **R-MET-24** Trunk nodes add `C.TREE.TOOL_PER_RANK` to the run's starting count of that tool (`offers.md` R-OFF-10). The grant takes the offer state alone (`DTOffers::ApplyGrant`), so it has no route to a stat. A tool is a choice, not a number on the hero: this is the one thing a run reads from `TreeRanks`.
+- **R-MET-25** The first-run pool, on a fresh save:
+
+| Item | Fresh save | How it opens |
+|---|---|---|
+| Keepers Storm, Forge, Tide | in | always |
+| Keepers Shade, Radiance, Quicksilver | out | `Keeper.<Path>` in `Unlocked`; no writer yet (Open) |
+| The nine S1 archetype Keys | in | always; R-OFF-07 |
+| Keys of the S2 archetypes | with their Keeper | always, once that Keeper is met |
+| Amp1, Amp2, Trait of every archetype | out | `Branch.<Path>.Blessing4`, `Blessing5` |
+| `Transform.<Path>` | out | `Branch.<Path>.Reforge` |
+| `Evolve.<Weapon>` | in | always: the weapon in hand is its gate, and the source's Fusion row is the Keeper's `[invented]` |
+| `starter=yes` weapons and modifiers | in | always |
+| `starter=no` weapons and modifiers | out | their id in `Unlocked`, from Discoveries |
+| `Reaction.Duos` | out | its id in `Unlocked`; no writer yet (Open) |
+| Reserve cards | in | always; R-OFF-12 |
+| Tools | `C.OFFER.REROLLS`, `C.OFFER.BANISH`, `C.OFFER.LOCK` | one more each from the Trunk |
+
+- **R-MET-26** A purchase checks in this order: a known node, a session with a writable file, a rank left, `requires`, the balance. It takes the price, adds the rank to `TreeRanks` and the node's ids to `Unlocked`, and autosaves as a bank does (R-MET-13): a failed write keeps the purchase in memory and the next save carries it. A tool run has no file and buys nothing. A screen calls `UDTMetaSubsystem::FindSession`, then `DTTree::ListNodes`, `GetNode`, `CanBuy` and `Buy`, and takes names from `NodeName` and `NodeDesc`.
+
 ## Numbers
 | Constant | Key | Tag | Dependents |
 |---|---|---|---|
@@ -66,6 +89,8 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Award bonus per Heat level | C.META.CURRENCY_HEAT_BONUS | GATED(S3) | R-MET-02 |
 | Story acts | C.META.ACT_START, C.META.ACT_MAX | CORE | R-MET-09 |
 | Save version | C.SAVE.VERSION | CORE | R-MET-07, R-MET-10 |
+| Node prices | C.TREE.COST_TOOL, C.TREE.COST_BLESSING4, C.TREE.COST_BLESSING5, C.TREE.COST_REFORGE | GATED(S3) | R-MET-21, T-MET-21 |
+| Tools per Trunk rank | C.TREE.TOOL_PER_RANK | GATED(S3) | R-MET-24, T-MET-20 |
 
 ## Data
 `FDTMetaProfile`, in payload order (keys are `FName`, written as strings):
@@ -75,8 +100,8 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | `Currency` | `int64` | the balance |
 | `Runs`, `Wins`, `DeathsSinceWin` | `int32` | R-MET-05 |
 | `LastPatron` | `FName` | the Path, or empty |
-| `TreeRanks` | `TMap<FName,int32>` | Tree key to rank; the Tree spec owns the keys and costs |
-| `Unlocked` | `TSet<FName>` | pool unlocks from the Tree and Discoveries |
+| `TreeRanks` | `TMap<FName,int32>` | node id to rank; `tree.csv` owns the keys and costs |
+| `Unlocked` | `TSet<FName>` | pool ids from the Tree and Discoveries: `Blessing.*`, `Transform.*`, `Weapon.*`, `Mod.*`, `Keeper.*`, `Reaction.Duos` |
 | `Discoveries` | `TSet<FName>` | earned discoveries; a set, so a repeat is nothing |
 | `LifetimeStats` | `TMap<FName,int64>` | `Steps Kills Elites BossKills CurrencyEarned` plus every run counter |
 | `Act` | `int32` | `C.META.ACT_START` until the story moves it |
@@ -93,8 +118,12 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | `FDTMetaSession` | the profile, its path and the bank; plain C++, so tests drive it on temp files |
 | `UDTMetaSubsystem` | game instance subsystem: picks the path and opens one session a launch |
 | `UDTRunRecorder` | world subsystem, the tally and the close of the run |
+| `FDTTreeNode`, `EDTTreeState`, `EDTTreeBuy` | what a screen reads: id, Path, rank, price, state (Open, Short, Locked, Maxed), what is missing |
+| `FDTPoolGrant` | `bGated Unlocked Rerolls Banishes Locks`: what the save hands a run; empty in a tool run |
+| `tree.csv` | `id class ranks cost grant grant_per_rank requires unlocks text_key tag ref` |
 | `-DTMetaFile=<path>`, `-DTNoSave` | command line, R-MET-14 |
-| `DT.Meta.Wins <n>` | debug, not in Shipping: sets the session's wins for `Tools/MetaCheck.ps1` |
+| `-DTPoolGate` | command line, R-MET-23 |
+| `DT.Meta.Wins <n>`, `DT.Meta.Currency <n>`, `DT.Tree.Buy <node\|All>` | debug, not in Shipping: set the session and buy for `Tools/MetaCheck.ps1` |
 
 ## Acceptance
 - T-MET-01 `Dusktracer.Meta.NeutralKeys`: no source file under `Meta/` holds a fiction name.
@@ -116,18 +145,26 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 - T-MET-17 `Dusktracer.Meta.WinsReachForm`: no session reads `0` and form I; a profile at `C.BOSS.FORM_II_WINS` wins reads form II; `Tools/MetaCheck.ps1` starts a real fight on a saved win and reads its wins in the log.
 - T-MET-18 `Dusktracer.Meta.ModelFields`: each field of §Data round-trips set to a value, and an all-default profile reads as empty.
 - T-MET-19 `Dusktracer.Meta.BankHook`: a hook runs after the award and before the write, and what it adds is in the file; a no-file session calls none.
-- T-MET-20 PLANNED(S3) with the Tree: every node of the catalog is `pool` or `utility`, and a full Tree changes no `FDTStatSet` value at run start.
-- `Tools/MetaCheck.ps1`, gate step `meta`: real launches off-screen. A tool launch leaves no `DTMeta.sav`; a launch with `-DTMetaFile` banks and writes; a second launch reads it and adds to it; a corrupted file goes aside byte for byte and a fresh one is written; a saved win reaches a real fight.
-- HUMAN: the line on the run-over screen reads well at the largest text size, and the award feels worth a run once there is something to spend it on.
+- T-MET-20 `Dusktracer.Meta.TreeCatalog`: every node of the catalog is `pool` or `utility`, a pool node grants nothing and a utility node only a tool; a full Tree changes the run start's tool counts and nothing else of the player. `FDTStatSet` does not exist as a type, so `Tools/MetaCheck.ps1` proves the rest on a real launch: a full Tree, gate on, plays the same input hash, steps and CSV as a tool run.
+- T-MET-21 `Dusktracer.Meta.TreeBuy`: exact money buys and leaves zero; unknown node, prerequisite, maxed, short and no-file are refused and spend nothing; the rank, the unlocks and the balance are in the file before `Buy` returns; the list and the four tile states read true.
+- T-MET-22 `Dusktracer.Meta.PoolGate`: a gated pool offers a locked id only from `Unlocked`, each node opens what R-MET-22 says, a shut Path row yields its slot with the hand whole, and an ungated pool has everything; this automation process does not gate.
+- T-MET-23 `Dusktracer.Meta.FirstRunPool`: on an empty profile every row of R-MET-25 reads as the table says, across every catalog row.
+- T-MET-24 `Dusktracer.Meta.TreeGrant`: a Trunk rank is its tools; a rank above the catalog's reads as the catalog's; an unknown key adds nothing.
+- T-MET-25 `Dusktracer.Meta.TreeText`: every node's name and line resolve in en and zh-Hans with no key or brace left.
+- T-MET-26 `Dusktracer.Meta.TreeBuyWrite`: a purchase through a blocked write stays in memory and the next purchase's file carries both; a stuck session sells nothing.
+- `Tools/MetaCheck.ps1`, gate step `meta`: real launches off-screen. A tool launch leaves no `DTMeta.sav`; a launch with `-DTMetaFile` banks and writes; a second launch reads it and adds to it; a corrupted file goes aside byte for byte and a fresh one is written; a saved win reaches a real fight; a full Tree under `-DTPoolGate` plays the tool run's seed exactly; `-DTPoolGate` with no save shows Keys and no locked card in any hand.
+- HUMAN: the line on the run-over screen reads well at the largest text size, and the award feels worth a run once there is something to spend it on; a first run reads as a game and not as a locked one (`Docs/Validation/S3_tree.md`).
 
 ## Telemetry
 `run_award{end retained steps kills elites boss heat}`, once per banked run, before `run_end`. Run-derived only: it holds no balance and no save field, so R-MET-16 holds and R-TEL-08 keeps it deterministic. `end` reads `victory`, `death` or `left`.
 
 ## Text
-`ST_UI.Summary.Line`: one row, en and zh-Hans. The wording comes from `Summary.Retained` and `RunSummary.Balance` of the source tables, joined on one line. Name of the currency: Ichor, 神血 (`G01_Name.md`, `Glossary.md`). Every other source row with Ichor in it (`Tree.*`, `Summary.*`) waits for its screen.
+`ST_UI.Summary.Line`: one row, en and zh-Hans. The wording comes from `Summary.Retained` and `RunSummary.Balance` of the source tables, joined on one line. Name of the currency: Ichor, 神血 (`G01_Name.md`, `Glossary.md`). The other source `Summary.*` rows wait for their screen.
+
+`ST_Tree`, a new table, en and zh-Hans: the source's `Tree.*` rows for kept nodes and the screen's states, none for a cut node (D-023). A node's `text_key` gives `<key>.Name` and `<key>.Desc`; `Desc` takes the Keeper's name and the tool count. The two blessing lines are rewritten, because a node opens more than one card. No row carries a story layer: surface text. Invented zh is listed in `Docs/Validation/S3_tree.md`.
 
 ## Out of scope
-- The Tree, its costs and screen; Discoveries and their table; the Hub; Codex layers; the return line after a death. The fields exist; the systems are their own specs.
+- The Tree's screen; Discoveries and their table; the Hub; Codex layers; the return line after a death. The fields exist; the systems are their own specs.
 - Heat, Keeper Bids (Lien), Omens and Off-ledger shares, all of which change the award later; the Currency Reserve card (`offers.md`).
 - Cloud saves, several profiles, a save-reset screen, a backup copy beyond R-MET-12.
 - Co-op: one profile, the team's tally. A second profile is `coop.md`'s to ask for.
@@ -136,5 +173,8 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Question | Data that resolves it |
 |---|---|
 | Does Luck stay out? It raises rarity, but `offers.md` lists it as meta | a human reading of the pool once the Tree exists |
-| Is the award's scale right? The source's costs are unknown here | the Tree spec's cost table against a bot run's award |
+| Is the award's scale right? The bound is seven wins for the whole Tree, four for the three S1 Keepers (`S3_tree.md`) | a human's award per run |
+| Who writes `Keeper.<Path>` and `Reaction.Duos`? No discovery in `ST_Discoveries` names them, so a person cannot meet an S2 Keeper or a duo, and those three branches stay locked | the Discoveries spec, or a new Tree row by decision |
+| The narrow pool beat the full pool for the bot (74 wins to 47 of 90): do unlocks cost power? | a human reading on a fresh and a full profile (`S3_tree.md`) |
+| Should the source's capstones go back to a Discovery? | the Discoveries spec; a Trait is then named by that row and taken out of its node's `unlocks` |
 | Should a quit forfeit the award, to stop a mid-run exit hiding a death from `DeathsSinceWin`? | a human reading; it only moves the return line |

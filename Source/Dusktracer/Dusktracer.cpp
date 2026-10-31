@@ -25,6 +25,7 @@ public:
 		LOCTABLE_FROMFILE_GAME("ST_KeeperLines", "ST_KeeperLines", "DT/Text/Generated/ST_KeeperLines.csv");
 		LOCTABLE_FROMFILE_GAME("ST_World", "ST_World", "DT/Text/Generated/ST_World.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Discoveries", "ST_Discoveries", "DT/Text/Generated/ST_Discoveries.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Tree", "ST_Tree", "DT/Text/Generated/ST_Tree.csv");
 	}
 };
 

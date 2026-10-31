@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
+#include "Meta/DTMetaSubsystem.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -81,6 +82,22 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	{
 		StepEndHandle = SimSys->OnStepEnd.AddUObject(this, &UDTOfferSubsystem::HandleStepEnd);
 	}
+	RunGrant = UDTMetaSubsystem::GetRunGrant(&InWorld);
+	if (RunGrant.bGated)
+	{
+		// Weapons, modifiers, Keepers and Reaction.Duos take the DT.Unlock route, so Mod.Refit's draw sees them too; Tree-locked ids go through MakePool.
+		if (UDTWeaponSubsystem* Weapons = InWorld.GetSubsystem<UDTWeaponSubsystem>())
+		{
+			for (const FName& Id : RunGrant.Unlocked)
+			{
+				if (!DTOffers::IsTreeLocked(Id))
+				{
+					Weapons->Unlock(Id);
+				}
+			}
+		}
+		UE_LOG(LogDT, Log, TEXT("Offers: pool gated, %d unlocked, tools +%d +%d +%d"), RunGrant.Unlocked.Num(), RunGrant.Rerolls, RunGrant.Banishes, RunGrant.Locks);
+	}
 }
 
 TStatId UDTOfferSubsystem::GetStatId() const
@@ -119,6 +136,10 @@ void UDTOfferSubsystem::SyncPlayers()
 	{
 		Flows.Reset();
 		Flows.SetNum(Run->GetNumPlayers());
+		for (int32 Owner = 0; Owner < Run->GetNumPlayers(); ++Owner)
+		{
+			DTOffers::ApplyGrant(Run->GetPlayer(Owner).Offer, RunGrant);
+		}
 	}
 	for (int32 Owner = 0; Owner < Run->GetNumPlayers(); ++Owner)
 	{
@@ -187,6 +208,14 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 		if (Weapons->IsInPool(DTOffers::KeeperId(Path)) && !DTOffers::RunKeepers().Contains(Path))
 		{
 			Pool.Unlocked.Add(DTOffers::KeeperId(Path));
+		}
+	}
+	Pool.bMetaGate = RunGrant.bGated; // meta.md R-MET-22
+	for (const FName& Id : RunGrant.Unlocked)
+	{
+		if (DTOffers::IsTreeLocked(Id))
+		{
+			Pool.Unlocked.Add(Id);
 		}
 	}
 	// Sockets are checked against the caps the weapon expresses now (conversions included), as UDTWeaponSubsystem::Socket does.

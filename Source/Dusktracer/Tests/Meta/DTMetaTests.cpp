@@ -697,7 +697,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetReaders, "Dusktracer.Meta.Readers", DTMet
 bool FDTMetReaders::RunTest(const FString& Parameters)
 {
 	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GameSourceDir(), TEXT("Dusktracer")));
-	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp") };
+	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Offers/DTOfferSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Meta/DTMetaSession.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "DTMetaSubsystem.generated.h"
 
@@ -23,6 +24,10 @@ public:
 	static FDTMetaSession* FindSession(const UObject* WorldContext);
 	/** R-MET-17: 0 with no session. */
 	static int32 GetWins(const UObject* WorldContext);
+	/** R-MET-23: a person's launch, or a tool that asks with -DTPoolGate. */
+	static bool GatesPool();
+	/** R-MET-22: what the save hands this run. No session, or a process that does not gate, hands nothing. */
+	static FDTPoolGrant GetRunGrant(const UObject* WorldContext);
 
 private:
 	FDTMetaSession Session;

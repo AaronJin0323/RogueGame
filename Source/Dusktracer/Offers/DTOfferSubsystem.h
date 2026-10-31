@@ -138,6 +138,8 @@ private:
 	void SetCursor(bool bShow);
 
 	TArray<FPlayerFlow> Flows;
+	/** Read from the save once per world (meta.md R-MET-22): a purchase counts from the next run. */
+	FDTPoolGrant RunGrant;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
 	int64 LastStep = -1;
 	FDelegateHandle StepEndHandle;
