@@ -21,6 +21,7 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 - **R-BOT-09** Reach fit: the bot records how far the nearest enemy rim stays from the hero over the last `ReachWindowS` of the run, and weighs a new weapon, an upgrade and (at half weight) a modifier by the share of those samples the weapon's reach covers. Reach is read from `DTCat::WeaponLevels` for the card's weapon, at its owned level: `radius_uu` for `MeleeArc`, `range_uu` for the others. A weapon the bot's range cannot use loses to one it can, whatever its Path fit; but reach chooses between weapons, not whether to own a second: below two weapons a new weapon still beats an upgrade (`SecondWeaponFloor`). Before `ReachMinSamples` samples the share is its reach over `ReachPriorUU`.
 - **R-BOT-10** Second Keeper: until the second Keeper holds a blessing, its blessings outrank every card but the archetype's own Key and first Amp; after that they still outrank upgrades (`SecondFirstScore`, `SecondNextScore`). A second Keeper does not sit unblessed through a run of upgrades.
 - **R-BOT-15** Reforging: a hand with Reforging cards reads one of them by run seed, cycling Patron, second Keeper, evolution, so one batch reads all three (`reforging.md`). It takes a Reforging card over any filler blessing, and when the seed's card is missing it takes the next. This is a measuring choice, not a model of what a player likes. V1 stays as it was (R-BOT-01): a Reforging card scores its flat floor.
+- **R-BOT-16** `-DTBotPrimaryFirst` is a measuring arm, off by default: while the primary weapon (`weapons.md` R-WPN-03) is under `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL`, its upgrade outranks every card. It separates what the offers supply from what the card rules choose; it models no player. `config=` names it.
 - **R-BOT-11** Card error: below `1.0` the bot reads each card's value through a taste: a score offset fixed per content id for the whole run (`TasteScore`), so it keeps misjudging the same card rather than rolling dice per hand. The fit terms of R-BOT-09 and R-BOT-10 count at weight `skill`: a weak player sees them less. Keeper cards take no taste: the Patron and second Keeper name the arm, and an arm must stay the arm it says it is.
 
 **Reading it**
@@ -56,6 +57,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - T-BOT-09 `Dusktracer.Bot.CardReach`: with the hero's range sampled wider than the Arc Blade, Orbital Drones win that hand and an Arc Blade upgrade loses to a usable one; with a close range the blade stands; with one weapon owned the blade still beats an upgrade.
 - T-BOT-10 `Dusktracer.Bot.CardSecond`: with no second-Keeper blessing owned the Key beats an upgrade and a new weapon; after one, a second-Keeper card still beats an upgrade; the archetype's own Key still comes first.
 - T-BOT-15 `Dusktracer.Bot.CardReforge`: three seeds in a row take the three cards; a Reforging card beats a filler blessing; a missing card falls to the next.
+- T-BOT-16 `Dusktracer.Bot.CardPrimaryFirst`: off, the Key; on, the primary's upgrade over the Key and another weapon's upgrade; at the level, the Key again.
 - T-BOT-11 `Dusktracer.Bot.CardTaste`: no taste at skill `1.0`; below it the same card reads the same score across hands of a run, differs by seed, and Keeper hands ignore it.
 - T-BOT-12 `Tools/tools_test.py` `BotHistogram`: death minutes bin per arm, wins and timeouts stay out of the histogram, `Tools/bot_compare.py` lines up two batches.
 - T-BOT-13 `Tools/tools_test.py` `BotLabel`: the summary names version and skill read from the records and says a batch mixes them.
@@ -63,7 +65,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - HUMAN: not measured. When O-008 sessions exist, compare human boss reach, death minute and pickup against the skill rows of `Docs/Validation/S2_bot_v2.md`, and only then call any setting a player.
 
 ## Telemetry
-- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>`, `hits=`, `hits_still=`, `hits_wall=`, `reforge=<id>`, and `config=` gains `version=`. The game's telemetry is unchanged.
+- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>`, `hits=`, `hits_still=`, `hits_wall=`, `reforge=<id>`, `reforge_read=` (`reforging.md` Telemetry), and `config=` gains `version=`. The game's telemetry is unchanged.
 
 ## Text
 - None: a tool, never player-facing.
