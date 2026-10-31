@@ -38,7 +38,7 @@ Do not explain Keepers, archetypes, flags, Intercession or the card kinds.
 5. "What would make you play again?"
 
 ## After the session
-- Hand over: double-click `ExportTelemetry.bat`. It makes `Dusktracer_Telemetry_<time>.zip` on the desktop (one CSV + JSONL per run, from `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, and a `MANIFEST.txt`) and prints the path. Nothing leaves the PC by itself: you carry the zip. Send the scheduler the zip and this sheet; nothing else is needed: per-minute damage taken, dashes, decisions and the damage split by source are in the logs.
+- Hand over: double-click `Export_Logs.bat`. It makes `Dusktracer_Logs_<date>_<time>.zip` on the desktop (one CSV + JSONL per run, from `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, any game log with the Windows user and PC names hidden, and a `MANIFEST.txt`) and prints the path. Nothing leaves the PC by itself: you carry the zip. Send the scheduler the zip and this sheet; nothing else is needed: per-minute damage taken, dashes, decisions and the damage split by source are in the logs.
 - What the zip holds: gameplay only (seed, build hash, culture, last input device, combat numbers, cards offered and picked, Keeper and weapon choices, the local start time). No name, account, machine name, path or hardware. This build writes no engine log; `-IncludeLogs` adds log and crash folders if any exist, and those can name the Windows user, so it is off by default.
 - Crash: note the time on the sheet. The run's file has no `run_end`; the seed in its file name replays the start on the proof build.
 - Sessions on one PC share the folder: the zip holds every run so far, so tell runs apart by the start time noted on this sheet.
