@@ -600,8 +600,6 @@ namespace DTCat
 	// first_run_locked.csv: starter rows a gated pool holds shut until Unlocked names them (meta.md R-MET-25).
 	inline constexpr const TCHAR* FirstRunLocked[] =
 	{
-		TEXT("Weapon.ArcBlade"),
-		TEXT("Weapon.RingEmitter"),
 		TEXT("Mod.ScatterShell"),
 		TEXT("Mod.ChainTrigger"),
 		TEXT("Mod.Conduit"),

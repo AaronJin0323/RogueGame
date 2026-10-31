@@ -71,34 +71,32 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Amp1, Amp2, Trait of every archetype | out | `Branch.<Path>.Blessing4`, `Blessing5` |
 | `Transform.<Path>` | out | `Branch.<Path>.Reforge` |
 | `Evolve.<Weapon>` | in | always: the weapon in hand is its gate, and the source's Fusion row is the Keeper's `[invented]` |
-| `Weapon.PulseRifle`, `Weapon.OrbitalDrones`; `Mod.SplitCore`, `Mod.Pierce`, `Mod.Mirror`, `Mod.Backwash` | in | always: the `starter=yes` rows `first_run_locked.csv` does not name |
-| The six rows of `first_run_locked.csv` | out | their id in `Unlocked`, from the Discovery in `door` |
+| `Weapon.PulseRifle`, `Weapon.RingEmitter`, `Weapon.OrbitalDrones`, `Weapon.ArcBlade`; `Mod.SplitCore`, `Mod.Pierce`, `Mod.Mirror`, `Mod.Backwash` | in | always: the `starter=yes` rows `first_run_locked.csv` does not name |
+| The four rows of `first_run_locked.csv` | out | their id in `Unlocked`, from the Discovery in `door` |
 | `starter=no` weapons and modifiers | out | their id in `Unlocked`, from a Discovery or a Trunk node; no row without one (R-MET-27) |
 | `Reaction.Duos` | out | its id in `Unlocked`; no writer yet (Open) |
 | Reserve cards | in | always; R-OFF-12 |
 | Tools | `C.OFFER.REROLLS`, `C.OFFER.BANISH`, `C.OFFER.LOCK` | one more each from the Trunk |
 
-`first_run_locked.csv` holds the source's Discovery targets that are `starter=yes` here (GDD §8.3), because a Discovery that opens what is already open earns nothing `[invented]`, D-024. The column stays the tool pool: `starter` is what a tool run reads (R-MET-23), and a gated pool reads this file on top of it. The generator fails on a row that is not `starter=yes` and on `Weapon.PulseRifle` (the start, D-015).
+`first_run_locked.csv` holds four of the six Discovery targets (GDD §8.3) that are `starter=yes` here, so their key opens a card `[invented]`, D-024. `Weapon.ArcBlade` and `Weapon.RingEmitter` stay open: shutting them thins a first run past R-OFF-15 (`S3_tree.md`), so `Freeze100` opens no card and `Survive10` only `Weapon.SeekerSwarm`. The column stays the tool pool: `starter` is what a tool run reads (R-MET-23), and a gated pool reads this file on top of it. The generator fails on a row that is not `starter=yes` and on `Weapon.PulseRifle` (the start, D-015). A change to this list is read with `Tools/BotRuns.ps1 -FreshPool -Check T-OFF-15`, because the gate's T-OFF-15 reads the tool pool and cannot see it.
 
 | Id | Door |
 |---|---|
-| `Weapon.ArcBlade` | `Survive10` |
-| `Weapon.RingEmitter` | `Freeze100` |
 | `Mod.ScatterShell` | `ScatterKills500` |
 | `Mod.ChainTrigger` | `Elite3Mods` |
 | `Mod.Conduit` | `Win` |
 | `Mod.LingeringField` | `DroneKills300` |
 
-R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: there the Pulse Rifle fits all four open modifiers, and the Orbital Drones only `Mod.Pierce` and `Mod.Backwash`, under `C.MOD.MIN_COMPATIBLE`.
+R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: by caps, of the four open modifiers the Pulse Rifle fits four, the Ring Emitter three, and the Orbital Drones and Arc Blade two each, under `C.MOD.MIN_COMPATIBLE`.
 
 - **R-MET-26** A purchase checks in this order: a known node, a session with a writable file, a rank left, `requires`, the balance. It takes the price, adds the rank to `TreeRanks` and the node's ids to `Unlocked`, and autosaves as a bank does (R-MET-13): a failed write keeps the purchase in memory and the next save carries it. A tool run has no file and buys nothing. A screen calls `UDTMetaSubsystem::FindSession`, then `DTTree::ListNodes`, `GetNode`, `CanBuy` and `Buy`, and takes names from `NodeName` and `NodeDesc`.
-- **R-MET-27** Every Discovery has a door on a person's save or is listed here as shut. A row is shut only for what the table says; nothing is removed. Every "after" row is a purchase, and a person has no way to buy until the Contracts page exists: `DTHubTabs::SetTreeFactory` has no factory yet, so that tab is empty (`vigil.md` R-VIG-12). The generator fails on a `starter=no` row with neither a node nor a Discovery, on a `starter=yes` Discovery target missing from `first_run_locked.csv`, and on a `door` that does not name its row.
+- **R-MET-27** Every Discovery has a door on a person's save or is listed here as shut. A row is shut only for what the table says; nothing is removed. Every "after" row is a purchase, and a person has no way to buy until the Contracts page exists: `DTHubTabs::SetTreeFactory` has no factory yet, so that tab is empty (`vigil.md` R-VIG-12). The generator fails on a `starter=no` row with neither a node nor a Discovery, on a `starter=yes` Discovery target left out of `first_run_locked.csv` other than the two weapons of R-MET-25, and on a `door` that does not name its row.
 
 | Discovery | State on a person's save | Why |
 |---|---|---|
 | `ReachL10`, `Survive10`, `Kills1000`, `WeaponL8`, `Dashes100`, `Win` | open on a first run | a level, the clock, kills, the rifle, dashes, the boss |
 | `DroneKills300` | open on a first run | `Weapon.OrbitalDrones` is in the first-run pool |
-| `Freeze100` | open on a first run | the Keys of Frost and Stillness freeze |
+| `Freeze100` | open on a first run | the Keys of Frost and Stillness freeze; it opens no card (R-MET-25) |
 | `Elite3Mods` | open on a first run | the Pulse Rifle fits all four open modifiers |
 | `Favor9` | after `Branch.<Path>.Blessing4` | Tier 3 takes nine cards of one Keeper; a first run holds three Keys |
 | `TwoPaths6` | after `Blessing4` on two Paths | Tier 2 takes six cards of each |
@@ -198,7 +196,7 @@ R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: there
 - T-MET-20 `Dusktracer.Meta.TreeCatalog`: every node of the catalog is `pool` or `utility`, a pool node grants nothing and a utility node only a tool; a full Tree changes the run start's tool counts and nothing else of the player. `FDTStatSet` does not exist as a type, so `Tools/MetaCheck.ps1` proves the rest on a real launch: `DT.Tree.Buy ToolPool`, gate on, plays the same input hash, steps and CSV as a tool run. The three Trunk pool nodes widen past a tool run's pool, so that launch leaves them out; the catalog check above is what binds them.
 - T-MET-21 `Dusktracer.Meta.TreeBuy`: exact money buys and leaves zero; unknown node, prerequisite, maxed, short and no-file are refused and spend nothing; the rank, the unlocks and the balance are in the file before `Buy` returns; the list and the four tile states read true.
 - T-MET-22 `Dusktracer.Meta.PoolGate`: a gated pool offers a locked id only from `Unlocked`, each node opens what R-MET-21 and R-MET-22 say, a shut Path row yields its slot with the hand whole, and an ungated pool has everything; this automation process does not gate. `Dusktracer.Arsenal.Refit`: a shut starter stays out of `Mod.Refit`'s draw and an unlocked id comes in.
-- T-MET-23 `Dusktracer.Meta.FirstRunPool`: on an empty profile every row of R-MET-25 reads as the table says, across every catalog row: two weapons, four modifiers, the start among them; a Discovery's key opens a first-run lock; an ungated pool holds them.
+- T-MET-23 `Dusktracer.Meta.FirstRunPool`: on an empty profile every row of R-MET-25 reads as the table says, across every catalog row: four weapons, four modifiers, the start among them; a Discovery's key opens a first-run lock; an ungated pool holds it.
 - T-MET-24 `Dusktracer.Meta.TreeGrant`: a Trunk rank is its tools; a rank above the catalog's reads as the catalog's; an unknown key adds nothing.
 - T-MET-25 `Dusktracer.Meta.TreeText`: every node's name and line resolve in en and zh-Hans with no key or brace left.
 - T-MET-26 `Dusktracer.Meta.TreeBuyWrite`: a purchase through a blocked write stays in memory and the next purchase's file carries both; a stuck session sells nothing.
@@ -233,8 +231,9 @@ R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: there
 | Does Luck stay out? It raises rarity, but `offers.md` lists it as meta | a human reading of the pool once the Tree exists |
 | Is the award's scale right? The bound is eight wins for the whole Tree, five for the Trunk and the three S1 Keepers (`S3_tree.md`) | a human's award per run |
 | Who writes `Keeper.<Path>` and `Reaction.Duos`? No Discovery names them, so a person cannot meet an S2 Keeper or a duo, those three branches stay locked, and `Crit500` stays unreachable (R-MET-27) | a new Discovery or Tree row, by decision |
-| The narrow pool beat the full pool for the bot: do unlocks cost power? | a human reading on a fresh and a full profile (`S3_tree.md`) |
-| A first run's Orbital Drones fit two modifiers: does a thin socket choice want a different opening pair? | a human reading on a fresh profile |
+| The narrow pool beat the full pool for the bot (69 wins to 47 of 90): do unlocks cost power? | a human reading on a fresh and a full profile (`S3_tree.md`) |
+| On a first run the Orbital Drones and the Arc Blade fit two open modifiers each: is that too thin a socket choice? | a human reading on a fresh profile |
+| Should `Freeze100` open a card? The Ring Emitter stays in the first pool for R-OFF-15 | a writer's call on the row, or first-run content that lets the weapon be shut |
 | Should the source's capstones go back to a Discovery? None of the 15 rows is one | a writer's call on a row; a Trait is then named by that row and taken out of its node's `unlocks` |
 | Should a quit forfeit the award, to stop a mid-run exit hiding a death from `DeathsSinceWin`? | a human reading; it only moves the return line |
 | `Elites10` cannot fire: arena 1 spawns 2 + 3 + 4 = 9 elites a run. Does its threshold drop, or do elites grow? | a writer's call on the row; the text says 10, so the number stays until then (`S3_discoveries.md`) |

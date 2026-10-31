@@ -125,7 +125,7 @@ $null = Take-Csv
 $LogG2 = Invoke-Run "g2" @("-DTMetaFile=`"$TreeSave`"", "-DTPoolGate")
 $CsvG = Take-Csv
 $G = Read-Record "g2"
-$TreeOk = (Find-Log $LogG1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogG2 "Offers: pool gated, 36 unlocked, tools \+1 \+1 \+1") -and
+$TreeOk = (Find-Log $LogG1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogG2 "Offers: pool gated, 34 unlocked, tools \+1 \+1 \+1") -and
 	($G["input_hash"] -eq $A["input_hash"]) -and ($G["steps"] -eq $A["steps"]) -and ($CsvG -ceq $CsvA)
 
 # H: a tool asks for a person's first pool: no file, no unlock, and no locked card in a hand.
@@ -133,7 +133,7 @@ $LogH = Invoke-Run "h" @("-DTPoolGate")
 $Jsonl = Get-ChildItem $Playtests -Filter "${Seed}_*.jsonl" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
 $Hands = if ($Jsonl) { [IO.File]::ReadAllText($Jsonl.FullName) } else { "" }
 $null = Take-Csv
-$FirstOk = (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Weapon\.(ArcBlade|RingEmitter)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
+$FirstOk = (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
 
 $Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}, discovery saved={11}, no file earns none={12}, tool pool plays the same={13}, first-run pool={14}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk, $DiscoveryOk, $NoFileOk, $TreeOk, $FirstOk
 if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk -and $DiscoveryOk -and $NoFileOk -and $TreeOk -and $FirstOk) {

@@ -54,7 +54,7 @@ The source's Divine Conduit is `Mod.Conduit` here, the same rule under a shorter
 ## For the pool gating work
 
 - Written keys: `Discovery.<Id>` for each earned row, and targets as catalog ids: `Weapon.FlakMortar Weapon.ArcBlade Weapon.SeekerSwarm Weapon.RingEmitter Weapon.SpiralProjector Weapon.GravityMine Mod.ScatterShell Mod.ChainTrigger Mod.Conduit Mod.SpreadWave Mod.LingeringField` (R-MET-43).
-- Six targets are `starter = yes`, so their key would open nothing: `Weapon.ArcBlade`, `Weapon.RingEmitter`, `Mod.ScatterShell`, `Mod.ChainTrigger`, `Mod.Conduit`, `Mod.LingeringField`. `first_run_locked.csv` now shuts them in a gated pool (D-024).
+- Six targets are `starter = yes`, so their key would open nothing: `Weapon.ArcBlade`, `Weapon.RingEmitter`, `Mod.ScatterShell`, `Mod.ChainTrigger`, `Mod.Conduit`, `Mod.LingeringField`. `first_run_locked.csv` now shuts the four modifiers in a gated pool; the two weapons stay open, because shutting them fails R-OFF-15 (D-024).
 - Nine `starter = no` rows have no Discovery opening them: `Weapon.ScatterCannon`, `Weapon.RailLance`, `Mod.Fork`, `Mod.Ricochet`, `Mod.Homing`, `Mod.OrbitLock`, `Mod.Boomerang`, `Mod.Spillover`, `Mod.Refit`. The Trunk's three pool nodes now open them (D-024).
 - `Freeze100` opens the Ring Emitter from a Keeper's status, and `ScatterKills500` opens a modifier from a weapon that is itself locked. Both are the source's; neither was changed.
 

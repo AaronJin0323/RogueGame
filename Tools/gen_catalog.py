@@ -669,6 +669,10 @@ def gen_discoveries(ctx):
 	return out
 
 
+# meta.md R-MET-25: Discovery targets a first run keeps open, because shutting them fails R-OFF-15.
+FIRST_RUN_OPEN_TARGETS = {"Weapon.ArcBlade", "Weapon.RingEmitter"}
+
+
 def check_doors(ctx):
 	"""meta.md R-MET-25, R-MET-27: every pool row has a door, and a door opens something shut."""
 	def rows(name):  # each already checked in full by its own reader
@@ -683,7 +687,7 @@ def check_doors(ctx):
 		if item not in nodes and item not in opened:
 			ctx.err("tree.csv", f"'{item}' is starter=no with no node and no Discovery: it could never enter a person's pool")
 	for item in sorted(opened):
-		if starter.get(item) and item not in locked:
+		if starter.get(item) and item not in locked and item not in FIRST_RUN_OPEN_TARGETS:
 			ctx.err("first_run_locked.csv", f"'{item}' is a Discovery target and starter=yes: its key opens nothing unless a row here shuts it")
 	for item, door in sorted(locked.items()):
 		if item not in targets.get(door, []):

@@ -292,16 +292,16 @@ bool FDTTreeFirstRun::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("%s: a starter row with no first-run lock"), DTCat::Modifiers[Mod].Id), DTOffers::IsModInPool(Mod, Fresh), bFirst);
 		Mods += bFirst ? 1 : 0;
 	}
-	TestEqual(TEXT("two weapons"), Weapons, 2);
+	TestEqual(TEXT("four weapons"), Weapons, 4);
 	TestEqual(TEXT("four modifiers"), Mods, 4);
 	TestTrue(TEXT("the starting weapon is in"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.PulseRifle")), Fresh));
 	FDTMetaProfile Opened;
-	Opened.Unlocked.Add(TEXT("Weapon.ArcBlade"));
 	Opened.Unlocked.Add(TEXT("Mod.Conduit"));
 	const FDTOfferPool Later = GatedPool(Opened);
-	TestTrue(TEXT("a Discovery's key opens a first-run lock"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.ArcBlade")), Later));
-	TestTrue(TEXT("and a modifier's"), DTOffers::IsModInPool(DTWeapons::FindModifier(TEXT("Mod.Conduit")), Later));
-	TestTrue(TEXT("an ungated pool holds them"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.ArcBlade")), FDTOfferPool()));
+	const int32 Conduit = DTWeapons::FindModifier(TEXT("Mod.Conduit"));
+	TestFalse(TEXT("a first-run lock is shut"), DTOffers::IsModInPool(Conduit, Fresh));
+	TestTrue(TEXT("a Discovery's key opens it"), DTOffers::IsModInPool(Conduit, Later));
+	TestTrue(TEXT("an ungated pool holds it"), DTOffers::IsModInPool(Conduit, FDTOfferPool()));
 	TestEqual(TEXT("three Keepers in a fresh run"), DTOffers::RunKeepers(Fresh).Num(), 3);
 	return true;
 }
