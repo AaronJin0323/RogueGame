@@ -22,7 +22,8 @@ $WorkDir = Join-Path $Root "Saved\PadCheck"
 $Playtests = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
 $DevPlaytests = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
-$MarkerSeed = 770077
+# A seed of its own: every package's Shipping writes to one %LOCALAPPDATA%, and two checks on one seed in one second open one file (S3_package.md).
+$MarkerSeed = 770000 + ($PID % 100000)
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
 
 function Stop-Check([string]$Verdict, [int]$Code) { Write-Host "PADCHECK: $Verdict"; exit $Code }

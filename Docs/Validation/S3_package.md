@@ -49,6 +49,7 @@ The path works in the package. No cook, staging, text or save failure was found.
 - **Shipping ignores a map on its command line** (`UGameInstance::StartGameInstance`, `UE_ALLOW_MAP_OVERRIDE_IN_SHIPPING`), so no `?DTSeed=...?DTPatron=...` can start a person's run there. The `$Map` that `PadCheck` and `PackageRestartCheck` pass to Shipping does nothing; `-DTSeed` is what they rely on.
 - `Hub: open` logs an empty `LastPatron` as `None`. An abandoned run's `run_award` reads `end` `death`, as R-MET-05 counts it; `run_end` reads `abandoned`.
 - A dirty Development build stamps `build` `<hash>+dirty`, which breaks the byte compare against a clean Shipping. Only a clean package reads E.
+- `Tools/PadCheck.ps1` and `Tools/PackageRestartCheck.ps1` launch Shipping with no `-userdir`, so their tool runs land in the owner's folder and clean up after themselves there, by seed. They open no save, and `T-PKG-05` asks for that folder. Two tracks at once collided: the gate's `pad` failed here with `first record is not run_start` while another worktree's `PadCheck` ran on the same marker seed, both writing one `770077_<second>.jsonl`. `PadCheck` now takes its seed from its process. `PackageRestartCheck` was not run on this package: it deletes by seed in that folder, and this check reads its T-TEC-15 for it.
 
 ## Shipping
 
