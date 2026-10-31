@@ -54,6 +54,8 @@
 |---|---|---|---|
 | Intercession | Intercession | 神临 | The one ultimate; one input. Its content varies by archetype, never its key. |
 | Blessing | Advance | 预支 | A Keeper card: key, amplifier or trait of an archetype. |
+| Reaction | Reaction | 反应 | What happens when two Keepers' effects meet on one enemy (`reactions.md`). |
+| Duo | Duo | 双司 | The card that belongs to both of a player's Keepers and strengthens their reaction. |
 | Reforging | Reforging | 神铸 | The L16 qualitative transformation offer. |
 | Favor | Favor | 神眷 | |
 | Ichor | Ichor | 神血 | Meta currency. |

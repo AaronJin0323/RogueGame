@@ -124,4 +124,5 @@ Per-pair numbers are `GATED(S2)` starting values in `09_Catalog/reactions.csv`, 
 ## Open
 - All per-pair numbers: read by bots only (`Docs/Validation/S2_duos.md`), no human reading. R-KEE-15 and R-KEE-18 are not reread here; `keepers.md` keeps its criteria.
 - Afterglow and Wildfire are thin without Momentum, since bonus speed has no other source.
+- Bot v2 scores a duo card `DTBotTuning::DuoScore`, a tool parameter, not a rule of `bot.md`.
 - Blind is still a short Freeze (R-KEE-25), so Exposure and Flash Arc inherit its limits on the boss.

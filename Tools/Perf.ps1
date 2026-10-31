@@ -144,6 +144,11 @@ Write-Host ("    GameThread  p50 {0} ms  p95 {1} ms   budget p50 <= {2}, p95 <= 
 Write-Host ("    Load        bullets p50 {0} (cap {1})  enemies p50 {2} (cap {3})  need >= {4} of cap" -f (Fmt $R.bul50), $BulletCap, (Fmt $R.enm50), $EnemyCap, $LoadMin)
 $Factor = if ($Gpu -match "4080") { $GpuProxy } else { 1.0 }
 $Gpu95Judged = $R.gpu95 * $Factor
+# A scene with Reaction.Duos proves its reactions from the run's telemetry (reactions.md).
+$Session = Select-String -Path $Log -Pattern "Telemetry: session seed=\S+ players=\d+ -> (.+)\.csv" -ErrorAction SilentlyContinue | Select-Object -Last 1
+if ($Session -and (Test-Path ($Session.Matches[0].Groups[1].Value + ".jsonl"))) {
+	Select-String -Path ($Session.Matches[0].Groups[1].Value + ".jsonl") -Pattern '"kind":"reaction".*"fires":(\{[^}]*\})' | ForEach-Object { Write-Host ("    reaction  " + $_.Matches[0].Groups[1].Value) }
+}
 Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   x{2} proxy = {3} ms, budget p95 <= {4} (C.BUDGET.GPU_MS_4070; GPU here: {5})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $Factor, (Fmt $Gpu95Judged), $GpuMax, $Gpu)
 
 $Why = @()

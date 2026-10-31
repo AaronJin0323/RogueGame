@@ -71,7 +71,7 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 | `FDTEnemyRoleDef` | struct | role stats from `C.ROLE.*`; contact damage; attack and telegraph ids (`09_Catalog/enemies.csv`) |
 | `FDTEnemyBulletPool` | SoA | `Pos PrevPos Vel Radius Damage LifeLeft TargetPlayer SourceRole AttackId` |
 | `FDTHeroHit`, `FDTHit`, `FDTKill`, `FDTDisplacement` | structs | `07_Technical §4` |
-| `FDTStatusApply` | struct | `Handle Status Magnitude OwnerId SourceId StackBonus FreezeAt FreezeScale`; `Magnitude` = Burn damage per second or Chill stacks; appended to `FDTWorldView::StatusApplies` (owned here) |
+| `FDTStatusApply` | struct | `Handle Status Magnitude OwnerId SourceId StackBonus FreezeAt FreezeScale bConsume`; `Magnitude` = Burn damage per second or Chill stacks; `bConsume` spends the status instead (`reactions.md` R-REA-07); appended to `FDTWorldView::StatusApplies` (owned here) |
 | `FDTTelegraph` | struct | `Shape(Band Ring Arc AimLine) Origin Dir Length Width Progress`; published per step, drawn in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE` in the layers of `04_Presentation` R-PRE-05 |
 | view fields | `FDTWorldView` | writers and readers: `07_Technical §4` |
 | instance custom data | `float[4]` | `0-2` linear RGB, `3` emissive strength (`M_InstanceColor`, telegraphs the unlit `M_CueColor`; fallback `Fallback_EnemyMaterial`); enemy rounds add `4-6` core linear RGB (`M_EnemyRound`, R-ENM-17) |

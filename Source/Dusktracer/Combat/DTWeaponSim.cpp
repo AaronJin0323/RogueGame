@@ -419,6 +419,8 @@ void FDTWeaponSim::ResetTransient()
 		Player.bHasHeroPos = false;
 		Player.bDashWas = false;
 		Player.TailwindLeft = 0.0f;
+		DuoHits.Reset();
+		ReactionEvents.Reset();
 		Player.ReactionsFired = 0;
 		Player.ReactionCounters.Reset();
 		Player.ReactionReadyStep.Reset();

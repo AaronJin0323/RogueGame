@@ -222,7 +222,7 @@ void UDTWeaponSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	EffectsPhase.Phase = EDTSimPhase::Effects;
 	// keepers.md R-KEE-23: the Patron hand opens before any console command runs, so a launch names its Keepers up front.
 	FString UnlockArg;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-DTUnlock="), UnlockArg))
+	if (FParse::Value(FCommandLine::Get(), TEXT("-DTUnlock="), UnlockArg, false)) // the whole list: stopping at a comma drops all but the first
 	{
 		TArray<FString> Ids;
 		UnlockArg.ParseIntoArray(Ids, TEXT(","));
