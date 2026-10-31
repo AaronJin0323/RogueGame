@@ -446,6 +446,15 @@ bool FDTReforgePulseWall::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
 	TestTrue(TEXT("the band hurts the rim"), HitsOn(H, H.Enemies.GetSerials()[Rim]) > 0);
+	// One round's damage, per enemy: the Count and Cooldown of the weapon do not enter it (D-020).
+	const float Struck = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		if (Hit.EnemySerial == H.Enemies.GetSerials()[Rim])
+		{
+			TestNearlyEqual(TEXT("a tick strikes for dps x Damage x tick_s"), Hit.Damage, Struck, 0.01f);
+		}
+	}
 	TestTrue(TEXT("and pushes it out through a displacement"), bPushed);
 	TestEqual(TEXT("positions are not written by the weapon"), H.Enemies.GetPositions()[Rim], Before);
 	TestEqual(TEXT("what the ring passed is left alone"), HitsOn(H, H.Enemies.GetSerials()[Core]), 0);

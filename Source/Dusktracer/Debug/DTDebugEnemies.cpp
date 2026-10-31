@@ -216,7 +216,7 @@ namespace DTDebugEnemies
 		}
 	}
 
-	/** DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio]: captures of enemy rounds without an attack in frame; they drift outward, away from a hero at the origin. */
+	/** DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio] [life_s]: captures of enemy rounds without an attack in frame; they drift outward, away from a hero at the origin. A long life holds them through a perf window (S2_perf.md). */
 	static void FireRing(const TArray<FString>& Args, UWorld* World)
 	{
 		if (UDTEnemySubsystem* Enemies = Find(World))
@@ -233,7 +233,7 @@ namespace DTDebugEnemies
 				Spawn.Velocity = Dir * Speed;
 				Spawn.Radius = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU);
 				Spawn.Damage = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_DAMAGE);
-				Spawn.Life = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_LIFE_S);
+				Spawn.Life = Args.IsValidIndex(3) ? FCString::Atof(*Args[3]) : static_cast<float>(DTConst::ENEMY_FIRE_SHOT_LIFE_S);
 				Spawn.TargetPlayer = 0;
 				Spawn.AttackId = FName(TEXT("Turret.Fire"));
 				Enemies->GetPool().GetRounds().Spawn(Spawn);
@@ -301,7 +301,7 @@ namespace DTDebugEnemies
 		TEXT("DT.EnemyFire.Stats: log live rounds, cap, spawned, refused, hero hits, passed through, expired, token waits"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FireStats));
 	static FAutoConsoleCommandWithWorldAndArgs FireRingCmd(TEXT("DT.EnemyFire.Ring"),
-		TEXT("DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio]: spawn a ring of enemy rounds flying outward (captures of round readability)"),
+		TEXT("DT.EnemyFire.Ring [N] [radius_uu] [speed_ratio] [life_s]: spawn a ring of enemy rounds flying outward (captures of round readability)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FireRing));
 	static FAutoConsoleCommandWithWorldAndArgs StatusCmd(TEXT("DT.Status"),
 		TEXT("DT.Status <Shock|Burn|Chill|Freeze> [N] [Magnitude] [delay_s]: apply a status to the first N enemies (0 = all) as player 0"),

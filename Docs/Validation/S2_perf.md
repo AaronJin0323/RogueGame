@@ -82,6 +82,33 @@ The real kill rate sits near 20 a second (the arrival ceiling of `S1_keeper_powe
 
 Every slot of this build runs at about the cap. It is the cap, not the crowd, that limits emission, so R-WPN-09 holds the scene.
 
+## Danger outlines on (2026-10-31)
+Branch `dev/s2-pulsewall`, game code of `dev/s2` aef431c; the only source change is a `life_s` argument on the debug command `DT.EnemyFire.Ring`. Answers the Open row of `settings.md`. Bot and human are not read here, and neither is how outlines look.
+
+```
+$Rings = "DT.EnemyFire.Ring 256 500 0.02 90,DT.EnemyFire.Ring 256 900 0.02 90,DT.EnemyFire.Ring 256 1300 0.02 90,DT.EnemyFire.Ring 256 1700 0.02 90"
+& Tools\Perf.ps1 -Cmds "DT.UI.Set outline 1,$Rings,DT.Spawn.Keep 400,DT.Bullets 6000"       # drop the first command for the arm with outlines off
+& Tools\Perf.ps1 -Scene S2 -Cmds "DT.UI.Set outline 1,$Rings,DT.PerfScene S2"
+```
+
+**The plain scenes cannot read this.** Outlines draw under enemy rounds and telegraphs. `DT/LiveEnemyRounds` is 0 in the caps scene and a median of 3 in the S2 scene, so `Perf.ps1` with the row on measures almost nothing, and it passes either way (game p95 2.46 ms and GPU p95 2.48 ms, against 2.42 and 2.46 off). The readings below hold the enemy pool full with long-lived rounds inside the camera frame. The rings are not a real attack, and a run does not hold this many rounds. The caps scene holds the whole of `C.ENEMY_FIRE.CAP`, 1024 rounds. In the S2 scene the walking hero takes about 300 of them before the window, so it holds a median of 710.
+
+Runs that read as clean, all PASS, 1800 frames at 1920x1080, two of each arm:
+
+| Scene | Enemy rounds p50 | Outlines | Game p50 / p95 ms | GPU p95 raw (proxied) | Bullets / enemies p50 |
+|---|---|---|---|---|---|
+| Caps | 1024 | off | 2.08 to 2.10 / 2.51 to 2.52 | 2.25 to 2.43 (3.59 to 3.89) | 5975 / 388 |
+| Caps | 1024 | **on** | 2.27 to 2.28 / 2.71 | 2.55 to 2.56 (4.08 to 4.09) | 5975 / 388 |
+| S2 | 709 to 712 | off | 2.97 to 2.98 / 4.39 to 4.41 | 2.97 to 2.98 (4.75 to 4.76) | 5804 / 400 |
+| S2 | 709 | **on** | 3.09 / 4.46 to 4.50 | 3.15 (5.04) | 5812 / 400 |
+| Budget | | | 8 / 10 | 12 proxied | 5700 / 380 |
+
+**Cost.** At 1024 rounds, 2048 extra instances: game about +0.2 ms at p50 and p95, GPU +0.21 ms at p50 and +0.12 to +0.30 at p95. In the S2 scene: game +0.1 at p95, GPU +0.17. All budgets hold with a wide margin. The S2 scene's game p95 also falls from the 4.86 to 6.32 of the table above; that table was contended.
+
+**Contention.** `Saved/gpu.lock` is per worktree, so it cannot see another agent's rendering. An earlier batch at this load read GPU blocks of 6 to 9 ms over parts of its windows, with outlines off as well as on. Two runs with outlines on read over budget there (proxied 12.77 and 13.05 ms), and one with them off stopped at 11.96. Other agents' Unreal processes and compilers were alive through most of that batch. A batch started only when none was alive had no frame over 5 ms in 12 runs, and held under budget even in the three runs where another process appeared during the run (proxied at most 5.52). So those two FAILs are voided as contended (`11_Quality §5`), not read as an outline cost. The table above is the eight runs with no compiler or other Unreal process in any sample.
+
+**Not read.** Telegraphs under load: neither scene keeps wind-ups live, and the window's count is not recorded, so the light band is unmeasured. It adds one instance per telegraph where a round adds two. Real hardware: the GPU is the 4080 proxy (D-011). Scales other than Epic. The S2 scene at the full 1024 rounds.
+
 ## What this proves
 - Both caps, all systems named in the brief, and counts of each, in one window, under the budgets, at a kill rate twice the real ceiling and a Steam rate 50 times the worst arm.
 - The scene fails when reactions do not fire.
