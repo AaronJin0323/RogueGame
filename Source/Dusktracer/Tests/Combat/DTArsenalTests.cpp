@@ -448,6 +448,29 @@ bool FDTArsenalRefit::RunTest(const FString& Parameters)
 		Kills(H, 3);
 		TestEqual(TEXT("not fitted full: no drop"), H.Run.GetPlayer(0).Weapons[1].Sockets.Num(), 0);
 	}
+	{
+		// A person's run (meta.md R-MET-25): a shut starter stays out of the draw, an unlocked id comes in.
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), 1);
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.RingEmitter"), 1);
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Refit"));
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Pierce"));
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Conduit"));
+		for (int32 Mod = 0; Mod < DTCat::NumModifiers; ++Mod)
+		{
+			if (DTCat::Modifiers[Mod].bStarter)
+			{
+				H.Weapons.ShutStarter(DTWeapons::ModifierId(Mod));
+			}
+		}
+		Kills(H, 2);
+		TestEqual(TEXT("every starter shut: nothing drops"), H.Run.GetPlayer(0).Weapons[1].Sockets.Num(), 0);
+		H.Weapons.Unlock(TEXT("Mod.Pierce"));
+		H.StepMany(FMath::RoundToInt(Interval / Dt));
+		Kills(H, 1);
+		const TArray<FDTWeaponInstance::FSocket>& Ring = H.Run.GetPlayer(0).Weapons[1].Sockets;
+		TestTrue(TEXT("an unlocked id is the draw"), Ring.Num() == 1 && Ring[0].ModId == FName(TEXT("Mod.Pierce")));
+	}
 	FDTHarness H;
 	H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), 1);
 	H.Weapons.Give(H.Run, 0, TEXT("Weapon.RingEmitter"), 1);

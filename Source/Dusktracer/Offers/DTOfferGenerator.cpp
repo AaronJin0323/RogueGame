@@ -340,7 +340,7 @@ bool DTOffers::IsWeaponInPool(int32 Weapon, const FDTOfferPool& Pool)
 	{
 		return true;
 	}
-	if (!DTCat::Weapons[Weapon].bStarter)
+	if (!DTCat::Weapons[Weapon].bStarter || !IsOpen(DTWeapons::WeaponId(Weapon), Pool))
 	{
 		return false;
 	}
@@ -362,7 +362,7 @@ bool DTOffers::IsModInPool(int32 Mod, const FDTOfferPool& Pool)
 	{
 		return true;
 	}
-	if (!DTCat::Modifiers[Mod].bStarter)
+	if (!DTCat::Modifiers[Mod].bStarter || !IsOpen(DTWeapons::ModifierId(Mod), Pool))
 	{
 		return false;
 	}
@@ -392,6 +392,10 @@ bool DTOffers::IsTreeLocked(FName Id)
 			{
 				Out.Add(FName(*Item));
 			}
+		}
+		for (const TCHAR* Item : DTCat::FirstRunLocked)
+		{
+			Out.Add(FName(Item));
 		}
 		return Out;
 	}();

@@ -487,6 +487,8 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.TREE.COST_BLESSING4 | 300 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
 | C.TREE.COST_BLESSING5 | 500 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
 | C.TREE.COST_REFORGE | 800 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.COST_WEAPON | 400 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
+| C.TREE.COST_WORKSHOP | 600 | currency | GATED(S3) | meta.md, tree.csv, T-MET-21 |
 | C.TREE.TOOL_PER_RANK | 1 | n | GATED(S3) | meta.md, tree.csv, T-MET-20 |
 
 ## Narrative (03_Narrative.md)

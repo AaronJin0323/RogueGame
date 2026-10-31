@@ -85,14 +85,18 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	RunGrant = UDTMetaSubsystem::GetRunGrant(&InWorld);
 	if (RunGrant.bGated)
 	{
-		// Weapons, modifiers, Keepers and Reaction.Duos take the DT.Unlock route, so Mod.Refit's draw sees them too; Tree-locked ids go through MakePool.
+		// Every id takes the DT.Unlock route, so Mod.Refit's draw sees what the profile opened and not a first-run lock it has not.
 		if (UDTWeaponSubsystem* Weapons = InWorld.GetSubsystem<UDTWeaponSubsystem>())
 		{
 			for (const FName& Id : RunGrant.Unlocked)
 			{
-				if (!DTOffers::IsTreeLocked(Id))
+				Weapons->Unlock(Id);
+			}
+			for (const TCHAR* Id : DTCat::FirstRunLocked)
+			{
+				if (!RunGrant.Unlocked.Contains(FName(Id)))
 				{
-					Weapons->Unlock(Id);
+					Weapons->ShutStarter(FName(Id));
 				}
 			}
 		}

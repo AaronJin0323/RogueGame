@@ -3,6 +3,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Combat/DTReforge.h"
+#include "Combat/DTWeaponCatalog.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTRunState.h"
@@ -107,7 +108,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTreeCatalog, "Dusktracer.Meta.TreeCatalog", 
 bool FDTTreeCatalog::RunTest(const FString& Parameters)
 {
 	using namespace DTTreeTest;
-	TestEqual(TEXT("three Trunk nodes and three per Path (R-MET-20)"), DTCat::NumTreeNodes, 3 + 3 * 6);
+	TestEqual(TEXT("six Trunk nodes and three per Path (R-MET-20)"), DTCat::NumTreeNodes, 6 + 3 * 6);
 	for (const DTCat::FTreeNodeRow& Node : DTCat::TreeNodes)
 	{
 		const bool bPool = Node.Class == DTCat::ETreeClass::Pool;
@@ -218,6 +219,22 @@ bool FDTTreePoolGate::RunTest(const FString& Parameters)
 	TestEqual(TEXT("then all six"), BlessingCandidates(Player, GatedPool(Session.Profile)).Num(), 6);
 	TestEqual(TEXT("Reforge"), DTTree::Buy(Session, StormReforge), EDTTreeBuy::Ok);
 
+	// A Trunk pool node opens what no Discovery names (R-MET-21).
+	const int32 Scatter = DTWeapons::FindWeapon(TEXT("Weapon.ScatterCannon"));
+	const int32 Rail = DTWeapons::FindWeapon(TEXT("Weapon.RailLance"));
+	const int32 Fork = DTWeapons::FindModifier(TEXT("Mod.Fork"));
+	const int32 Refit = DTWeapons::FindModifier(TEXT("Mod.Refit"));
+	TestFalse(TEXT("a Trunk weapon is shut before its node"), DTOffers::IsWeaponInPool(Scatter, GatedPool(Session.Profile)));
+	TestFalse(TEXT("a Workshop modifier is shut before its node"), DTOffers::IsModInPool(Fork, GatedPool(Session.Profile)));
+	TestEqual(TEXT("Scatter Cannon"), DTTree::Buy(Session, TEXT("Trunk.ScatterCannon")), EDTTreeBuy::Ok);
+	TestTrue(TEXT("its node opens the weapon"), DTOffers::IsWeaponInPool(Scatter, GatedPool(Session.Profile)));
+	TestFalse(TEXT("and no other"), DTOffers::IsWeaponInPool(Rail, GatedPool(Session.Profile)));
+	TestEqual(TEXT("Rail Lance"), DTTree::Buy(Session, TEXT("Trunk.RailLance")), EDTTreeBuy::Ok);
+	TestTrue(TEXT("the Rail Lance is in"), DTOffers::IsWeaponInPool(Rail, GatedPool(Session.Profile)));
+	TestEqual(TEXT("Workshop"), DTTree::Buy(Session, TEXT("Trunk.Workshop")), EDTTreeBuy::Ok);
+	TestTrue(TEXT("the Workshop opens its first modifier"), DTOffers::IsModInPool(Fork, GatedPool(Session.Profile)));
+	TestTrue(TEXT("and its last"), DTOffers::IsModInPool(Refit, GatedPool(Session.Profile)));
+
 	// The Reforging hand: a shut Path row yields its slot and the hand stays whole (R-OFF-09).
 	FDTRunState Late;
 	StartRun(Late, EDTPath::Storm);
@@ -261,14 +278,30 @@ bool FDTTreeFirstRun::RunTest(const FString& Parameters)
 	{
 		TestEqual(FString::Printf(TEXT("%s: an evolution is in, a Path row is out"), DTCat::Reforges[Row].Id), DTOffers::IsOpen(DTReforge::RowId(Row), Fresh), DTCat::Reforges[Row].bEvolve);
 	}
+	int32 Weapons = 0;
+	int32 Mods = 0;
 	for (int32 Weapon = 0; Weapon < DTCat::NumWeapons; ++Weapon)
 	{
-		TestEqual(FString::Printf(TEXT("%s: the starter column decides"), DTCat::Weapons[Weapon].Id), DTOffers::IsWeaponInPool(Weapon, Fresh), DTCat::Weapons[Weapon].bStarter);
+		const bool bFirst = DTCat::Weapons[Weapon].bStarter && !DTOffers::IsTreeLocked(DTWeapons::WeaponId(Weapon));
+		TestEqual(FString::Printf(TEXT("%s: a starter row with no first-run lock"), DTCat::Weapons[Weapon].Id), DTOffers::IsWeaponInPool(Weapon, Fresh), bFirst);
+		Weapons += bFirst ? 1 : 0;
 	}
 	for (int32 Mod = 0; Mod < DTCat::NumModifiers; ++Mod)
 	{
-		TestEqual(FString::Printf(TEXT("%s: the starter column decides"), DTCat::Modifiers[Mod].Id), DTOffers::IsModInPool(Mod, Fresh), DTCat::Modifiers[Mod].bStarter);
+		const bool bFirst = DTCat::Modifiers[Mod].bStarter && !DTOffers::IsTreeLocked(DTWeapons::ModifierId(Mod));
+		TestEqual(FString::Printf(TEXT("%s: a starter row with no first-run lock"), DTCat::Modifiers[Mod].Id), DTOffers::IsModInPool(Mod, Fresh), bFirst);
+		Mods += bFirst ? 1 : 0;
 	}
+	TestEqual(TEXT("two weapons"), Weapons, 2);
+	TestEqual(TEXT("four modifiers"), Mods, 4);
+	TestTrue(TEXT("the starting weapon is in"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.PulseRifle")), Fresh));
+	FDTMetaProfile Opened;
+	Opened.Unlocked.Add(TEXT("Weapon.ArcBlade"));
+	Opened.Unlocked.Add(TEXT("Mod.Conduit"));
+	const FDTOfferPool Later = GatedPool(Opened);
+	TestTrue(TEXT("a Discovery's key opens a first-run lock"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.ArcBlade")), Later));
+	TestTrue(TEXT("and a modifier's"), DTOffers::IsModInPool(DTWeapons::FindModifier(TEXT("Mod.Conduit")), Later));
+	TestTrue(TEXT("an ungated pool holds them"), DTOffers::IsWeaponInPool(DTWeapons::FindWeapon(TEXT("Weapon.ArcBlade")), FDTOfferPool()));
 	TestEqual(TEXT("three Keepers in a fresh run"), DTOffers::RunKeepers(Fresh).Num(), 3);
 	return true;
 }

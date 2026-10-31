@@ -110,7 +110,7 @@ namespace DTOffers
 	DUSKTRACER_API bool IsModInPool(int32 Mod, const FDTOfferPool& Pool);
 	/** Archetype keys are the starter blessings (within C.POOL.STARTER_BLESSINGS, catalog order). */
 	DUSKTRACER_API bool IsStarterKey(int32 Archetype);
-	/** meta.md R-MET-21: some tree.csv node names this id in `unlocks`. */
+	/** meta.md R-MET-21, R-MET-25: a tree.csv node names this id in `unlocks`, or first_run_locked.csv does. */
 	DUSKTRACER_API bool IsTreeLocked(FName Id);
 	/** meta.md R-MET-22: false only for a Tree-locked id a gated pool has not opened. */
 	DUSKTRACER_API bool IsOpen(FName Id, const FDTOfferPool& Pool);

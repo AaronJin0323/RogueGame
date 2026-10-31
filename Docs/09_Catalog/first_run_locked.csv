@@ -1,0 +1,7 @@
+id,door,tag,ref
+Weapon.ArcBlade,Survive10,GATED(S3),GDD 8.3
+Weapon.RingEmitter,Freeze100,GATED(S3),GDD 8.3
+Mod.ScatterShell,ScatterKills500,GATED(S3),GDD 8.3
+Mod.ChainTrigger,Elite3Mods,GATED(S3),GDD 8.3
+Mod.Conduit,Win,GATED(S3),GDD 8.3
+Mod.LingeringField,DroneKills300,GATED(S3),ST_Codex Context

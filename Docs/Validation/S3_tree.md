@@ -1,6 +1,6 @@
 # S3 Tree: the first-run pool and the tool-run proof
 
-Spec: `02_Systems/meta.md` R-MET-20 to R-MET-26. Every bot number here is a bound (bot v2, skill 1.0), not a human reading. No human has played the Tree, and it has no screen yet.
+Spec: `02_Systems/meta.md` R-MET-20 to R-MET-27, D-024. Every bot number here is a bound (bot v2, skill 1.0), not a human reading. No human has played the Tree, and it has no screen yet.
 
 ## Tool runs are unchanged
 `Tools/BotRuns.ps1 -BotVersion 2 -FirstSeed 9107 -Seeds 1`, the same four arms on a build of `dev/s3-base` and on this branch:
@@ -12,7 +12,21 @@ Spec: `02_Systems/meta.md` R-MET-20 to R-MET-26. Every bot number here is a boun
 | Steered:Tide:Frost:Forge | dd5bf564 | dd5bf564 | 48394 | 48394 |
 | Steered:Shade:Hound:Storm (S2 Keeper, `-DTUnlock`) | bdba5258 | bdba5258 | 58084 | 58084 |
 
-`Tools/MetaCheck.ps1` adds the other direction on every gate: a full Tree with the gate on plays a tool run's seed with the same hash, steps and CSV, so no node reached a number. The bot never uses a tool, so the Trunk's extra counts are not exercised there; T-MET-20 and T-MET-24 cover them.
+`Tools/MetaCheck.ps1` adds the other direction on every gate: `DT.Tree.Buy ToolPool` buys the tool and S1 branch nodes and writes the first-run locks, and with the gate on that profile plays a tool run's seed with the same hash, steps and CSV, so none of those nodes reached a number. It leaves out the three Trunk pool nodes and the S2 branches: the first widen past a tool run's pool, the second need a Keeper nothing writes. For those the proof is the catalog check of T-MET-20. The bot never uses a tool, so the Trunk's extra counts are not exercised there; T-MET-20 and T-MET-24 cover them.
+
+## Every pool row has a door (D-024)
+The note from Discoveries: on a fresh save `ScatterKills500` and `RailKills300` could not be earned, because no Discovery opens their weapons, and nine `starter=no` rows had no door. Six Discovery targets were also `starter=yes`, so their key opened nothing.
+
+| Fix | Rows |
+|---|---|
+| `Trunk.ScatterCannon`, 400 | `Weapon.ScatterCannon` |
+| `Trunk.RailLance`, 400 | `Weapon.RailLance` |
+| `Trunk.Workshop`, 600 | `Mod.Fork`, `Mod.Ricochet`, `Mod.Homing`, `Mod.OrbitLock`, `Mod.Boomerang`, `Mod.Spillover`, `Mod.Refit` |
+| `first_run_locked.csv`, gated pools only | `Weapon.ArcBlade`, `Weapon.RingEmitter`, `Mod.ScatterShell`, `Mod.ChainTrigger`, `Mod.Conduit`, `Mod.LingeringField` |
+
+A first run now holds two weapons and four modifiers: Pulse Rifle, Orbital Drones; Split Core, Pierce, Mirror, Backwash. `Mod.Refit` draws from the same gate through `ShutStarter`, so it cannot fit a first-run lock, and `UDTWeaponSubsystem::IsInPool` reads the same. The `starter` column did not change: it stays what a tool run reads, so nothing here reaches a bot. The state of every Discovery is `meta.md` R-MET-27; `Crit500` and `Elites10` are the two it names unreachable.
+
+The rifle fits all four open modifiers, so `Elite3Mods` is open on a first run. The Orbital Drones fit only Pierce and Backwash, under `C.MOD.MIN_COMPATIBLE` 4. R-MOD-07 counts every `starter` row, so T-MOD-07 passes and does not see this. It is held for a human reading in `meta.md` Open.
 
 ## A bot on a fresh-save pool
 `Tools/BotRuns.ps1 -BotVersion 2 -FirstSeed 9100 -Seeds 10`, the nine S1 archetypes as Steered arms with no second Keeper named, 90 runs each way. `-FreshPool` runs carry the empty profile. No hand of the 90 fresh runs holds an Amp, a Trait or a Path row.
@@ -42,9 +56,10 @@ Awards on the 90 full runs: median win 1499, median death 837. Fresh runs: 1496 
 |---|---|---|
 | First branch step | 300 | one death |
 | One S1 branch | 1600 | about one win or two deaths |
-| Trunk | 1200 | about one win |
-| Trunk and three S1 branches | 6000 | four wins or about seven deaths |
-| Whole Tree | 10800 | about seven wins; three branches are shut (below) |
+| Trunk tools | 1200 | about one win |
+| Trunk pool nodes | 1400 | about one win |
+| Whole Trunk and three S1 branches | 7400 | five wins or about nine deaths |
+| Whole Tree | 12200 | about eight wins; three branches are shut (below) |
 
 Prices are invented, marked in `number_change_log.csv`. A human earns less per run than this bot, so these are the short end.
 
@@ -53,6 +68,8 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 - `Evolve.<Weapon>` rows stay in on a fresh save, so L16 still offers a real card when the primary weapon qualifies; only `Transform.<Path>` is the Keeper's to give.
 - Gating follows the process, not the file: a bot with `-DTMetaFile` is still a tool run with the full pool, which keeps the `meta` gate step's hash comparison true. `-DTPoolGate` is the one way a tool asks for a person's pool.
 - A branch of an S2 Keeper needs `Keeper.<Path>` first.
+- The `starter` column stays the tool pool, and first-run locks sit in their own file (D-024). Flipping the column would have moved every tool run and bot battery.
+- `Trunk.Workshop` sells seven modifiers at one price: one purchase, not seven small ones, because none of the seven is a build on its own.
 
 ## Not verified
 - A person's launch was not run: every launch here is headless. The gate path was read through `-DTPoolGate`, which takes the same branch.
@@ -73,5 +90,11 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 | `Tree.Branch.Advance5.Desc` | {0}开放最后一个流派的后续预支。 (en invented too) |
 | `Tree.Branch.Reforging.Name` | 神铸权 |
 | `Tree.Branch.Reforging.Desc` | 升到 16 级时，{0}可以为你神铸。 (source line, shortened) |
+| `Tree.Trunk.ScatterCannon.Name` | 霰弹炮附约 (en invented too) |
+| `Tree.Trunk.ScatterCannon.Desc` | 霰弹炮加入升级选项。 (en invented too) |
+| `Tree.Trunk.RailLance.Name` | 磁轨长枪附约 (en invented too) |
+| `Tree.Trunk.RailLance.Desc` | 磁轨长枪加入升级选项。 (en invented too) |
+| `Tree.Trunk.Workshop.Name` | 工坊条款 (en invented too) |
+| `Tree.Trunk.Workshop.Desc` | 另有七种模块加入升级选项。 (en invented too) |
 
 The Advance rows use 流派 for archetype, which has no glossary row yet. `Tree.Branch.Advance5.Name` keeps the source's "Fifth Advance", 第五项预支, though the node now opens three cards: a name to re-read with the screen.

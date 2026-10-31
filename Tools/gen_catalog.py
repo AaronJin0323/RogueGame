@@ -485,6 +485,17 @@ def gen_tree(ctx, expression, reforge_ids):
 	ids = {r["id"] for r in rows}
 	blessings = set(re.findall(r'"(Blessing\.[A-Za-z]+\.[A-Za-z0-9]+\.(?:Key|Amp1|Amp2|Trait))"', "".join(expression).replace("TEXT(", "")))
 	gated = {b for b in blessings if not b.endswith(".Key")} | {r for r in reforge_ids if r.startswith("Transform.")}
+	starter = {}
+	for name in ("weapons.csv", "modifiers.csv"):  # already checked in full by their own readers
+		with open(os.path.join(CATALOG, name), encoding="utf-8", newline="") as f:
+			for r in csv.DictReader(f):
+				starter[r["id"]] = r["starter"] == "yes"
+	rows_locked = read_csv(ctx, "first_run_locked.csv", ["id", "door"], doc_only=["tag", "ref"])
+	unique(ctx, rows_locked, lambda r: r["id"], "first-run locked row")
+	for r in rows_locked:
+		if not starter.get(r["id"]) or r["id"] == "Weapon.PulseRifle":
+			ctx.err(f"{r['_where']}:id", "a first-run lock names a starter row, never the starting weapon (D-015)")
+	optional = {i for i, s in starter.items() if not s}
 	seen = set()
 	out = []
 	for index, r in enumerate(rows):
@@ -503,8 +514,8 @@ def gen_tree(ctx, expression, reforge_ids):
 		if (r["class"] == "pool") != bool(unlocks) or (r["class"] == "utility") != (grant != "None"):
 			ctx.err(where, "a pool node unlocks content and grants nothing; a utility node grants a tool and unlocks nothing")
 		for item in unlocks:
-			if item not in gated:
-				ctx.err(f"{where}:unlocks", f"'{item}' is not an Amp, a Trait or a Path row of the catalogs")
+			if item not in gated and item not in optional:
+				ctx.err(f"{where}:unlocks", f"'{item}' is not an Amp, a Trait, a Path row or a starter=no row of the catalogs")
 			if item in seen:
 				ctx.err(f"{where}:unlocks", f"'{item}' is unlocked by two nodes")
 			seen.add(item)
@@ -523,7 +534,7 @@ def gen_tree(ctx, expression, reforge_ids):
 			f"{cpp_str(r['requires'])}, {cpp_str(r['unlocks'])}, {cpp_str(r['text_key'])} }},")
 	for item in sorted(gated - seen):
 		ctx.err("tree.csv", f"'{item}' has no node: it could never enter a person's pool")
-	return out
+	return out, [f"\t\t{cpp_str(r['id'])}," for r in rows_locked]
 
 
 def gen_reactions(ctx):
@@ -705,7 +716,7 @@ def render(ctx):
 		if w not in reforge_ids:
 			ctx.err("weapons.csv:evolution", f"'{w}' has no row in reforging.csv")
 	expression, s1_archetypes = gen_expression(ctx, flags)
-	tree = gen_tree(ctx, expression, reforge_ids)
+	tree, first_run_locked = gen_tree(ctx, expression, reforge_ids)
 	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
 	affixes = gen_elites(ctx)
@@ -1003,6 +1014,11 @@ def render(ctx):
 		"\t{",
 	] + tree + [
 		"\t};",
+		"\t// first_run_locked.csv: starter rows a gated pool holds shut until Unlocked names them (meta.md R-MET-25).",
+		"\tinline constexpr const TCHAR* FirstRunLocked[] =",
+		"\t{",
+	] + first_run_locked + [
+		"\t};",
 		"",
 		"\t// --- every cell that named a C. key, for the resolution test ---",
 		"\tstruct FConstantRef { const TCHAR* Cell; const TCHAR* Key; double Table; double Constant; };",
@@ -1095,7 +1111,7 @@ def main(argv):
 		if stale:
 			print(f"CATALOG: FAIL ({', '.join(stale)} out of date; run python -I Tools/gen_catalog.py)")
 			return 1
-		print(f"CATALOG: PASS (11 catalogs, {len(ctx.ckeys)} C. cells resolved, "
+		print(f"CATALOG: PASS (12 catalogs, {len(ctx.ckeys)} C. cells resolved, "
 			  f"{sum(len(v) for v in ctx.tags.values())} tags)")
 		return 0
 	for path, text in outputs:

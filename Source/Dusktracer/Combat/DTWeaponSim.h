@@ -122,6 +122,9 @@ public:
 	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 	/** Non-starter ids in the run pool (DT.Unlock): Mod.Refit draws only from the pool. */
 	void Unlock(FName Id) { Unlocked.Add(Id); }
+	/** A starter row this run has not opened (meta.md R-MET-25): Mod.Refit does not draw it. */
+	void ShutStarter(FName Id) { ShutStarters.Add(Id); }
+	bool IsStarterShut(FName Id) const { return ShutStarters.Contains(Id); }
 
 	// --- S2 Keeper state the weapons read (keepers.md §9) ----------------------------------------------------------
 	/** Marks an enemy for OwnerId for C.STATUS.MARK_S plus the owner's mark_s, from StepIndex on (R-KEE-24). */
@@ -775,6 +778,7 @@ private:
 	FVector2f VolleyDir = FVector2f(1.0f, 0.0f);
 	float VolleyMult = 1.0f;
 	TSet<FName> Unlocked;
+	TSet<FName> ShutStarters;
 	const FDTBulletPool* LastBullets = nullptr;
 	uint32 NextRoundId = 0;
 	/** Enemies struck this step by a melee arc or a slam whose flag carries burning_explode_on_death_uu. */

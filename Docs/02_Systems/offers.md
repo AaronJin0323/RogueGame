@@ -81,7 +81,7 @@ S1 pool sizes (Storm, Forge, Tide only, D-002); the rules are general and these 
 | Keeper cards (Patron / L8) | `C.OFFER.KEEPER_CHOICES` | 3 / 2 | 3 / 2 | every S1 Keeper / the two non-Patron Keepers |
 | Reserve kinds | — | 5 | 5 | R-OFF-12 |
 
-Non-starter rows enter a run through `DT.Unlock <Id>` (debug, not in Shipping, R-TEC-12) or, in a person's run, from the save's `Unlocked` (`meta.md` R-MET-22). The table above is the full pool every tool run reads; a person's first run is narrower (`meta.md` R-MET-25).
+Non-starter rows enter a run through `DT.Unlock <Id>` (debug, not in Shipping, R-TEC-12) or, in a person's run, from the save's `Unlocked` (`meta.md` R-MET-22). The table above is the full pool every tool run reads; a person's first run is narrower, by the Tree-locked cards and the six `starter=yes` rows of `first_run_locked.csv` (`meta.md` R-MET-25).
 
 API: `UDTOfferSubsystem::BuildHand(OwnerId, HandKind)`, `Reroll / Banish(Slot) / Lock(Slot) / Pick(Slot)`; the generator is a pure function of (`FDTPlayerRunState` snapshot, catalogs, stream) so tests need no world.
 

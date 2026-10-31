@@ -422,6 +422,8 @@ weapons:
   TREE.COST_BLESSING4: { value: 300, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-21] }
   TREE.COST_BLESSING5: { value: 500, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-21] }
   TREE.COST_REFORGE: { value: 800, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-21] }
+  TREE.COST_WEAPON: { value: 400, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-21] }
+  TREE.COST_WORKSHOP: { value: 600, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-21] }
   TREE.TOOL_PER_RANK: { value: 1, unit: n, tag: GATED(S3), dependents: [02_Systems/meta.md, 09_Catalog/tree.csv, T-MET-20] }
   # Narrative (03_Narrative.md)
   NARR.PREWIN_LAYER_MAX: { value: 2, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03, T-NAR-06] }

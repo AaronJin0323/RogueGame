@@ -45,7 +45,7 @@ namespace DTMetaSubsystemLocal
 				Session->Write();
 			}
 		}));
-	static FAutoConsoleCommandWithWorldAndArgs CmdBuy(TEXT("DT.Tree.Buy"), TEXT("DT.Tree.Buy <node|All>: buy a rank through DTTree::Buy; All buys every node it can, in catalog order (Tools/MetaCheck.ps1)."),
+	static FAutoConsoleCommandWithWorldAndArgs CmdBuy(TEXT("DT.Tree.Buy"), TEXT("DT.Tree.Buy <node|All|ToolPool>: buy a rank through DTTree::Buy. All buys every node it can, in catalog order; ToolPool buys the nodes and writes the first-run locks that make a gated pool equal a tool run's (Tools/MetaCheck.ps1)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			FDTMetaSession* Session = UDTMetaSubsystem::FindSession(World);
@@ -53,7 +53,8 @@ namespace DTMetaSubsystemLocal
 			{
 				return;
 			}
-			if (Args[0] != TEXT("All"))
+			const bool bToolPool = Args[0] == TEXT("ToolPool");
+			if (Args[0] != TEXT("All") && !bToolPool)
 			{
 				UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy %s: result %d"), *Args[0], static_cast<int32>(DTTree::Buy(*Session, FName(*Args[0]))));
 				return;
@@ -61,9 +62,20 @@ namespace DTMetaSubsystemLocal
 			int32 Bought = 0;
 			for (const DTCat::FTreeNodeRow& Node : DTCat::TreeNodes)
 			{
-				Bought += DTTree::Buy(*Session, FName(Node.Id)) == EDTTreeBuy::Ok ? 1 : 0;
+				if (!bToolPool || Node.Path != EDTPath::None || Node.Class == DTCat::ETreeClass::Utility)
+				{
+					Bought += DTTree::Buy(*Session, FName(Node.Id)) == EDTTreeBuy::Ok ? 1 : 0;
+				}
 			}
-			UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy All: %d bought"), Bought);
+			if (bToolPool)
+			{
+				for (const TCHAR* Id : DTCat::FirstRunLocked)
+				{
+					Session->Profile.Unlocked.Add(FName(Id));
+				}
+				Session->Write();
+			}
+			UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy %s: %d bought"), *Args[0], Bought);
 		}));
 #endif
 }

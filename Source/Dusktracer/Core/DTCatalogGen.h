@@ -547,6 +547,9 @@ namespace DTCat
 		{ TEXT("Trunk.Reroll"), ETreeClass::Utility, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_TOOL), ETreeGrant::Reroll, static_cast<int32>(DTConst::TREE_TOOL_PER_RANK), TEXT(""), TEXT(""), TEXT("Tree.Trunk.Reroll") },
 		{ TEXT("Trunk.Banish"), ETreeClass::Utility, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_TOOL), ETreeGrant::Banish, static_cast<int32>(DTConst::TREE_TOOL_PER_RANK), TEXT(""), TEXT(""), TEXT("Tree.Trunk.Banish") },
 		{ TEXT("Trunk.Lock"), ETreeClass::Utility, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_TOOL), ETreeGrant::Lock, static_cast<int32>(DTConst::TREE_TOOL_PER_RANK), TEXT(""), TEXT(""), TEXT("Tree.Trunk.Lock") },
+		{ TEXT("Trunk.ScatterCannon"), ETreeClass::Pool, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_WEAPON), ETreeGrant::None, 0, TEXT(""), TEXT("Weapon.ScatterCannon"), TEXT("Tree.Trunk.ScatterCannon") },
+		{ TEXT("Trunk.RailLance"), ETreeClass::Pool, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_WEAPON), ETreeGrant::None, 0, TEXT(""), TEXT("Weapon.RailLance"), TEXT("Tree.Trunk.RailLance") },
+		{ TEXT("Trunk.Workshop"), ETreeClass::Pool, EDTPath::None, 1, static_cast<int32>(DTConst::TREE_COST_WORKSHOP), ETreeGrant::None, 0, TEXT(""), TEXT("Mod.Fork;Mod.Ricochet;Mod.Homing;Mod.OrbitLock;Mod.Boomerang;Mod.Spillover;Mod.Refit"), TEXT("Tree.Trunk.Workshop") },
 		{ TEXT("Branch.Storm.Blessing4"), ETreeClass::Pool, EDTPath::Storm, 1, static_cast<int32>(DTConst::TREE_COST_BLESSING4), ETreeGrant::None, 0, TEXT(""), TEXT("Blessing.Storm.Tempest.Amp1;Blessing.Storm.Tempest.Amp2;Blessing.Storm.Tempest.Trait;Blessing.Storm.ArcGrid.Amp1;Blessing.Storm.ArcGrid.Amp2;Blessing.Storm.ArcGrid.Trait"), TEXT("Tree.Branch.Advance4") },
 		{ TEXT("Branch.Storm.Blessing5"), ETreeClass::Pool, EDTPath::Storm, 1, static_cast<int32>(DTConst::TREE_COST_BLESSING5), ETreeGrant::None, 0, TEXT("Branch.Storm.Blessing4"), TEXT("Blessing.Storm.Downpour.Amp1;Blessing.Storm.Downpour.Amp2;Blessing.Storm.Downpour.Trait"), TEXT("Tree.Branch.Advance5") },
 		{ TEXT("Branch.Storm.Reforge"), ETreeClass::Pool, EDTPath::Storm, 1, static_cast<int32>(DTConst::TREE_COST_REFORGE), ETreeGrant::None, 0, TEXT("Branch.Storm.Blessing5"), TEXT("Transform.Storm"), TEXT("Tree.Branch.Reforging") },
@@ -566,6 +569,16 @@ namespace DTCat
 		{ TEXT("Branch.Quicksilver.Blessing5"), ETreeClass::Pool, EDTPath::Quicksilver, 1, static_cast<int32>(DTConst::TREE_COST_BLESSING5), ETreeGrant::None, 0, TEXT("Branch.Quicksilver.Blessing4"), TEXT("Blessing.Quicksilver.Rebound.Amp1;Blessing.Quicksilver.Rebound.Amp2;Blessing.Quicksilver.Rebound.Trait"), TEXT("Tree.Branch.Advance5") },
 		{ TEXT("Branch.Quicksilver.Reforge"), ETreeClass::Pool, EDTPath::Quicksilver, 1, static_cast<int32>(DTConst::TREE_COST_REFORGE), ETreeGrant::None, 0, TEXT("Branch.Quicksilver.Blessing5"), TEXT("Transform.Quicksilver"), TEXT("Tree.Branch.Reforging") },
 	};
+	// first_run_locked.csv: starter rows a gated pool holds shut until Unlocked names them (meta.md R-MET-25).
+	inline constexpr const TCHAR* FirstRunLocked[] =
+	{
+		TEXT("Weapon.ArcBlade"),
+		TEXT("Weapon.RingEmitter"),
+		TEXT("Mod.ScatterShell"),
+		TEXT("Mod.ChainTrigger"),
+		TEXT("Mod.Conduit"),
+		TEXT("Mod.LingeringField"),
+	};
 
 	// --- every cell that named a C. key, for the resolution test ---
 	struct FConstantRef { const TCHAR* Cell; const TCHAR* Key; double Table; double Constant; };
@@ -578,9 +591,9 @@ namespace DTCat
 		{ TEXT("tree.csv:3:grant_per_rank"), TEXT("C.TREE.TOOL_PER_RANK"), static_cast<double>(DTCat::TreeNodes[1].GrantPerRank), static_cast<double>(DTConst::TREE_TOOL_PER_RANK) },
 		{ TEXT("tree.csv:4:cost"), TEXT("C.TREE.COST_TOOL"), static_cast<double>(DTCat::TreeNodes[2].Cost), static_cast<double>(DTConst::TREE_COST_TOOL) },
 		{ TEXT("tree.csv:4:grant_per_rank"), TEXT("C.TREE.TOOL_PER_RANK"), static_cast<double>(DTCat::TreeNodes[2].GrantPerRank), static_cast<double>(DTConst::TREE_TOOL_PER_RANK) },
-		{ TEXT("tree.csv:5:cost"), TEXT("C.TREE.COST_BLESSING4"), static_cast<double>(DTCat::TreeNodes[3].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING4) },
-		{ TEXT("tree.csv:6:cost"), TEXT("C.TREE.COST_BLESSING5"), static_cast<double>(DTCat::TreeNodes[4].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING5) },
-		{ TEXT("tree.csv:7:cost"), TEXT("C.TREE.COST_REFORGE"), static_cast<double>(DTCat::TreeNodes[5].Cost), static_cast<double>(DTConst::TREE_COST_REFORGE) },
+		{ TEXT("tree.csv:5:cost"), TEXT("C.TREE.COST_WEAPON"), static_cast<double>(DTCat::TreeNodes[3].Cost), static_cast<double>(DTConst::TREE_COST_WEAPON) },
+		{ TEXT("tree.csv:6:cost"), TEXT("C.TREE.COST_WEAPON"), static_cast<double>(DTCat::TreeNodes[4].Cost), static_cast<double>(DTConst::TREE_COST_WEAPON) },
+		{ TEXT("tree.csv:7:cost"), TEXT("C.TREE.COST_WORKSHOP"), static_cast<double>(DTCat::TreeNodes[5].Cost), static_cast<double>(DTConst::TREE_COST_WORKSHOP) },
 		{ TEXT("tree.csv:8:cost"), TEXT("C.TREE.COST_BLESSING4"), static_cast<double>(DTCat::TreeNodes[6].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING4) },
 		{ TEXT("tree.csv:9:cost"), TEXT("C.TREE.COST_BLESSING5"), static_cast<double>(DTCat::TreeNodes[7].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING5) },
 		{ TEXT("tree.csv:10:cost"), TEXT("C.TREE.COST_REFORGE"), static_cast<double>(DTCat::TreeNodes[8].Cost), static_cast<double>(DTConst::TREE_COST_REFORGE) },
@@ -596,6 +609,9 @@ namespace DTCat
 		{ TEXT("tree.csv:20:cost"), TEXT("C.TREE.COST_BLESSING4"), static_cast<double>(DTCat::TreeNodes[18].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING4) },
 		{ TEXT("tree.csv:21:cost"), TEXT("C.TREE.COST_BLESSING5"), static_cast<double>(DTCat::TreeNodes[19].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING5) },
 		{ TEXT("tree.csv:22:cost"), TEXT("C.TREE.COST_REFORGE"), static_cast<double>(DTCat::TreeNodes[20].Cost), static_cast<double>(DTConst::TREE_COST_REFORGE) },
+		{ TEXT("tree.csv:23:cost"), TEXT("C.TREE.COST_BLESSING4"), static_cast<double>(DTCat::TreeNodes[21].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING4) },
+		{ TEXT("tree.csv:24:cost"), TEXT("C.TREE.COST_BLESSING5"), static_cast<double>(DTCat::TreeNodes[22].Cost), static_cast<double>(DTConst::TREE_COST_BLESSING5) },
+		{ TEXT("tree.csv:25:cost"), TEXT("C.TREE.COST_REFORGE"), static_cast<double>(DTCat::TreeNodes[23].Cost), static_cast<double>(DTConst::TREE_COST_REFORGE) },
 		{ TEXT("enemies.csv:2:hp"), TEXT("C.ENM.SWARM_HP"), static_cast<double>(Enemies[0].Hp), static_cast<double>(DTConst::ENM_SWARM_HP) },
 		{ TEXT("enemies.csv:2:speed_uu_s"), TEXT("C.ENM.SWARM_SPEED_UU_S"), static_cast<double>(Enemies[0].Speed_uu_s), static_cast<double>(DTConst::ENM_SWARM_SPEED_UU_S) },
 		{ TEXT("enemies.csv:2:radius_uu"), TEXT("C.ENM.SWARM_RADIUS_UU"), static_cast<double>(Enemies[0].Radius_uu), static_cast<double>(DTConst::ENM_SWARM_RADIUS_UU) },

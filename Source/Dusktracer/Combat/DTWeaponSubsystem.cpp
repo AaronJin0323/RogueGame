@@ -333,12 +333,12 @@ bool UDTWeaponSubsystem::IsInPool(FName Id) const
 	const int32 Weapon = DTWeapons::FindWeapon(Id);
 	if (Weapon != INDEX_NONE)
 	{
-		return DTCat::Weapons[Weapon].bStarter || Unlocked.Contains(DTWeapons::WeaponId(Weapon));
+		return (DTCat::Weapons[Weapon].bStarter && !Sim.IsStarterShut(DTWeapons::WeaponId(Weapon))) || Unlocked.Contains(DTWeapons::WeaponId(Weapon));
 	}
 	const int32 Mod = DTWeapons::FindModifier(Id);
 	if (Mod != INDEX_NONE)
 	{
-		return DTCat::Modifiers[Mod].bStarter || Unlocked.Contains(DTWeapons::ModifierId(Mod));
+		return (DTCat::Modifiers[Mod].bStarter && !Sim.IsStarterShut(DTWeapons::ModifierId(Mod))) || Unlocked.Contains(DTWeapons::ModifierId(Mod));
 	}
 	return Unlocked.Contains(Id); // a Keeper.<Path> (keepers.md R-KEE-23)
 }

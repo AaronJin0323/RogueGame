@@ -95,7 +95,9 @@ public:
 
 	/** D-013: Gravity Mine, Fork and Ricochet reach the run pool only through DT.Unlock until meta (S3). */
 	void Unlock(FName Id) { Unlocked.Add(Id); Sim.Unlock(Id); }
-	/** True for a starter row (weapons.csv / modifiers.csv `starter`) or an unlocked id. */
+	/** meta.md R-MET-25: a starter row this person's run has not opened; Mod.Refit does not draw it. */
+	void ShutStarter(FName Id) { Sim.ShutStarter(Id); }
+	/** True for a starter row (weapons.csv / modifiers.csv `starter`) not shut for this run, or an unlocked id. */
 	bool IsInPool(FName Id) const;
 
 	FDTWeaponSim& GetSim() { return Sim; }

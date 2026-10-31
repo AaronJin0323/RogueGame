@@ -2733,7 +2733,7 @@ bool FDTWeaponSim::TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Pla
 		for (int32 Mod = 0; Mod < DTWeapons::NumModifiers(); ++Mod)
 		{
 			const FName Id = DTWeapons::ModifierId(Mod);
-			const bool bInPool = DTCat::Modifiers[Mod].bStarter || Unlocked.Contains(Id);
+			const bool bInPool = (DTCat::Modifiers[Mod].bStarter && !IsStarterShut(Id)) || Unlocked.Contains(Id);
 			const bool bFitted = Weapon.Sockets.ContainsByPredicate([Id](const FDTWeaponInstance::FSocket& S) { return S.ModId == Id; });
 			if (bInPool && !bFitted && DTModCompat::IsCompatible(Runtimes[Slot].Spec.EffectiveCaps, Mod))
 			{
