@@ -87,10 +87,11 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 
 ## Text
 - Prefix `ST_UI.Hud.*`, en + zh-Hans, budget six rows: `Hud.Hp`, `Hud.Dash`, `Hud.Intercession`, `Hud.IntercessionReady`, `Hud.RunOver`, `Hud.AimMode` (option label).
+- Keeper meters under the hero block are `keepers.md` R-KEE-38 and its keys, outside this budget.
 - HUD reads hero state per player: HP bar, dash charge pips with the refill arc, Intercession ring that reads `Hud.IntercessionReady` when full. Numbers on the HUD are formatted values, never text rows.
 
 ## Out of scope
-- What each Intercession does, its variants and strength band (`keepers.md`, `C.INTERCESSION.BAND`).
+- What each Intercession does, its variants and strength band (`keepers.md`, `C.INTERCESSION.BAND`). Time Dilation scales enemy time only; every hero timer here stays in sim time (R-KEE-37).
 - Weapons, targeting rules and modifiers (`weapons.md`, `modifiers.md`); stats and effects that change HP, armour, regen, speed or dash charges (`keepers.md`, `modifiers.md`).
 - Enemy contact damage values, enemy bullets and hazards (`enemies.md`); revive and shared camera (`coop.md`); the Reclaimer's own passive (Muscle Memory, `progression.md` later).
 - Pad glyph art, rebinding UI and the settings screen (S3).

@@ -101,6 +101,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 | `Displacements` (`FDTDisplacement[]`) | weapons (mine pull), effects (`Flag.Pull`/`Push`, `Mod.Backwash`, Intercession) | enemies, next step, before movement | after applying |
 | `Telegraphs` (`FDTTelegraph[]`, `enemies.md`) | enemies, boss | render | overwritten |
 | `DropInMarkers` (`FDTDropInMarker[]`), `bThreatBlock` | director (Director) | render; enemies next step (aim tokens) | overwritten |
+| `EnemyTimeScale` (`float`, 1 with no cast, `keepers.md` R-KEE-37) | Keeper layer (Effects) | enemies, boss next step | overwritten |
 
 Shared structs (`Core/DTSimTypes.h`); an enemy is named across steps by `Serial` (`enemies.md` R-ENM-23), within the step by index:
 - `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce}`: `Damage` is final (crit, load and stats applied by the emitter); `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits.
