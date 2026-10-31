@@ -42,7 +42,7 @@ struct FDTRunTally
 	bool bBossKilled = false;
 	int32 Heat = 0;
 	FName Patron;
-	/** Per-run counters for run-end systems, added to LifetimeStats by name (R-MET-19). */
+	/** Per-run counters for run-end systems, added to LifetimeStats by name (R-MET-19); a `Best.` key keeps its highest value (R-MET-44). */
 	TMap<FName, int64> Counters;
 };
 
@@ -52,6 +52,8 @@ struct FDTRunAward
 	bool bBanked = false;
 	int64 Retained = 0;
 	int64 Balance = 0;
+	/** The Discoveries this bank added, sorted by key (R-MET-44). */
+	TArray<FName> Discovered;
 };
 
 namespace DTMeta

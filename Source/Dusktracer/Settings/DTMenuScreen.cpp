@@ -184,6 +184,21 @@ FText DTMenuText::RunSummary(int64 Retained, int64 Balance)
 	return FText::Format(DTMenuScreenLocal::Ui(TEXT("Summary.Line")), FText::AsNumber(Retained), FText::AsNumber(Balance));
 }
 
+FText DTMenuText::DiscoveryToast(TConstArrayView<FName> Ids)
+{
+	if (Ids.Num() == 0)
+	{
+		return FText::GetEmpty();
+	}
+	TArray<FText> Names;
+	for (const FName Id : Ids)
+	{
+		Names.Add(FText::FromStringTable(TEXT("ST_Discoveries"), FString::Printf(TEXT("Discovery.%s.Name"), *Id.ToString())));
+	}
+	// The dot is Summary.Line's own separator, in both cultures.
+	return FText::Format(FText::FromStringTable(TEXT("ST_Discoveries"), TEXT("Discovery.Toast")), FText::Join(FText::FromString(TEXT(" · ")), Names));
+}
+
 const TCHAR* DTMenuText::TitleKey(const FDTMenuState& State)
 {
 	switch (State.Screen)
@@ -216,7 +231,7 @@ const TCHAR* DTMenuText::PlainRowKey(const FDTMenuState& State, int32 Row)
 	return DTMenuScreenLocal::PauseRowKeys[Row];
 }
 
-void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings, const FText& RunSummary)
+void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings, const FText& RunSummary, const FText& Toast)
 {
 	using namespace DTMenuScreenLocal;
 	const int32 Rows = State.NumRows();
@@ -344,4 +359,10 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 	const TCHAR* Footer = State.Screen == EDTMenuScreen::RunOver ? TEXT("Menu.Hint.RunOver")
 		: (State.Screen == EDTMenuScreen::Settings ? TEXT("Menu.Hint.Settings") : (State.Screen == EDTMenuScreen::Controls ? TEXT("Menu.Hint.Controls") : TEXT("Menu.Hint.Pause")));
 	P.Centered(Ui(Footer), X + 0.5f * W, Y, HintScale, Hint);
+	if (State.Screen == EDTMenuScreen::RunOver && !Toast.IsEmpty())
+	{
+		// Under the panel, not in it: the panel's height stays the rows' (R-SET-12). A run with many shrinks to fit, like the title.
+		const float ToastWidth = static_cast<float>(P.Measure(Toast, HintScale).X);
+		P.Centered(Toast, X + 0.5f * W, Y0 + H + 8.0f * P.S, ToastWidth > W ? HintScale * W / ToastWidth : HintScale, Text);
+	}
 }

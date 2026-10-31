@@ -142,7 +142,10 @@ FDTRunAward FDTMetaSession::Bank(const FDTRunTally& Tally, EDTRunEnd End)
 		return Award;
 	}
 	Award.Retained = DTMeta::ApplyRun(Profile, Tally, End);
+	const TSet<FName> Known = Profile.Discoveries;
 	OnBank.Broadcast(Tally, Profile);
+	Award.Discovered = Profile.Discoveries.Difference(Known).Array();
+	Award.Discovered.Sort(FNameLexicalLess());
 	Award.Balance = Profile.Currency;
 	Write();
 	UE_LOG(LogDT, Log, TEXT("Meta: banked %lld, balance %lld, runs %d, wins %d"), Award.Retained, Award.Balance, Profile.Runs, Profile.Wins);

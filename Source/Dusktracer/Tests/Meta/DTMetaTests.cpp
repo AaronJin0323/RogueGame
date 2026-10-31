@@ -1,4 +1,4 @@
-// The meta save, the award and the run-end autosave (02_Systems/meta.md T-MET-01..19; T-MET-06 is in Tests/Settings, the menu's text being a settings header).
+// The meta save, the award and the run-end autosave (02_Systems/meta.md T-MET-01..19, T-MET-40..43; T-MET-06 is in Tests/Settings, the menu's text being a settings header).
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Meta; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
@@ -9,6 +9,7 @@
 #include "Core/DTSaveEnvelope.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
+#include "Enemies/DTEnemyPool.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -17,6 +18,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Internationalization/Regex.h"
+#include "Meta/DTDiscovery.h"
 #include "Meta/DTMetaProfile.h"
 #include "Meta/DTMetaSession.h"
 #include "Meta/DTMetaSubsystem.h"
@@ -143,6 +145,8 @@ namespace DTMetaTest
 		int64 Steps = 0;
 		FVector2f Pos = FVector2f::ZeroVector;
 		float Hp = 0.0f;
+		int32 Dashes = 0;
+		int32 Level = 0;
 		FDTRunTally Tally;
 		FDTRunAward Award;
 		FString Csv;
@@ -199,7 +203,9 @@ namespace DTMetaTest
 			{
 				Result.Pos = State->Pos;
 				Result.Hp = State->Hp;
+				Result.Dashes = State->Dashes;
 			}
+			Result.Level = Sim->GetRun().GetPlayer(0).Level;
 			Bot->Deactivate();
 		}
 		return Result;
@@ -806,6 +812,182 @@ bool FDTMetBankHook::RunTest(const FString& Parameters)
 	NoFile.Open(FString());
 	NoFile.Bank(Tally(StepsForMinutes(2)), EDTRunEnd::Left);
 	TestEqual(TEXT("a session with no file calls no hook"), Calls, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetDiscoveryCatalog, "Dusktracer.Meta.DiscoveryCatalog", DTMetaTest::Flags) // T-MET-40
+bool FDTMetDiscoveryCatalog::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("fifteen rows"), DTCat::NumDiscoveries, 15);
+	TSet<FString> Ids;
+	FDTRunTally Empty;
+	for (const DTCat::FDiscoveryRow& Row : DTCat::Discoveries)
+	{
+		Ids.Add(Row.Id);
+		TestTrue(FString::Printf(TEXT("%s needs a positive count"), Row.Id), Row.Threshold > 0);
+		TestFalse(FString::Printf(TEXT("%s is not met by nothing"), Row.Id), DTDiscovery::IsMet(Row, Empty));
+		for (const TCHAR* Target : Row.Targets)
+		{
+			const FString Key(Target);
+			TestTrue(FString::Printf(TEXT("%s target %s in tag spelling"), Row.Id, Target), Key.IsEmpty() || Key.StartsWith(TEXT("Weapon.")) || Key.StartsWith(TEXT("Mod.")));
+		}
+		const FString Name = FText::FromStringTable(TEXT("ST_Discoveries"), FString::Printf(TEXT("Discovery.%s.Name"), Row.Id)).ToString();
+		TestFalse(FString::Printf(TEXT("%s has its name"), Row.Id), Name.IsEmpty() || Name.Contains(TEXT("MISSING")));
+	}
+	TestEqual(TEXT("no id twice"), Ids.Num(), DTCat::NumDiscoveries);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetDiscoveryPlanted, "Dusktracer.Meta.DiscoveryPlanted", DTMetaTest::Flags) // T-MET-41
+bool FDTMetDiscoveryPlanted::RunTest(const FString& Parameters)
+{
+	using namespace DTMetaTest;
+	for (const DTCat::FDiscoveryRow& Row : DTCat::Discoveries)
+	{
+		const FString Counter(Row.Counter);
+		const auto At = [&Counter, &Row](int64 Value)
+		{
+			FDTRunTally T = Tally(1);
+			if (Counter == TEXT("Seconds"))
+			{
+				T.Steps = Value * DTConst::SIM_FIXED_HZ;
+			}
+			else if (Counter == TEXT("Kills"))
+			{
+				T.Kills = Value;
+			}
+			else if (Counter == TEXT("Elites"))
+			{
+				T.Elites = Value;
+			}
+			else if (Counter == TEXT("BossKills"))
+			{
+				T.bBossKilled = Value > 0;
+			}
+			else
+			{
+				T.Counters.Add(FName(Row.Counter), Value);
+			}
+			return T;
+		};
+		FDTMetaProfile Below;
+		DTDiscovery::Apply(At(Row.Threshold - 1), Below);
+		TestEqual(FString::Printf(TEXT("%s one short earns nothing"), Row.Id), Below.Discoveries.Num(), 0);
+		TestEqual(FString::Printf(TEXT("%s one short unlocks nothing"), Row.Id), Below.Unlocked.Num(), 0);
+
+		FDTMetaProfile Met;
+		DTDiscovery::Apply(At(Row.Threshold), Met);
+		TestEqual(FString::Printf(TEXT("%s earns itself alone"), Row.Id), Met.Discoveries.Num(), 1);
+		TestTrue(FString::Printf(TEXT("%s is in Discoveries"), Row.Id), Met.Discoveries.Contains(FName(Row.Id)));
+		TestTrue(FString::Printf(TEXT("%s opens its Unlock key"), Row.Id), Met.Unlocked.Contains(FName(FString::Printf(TEXT("Discovery.%s"), Row.Id))));
+		int32 Keys = 1;
+		for (const TCHAR* Target : Row.Targets)
+		{
+			if (Target[0] != TEXT('\0'))
+			{
+				++Keys;
+				TestTrue(FString::Printf(TEXT("%s opens %s"), Row.Id, Target), Met.Unlocked.Contains(FName(Target)));
+			}
+		}
+		TestEqual(FString::Printf(TEXT("%s writes only its keys"), Row.Id), Met.Unlocked.Num(), Keys);
+		const TArray<uint8> Once = DTMeta::Serialize(Met);
+		DTDiscovery::Apply(At(Row.Threshold), Met);
+		TestTrue(FString::Printf(TEXT("%s twice is once"), Row.Id), Once == DTMeta::Serialize(Met));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetDiscoveryBank, "Dusktracer.Meta.DiscoveryBank", DTMetaTest::Flags) // T-MET-42
+bool FDTMetDiscoveryBank::RunTest(const FString& Parameters)
+{
+	using namespace DTMetaTest;
+	const FString Path = TempSave(TEXT("Discovery.sav"));
+	const FName Survive(TEXT("Survive10"));
+	const FName Best(TEXT("Best.Level"));
+	const FName Dashes(TEXT("Dashes"));
+	FDTRunTally Long = Tally(StepsForMinutes(10), 2);
+	Long.Counters.Add(Best, 12);
+	Long.Counters.Add(Dashes, 7);
+
+	FDTMetaSession Session;
+	Session.OnBank.AddStatic(&DTDiscovery::Apply);
+	Session.Open(Path);
+	const FDTRunAward First = Session.Bank(Long, EDTRunEnd::Death);
+	TestTrue(TEXT("a new discovery shows, with what the level brought"), First.Discovered.Contains(Survive) && First.Discovered.Contains(FName(TEXT("ReachL10"))));
+
+	FDTMetaSession Reader;
+	Reader.OnBank.AddStatic(&DTDiscovery::Apply);
+	Reader.Open(Path);
+	TestTrue(TEXT("it lands in the same save"), Reader.Profile.Discoveries.Contains(Survive));
+	TestTrue(TEXT("its Unlock key and targets too"), Reader.Profile.Unlocked.Contains(FName(TEXT("Discovery.Survive10"))) && Reader.Profile.Unlocked.Contains(FName(TEXT("Weapon.SeekerSwarm"))));
+
+	FDTRunTally Shorter = Long;
+	Shorter.Counters[Best] = 3;
+	const FDTRunAward Second = Reader.Bank(Shorter, EDTRunEnd::Death);
+	TestEqual(TEXT("a repeat shows nothing"), Second.Discovered.Num(), 0);
+	TestEqual(TEXT("a Best key keeps its highest"), Reader.Profile.LifetimeStats[Best], 12LL);
+	TestEqual(TEXT("a plain counter adds up"), Reader.Profile.LifetimeStats[Dashes], 14LL);
+
+	FDTMetaSession NoFile;
+	NoFile.OnBank.AddStatic(&DTDiscovery::Apply);
+	NoFile.Open(FString());
+	const FDTRunAward Tool = NoFile.Bank(Long, EDTRunEnd::Death);
+	TestEqual(TEXT("a tool run earns nothing"), Tool.Discovered.Num(), 0);
+	TestEqual(TEXT("and keeps nothing"), NoFile.Profile.Discoveries.Num(), 0);
+	TestEqual(TEXT("but the tally still reads"), DTDiscovery::MetBy(Long).Num(), 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetRunCounters, "Dusktracer.Meta.RunCounters", DTMetaTest::Flags) // T-MET-43
+bool FDTMetRunCounters::RunTest(const FString& Parameters)
+{
+	using namespace DTMetaTest;
+	const FRunResult Run = Play(76, true);
+	const auto Counter = [&Run](const TCHAR* Key)
+	{
+		const int64* Found = Run.Tally.Counters.Find(FName(Key));
+		return Found ? *Found : 0LL;
+	};
+	int64 ByRole = 0;
+	int64 ByWeapon = 0;
+	for (const TPair<FName, int64>& Pair : Run.Tally.Counters)
+	{
+		const FString Key = Pair.Key.ToString();
+		ByRole += Key.StartsWith(TEXT("Kills.Role.")) ? Pair.Value : 0;
+		ByWeapon += Key.StartsWith(TEXT("Kills.Weapon.")) ? Pair.Value : 0;
+	}
+	TestTrue(TEXT("the run killed"), Run.Tally.Kills > 0);
+	TestEqual(TEXT("roles add up to the kills"), ByRole, Run.Tally.Kills);
+	TestTrue(TEXT("weapons name kills, and none twice"), ByWeapon > 0 && ByWeapon <= Run.Tally.Kills);
+	TestEqual(TEXT("dashes are the hero's"), Counter(TEXT("Dashes")), static_cast<int64>(Run.Dashes));
+	TestEqual(TEXT("level is the player's"), Counter(TEXT("Best.Level")), static_cast<int64>(Run.Level));
+	TestTrue(TEXT("a weapon has a level"), Counter(TEXT("Best.WeaponLevel")) >= 1);
+
+	FDTRunState State;
+	State.Start(1, 1);
+	FDTEnemyPool Pool;
+	const int32 Enemy = Pool.Spawn(EDTEnemyRole::Tank, FVector2f::ZeroVector);
+	FDTHit Hit;
+	Hit.EnemyIndex = Enemy;
+	Hit.OwnerId = 0;
+	Hit.Damage = 2.0f;
+	Hit.bPierce = true;
+	FDTHit Crit = Hit;
+	Crit.Damage = 3.0f;
+	Crit.bCrit = true;
+	Hit.Damage = 9.0f;
+	const FDTHit Hits[] = { Hit, Crit };
+	Pool.ApplyHits(Hits, State);
+	TestEqual(TEXT("only a critical hit is a crit's best"), Pool.GetCounters().BestCrit, 3.0f);
+
+	FDTStatusApply Freeze;
+	Freeze.Handle = Pool.GetHandle(Enemy);
+	Freeze.Status = EDTStatus::Freeze;
+	Freeze.OwnerId = 0;
+	Freeze.FreezeScale = 1.0f;
+	Pool.ApplyStatus(Freeze);
+	Pool.ApplyStatus(Freeze);
+	TestEqual(TEXT("a freeze counts, its refresh does not"), Pool.GetCounters().FreezesBegun, 1LL);
 	return true;
 }
 

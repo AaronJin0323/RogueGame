@@ -2,8 +2,8 @@
 #   & Tools\MetaCheck.ps1 [-Seed 9108] [-Seconds 20]
 # A: a tool launch with no save: the default save must not change. B: same seed with an empty isolated save: same input_hash,
 # steps and CSV, and the save appears. C: a second launch reads it and adds to it. D: the file corrupted: it goes aside byte
-# for byte and a fresh one appears. E: a saved win reaches a real fight's start. F: the Tree and the first-run locks bought back up to a tool run's pool, gate on, play exactly as A.
-# G: -DTPoolGate with no save offers a person's first pool.
+# for byte and a fresh one appears. E: a saved win reaches a real fight's start. F: a planted counter earns a Discovery into a file and none with no file.
+# G: the Tree and the first-run locks bought back up to a tool run's pool, gate on, play exactly as A. H: -DTPoolGate with no save offers a person's first pool.
 # Prints "META: PASS (...)" or "META: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\MetaCheck_<tag>.log.
 param(
 	[int]$Seed = 9108,
@@ -106,25 +106,37 @@ $LogE2 = Invoke-Run "e2" @("-DTMetaFile=`"$Save`"", "-DTNoDirector", "-ExecCmds=
 $null = Take-Csv
 $WinsOk = (Find-Log $LogE2 "Meta: opened \(2\).*wins 1") -and (Find-Log $LogE2 "Boss: start form=\S+ wins=1 ")
 
-# F: the Tree on real launches (T-MET-20, T-MET-22). A full Tree with the gate on plays the seed of A: the Tree raises no number.
-$TreeSave = Join-Path $OutDir "DTTree.sav"
-$LogF1 = Invoke-Run "f1" @("-DTMetaFile=`"$TreeSave`"", "-ExecCmds=`"DT.Meta.Currency 1000000,DT.Tree.Buy ToolPool`"")
+# F (T-MET-45): a planted counter on a real launch earns a Discovery into the file, and the next launch holds it; the same plant with no file earns nothing and writes nothing (meta.md R-MET-40).
+$Plant = Join-Path $OutDir "Plant.sav"
+$BeforeF = Get-Stamp $Default
+$LogF0 = Invoke-Run "f0" @("-ExecCmds=`"DT.Meta.Plant Dashes 100`"")
 $null = Take-Csv
-$LogF2 = Invoke-Run "f2" @("-DTMetaFile=`"$TreeSave`"", "-DTPoolGate")
-$CsvF = Take-Csv
-$F = Read-Record "f2"
-$TreeOk = (Find-Log $LogF1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogF2 "Offers: pool gated, 36 unlocked, tools \+1 \+1 \+1") -and
-	($F["input_hash"] -eq $A["input_hash"]) -and ($F["steps"] -eq $A["steps"]) -and ($CsvF -ceq $CsvA)
+$NoFileOk = (Find-Log $LogF0 "Meta: discoveries met \d+ of 15 \[.*Dashes100.*\], new \[\]") -and ((Get-Stamp $Default) -eq $BeforeF)
+$LogF1 = Invoke-Run "f1" @("-DTMetaFile=`"$Plant`"", "-ExecCmds=`"DT.Meta.Plant Dashes 100`"")
+$null = Take-Csv
+$LogF2 = Invoke-Run "f2" @("-DTMetaFile=`"$Plant`"")
+$null = Take-Csv
+$DiscoveryOk = (Find-Log $LogF1 "Meta: discoveries met \d+ of 15 \[.*Dashes100.*\], new \[Dashes100\]") -and (Find-Log $LogF2 "Meta: opened \(2\).*discoveries 1") -and (Find-Log $LogF2 "Meta: counters ")
 
-# G: a tool asks for a person's first pool: no file, no unlock, and no locked card in a hand.
-$LogG = Invoke-Run "g" @("-DTPoolGate")
+# G: the Tree on real launches (T-MET-20, T-MET-22). A profile at the tool pool with the gate on plays the seed of A: the nodes raise no number.
+$TreeSave = Join-Path $OutDir "DTTree.sav"
+$LogG1 = Invoke-Run "g1" @("-DTMetaFile=`"$TreeSave`"", "-ExecCmds=`"DT.Meta.Currency 1000000,DT.Tree.Buy ToolPool`"")
+$null = Take-Csv
+$LogG2 = Invoke-Run "g2" @("-DTMetaFile=`"$TreeSave`"", "-DTPoolGate")
+$CsvG = Take-Csv
+$G = Read-Record "g2"
+$TreeOk = (Find-Log $LogG1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogG2 "Offers: pool gated, 36 unlocked, tools \+1 \+1 \+1") -and
+	($G["input_hash"] -eq $A["input_hash"]) -and ($G["steps"] -eq $A["steps"]) -and ($CsvG -ceq $CsvA)
+
+# H: a tool asks for a person's first pool: no file, no unlock, and no locked card in a hand.
+$LogH = Invoke-Run "h" @("-DTPoolGate")
 $Jsonl = Get-ChildItem $Playtests -Filter "${Seed}_*.jsonl" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
 $Hands = if ($Jsonl) { [IO.File]::ReadAllText($Jsonl.FullName) } else { "" }
 $null = Take-Csv
-$FirstOk = (Find-Log $LogG "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogG "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Weapon\.(ArcBlade|RingEmitter)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
+$FirstOk = (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Weapon\.(ArcBlade|RingEmitter)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
 
-$Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}, full Tree plays the same={11}, first-run pool={12}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk, $TreeOk, $FirstOk
-if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk -and $TreeOk -and $FirstOk) {
+$Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}, discovery saved={11}, no file earns none={12}, tool pool plays the same={13}, first-run pool={14}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk, $DiscoveryOk, $NoFileOk, $TreeOk, $FirstOk
+if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk -and $DiscoveryOk -and $NoFileOk -and $TreeOk -and $FirstOk) {
 	Write-Host "META: PASS ($Summary)"
 	exit 0
 }
