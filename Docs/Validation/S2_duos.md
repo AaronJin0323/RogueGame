@@ -65,7 +65,7 @@ All marked in `reactions.md`; numbers in `number_change_log.csv`.
 - Summons' second half: a Writ bolt only strikes Marked enemies, so "Mark what they hit" did nothing.
 - The toast's place, under the director's banner: no Keeper-line slot exists. The cue is two rings for all fifteen, not the source's fifteen Looks.
 - Lightspeed's refund limit.
-- All zh names of duo cards; two reaction toasts (Steam, Flare, Wildfire, Afterglow have no zh in the source, so four).
+- All zh names of duo cards; the zh toasts of Steam, Flare, Wildfire and Afterglow (the source has none).
 - Left out: Souls (Deep Ledger, Cold Storage), Wildfire's ember trail, Glide's first half, the card text's "Boosts X and Y" (no rule behind it, and Breakwater does not exist), cross cards, the second duo set.
 
 ## What reads wrong (for a human session, none of it tuned)
@@ -73,7 +73,7 @@ All marked in `reactions.md`; numbers in `number_change_log.csv`.
 - **Steam spends what the pair built.** Forge/Furnace:Tide fires 3510 times a run and wins 3 of 15 (5 without). Consuming Freeze thaws the crowd and consuming Burn stops the Furnace's fields (`HitOnBurning`). It is the source's rule and it may fight the arm.
 - **Repossession does not fire**: 15 runs, median 0 fires, the first at 607 s. The bot dodges bodies and a dash needs a low Marked enemy on its line. This is the bot; a human reading decides.
 - **Wildfire is either always on or never**: a few Momentum stacks pass `speed_over`, so it starts once and stays lit (1 fire a run, 1.7% of damage). Without Momentum and with no field it needs Afterburner.
-- **Quicksilver reactions carry no damage**: Black Ice and Afterglow read 0.000. Their worth is control and crit, which this table cannot see; both Rebound and Momentum arms lost two wins to control, within noise.
+- **Quicksilver reactions carry no damage**: Black Ice and Afterglow read 0.000. Their worth is control and crit, which this table cannot see. Rebound:Tide lost two wins to its control and Lance:Quicksilver none, within noise.
 - **Exposure is the largest at 12.3%** and is a state, so it runs on every hit of a stunned Marked enemy, past the per-enemy cooldown. Blinding enemies at 15% of hits makes that common on Radiance arms.
 - **Fields and arcs add emission load** through `TryEmit`: Arc Furnace and Lightning Step spend a weapon's spawn cap (R-WPN-09), so a duo can throttle its own rifle in a dense fight. Not measured.
 - **A Tide or Forge Patron with an S2 second is not reachable by a bot arm**: the Patron hand holds the unlocked Keeper first and three cards, so the arm's Patron may be absent and the bot takes another. Arms here use the S2 Keeper as Patron for that reason. A human sees the same hand.
