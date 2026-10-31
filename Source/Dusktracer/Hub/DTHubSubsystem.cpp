@@ -119,7 +119,7 @@ void UDTHubSubsystem::Command(EDTMenuCommand Command)
 {
 	if (bActive && !bBeginPending)
 	{
-		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale());
+		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale(), State.Page != EDTHubPage::Stats);
 		State.TreeRows = Tree.IsValid() ? Tree->NumRows() : 0;
 		HandleOutcome(State.Apply(Command));
 	}
@@ -174,7 +174,7 @@ void UDTHubSubsystem::Draw(UCanvas* Canvas)
 {
 	if (bActive)
 	{
-		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale());
+		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale(), State.Page != EDTHubPage::Stats); // the Ledger-stone has no detail pane
 		State.TreeRows = Tree.IsValid() ? Tree->NumRows() : 0;
 		FDTHubView View;
 		View.State = &State;

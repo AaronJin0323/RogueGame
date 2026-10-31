@@ -57,6 +57,6 @@ namespace DTHubLayout
 	DUSKTRACER_API float HeaderHeight(float TextScale);
 	DUSKTRACER_API float DetailHeight(float TextScale);
 	DUSKTRACER_API float FooterHeight(float TextScale);
-	/** List rows that fit between the header and the detail pane; never under one. */
-	DUSKTRACER_API int32 ListWindow(float TextScale);
+	/** List rows that fit under the header, over the detail pane when the page has one; never under one. */
+	DUSKTRACER_API int32 ListWindow(float TextScale, bool bDetail = true);
 }

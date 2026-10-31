@@ -472,7 +472,7 @@ bool FDTVigLayout::RunTest(const FString& Parameters)
 	TestTrue(TEXT("every root row fits at the largest text"), DTHubLayout::ListWindow(Largest) >= static_cast<int32>(EDTHubRow::Num));
 	const int32 Keepers = DTOffers::AllKeepers().Num();
 	TestTrue(TEXT("every Keeper fits"), DTHubLayout::ListWindow(Largest) >= Keepers);
-	TestTrue(TEXT("the Ledger-stone fits"), DTHubLayout::ListWindow(Largest) >= DTHubData::Stats(FDTMetaProfile()).Num());
+	TestTrue(TEXT("the Ledger-stone fits, having no detail pane"), DTHubLayout::ListWindow(Largest, false) >= DTHubData::Stats(FDTMetaProfile()).Num());
 	TestTrue(TEXT("a smaller text fits more rows"), DTHubLayout::ListWindow(1.0f) > DTHubLayout::ListWindow(Largest));
 	return true;
 }

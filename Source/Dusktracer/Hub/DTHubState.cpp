@@ -165,8 +165,8 @@ float DTHubLayout::FooterHeight(float TextScale)
 	return DTHubStateLocal::FooterBase * TextScale;
 }
 
-int32 DTHubLayout::ListWindow(float TextScale)
+int32 DTHubLayout::ListWindow(float TextScale, bool bDetail)
 {
-	const float Room = PanelHeight() - HeaderHeight(TextScale) - DetailHeight(TextScale) - FooterHeight(TextScale);
+	const float Room = PanelHeight() - HeaderHeight(TextScale) - (bDetail ? DetailHeight(TextScale) : 0.0f) - FooterHeight(TextScale);
 	return FMath::Max(1, FMath::FloorToInt(Room / DTMenuLayout::RowHeight(TextScale)));
 }
