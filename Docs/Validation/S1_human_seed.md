@@ -74,11 +74,11 @@ The two controls show it fails on the bug itself:
 
 ## Windows opened while building the check
 The first versions of `SeedCheck` showed windows on the owner's desktop, against the no-window rule:
-- A dialog titled `Message`, for about 40 s or more. The script put its flags before the project path, and the editor needs the project first (`LaunchEngineLoop.cpp`). A second launch with the same order may have shown it too before it was stopped.
-- A real game window for a moment on `UnrealEditor.exe -game -nullrhi`. `-nullrhi` drops the renderer, not the window: `LogEngine: GameWindow did not exist. Was created`. One was sampled visible, but all ten such launches created one, so all ten are counted.
+- A dialog titled `Message`, for at least 21 s (42 samples, each 0.5 s or more apart). The script put its flags before the project path, and the editor needs the project first (`LaunchEngineLoop.cpp`). A second launch with the same order may have shown it too before it was stopped.
+- A real game window for a moment on `UnrealEditor.exe -game -nullrhi`. `-nullrhi` drops the renderer, not the window: `LogEngine: GameWindow did not exist. Was created`. One was sampled visible and its log shows that line. The logs of the other nine have rotated away; they took the same path, so all ten are counted as having opened one.
 - One visible-window sample on the first launch with no `-unattended`, cause not proven. On the hidden desktop the same launches show a blank-titled `UAC Input Indicator` window owned by a short-lived process, which is the likely match.
 
-The project path is now required first, launches run on the hidden desktop, and unattended launches go first, so a stale build fails before any launch that could prompt.
+The project path is now required first, launches run on the hidden desktop, and unattended launches go first, so a stale build fails before any launch that could prompt. The 11 logs kept from the final runs are all `-RenderOffScreen`, with and without `-unattended`, and none created a game window.
 
 `Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured.
 
