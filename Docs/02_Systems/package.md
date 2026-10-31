@@ -13,6 +13,7 @@ Validators play without the editor (O-008, `Validation/S1_kit.md`). One script m
 - **R-PKG-07** `Tools/PadCheck.ps1` judges a package off-screen, in both cultures, with no window on the desktop. On the Shipping build: the bot plays past the first CSV interval and quits the game (`run_start` with the right `build` and `culture`, `run_end` `bot_timeout`), the export zip holds that run and `Tools/power_split.py` reads the exported files. On the Development build: `Run start` in the log, `Test.LocRoundTrip` drawn equal to `ST_UI.csv`, no crash, ensure or `LogDT` error, the screenshot passes `Tools/image_check.py`, and the exit mid-run leaves `run_end` `quit`. `-RenderOffScreen` creates no window, so no close message can reach the game: Alt+F4 itself is a human check.
 - **R-PKG-08** A package has a stamp, `Saved/Package/package_stamp.json`: commit, dirty flag, configs, cultures, size. The gate step `pad` judges only a clean package whose commit has the same `Source`, `Content` and `Config` as `HEAD`; a missing, dirty or stale package is `NOT RUN`, a failed check is a gate failure.
 - **R-PKG-09** A real pad needs a human: no machine check counts as one. `pad` stays `NOT RUN` until a run of this package exists whose CSV has `input_device` `pad`; only then is it `PASS`. A simulated input is never that evidence.
+- **R-PKG-10** `Tools/PackageRestartCheck.ps1` proves Restart run (`settings.md` R-SET-23, R-SET-24) in the package, off-screen. On the Development build, with real rendering: a restarted run matches a fresh launch by input hash, steps and CSV, the old file ends `restart`, the new file opens on `run_start`, the log holds no warning or error, real keys work after the reload, and a language and a volume changed in the menu survive it. Shipping has no hook that reaches a restart, so the check bridges the two builds: their `.utoc` and `.ucas` hashes match, and a fresh Shipping run's CSV equals the restarted Development run's. It is run by hand after `Tools/Package.ps1`, not by the gate.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -34,7 +35,8 @@ Validators play without the editor (O-008, `Validation/S1_kit.md`). One script m
 - T-PKG-07 `Tools/PadCheck.ps1` windows: no visible window of the game's process during the check.
 - T-PKG-08 `Tools/Gate.ps1` step `pad`: `NOT RUN` without a current clean package; a failed check fails the gate.
 - T-PKG-09 `Tools/PadCheck.ps1` human half: `NOT RUN` with no `pad` run of this build, `PASS` only with one.
-- HUMAN: a validator on a gamepad plays this package and `input_device` reads `pad`; full-screen, Alt+F4 leaving `run_end` `quit` in Shipping, and the look of `zh-Hans` cards on a real display.
+- T-PKG-10 `Tools/PackageRestartCheck.ps1`: prints `PKGRESTART: PASS` (R-PKG-10). Readings: `Validation/S2_package.md`.
+- HUMAN: a validator on a gamepad plays this package and `input_device` reads `pad`; full-screen, Alt+F4 leaving `run_end` `quit` in Shipping, Restart run pressed in Shipping leaving a `restart` file and a new file in `%LOCALAPPDATA%`, and the look of `zh-Hans` cards on a real display.
 
 ## Telemetry
 - Adds none. The check reads `run_start`, `run_end` and the CSV `input_device` column (`telemetry.md`).
