@@ -11,6 +11,7 @@
 #include "Game/DTGameMode.h"
 #include "Keepers/DTKeeperSubsystem.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
@@ -307,6 +308,17 @@ void UDTBotSubsystem::Activate(const FDTBotConfig& Config)
 		BossHandle = Boss->OnBossDefeated.AddUObject(this, &UDTBotSubsystem::HandleBossDefeated);
 	}
 	bActive = true;
+	FParse::Value(FCommandLine::Get(), TEXT("DTBotTrace="), TracePath);
+	if (!TracePath.IsEmpty())
+	{
+		IFileManager::Get().Delete(*TracePath, false, true, true);
+		FString Order;
+		for (UWorldSubsystem* Sub : GetWorld()->GetSubsystemArrayCopy<UWorldSubsystem>())
+		{
+			Order += Sub->GetClass()->GetName() + TEXT(" ");
+		}
+		UE_LOG(LogDT, Log, TEXT("Bot: world subsystem order: %s"), *Order);
+	}
 	MutePawn();
 	LatchNext();
 	UE_LOG(LogDT, Log, TEXT("Bot: active (%s) fast=%d max_s=%.0f quit=%d"), *Config.Describe(), StepsPerFrame, MaxSeconds, bQuit ? 1 : 0);
@@ -541,12 +553,57 @@ void UDTBotSubsystem::HandleStepEnd()
 		return; // the input stream (and its hash) is the run's; steps after its end are not the bot's
 	}
 	LatchNext();
+	if (SimSys && !TracePath.IsEmpty())
+	{
+		TraceStep(*SimSys);
+	}
 	if (SimSys && SimSys->GetStepIndex() % DTConst::SIM_FIXED_HZ == 0)
 	{
 		const FDTHeroState* State = Heroes.IsValid() ? Heroes->GetState(0) : nullptr;
 		UE_LOG(LogDT, VeryVerbose, TEXT("Bot: trace step=%lld hash=%08x pos=(%.3f,%.3f) hp=%.2f enemies=%d"), SimSys->GetStepIndex(), InputHash,
 			State ? State->Pos.X : 0.0f, State ? State->Pos.Y : 0.0f, State ? State->Hp : 0.0f, SimSys->GetView().EnemyPositions.Num());
 	}
+}
+
+void UDTBotSubsystem::TraceStep(UDTSimSubsystem& SimSys)
+{
+	using DTBotSubsystemLocal::Mix;
+	const auto Bits = [](float Value) { uint32 Out = 0; FMemory::Memcpy(&Out, &Value, sizeof(Out)); return Out; };
+	const UWorld* World = GetWorld();
+	const UDTEnemySubsystem* Enemies = World ? World->GetSubsystem<UDTEnemySubsystem>() : nullptr;
+	const UDTGemSubsystem* Gems = World ? World->GetSubsystem<UDTGemSubsystem>() : nullptr;
+	const FDTHeroState* State = Heroes.IsValid() ? Heroes->GetState(0) : nullptr;
+	const FDTPlayerRunState& Player = SimSys.GetRun().GetPlayer(0);
+	uint32 EnemyHash = 0;
+	uint32 RoundHash = 0;
+	uint32 GemHash = 0;
+	int32 NumEnemies = 0;
+	int32 NumRounds = 0;
+	int32 NumGems = 0;
+	if (Enemies)
+	{
+		const TConstArrayView<FVector2f> Pos = Enemies->GetPool().GetPositions();
+		const TConstArrayView<FVector2f> Rounds = Enemies->GetPool().GetRounds().GetPositions();
+		NumEnemies = Pos.Num();
+		NumRounds = Rounds.Num();
+		Mix(EnemyHash, Pos.GetData(), Pos.Num() * sizeof(FVector2f));
+		Mix(RoundHash, Rounds.GetData(), Rounds.Num() * sizeof(FVector2f));
+	}
+	if (Gems)
+	{
+		const TConstArrayView<FVector2f> Pos = Gems->GetPool().GetPositions();
+		NumGems = Pos.Num();
+		Mix(GemHash, Pos.GetData(), Pos.Num() * sizeof(FVector2f));
+	}
+	FString Line = FString::Printf(TEXT("%lld,%08x,%08x,%08x,%08x,%d,%08x,%d,%08x,%d,%08x,%d"), SimSys.GetStepIndex(), InputHash,
+		State ? Bits(State->Pos.X) : 0, State ? Bits(State->Pos.Y) : 0,
+		State ? Bits(State->Hp) : 0, NumEnemies, EnemyHash, NumRounds, RoundHash, NumGems, GemHash, Player.Level);
+	for (int32 Stream = 0; Stream < static_cast<int32>(EDTRngStream::Count); ++Stream)
+	{
+		Line += FString::Printf(TEXT(",%08x"), static_cast<uint32>(SimSys.GetRun().GetRng().Get(static_cast<EDTRngStream>(Stream)).GetCurrentSeed()));
+	}
+	Line += FString::Printf(TEXT(",%08x\n"), static_cast<uint32>(Player.Offer.Rng.GetCurrentSeed()));
+	FFileHelper::SaveStringToFile(Line, *TracePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM, &IFileManager::Get(), FILEWRITE_Append);
 }
 
 int32 UDTBotSubsystem::ServiceOffers()

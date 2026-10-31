@@ -83,6 +83,8 @@ private:
 	/** R-BOT-18: the grants of the carry arm. */
 	void ApplyCarry();
 	void WriteBuildSnapshot();
+	/** -DTBotTrace: one line per step, so two builds can be read for their first divergent step. */
+	void TraceStep(UDTSimSubsystem& SimSys);
 
 	struct FMinute
 	{
@@ -98,6 +100,7 @@ private:
 	int32 Level630 = 0;
 	double EndSeconds = 0.0;
 	FString OutPath;
+	FString TracePath;
 	/** The last hit taken, kind/role/attack (R-BOT-12). */
 	FString LastHit;
 	/** R-BOT-12: hits taken, those with the stick at rest, those within HitWallBandUU of an arena edge. */

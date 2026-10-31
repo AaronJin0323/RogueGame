@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformMemory.h"
 #include "HAL/PlatformTime.h"
 #include "InputKeyEventArgs.h"
 #include "Misc/CommandLine.h"
@@ -14,6 +15,8 @@
 #include "Player/DTHeroSim.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Settings/DTMenuSubsystem.h"
+#include "UObject/UObjectArray.h"
+#include "UObject/UObjectIterator.h"
 
 namespace DTRestartCheckLocal
 {
@@ -228,10 +231,28 @@ void DTRestartCheck::Tick(UDTMenuSubsystem* Menu)
 	int64 AtStep = -1;
 	int32 Seed = 0;
 	const UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
-	if (Sim && !World->URL.HasOption(TEXT("DTSeed")) && FParse::Value(FCommandLine::Get(), TEXT("DTRestartAtStep="), AtStep)
+	// -DTRestartLoops=N: restart N times in this process, not once, and read the process each time (a slow leak needs many worlds).
+	int32 Loops = 0;
+	FParse::Value(FCommandLine::Get(), TEXT("DTRestartLoops="), Loops);
+	static int32 LoopsDone = 0;
+	static TWeakObjectPtr<UWorld> LoopWorld;
+	const bool bWanted = Loops > 0 ? LoopsDone < Loops && LoopWorld.Get() != World : !World->URL.HasOption(TEXT("DTSeed"));
+	if (Sim && bWanted && FParse::Value(FCommandLine::Get(), TEXT("DTRestartAtStep="), AtStep)
 		&& FParse::Value(FCommandLine::Get(), TEXT("DTRestartSeed="), Seed) && Sim->GetStepIndex() >= AtStep)
 	{
 		UE_LOG(LogDT, Log, TEXT("RestartCheck: restart on seed %d at step %lld"), Seed, Sim->GetStepIndex());
+		if (Loops > 0)
+		{
+			LoopWorld = World;
+			++LoopsDone;
+			int32 Worlds = 0;
+			for (TObjectIterator<UWorld> It; It; ++It)
+			{
+				++Worlds;
+			}
+			UE_LOG(LogDT, Log, TEXT("RestartCheck: loop %d used_mb=%.1f objects=%d worlds=%d"), LoopsDone,
+				static_cast<double>(FPlatformMemory::GetStats().UsedPhysical) / (1024.0 * 1024.0), GUObjectArray.GetObjectArrayNumMinusAvailable(), Worlds);
+		}
 		Menu->RestartRun(TOptional<int32>(Seed));
 	}
 }
