@@ -39,6 +39,24 @@ namespace DTModifierTest
 		Fill(Flags.Add(Flag, DTWeapons::KeeperSource(Path), EDTFlagTier::Key).Params);
 		return Flags;
 	}
+
+	static FDTOfferCard BlessingCard(const TCHAR* Id)
+	{
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Blessing;
+		Card.ContentId = Id;
+		return Card;
+	}
+
+	/** A blessing pick as the run makes it: the Keeper state, then the flags the sim composes from that state. */
+	static bool TakeForgeBlessing(FDTHarness& H, const FDTOfferCard& Card)
+	{
+		FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+		const bool bTaken = DTOffers::AddBlessing(Player.Keepers, Card.ContentId);
+		H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), DTKeepers::BuildKeeperFlags(Player.Keepers, EDTPath::Forge));
+		H.StepOnce();
+		return bTaken;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersNeverIncompatible, "Dusktracer.Modifiers.NeverIncompatible", DTWeaponTestHarness::TestFlags) // T-MOD-01
@@ -459,10 +477,10 @@ bool FDTModifiersDormantShown::RunTest(const FString& Parameters)
 	using namespace DTModifierTest;
 	using namespace DTWeaponTestHarness;
 	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Ring(TEXT("Weapon.RingEmitter"));
 	const FName Shell(TEXT("Mod.ScatterShell"));
-	FDTOfferCard HammerKey;
-	HammerKey.Kind = EDTCardKind::Blessing;
-	HammerKey.ContentId = TEXT("Blessing.Forge.Hammer.Key");
+	const FName Split(TEXT("Mod.SplitCore"));
+	const FDTOfferCard HammerKey = BlessingCard(TEXT("Blessing.Forge.Hammer.Key"));
 
 	FDTHarness H;
 	H.Weapons.Give(H.Run, 0, Rifle, 1); // count 2: Hammer's Key converts every round
@@ -489,25 +507,54 @@ bool FDTModifiersDormantShown::RunTest(const FString& Parameters)
 	Other.ContentId = Rifle;
 	Other.TargetWeapon = Rifle;
 	TestEqual(TEXT("an upgrade"), DTOffers::DormantAfterPick(Player, Other).Num(), 0);
-	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
-	{
-		for (int32 Level = 2; Level <= DTWeapons::GetMaxLevel(Weapon); ++Level)
-		{
-			TestTrue(TEXT("levels never take a round away, so no upgrade can silence a socket"),
-				DTWeapons::GetLevelRow(Weapon, Level)->Count >= DTWeapons::GetLevelRow(Weapon, Level - 1)->Count);
-		}
-	}
 
-	// A conversion that leaves a round flying warns of nothing: the answer is the composition's, not the card's flag.
+	// A conversion that leaves a round flying still silences what blocks its cap: Split Core sleeps with a round in the air, and
+	// Scatter Shell beside it keeps working. The answer is the composition's, not the round count's and not the card's flag.
 	FDTHarness Partial;
 	Partial.Weapons.Give(Partial.Run, 0, Rifle, 3); // count 3: Hammer's Key leaves one round
 	Partial.Weapons.Socket(Partial.Run, 0, 0, Shell);
-	TestEqual(TEXT("one round still flies: no warning"), DTOffers::DormantAfterPick(Partial.Run.GetPlayer(0), HammerKey).Num(), 0);
+	Partial.Weapons.Socket(Partial.Run, 0, 0, Split);
+	Partial.StepOnce();
+	const TArray<FDTDormantSocket> PartialWarned = DTOffers::DormantAfterPick(Partial.Run.GetPlayer(0), HammerKey);
+	TestEqual(TEXT("one round still flies: one socket would sleep"), PartialWarned.Num(), 1);
+	TestTrue(TEXT("Split Core, which blocks the Melee the conversion adds"), PartialWarned.Num() == 1 && PartialWarned[0].Mod == Split);
+	TestTrue(TEXT("the blessing is taken on the partial conversion"), TakeForgeBlessing(Partial, HammerKey));
+	const TArray<FDTDormantSocket> PartialListed = DTWeaponCompose::DormantSockets(Partial.Run.GetPlayer(0));
+	TestEqual(TEXT("the sim silences that one socket"), PartialListed.Num(), 1);
+	TestTrue(TEXT("the same socket on the partial conversion"), PartialListed.Num() == 1 && PartialListed[0].Mod == Split);
+	const FDTKeeperRunState& PartialKeepers = Partial.Run.GetPlayer(0).Keepers;
+	FDTWeaponInstance Flying = Partial.Run.GetPlayer(0).Weapons[0];
+	const FDTWeaponSpec FlyingSpec = DTWeaponCompose::Compose(Flying, DTKeepers::BuildKeeperFlags(PartialKeepers, EDTPath::Forge).Entries, FDTWeaponHeroStats(), 0);
+	TestTrue(TEXT("a round does still fly"), FlyingSpec.ConvertRounds < FlyingSpec.Count && FlyingSpec.EffectiveCaps.Has(DTCat::ECap::Projectile));
+
+	// An Intercession passes and moves no socket: Hammer's variant names no rounds and folds onto the Key's, so a cast changes no caps.
+	FDTEffectSpec Cast;
+	TestTrue(TEXT("Hammer's variant parses"), DTKeepers::ParseSpec(DTCat::Archetypes[DTOffers::FindBlessing(HammerKey.ContentId).Archetype].IntercessionVariant, Cast));
+	FDTWeaponInstance During = Partial.Run.GetPlayer(0).Weapons[0];
+	const FDTWeaponSpec CastSpec = DTWeaponCompose::Compose(During, DTKeepers::BuildKeeperFlags(PartialKeepers, EDTPath::Forge, Cast.Clauses).Entries, FDTWeaponHeroStats(), 0);
+	TestEqual(TEXT("a cast folds as many rounds as the Key"), CastSpec.ConvertRounds, FlyingSpec.ConvertRounds);
+	TestEqual(TEXT("a cast changes no caps"), CastSpec.EffectiveCaps.Mask, FlyingSpec.EffectiveCaps.Mask);
+	TestEqual(TEXT("a cast wakes and silences nothing"), During.Sockets[0].bDormant, Flying.Sockets[0].bDormant);
+	TestEqual(TEXT("a cast wakes and silences nothing either way"), During.Sockets[1].bDormant, Flying.Sockets[1].bDormant);
+
+	// The worst legal card: a whole conversion takes three sockets of the Rifle, and Split Core sleeps on the Ring Emitter's twelve rounds.
+	FDTHarness Worst;
+	Worst.Weapons.Give(Worst.Run, 0, Rifle, 2);
+	for (const FName Mod : { Shell, Split, FName(TEXT("Mod.Pierce")) })
+	{
+		Worst.Weapons.Socket(Worst.Run, 0, 0, Mod);
+	}
+	Worst.Weapons.Give(Worst.Run, 0, Ring, 1);
+	Worst.Weapons.Socket(Worst.Run, 0, 1, Split);
+	Worst.StepOnce();
+	const TArray<FDTDormantSocket> WorstWarned = DTOffers::DormantAfterPick(Worst.Run.GetPlayer(0), HammerKey);
+	TestEqual(TEXT("four sockets would sleep"), WorstWarned.Num(), 4);
+	TestTrue(TEXT("the last is on the Ring Emitter"), WorstWarned.Num() == 4 && WorstWarned[3].Mod == Split && WorstWarned[3].Weapon == Ring);
+	TestTrue(TEXT("the blessing is taken on the worst card"), TakeForgeBlessing(Worst, HammerKey));
+	TestEqual(TEXT("the sim silences all four"), DTWeaponCompose::DormantSockets(Worst.Run.GetPlayer(0)).Num(), 4);
 
 	// The pick itself: the sim agrees with the card, the HUD list names it, and a socket already asleep is not warned of again.
-	TestTrue(TEXT("the blessing is taken"), DTOffers::AddBlessing(Player.Keepers, HammerKey.ContentId));
-	H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), DTKeepers::BuildKeeperFlags(Player.Keepers, EDTPath::Forge));
-	H.StepOnce();
+	TestTrue(TEXT("the blessing is taken"), TakeForgeBlessing(H, HammerKey));
 	const TArray<FDTDormantSocket> Listed = DTWeaponCompose::DormantSockets(H.Run.GetPlayer(0));
 	TestEqual(TEXT("the HUD lists what the card named"), Listed.Num(), 1);
 	TestTrue(TEXT("the same socket"), Listed.Num() == 1 && Listed[0].Mod == Shell && Listed[0].Weapon == Rifle);
@@ -527,6 +574,62 @@ bool FDTModifiersDormantShown::RunTest(const FString& Parameters)
 		const FString Line = DTOfferText::Dormant(Key, FDTDormantSocket{ Rifle, Shell }).ToString();
 		TestTrue(FString(Key) + TEXT(" names the weapon"), Line.Contains(DTOfferText::Name(WeaponCard).ToString()));
 		TestTrue(FString(Key) + TEXT(" names the modifier"), Line.Contains(DTOfferText::Name(ModCard).ToString()));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersDormantTable, "Dusktracer.Modifiers.DormantTable", DTWeaponTestHarness::TestFlags) // T-MOD-10
+bool FDTModifiersDormantTable::RunTest(const FString& Parameters)
+{
+	using namespace DTModifierTest;
+	using namespace DTWeaponTestHarness;
+	const FDTOfferCard HammerKey = BlessingCard(TEXT("Blessing.Forge.Hammer.Key"));
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Ring(TEXT("Weapon.RingEmitter"));
+	const FName Split(TEXT("Mod.SplitCore"));
+	// By hand from R-WPN-10 and the catalogs: a whole conversion loses Projectile, so these four go.
+	const TSet<FName> NeedRounds = { Split, TEXT("Mod.ScatterShell"), TEXT("Mod.Pierce"), TEXT("Mod.Ricochet") };
+
+	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
+	{
+		if (!IsS1Weapon(Weapon))
+		{
+			continue;
+		}
+		const FName WeaponName = DTWeapons::WeaponId(Weapon);
+		for (int32 Level = 1; Level <= DTWeapons::GetMaxLevel(Weapon); ++Level)
+		{
+			for (int32 Mod = 0; Mod < DTWeapons::NumModifiers(); ++Mod)
+			{
+				if (!DTModCompat::IsCompatible(Weapon, Mod))
+				{
+					continue;
+				}
+				const FName ModName = DTWeapons::ModifierId(Mod);
+				const FString Cell = FString::Printf(TEXT("%s L%d x %s"), DTCat::Weapons[Weapon].Id, Level, DTCat::Modifiers[Mod].Id);
+				// Only what leads with Projectile converts: the Rifle and the Ring. The Key folds two rounds, the whole of a count of 2.
+				const bool bWhole = WeaponName == Rifle && DTWeapons::GetLevelRow(Weapon, Level)->Count <= 2;
+				const bool bSilenced = bWhole ? NeedRounds.Contains(ModName) : (WeaponName == Rifle || WeaponName == Ring) && ModName == Split;
+
+				FDTHarness H;
+				H.Weapons.Give(H.Run, 0, WeaponName, Level);
+				H.Weapons.Socket(H.Run, 0, 0, ModName);
+				H.StepOnce();
+				const int32 Warned = DTOffers::DormantAfterPick(H.Run.GetPlayer(0), HammerKey).Num();
+				TakeForgeBlessing(H, HammerKey);
+				const int32 Listed = DTWeaponCompose::DormantSockets(H.Run.GetPlayer(0)).Num();
+				TestEqual(Cell + TEXT(": the card reads the table"), Warned, bSilenced ? 1 : 0);
+				TestEqual(Cell + TEXT(": the sim silences what the card named"), Listed, Warned);
+
+				// Only a blessing silences: a level can give a weapon Projectile back, and no modifier is blocked by it.
+				if (Listed == 0 && Level < DTWeapons::GetMaxLevel(Weapon))
+				{
+					TestEqual(Cell + TEXT(": the level is taken"), H.Weapons.LevelUp(H.Run, 0, 0, Level + 1), EDTWeaponResult::Ok);
+					H.StepOnce();
+					TestEqual(Cell + TEXT(": a level silences nothing"), DTWeaponCompose::DormantSockets(H.Run.GetPlayer(0)).Num(), 0);
+				}
+			}
+		}
 	}
 	return true;
 }

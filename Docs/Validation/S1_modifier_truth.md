@@ -15,14 +15,21 @@ Class PRESENT for the dormant display, BUG for the credit, both at the presentat
 ## Dormant shown (R-MOD-08)
 - **HUD:** one line per dormant socket, stacked above the hero block: "Scatter Shell dormant on Pulse Rifle", 脉冲步枪的子母弹已休眠. It reads the socket's `bDormant`, so it is true on the step the sim decided it. A build with no dormant socket draws nothing there, and the hero block does not move.
 - **Card:** a box above the rarity row: "Scatter Shell goes dormant on Pulse Rifle", 脉冲步枪的子母弹将休眠, one row per socket. `DTOffers::DormantAfterPick` composes copies of the weapons on the Keeper flags without and with the card and compares the sockets. It writes nothing and draws from no stream.
-- Off-screen captures at 1920×1080 with `-DTOfferShot`, en and zh-Hans, read by eye: the owner's case, and the worst legal case of three silenced sockets on one card. The zh box wraps to three lines, the en box to five, and Hammer's rules text stays clear of it. Captures are in the git-ignored `Saved/ModTruth`.
+- Off-screen captures at 1920×1080 with `-DTOfferShot` and `-ForceRes`, en and zh-Hans, read by eye: the owner's case, and the worst legal case of four silenced sockets on one card, a Rifle at level 2 with Split Core, Scatter Shell and Pierce plus a Ring Emitter with Split Core. Four is the ceiling: only the Rifle and the Ring convert, the Rifle has three sockets, and the Ring can lose only Split Core. That box takes six lines in en and four in zh-Hans, and about 120 px stay clear under Hammer's rules text. The HUD stacks the same four lines above the hero block, the Ring Emitter's name included. Captures are in the git-ignored `Saved/ModTruth`.
+- Two capture traps, both met on this track: without `-ForceRes` the engine shrinks a 1920×1080 request to 888×500, and the first card and HUD captures here were that size, so they were retaken; `-unattended` auto-picks slot 0, so the shot shows the arena and no hand.
+
+What Hammer's Key silences, the whole S1 table. `Dusktracer.Modifiers.DormantTable` checks the card and the sim against it for every weapon, level and compatible modifier.
 
 | Case | Card says |
 |---|---|
-| Hammer Key, Rifle level 1 or 2 (`count` 2): every round converts | Scatter Shell, and not Chain Trigger |
-| Hammer Key, Rifle level 3 (`count` 3): one round still flies | nothing |
+| Hammer Key, Rifle level 1 or 2 (`count` 2): every round converts, `Projectile` goes, `Melee` comes | Split Core, Scatter Shell, Pierce, Ricochet, whichever are socketed. Never Chain Trigger, Mirror, Lingering Field, Backwash, Conduit or Fork |
+| Hammer Key, Rifle level 3 to 8 (`count` 3 to 5): rounds still fly, `Melee` comes | Split Core only, which blocks `Melee` |
+| Hammer Key, Ring Emitter at any level (`count` 12 to 24): rounds still fly, `Melee` comes | Split Core only |
+| Hammer Key, Orbital Drones, Arc Blade, Gravity Mine | nothing: `ConvertMelee` resolves as a fallback there and changes no caps |
 | Hammer Amp, socket already asleep | nothing |
 | Furnace Key, an upgrade | nothing |
+
+The stored bot runs show the two partial cases in the sim. Both are `Saved/BotRuns/after_bot`, build `c4bb65d`, earlier than this branch and untouched by it. In Storm/Arc Grid:Forge seed 5, Split Core on the Rifle at 338.8 s, the Rifle's level 3 at 561.4 s and the Key at 568.7 s: `Modifier.SplitCore` reads 324 and 246, then nothing in the seven intervals left, while `Weapon.PulseRifle` keeps reading 677 to 4 521. In Storm/Downpour:Forge seed 6, Split Core on the Ring at 340.2 s and the Key at 340.7 s: `Modifier.SplitCore` never reads, while `Weapon.RingEmitter` reads 398 to 2 723 in every interval after the pick.
 
 Readability: `Pal.UI.Text` on `Pal.UI.Panel` is 13.8:1 from the token table, the box rule `Pal.Card.Tech` about 8:1. Text is the carrier, no colour carries it alone (R-PRE-08), and no enemy or telegraph token is used. The gate's `contrast` step stages no dormant modifier, so this is a token reading, not a rendered one.
 
@@ -55,11 +62,11 @@ Two of the 15 runs hold Chain Trigger on a converted weapon, and those are the o
 **Moves, downward, on attribution only:** every Keeper share column read from `sources` records, for a run that holds `Mod.ChainTrigger` on a weapon under a Keeper `ConvertMelee`. Only `Blessing.Forge.Hammer.Key` starts that conversion in S1, so only arms holding Forge can be touched, as Patron or second:
 
 - `S1_keeper_power.md` §5 (Forge-Hammer 0.62, Forge-Hammer-Tide 0.64 and the other Forge arms); `S1_field_tick.md` Keeper share columns; the Attribution share column and bot table of `S1_probes.md`.
-- Older columns of the same kind in `S1_boss_after_fields.md`, `S1_pull_rule.md`, `S1_tide_expression.md`, `S1_share_floor.md`, `S1_balance_pass2.md` and `S1_bot_baseline.md`.
+- Older readings of the same kind: the columns in `S1_boss_after_fields.md`, `S1_pull_rule.md`, `S1_tide_expression.md`, `S1_balance_pass2.md` and `S1_bot_baseline.md`, and the count "3 of 9 L16 runs" in `S1_balance_pass1.md` §5.
 
 Size, read on Forge/Hammer only: 0 of 14 runs at L16, 2 of 15 whole-run, by 0.003 and 0.009. The other Forge arms were not rerun. The bot ranks modifiers low, so its arms understate this: in the scene, a build that is Chain Trigger and little else, 0.35 of the damage left `Keeper.Forge`.
 
-**Does not move:** T-KEE-18 ablation (`probe.py` sums `hit` damage across sources) and with it the 0.589 mean, package gain and archetype band; T-KEE-15; every boss, win and end-time reading, since the input stream is unchanged. The last of these was confirmed on Forge/Hammer only.
+**Does not move:** T-KEE-18 ablation (`probe.py` sums `hit` damage across sources) and with it the 0.589 mean, package gain and archetype band; T-KEE-15; every boss, win and end-time reading, since the input stream is unchanged. The last of these was confirmed on Forge/Hammer only. `S1_share_floor.md` holds no Keeper share at all: its share columns are damage share per minute, which this fix does not touch.
 
 `dev/s2` carries the same line (`DTWeaponSim.cpp` 1002), so its attribution readings share this bias until the fix reaches it. Those readings were not checked.
 
@@ -68,9 +75,9 @@ The owner's L13 chest hand (hand 15: Mirror, Tempest Key, Conduit) held no new w
 
 ## Decisions (to record at integration)
 1. A modifier's free volley or copy stays `Modifier.<Name>` under a Keeper conversion. D-015 stands: it covers reshaping the weapon's own rounds, and a free volley is an extra emission. R-WPN-07 and R-KEE-13 now say so.
-2. The card reads the composition, never the card's flags, so a conversion that leaves a round flying warns of nothing.
-3. Only a blessing can silence a socket; `Dusktracer.Modifiers.DormantShown` pins that levels never take a round away.
-4. An Intercession's overlay is left out of the card, because it passes. The HUD follows the socket, so a Hammer cast that converts every round lists those sockets while it runs.
+2. The card reads the composition, never the card's flags or the round count, so it names whatever the composition silences, also on a weapon that keeps a round flying.
+3. Only a blessing can silence a socket: a level can only give a weapon `Projectile` back, and no modifier is blocked by it. `Dusktracer.Modifiers.DormantTable` walks every level-up with the Key held.
+4. An Intercession's overlay is left out of the card, because it passes and moves no socket: Hammer's variant names no rounds and folds onto the Key's `rounds=2`, so a cast changes no caps (`Dusktracer.Modifiers.DormantShown`). Should a later cast change caps, the HUD follows the socket and would list those sockets while it runs.
 5. Warnings are computed once per hand shown and kept in the offer flow: the build cannot change while a hand is open.
 6. Two text rows, `ST_Modifiers.Dormant.Hud` and `.Card`, replace the single `ST_Modifiers.Dormant` the spec budgeted: two places need two sentences, and the key format needs a dot.
 7. No `ST_Keywords` note for dormant, and no flash or sound on the change: the line and the box are the whole display until a human says otherwise.
@@ -83,4 +90,4 @@ No glossary or reference term exists for dormant, so these are invented and need
 - No human has seen the line or the box. Whether a player notices the line in a fight is the open question, and the HUMAN item of `modifiers.md` asks it.
 - Rendered contrast of the line and the box, and the second weather, which does not exist yet.
 - The attribution move on any arm but Forge/Hammer; the size on real play; the `dev/s2` readings.
-- A hand with silenced sockets on a weapon other than the Pulse Rifle: S1 has none, since only the Rifle has a `count` Hammer's Key converts whole.
+- The box and the line for a Rifle at level 3 or more by eye: `-DTOfferShot` stages level 2, so that case is read by `Dusktracer.Modifiers.DormantShown` and the stored run above, not in a capture. It draws the same row as the Ring Emitter's.

@@ -6,8 +6,11 @@
 // screenshot of it after a few wall seconds, then quits (the hand pauses the world, so it runs on the core ticker).
 // -DTOfferShotPatron=<slot> picks that Patron instead, -DTOfferShotPatron=-1 shoots the Patron hand itself;
 // -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it); -DTOfferShotMod=<Mod.*>[+<Mod.*>...] sockets
-// them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotBless=<Blessing.*>
-// takes that blessing and opens no hand, so the shot is the HUD with its dormant lines.
+// them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotRing=<Mod.*>[+...]
+// also gives the Ring Emitter with those socketed; -DTOfferShotBless=<Blessing.*> takes that blessing and opens no hand, so
+// the shot is the HUD with its dormant lines. The log names each card of the hand shot, so a seed can be picked by card.
+// Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500), and never -unattended, which
+// auto-picks slot 0 so no hand is left to shoot.
 
 #include "CoreMinimal.h"
 
@@ -208,6 +211,17 @@ namespace DTDebugOffers
 		return nullptr;
 	}
 
+	/** Sockets the '+'-separated Mod.* ids of a command-line value into Weapon. */
+	static void SocketFromValue(UDTWeaponSubsystem& Weapons, const FString& Mods, FName Weapon)
+	{
+		TArray<FString> Ids;
+		Mods.ParseIntoArray(Ids, TEXT("+"));
+		for (const FString& Id : Ids)
+		{
+			Weapons.Socket(0, Weapon, FName(*Id));
+		}
+	}
+
 	static bool StepShot(FShot& Shot)
 	{
 		constexpr double SetupAfterS = 2.0;
@@ -238,11 +252,12 @@ namespace DTDebugOffers
 					Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
 					FString Mods;
 					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotMod="), Mods);
-					TArray<FString> Ids;
-					Mods.ParseIntoArray(Ids, TEXT("+"));
-					for (const FString& Id : Ids)
+					SocketFromValue(*Weapons, Mods, FName(TEXT("Weapon.PulseRifle")));
+					FString RingMods;
+					if (FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotRing="), RingMods))
 					{
-						Weapons->Socket(0, FName(TEXT("Weapon.PulseRifle")), FName(*Id));
+						Weapons->Give(0, FName(TEXT("Weapon.RingEmitter")), 1);
+						SocketFromValue(*Weapons, RingMods, FName(TEXT("Weapon.RingEmitter")));
 					}
 				}
 				FString Bless;
@@ -263,6 +278,13 @@ namespace DTDebugOffers
 		}
 		else if (Shot.Stage == 1 && T >= ShootAfterS)
 		{
+			if (const FDTOfferHand* Hand = Offers->GetOpenHand(0))
+			{
+				for (int32 Slot = 0; Slot < Hand->Cards.Num(); ++Slot)
+				{
+					UE_LOG(LogDT, Log, TEXT("DT offer shot: slot %d %s"), Slot, *Hand->Cards[Slot].ContentId.ToString());
+				}
+			}
 			FScreenshotRequest::RequestScreenshot(Shot.Path, /*bInShowUI*/ true, /*bAddFilenameSuffix*/ false);
 			Shot.Stage = 2;
 		}
