@@ -21,6 +21,15 @@ enum class EDTBotPolicy : uint8
 	Steered
 };
 
+/** Which cards a Steered bot may take (Docs/Validation/S1_owner_run.md §6). */
+enum class EDTBotPick : uint8
+{
+	/** The plain Steered order. */
+	All,
+	/** Passes Weapon and WeaponUpgrade cards as the owner's run did; takes one only from a hand that holds nothing else. */
+	BlessingsOnly
+};
+
 struct DUSKTRACER_API FDTBotConfig
 {
 	EDTBotPolicy Policy = EDTBotPolicy::Off;
@@ -29,6 +38,10 @@ struct DUSKTRACER_API FDTBotConfig
 	FName Archetype;
 	/** Steered: the second Keeper; None = DefaultSecond(Path). */
 	EDTPath SecondPath = EDTPath::None;
+	/** Steered: the second Keeper's archetype name ("Hammer"), its blessings taken before the Patron's; none = no preference. */
+	FName SecondArchetype;
+	/** Steered: the card filter; All changes nothing. */
+	EDTBotPick Pick = EDTBotPick::All;
 	/** 1 = no reaction delay and no noise; 0 = the largest delay and noise. */
 	float Skill = 1.0f;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
@@ -46,6 +59,7 @@ struct DUSKTRACER_API FDTBotConfig
 	static const TCHAR* PolicyName(EDTBotPolicy Policy);
 	static EDTBotPolicy ParsePolicy(const FString& Text);
 	static EDTPath ParsePath(const FString& Text);
+	static EDTBotPick ParsePick(const FString& Text);
 	/** Storm -> Tide, Forge -> Storm, Tide -> Forge (any fixed choice; recorded in Docs/Validation/S1_bot_baseline.md). */
 	static EDTPath DefaultSecond(EDTPath Primary);
 	FString Describe() const;

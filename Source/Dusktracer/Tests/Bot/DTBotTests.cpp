@@ -208,6 +208,65 @@ bool FDTBotCards::RunTest(const FString& Parameters)
 	return true;
 }
 
+// The owner's run (S1_owner_run.md): every Weapon and WeaponUpgrade card passed, Hammer's blessings over the Patron's. The plain
+// Steered order must stay what it was: the filter is off by default, and that keeps input_hash.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotOwnerPathCards, "Dusktracer.Bot.OwnerPathCards", DTBotTest::Flags)
+bool FDTBotOwnerPathCards::RunTest(const FString& Parameters)
+{
+	FDTPlayerRunState Player;
+	auto Card = [](EDTCardKind Kind, const TCHAR* Id)
+	{
+		FDTOfferCard C;
+		C.Kind = Kind;
+		C.ContentId = FName(Id);
+		return C;
+	};
+	const FDTOfferCard Weapon = Card(EDTCardKind::Weapon, TEXT("Weapon.ArcBlade"));
+	const FDTOfferCard Upgrade = Card(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"));
+	const FDTOfferCard Mod = Card(EDTCardKind::Mod, TEXT("Mod.Pierce"));
+	const FDTOfferCard Reserve = Card(EDTCardKind::Reserve, TEXT("Reserve.Hone"));
+	FDTOfferHand Mixed;
+	Mixed.HandKind = EDTHandKind::Level;
+	Mixed.Cards = { Weapon, Upgrade, Mod };
+	FDTOfferHand Spare;
+	Spare.HandKind = EDTHandKind::Chest;
+	Spare.Cards = { Upgrade, Weapon, Reserve };
+	FDTOfferHand ArmsOnly;
+	ArmsOnly.HandKind = EDTHandKind::Chest;
+	ArmsOnly.Cards = { Upgrade, Weapon };
+	FDTOfferHand Blessings;
+	Blessings.HandKind = EDTHandKind::Level;
+	Blessings.Cards = { Card(EDTCardKind::Blessing, TEXT("Blessing.Storm.ArcGrid.Key")), Card(EDTCardKind::Blessing, TEXT("Blessing.Forge.Slam.Key")),
+		Card(EDTCardKind::Blessing, TEXT("Blessing.Forge.Hammer.Key")) };
+
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Path = EDTPath::Storm;
+	Config.Archetype = FName(TEXT("ArcGrid"));
+	Config.SecondPath = EDTPath::Forge;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	TestEqual(TEXT("off: the plain order still takes the weapon"), Brain.ChooseCard(Mixed, Player), 0);
+	TestEqual(TEXT("off: the Patron's archetype still comes first"), Brain.ChooseCard(Blessings, Player), 0);
+	TestFalse(TEXT("off: the record's config line does not change"), Config.Describe().Contains(TEXT("pick=")) || Config.Describe().Contains(TEXT("second_archetype=")));
+
+	Config.Pick = EDTBotPick::BlessingsOnly;
+	Brain.Reset(Config);
+	TestEqual(TEXT("passes both weapon kinds for a modifier"), Brain.ChooseCard(Mixed, Player), 2);
+	TestEqual(TEXT("passes both weapon kinds for a Reserve card"), Brain.ChooseCard(Spare, Player), 2);
+	TestEqual(TEXT("a hand of nothing else is still answered: a player cannot decline"), Brain.ChooseCard(ArmsOnly, Player), 0);
+	TestEqual(TEXT("nothing was declined"), Brain.GetStats().Declines, 0);
+	TestEqual(TEXT("the filter alone leaves the blessing order"), Brain.ChooseCard(Blessings, Player), 0);
+
+	Config.SecondArchetype = FName(TEXT("Hammer"));
+	Brain.Reset(Config);
+	TestEqual(TEXT("the second archetype comes before the Patron's"), Brain.ChooseCard(Blessings, Player), 2);
+	TestTrue(TEXT("the record names the filter and the archetype"), Config.Describe().Contains(TEXT("pick=BlessingsOnly")) && Config.Describe().Contains(TEXT("second_archetype=Hammer")));
+
+	TestTrue(TEXT("parse"), FDTBotConfig::ParsePick(TEXT("blessingsonly")) == EDTBotPick::BlessingsOnly && FDTBotConfig::ParsePick(TEXT("All")) == EDTBotPick::All);
+	return true;
+}
+
 // The ring is a skill check for a hero who can see it. Standing far outside, past the look-ahead, every move lands in the
 // hazard: the bot must still walk in, even with an enemy on the inside pushing its kite outward (S1_boss_after_fields.md).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotHazardRingInward, "Dusktracer.Bot.HazardRingInward", DTBotTest::Flags)

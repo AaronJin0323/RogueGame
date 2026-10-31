@@ -1,8 +1,8 @@
 # Bot v1 run harness (S1 tool; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
 #   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-Seeds 10] [-FirstSeed 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
-#                       [-Jobs <jobs.csv>] [-Stagger 1.5]
-# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. Each run launches the game headless
+#                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly]
+# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
 # A run still alive after -Timeout wall seconds is killed by its own PID only. -Parallel runs that many processes at once
@@ -13,6 +13,8 @@
 # Prints "BOTRUNS: PASS|FAIL (...)"; exit 0 / 1 (a failed check or a run with no record fails).
 # -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
+# -Policy BlessingsOnly filters the Steered arms' cards: Weapon and WeaponUpgrade are passed, as the owner's run did
+# (Docs/Validation/S1_owner_run.md). All, the default, passes nothing to the game, so the runs and their input_hash stay as they were.
 param(
 	[string[]]$Arms = @(),
 	[int]$Seeds = 0,
@@ -26,7 +28,8 @@ param(
 	[int]$Parallel = 1,
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[string]$Jobs = "",
-	[double]$Stagger = 1.5
+	[double]$Stagger = 1.5,
+	[ValidateSet("All", "BlessingsOnly")][string]$Policy = "All"
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -45,11 +48,17 @@ function Get-Constant([string]$Key) {
 
 $Arms = @($Arms | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 if ($Arms.Count -eq 0) { $Arms = @("None") }
+if ($Policy -ne "All") {
+	# Only Steered scores cards: anywhere else the filter would change nothing and the reading would claim it had.
+	if ($Jobs) { throw "-Policy $Policy reads Steered arms, not -Jobs" }
+	$NotSteered = @($Arms | Where-Object { ($_ -split ':')[0] -ne "Steered" })
+	if ($NotSteered.Count -gt 0) { throw "-Policy $Policy reads Steered arms, not $($NotSteered -join ' ')" }
+}
 if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant "DIR.BOT_RUNS") } else { 1 } }
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
-Write-Host ("botruns: arms {0}, seeds {1}..{2}, skill {3}, {4} steps/frame -> {5}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $Skill, $Steps, $Out)
+Write-Host ("botruns: arms {0}, seeds {1}..{2}, skill {3}, policy {4}, {5} steps/frame -> {6}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $Skill, $Policy, $Steps, $Out)
 
 $Missing = 0
 function Finish-Run($Run) {
@@ -114,13 +123,14 @@ if ($Jobs) {
 
 foreach ($Arm in $Arms) {
 	$Parts = $Arm -split ':'
-	$Policy = $Parts[0]
 	$Label = ($Parts -join '-')
 	foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
-		$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
+		$Extra = @("-DTBot=$($Parts[0])", "-DTBotMaxSeconds=$MaxSeconds")
 		if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
 		if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
 		if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
+		if ($Parts.Count -gt 4) { $Extra += "-DTBotSecondArchetype=$($Parts[4])" }
+		if ($Policy -ne "All") { $Extra += "-DTBotPick=$Policy" }
 		$null = Start-Run $Label $Seed $Extra
 	}
 }
