@@ -72,6 +72,6 @@ Earlier, under `-PrimaryFirst`, Blade Halo won 3 of 11 and Railstorm 71 of 84. H
 - A human, on any of this. Which Keeper suits which evolution: one pair was read. Screen and readability: no renderer. Perf is in `S2_perf.md`, Danger outlines on. Skills under 1.0. The power band of R-RFG-18.
 
 ## Gate
-`Tools\Gate.ps1 -Base dev/s2`: GATELINE
+`Tools\Gate.ps1 -Base dev/s2`: PASS at 9d05332, 425 of 425 tests, 0 failed, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run. The commit after it is this line and two wording fixes in `S2_perf.md`.
 
 Earlier: PASS at 81c7690, 407 tests run, 0 failed, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run. The commit after it is this line.
