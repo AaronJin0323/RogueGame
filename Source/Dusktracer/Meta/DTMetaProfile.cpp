@@ -261,7 +261,8 @@ int64 DTMeta::ApplyRun(FDTMetaProfile& Profile, const FDTRunTally& Tally, EDTRun
 	Profile.LifetimeStats.FindOrAdd(StatCurrency) += Award;
 	for (const TPair<FName, int64>& Counter : Tally.Counters)
 	{
-		Profile.LifetimeStats.FindOrAdd(Counter.Key) += Counter.Value;
+		int64& Stat = Profile.LifetimeStats.FindOrAdd(Counter.Key);
+		Stat = Counter.Key.ToString().StartsWith(TEXT("Best.")) ? FMath::Max(Stat, Counter.Value) : Stat + Counter.Value;
 	}
 	return Award;
 }

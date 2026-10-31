@@ -1,0 +1,16 @@
+id,counter,threshold,targets,recollection,absent,ref
+ReachL10,Best.Level,10,Weapon.FlakMortar,Codex.Recollection.ReachL10,,GDD 8.3
+ScatterKills500,Kills.Weapon.ScatterCannon,500,Mod.ScatterShell,Codex.Recollection.ScatterKills500,,GDD 8.3
+Survive10,Seconds,600,Weapon.ArcBlade;Weapon.SeekerSwarm,Codex.Recollection.Survive10,,GDD 8.3
+Elite3Mods,Best.EliteKillMods,3,Mod.ChainTrigger,Codex.Recollection.Elite3Mods,,GDD 8.3
+Freeze100,Status.Freeze,100,Weapon.RingEmitter,Codex.Recollection.Freeze100,,GDD 8.3
+Crit500,Best.Crit,500,,Codex.Recollection.Crit500,Crit Lens,GDD 8.3
+Win,BossKills,1,Weapon.SpiralProjector;Weapon.GravityMine;Mod.Conduit,Codex.Recollection.Win,,GDD 8.3
+Kills1000,Kills,1000,,Codex.Recollection.Magnify,Magnify,ST_Codex Context
+WeaponL8,Best.WeaponLevel,C.WEAPON.LEVEL_MAX,,Codex.Recollection.Overclock,Overclock,ST_Codex Context
+RailKills300,Kills.Weapon.RailLance,300,,Codex.Recollection.HeavySlug,Heavy Slug,ST_Codex Context
+Elites10,Elites,10,,Codex.Recollection.Burst,Burst Capacitor,ST_Codex Context
+TwoPaths6,Best.PathsAtTier2,2,Mod.SpreadWave,Codex.Recollection.SpreadWave,,ST_Codex Context
+DroneKills300,Kills.Weapon.OrbitalDrones,300,Mod.LingeringField,Codex.Recollection.Linger,,ST_Codex Context
+Dashes100,Dashes,100,,Codex.Recollection.Velocity,Velocity Coil,ST_Codex Context
+Favor9,Best.Tier,3,,Codex.Recollection.Lifeline,Lifeline,ST_Codex Context

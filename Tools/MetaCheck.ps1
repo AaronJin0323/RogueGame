@@ -105,8 +105,20 @@ $LogE2 = Invoke-Run "e2" @("-DTMetaFile=`"$Save`"", "-DTNoDirector", "-ExecCmds=
 $null = Take-Csv
 $WinsOk = (Find-Log $LogE2 "Meta: opened \(2\).*wins 1") -and (Find-Log $LogE2 "Boss: start form=\S+ wins=1 ")
 
-$Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk
-if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk) {
+# F (T-MET-45): a planted counter on a real launch earns a Discovery into the file, and the next launch holds it; the same plant with no file earns nothing and writes nothing (meta.md R-MET-40).
+$Plant = Join-Path $OutDir "Plant.sav"
+$BeforeF = Get-Stamp $Default
+$LogF0 = Invoke-Run "f0" @("-ExecCmds=`"DT.Meta.Plant Dashes 100`"")
+$null = Take-Csv
+$NoFileOk = (Find-Log $LogF0 "Meta: discoveries met \d+ of 15 \[.*Dashes100.*\], new \[\]") -and ((Get-Stamp $Default) -eq $BeforeF)
+$LogF1 = Invoke-Run "f1" @("-DTMetaFile=`"$Plant`"", "-ExecCmds=`"DT.Meta.Plant Dashes 100`"")
+$null = Take-Csv
+$LogF2 = Invoke-Run "f2" @("-DTMetaFile=`"$Plant`"")
+$null = Take-Csv
+$DiscoveryOk = (Find-Log $LogF1 "Meta: discoveries met \d+ of 15 \[.*Dashes100.*\], new \[Dashes100\]") -and (Find-Log $LogF2 "Meta: opened \(2\).*discoveries 1") -and (Find-Log $LogF2 "Meta: counters ")
+
+$Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}, discovery saved={11}, no file earns none={12}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk, $DiscoveryOk, $NoFileOk
+if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk -and $DiscoveryOk -and $NoFileOk) {
 	Write-Host "META: PASS ($Summary)"
 	exit 0
 }

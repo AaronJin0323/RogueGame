@@ -33,7 +33,7 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 
 ### What later systems build on
 - **R-MET-18** The profile carries the Tree (`TreeRanks`, `Unlocked`), Discoveries (`Discoveries`, `LifetimeStats`), the Hub (`LastPatron`, `DeathsSinceWin`) and the story (`Act`, `StoryFlags`, `RecollectionsRead`, `ArenaWins`, `ArenaHeat`, the fate fields). No system opens a second file.
-- **R-MET-19** Run-end systems hook `FDTMetaSession::OnBank`, called with the tally and the profile after the award and before the write, so a Discovery lands in the same atomic save. Per-run counters travel in `FDTRunTally::Counters`, keyed by a neutral tag such as `Kills.Weapon.Scatter`, and are added to `LifetimeStats` by name. A session with no file calls no hook.
+- **R-MET-19** Run-end systems hook `FDTMetaSession::OnBank`, called with the tally and the profile after the award and before the write, so a Discovery lands in the same atomic save. Per-run counters travel in `FDTRunTally::Counters`, keyed by a neutral tag such as `Kills.Weapon.ScatterCannon`, and are added to `LifetimeStats` by name (R-MET-44 for `Best.` keys). A session with no file calls no hook.
 
 ### Pillar: the Tree keeps pool and utility nodes only (D-023)
 - **R-MET-20** No Tree node may raise a number in a run: not a `FDTStatSet` value, a Favor count, a cooldown, a level or a starting rank. A node either widens the pool or adds a choice. The source's table conflicts; the call on each row:
@@ -55,6 +55,27 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Branch: unlock locked blessing #5 | pool | kept | `Branch.<Path>.Blessing5` |
 | Branch: unlock that Keeper's Fusion | pool | kept | `Branch.<Path>.Reforge` |
 | Branch: begin the run with one of this Keeper's blessings | stat | cut: a free card is a head start | none |
+
+### Discoveries
+The rule numbers leave a gap so the Tree's rules can follow R-MET-20.
+
+- **R-MET-40** The catalog is `Docs/09_Catalog/discoveries.csv`, one row per Discovery of `ST_Discoveries`, compiled into `DTCat::Discoveries`: `id` (the `ST_Discoveries` row), `counter` and `threshold` (met at or above), `targets` (pool ids), `recollection` (the `ST_Codex` row) and doc-only `absent` and `ref`. `Tools/gen_catalog.py` fails a row whose text is missing, whose target is not a `weapons.csv` or `modifiers.csv` id, or whose `ST_Codex` row does not carry `Unlock` `Discovery.<id>`. The source (GDD §8.3) gives seven targets; the other eight come from the `Context` notes of the source `ST_Codex`. Conditions are the `ST_Discoveries` text: all are per run, including the two the GDD left open.
+- **R-MET-41** The counters are read-only, like the tally (R-MET-03). Kills by weapon and by role are counted each step from `FDTWorldView::Kills`; a kill names a weapon only through `WeaponSlot`, so a Keeper's own kill counts for no weapon. The rest is read once, at the end of the step the run ended on, or at the close for a run with no end of its own. The enemy pool keeps `FreezesBegun` and `BestCrit` in its counters for this and nothing reads them back.
+
+| Counter | Reads |
+|---|---|
+| `Kills.Weapon.<Name>`, `Kills.Role.<Role>` | kills by the owner's weapon in that slot, and by role |
+| `Dashes` | `FDTHeroState::Dashes` |
+| `Status.Freeze` | enemies going from not frozen to frozen, a Blind's short Freeze included (R-KEE-25); a refresh of a frozen enemy is not a freeze `[invented]`: refreshes dwarf real freezes (`S3_discoveries.md`) |
+| `Best.Crit` | the largest critical hit after the plate, affixes and Shock, before the enemy's remaining HP caps it `[invented]` |
+| `Best.EliteKillMods` | most sockets, dormant ones included, on a weapon that killed an elite |
+| `Best.Level`, `Best.WeaponLevel`, `Best.Tier`, `Best.PathsAtTier2` | the run state at the end |
+
+`Seconds`, `Kills`, `Elites` and `BossKills` read the tally's own fields.
+- **R-MET-42** Evaluation is the `OnBank` hook, `DTDiscovery::Apply`, bound by `UDTMetaSubsystem`, so a Discovery lands in the bank's atomic save (R-MET-19). A met row adds `<Id>` to `Discoveries`, and to `Unlocked` adds `Discovery.<Id>` and each target. A repeat changes nothing. No run takes a key away.
+- **R-MET-43** Key forms in `Unlocked`, one set shared with the Tree: `Discovery.<Id>` is the `Unlock` column of `ST_Codex`, `ST_KeeperLines` and `ST_World`, so a reader shows a row when its `Unlock` is in the set (`World.Yard` opens with `Dashes100`); `Weapon.<Name>` and `Mod.<Name>` are the catalog ids in tag spelling, equal to `FDTOfferCard::ContentId`, so pool gating asks `Unlocked.Contains(ContentId)`; `Trunk.*` and `Branch.*` are the Tree's (R-MET-20). This system writes only the first two, and never reads `Unlocked`. The other story keys need no entry: `Win` is `Wins > 0`, `Kill.<Role>` is `Kills.Role.<Role>` in `LifetimeStats`.
+- **R-MET-44** Lifetime stats: every run counter joins `LifetimeStats` by name and adds up (R-MET-19), but a `Best.` key keeps its highest value, since a sum of bests means nothing. The run-over screen shows one toast under its panel, `Discovery.Toast` with the names of what this bank added, joined with ` · `, once the bank has run. A repeat shows nothing; many names shrink to the panel's width. There is no mid-run toast.
+- **R-MET-45** A session with no file calls no hook (R-MET-19), so a tool run earns and writes nothing. What a run met still reads: the recorder logs `Meta: counters ...` and `Meta: discoveries met <n> of 15 [...], new [...]` at every banked run. These are log lines only, so R-MET-16 holds: `run_award` stays the JSONL's one addition, and it stays free of save fields. `Tools/BotRuns.ps1` logs carry them with no change.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -89,12 +110,14 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Type | Notes |
 |---|---|
 | `FDTRunTally` | `Steps Kills Elites bBossKilled Heat Patron Counters`: what the recorder hands the bank |
-| `FDTRunAward` | `Retained`, `Balance`, and whether the bank ran |
+| `FDTRunAward` | `Retained`, `Balance`, whether the bank ran, and `Discovered`, what it added |
+| `DTDiscovery` | `Apply`, the `OnBank` hook; `MetBy`, the rows a tally meets, reading no profile |
 | `FDTMetaSession` | the profile, its path and the bank; plain C++, so tests drive it on temp files |
 | `UDTMetaSubsystem` | game instance subsystem: picks the path and opens one session a launch |
 | `UDTRunRecorder` | world subsystem, the tally and the close of the run |
 | `-DTMetaFile=<path>`, `-DTNoSave` | command line, R-MET-14 |
 | `DT.Meta.Wins <n>` | debug, not in Shipping: sets the session's wins for `Tools/MetaCheck.ps1` |
+| `DT.Meta.Plant <key> <amount>` | debug, not in Shipping: adds to a counter of this run's tally, for `Tools/MetaCheck.ps1` |
 
 ## Acceptance
 - T-MET-01 `Dusktracer.Meta.NeutralKeys`: no source file under `Meta/` holds a fiction name.
@@ -117,7 +140,13 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 - T-MET-18 `Dusktracer.Meta.ModelFields`: each field of §Data round-trips set to a value, and an all-default profile reads as empty.
 - T-MET-19 `Dusktracer.Meta.BankHook`: a hook runs after the award and before the write, and what it adds is in the file; a no-file session calls none.
 - T-MET-20 PLANNED(S3) with the Tree: every node of the catalog is `pool` or `utility`, and a full Tree changes no `FDTStatSet` value at run start.
-- `Tools/MetaCheck.ps1`, gate step `meta`: real launches off-screen. A tool launch leaves no `DTMeta.sav`; a launch with `-DTMetaFile` banks and writes; a second launch reads it and adds to it; a corrupted file goes aside byte for byte and a fresh one is written; a saved win reaches a real fight.
+- T-MET-40 `Dusktracer.Meta.DiscoveryCatalog`: fifteen rows, no id twice, each named in `ST_Discoveries`, targets in tag spelling, none met by an empty tally. `Tools/gen_catalog.py` checks the rest (R-MET-40).
+- T-MET-41 `Dusktracer.Meta.DiscoveryPlanted`: for every row, a planted counter one short earns and unlocks nothing; at the threshold the row earns itself alone and writes exactly its keys; twice is once.
+- T-MET-42 `Dusktracer.Meta.DiscoveryBank`: a Discovery lands in the bank's file with its keys, `Discovered` lists it once and a repeat lists none; a `Best.` stat keeps its highest and a plain one adds up; a no-file session earns and keeps nothing while `MetBy` still reads the tally.
+- T-MET-43 `Dusktracer.Meta.RunCounters`: on a played bot run, role kills add up to the kills, weapon kills are no more than the kills, dashes and level equal the hero's and the player's; on a bare pool, only a critical hit moves `BestCrit`, and a refreshed freeze counts once.
+- T-MET-44 `Dusktracer.Meta.DiscoveryToast`: no Discovery gives no line; the line resolves with each name.
+- T-MET-45 `Tools/MetaCheck.ps1` step F: a tool launch with a planted counter logs the row as met, adds nothing and leaves `DTMeta.sav` alone.
+- `Tools/MetaCheck.ps1`, gate step `meta`: real launches off-screen. A tool launch leaves no `DTMeta.sav`; a launch with `-DTMetaFile` banks and writes; a second launch reads it and adds to it; a corrupted file goes aside byte for byte and a fresh one is written; a saved win reaches a real fight; a planted counter earns a Discovery into an isolated save and the next launch holds it, and the same plant with no file earns nothing.
 - HUMAN: the line on the run-over screen reads well at the largest text size, and the award feels worth a run once there is something to spend it on.
 
 ## Telemetry
@@ -127,7 +156,8 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 `ST_UI.Summary.Line`: one row, en and zh-Hans. The wording comes from `Summary.Retained` and `RunSummary.Balance` of the source tables, joined on one line. Name of the currency: Ichor, 神血 (`G01_Name.md`, `Glossary.md`). Every other source row with Ichor in it (`Tree.*`, `Summary.*`) waits for its screen.
 
 ## Out of scope
-- The Tree, its costs and screen; Discoveries and their table; the Hub; Codex layers; the return line after a death. The fields exist; the systems are their own specs.
+- The Tree, its costs and screen; pool gating, which reads `Unlocked`; the Hub; the Codex screen, which reads `Unlock`; the return line after a death. The fields exist; the systems are their own specs.
+- A mid-run toast, and `Discovery.Unlocks` until a Codex screen draws it.
 - Heat, Keeper Bids (Lien), Omens and Off-ledger shares, all of which change the award later; the Currency Reserve card (`offers.md`).
 - Cloud saves, several profiles, a save-reset screen, a backup copy beyond R-MET-12.
 - Co-op: one profile, the team's tally. A second profile is `coop.md`'s to ask for.
@@ -138,3 +168,5 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Does Luck stay out? It raises rarity, but `offers.md` lists it as meta | a human reading of the pool once the Tree exists |
 | Is the award's scale right? The source's costs are unknown here | the Tree spec's cost table against a bot run's award |
 | Should a quit forfeit the award, to stop a mid-run exit hiding a death from `DeathsSinceWin`? | a human reading; it only moves the return line |
+| `Elites10` cannot fire: arena 1 spawns 2 + 3 + 4 = 9 elites a run. Does its threshold drop, or do elites grow? | a writer's call on the row; the text says 10, so the number stays until then (`S3_discoveries.md`) |
+| Scatter Cannon and Rail Lance are `starter = no`, and no Discovery target opens them, so their kill rows need the Tree or another row to open them | the pool gating spec |

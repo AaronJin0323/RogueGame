@@ -417,6 +417,34 @@ namespace DTCat
 		{ TEXT("Shielded"), TEXT("Enemy.Affix.Shielded"), TEXT("ST_Enemies.Affix.Shielded.Name"), TEXT(""), TEXT(""), 0.0f, 4, true, 0u, TEXT("012345678999") },
 	};
 
+	// --- discoveries.csv (meta.md R-MET-40) ---
+	struct FDiscoveryRow
+	{
+		const TCHAR* Id;
+		const TCHAR* Counter;      // a tally counter, met at or above Threshold
+		int32 Threshold;
+		const TCHAR* Targets[3];  // pool ids, tag spelling; empty = unused
+		const TCHAR* Recollection; // ST_Codex row, whose Unlock is Discovery.<Id>
+	};
+	inline constexpr FDiscoveryRow Discoveries[] =
+	{
+		{ TEXT("ReachL10"), TEXT("Best.Level"), 10, { TEXT("Weapon.FlakMortar"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.ReachL10") },
+		{ TEXT("ScatterKills500"), TEXT("Kills.Weapon.ScatterCannon"), 500, { TEXT("Mod.ScatterShell"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.ScatterKills500") },
+		{ TEXT("Survive10"), TEXT("Seconds"), 600, { TEXT("Weapon.ArcBlade"), TEXT("Weapon.SeekerSwarm"), TEXT("") }, TEXT("Codex.Recollection.Survive10") },
+		{ TEXT("Elite3Mods"), TEXT("Best.EliteKillMods"), 3, { TEXT("Mod.ChainTrigger"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Elite3Mods") },
+		{ TEXT("Freeze100"), TEXT("Status.Freeze"), 100, { TEXT("Weapon.RingEmitter"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Freeze100") },
+		{ TEXT("Crit500"), TEXT("Best.Crit"), 500, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Crit500") },
+		{ TEXT("Win"), TEXT("BossKills"), 1, { TEXT("Weapon.SpiralProjector"), TEXT("Weapon.GravityMine"), TEXT("Mod.Conduit") }, TEXT("Codex.Recollection.Win") },
+		{ TEXT("Kills1000"), TEXT("Kills"), 1000, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Magnify") },
+		{ TEXT("WeaponL8"), TEXT("Best.WeaponLevel"), static_cast<int32>(DTConst::WEAPON_LEVEL_MAX), { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Overclock") },
+		{ TEXT("RailKills300"), TEXT("Kills.Weapon.RailLance"), 300, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.HeavySlug") },
+		{ TEXT("Elites10"), TEXT("Elites"), 10, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Burst") },
+		{ TEXT("TwoPaths6"), TEXT("Best.PathsAtTier2"), 2, { TEXT("Mod.SpreadWave"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.SpreadWave") },
+		{ TEXT("DroneKills300"), TEXT("Kills.Weapon.OrbitalDrones"), 300, { TEXT("Mod.LingeringField"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Linger") },
+		{ TEXT("Dashes100"), TEXT("Dashes"), 100, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Velocity") },
+		{ TEXT("Favor9"), TEXT("Best.Tier"), 3, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Lifeline") },
+	};
+
 	// --- boss_warden.csv ---
 	struct FBossAttackRow
 	{
@@ -551,6 +579,7 @@ namespace DTCat
 		{ TEXT("enemies.csv:5:contact_damage"), TEXT("C.ROLE.TURRET_CONTACT_DAMAGE"), static_cast<double>(Enemies[3].ContactDamage), static_cast<double>(DTConst::ROLE_TURRET_CONTACT_DAMAGE) },
 		{ TEXT("elites.csv:4:lead_s"), TEXT("C.AFFIX.VOLATILE_LEAD_S"), static_cast<double>(Affixes[2].Lead_s), static_cast<double>(DTConst::AFFIX_VOLATILE_LEAD_S) },
 		{ TEXT("elites.csv:6:lead_s"), TEXT("C.AFFIX.VAMPIRIC_LINK_S"), static_cast<double>(Affixes[4].Lead_s), static_cast<double>(DTConst::AFFIX_VAMPIRIC_LINK_S) },
+		{ TEXT("discoveries.csv:10:threshold"), TEXT("C.WEAPON.LEVEL_MAX"), static_cast<double>(Discoveries[8].Threshold), static_cast<double>(DTConst::WEAPON_LEVEL_MAX) },
 		{ TEXT("timeline_arena1.csv:14:event_favor"), TEXT("C.ELITE.FAVORED_WEIGHT"), static_cast<double>(TimelineArena1[12].EventFavor), static_cast<double>(DTConst::ELITE_FAVORED_WEIGHT) },
 	};
 
@@ -564,7 +593,8 @@ namespace DTCat
 	inline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);
 	inline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));
 	inline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));
-	inline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));
+	inline constexpr int32 NumDiscoveries = static_cast<int32>(UE_ARRAY_COUNT(Discoveries));
+	inline constexpr int32 NumBossAttacks =static_cast<int32>(UE_ARRAY_COUNT(BossWarden));
 	inline constexpr int32 NumXpLevels = static_cast<int32>(UE_ARRAY_COUNT(XpCurve));
 	inline constexpr int32 NumTimelineArena1 = static_cast<int32>(UE_ARRAY_COUNT(TimelineArena1));
 	inline constexpr int32 NumConstantRefs = static_cast<int32>(UE_ARRAY_COUNT(ConstantRefs));

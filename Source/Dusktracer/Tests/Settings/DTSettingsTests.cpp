@@ -276,6 +276,19 @@ bool FDTMetSummaryLine::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetDiscoveryToast, "Dusktracer.Meta.DiscoveryToast", DTSettingsTest::Flags) // T-MET-44
+bool FDTMetDiscoveryToast::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("none, no line"), DTMenuText::DiscoveryToast({}).IsEmpty());
+	const FString Name = FText::FromStringTable(TEXT("ST_Discoveries"), TEXT("Discovery.Win.Name")).ToString();
+	const FName Ids[] = { FName(TEXT("Win")), FName(TEXT("Survive10")) };
+	const FString Line = DTMenuText::DiscoveryToast(Ids).ToString();
+	TestTrue(TEXT("the row's name is in the line"), Line.Contains(Name));
+	TestTrue(TEXT("the second is too"), Line.Contains(FText::FromStringTable(TEXT("ST_Discoveries"), TEXT("Discovery.Survive10.Name")).ToString()));
+	TestFalse(TEXT("the keys resolve"), Line.Contains(TEXT("MISSING")) || Line.Contains(TEXT("{0}")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetReaders, "Dusktracer.Settings.Readers", DTSettingsTest::Flags) // T-SET-02
 bool FDTSetReaders::RunTest(const FString& Parameters)
 {
