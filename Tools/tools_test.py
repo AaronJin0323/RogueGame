@@ -513,10 +513,10 @@ class ExportLogs(unittest.TestCase):
 
 	def test_every_form_of_a_name_goes(self):
 		text = "\n".join(["Base: C:/Users/张三/AppData/Local", "Json: C:\\\\Users\\\\张三\\\\x", r"Short: C:\Users\ZHANGS~1\Temp\y", "LogInit: User: 张三", "Other: E:\\张三的游戏\\z",
-			"LogInit: Computer: desk-77", "LogDT: Run start seed=7"])
+			"LogInit: Computer: desk-77", "LogInit: MachineId=ca32be7640c0aaccd58d51bb26b57a0b", 'Metadata set : loginid="ca32be7640c0aaccd58d51bb26b57a0b"', "LogDT: Run start seed=7"])
 		files = self.export("张三", text)
 		log = files["Logs/Dusktracer.log"].decode("utf-8")
-		for gone in ("张三", "ZHANGS", "desk-77"):
+		for gone in ("张三", "ZHANGS", "desk-77", "ca32be"):
 			self.assertNotIn(gone, log)
 		self.assertIn("C:/Users/<user>/AppData/Local", log)
 		self.assertIn(r"C:\Users\<user>\Temp\y", log)

@@ -75,6 +75,9 @@ try {
 	if (-not $DevCsv -or -not $DevJsonl) { Note-Fail "Development left no run files" }
 	$RawLog = Join-Path $DevSaved "Logs\Dusktracer.log"
 	if (-not (Test-Path $RawLog)) { throw "no game log at $RawLog" }
+	$Ids = @(Select-String -Path $RawLog -Pattern 'MachineId=([0-9a-fA-F]{8,})' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+	if ($Ids.Count -eq 0) { Note-Fail "the raw log holds no MachineId: this proves less" }
+	$Names = @($Names + $Ids | Sort-Object -Unique)
 	$RawHits = @(Find-Names $RawLog)
 	$RawCount = ([regex]::Matches([IO.File]::ReadAllText($RawLog), [regex]::Escape($env:USERNAME), "IgnoreCase")).Count
 	if ($RawCount -eq 0) { Note-Fail "the raw log never names the user: this proves nothing" }
