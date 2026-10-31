@@ -5,7 +5,9 @@
 // Capture hook: -DTOfferShot=<png> picks the Patron (slot 0), gives two weapons, opens a level-up hand and writes a
 // screenshot of it after a few wall seconds, then quits (the hand pauses the world, so it runs on the core ticker).
 // -DTOfferShotPatron=<slot> picks that Patron instead, -DTOfferShotPatron=-1 shoots the Patron hand itself;
-// -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it).
+// -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it); -DTOfferShotMod=<Mod.*>[+<Mod.*>...] sockets
+// them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotBless=<Blessing.*>
+// takes that blessing and opens no hand, so the shot is the HUD with its dormant lines.
 
 #include "CoreMinimal.h"
 
@@ -20,6 +22,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Keepers/DTKeeperSubsystem.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Parse.h"
@@ -233,8 +236,25 @@ namespace DTDebugOffers
 				{
 					Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), 2);
 					Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
+					FString Mods;
+					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotMod="), Mods);
+					TArray<FString> Ids;
+					Mods.ParseIntoArray(Ids, TEXT("+"));
+					for (const FString& Id : Ids)
+					{
+						Weapons->Socket(0, FName(TEXT("Weapon.PulseRifle")), FName(*Id));
+					}
 				}
-				Offers->BuildHand(0, EDTHandKind::Level, 3);
+				FString Bless;
+				UDTKeeperSubsystem* Keepers = World->GetSubsystem<UDTKeeperSubsystem>();
+				if (Keepers && FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotBless="), Bless))
+				{
+					Keepers->Bless(0, FName(*Bless));
+				}
+				else
+				{
+					Offers->BuildHand(0, EDTHandKind::Level, 3);
+				}
 			}
 			int32 Focus = 0;
 			FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotFocus="), Focus);

@@ -19,3 +19,5 @@ Fork.Name,Fork,分叉,Offer card name of Mod.Fork (modifiers.md Text).,
 Fork.Desc,Each volley adds side rounds.,每次齐射在两侧加射弹体。,"Offer card line of Mod.Fork: describes the behaviour, never a catalog number.",
 Ricochet.Name,Ricochet Plate,跳弹板,Offer card name of Mod.Ricochet (modifiers.md Text).,
 Ricochet.Desc,A round that hits bounces on to a new enemy.,命中的弹体会弹向新的敌人。,"Offer card line of Mod.Ricochet: describes the behaviour, never a catalog number.",Flag.Ricochet
+Dormant.Hud,{Modifier} dormant on {Weapon},{Weapon}的{Modifier}已休眠,"HUD, stacked above the hero block, one line per dormant modifier (modifiers.md R-MOD-08). {Modifier} and {Weapon} are names. zh invented: 休眠 has no glossary or reference term, needs a native read.",
+Dormant.Card,{Modifier} goes dormant on {Weapon},{Weapon}的{Modifier}将休眠,"Offer card, boxed above the rarity row, when picking the card would make that modifier dormant (modifiers.md R-MOD-08). {Modifier} and {Weapon} are names. zh invented: same term as Dormant.Hud, needs a native read.",

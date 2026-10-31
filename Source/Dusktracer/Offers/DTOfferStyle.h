@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Core/DTRunState.h"
 
+struct FDTDormantSocket;
+
 /** Border channel: tech kinds are machined (double rule, chevrons, socket notches), Keeper kinds are stone (heavy rule, crown band, inner frame), Reserve is plain stock (dashed). */
 enum class EDTCardBorder : uint8
 {
@@ -78,6 +80,8 @@ namespace DTOfferText
 	DUSKTRACER_API TArray<FString> Keywords(const FDTOfferCard& Card);
 	DUSKTRACER_API FText KeywordName(const FString& Keyword);
 	DUSKTRACER_API FText KeywordDesc(const FString& Keyword);
+	/** A dormant socket in words (modifiers.md R-MOD-08): the ST_Modifiers row Key, Dormant.Hud or Dormant.Card, with its names filled. */
+	DUSKTRACER_API FText Dormant(const TCHAR* Key, const FDTDormantSocket& Socket);
 	DUSKTRACER_API FText Ui(const TCHAR* Key);
 	/**
 	 * Greedy line wrap with kinsoku (offers.md R-OFF-13): breaks after spaces and beside wide (CJK) characters, never before

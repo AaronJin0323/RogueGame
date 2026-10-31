@@ -1,4 +1,4 @@
-// Modifier tests (02_Systems/modifiers.md T-MOD-01..09).
+// Modifier tests (02_Systems/modifiers.md T-MOD-01..10).
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Modifiers; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
@@ -9,6 +9,9 @@
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponCompose.h"
 #include "Core/DTCatalogGen.h"
+#include "Keepers/DTKeeperSpec.h"
+#include "Offers/DTOfferGenerator.h"
+#include "Offers/DTOfferStyle.h"
 #include "Telemetry/DTTelemetrySources.h"
 
 namespace DTModifierTest
@@ -412,6 +415,119 @@ bool FDTModifiersSource::RunTest(const FString& Parameters)
 		TestTrue(TEXT("no Pierce source exists: pierce only reshapes"), FDTTelemetrySources::GetName(Hit.SourceId) != TEXT("Modifier.Pierce"));
 	}
 	TestTrue(TEXT("pierced hits keep the weapon source"), bPiercedWeapon);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersFreeVolleySource, "Dusktracer.Modifiers.FreeVolleySource", DTWeaponTestHarness::TestFlags) // T-MOD-09
+bool FDTModifiersFreeVolleySource::RunTest(const FString& Parameters)
+{
+	using namespace DTModifierTest;
+	using namespace DTWeaponTestHarness;
+	const uint16 Forge = DTWeapons::KeeperSource(EDTPath::Forge);
+	const uint16 Chain = FDTTelemetrySources::FindOrAdd(TEXT("Modifier.ChainTrigger"));
+	FDTHarness H;
+	H.bResolve = false;
+	H.AddEnemy(FVector2f(200.0f, 0.0f));
+	H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), 1);
+	H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ChainTrigger"));
+	H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), KeeperFlag(DTCat::EFlag::ConvertMelee, EDTPath::Forge, [](FDTFlagParams& P)
+	{
+		P.Set(DTFlagParam::Rounds, 2.0f);
+		P.Set(DTFlagParam::ArcDeg, 140.0f);
+		P.Set(DTFlagParam::RadiusUu, 380.0f);
+	}));
+	H.StepOnce();
+	const int32 OwnVolley = H.CountHitsFrom(Forge);
+	TestTrue(TEXT("the weapon's own volley is the Keeper's cleave"), OwnVolley > 0);
+	TestEqual(TEXT("nothing is the modifier's before a kill"), H.CountHitsFrom(Chain), 0);
+
+	// A kill by the weapon fires the free volley; the conversion folds it into a cleave, and the cleave stays the modifier's.
+	FDTKill Kill;
+	Kill.OwnerId = 0;
+	Kill.WeaponSlot = 0;
+	H.PendingKills.Add(Kill);
+	H.StepOnce();
+	H.StepOnce();
+	TestEqual(TEXT("one free cleave, one hit"), H.CountHitsFrom(Chain), 1);
+	TestEqual(TEXT("the Keeper gains nothing from it"), H.CountHitsFrom(Forge), OwnVolley);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersDormantShown, "Dusktracer.Modifiers.DormantShown", DTWeaponTestHarness::TestFlags) // T-MOD-10
+bool FDTModifiersDormantShown::RunTest(const FString& Parameters)
+{
+	using namespace DTModifierTest;
+	using namespace DTWeaponTestHarness;
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Shell(TEXT("Mod.ScatterShell"));
+	FDTOfferCard HammerKey;
+	HammerKey.Kind = EDTCardKind::Blessing;
+	HammerKey.ContentId = TEXT("Blessing.Forge.Hammer.Key");
+
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, Rifle, 1); // count 2: Hammer's Key converts every round
+	H.Weapons.Socket(H.Run, 0, 0, Shell);
+	H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ChainTrigger"));
+	H.StepOnce();
+	FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+	TestEqual(TEXT("nothing to list while every socket is live"), DTWeaponCompose::DormantSockets(Player).Num(), 0);
+
+	// The owner's run: the card names the socket the pick silences and leaves the one that still works.
+	const FRandomStream Stream = Player.Offer.Rng;
+	const TArray<FDTDormantSocket> Warned = DTOffers::DormantAfterPick(Player, HammerKey);
+	TestEqual(TEXT("one socket would sleep"), Warned.Num(), 1);
+	TestTrue(TEXT("Scatter Shell on the Pulse Rifle"), Warned.Num() == 1 && Warned[0].Mod == Shell && Warned[0].Weapon == Rifle);
+	TestEqual(TEXT("reading the card takes nothing from the run"), Player.Keepers.Owned.Num(), 0);
+	TestFalse(TEXT("reading the card leaves the sockets live"), Player.Weapons[0].Sockets[0].bDormant);
+	TestEqual(TEXT("reading the card draws no number"), Player.Offer.Rng.GetCurrentSeed(), Stream.GetCurrentSeed());
+
+	// Cards that cannot silence say nothing.
+	FDTOfferCard Other = HammerKey;
+	Other.ContentId = TEXT("Blessing.Forge.Furnace.Key");
+	TestEqual(TEXT("a blessing with no conversion"), DTOffers::DormantAfterPick(Player, Other).Num(), 0);
+	Other.Kind = EDTCardKind::WeaponUpgrade;
+	Other.ContentId = Rifle;
+	Other.TargetWeapon = Rifle;
+	TestEqual(TEXT("an upgrade"), DTOffers::DormantAfterPick(Player, Other).Num(), 0);
+	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
+	{
+		for (int32 Level = 2; Level <= DTWeapons::GetMaxLevel(Weapon); ++Level)
+		{
+			TestTrue(TEXT("levels never take a round away, so no upgrade can silence a socket"),
+				DTWeapons::GetLevelRow(Weapon, Level)->Count >= DTWeapons::GetLevelRow(Weapon, Level - 1)->Count);
+		}
+	}
+
+	// A conversion that leaves a round flying warns of nothing: the answer is the composition's, not the card's flag.
+	FDTHarness Partial;
+	Partial.Weapons.Give(Partial.Run, 0, Rifle, 3); // count 3: Hammer's Key leaves one round
+	Partial.Weapons.Socket(Partial.Run, 0, 0, Shell);
+	TestEqual(TEXT("one round still flies: no warning"), DTOffers::DormantAfterPick(Partial.Run.GetPlayer(0), HammerKey).Num(), 0);
+
+	// The pick itself: the sim agrees with the card, the HUD list names it, and a socket already asleep is not warned of again.
+	TestTrue(TEXT("the blessing is taken"), DTOffers::AddBlessing(Player.Keepers, HammerKey.ContentId));
+	H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), DTKeepers::BuildKeeperFlags(Player.Keepers, EDTPath::Forge));
+	H.StepOnce();
+	const TArray<FDTDormantSocket> Listed = DTWeaponCompose::DormantSockets(H.Run.GetPlayer(0));
+	TestEqual(TEXT("the HUD lists what the card named"), Listed.Num(), 1);
+	TestTrue(TEXT("the same socket"), Listed.Num() == 1 && Listed[0].Mod == Shell && Listed[0].Weapon == Rifle);
+	FDTOfferCard Amp = HammerKey;
+	Amp.ContentId = TEXT("Blessing.Forge.Hammer.Amp1");
+	TestEqual(TEXT("already asleep: no warning"), DTOffers::DormantAfterPick(H.Run.GetPlayer(0), Amp).Num(), 0);
+
+	// Both lines carry both names, in the running culture.
+	FDTOfferCard WeaponCard;
+	WeaponCard.Kind = EDTCardKind::Weapon;
+	WeaponCard.ContentId = Rifle;
+	FDTOfferCard ModCard;
+	ModCard.Kind = EDTCardKind::Mod;
+	ModCard.ContentId = Shell;
+	for (const TCHAR* Key : { TEXT("Dormant.Hud"), TEXT("Dormant.Card") })
+	{
+		const FString Line = DTOfferText::Dormant(Key, FDTDormantSocket{ Rifle, Shell }).ToString();
+		TestTrue(FString(Key) + TEXT(" names the weapon"), Line.Contains(DTOfferText::Name(WeaponCard).ToString()));
+		TestTrue(FString(Key) + TEXT(" names the modifier"), Line.Contains(DTOfferText::Name(ModCard).ToString()));
+	}
 	return true;
 }
 

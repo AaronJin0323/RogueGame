@@ -45,6 +45,7 @@
 | Ichor | Ichor | 神血 | Meta currency. |
 | Reclaimer | the Reclaimer | 回收者 | The player character. |
 | Vigil | Vigil | 守夜镇 | Hub town. |
+| Dormant | dormant | 休眠 | A socketed modifier its weapon cannot express now: kept, inert, named on the HUD (R-MOD-08). The zh is invented, not yet read by a native reader. |
 
 ## Rename map (old → new) — see `Handoff_Dusktracer/game/G01_Name.md`
 RogueHero/`RH` → Dusktracer/`DT` · `/Game/RH/` → `/Game/DT/` · `God.<Path>` → `Keeper.<Path>` · `URHGodDef` → `UDTKeeperDef` · `DA_God_*` → `DA_Keeper_*`.

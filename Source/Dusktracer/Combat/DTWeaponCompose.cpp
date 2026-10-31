@@ -243,3 +243,19 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 	Spec.Life = Spec.Speed > 0.0f ? Spec.Range / Spec.Speed : 0.0f;
 	return Spec;
 }
+
+TArray<FDTDormantSocket> DTWeaponCompose::DormantSockets(const FDTPlayerRunState& Player)
+{
+	TArray<FDTDormantSocket> Out;
+	for (const FDTWeaponInstance& Weapon : Player.Weapons)
+	{
+		for (const FDTWeaponInstance::FSocket& Socket : Weapon.Sockets)
+		{
+			if (Socket.bDormant)
+			{
+				Out.Add(FDTDormantSocket{ Weapon.Id, Socket.ModId });
+			}
+		}
+	}
+	return Out;
+}
