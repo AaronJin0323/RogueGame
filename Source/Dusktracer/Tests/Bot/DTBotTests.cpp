@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "Bot/DTBotBrain.h"
 #include "Bot/DTBotSubsystem.h"
+#include "Combat/DTWeaponCompose.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
@@ -14,10 +15,13 @@
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
+#include "Keepers/DTKeeperSpec.h"
 #include "Misc/FileHelper.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
+#include "Tests/Combat/DTWeaponTestHarness.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -264,6 +268,43 @@ bool FDTBotOwnerPathCards::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the record names the filter and the archetype"), Config.Describe().Contains(TEXT("pick=BlessingsOnly")) && Config.Describe().Contains(TEXT("second_archetype=Hammer")));
 
 	TestTrue(TEXT("parse"), FDTBotConfig::ParsePick(TEXT("blessingsonly")) == EDTBotPick::BlessingsOnly && FDTBotConfig::ParsePick(TEXT("All")) == EDTBotPick::All);
+	return true;
+}
+
+// The sockets S1_owner_run.md §5 reads, on the real Key row. Telemetry cannot show this: nothing calls RecordModifierDormant. With no
+// round left Flag.Split stops at Melee's fallback, so Scatter Shell sleeps; Chain Trigger names no flag and stays awake. At level 3 a
+// round still flies and both stay awake, which is what the upgrades he passed would have kept.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotOwnerPathSockets, "Dusktracer.Bot.OwnerPathSockets", DTBotTest::Flags)
+bool FDTBotOwnerPathSockets::RunTest(const FString& Parameters)
+{
+	using namespace DTWeaponTestHarness;
+	FDTKeeperRunState Keepers;
+	Keepers.Primary = EDTPath::Storm;
+	Keepers.Second = EDTPath::Forge;
+	TestTrue(TEXT("the real Key"), DTOffers::AddBlessing(Keepers, FName(TEXT("Blessing.Forge.Hammer.Key"))));
+	const FDTWeaponFlags Hammer = DTKeepers::BuildKeeperFlags(Keepers, EDTPath::Forge);
+
+	struct FReading
+	{
+		int32 Level;
+		bool bShellSleeps;
+	};
+	for (const FReading Reading : { FReading{ 1, true }, FReading{ 2, true }, FReading{ 3, false } })
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), Reading.Level);
+		TestEqual(TEXT("Scatter Shell socketed"), H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ScatterShell")), EDTWeaponResult::Ok);
+		TestEqual(TEXT("Chain Trigger socketed"), H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ChainTrigger")), EDTWeaponResult::Ok);
+		H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), Hammer);
+		H.StepOnce();
+		const TArray<FDTWeaponInstance::FSocket>& Sockets = H.Run.GetPlayer(0).Weapons[0].Sockets;
+		if (TestEqual(TEXT("both keep their socket"), Sockets.Num(), 2))
+		{
+			TestEqual(FString::Printf(TEXT("level %d: Scatter Shell"), Reading.Level), Sockets[0].bDormant, Reading.bShellSleeps);
+			TestFalse(FString::Printf(TEXT("level %d: Chain Trigger stays awake"), Reading.Level), Sockets[1].bDormant);
+		}
+		TestTrue(FString::Printf(TEXT("level %d: the free volley is still armed"), Reading.Level), H.Weapons.GetLastSpec(0, 0).ChainTriggerSource != 0);
+	}
 	return true;
 }
 

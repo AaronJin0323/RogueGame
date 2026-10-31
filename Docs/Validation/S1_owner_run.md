@@ -7,7 +7,7 @@ Class: SYSTEM, tools only, plus this reading. Layer: the measuring instrument (B
 Hypothesis: we believe a bot that passes weapon cards moves the share of Storm+Forge runs with no Weapon-source damage after the Hammer Key from 0 of 37 to most runs, because the owner reached that state by passing every weapon card; measured in §7; reverted if not met. **Met: 27 of 27 at skill 1.0.**
 
 ## 1. The run
-`2147483647_20261031_231306.jsonl` and `.csv`, build 996cd47, zh-Hans, keyboard and mouse. Patron Storm, second Keeper Forge. Killed at 563.3 s on level 15. Every number in §2 and §3 comes from those two files through `Tools/owner_read.py run`; any number that tool could not reproduce was left out.
+`2147483647_20261031_231306.jsonl` and `.csv`, build 996cd47, zh-Hans, keyboard and mouse. Patron Storm, second Keeper Forge. Killed at 563.3 s on level 15. Every number of his run in §2, §3 and §5 comes from those two files through `Tools/owner_read.py run`, and the bot numbers beside them through `owner_read.py bots` on the folders of §10; any number those could not reproduce was left out.
 
 ## 2. Verified timeline
 
@@ -43,7 +43,7 @@ Hypothesis: we believe a bot that passes weapon cards moves the share of Storm+F
 | 8:54.90 | Tank contact, 19.0 | 3.9 |
 | 9:23.30 | Turret bullet, 8.1: down | |
 
-Six Intercessions: four on Arc Grid (77.5 to 316.2 s, 26 to 35 enemies, 1260 to 1722 damage), two on Downpour with the Hammer layer (429.3 and 550.2 s, 0 enemies, 0 damage). That zero is not a failed cast: the `intercession` record counts only the cast's own hits, and 28 of 28 unlayered Downpour casts in the bots read 0 too. The two Hammer-layered bot casts read about 4 hits, so his layer touched nothing. Six presses were denied, three each in intervals 2 and 3. Seventeen dashes.
+Six Intercessions: four on Arc Grid (77.5 to 316.2 s, 26 to 35 enemies, 1260 to 1722 damage), two on Downpour with the Hammer layer (429.3 and 550.2 s, 0 enemies, 0 damage). That zero is not a failed cast: the `intercession` record counts only the cast's own hits, and 28 of 28 unlayered Downpour casts in the control bots read 0 too. The two Hammer-layered casts there read about 4 hits, so his layer touched nothing; that can happen, since 5 of the 10 in the skill 1.0 and 0.25 policy folders read 0. Six presses were denied, three each in intervals 2 and 3. Seventeen dashes.
 
 ## 3. Verified readings
 
@@ -60,7 +60,7 @@ Six Intercessions: four on Arc Grid (77.5 to 316.2 s, 26 to 35 enemies, 1260 to 
 | Paused | 20.6 s per sim minute (193.7 s, the sum of all 18 hands) | `C.OFFER.PAUSED_S_PER_MIN_MAX` 15. Still 17.9 without the 25.5 s Patron hand. R-OFF-15 states this limit for a bot run, and bots read 0 |
 | XP of model at 300 s | 0.733 | `C.XP.REFERENCE_PICKUP_RATIO` 0.51; the 45 control bots read 0.756, range 0.687 to 0.790 |
 | Dashes | 17, 1.81 per minute | The band is minutes 10 to 13, which he never reached |
-| Keeper share, whole run | 0.818 | Attribution, and not the L16 reading |
+| Keeper share, whole run | 0.818 | Attribution, and not the L16 reading. An upper bound: his free Chain Trigger cleaves read `Keeper.Forge` (§5), and with all of `Keeper.Forge` out it reads 0.759 |
 | **Unread** | T-DIR-02, Keeper share at L16, boss, Reforging | Alive 0 s in 600 to 780 s; top level 15; 900 s not reached; 0 Reforging hands |
 
 ## 4. What it can and cannot show
@@ -73,12 +73,18 @@ The brief's "zero rifle output" is true of Weapon-source damage and not of the r
 
 1. The Pulse Rifle fires 2 rounds at levels 1 and 2 and more from level 3 (`weapons.csv`). Hammer's Key converts 2 rounds. On his rifle that is every round, so nothing flies (R-WPN-10), and the Projectile cap goes with it.
 2. A Keeper-caused cleave carries `Keeper.<Path>` (R-WPN-07, D-015), so `Weapon.*` reads zero. `Keeper.Forge` goes from about 1 damage per hit before the Key to 17.4 per hit in interval 6.
-3. `Modifier.*` stops too, from interval 6 on, though neither mod goes dormant: the caps left are Melee, Aimed and Expiry, and both still fit. Scatter Shell acts when a round expires, and no round flies. Chain Trigger's free volleys are reshaped the same way, so their hits read `Keeper.Forge`.
+3. `Modifier.*` stops too, from interval 6 on, for two different reasons. **Scatter Shell goes dormant** (R-MOD-08). The caps left are Melee, Aimed and Expiry, in that order; `Flag.Split` resolves on the first cap with a cell, which is Melee's fallback, and a modifier's flag must resolve native (R-MOD-01; `keepers.md`: Split is dormant under a conversion). **Chain Trigger stays awake**: it names no flag and no required cap. It kept firing, and its volleys were credited wrongly (below). `Dusktracer.Bot.OwnerPathSockets` reads both sockets on the real Key, because telemetry cannot: no caller records dormancy.
 4. Reach falls from 900 uu to an arc of 380, then 494 after `Hammer.Amp2`.
 
-He was not disarmed: across intervals 5 to 8 kills per minute read 241, 224, 219, 280 and damage dealt per minute 7395, 6577, 7100, 10400. His two Tempest cards were not dead either: on a sweep `Flag.Split` falls back to rings of children, which fits the 4 live bullets at 540 s, though telemetry does not name those rounds.
+He was not disarmed: across intervals 5 to 8 kills per minute read 241, 224, 219, 280 and damage dealt per minute 7395, 6577, 7100, 10400. `Keeper.Storm` carried that, 5725 of the 6577 in interval 6 against 852 from `Keeper.Forge`. His two Tempest cards were not dead either: on a sweep `Flag.Split` falls back to rings of children, which fits the 4 live bullets at 540 s, though telemetry does not name those rounds.
 
-This is the rules as written, so it is no BUG. It is also why no bot had reached it: two of the six upgrades he passed would have left one round flying, and any other weapon keeps a Weapon source. Bots take those cards.
+The conversion, the zero `Weapon.*` and Scatter Shell's sleep are the rules as written, so none of them is a BUG. They are also why no bot had reached this: two of the six upgrades he passed would have left one round flying, and any other weapon keeps a Weapon source. Bots take those cards.
+
+**Chain Trigger's credit is a BUG, in attribution only.** A kill fires a free volley under `Modifier.ChainTrigger`, then the conversion branch of `FireVolley` replaces that source with `Keeper.Forge`. R-MOD-09 and R-WPN-07 give a free volley to the modifier, so `Modifier.ChainTrigger` reading zero from interval 6 on is wrong: `Keeper.Forge` took 23, 16, 24 and 15 kills in intervals 6 to 9, each able to fire one. The fix is on `fix/modifier-truth` (`b4baf41`, `S1_modifier_truth.md`), whose reading of this run agrees with this one. It is not on this branch, so every reading here is from before it. Telemetry cannot split free cleaves from paid ones. What it reaches here:
+- The whole-run share 0.818 is an upper bound. `Keeper.Forge` is 3117 of 53355, so it cannot fall below 0.759.
+- 17.4 per hit stands. A free cleave deals what a paid one deals, so it adds to the damage and the hits alike. Only the interval's damage and hit counts hold cleaves that belong to the modifier.
+- The L16 share in §7: read there.
+- Outcomes do not move: `S1_modifier_truth.md` reads `input_hash` unchanged by the fix.
 
 ## 6. The tool
 `& Tools\BotRuns.ps1 -Policy BlessingsOnly` filters Steered arms: Weapon and WeaponUpgrade cards score under everything else. An arm may name the second Keeper's archetype as a fifth field, `Steered:Storm:ArcGrid:Forge:Hammer`, and that archetype's blessings come first, because he took Hammer's over Storm's. The switches are `-DTBotPick` and `-DTBotSecondArchetype`. `BotRuns` refuses `-Policy` on `None`, `Random` and `-Jobs`, where it would change nothing.
@@ -126,7 +132,7 @@ Rate columns are per-run medians, and most bot runs take no hit in a window, so 
 
 **The policy reaches his state.** No Weapon-source damage after the Key: 0 of 37 in the control, 27 of 27 at skill 1.0, 19 of 21 at 0.25. Of the 112 policy runs that took the Key across the five skills, five are not zero: three died inside the Key's own interval, and in two a forced weapon pick near interval 13 brought Weapon damage back, as §5 predicts. Forced picks: one of 30 runs at 1.0, none at 0.25, from a chest of nothing else at about 800 s.
 
-**Passing weapons alone does not make his pressure.** At skill 1.0 the HP lost by 563 s barely moves: 7.4 to 8.0 against 6.9 to 7.5. Two of 30 runs reach his total by then; the rest do not. The cost lands later: boss 44 of 45 to 24 of 30, wins 42 of 45 to 22 of 30. Only a much weaker pilot meets his number at the median.
+**Passing weapons alone does not make his pressure.** At skill 1.0 the HP lost by 563 s barely moves: 7.4 to 8.0 against 6.9 to 7.5. One of 30 runs reaches his total by then, at 108.4. One more is dead by then at 100.0, under his 104.2 only because his killing hit overshot by 4.2. The other 28 were alive. The cost lands later: boss 44 of 45 to 24 of 30, wins 42 of 45 to 22 of 30. Only a much weaker pilot comes near his number at the median.
 
 **No skill dashes at his rate; the knob does not exist.** On `main` skill adds reaction delay and aim and movement noise, and nothing caps dashes. Lower skill does not lower the rate. Both arms, dashes per minute, with outcomes over 30 runs:
 
@@ -141,6 +147,8 @@ Rate columns are per-run medians, and most bot runs take no hit in a window, so 
 Skill 0.25 was chosen after this table, as the row nearest his HP lost and end time. That makes it a bracket and not a calibration: it reaches his result by a route he did not take, at over three times his dash rate, and no row reads near his 3.67 then 22.9.
 
 **Keeper share here is not a pass.** 0.78 to 0.82 clears `C.POWER.KEEPER_SHARE_L16`, but a fully converted rifle has no Weapon source left to count (`power_split.py` is attribution, not ablation).
+
+The column also carries the Chain Trigger credit of §5, in few runs. Chain Trigger on the rifle under the Key by L16: 1 of 14 and 1 of 14 at skill 1.0, 1 of 6 and 2 of 8 at 0.25, 1 of 45 in the control. Most get there after L16 or never reach it: by the end of the run the count is 17 of 30, 6 of 30 and 8 of 45. Taking all of `Keeper.Forge` out of those runs, which over-corrects, leaves every median at 1.0 and in the control where it was, and moves 0.25 from 0.822 to 0.804 and from 0.817 to 0.792. The column is an upper bound by at most that much.
 
 **Hammer against the timeline stays open.** `Steered:Storm:*:Forge:Slam` was run as a control and failed as one: Forge cards still reach the bot, so 20 of 30 held Hammer by 563 s at skill 1.0 and 19 of 30 at 0.25. It is not reported. Tempest is cleaner by rule (R-KEE-16 keeps Hammer out while it leads): at skill 0.25, 14 of 15 runs held no Hammer by 563 s, and they still rose from 15.5 to 25.8 %/min, against 7.8 to 15.3 pooled for the Hammer arms. So in the bots the rise happens without Hammer. That is a weak reading: Tempest starts worse, 8 runs reach the later window, the same arm at skill 1.0 is not clean (6 of 15), and the bot kites alike with or without an arc. It does not tell what caused his.
 
@@ -158,7 +166,7 @@ Skill 0.25 was chosen after this table, as the row nearest his HP lost and end t
 - T-KEE-18, Keeper share at L16 and archetype bands: top level 15. T-KEE-15 is read by probe, and his cast records are attribution, not marginal damage.
 - The boss, Reforging, R-RFG-18.
 - Tide's early power and boss answer: he took no Tide card. The two Forge/Tide arms past noise: he played neither.
-- Payday self-pay, Time Dilation scale, `leak_per_s`, duos: `dev/s2` only, and this was `main`.
+- Payday self-pay, Time Dilation scale, `leak_per_s`, duos, R-BOT-17 (the human win and death histogram): `dev/s2` only, and this was `main`.
 
 ## 9. Decisions made here
 No D-number is assigned; integration does that.
@@ -169,11 +177,13 @@ No D-number is assigned; integration does that.
 5. Skill 0.25 is the lower reading; the full sweep stays in §7 so the choice can be checked.
 6. No dash knob was built. The brief asked for one only if it existed. It would be a new bot parameter on `main`.
 7. "Weapon-source damage" replaces "rifle output" throughout (§5). HP lost keeps the brief's definition, with its overkill named.
+8. The Chain Trigger credit stays a named reading here and its fix stays on `fix/modifier-truth`: this branch changes no sim line, and §7 is not rerun. The share readings carry a bound in place of a correction, because the mix of free and paid cleaves cannot be read back.
 
 ## 10. Reproduce
 ```
 python -I Tools\owner_read.py run <Playtests>\2147483647_20261031_231306.jsonl
 & Tools\BotRuns.ps1 -Arms Steered:Storm:ArcGrid:Forge,Steered:Storm:Downpour:Forge,Steered:Storm:Tempest:Forge -Seeds 15 -Parallel 8 -Out Saved\BotRuns\control_sf_s10
 & Tools\BotRuns.ps1 -Arms Steered:Storm:ArcGrid:Forge:Hammer,Steered:Storm:Downpour:Forge:Hammer -Policy BlessingsOnly -Seeds 15 -Skill 0.25 -Parallel 8 -Out Saved\BotRuns\owner_s025
-python -I Tools\owner_read.py bots Saved\BotRuns\control_sf_s10 Saved\BotRuns\owner_s025
+python -I Tools\owner_read.py bots Saved\BotRuns\control_sf_s10 Saved\BotRuns\owner_s10 Saved\BotRuns\owner_s025
 ```
+The other skills, `slam_*` and `tempest_*` take the same command with their own `-Skill`, `-Arms` and `-Out`.
