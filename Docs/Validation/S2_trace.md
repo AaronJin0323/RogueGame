@@ -112,4 +112,4 @@ Forge gains 8 at skill 1.0 (Slam 9 to 13, Furnace 11 to 14), not traced; a shift
 4. T-KEE-15's route for an aimed dash.
 
 ## Gate
-Recorded in the next commit.
+`& Tools\Gate.ps1 -Base dev/s2` at 243267c: GATE: PASS, 405 tests of 405, tools 41, 3 not run (pad, scope, mac). This line is the only change after it.
