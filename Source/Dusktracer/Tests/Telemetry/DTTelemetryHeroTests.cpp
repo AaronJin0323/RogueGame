@@ -261,6 +261,38 @@ bool FDTTelRunEnd::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelSessionEndClose, "Dusktracer.Telemetry.SessionEndClose", DTTelHeroTest::Flags) // R-DIR-15 in a real world
+bool FDTTelSessionEndClose::RunTest(const FString& Parameters)
+{
+	using namespace DTTelHeroTest;
+	FWorld Scene(TEXT("DTTelSessionEndWorld"));
+	UWorld* World = Scene.World;
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	UDTDirector* Director = World->GetSubsystem<UDTDirector>();
+	FString Jsonl;
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("telemetry"), Telemetry) && TestNotNull(TEXT("director"), Director))
+	{
+		Sim->StartRun(53, 1);
+		Telemetry->StartSession(53, 1);
+		Director->StartRun();
+		Sim->StepNow(DTConst::SIM_FIXED_HZ); // inside the first Harvest block
+		TakeSession(*Telemetry, TEXT("quit"), Jsonl);
+	}
+
+	const TArray<FString> Blocks = OfKind(Jsonl, TEXT("dir_block"));
+	if (TestEqual(TEXT("the open block is written, once"), Blocks.Num(), 1))
+	{
+		TestTrue(TEXT("ended by the session's reason"), Blocks[0].Contains(TEXT("\"ended_by\":\"quit\"")));
+		TestEqual(TEXT("at the quit"), Number(Blocks[0], TEXT("end_s")), 1.0, 2.0 / DTConst::SIM_FIXED_HZ);
+	}
+	const int32 Block = Jsonl.Find(TEXT("\"kind\":\"dir_block\""));
+	const int32 End = Jsonl.Find(TEXT("\"kind\":\"run_end\""));
+	TestTrue(TEXT("before run_end"), Block != INDEX_NONE && End != INDEX_NONE && Block < End);
+	Scene.Close();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelRoundSource, "Dusktracer.Telemetry.RoundSource", DTTelHeroTest::Flags) // T-TEL-10 in a real world
 bool FDTTelRoundSource::RunTest(const FString& Parameters)
 {
