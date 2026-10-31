@@ -116,7 +116,7 @@ Seed 101 dies at 617 s in the editor and wins at 993 s in the package. 14 agains
 
 **What this voids.** No earlier comparison. Every hash match in `S1_*`, `S2_bot_v2.md`, `S2_evolutions.md` and `Tools/RestartCheck.ps1` is editor against editor, because `BotRuns.ps1` launches the editor, and `Tools/PackageRestartCheck.ps1` is game against game. The only cross-family comparison was this finding.
 
-**What it costs.** Bot batteries read the `/fp:precise` editor; players get `/fp:fast`. A bot reading stands as an aggregate and says nothing about a named seed in a package. Inside the game family a recompile may move results, so Development equals Shipping as a reading on each package, now checked by T-TEC-15. Not changed: the game stays `/fp:fast`. `FPSemantics = Precise` on the module would join the families with one line, at the cost of every game-side hash and an unmeasured frame cost; left as an option.
+**What it costs.** Bot batteries read the `/fp:precise` editor; players get `/fp:fast`. A bot reading stands as an aggregate and says nothing about a named seed in a package. Inside the game family a recompile may move results, so Development equals Shipping as a reading on each package, now checked by T-TEC-15. Not changed: the game stays `/fp:fast`. `FPSemantics = Precise` on the module would join the families with one line, at the cost of every game-side hash and an unmeasured frame cost; left as an option. Taken: see One float mode, below, and D-021.
 
 ## Many restarts in one process
 
@@ -132,3 +132,38 @@ No leak read and no drift: 200 reloads later a run is bit for bit the first one,
 ## The `Run start seed=0` line
 
 `UDTSimSubsystem::OnWorldBeginPlay` starts a placeholder run so systems that begin play before the game mode see one player. `ADTGameMode::BeginPlay` then starts the real run, which rebuilds the run state and every stream. Harmless: with the placeholder's seed changed to 12345 for one build the hash stays `276faf8e`, so nothing is carried from it. Left alone; a tool that counts run starts filters on a real seed. A launch with no `-DTSeed` really does run on seed 0.
+
+## One float mode
+
+Branch `dev/s2-fp`, from `dev/s2` at `dede08a`. `FPSemantics = Precise` on the `Dusktracer` module, the engine as it was. Decision: D-021, rule: `07_Technical` R-TEC-15. Bar set before reading: all three builds agree on all 30, and game p95 rises under 0.3 ms with budgets met. **Kept.**
+
+**Hash.** Full runs, seeds 101 to 130, Storm/Tempest, bot v2, skill 1.0, no time cap, `-DTBotFast=600`, `-nullrhi`, eight at a time. Editor through `Tools/BotRuns.ps1`; packages launched directly with the same arguments.
+
+| Pair | `input_hash` equal | Outcome equal | End time equal |
+|---|---|---|---|
+| Editor, Development | 30/30 | 30/30 | 30/30 |
+| Editor, Shipping | 30/30 | 30/30 | 30/30 |
+| Development, Shipping | 30/30 | 30/30 | 30/30 |
+| Editor, kept `/fp:fast` Development (control) | 0/30 | 24/30 | 8/30 |
+
+| Build | Wins | Deaths | Mean end |
+|---|---|---|---|
+| Editor, Development, Shipping | 14 | 16 | 870.3 s |
+| Kept `/fp:fast` Development | 16 | 14 | 893.6 s |
+
+Seed 101 dies at 617 s in all three now. The editor's figures did not move from the table above, and the game's took the editor's value. `steps` reads one apart on seeds 101, 105 and 128 with equal hashes, the known death case.
+
+**Frame cost.** `Tools/Perf.ps1` launches the editor, which was `/fp:precise` already, so its before and after can only read equal, and do. It is the control. The cost a player pays was read in a Development package, with a copy of the tool changed in the executable, the CSV folder and the launch arguments; budgets, parsing and the S2 proof are the tool's. The `/fp:fast` package was kept and run alternating with the new one. Game p50 / p95 ms, 1920x1080, 1800 frames, every run PASS at full load:
+
+| Build | Scene | Before | After | Mean p95 change |
+|---|---|---|---|---|
+| Development | Caps | 1.33/1.73, 1.36/1.79, 1.33/1.76, 1.34/1.73 | 1.33/1.75, 1.34/1.78 | +0.01 |
+| Development | S2 | 2.13/3.60, 2.13/3.60, 2.13/3.60, 2.14/3.57 | 2.13/3.57, 2.14/3.52 | -0.05 |
+| Editor (control) | Caps | 1.99/2.41, 1.97/2.40 | 1.97/2.39, 1.97/2.38 | -0.02 |
+| Editor (control) | S2 | 2.84/4.24, 2.81/4.23 | 2.83/4.23, 2.82/4.25 | 0 |
+
+Budget 8 / 10. Both package changes sit inside the spread of the runs: no cost was read. S2 `SimTick` p95 in the package is 1.99 to 2.01 ms before, 1.96 and 1.98 after. Raw GPU p95 is 2.48 to 2.51 ms on caps and 3.18 to 3.23 ms on S2 in every run. Shipping was not timed: it has no CSV profiler.
+
+**Contention: none.** Sampled every 3 s through every reading: one game process at a time, no compiler, cook or second Unreal process.
+
+**Not proved.** Engine code is still compiled by target; 30 full runs show it does not reach a hash here, which is a reading and not a guarantee. Nothing checks the editor against the package on each change; T-TEC-15 checks Development against Shipping.
