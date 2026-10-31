@@ -12,7 +12,7 @@
 //   MineHit    (one enemy in a detonation):   StatusApply, Chain
 //   Detonation (one per mine):                Split (children burst), Field, Pull, Echo (fallback: repeats in place)
 //   Expiry     (a tracked round's life ran out): Split on=Expiry (Mod.ScatterShell)
-// Field ticks, echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains).
+// Echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains). A field's tick is neither (R-KEE-16).
 // Kills (StepEffects, ReactToKills): arc forks, burning explosions, Burn spread. Crush, pulled_vuln and explosion hits carry
 // no weapon slot: they are Keeper-only and never feed the enchantment or other reactions.
 
@@ -1476,8 +1476,13 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 			Fields.RemoveAt(Index);
 			continue;
 		}
-		// A field ticks every step for its damage per second (a tick is a hit, never an impact).
+		// A field ticks every step for its damage per second: damage only, neither a hit to the Keepers nor an impact (R-KEE-16).
+		const int32 FirstTick = Context.View->Hits.Num();
 		HitCircle(Context, Field.OwnerId, Field.Slot, Field.SourceId, Field.Position, Field.Radius, Field.DamagePerSecond * Dt, false, nullptr);
+		for (int32 Tick = FirstTick; Tick < Context.View->Hits.Num(); ++Tick)
+		{
+			Context.View->Hits[Tick].bFieldTick = true;
+		}
 		if (bStatusPulse && !Field.Params.GetWord(DTFlagParam::Status).IsNone())
 		{
 			EnemiesInCircle(*Context.View, Field.Position, Field.Radius + MaxEnemyRadius, InField);

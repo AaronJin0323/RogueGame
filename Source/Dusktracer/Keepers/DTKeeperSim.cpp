@@ -191,8 +191,8 @@ void FDTKeeperSim::CaptureHits(const FDTSimContext& Context, const FDTEnemyPool*
 	for (const FDTHit& Hit : View.Hits)
 	{
 		// Player hits only: a weapon (or a flag reaction on a weapon) made it. Status ticks, Keeper-only hits and stress
-		// fire carry no slot, so procs never feed on themselves.
-		if (Hit.WeaponSlot == INDEX_NONE || !Context.Run->IsValidPlayer(Hit.OwnerId))
+		// fire carry no slot, so procs never feed on themselves; a field's tick is not a hit (R-KEE-16).
+		if (Hit.WeaponSlot == INDEX_NONE || Hit.bFieldTick || !Context.Run->IsValidPlayer(Hit.OwnerId))
 		{
 			continue;
 		}
