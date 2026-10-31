@@ -9,6 +9,7 @@
 #include "Combat/DTBulletPool.h"
 #include "Combat/DTWeaponCompose.h"
 #include "Combat/DTWeaponFlags.h"
+#include "Keepers/DTReactions.h"
 
 class FDTEnemyPool;
 
@@ -51,6 +52,13 @@ struct FDTWeaponVisual
 	float Charge01 = 0.0f;
 	/** Zone tint: the owner's leading Keeper, or EDTPath::None for Pal.Player.TrailNeutral. Cores ignore it. */
 	EDTPath Path = EDTPath::None;
+};
+
+/** What reactions ask of the hero (reactions.md): the Keeper subsystem writes them into FDTHeroStats. */
+struct FDTDuoHero
+{
+	float MoveSpeedMul = 1.0f;
+	int32 DashCharges = 0;
 };
 
 class DUSKTRACER_API FDTWeaponSim
@@ -118,6 +126,19 @@ public:
 	bool GetDensestLine(const FDTWorldView& View, const FVector2f& Hero, float Range, FVector2f& OutDir) const { return FindDensestLine(View, Hero, Range, OutDir); }
 	/** A narrow flash along Dir (a beam's cue, R-KEE-36). */
 	void AddFlash(int32 OwnerId, const FVector2f& Position, const FVector2f& Dir, float Reach, float ArcDeg, float Seconds);
+
+	// --- duo reactions (reactions.md, DTWeaponSimDuos.cpp) --------------------------------------------------------------
+	/** The pairs live for OwnerId and the duo blessings it owns (bit per DTCat::Reactions row); the Keeper layer sets them. */
+	void SetReactions(int32 OwnerId, uint32 Live, uint32 Duos);
+	const FDTReactionCounters& GetReactionCounters(int32 OwnerId, int32 Row) const;
+	/** Fires and first fires since the last call, for telemetry. */
+	TArray<FDTReactionEvent> TakeReactionEvents();
+	/** The row whose toast shows now for OwnerId, INDEX_NONE for none (R-REA-12). */
+	int32 GetToast(int32 OwnerId, int64 StepIndex) const;
+	float GetWildfireLeft(int32 OwnerId) const;
+	FDTDuoHero GetDuoHero(int32 OwnerId) const;
+	/** Blinds an enemy for OwnerId for Seconds (the owner's Blinded mark; the stun is the caller's). */
+	void ApplyBlind(int32 OwnerId, uint32 Serial, int64 StepIndex, float Seconds);
 
 	// --- composition -------------------------------------------------------------------------------------------
 	/** Composes one owned weapon now (R-WPN-09), with load ranks over the owner's weapons. */
@@ -247,6 +268,25 @@ private:
 		float DashRefund = 0.0f;
 		float DashRefundUsed = 0.0f;
 		int32 DashRefills = 0;
+		// Duo reactions (reactions.md).
+		uint32 LiveReactions = 0;
+		uint32 DuoReactions = 0;
+		uint32 ReactionsFired = 0;
+		TArray<FDTReactionCounters> ReactionCounters;
+		/** (row << 32 | serial) -> first step it may fire again (R-REA-05). */
+		TMap<uint64, int64> ReactionReadyStep;
+		/** Enemies a Pull reached this step: Chill contact (R-REA-04). */
+		TSet<uint32> StepPulled;
+		int32 ToastRow = INDEX_NONE;
+		int64 ToastUntilStep = 0;
+		float WildfireLeft = 0.0f;
+		float DuoChargeLeft = 0.0f;
+		float DuoRefundReadyIn = 0.0f;
+		float TrailDistance = 0.0f;
+		FVector2f TrailLast = FVector2f::ZeroVector;
+		bool bDuoDashWas = false;
+		int32 ConductedJumps = 0;
+		float DuoSpeedMul = 1.0f;
 	};
 
 	/** A hunter (keepers.md R-KEE-27): data, no Actor; drawn as a drone core. */
@@ -295,6 +335,8 @@ private:
 		bool bLance = false;
 		/** The hit was a crit. */
 		bool bCrit = false;
+		/** A reaction's round (Cremation's ember, Refraction's shard): its row; it runs no other reaction. */
+		int8 DuoRow = INDEX_NONE;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -315,6 +357,7 @@ private:
 		bool bCharged = false;
 		bool bEmber = false;
 		bool bLance = false;
+		int8 DuoRow = INDEX_NONE;
 		/** Non-zero: a moving round; the pool reports its moves (R-BUL-09). */
 		uint32 RoundId = 0;
 		int32 Pierce = 1;
@@ -358,6 +401,8 @@ private:
 		float Reach = 0.0f;
 		float ArcDeg = 0.0f;
 		float TimeLeft = 0.0f;
+		/** Set: the flash's own Keeper colour (a reaction's rings); else the owner's. */
+		EDTPath Tint = EDTPath::None;
 	};
 
 	/** A status a Weapons-phase emission (a slam) applies; rolled in Effects on the enemy's serial (R-KEE-10). */
@@ -398,6 +443,7 @@ private:
 		bool bCharged = false;
 		bool bEmber = false;
 		bool bLance = false;
+		int8 DuoRow = INDEX_NONE;
 		/** A Charge shot: always a crit, or this much more chance. */
 		bool bForceCrit = false;
 		float CritBonus = 0.0f;
@@ -470,6 +516,50 @@ private:
 
 	void StepDeferred(const FDTSimContext& Context);
 
+	// Duo reactions (DTWeaponSimDuos.cpp).
+	/** One of the step's hits, as the enemy stood when it landed. */
+	struct FDuoHit
+	{
+		int32 OwnerId = INDEX_NONE;
+		uint32 Serial = 0;
+		EDTPath Path = EDTPath::None;
+		float Damage = 0.0f;
+		uint8 Mask = 0;
+		bool bCrit = false;
+		int8 Slot = INDEX_NONE;
+	};
+	uint32 LiveReactionsOf(int32 OwnerId) const;
+	bool HasDuo(const FPlayerRuntime& Player, DTCat::EReaction Pair) const;
+	/** Claims the enemy for this reaction (R-REA-05); false while it cools down. */
+	bool ClaimReaction(FPlayerRuntime& Player, int32 Row, uint32 Serial, int64 StepIndex);
+	/** Counts a fire and shows its cue and first toast. */
+	void NoteReaction(const FDTSimContext& Context, FPlayerRuntime& Player, int32 OwnerId, int32 Row, const FVector2f& At, float Reach);
+	void NoteReactionDamage(FPlayerRuntime& Player, int32 OwnerId, int32 Row, float Damage);
+	int32 DuoCircle(const FDTSimContext& Context, int32 OwnerId, int32 Row, const FVector2f& Center, float Radius, float Damage, uint32 Skip, TArray<int32>* OutHit);
+	void DuoHit(const FDTSimContext& Context, int32 OwnerId, int32 Row, int32 Enemy, float Damage, bool bCrit = false);
+	void DuoStatus(const FDTSimContext& Context, int32 OwnerId, int32 Row, int32 Enemy, EDTStatus Status, float HitDamage);
+	void DuoStun(const FDTSimContext& Context, int32 OwnerId, int32 Row, int32 Enemy, float Seconds);
+	void DuoBlind(const FDTSimContext& Context, int32 OwnerId, int32 Row, int32 Enemy, float Seconds);
+	void DuoConsume(const FDTSimContext& Context, int32 OwnerId, int32 Row, int32 Enemy, EDTStatus Status);
+	/** Up to Count enemies within Range of From, nearest first; Filter says which. */
+	void NearestEnemies(const FDTWorldView& View, const FVector2f& From, float Range, int32 Count, uint32 Skip, TFunctionRef<bool(int32)> Filter, TArray<int32>& Out) const;
+	void CaptureDuoHits(const FDTWorldView& View);
+	void ReactDuoKills(const FDTSimContext& Context);
+	void StepDuos(const FDTSimContext& Context, FDTBulletPool* Bullets);
+	void ReactDuoHit(const FDTSimContext& Context, FDTBulletPool* Bullets, FPlayerRuntime& Player, const FDuoHit& Hit, int32 Enemy);
+	void StepDuoDash(const FDTSimContext& Context, FPlayerRuntime& Player, int32 OwnerId);
+	void FireSteam(const FDTSimContext& Context, FPlayerRuntime& Player, int32 OwnerId, int32 Enemy, float Damage);
+	void FireShards(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Enemy, float Damage, int8 Slot);
+	void ReactDuoRound(const FDTSimContext& Context, const FImpact& Impact, int32 HitEnemy);
+	/** Extra bounces a ricochet off this enemy gets from Live Rail or Black Ice. */
+	int32 DuoBounces(const FDTSimContext& Context, const FImpact& Impact, int32 HitEnemy, bool bHasBounce);
+	/** Below raised by Cremation on a Burning enemy (execute_add). */
+	float DuoExecuteBelow(int32 Enemy, float Below) const;
+	/** Hero speed over the base, Momentum included (R-REA-07). */
+	float BonusSpeed(int32 OwnerId) const;
+	/** Afterglow rewrites this step's crit chance (Weapons phase). */
+	void StepDuoCrit(FPlayerRuntime& Player, int32 OwnerId);
+
 	// S2 Keepers (DTWeaponSimKeepers.cpp).
 	/** The first flag entry of OwnerId's Keeper sources, the per-hit one (no `on` word). */
 	const FDTFlagEntry* KeeperEntry(int32 OwnerId, DTCat::EFlag Flag) const;
@@ -541,6 +631,11 @@ private:
 	TArray<FOverkill> Overkills;
 	TArray<FOverkill> NovaOverkills;
 	TArray<FHunter> Hunters;
+	TArray<FDuoHit> DuoHits;
+	TArray<FDTReactionEvent> ReactionEvents;
+	/** Cues shown in the running second, across players (R-REA-11). */
+	int32 CueWindow = 0;
+	int64 CueWindowStart = 0;
 	/** A dash volley fires along VolleyDir at VolleyMult. */
 	bool bVolleyForced = false;
 	FVector2f VolleyDir = FVector2f(1.0f, 0.0f);

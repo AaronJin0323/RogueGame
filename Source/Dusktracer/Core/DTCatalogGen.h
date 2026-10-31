@@ -302,6 +302,40 @@ namespace DTCat
 		{ EDTPath::Quicksilver, TEXT("Keeper.Quicksilver"), TEXT("Archetype.Quicksilver.Rebound"), TEXT("Mobility"), EFlag::Ricochet, { TEXT("Flag.Ricochet{bounces=1;seek_range_uu=500;return_same_target=true}"), TEXT("Flag.Ricochet{bounces=+1}"), TEXT("Flag.Ricochet{bounce_dmg=+0.20}"), TEXT("Flag.Ricochet{kill_free_round=true}"), TEXT("Flag.Ricochet{seek_range_uu=+150}"), TEXT("Flag.Ricochet{dash_charges=1}"), TEXT("Flag.SpeedScale{per_stack=0.01;stacks_max=30;per_100uu=1;dash_stacks=5;hit_loss=10;decay_per_s=2.0}") }, { TEXT("Blessing.Quicksilver.Rebound.Key"), TEXT("Blessing.Quicksilver.Rebound.Amp1"), TEXT("Blessing.Quicksilver.Rebound.Amp2"), TEXT("Blessing.Quicksilver.Rebound.Trait") }, TEXT("Trail=Pal.Keeper.Quicksilver;SecondTint=TrailTip"), TEXT("none"), TEXT("Flag.Ricochet{bounces=3;seek_range_uu=500;return_same_target=true}"), TEXT("Flag.Ricochet{bounces=2;seek_range_uu=500}"), 0u, TEXT("S2"), TEXT("ST_Keepers.Quicksilver.Rebound"), 2 },
 	};
 
+	// --- reactions.csv: one row per pair of Keepers (reactions.md) ---
+	enum class EReaction : uint8 { StormForge, StormTide, StormShade, StormRadiance, StormQuicksilver, ForgeTide, ForgeShade, ForgeRadiance, ForgeQuicksilver, TideShade, TideRadiance, TideQuicksilver, ShadeRadiance, ShadeQuicksilver, RadianceQuicksilver, Count };
+	struct FReactionParam { const TCHAR* Name; float Value; };
+	struct FReactionRow
+	{
+		const TCHAR* Pair;
+		const TCHAR* BlessingId;
+		const TCHAR* SourceName;
+		EDTPath PathA;
+		EDTPath PathB;
+		FReactionParam Params[6];
+		int32 NumParams;
+		FReactionParam DuoParams[6];
+		int32 NumDuoParams;
+	};
+	inline constexpr FReactionRow Reactions[] =
+	{
+		{ TEXT("StormForge"), TEXT("Blessing.Duo.StormForge"), TEXT("Keeper.Duo.StormForge"), EDTPath::Storm, EDTPath::Forge, { { TEXT("radius_uu"), 150.0f }, { TEXT("dmg"), 0.6f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2, { { TEXT("field_s"), 2.0f }, { TEXT("field_dps"), 0.36f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2 },
+		{ TEXT("StormTide"), TEXT("Blessing.Duo.StormTide"), TEXT("Keeper.Duo.StormTide"), EDTPath::Storm, EDTPath::Tide, { { TEXT("radius_uu"), 300.0f }, { TEXT("max"), 6.0f }, { TEXT("dmg"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3, { { TEXT("every_n"), 3.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("StormShade"), TEXT("Blessing.Duo.StormShade"), TEXT("Keeper.Duo.StormShade"), EDTPath::Storm, EDTPath::Shade, { { TEXT("bolts"), 2.0f }, { TEXT("range_uu"), 600.0f }, { TEXT("dmg"), 0.6f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3, { { TEXT("mark"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("StormRadiance"), TEXT("Blessing.Duo.StormRadiance"), TEXT("Keeper.Duo.StormRadiance"), EDTPath::Storm, EDTPath::Radiance, { { TEXT("targets"), 3.0f }, { TEXT("range_uu"), 300.0f }, { TEXT("dmg"), 0.5f }, { TEXT("blind_s"), 0.3f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 4, { { TEXT("blind_s"), 1.0f }, { TEXT("arc_vuln"), 0.2f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2 },
+		{ TEXT("StormQuicksilver"), TEXT("Blessing.Duo.StormQuicksilver"), TEXT("Keeper.Duo.StormQuicksilver"), EDTPath::Storm, EDTPath::Quicksilver, { { TEXT("bounces"), 1.0f }, { TEXT("arc_dmg"), 0.5f }, { TEXT("arc_range_uu"), 300.0f }, { TEXT("radius_uu"), 180.0f }, { TEXT("dmg"), 0.6f }, { TEXT(""), 0.0f } }, 5, { { TEXT("trail_uu"), 120.0f }, { TEXT("trail_s"), 2.0f }, { TEXT("arcs"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3 },
+		{ TEXT("ForgeTide"), TEXT("Blessing.Duo.ForgeTide"), TEXT("Keeper.Duo.ForgeTide"), EDTPath::Forge, EDTPath::Tide, { { TEXT("radius_uu"), 200.0f }, { TEXT("dmg"), 1.2f }, { TEXT("stagger_s"), 0.4f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3, { { TEXT("both"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("ForgeShade"), TEXT("Blessing.Duo.ForgeShade"), TEXT("Keeper.Duo.ForgeShade"), EDTPath::Forge, EDTPath::Shade, { { TEXT("ember_dmg"), 0.4f }, { TEXT("range_uu"), 600.0f }, { TEXT("execute_add"), 0.05f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3, { { TEXT("marked"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("ForgeRadiance"), TEXT("Blessing.Duo.ForgeRadiance"), TEXT("Keeper.Duo.ForgeRadiance"), EDTPath::Forge, EDTPath::Radiance, { { TEXT("mult"), 1.5f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, { { TEXT("crit"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("ForgeQuicksilver"), TEXT("Blessing.Duo.ForgeQuicksilver"), TEXT("Keeper.Duo.ForgeQuicksilver"), EDTPath::Forge, EDTPath::Quicksilver, { { TEXT("speed_over"), 0.1f }, { TEXT("burn_s"), 2.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2, { { TEXT("speed"), 0.1f }, { TEXT("near_uu"), 300.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2 },
+		{ TEXT("TideShade"), TEXT("Blessing.Duo.TideShade"), TEXT("Keeper.Duo.TideShade"), EDTPath::Tide, EDTPath::Shade, { { TEXT("execute_below"), 0.25f }, { TEXT("shatter_uu"), 120.0f }, { TEXT("shatter_dmg"), 0.5f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3, { { TEXT("freeze_uu"), 150.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("TideRadiance"), TEXT("Blessing.Duo.TideRadiance"), TEXT("Keeper.Duo.TideRadiance"), EDTPath::Tide, EDTPath::Radiance, { { TEXT("shards"), 3.0f }, { TEXT("fan_deg"), 60.0f }, { TEXT("dmg"), 0.4f }, { TEXT("pierce"), 2.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 4, { { TEXT("chill"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("TideQuicksilver"), TEXT("Blessing.Duo.TideQuicksilver"), TEXT("Keeper.Duo.TideQuicksilver"), EDTPath::Tide, EDTPath::Quicksilver, { { TEXT("bounce_free"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1, { { TEXT("chilled"), 1.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("ShadeRadiance"), TEXT("Blessing.Duo.ShadeRadiance"), TEXT("Keeper.Duo.ShadeRadiance"), EDTPath::Shade, EDTPath::Radiance, { { TEXT("vuln"), 0.4f }, { TEXT("mark_uu"), 200.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2, { { TEXT("vuln"), 0.2f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 1 },
+		{ TEXT("ShadeQuicksilver"), TEXT("Blessing.Duo.ShadeQuicksilver"), TEXT("Keeper.Duo.ShadeQuicksilver"), EDTPath::Shade, EDTPath::Quicksilver, { { TEXT("below"), 0.3f }, { TEXT("refund"), 0.2f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2, { { TEXT("below"), 0.4f }, { TEXT("charges"), 1.0f }, { TEXT("charge_s"), 3.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 3 },
+		{ TEXT("RadianceQuicksilver"), TEXT("Blessing.Duo.RadianceQuicksilver"), TEXT("Keeper.Duo.RadianceQuicksilver"), EDTPath::Radiance, EDTPath::Quicksilver, { { TEXT("crit_per_10pct"), 0.01f }, { TEXT("blind_s"), 0.3f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2, { { TEXT("crit_scale"), 2.0f }, { TEXT("refund"), 0.02f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f }, { TEXT(""), 0.0f } }, 2 },
+	};
+
 	// --- enemies.csv ---
 	struct FEnemyRow
 	{
@@ -493,6 +527,7 @@ namespace DTCat
 	/** The S1 rows, which come first (Stage 1); NumAllArchetypes counts every row. Runtime code walks every row. */
 	inline constexpr int32 NumArchetypes = 9;
 	inline constexpr int32 NumAllArchetypes = static_cast<int32>(UE_ARRAY_COUNT(Archetypes));
+	inline constexpr int32 NumReactions = static_cast<int32>(UE_ARRAY_COUNT(Reactions));
 	inline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);
 	inline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));
 	inline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));

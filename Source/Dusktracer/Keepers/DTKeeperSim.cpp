@@ -156,6 +156,7 @@ void FDTKeeperSim::RebuildFlags(const FDTRunState& Run, int32 OwnerId, FDTWeapon
 			Weapons.RemoveFlagSource(OwnerId, DTKeepers::SourceTag(Path));
 		}
 	}
+	Weapons.SetReactions(OwnerId, DTReactions::LiveMask(Keepers), DTReactions::DuoMask(Keepers));
 	++Player.Counters.Rebuilds;
 }
 

@@ -154,6 +154,8 @@ struct FDTStatusApply
 	/** Chill stacks that freeze; 0 = C.STATUS.FREEZE_STACKS. */
 	int32 FreezeAt = 0;
 	float FreezeScale = 1.0f;
+	/** Spends the status instead of applying it (reactions.md R-REA-07). */
+	bool bConsume = false;
 };
 
 enum class EDTTelegraphShape : uint8
