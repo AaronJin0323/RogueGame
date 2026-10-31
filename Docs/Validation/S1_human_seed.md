@@ -90,6 +90,9 @@ Their launchers carry the old line, which this replaces. Their restart path need
 
 `Tools\Play.bat` on `dev/s2` passes `%CULTUREARG%`. `SeedCheck` reads the expanded line, so that needs no change.
 
+## Found on the way, not fixed here
+`Tools/PadCheck.ps1` uses one fixed marker seed and deletes `<marker>_*` from `%LOCALAPPDATA%`, a folder every worktree shares. Two checks at once delete each other's run files. A file removed after `run_start` is flushed comes back at the first interval without it, which reads `first record is not run_start`, and the record count is one short. This happened between this branch's gate at `013b8ff` and `e5b-7`'s at `1a848be`: both failed at `pad`, by the timestamps of both logs, with no fault in either build. The smallest fix is to delete only the files the check itself created, as `SeedCheck` does. Until then, run one `pad` at a time.
+
 ## Not verified
 - A person double-clicking a launcher: full screen, on a real display. The launches here swap `-fullscreen` for off-screen flags.
 - Play in the editor: the redraw per world and the reject that leaves the editor open were not run.
