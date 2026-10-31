@@ -117,4 +117,3 @@ Prefixes `ST_UI.Pause.*`, `ST_UI.Settings.*`, `ST_UI.Controls.*`, `ST_UI.Menu.*`
 |---|---|
 | Change `Pal.Keeper.Forge` and `Pal.Keeper.Quicksilver` trails to the source's combat colours (`#FFC17A`, `#B3FB60`), or keep them and rely on outlines? | an owner call; a token change is PRESENT and runs through the Combat renderer |
 | Do Medium and Low hold R-PRE-05? | T-PRE-05 at each level; the gate reads Epic only |
-| Should outlines cost anything at `C.BULLETS.CAP` density? | `Tools/Perf.ps1` with the row on |

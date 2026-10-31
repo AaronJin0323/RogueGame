@@ -21,3 +21,4 @@
 | D-017 | Owner waives the S1 playtest hold on merging | PROCESS | applied |
 | D-018 | Share caps bind only above a floor of alive enemies | RULE | reverted |
 | D-019 | Frost and Stillness casts drop Tide's line | RULE | applied |
+| D-020 | Pulse Wall's `dps` is a ratio of one round's damage, per enemy | RULE | applied |
