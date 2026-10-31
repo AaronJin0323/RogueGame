@@ -416,4 +416,5 @@ namespace DTConst
 	inline constexpr float SETTINGS_OUTLINE_ROUND_DARK_RATIO = 1.8f; // ratio, GATED(S3)
 	inline constexpr int32 SETTINGS_CVD_DELTA_E_MIN = 20; // delta_e, CORE
 	inline constexpr int32 SETTINGS_CVD_MUZZLE_DELTA_E_MIN = 15; // delta_e, CORE
+	inline constexpr float SETTINGS_RUN_OVER_GUARD_S = 1.0f; // s, GATED(S3)
 }

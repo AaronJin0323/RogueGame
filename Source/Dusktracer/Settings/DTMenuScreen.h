@@ -15,6 +15,10 @@ namespace DTMenuText
 	DUSKTRACER_API FText RowLabel(EDTSettingRow Row);
 	DUSKTRACER_API FText RowValue(EDTSettingRow Row, const FDTUserSettings& Settings);
 	DUSKTRACER_API FText StatusLine(const FDTMenuState& State);
+	/** The ST_UI key of the screen's title (run-over screens carry the HUD's end line, R-SET-21). */
+	DUSKTRACER_API const TCHAR* TitleKey(const FDTMenuState& State);
+	/** The ST_UI key of a plain row (pause, confirmation, run-over screens). */
+	DUSKTRACER_API const TCHAR* PlainRowKey(const FDTMenuState& State, int32 Row);
 }
 
 namespace DTMenuScreen

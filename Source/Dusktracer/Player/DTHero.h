@@ -48,6 +48,9 @@ public:
 
 	UDTInputSet* GetInputSet() const { return InputSet; }
 
+	/** A dash or Intercession press counts only with the world running (settings.md R-SET-27). */
+	static bool TakesPress(bool bWorldPaused) { return !bWorldPaused; }
+
 private:
 	void OnDashStarted(const FInputActionValue& Value);
 	void OnIntercessionStarted(const FInputActionValue& Value);

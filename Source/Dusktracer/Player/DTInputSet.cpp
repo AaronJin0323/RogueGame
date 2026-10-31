@@ -47,6 +47,9 @@ void UDTInputSet::Build()
 	Aim = MakeAction(this, TEXT("IA_Aim"), EInputActionValueType::Axis2D);
 	Dash = MakeAction(this, TEXT("IA_Dash"), EInputActionValueType::Boolean);
 	Intercession = MakeAction(this, TEXT("IA_Intercession"), EInputActionValueType::Boolean);
+	// Triggers run through a pause, or the first frame after it reads a held key as a press (settings.md R-SET-27).
+	Dash->bTriggerWhenPaused = true;
+	Intercession->bTriggerWhenPaused = true;
 	Pause = MakeAction(this, TEXT("IA_Pause"), EInputActionValueType::Boolean);
 	Pause->bTriggerWhenPaused = true;
 

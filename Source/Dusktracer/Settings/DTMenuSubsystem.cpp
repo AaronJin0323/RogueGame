@@ -1,15 +1,22 @@
 #include "Settings/DTMenuSubsystem.h"
+#include "Core/DTConstantsGen.h"
 #include "Dusktracer.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Game/DTGameMode.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
+#include "Kismet/GameplayStatics.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHero.h"
+#include "Telemetry/DTTelemetrySubsystem.h"
+#include "UObject/Package.h"
 #include "Settings/DTMenuScreen.h"
+#include "Settings/DTRestartCheck.h"
 #include "Settings/DTSettingsSubsystem.h"
 
 #if !UE_BUILD_SHIPPING
@@ -60,6 +67,14 @@ namespace DTMenuSubsystemDev
 			if (UDTMenuSubsystem* Menu = FindMenu(World))
 			{
 				Menu->RequestPause();
+			}
+		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdRunOver(TEXT("DT.UI.RunOver"), TEXT("Open the run-over screen: 0 death, 1 victory, 2 abandoned."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UDTMenuSubsystem* Menu = FindMenu(World))
+			{
+				Menu->OpenRunOver(static_cast<EDTRunOverKind>(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0));
 			}
 		}));
 	static FAutoConsoleCommandWithWorldAndArgs CmdFocus(TEXT("DT.UI.Key"), TEXT("Send one menu command: Up Down Left Right Accept Back."),
@@ -146,16 +161,10 @@ void UDTMenuSubsystem::OpenAt(EDTMenuScreen Screen)
 	State.Focus = 0;
 }
 
-void UDTMenuSubsystem::RequestPause()
+void UDTMenuSubsystem::SnapshotKeys()
 {
-	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (IsOpen() || Down.Contains(EKeys::Escape) || Down.Contains(EKeys::Gamepad_Special_Right))
-	{
-		return; // the Back press that just closed the screen is still down
-	}
-	State.Open();
-	OpenedWall = FPlatformTime::Seconds();
 	Down.Reset();
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (PC)
 	{
 		for (const FKey& Key : DTMenuInput::Keys())
@@ -166,6 +175,37 @@ void UDTMenuSubsystem::RequestPause()
 			}
 		}
 	}
+}
+
+bool UDTMenuSubsystem::IsAcceptHeld() const
+{
+	if (HeldOverride)
+	{
+		return HeldOverride();
+	}
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (PC)
+	{
+		for (const FKey& Key : DTMenuInput::Keys())
+		{
+			if (DTMenuInput::ForKey(Key) == EDTMenuCommand::Accept && PC->IsInputKeyDown(Key))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void UDTMenuSubsystem::RequestPause()
+{
+	if (IsOpen() || Down.Contains(EKeys::Escape) || Down.Contains(EKeys::Gamepad_Special_Right))
+	{
+		return; // the Back press that just closed the screen is still down
+	}
+	State.Open();
+	OpenedWall = FPlatformTime::Seconds();
+	SnapshotKeys();
 	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
 	{
 		Offers->HoldInput();
@@ -186,8 +226,95 @@ void UDTMenuSubsystem::Close()
 	SetPaused(false);
 }
 
+void UDTMenuSubsystem::OpenRunOver(EDTRunOverKind Kind)
+{
+	State.OpenRunOver(Kind);
+	RunOverGuardLeft = DTConst::SETTINGS_RUN_OVER_GUARD_S;
+	SnapshotKeys();
+	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
+	{
+		Offers->HoldInput(); // for good: a hand under this screen has no run left to feed
+	}
+	UE_LOG(LogDT, Log, TEXT("Menu: run over (%d)"), static_cast<int32>(Kind));
+}
+
+void UDTMenuSubsystem::WatchRunOver()
+{
+	const ADTGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr;
+	if (Mode && Mode->IsRunOver() && State.Screen != EDTMenuScreen::RunOver)
+	{
+		OpenRunOver(Mode->IsVictory() ? EDTRunOverKind::Victory : EDTRunOverKind::Death);
+	}
+}
+
+void UDTMenuSubsystem::CloseRun(const TCHAR* Reason)
+{
+	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
+	{
+		Telemetry->EndSession(Reason); // a no-op on a run that already closed with its own reason
+	}
+}
+
+void UDTMenuSubsystem::AbandonRun()
+{
+	CloseRun(TEXT("abandoned"));
+	if (ADTGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr)
+	{
+		Mode->AbandonRun();
+	}
+	OpenRunOver(EDTRunOverKind::Abandoned); // the world stays paused: this menu still holds the pause
+}
+
+void UDTMenuSubsystem::RestartRun(TOptional<int32> ForcedSeed)
+{
+	if (bLeaving)
+	{
+		return;
+	}
+	CloseRun(TEXT("restart"));
+	PendingSeed = ForcedSeed.IsSet() ? ForcedSeed.GetValue() : ADTGameMode::NextSeed(ADTGameMode::GetRunSeed(GetWorld()), FPlatformTime::Cycles());
+	bRestartPending = true;
+	bLeaving = true;
+}
+
+void UDTMenuSubsystem::FinishRestart()
+{
+	bRestartPending = false;
+	UE_LOG(LogDT, Log, TEXT("Menu: restart on seed %d"), PendingSeed);
+	if (RestartOverride)
+	{
+		RestartOverride(PendingSeed);
+		return;
+	}
+	if (UWorld* World = GetWorld())
+	{
+		// A whole map reload is the reset: every subsystem and actor of the run goes with it (R-SET-24).
+		const FString Map = UWorld::RemovePIEPrefix(World->GetOutermost()->GetName());
+		UGameplayStatics::OpenLevel(World, FName(*Map), true, FString::Printf(TEXT("DTSeed=%d"), PendingSeed));
+	}
+}
+
+void UDTMenuSubsystem::QuitGame()
+{
+	CloseRun(TEXT("quit"));
+	bLeaving = true;
+	if (QuitOverride)
+	{
+		QuitOverride();
+		return;
+	}
+	FPlatformMisc::RequestExit(false, TEXT("DT quit to desktop"));
+}
+
 void UDTMenuSubsystem::HandleOutcome(const FDTMenuOutcome& Outcome)
 {
+	switch (Outcome.Action)
+	{
+	case EDTMenuAction::Restart: RestartRun(); break;
+	case EDTMenuAction::Abandon: AbandonRun(); break;
+	case EDTMenuAction::Quit: QuitGame(); break;
+	default: break;
+	}
 	if (Outcome.bClosed)
 	{
 		Close();
@@ -213,6 +340,10 @@ void UDTMenuSubsystem::HandleOutcome(const FDTMenuOutcome& Outcome)
 
 void UDTMenuSubsystem::Command(EDTMenuCommand Command)
 {
+	if (bLeaving || (State.Screen == EDTMenuScreen::RunOver && RunOverGuardLeft > 0.0f))
+	{
+		return;
+	}
 	HandleOutcome(State.Apply(Command, DTSettings::Live()));
 }
 
@@ -305,9 +436,16 @@ void UDTMenuSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	RunLanguageSwitch(); // queued by last frame's press (R-SET-06)
+	RunOverGuardLeft = FMath::Max(0.0f, RunOverGuardLeft - DeltaTime);
+	WatchRunOver();
+	if (bRestartPending && !IsAcceptHeld())
+	{
+		FinishRestart();
+	}
 	PollKeys();
 #if !UE_BUILD_SHIPPING
 	TickDevShot();
+	DTRestartCheck::Tick(this);
 #endif
 }
 

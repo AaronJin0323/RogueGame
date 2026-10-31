@@ -177,6 +177,8 @@ void ADTHero::AddMappingContexts()
 	{
 		return;
 	}
+	// The local player outlives a map reload and would keep the last hero's contexts (settings.md R-SET-24).
+	Subsystem->ClearAllMappings();
 	// Both devices at the same priority: either works at any time (R-CMB-02).
 	for (const UInputMappingContext* Context : InputSet->GetContexts())
 	{
@@ -201,12 +203,12 @@ void ADTHero::RemoveMappingContexts()
 
 void ADTHero::OnDashStarted(const FInputActionValue& Value)
 {
-	Frame.bDashPress = true;
+	Frame.bDashPress = TakesPress(GetWorld()->IsPaused()) || Frame.bDashPress;
 }
 
 void ADTHero::OnIntercessionStarted(const FInputActionValue& Value)
 {
-	Frame.bIntercessionPress = true;
+	Frame.bIntercessionPress = TakesPress(GetWorld()->IsPaused()) || Frame.bIntercessionPress;
 }
 
 void ADTHero::OnPauseStarted(const FInputActionValue& Value)

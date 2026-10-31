@@ -14,8 +14,10 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/DTGameMode.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
+#include "InputAction.h"
 #include "InputMappingContext.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
@@ -28,6 +30,7 @@
 #include "Misc/Paths.h"
 #include "Offers/DTOfferScreen.h"
 #include "Offers/DTOfferSubsystem.h"
+#include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Player/DTInputSet.h"
 #include "Settings/DTMenuScreen.h"
@@ -766,6 +769,7 @@ bool FDTSetNavigation::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Pause has its rows"), Menu.NumRows(), static_cast<int32>(EDTPauseRow::Num));
 	Menu.Apply(EDTMenuCommand::Up, S);
 	TestEqual(TEXT("focus wraps up"), Menu.Focus, Menu.NumRows() - 1);
+	Menu.Focus = static_cast<int32>(EDTPauseRow::Settings);
 	Menu.Apply(EDTMenuCommand::Accept, S);
 	TestEqual(TEXT("Settings"), Menu.Screen, EDTMenuScreen::Settings);
 
@@ -827,6 +831,393 @@ bool FDTSetTextKeys::RunTest(const FString& Parameters)
 		TestFalse(TEXT("no literal colour"), Text.Contains(TEXT("FColor(")) || Text.Contains(TEXT("FLinearColor(")) || Text.Contains(TEXT("FromHex")));
 		TestFalse(TEXT("no enemy or telegraph token in UI"), Text.Contains(TEXT("DTPal::Enemy")) || Text.Contains(TEXT("DTPal::Telegraph")));
 	}
+	return true;
+}
+
+namespace DTSettingsTest
+{
+	static void FocusPauseRow(UDTMenuSubsystem* Menu, EDTPauseRow Row)
+	{
+		for (int32 Guard = 0; Guard < static_cast<int32>(EDTPauseRow::Num) && Menu->GetState().Focus != static_cast<int32>(Row); ++Guard)
+		{
+			Menu->Command(EDTMenuCommand::Down);
+		}
+	}
+
+	/** Opens the pause screen and answers the row's confirmation with its confirm row. */
+	static void ConfirmRow(UDTMenuSubsystem* Menu, EDTPauseRow Row)
+	{
+		Menu->RequestPause();
+		FocusPauseRow(Menu, Row);
+		Menu->Command(EDTMenuCommand::Accept);
+		Menu->Command(EDTMenuCommand::Up);
+		Menu->Command(EDTMenuCommand::Accept);
+	}
+
+	struct FSession
+	{
+		UDTTelemetrySubsystem* Telemetry = nullptr;
+		FString Path;
+		FSession(UWorld* World, int32 Seed)
+		{
+			Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+			World->GetSubsystem<UDTSimSubsystem>()->StartRun(Seed, 1);
+			Telemetry->StartSession(Seed, 1);
+			Path = Telemetry->GetWriter().GetJsonlPath();
+		}
+		~FSession()
+		{
+			IFileManager::Get().Delete(*Path, false, true, true);
+			IFileManager::Get().Delete(*FPaths::ChangeExtension(Path, TEXT("csv")), false, true, true);
+		}
+		int32 Ends(const TCHAR* Reason) const
+		{
+			FString Text;
+			FFileHelper::LoadFileToString(Text, *Path);
+			const FString Needle = FString::Printf(TEXT("\"kind\":\"run_end\",\"owner\":-1,\"reason\":\"%s\""), Reason);
+			int32 Count = 0;
+			for (int32 At = Text.Find(Needle); At != INDEX_NONE; At = Text.Find(Needle, ESearchCase::CaseSensitive, ESearchDir::FromStart, At + 1))
+			{
+				++Count;
+			}
+			return Count;
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetPauseRows, "Dusktracer.Settings.PauseRows", DTSettingsTest::Flags) // T-SET-19
+bool FDTSetPauseRows::RunTest(const FString& Parameters)
+{
+	FDTUserSettings S;
+	FDTMenuState Menu;
+	Menu.Open();
+	TestEqual(TEXT("five rows"), Menu.NumRows(), 5);
+	const TCHAR* const Keys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
+	const EDTMenuScreen After[] = { EDTMenuScreen::None, EDTMenuScreen::Settings, EDTMenuScreen::Confirm, EDTMenuScreen::Confirm, EDTMenuScreen::Confirm };
+	for (int32 Row = 0; Row < UE_ARRAY_COUNT(Keys); ++Row)
+	{
+		Menu.Open();
+		TestEqual(TEXT("the row's text"), FString(DTMenuText::PlainRowKey(Menu, Row)), FString(Keys[Row]));
+		for (int32 Press = 0; Press < Row; ++Press)
+		{
+			Menu.Apply(DTMenuInput::ForKey(Row % 2 ? EKeys::Down : EKeys::Gamepad_DPad_Down), S);
+		}
+		TestEqual(TEXT("reached by keyboard or pad"), Menu.Focus, Row);
+		Menu.Apply(DTMenuInput::ForKey(Row % 2 ? EKeys::Gamepad_FaceButton_Bottom : EKeys::Enter), S);
+		TestEqual(FString::Printf(TEXT("row %d answers Accept"), Row), Menu.Screen, After[Row]);
+	}
+	const TArray<FString> Text = DTMenuText::AllKeys();
+	for (const TCHAR* Key : { TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit"), TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"),
+		TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"), TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"),
+		TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"), TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory") })
+	{
+		TestTrue(FString::Printf(TEXT("%s is a menu key"), Key), Text.Contains(Key));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetConfirm, "Dusktracer.Settings.Confirm", DTSettingsTest::Flags) // T-SET-20
+bool FDTSetConfirm::RunTest(const FString& Parameters)
+{
+	FDTUserSettings S;
+	const EDTPauseRow Rows[] = { EDTPauseRow::Restart, EDTPauseRow::Abandon, EDTPauseRow::Quit };
+	const EDTMenuAction Actions[] = { EDTMenuAction::Restart, EDTMenuAction::Abandon, EDTMenuAction::Quit };
+	const TCHAR* const Titles[] = { TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle") };
+	const TCHAR* const ConfirmKeys[] = { TEXT("Pause.RestartConfirm"), TEXT("Pause.AbandonConfirm"), TEXT("Pause.QuitConfirm") };
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Rows); ++Index)
+	{
+		const auto Ask = [&]()
+		{
+			FDTMenuState Menu;
+			Menu.Open();
+			Menu.Focus = static_cast<int32>(Rows[Index]);
+			const FDTMenuOutcome Asked = Menu.Apply(EDTMenuCommand::Accept, S);
+			TestEqual(TEXT("asking does nothing yet"), Asked.Action, EDTMenuAction::None);
+			return Menu;
+		};
+		FDTMenuState Menu = Ask();
+		TestEqual(TEXT("opens the confirmation"), Menu.Screen, EDTMenuScreen::Confirm);
+		TestEqual(TEXT("two rows"), Menu.NumRows(), 2);
+		TestEqual(TEXT("Cancel is focused"), Menu.Focus, static_cast<int32>(EDTConfirmRow::Cancel));
+		TestEqual(TEXT("title"), FString(DTMenuText::TitleKey(Menu)), FString(Titles[Index]));
+		TestEqual(TEXT("confirm row"), FString(DTMenuText::PlainRowKey(Menu, static_cast<int32>(EDTConfirmRow::Confirm))), FString(ConfirmKeys[Index]));
+		TestEqual(TEXT("cancel row"), FString(DTMenuText::PlainRowKey(Menu, static_cast<int32>(EDTConfirmRow::Cancel))), FString(TEXT("Pause.AbandonCancel")));
+
+		const FDTMenuOutcome Cancelled = Menu.Apply(EDTMenuCommand::Accept, S);
+		TestEqual(TEXT("Cancel changes nothing"), Cancelled.Action, EDTMenuAction::None);
+		TestEqual(TEXT("back on Pause"), Menu.Screen, EDTMenuScreen::Pause);
+		TestEqual(TEXT("on the row"), Menu.Focus, static_cast<int32>(Rows[Index]));
+
+		Menu = Ask();
+		const FDTMenuOutcome Back = Menu.Apply(EDTMenuCommand::Back, S);
+		TestEqual(TEXT("Back changes nothing"), Back.Action, EDTMenuAction::None);
+		TestEqual(TEXT("Back lands on Pause"), Menu.Screen, EDTMenuScreen::Pause);
+		TestEqual(TEXT("and on the row"), Menu.Focus, static_cast<int32>(Rows[Index]));
+
+		Menu = Ask();
+		Menu.Apply(EDTMenuCommand::Down, S);
+		TestEqual(TEXT("focus wraps to the confirm row"), Menu.Focus, static_cast<int32>(EDTConfirmRow::Confirm));
+		const FDTMenuOutcome Done = Menu.Apply(EDTMenuCommand::Accept, S);
+		TestEqual(TEXT("the confirm row acts"), Done.Action, Actions[Index]);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetRunOver, "Dusktracer.Settings.RunOver", DTSettingsTest::Flags) // T-SET-21
+bool FDTSetRunOver::RunTest(const FString& Parameters)
+{
+	using namespace DTSettingsTest;
+	FLiveGuard Guard;
+	FDTUserSettings S;
+	FDTMenuState Pure;
+	Pure.OpenRunOver(EDTRunOverKind::Victory);
+	TestEqual(TEXT("the screen"), Pure.Screen, EDTMenuScreen::RunOver);
+	TestEqual(TEXT("two rows"), Pure.NumRows(), 2);
+	TestEqual(TEXT("win title"), FString(DTMenuText::TitleKey(Pure)), FString(TEXT("Hud.Victory")));
+	TestEqual(TEXT("first row"), FString(DTMenuText::PlainRowKey(Pure, static_cast<int32>(EDTRunOverRow::Restart))), FString(TEXT("Pause.Restart")));
+	TestEqual(TEXT("second row"), FString(DTMenuText::PlainRowKey(Pure, static_cast<int32>(EDTRunOverRow::Quit))), FString(TEXT("Pause.Quit")));
+	Pure.Apply(EDTMenuCommand::Back, S);
+	TestEqual(TEXT("Back does nothing"), Pure.Screen, EDTMenuScreen::RunOver);
+	TestEqual(TEXT("Accept restarts with no confirmation"), Pure.Apply(EDTMenuCommand::Accept, S).Action, EDTMenuAction::Restart);
+	Pure.OpenRunOver(EDTRunOverKind::Death);
+	TestEqual(TEXT("death title"), FString(DTMenuText::TitleKey(Pure)), FString(TEXT("Hud.RunOver")));
+	Pure.Apply(EDTMenuCommand::Down, S);
+	TestEqual(TEXT("Accept quits with no confirmation"), Pure.Apply(EDTMenuCommand::Accept, S).Action, EDTMenuAction::Quit);
+
+	FTestWorld Test;
+	UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+	UDTOfferSubsystem* Offers = Test.World->GetSubsystem<UDTOfferSubsystem>();
+	if (!TestTrue(TEXT("subsystems"), Menu && Offers))
+	{
+		return false;
+	}
+	TArray<bool> Pauses;
+	int32 Restarts = 0;
+	Menu->SetPauseOverride([&Pauses](bool bPaused) { Pauses.Add(bPaused); });
+	Menu->SetRestartOverride([&Restarts](int32) { ++Restarts; });
+	Offers->UpdateFlow();
+	Menu->OpenRunOver(EDTRunOverKind::Death);
+	TestTrue(TEXT("opens"), Menu->IsOpen());
+	TestEqual(TEXT("no pause taken"), Pauses.Num(), 0);
+	TestTrue(TEXT("the hand under it takes no input"), Offers->IsInputHeld());
+	Menu->Command(EDTMenuCommand::Accept);
+	Menu->Tick(0.0f);
+	TestEqual(TEXT("the guard drops a press"), Restarts, 0);
+	Menu->RequestPause();
+	TestEqual(TEXT("Pause does not replace it"), Menu->GetState().Screen, EDTMenuScreen::RunOver);
+	Menu->Tick(static_cast<float>(DTConst::SETTINGS_RUN_OVER_GUARD_S) * 0.5f);
+	Menu->Command(EDTMenuCommand::Accept);
+	Menu->Tick(0.0f);
+	TestEqual(TEXT("still guarded halfway"), Restarts, 0);
+	Menu->Tick(static_cast<float>(DTConst::SETTINGS_RUN_OVER_GUARD_S));
+	Menu->Command(EDTMenuCommand::Accept);
+	Menu->Tick(0.0f);
+	TestEqual(TEXT("taken after the guard"), Restarts, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetAbandon, "Dusktracer.Settings.Abandon", DTSettingsTest::Flags) // T-SET-22
+bool FDTSetAbandon::RunTest(const FString& Parameters)
+{
+	using namespace DTSettingsTest;
+	FLiveGuard Guard;
+	FTestWorld Test;
+	UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+	if (!TestNotNull(TEXT("menu"), Menu))
+	{
+		return false;
+	}
+	FSession Session(Test.World, 41);
+	TArray<bool> Pauses;
+	int32 Restarts = 0;
+	Menu->SetPauseOverride([&Pauses](bool bPaused) { Pauses.Add(bPaused); });
+	Menu->SetRestartOverride([&Restarts](int32) { ++Restarts; });
+	ConfirmRow(Menu, EDTPauseRow::Abandon);
+	TestEqual(TEXT("run_end reads abandoned"), Session.Ends(TEXT("abandoned")), 1);
+	TestFalse(TEXT("the session is closed"), Session.Telemetry->IsSessionActive());
+	TestEqual(TEXT("the run-over screen"), Menu->GetState().Screen, EDTMenuScreen::RunOver);
+	TestEqual(TEXT("its title"), FString(DTMenuText::TitleKey(Menu->GetState())), FString(TEXT("Pause.Abandoned")));
+	TestEqual(TEXT("the world stays paused"), Pauses, TArray<bool>{ true });
+	Menu->Tick(static_cast<float>(DTConst::SETTINGS_RUN_OVER_GUARD_S) * 2.0f);
+	Menu->Command(EDTMenuCommand::Accept);
+	Menu->Tick(0.0f);
+	TestEqual(TEXT("a restart from it"), Restarts, 1);
+	TestEqual(TEXT("writes no second run_end"), Session.Ends(TEXT("restart")), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetRestart, "Dusktracer.Settings.Restart", DTSettingsTest::Flags) // T-SET-23
+bool FDTSetRestart::RunTest(const FString& Parameters)
+{
+	using namespace DTSettingsTest;
+	FLiveGuard Guard;
+	{
+		FTestWorld Test;
+		UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+		FSession Session(Test.World, 42);
+		bool bHeld = true;
+		TArray<int32> Seeds;
+		Menu->SetPauseOverride([](bool) {});
+		Menu->SetRestartOverride([&Seeds](int32 Seed) { Seeds.Add(Seed); });
+		Menu->SetHeldOverride([&bHeld]() { return bHeld; });
+		ConfirmRow(Menu, EDTPauseRow::Restart);
+		TestEqual(TEXT("run_end reads restart"), Session.Ends(TEXT("restart")), 1);
+		Menu->Tick(0.0f);
+		TestEqual(TEXT("a held key holds the reload"), Seeds.Num(), 0);
+		bHeld = false;
+		Menu->Tick(0.0f);
+		Menu->Tick(0.0f);
+		TestEqual(TEXT("one reload after the release"), Seeds.Num(), 1);
+		TestTrue(TEXT("on a new seed"), Seeds.Num() == 1 && Seeds[0] > 0 && Seeds[0] != ADTGameMode::GetCommandLineSeed());
+		Menu->Command(EDTMenuCommand::Accept);
+		Menu->Tick(0.0f);
+		TestEqual(TEXT("nothing more is taken"), Seeds.Num(), 1);
+	}
+	{
+		FTestWorld Test;
+		UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+		FSession Session(Test.World, 43);
+		int32 Restarts = 0;
+		Menu->SetRestartOverride([&Restarts](int32) { ++Restarts; });
+		Session.Telemetry->EndSession(TEXT("death"));
+		Menu->OpenRunOver(EDTRunOverKind::Death);
+		Menu->Tick(static_cast<float>(DTConst::SETTINGS_RUN_OVER_GUARD_S) * 2.0f);
+		Menu->Command(EDTMenuCommand::Accept);
+		Menu->Tick(0.0f);
+		TestEqual(TEXT("restarts"), Restarts, 1);
+		TestEqual(TEXT("the closed run keeps its reason"), Session.Ends(TEXT("death")), 1);
+		TestEqual(TEXT("and gains no other"), Session.Ends(TEXT("restart")), 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetRestartMatchesFresh, "Dusktracer.Settings.RestartMatchesFresh", DTSettingsTest::Flags) // T-SET-24
+bool FDTSetRestartMatchesFresh::RunTest(const FString& Parameters)
+{
+	using namespace DTSettingsTest;
+	FLiveGuard Guard;
+	constexpr int32 SeedN = 9107;
+	constexpr int32 SeedM = 2203;
+	const FRunResult Fresh = Play(SeedN);
+	TestTrue(TEXT("the fresh run played"), Fresh.Steps > 0 && Fresh.InputHash != 0);
+
+	// A played run, torn down through the menu's restart path as the player does it; the seed it hands on is the next run's.
+	TOptional<int32> Handed;
+	{
+		FTestWorld Test;
+		UDTSimSubsystem* Sim = Test.World->GetSubsystem<UDTSimSubsystem>();
+		UDTBotSubsystem* Bot = Test.World->GetSubsystem<UDTBotSubsystem>();
+		UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+		UDTTelemetrySubsystem* Telemetry = Test.World->GetSubsystem<UDTTelemetrySubsystem>();
+		UDTDirector* Director = Test.World->GetSubsystem<UDTDirector>();
+		Sim->StartRun(SeedM, 1);
+		Telemetry->StartSession(SeedM, 1);
+		Director->StartRun();
+		FDTBotConfig Config;
+		Config.Policy = EDTBotPolicy::Steered;
+		Config.Path = EDTPath::Storm;
+		Config.Archetype = FName(TEXT("Tempest"));
+		Config.Version = 2;
+		Config.Skill = 0.6f;
+		Config.Seed = SeedM;
+		Bot->Activate(Config);
+		const int32 Steps = BotSeconds * DTConst::SIM_FIXED_HZ;
+		while (Sim->GetStepIndex() < Steps && Bot->RunSteps(Steps - static_cast<int32>(Sim->GetStepIndex())) > 0) {}
+		TestTrue(TEXT("the dirty run has state to leak"), Sim->GetStepIndex() > 0);
+		Menu->SetPauseOverride([](bool) {});
+		Menu->SetRestartOverride([&Handed](int32 Seed) { Handed = Seed; });
+		Menu->RestartRun(TOptional<int32>(SeedN));
+		Menu->Tick(0.0f);
+		const FString Jsonl = Telemetry->GetWriter().GetJsonlPath();
+		FString Text;
+		FFileHelper::LoadFileToString(Text, *Jsonl);
+		TestTrue(TEXT("the old run closed restart"), Text.Contains(TEXT("\"reason\":\"restart\"")));
+		IFileManager::Get().Delete(*Jsonl, false, true, true);
+		IFileManager::Get().Delete(*Telemetry->GetWriter().GetCsvPath(), false, true, true);
+		Bot->Deactivate();
+	}
+	if (!TestTrue(TEXT("the restart handed on a seed"), Handed.IsSet()))
+	{
+		return false;
+	}
+	const FRunResult Restarted = Play(Handed.GetValue());
+	TestEqual(TEXT("same input hash as a fresh launch"), Restarted.InputHash, Fresh.InputHash);
+	TestEqual(TEXT("same steps"), Restarted.Steps, Fresh.Steps);
+	TestEqual(TEXT("same picks"), Restarted.Picks, Fresh.Picks);
+	TestTrue(TEXT("same hero"), Restarted.Pos == Fresh.Pos && Restarted.Hp == Fresh.Hp);
+	TestEqual(TEXT("same CSV"), Restarted.Csv, Fresh.Csv);
+	TestEqual(TEXT("same JSONL but the wall clock"), StripWall(Restarted.Jsonl), StripWall(Fresh.Jsonl));
+	TestNotEqual(TEXT("another seed differs"), Play(SeedM).InputHash, Fresh.InputHash);
+
+	FURL Url;
+	Url.AddOption(TEXT("DTSeed=77"));
+	TestEqual(TEXT("the map's seed wins"), ADTGameMode::ParseSeed(Url, TEXT("-DTSeed=5")), 77);
+	TestEqual(TEXT("else the command line"), ADTGameMode::ParseSeed(FURL(), TEXT("-DTSeed=5")), 5);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetQuit, "Dusktracer.Settings.Quit", DTSettingsTest::Flags) // T-SET-25
+bool FDTSetQuit::RunTest(const FString& Parameters)
+{
+	using namespace DTSettingsTest;
+	FLiveGuard Guard;
+	{
+		FTestWorld Test;
+		UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+		FSession Session(Test.World, 44);
+		int32 Quits = 0;
+		Menu->SetPauseOverride([](bool) {});
+		Menu->SetQuitOverride([&Quits]() { ++Quits; });
+		ConfirmRow(Menu, EDTPauseRow::Quit);
+		TestEqual(TEXT("run_end reads quit"), Session.Ends(TEXT("quit")), 1);
+		TestEqual(TEXT("the exit is asked for"), Quits, 1);
+	}
+	{
+		FTestWorld Test;
+		UDTMenuSubsystem* Menu = Test.World->GetSubsystem<UDTMenuSubsystem>();
+		FSession Session(Test.World, 45);
+		int32 Quits = 0;
+		Menu->SetQuitOverride([&Quits]() { ++Quits; });
+		Session.Telemetry->EndSession(TEXT("death"));
+		Menu->OpenRunOver(EDTRunOverKind::Death);
+		Menu->Tick(static_cast<float>(DTConst::SETTINGS_RUN_OVER_GUARD_S) * 2.0f);
+		Menu->Command(EDTMenuCommand::Down);
+		Menu->Command(EDTMenuCommand::Accept);
+		TestEqual(TEXT("from the run-over screen"), Quits, 1);
+		TestEqual(TEXT("the closed run keeps its reason"), Session.Ends(TEXT("quit")), 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetFreshSeed, "Dusktracer.Settings.FreshSeed", DTSettingsTest::Flags) // T-SET-26
+bool FDTSetFreshSeed::RunTest(const FString& Parameters)
+{
+	TSet<int32> Seen;
+	int32 Seed = 0;
+	for (uint32 Tick = 0; Tick < 20000; ++Tick)
+	{
+		const int32 Next = ADTGameMode::NextSeed(Seed, Tick);
+		if (Next == Seed || Next <= 0)
+		{
+			AddError(FString::Printf(TEXT("seed %d after %d"), Next, Seed));
+			return false;
+		}
+		Seen.Add(Next);
+		Seed = Next;
+	}
+	TestTrue(TEXT("seeds do not repeat in a loop"), Seen.Num() > 19000);
+	TestNotEqual(TEXT("it moves with the clock"), ADTGameMode::NextSeed(5, 1), ADTGameMode::NextSeed(5, 2));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetHeldAction, "Dusktracer.Settings.HeldAction", DTSettingsTest::Flags) // T-SET-27
+bool FDTSetHeldAction::RunTest(const FString& Parameters)
+{
+	UDTInputSet* Set = UDTInputSet::Create(nullptr);
+	TestTrue(TEXT("dash runs its trigger through a pause"), Set->Dash->bTriggerWhenPaused);
+	TestTrue(TEXT("Intercession too"), Set->Intercession->bTriggerWhenPaused);
+	TestFalse(TEXT("a press in a paused world is dropped"), ADTHero::TakesPress(true));
+	TestTrue(TEXT("a press in play counts"), ADTHero::TakesPress(false));
 	return true;
 }
 
