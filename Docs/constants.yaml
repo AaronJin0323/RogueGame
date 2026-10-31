@@ -217,6 +217,9 @@ keepers:
   INTERCESSION.RETUNE_STEP_MAX: { value: 2.0, unit: x,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, T-KEE-15] }
   STATUS.MARK_S:               { value: 5.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-24, T-KEE-24] }
   STATUS.BLIND_S:              { value: 0.3, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-25, T-KEE-25] }
+  REACTION.ENEMY_COOLDOWN_S:   { value: 1.0, unit: s, tag: GATED(S2), dependents: [02_Systems/reactions.md, R-REA-05, T-REA-05] }
+  REACTION.FX_PER_S_MAX:       { value: 30, unit: per_s, tag: GATED(S2), dependents: [02_Systems/reactions.md, R-REA-11, T-REA-11] }
+  REACTION.CUE_S:              { value: 0.35, unit: s, tag: GATED(S2), dependents: [02_Systems/reactions.md, R-REA-11, T-REA-11] }
   KEEPER.SEEK_FALLBACK_DMG:    { value: 0.25, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-26, T-KEE-26] }
   KEEPER.RICOCHET_FALLBACK_RATE:{ value: 0.15, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-34, T-KEE-34] }
   INTERCESSION.SHADE_DURATION_S:{ value: 6.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
@@ -247,6 +250,7 @@ offers:
   OFFER.WEIGHT_MOD_AMPLIFIES:        { value: 2.0, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
   OFFER.WEIGHT_MOD_NO_AMPLIFY:       { value: 0.7, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
   OFFER.WEIGHT_WEAPON_FIT:           { value: 1.5, unit: x, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-02] }
+  OFFER.WEIGHT_DUO:                  { value: 1.5, unit: x, tag: GATED(S2), dependents: [02_Systems/reactions.md, R-REA-08, T-REA-08] }
   OFFER.GUARANTEE_BLESSING_P:        { value: 0.7, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-06] }
   OFFER.MIN_COMMITTED_BLESSINGS:     { value: 2, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-06] }
   OFFER.RARITY_RARE_P:               { value: 0.18, unit: ratio, tag: GATED(S1), dependents: [02_Systems/offers.md, T-OFF-05] }

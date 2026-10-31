@@ -1,0 +1,16 @@
+Pair,PathA,PathB,Reaction,Duo,Source
+StormForge,Storm,Forge,radius_uu=150;dmg=0.6,field_s=2;field_dps=0.36,build_depth_spec 4.2 4.3; field_dps invented
+StormTide,Storm,Tide,radius_uu=300;max=6;dmg=1,every_n=3,build_depth_spec 4.2 4.3
+StormShade,Storm,Shade,bolts=2;range_uu=600;dmg=0.6,mark=1,build_depth_spec 4.2 4.3; range_uu and dmg invented
+StormRadiance,Storm,Radiance,targets=3;range_uu=300;dmg=0.5;blind_s=0.3,blind_s=1;arc_vuln=0.2,build_depth_spec 4.2 4.3; range_uu and dmg invented
+StormQuicksilver,Storm,Quicksilver,bounces=1;arc_dmg=0.5;arc_range_uu=300;radius_uu=180;dmg=0.6,trail_uu=120;trail_s=2;arcs=1,build_depth_spec 4.2 4.3; arc_dmg arc_range_uu dmg trail invented
+ForgeTide,Forge,Tide,radius_uu=200;dmg=1.2;stagger_s=0.4,both=1,build_depth_spec 4.2 4.3
+ForgeShade,Forge,Shade,ember_dmg=0.4;range_uu=600;execute_add=0.05,marked=1,build_depth_spec 4.2 4.3; ember_dmg and range_uu invented
+ForgeRadiance,Forge,Radiance,mult=1.5,crit=1,build_depth_spec 4.2 4.3
+ForgeQuicksilver,Forge,Quicksilver,speed_over=0.1;burn_s=2,speed=0.1;near_uu=300,build_depth_spec 4.2 4.3; near_uu invented
+TideShade,Tide,Shade,execute_below=0.25;shatter_uu=120;shatter_dmg=0.5,freeze_uu=150,build_depth_spec 4.2 4.3; shatter numbers and freeze_uu invented
+TideRadiance,Tide,Radiance,shards=3;fan_deg=60;dmg=0.4;pierce=2,chill=1,build_depth_spec 4.2 4.3; fan_deg and pierce invented
+TideQuicksilver,Tide,Quicksilver,bounce_free=1,chilled=1,build_depth_spec 4.2 4.3
+ShadeRadiance,Shade,Radiance,vuln=0.4;mark_uu=200,vuln=0.2,build_depth_spec 4.2 4.3
+ShadeQuicksilver,Shade,Quicksilver,below=0.3;refund=0.2,below=0.4;charges=1;charge_s=3,build_depth_spec 4.2 4.3
+RadianceQuicksilver,Radiance,Quicksilver,crit_per_10pct=0.01;blind_s=0.3,crit_scale=2;refund=0.02,build_depth_spec 4.2 4.3

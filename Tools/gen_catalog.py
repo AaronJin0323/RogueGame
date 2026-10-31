@@ -32,6 +32,7 @@ PATHS = ["Storm", "Forge", "Tide", "Shade", "Radiance", "Quicksilver"]  # EDTPat
 STATUSES = ["Shock", "Burn", "Chill", "Freeze", "Mark", "Blind"]       # EDTStatus order (Core/DTSimTypes.h)
 ROLES = ["Swarm", "Tank", "Rusher", "Turret", "Boss"]                  # EDTEnemyRole order (Core/DTSimTypes.h)
 AFFIXES = ["Armored", "Swift", "Volatile", "Splitter", "Vampiric", "Shielded"]  # EDTAffix order (Core/DTSimTypes.h)
+REACTION_PARAMS = 6  # FReactionRow slots per cell
 TIMELINE_PHASES = ["Harvest", "Threat", "Boss"]
 TIMELINE_EVENTS = ["None", "EliteWave", "SwarmRing", "RusherStampede", "TurretNest", "Boss"]
 
@@ -431,6 +432,46 @@ def gen_expression(ctx, flags):
 	return out, s1_rows
 
 
+def spec_pairs(ctx, where, text, limit):
+	"""`name=value;...` -> C++ param initialisers, padded to limit. Numbers only (reactions.md Data)."""
+	params = []
+	for seg in [s.strip() for s in text.split(";") if s.strip()]:
+		name, sep, value = seg.partition("=")
+		if not sep or not re.fullmatch(r"[a-z][a-z0-9_]*", name) or not NUMBER.match(value):
+			ctx.err(where, f"'{seg}' is not name=number")
+			continue
+		params.append(f"{{ {cpp_str(name)}, {float(value)!r}f }}")
+	if len(params) > limit:
+		ctx.err(where, f"{len(params)} parameters, the row holds {limit}")
+	return params[:limit] + [f"{{ {cpp_str('')}, 0.0f }}"] * max(0, limit - len(params)), min(len(params), limit)
+
+
+def gen_reactions(ctx):
+	cols = ["Pair", "PathA", "PathB", "Reaction", "Duo"]
+	rows = read_csv(ctx, "reactions.csv", cols, doc_only=["Source"])
+	unique(ctx, rows, lambda r: r["Pair"], "pair")
+	out, names, seen = [], [], set()
+	for r in rows:
+		where = r["_where"]
+		a, b = r["PathA"], r["PathB"]
+		if a not in PATHS or b not in PATHS or PATHS.index(a) >= PATHS.index(b):
+			ctx.err(where, f"'{a}' + '{b}' is not two Keepers in Path order")
+			continue
+		if r["Pair"] != a + b:
+			ctx.err(f"{where}:Pair", f"expected {a + b}")
+		seen.add((a, b))
+		names.append(r["Pair"])
+		react, nr = spec_pairs(ctx, f"{where}:Reaction", r["Reaction"], REACTION_PARAMS)
+		duo, nd = spec_pairs(ctx, f"{where}:Duo", r["Duo"], REACTION_PARAMS)
+		out.append(
+			f"		{{ {cpp_str(r['Pair'])}, {cpp_str('Blessing.Duo.' + r['Pair'])}, {cpp_str('Keeper.Duo.' + r['Pair'])}, EDTPath::{a}, EDTPath::{b}, "
+			f"{{ {', '.join(react)} }}, {nr}, {{ {', '.join(duo)} }}, {nd} }},")
+	want = len(PATHS) * (len(PATHS) - 1) // 2
+	if len(seen) != want:
+		ctx.err("reactions.csv", f"{len(seen)} pairs, expected one for each of the {want} pairs of Keepers")
+	return out, names
+
+
 def gen_enemies(ctx):
 	cols = ["id", "role_tag", "hp", "speed_uu_s", "radius_uu", "contact_damage", "attack", "fire_pattern", "telegraph",
 			"share_max", "name_key"]
@@ -580,6 +621,7 @@ def render(ctx):
 	weapons, levels, max_caps = gen_weapons(ctx, caps)
 	modifiers = gen_modifiers(ctx, caps, flags)
 	expression, s1_archetypes = gen_expression(ctx, flags)
+	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
 	affixes = gen_elites(ctx)
 	boss = gen_boss(ctx)
@@ -907,7 +949,7 @@ def main(argv):
 		if stale:
 			print(f"CATALOG: FAIL ({', '.join(stale)} out of date; run python -I Tools/gen_catalog.py)")
 			return 1
-		print(f"CATALOG: PASS (9 catalogs, {len(ctx.ckeys)} C. cells resolved, "
+		print(f"CATALOG: PASS (10 catalogs, {len(ctx.ckeys)} C. cells resolved, "
 			  f"{sum(len(v) for v in ctx.tags.values())} tags)")
 		return 0
 	for path, text in outputs:

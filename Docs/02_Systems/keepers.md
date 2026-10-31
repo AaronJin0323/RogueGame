@@ -132,7 +132,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 | `EnchantLook` / `EnchantStatus` | palette token / `Status.*` | per Keeper, repeated per row |
 | `IntercessionVariant` / `SecondKeeperLayer` | effect spec | variant shapes the primary's base; layer is what this archetype adds as the second Keeper |
 | `IncompatFlags` | `Flag.*` list (`|`) | R-KEE-16 |
-| `DuoReactions` | `S2` | out of S1 |
+| `DuoReactions` | `S2` | a marker: reactions live in `09_Catalog/reactions.csv` (`reactions.md`) |
 | `Stage` | `S1` / `S2` | R-KEE-23; S1 rows first |
 | `TextPrefix` | `ST_Keepers.<Path>.<Archetype>` | keys below |
 | `UDTBlessingDef` | data asset | `Id Path Archetype Role{Key,Amp,Trait} Flags[] Requires[] TextKey` |
@@ -190,7 +190,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - Numbers in text are format args from data. Tier lines: R-KEE-08. Names and rules follow the card limits of `keeper_identity_text.md` §0.
 
 ## Out of scope
-- Duo reactions and duo blessings; the Stormwall and Breakwater archetypes of the reference; patron traits (their role is the enchantment here): S2.
+- Duo reactions and duo blessings (`reactions.md`); the Stormwall and Breakwater archetypes of the reference; patron traits (their role is the enchantment here): S2.
 - Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: S2 (the S1 hand is `offers.md` R-OFF-09). Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
 
 ## Open

@@ -261,6 +261,9 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.INTERCESSION.TIDE_FREEZE_S | 3.0 | s | GATED(S1) | keepers.md R-KEE-14, T-KEE-14 |
 | C.STATUS.MARK_S | 5.0 | s | GATED(S2) | keepers.md, R-KEE-24, T-KEE-24 |
 | C.STATUS.BLIND_S | 0.30 | s | GATED(S2) | keepers.md, R-KEE-25, T-KEE-25 |
+| C.REACTION.ENEMY_COOLDOWN_S | 1.0 | s | GATED(S2) | reactions.md, R-REA-05, T-REA-05 |
+| C.REACTION.FX_PER_S_MAX | 30 | per_s | GATED(S2) | reactions.md, R-REA-11, T-REA-11 |
+| C.REACTION.CUE_S | 0.35 | s | GATED(S2) | reactions.md, R-REA-11, T-REA-11 |
 | C.KEEPER.SEEK_FALLBACK_DMG | 0.25 | ratio | GATED(S2) | keepers.md, R-KEE-26, T-KEE-26 |
 | C.KEEPER.RICOCHET_FALLBACK_RATE | 0.15 | ratio | GATED(S2) | keepers.md, R-KEE-34, T-KEE-34 |
 | C.INTERCESSION.SHADE_DURATION_S | 6.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
@@ -292,6 +295,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.OFFER.WEIGHT_OTHER_ARCHETYPE | 0.8 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
 | C.OFFER.MOMENTUM_DAMP_AFTER | 2 | n | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
 | C.OFFER.WEIGHT_MOD_AMPLIFIES | 2.0 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
+| C.OFFER.WEIGHT_DUO | 1.5 | x | GATED(S2) | reactions.md, R-REA-08, T-REA-08 |
 | C.OFFER.WEIGHT_MOD_NO_AMPLIFY | 0.7 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
 | C.OFFER.WEIGHT_WEAPON_FIT | 1.5 | x | GATED(S1) | 02_Systems/offers.md, T-OFF-02 |
 | C.OFFER.GUARANTEE_BLESSING_P | 0.7 | ratio | GATED(S1) | 02_Systems/offers.md, T-OFF-06 |
