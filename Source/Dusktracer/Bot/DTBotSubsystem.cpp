@@ -1,4 +1,6 @@
 #include "Bot/DTBotSubsystem.h"
+
+#include "Combat/DTReforge.h"
 #include "Boss/DTBossSubsystem.h"
 #include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTSimSubsystem.h"
@@ -370,9 +372,22 @@ void UDTBotSubsystem::WriteRecord() const
 		Csv += FString::Printf(TEXT("%d,%.4f,%.6f,%d,%d,%d,%.2f,%d\n"), Minute, M.EndSeconds, M.DamageShare, M.Dashes, M.Hits, M.Level, M.Hp, M.Alive);
 	}
 	const FDTBotStats& Stats = Brain.GetStats();
-	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nconfig=%s\n"),
+	FString Reforge = TEXT("none");
+	if (Sim.IsValid())
+	{
+		const FDTPlayerRunState& Player = Sim->GetRun().GetPlayer(0);
+		for (const int32 Row : Player.PathReforges)
+		{
+			Reforge = DTReforge::RowId(Row).ToString();
+		}
+		for (const FDTWeaponInstance& Weapon : Player.Weapons)
+		{
+			Reforge = Weapon.Evolve != INDEX_NONE ? DTReforge::RowId(Weapon.Evolve).ToString() : Reforge;
+		}
+	}
+	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nreforge=%s\nconfig=%s\n"),
 		bVictory ? TEXT("victory") : (bDead ? TEXT("death") : TEXT("timeout")), EndSeconds, Level630, Sim.IsValid() ? Sim->GetStepIndex() : -1,
-		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, Hits, HitsStill, HitsWall, *Brain.GetConfig().Describe());
+		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, Hits, HitsStill, HitsWall, *Reforge, *Brain.GetConfig().Describe());
 	FFileHelper::SaveStringToFile(Csv, *OutPath);
 	FFileHelper::SaveStringToFile(Summary, *(OutPath + TEXT(".txt")));
 	UE_LOG(LogDT, Log, TEXT("Bot: record written to %s"), *OutPath);

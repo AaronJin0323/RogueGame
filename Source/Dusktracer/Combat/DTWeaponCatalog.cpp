@@ -150,7 +150,11 @@ FDTCapList DTWeapons::DeclaredCaps(int32 Weapon)
 
 FDTCapList DTWeapons::EffectiveCaps(int32 Weapon, DTCat::EFlag Conversion, bool bConvertsEveryRound)
 {
-	const FDTCapList Declared = DeclaredCaps(Weapon);
+	return EffectiveCaps(DeclaredCaps(Weapon), Conversion, bConvertsEveryRound);
+}
+
+FDTCapList DTWeapons::EffectiveCaps(const FDTCapList& Declared, DTCat::EFlag Conversion, bool bConvertsEveryRound)
+{
 	DTCat::ECap Added = DTCat::ECap::Count;
 	if (Conversion == DTCat::EFlag::ConvertMelee)
 	{
@@ -286,12 +290,6 @@ uint16 DTWeapons::KeeperSource(EDTPath Path)
 	static const TCHAR* Names[] = { TEXT("Keeper.Storm"), TEXT("Keeper.Forge"), TEXT("Keeper.Tide"), TEXT("Keeper.Shade"), TEXT("Keeper.Radiance"), TEXT("Keeper.Quicksilver") };
 	const int32 Index = static_cast<int32>(Path);
 	return (Index >= 0 && Index < UE_ARRAY_COUNT(Names)) ? FDTTelemetrySources::FindOrAdd(Names[Index]) : FDTTelemetrySources::Unknown;
-}
-
-TArray<FName> DTWeapons::ReforgeCards(int32 Weapon)
-{
-	// R-WPN-05: weapon evolutions (the `evolution` column) are S2; the S1 L16 hand is blessings only (offers R-OFF-09).
-	return {};
 }
 
 bool DTModCompat::IsCompatible(const FDTCapList& Caps, int32 Mod)

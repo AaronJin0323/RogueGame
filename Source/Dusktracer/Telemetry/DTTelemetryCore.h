@@ -181,6 +181,8 @@ public:
 
 	// weapons.md
 	void RecordWeaponAcquired(int32 Owner, uint16 Source);
+	/** reforging.md Telemetry: a Reforging pick. Target and WeaponLevel are for an evolution; Dormant lists what it put to sleep. */
+	void RecordReforge(int32 Owner, bool bEvolve, FName Id, FName Target, int32 WeaponLevel, TConstArrayView<FName> Dormant);
 	void RecordWeaponLevel(int32 Owner, uint16 Source, int32 Level);
 	/** The weapon's current level and load rank; read by the per-interval weapon record (no record of its own). */
 	void SetWeaponState(int32 Owner, uint16 Source, int32 Level, int32 LoadRank);

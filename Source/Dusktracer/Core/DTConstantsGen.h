@@ -244,6 +244,9 @@ namespace DTConst
 	inline constexpr int32 OFFER_SECOND_KEEPER_LEVEL = 8; // level, CORE
 	inline constexpr int32 OFFER_REFORGING_LEVEL = 16; // level, CORE
 	inline constexpr int32 OFFER_REFORGING_CARDS = 3; // n, CORE
+	inline constexpr int32 OFFER_REFORGE_EVOLVE_MIN_LEVEL = 6; // level, GATED(S2)
+	inline constexpr float REFORGE_POWER_MIN = 1.3f; // ratio, GATED(S2)
+	inline constexpr float REFORGE_POWER_MAX = 1.8f; // ratio, GATED(S2)
 	inline constexpr int32 OFFER_KEEPER_CHOICES = 3; // n, GATED(S1)
 	inline constexpr int32 OFFER_CHEST_CARDS = 3; // n, GATED(S1)
 	inline constexpr float OFFER_WEIGHT_BASE = 1.0f; // x, GATED(S1)

@@ -162,6 +162,12 @@ public:
 	const FDTWeaponSpec& GetLastSpec(int32 OwnerId, int32 Slot) const;
 	int32 GetLiveMines(int32 OwnerId, int32 Slot) const;
 	int32 GetLiveFields() const { return Fields.Num(); }
+	/** Fields opened this run (Vortex zones among them). */
+	int32 GetFieldsOpened() const { return FieldsOpened; }
+	int32 GetLiveHusks() const { return Husks.Num(); }
+	int32 GetLivePillars() const;
+	/** Where a Blade Halo's blades orbit now (R-RFG-07). */
+	float GetBladeRadius(int32 OwnerId, int32 Slot) const;
 	int32 GetTrackedRounds() const { return Rounds.Num(); }
 	/** Highest split generation of any round spawned this run (R-MOD-05 check). */
 	int32 GetMaxGeneration() const { return MaxGeneration; }
@@ -218,6 +224,17 @@ private:
 		int32 StillCharges = 0;
 		int32 MeleeActivations = 0;
 		float ChainTriggerReadyIn = 0.0f;
+		/** Sweep Beam: seconds left, its centre line, seconds to the next tick (R-RFG-08). */
+		float BeamLeft = 0.0f;
+		FVector2f BeamDir = FVector2f(1.0f, 0.0f);
+		float BeamTick = 0.0f;
+	};
+
+	/** A Frozen enemy held as a Glacier pillar (R-RFG-17). */
+	struct FPillar
+	{
+		uint32 Serial = 0;
+		float Left = 0.0f;
 	};
 
 	struct FPlayerRuntime
@@ -242,6 +259,21 @@ private:
 		bool bSlamBoosted = false;
 		/** every_n: sky strikes so far. */
 		int32 SkyStrikes = 0;
+		/** Hero speed this step, uu/s (Blade Halo, Cyclone). */
+		float HeroSpeed = 0.0f;
+		FVector2f LastHero = FVector2f::ZeroVector;
+		bool bHasLastHero = false;
+		/** Owned Path rows (reforging.md), INDEX_NONE when not owned; refreshed each step from the run state. */
+		int32 OverloadRow = INDEX_NONE;
+		int32 KilnRow = INDEX_NONE;
+		int32 GlacierRow = INDEX_NONE;
+		/** Overload: Shock stacks by serial, the step each enemy may discharge again, and who discharges this step. */
+		TMap<uint32, int32> ShockStacks;
+		TMap<uint32, int64> DischargeReadyStep;
+		TArray<uint32> Discharging;
+		TArray<FPillar> Pillars;
+		/** Shattered, still Frozen: not a pillar again until it thaws. */
+		TSet<uint32> Shattered;
 		// S2 Keepers (keepers.md §9).
 		/** Status.Mark, Status.Blind: serial -> step they end. */
 		TMap<uint32, int64> MarkedUntilStep;
@@ -378,6 +410,16 @@ private:
 		/** The emission's damage (a Burn scales with it, R-KEE-11) and the flag's params, for the status it names. */
 		float BaseDamage = 0.0f;
 		FDTFlagParams Params;
+		/** Force field (Pulse Wall, Vortex zone): grows over GrowS, hurts its outer BandUu (0 = all of it), moves enemies out (negative: in). */
+		bool bForce = false;
+		float Age = 0.0f;
+		float GrowS = 0.0f;
+		float BandUu = 0.0f;
+		float PushUuS = 0.0f;
+		/** A force field's strikes are impacts, so flags react (R-RFG-12). */
+		float TickS = 0.0f;
+		float TickIn = 0.0f;
+		float CurrentRadius() const { return GrowS > 0.0f ? Radius * FMath::Min(1.0f, Age / GrowS) : Radius; }
 	};
 
 	struct FEcho
@@ -392,6 +434,8 @@ private:
 		bool bLeaveField = false;
 		/** every_n: this strike falls on the whole screen around the hero. */
 		bool bScreen = false;
+		/** Draw the strike (Flechette, Carpet). */
+		bool bFlash = false;
 	};
 
 	struct FArcFlash
@@ -503,6 +547,30 @@ private:
 	void LaunchShell(FWeaponRuntime& Runtime, const FShot& Shot, const FVector2f& Target);
 	void StepShells(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
 	void Detonate(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FMine& Mine);
+	/** One hit per enemy within Radius, each an impact, as a mine's blast (a Blade Halo's touch too). */
+	void StrikeCircle(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, const FVector2f& Center, const FVector2f& Origin,
+		float Radius, float Damage, uint16 SourceId, bool bCharged);
+
+	void AddHitImpact(const FDTWorldView& View, const FDTHit& Out, int32 Slot, FWeaponRuntime& Runtime, const FVector2f& Center,
+		const FVector2f& Origin, float Damage, bool bCharged);
+
+	// --- reforging.md -------------------------------------------------------------------------------------------
+	/** Blade Halo (R-RFG-07): one blade's touch per turn. */
+	void StepBlades(const FDTSimContext& Context, FDTPlayerRunState& Player, int32 Slot, FWeaponRuntime& Runtime);
+	float BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const;
+	/** Sweep Beam (R-RFG-08): the arc of this tick. */
+	void StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
+	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. */
+	void OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
+		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS);
+	void StepForceField(const FDTSimContext& Context, FField& Field);
+	void AddShockStack(const FDTSimContext& Context, int32 OwnerId, uint32 Serial);
+	void Discharge(const FDTSimContext& Context, int32 OwnerId, const FVector2f& From, uint32 Serial);
+	void StepOverload(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
+	void StepHusks(const FDTSimContext& Context);
+	void StepPillars(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);
+	/** Pushes what overlaps a wall enemy back out through displacements (frozen_blocks_enemies, Glacier). */
+	void PushOutOf(const FDTSimContext& Context, int32 OwnerId, int32 Wall);
 
 	/** Activation-time expressions: Split fallback rings, Slam counters (R-WPN-08). */
 	void OnActivation(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot,
@@ -624,6 +692,15 @@ private:
 	TArray<FPlayerRuntime> Players;
 	TArray<FRound> Rounds;
 	TArray<FField> Fields;
+	struct FHusk
+	{
+		int32 OwnerId = INDEX_NONE;
+		FVector2f Position = FVector2f::ZeroVector;
+		float Left = 0.0f;
+		float ReadyIn = 0.0f;
+	};
+	TArray<FHusk> Husks;
+	int32 FieldsOpened = 0;
 	TArray<FEcho> Echoes;
 	TArray<FArcFlash> Arcs;
 	TArray<FImpact> Impacts;

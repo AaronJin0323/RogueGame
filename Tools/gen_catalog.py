@@ -33,6 +33,8 @@ STATUSES = ["Shock", "Burn", "Chill", "Freeze", "Mark", "Blind"]       # EDTStat
 ROLES = ["Swarm", "Tank", "Rusher", "Turret", "Boss"]                  # EDTEnemyRole order (Core/DTSimTypes.h)
 AFFIXES = ["Armored", "Swift", "Volatile", "Splitter", "Vampiric", "Shielded"]  # EDTAffix order (Core/DTSimTypes.h)
 REACTION_PARAMS = 6  # FReactionRow slots per cell
+REFORGE_BEHAVIOURS = ["Overload", "Kiln", "Glacier", "OrbitLaunch", "EmbedBlast", "ContactBlades", "SweepBeam", "CarpetLine",
+	"MoveSpin", "Persist", "PulseWall", "Vortex", "Merge"]  # EDTPathReforge, EDTEvolve (Combat/DTReforge.h)
 TIMELINE_PHASES = ["Harvest", "Threat", "Boss"]
 TIMELINE_EVENTS = ["None", "EliteWave", "SwarmRing", "RusherStampede", "TurretNest", "Boss"]
 
@@ -380,6 +382,35 @@ def gen_modifiers(ctx, caps, flags):
 	return out
 
 
+def gen_reforging(ctx, caps):
+	cols = ["id", "kind", "source", "behaviour", "caps", "effect"]
+	rows = read_csv(ctx, "reforging.csv", cols, doc_only=["tag", "ref"])
+	unique(ctx, rows, lambda r: r["id"], "reforging row")
+	max_caps = max((len([c for c in r["caps"].split(";") if c]) for r in rows), default=1)
+	out = []
+	for r in rows:
+		where = r["_where"]
+		evolve = r["kind"] == "Evolve"
+		if r["kind"] not in ("Evolve", "Path"):
+			ctx.err(f"{where}:kind", "a row is Path or Evolve")
+		want = "Evolve." if evolve else "Transform."
+		if not r["id"].startswith(want) or r["id"][len(want):] != r["source"].split(".")[-1]:
+			ctx.err(f"{where}:id", f"expected {want}<the source's name>")
+		if r["behaviour"] not in REFORGE_BEHAVIOURS:
+			ctx.err(f"{where}:behaviour", f"'{r['behaviour']}' is not one of {REFORGE_BEHAVIOURS}")
+		rcaps = cap_list(ctx, r["caps"], f"{where}:caps", caps)
+		if evolve and not rcaps:
+			ctx.err(f"{where}:caps", "an evolution declares its caps")
+		for pair in [x for x in r["effect"].split(";") if x]:
+			if "=" not in pair or not NUMBER.match(pair.split("=", 1)[1]):
+				ctx.err(f"{where}:effect", f"'{pair}' is not name=number")
+		caps_arr = ", ".join(f"ECap::{c}" for c in rcaps) or "ECap::Projectile"
+		out.append(
+			f"\t\t{{ {cpp_str(r['id'])}, {'true' if evolve else 'false'}, {cpp_str(r['source'])}, {cpp_str(r['behaviour'])}, "
+			f"{{ {caps_arr} }}, {len(rcaps)}, {cpp_str(r['effect'])} }},")
+	return out, max_caps, [r["id"] for r in rows]
+
+
 def gen_expression(ctx, flags):
 	effect_cols = ["Key", "Amp1", "Amp2", "Trait", "Tier1", "Tier2", "Tier3"]
 	cols = ["Path", "Archetype", "Speciality", "KeyFlag"] + effect_cols + [
@@ -620,6 +651,10 @@ def render(ctx):
 	caps, flags, compat = gen_flag_compat(ctx)
 	weapons, levels, max_caps = gen_weapons(ctx, caps)
 	modifiers = gen_modifiers(ctx, caps, flags)
+	reforges, reforge_caps, reforge_ids = gen_reforging(ctx, caps)
+	for w in re.findall(r'"(Evolve\.[A-Za-z0-9]*)"', "".join(weapons).replace('TEXT(', '')):
+		if w not in reforge_ids:
+			ctx.err("weapons.csv:evolution", f"'{w}' has no row in reforging.csv")
 	expression, s1_archetypes = gen_expression(ctx, flags)
 	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
@@ -806,6 +841,24 @@ def render(ctx):
 		"\t{",
 	] + enemies + [
 		"\t};",
+		"",
+		"\t// --- reforging.csv ---",
+		f"\tinline constexpr int32 MaxReforgeCaps = {reforge_caps};",
+		"\tstruct FReforgeRow",
+		"\t{",
+		"\t\tconst TCHAR* Id;",
+		"\t\tbool bEvolve;",
+		"\t\tconst TCHAR* Source;",
+		"\t\tconst TCHAR* Behaviour;",
+		"\t\tECap Caps[MaxReforgeCaps];",
+		"\t\tint32 NumCaps;",
+		"\t\tconst TCHAR* Effect;",
+		"\t};",
+		"\tinline constexpr FReforgeRow Reforges[] =",
+		"\t{",
+	] + reforges + [
+		"\t};",
+		"\tinline constexpr int32 NumReforges = UE_ARRAY_COUNT(Reforges);",
 		"",
 		"\t// --- elites.csv: one row per EDTAffix, in order ---",
 		"\tstruct FAffixRow",

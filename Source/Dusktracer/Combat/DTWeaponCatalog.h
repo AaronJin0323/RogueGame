@@ -87,6 +87,8 @@ namespace DTWeapons
 	 * carrier cap (Projectile); a partial one appends it. Conversion EFlag::None returns the declared caps.
 	 */
 	DUSKTRACER_API FDTCapList EffectiveCaps(int32 Weapon, DTCat::EFlag Conversion, bool bConvertsEveryRound);
+	/** The same over a declared list (an evolved weapon's, reforging.md R-RFG-04). */
+	DUSKTRACER_API FDTCapList EffectiveCaps(const FDTCapList& Declared, DTCat::EFlag Conversion, bool bConvertsEveryRound);
 
 	/** Walks Caps in order through flag_compat.csv; the first cell that is not `none` decides (R-WPN-08). */
 	DUSKTRACER_API FDTFlagResolution ResolveFlag(const FDTCapList& Caps, DTCat::EFlag Flag);
@@ -105,9 +107,6 @@ namespace DTWeapons
 	DUSKTRACER_API uint16 WeaponSource(int32 Weapon);
 	DUSKTRACER_API uint16 ModifierSource(int32 Mod);
 	DUSKTRACER_API uint16 KeeperSource(EDTPath Path);
-
-	/** S1 rule (R-WPN-05): no weapon contributes a card to the L16 Reforging hand. Always empty in S1. */
-	DUSKTRACER_API TArray<FName> ReforgeCards(int32 Weapon);
 }
 
 namespace DTModCompat

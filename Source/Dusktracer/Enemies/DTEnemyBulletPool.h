@@ -48,6 +48,9 @@ public:
 	 */
 	void Step(float Dt, FDTWorldView& View);
 
+	/** Removes the rounds touching a circle (a Glacier pillar, reforging.md R-RFG-17); returns how many. */
+	int32 RemoveInCircle(const FVector2f& Center, float CircleRadius);
+
 	/** Removes every round; counters are kept unless bResetCounters. */
 	void Reset(bool bResetCounters = true);
 

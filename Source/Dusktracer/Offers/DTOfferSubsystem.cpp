@@ -1,4 +1,6 @@
 #include "Offers/DTOfferSubsystem.h"
+
+#include "Combat/DTReforge.h"
 #include "Keepers/DTReactions.h"
 #include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTConstantsGen.h"
@@ -498,6 +500,25 @@ bool UDTOfferSubsystem::Pick(int32 OwnerId, int32 Slot)
 		Telemetry->Records().RecordOfferPick(OwnerId, Hand.HandId, Slot, Card, Decide);
 	}
 	ApplyWorld(OwnerId, Outcome);
+	if (Outcome.bValid && Card.Kind == EDTCardKind::Reforging && Telemetry)
+	{
+		const bool bEvolve = DTCat::Reforges[Outcome.ReforgeRow].bEvolve;
+		TArray<FName> Dormant;
+		int32 Level = 0;
+		if (const FDTWeaponInstance* Weapon = Player.Weapons.FindByPredicate([&Outcome](const FDTWeaponInstance& W) { return W.Id == Outcome.Weapon; }))
+		{
+			Level = Weapon->Level;
+			const FDTCapList Caps = DTReforge::Caps(Outcome.ReforgeRow);
+			for (const FDTWeaponInstance::FSocket& Socket : Weapon->Sockets)
+			{
+				if (!DTModCompat::IsCompatible(Caps, DTWeapons::FindModifier(Socket.ModId)))
+				{
+					Dormant.Add(Socket.ModId);
+				}
+			}
+		}
+		Telemetry->Records().RecordReforge(OwnerId, bEvolve, Card.ContentId, Card.TargetWeapon, Level, Dormant);
+	}
 	if (Outcome.bValid && Card.Kind == EDTCardKind::Blessing)
 	{
 		const FDTBlessingInfo Info = DTOffers::FindBlessing(Outcome.Blessing);

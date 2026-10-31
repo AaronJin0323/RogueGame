@@ -191,7 +191,7 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 
 ## Out of scope
 - Duo reactions and duo blessings (`reactions.md`); the Stormwall and Breakwater archetypes of the reference; patron traits (their role is the enchantment here): S2.
-- Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: S2 (the S1 hand is `offers.md` R-OFF-09). Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
+- Weapon flag expression, caps, fallbacks and `flag_compat.csv` (`weapons.md`); offer weights and the L8 hand (`offers.md`); Intercession input and charge (`combat_core.md`); status behaviour (`enemies.md`). Path transformations for the L16 hand: `reforging.md`. Control on the boss converting into a vulnerability: S2 (S1: `boss.md` R-BOS-03, R-BOS-11).
 
 ## Open
 - All `GATED(S1)` values → resolved by the probes (`Docs/Validation/S1_keeper_power.md`, which reads both bands today and lists the RULE candidates for R-KEE-15 and R-KEE-18) and the S1 validation sessions (O-008).

@@ -15,6 +15,21 @@ FDTEnemyBulletPool::FDTEnemyBulletPool(int32 InCapacity)
 	EnemySerial.Reserve(Capacity);
 }
 
+int32 FDTEnemyBulletPool::RemoveInCircle(const FVector2f& Center, float CircleRadius)
+{
+	int32 Removed = 0;
+	for (int32 Index = Pos.Num() - 1; Index >= 0; --Index)
+	{
+		const float Reach = CircleRadius + Radius[Index];
+		if (FVector2f::DistSquared(Pos[Index], Center) <= Reach * Reach)
+		{
+			RemoveAtSwap(Index);
+			++Removed;
+		}
+	}
+	return Removed;
+}
+
 void FDTEnemyBulletPool::Reset(bool bResetCounters)
 {
 	Pos.Reset();

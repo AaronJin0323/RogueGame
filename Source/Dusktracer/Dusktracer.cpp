@@ -20,6 +20,7 @@ public:
 		LOCTABLE_FROMFILE_GAME("ST_Keywords", "ST_Keywords", "DT/Text/Generated/ST_Keywords.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Reactions", "ST_Reactions", "DT/Text/Generated/ST_Reactions.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Enemies", "ST_Enemies", "DT/Text/Generated/ST_Enemies.csv");
+		LOCTABLE_FROMFILE_GAME("ST_Reforging", "ST_Reforging", "DT/Text/Generated/ST_Reforging.csv");
 	}
 };
 

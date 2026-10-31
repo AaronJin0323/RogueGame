@@ -347,6 +347,8 @@ bool FDTTelRecWeapons::RunTest(const FString& Parameters)
 	Core.Start(MakeConfig(1));
 	Core.RecordWeaponAcquired(0, Orbit);
 	Core.RecordWeaponAcquired(0, Lance);
+	const FName ReforgeDormant[] = { FName(TEXT("Mod.TestRecA")), FName(TEXT("Mod.TestRecB")) };
+	Core.RecordReforge(0, true, FName(TEXT("Evolve.TestRec")), FName(TEXT("Weapon.TestRec")), 7, ReforgeDormant);
 	Core.RecordWeaponLevel(0, Lance, 3);
 	Core.SetWeaponState(0, Lance, 3, 2);
 	Core.RecordWeaponEmissions(0, Lance, 10, 2);
@@ -375,6 +377,7 @@ bool FDTTelRecWeapons::RunTest(const FString& Parameters)
 	FString Csv;
 	FString Jsonl;
 	Finish(Core, Csv, Jsonl);
+	TestTrue(TEXT("reforge line"), Jsonl.Contains(Head(TEXT("reforge"), 0) + TEXT(",\"reforge_kind\":\"Evolve\",\"id\":\"Evolve.TestRec\",\"target\":\"Weapon.TestRec\",\"weapon_level\":7,\"dormant\":\"Mod.TestRecA;Mod.TestRecB\"}\n")));
 	TestTrue(TEXT("weapon_acquired line"), Jsonl.Contains(Head(TEXT("weapon_acquired"), 0) + TEXT(",\"source\":\"Weapon.TestRecLance\"}\n")));
 	TestTrue(TEXT("weapon_level line"), Jsonl.Contains(Head(TEXT("weapon_level"), 0) + TEXT(",\"source\":\"Weapon.TestRecLance\",\"level\":3}\n")));
 	TestTrue(TEXT("modifier_socketed line"), Jsonl.Contains(Head(TEXT("modifier_socketed"), 0)

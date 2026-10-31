@@ -35,7 +35,11 @@ struct FDTBulletMotion
 	/** Non-zero: the weapon system mirrors this round and reads its moves (GetRoundReports). */
 	uint32 RoundId = 0;
 
-	bool IsActive() const { return TurnDegS > 0.0f || OrbitLeft > 0.0f || bBoomerang; }
+	/** Vortex: the velocity turns this fast, always (reforging.md R-RFG-13). */
+	float CurlDegS = 0.0f;
+	/** Murmuration: drops its target after each hit and never seeks one it struck (R-RFG-11). */
+	bool bRetarget = false;
+	bool IsActive() const { return TurnDegS > 0.0f || OrbitLeft > 0.0f || bBoomerang || CurlDegS != 0.0f; }
 };
 
 /** Where a mirrored moving round is this step, before collision (the mirror cannot redo its steering). */
@@ -119,7 +123,8 @@ private:
 	/** Applies the round's motion for this step (R-BUL-09): may set its velocity, its life, or turn it home. */
 	void StepMotion(int32 Index, float Dt, const FDTWorldView& View, int32 NumEnemies);
 	void TurnHome(int32 Index, bool bForget);
-	bool FindSeekTarget(const FVector2f& From, float Range, const FDTWorldView& View, int32 NumEnemies, int32& OutEnemy);
+	/** The nearest enemy within Range; SkipHitsOf (a round index) leaves out what that round already struck. */
+	bool FindSeekTarget(const FVector2f& From, float Range, const FDTWorldView& View, int32 NumEnemies, int32& OutEnemy, int32 SkipHitsOf = INDEX_NONE);
 
 	int32 Capacity;
 	uint64 NextSerial = 0;

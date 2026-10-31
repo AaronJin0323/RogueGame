@@ -1,0 +1,27 @@
+Key,en,zh-Hans,Context,Kw
+Transform.Storm.Name,Overload,过载,Offer card name of Transform.Storm (reforging.md Text).,
+Transform.Storm.Desc,"Shock stacks. At the limit the enemy discharges a chain bolt into those nearby, and a kill on a Shocked enemy does too.",感电可以叠加。叠满时敌人放电，连锁到附近敌人；击杀感电的敌人同样放电。,Transform.Storm rules. No number: the catalog may change it.,Status.Shock;Flag.Chain
+Transform.Forge.Name,Kiln,窑炉,Offer card name of Transform.Forge (reforging.md Text).,
+Transform.Forge.Desc,Enemies that die Burning become slag husks that cleave anything near them.,灼烧中死去的敌人变成熔渣残骸，横斩身边的一切。,Transform.Forge rules. No number: the catalog may change it.,Status.Burn;Flag.ConvertMelee
+Transform.Tide.Name,Glacier,冰川,Offer card name of Transform.Tide (reforging.md Text).,
+Transform.Tide.Desc,"Frozen enemies become ice pillars that block enemies and their shots, then shatter into Chill.",被冻结的敌人变成冰柱，挡住敌人和敌方弹幕，随后碎裂并施加冰缓。,Transform.Tide rules. No number: the catalog may change it.,Status.Freeze;Status.Chill
+Evolve.PulseRifle.Name,Railstorm,轨暴,Offer card name of Evolve.PulseRifle (reforging.md Text).,
+Evolve.PulseRifle.Desc,Bolts become orbiting blades that launch at the nearest enemy and return.,弹体变成环绕你的刀刃，射向最近的敌人后返回。,Evolve.PulseRifle rules. No number: the catalog may change it.,
+Evolve.ScatterCannon.Name,Flechette,箭霰,Offer card name of Evolve.ScatterCannon (reforging.md Text).,
+Evolve.ScatterCannon.Desc,"Pellets embed in enemies, then explode.",弹丸钉入敌人，随后爆炸。,Evolve.ScatterCannon rules. No number: the catalog may change it.,
+Evolve.OrbitalDrones.Name,Blade Halo,刃环,Offer card name of Evolve.OrbitalDrones (reforging.md Text).,
+Evolve.OrbitalDrones.Desc,Drones become blades that cut what they touch. Their orbit widens the faster you move.,浮游炮变成刀刃，切开触及的一切。移动越快，轨道越宽。,Evolve.OrbitalDrones rules. No number: the catalog may change it.,
+Evolve.RailLance.Name,Sweep Beam,横扫光束,Offer card name of Evolve.RailLance (reforging.md Text).,
+Evolve.RailLance.Desc,Fires a beam that sweeps across the densest side.,发射光束，扫过敌人最密集的一侧。,Evolve.RailLance rules. No number: the catalog may change it.,
+Evolve.FlakMortar.Name,Carpet,地毯轰炸,Offer card name of Evolve.FlakMortar (reforging.md Text).,
+Evolve.FlakMortar.Desc,Each shell lands as a line of blasts walking forward.,每发炮弹落地后变成一排向前推进的爆炸。,Evolve.FlakMortar rules. No number: the catalog may change it.,
+Evolve.ArcBlade.Name,Cyclone,旋风,Offer card name of Evolve.ArcBlade (reforging.md Text).,
+Evolve.ArcBlade.Desc,Spins in a full circle while you move. Standing still it stops.,移动时转成整圈。站定时停转。,Evolve.ArcBlade rules. No number: the catalog may change it.,
+Evolve.SeekerSwarm.Name,Murmuration,椋鸟群,Offer card name of Evolve.SeekerSwarm (reforging.md Text).,
+Evolve.SeekerSwarm.Desc,Missiles stay as a hunting swarm and pick a new target after each hit.,导弹留下来成群猎杀，每次命中后另选目标。,Evolve.SeekerSwarm rules. No number: the catalog may change it.,
+Evolve.RingEmitter.Name,Pulse Wall,脉冲墙,Offer card name of Evolve.RingEmitter (reforging.md Text).,
+Evolve.RingEmitter.Desc,"Rings hold as a wall, pushing enemies out.",光环化作一道墙，把敌人推开。,Evolve.RingEmitter rules. No number: the catalog may change it.,
+Evolve.SpiralProjector.Name,Vortex,涡流,Offer card name of Evolve.SpiralProjector (reforging.md Text).,
+Evolve.SpiralProjector.Desc,The spiral curls inward into a vortex that pulls enemies together.,螺旋向内卷成漩涡，把敌人拉到一起。,Evolve.SpiralProjector rules. No number: the catalog may change it.,Flag.Pull
+Evolve.GravityMine.Name,Singularity,奇点,Offer card name of Evolve.GravityMine (reforging.md Text).,
+Evolve.GravityMine.Desc,"All your mines merge into one that pulls everything in, then collapses.",所有引力雷合成一颗，吸入一切，然后坍缩。,Evolve.GravityMine rules. No number: the catalog may change it.,Flag.Pull

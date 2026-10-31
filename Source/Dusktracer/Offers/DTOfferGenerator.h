@@ -63,6 +63,8 @@ struct FDTPickOutcome
 	EDTPath Keeper = EDTPath::None;
 	bool bPatron = false;
 	EDTReserveKind Reserve = EDTReserveKind::Count;
+	/** Reforging card: its row in DTCat::Reforges (reforging.md); Weapon names an evolved weapon. */
+	int32 ReforgeRow = INDEX_NONE;
 	bool bValid = false;
 };
 

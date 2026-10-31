@@ -114,16 +114,16 @@ namespace DTCat
 	};
 	inline constexpr FWeaponRow Weapons[] =
 	{
-		{ TEXT("Weapon.PulseRifle"), 1, true, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Aimed"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 0, 8, TEXT("Railstorm (S2)") },
-		{ TEXT("Weapon.RingEmitter"), 1, true, { ECap::Projectile, ECap::Radial, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Radial"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 8, 8, TEXT("Pulse Wall (S2)") },
-		{ TEXT("Weapon.OrbitalDrones"), 1, true, { ECap::Orbit, ECap::Projectile }, 2, CapBit(ECap::Orbit) | CapBit(ECap::Projectile), TEXT("Orbiter"), TEXT("NearestToDrone"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 16, 8, TEXT("Blade Halo (S2)") },
-		{ TEXT("Weapon.ArcBlade"), 1, true, { ECap::Melee, ECap::Area }, 2, CapBit(ECap::Melee) | CapBit(ECap::Area), TEXT("MeleeArc"), TEXT("Nearest"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 24, 8, TEXT("Cyclone (S2)") },
-		{ TEXT("Weapon.GravityMine"), 1, false, { ECap::Mine, ECap::Area }, 2, CapBit(ECap::Mine) | CapBit(ECap::Area), TEXT("Mine"), TEXT("DensestCell"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 32, 8, TEXT("Singularity (S2)") },
-		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 8, TEXT("Flechette (S2)") },
-		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 48, 8, TEXT("Sweep Beam (S2)") },
-		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 56, 8, TEXT("Carpet (S2)") },
-		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 64, 8, TEXT("Murmuration (S2)") },
-		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 72, 8, TEXT("Vortex (S2)") },
+		{ TEXT("Weapon.PulseRifle"), 1, true, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Aimed"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 0, 8, TEXT("Evolve.PulseRifle") },
+		{ TEXT("Weapon.RingEmitter"), 1, true, { ECap::Projectile, ECap::Radial, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Radial"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 8, 8, TEXT("Evolve.RingEmitter") },
+		{ TEXT("Weapon.OrbitalDrones"), 1, true, { ECap::Orbit, ECap::Projectile }, 2, CapBit(ECap::Orbit) | CapBit(ECap::Projectile), TEXT("Orbiter"), TEXT("NearestToDrone"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 16, 8, TEXT("Evolve.OrbitalDrones") },
+		{ TEXT("Weapon.ArcBlade"), 1, true, { ECap::Melee, ECap::Area }, 2, CapBit(ECap::Melee) | CapBit(ECap::Area), TEXT("MeleeArc"), TEXT("Nearest"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 24, 8, TEXT("Evolve.ArcBlade") },
+		{ TEXT("Weapon.GravityMine"), 1, false, { ECap::Mine, ECap::Area }, 2, CapBit(ECap::Mine) | CapBit(ECap::Area), TEXT("Mine"), TEXT("DensestCell"), PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 32, 8, TEXT("Evolve.GravityMine") },
+		{ TEXT("Weapon.ScatterCannon"), 2, false, { ECap::Projectile, ECap::Aimed, ECap::Expiry }, 3, CapBit(ECap::Projectile) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Cone"), TEXT("Nearest"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 40, 8, TEXT("Evolve.ScatterCannon") },
+		{ TEXT("Weapon.RailLance"), 2, false, { ECap::Projectile, ECap::Beam, ECap::Aimed, ECap::Expiry }, 4, CapBit(ECap::Projectile) | CapBit(ECap::Beam) | CapBit(ECap::Aimed) | CapBit(ECap::Expiry), TEXT("Line"), TEXT("DensestLine"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 48, 8, TEXT("Evolve.RailLance") },
+		{ TEXT("Weapon.FlakMortar"), 2, false, { ECap::Lob, ECap::Aimed, ECap::Area, ECap::Expiry }, 4, CapBit(ECap::Lob) | CapBit(ECap::Aimed) | CapBit(ECap::Area) | CapBit(ECap::Expiry), TEXT("Lob"), TEXT("DensestCell"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Forge) | PathBit(EDTPath::Tide), 56, 8, TEXT("Evolve.FlakMortar") },
+		{ TEXT("Weapon.SeekerSwarm"), 2, false, { ECap::Homing, ECap::Projectile }, 2, CapBit(ECap::Homing) | CapBit(ECap::Projectile), TEXT("Homing"), TEXT("RandomAlive"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 64, 8, TEXT("Evolve.SeekerSwarm") },
+		{ TEXT("Weapon.SpiralProjector"), 2, false, { ECap::Continuous, ECap::Projectile, ECap::Radial, ECap::Expiry }, 4, CapBit(ECap::Continuous) | CapBit(ECap::Projectile) | CapBit(ECap::Radial) | CapBit(ECap::Expiry), TEXT("Spiral"), TEXT("None"), PathBit(EDTPath::Storm) | PathBit(EDTPath::Tide), 72, 8, TEXT("Evolve.SpiralProjector") },
 	};
 	struct FWeaponLevelRow
 	{
@@ -359,6 +359,36 @@ namespace DTCat
 		{ EDTEnemyRole::Rusher, TEXT("Enemy.Rusher"), static_cast<float>(DTConst::ROLE_RUSHER_HP), static_cast<float>(DTConst::ROLE_RUSHER_SPEED_UU_S), static_cast<float>(DTConst::ROLE_RUSHER_RADIUS_UU), static_cast<float>(DTConst::ROLE_RUSHER_CONTACT_DAMAGE), TEXT("Rusher.Charge"), TEXT(""), TEXT("Band"), static_cast<float>(DTConst::DIR_SHARE_MAX_RUSHER), false, TEXT("ST_Enemies.Enemy.Rusher.Name") },
 		{ EDTEnemyRole::Turret, TEXT("Enemy.Turret"), static_cast<float>(DTConst::ROLE_TURRET_HP), 0.0f, static_cast<float>(DTConst::ROLE_TURRET_RADIUS_UU), static_cast<float>(DTConst::ROLE_TURRET_CONTACT_DAMAGE), TEXT("Turret.Fire"), TEXT("Turret.Burst|Turret.Fan"), TEXT("AimLine"), static_cast<float>(DTConst::DIR_SHARE_MAX_TURRET), false, TEXT("ST_Enemies.Enemy.Turret.Name") },
 	};
+
+	// --- reforging.csv ---
+	inline constexpr int32 MaxReforgeCaps = 4;
+	struct FReforgeRow
+	{
+		const TCHAR* Id;
+		bool bEvolve;
+		const TCHAR* Source;
+		const TCHAR* Behaviour;
+		ECap Caps[MaxReforgeCaps];
+		int32 NumCaps;
+		const TCHAR* Effect;
+	};
+	inline constexpr FReforgeRow Reforges[] =
+	{
+		{ TEXT("Transform.Storm"), false, TEXT("Keeper.Storm"), TEXT("Overload"), { ECap::Projectile }, 0, TEXT("stacks=3;jumps=4;range_uu=350;dmg=0.5;cooldown_s=1") },
+		{ TEXT("Transform.Forge"), false, TEXT("Keeper.Forge"), TEXT("Kiln"), { ECap::Projectile }, 0, TEXT("husk_s=4;husks_max=8;dmg=0.2;cleave_s=0.5;cleave_r_uu=150") },
+		{ TEXT("Transform.Tide"), false, TEXT("Keeper.Tide"), TEXT("Glacier"), { ECap::Projectile }, 0, TEXT("pillar_s=3;pillars_max=12;shatter_uu=160;shatter_dmg=0.5") },
+		{ TEXT("Evolve.PulseRifle"), true, TEXT("Weapon.PulseRifle"), TEXT("OrbitLaunch"), { ECap::Orbit, ECap::Projectile, ECap::Aimed, ECap::Expiry }, 4, TEXT("blades=6;launch_s=0.4;pierce=3;dmg_ratio=0.6") },
+		{ TEXT("Evolve.ScatterCannon"), true, TEXT("Weapon.ScatterCannon"), TEXT("EmbedBlast"), { ECap::Projectile, ECap::Area, ECap::Aimed, ECap::Expiry }, 4, TEXT("pellets=8;embed_s=0.5;embed_r_uu=60;blast_dmg=0.5") },
+		{ TEXT("Evolve.OrbitalDrones"), true, TEXT("Weapon.OrbitalDrones"), TEXT("ContactBlades"), { ECap::Orbit }, 1, TEXT("blades=4;speed_ratio=0.8;speed_ref_uu_s=600;dmg_ratio=1.5;contact_r_uu=60") },
+		{ TEXT("Evolve.RailLance"), true, TEXT("Weapon.RailLance"), TEXT("SweepBeam"), { ECap::Beam, ECap::Continuous, ECap::Aimed }, 3, TEXT("beam_s=1.5;sweep_deg=120;reach_uu=950;tick_s=0.1;width_deg=12;dmg_ratio=0.6") },
+		{ TEXT("Evolve.FlakMortar"), true, TEXT("Weapon.FlakMortar"), TEXT("CarpetLine"), { ECap::Lob, ECap::Area }, 2, TEXT("blasts=5;walk_uu=600;step_s=0.12;dmg_ratio=0.25") },
+		{ TEXT("Evolve.ArcBlade"), true, TEXT("Weapon.ArcBlade"), TEXT("MoveSpin"), { ECap::Melee, ECap::Area }, 2, TEXT("hits_s=2;arc_deg=360;dmg_ratio=0.6;move_min_uu_s=50") },
+		{ TEXT("Evolve.SeekerSwarm"), true, TEXT("Weapon.SeekerSwarm"), TEXT("Persist"), { ECap::Homing, ECap::Projectile, ECap::Expiry }, 3, TEXT("life_s=6;pierce=200;dmg_ratio=0.2") },
+		{ TEXT("Evolve.RingEmitter"), true, TEXT("Weapon.RingEmitter"), TEXT("PulseWall"), { ECap::Projectile, ECap::Radial, ECap::Area, ECap::Expiry }, 4, TEXT("radius_uu=600;grow_s=0.6;hold_s=3;push_uu_s=200;band_uu=100;dps=2;tick_s=0.25") },
+		{ TEXT("Evolve.SpiralProjector"), true, TEXT("Weapon.SpiralProjector"), TEXT("Vortex"), { ECap::Radial, ECap::Projectile, ECap::Continuous, ECap::Expiry }, 4, TEXT("vortex_uu=500;curl_deg_s=70;zone_r_uu=260;zone_s=1.2;pull_uu_s=180") },
+		{ TEXT("Evolve.GravityMine"), true, TEXT("Weapon.GravityMine"), TEXT("Merge"), { ECap::Mine, ECap::Area }, 2, TEXT("pull_uu=900;blast_ratio=1.5") },
+	};
+	inline constexpr int32 NumReforges = UE_ARRAY_COUNT(Reforges);
 
 	// --- elites.csv: one row per EDTAffix, in order ---
 	struct FAffixRow

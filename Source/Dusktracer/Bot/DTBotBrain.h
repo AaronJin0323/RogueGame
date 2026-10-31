@@ -78,6 +78,8 @@ public:
 
 	/** The slot to pick in Hand, or INDEX_NONE to decline it (None policy only; the Patron hand is always picked). */
 	int32 ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player);
+	/** R-BOT-15: the Reforging card this seed reads (Patron, second Keeper, evolution, cycling); INDEX_NONE with none in the hand. */
+	static int32 ReforgePick(const FDTOfferHand& Hand, int32 Seed);
 
 	const FDTBotStats& GetStats() const { return Stats; }
 	FDTBotStats& GetStats() { return Stats; }
