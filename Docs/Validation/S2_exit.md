@@ -95,6 +95,9 @@ Printed, not judged, all 18 arms:
 - Quicksilver 44 of 45 and Shade 41 of 45 at skill 1.0, against Storm's 24, with Storm as the second in most of those arms.
 - Gain misses on 16 of 18 arms; `C.KEEPER.PACKAGE_GAIN_BAND` may not suit a build with a second Keeper, not decided here.
 
+## Gate
+`& Tools\Gate.ps1 -Base dev/s2` at d821859: GATE: PASS, 403 tests of 403, tools 40, 3 not run (pad, scope, mac). The only Source change is the regenerated constants header, which has no `.cpp`, so nonunity read 0 files.
+
 ## Human only
 - Humans win a full run; the three clauses of R-BOT-17; O-008 sessions cover both, with first-attempt runs recorded as first attempts.
 - Whether the 10:00 cutoff stands; what tolerance "roughly half" and "about a third" carry.
