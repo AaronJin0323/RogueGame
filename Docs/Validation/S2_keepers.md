@@ -114,3 +114,7 @@ Why: in the 4 s of the cast Momentum's scene deals 42398 at 1 and 18092 at 0.3 a
 
 ## Keeper meters (R-KEE-38), 2026-10-31
 Debt, Payday, Momentum, Shades (hunters and Collection's Shades, one word for the player) and Time Dilation under the hero block, en and zh-Hans, tokens `Pal.Keeper.Shade` and `Pal.Keeper.Quicksilver` on `Pal.UI.Panel`. `Hud.Dilation` is dormant while the scale is neutral. Layout is grey-box and has been seen by no human.
+
+## Gate and perf, 2026-10-31
+`& Tools\Gate.ps1 -Base dev/s2` at cdb9eac: GATE: PASS, 400 tests of 400, 3 not run (pad, scope, mac). `& Tools\Perf.ps1`, same build: PASS, game p50 1.95, p95 2.37 ms, GPU p95 2.45 raw (3.92 proxied), 5975 bullets, 388 enemies; the perf scene casts nothing, so it says nothing about a slowed crowd.
+Neutral moves nothing: the three Quicksilver arms, 15 seeds, on this branch equal the f70d651 control in every summary column but the telemetry file name.
