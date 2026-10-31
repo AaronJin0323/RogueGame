@@ -8,9 +8,12 @@ import contextlib
 import io
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_compare  # noqa: E402
@@ -475,6 +478,64 @@ class Loc(unittest.TestCase):
 				f.write('FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));\nFText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Gone"));\n')
 			tables = [("ST_UI", [{"Key": "Hud.Dash"}])]
 			self.assertEqual(loc_build.check_code_keys(root, tables), ["Source/A/B.cpp:2 ST_UI Hud.Gone: no such row"])
+
+
+@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+class ExportLogs(unittest.TestCase):
+	"""T-PKG-11's redaction, on a made-up profile: the real proof on a package is Tools/ExportLogsCheck.ps1."""
+
+	SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PackageFiles", "Export_Logs.ps1")
+	RUN = '{"t":0,"step":0,"kind":"run_start","seed":7}\n'.encode("utf-8")
+
+	def export(self, user, log_text, profile=None, log_bytes=None):
+		with tempfile.TemporaryDirectory() as root:
+			saved = os.path.join(root, "Dusktracer", "Saved")
+			os.makedirs(os.path.join(saved, "Playtests"))
+			os.makedirs(os.path.join(saved, "Logs"))
+			os.makedirs(os.path.join(saved, "Crashes", "C1"))
+			with open(os.path.join(saved, "Playtests", "7_20261031_120000.jsonl"), "wb") as f:
+				f.write(self.RUN)
+			with open(os.path.join(saved, "Logs", "Dusktracer.log"), "wb") as f:
+				f.write(log_bytes if log_bytes is not None else log_text.encode("utf-8"))
+			with open(os.path.join(saved, "Crashes", "C1", "Crash.log"), "w", encoding="utf-8") as f:
+				f.write(f"C:/Users/{user}/x\n")
+			with open(os.path.join(saved, "Crashes", "C1", "UEMinidump.dmp"), "wb") as f:
+				f.write(b"\x00\x01")
+			out = os.path.join(root, "out")
+			env = dict(os.environ, USERNAME=user, USERPROFILE=profile or f"C:\\Users\\{user}", COMPUTERNAME="DESK-77", LOCALAPPDATA=root, TEMP=root, TMP=root)
+			run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", self.SCRIPT, "-OutDir", out],
+				env=env, capture_output=True, encoding="utf-8", errors="replace")
+			self.assertEqual(run.returncode, 0, run.stdout)
+			self.assertRegex(run.stdout, r"EXPORT: .*Dusktracer_Logs_\d{4}-\d{2}-\d{2}_\d{6}\.zip \(1 runs, 2 logs")
+			name = [n for n in os.listdir(out) if n.endswith(".zip")][0]
+			with zipfile.ZipFile(os.path.join(out, name)) as z:
+				return {n.replace("\\", "/").split("/", 1)[1]: z.read(n) for n in z.namelist() if not n.endswith(("/", "\\"))}
+
+	def test_every_form_of_a_name_goes(self):
+		text = "\n".join(["Base: C:/Users/张三/AppData/Local", "Json: C:\\\\Users\\\\张三\\\\x", r"Short: C:\Users\ZHANGS~1\Temp\y", "LogInit: User: 张三", "Other: E:\\张三的游戏\\z",
+			"LogInit: Computer: desk-77", "LogDT: Run start seed=7"])
+		files = self.export("张三", text)
+		log = files["Logs/Dusktracer.log"].decode("utf-8")
+		for gone in ("张三", "ZHANGS", "desk-77"):
+			self.assertNotIn(gone, log)
+		self.assertIn("C:/Users/<user>/AppData/Local", log)
+		self.assertIn(r"C:\Users\<user>\Temp\y", log)
+		self.assertIn("Computer: <machine>", log)
+		self.assertIn("LogDT: Run start seed=7", log)
+
+	def test_a_run_file_is_untouched_and_a_dump_stays_behind(self):
+		files = self.export("Storm", "x")
+		self.assertEqual(files["Playtests/7_20261031_120000.jsonl"], self.RUN)
+		self.assertFalse([n for n in files if n.endswith(".dmp")])
+		self.assertIn(b"Left behind: 1 crash file", files["MANIFEST.txt"])
+
+	def test_a_short_name_keeps_the_words_around_it(self):
+		log = self.export("Al", "LogInit: Global Al done, C:\\Users\\Al\\x")["Logs/Dusktracer.log"].decode("utf-8")
+		self.assertEqual(log, "LogInit: Global <user> done, C:\\Users\\<user>\\x")
+
+	def test_a_profile_path_goes_when_the_log_is_not_utf8(self):
+		log = self.export("张三", "", log_bytes="C:\\Users\\张三\\x".encode("gbk"))["Logs/Dusktracer.log"]
+		self.assertEqual(log.decode("utf-8"), "C:\\Users\\<user>\\x")
 
 
 if __name__ == "__main__":
