@@ -4,6 +4,8 @@ Usage:  python -I Tools/tools_test.py
 Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 """
 
+import contextlib
+import io
 import json
 import os
 import sys
@@ -116,6 +118,17 @@ class Intercession(unittest.TestCase):
 	def test_a_mean_at_zero_passes_nothing(self):
 		checked, _ = probe.band_check({"a": 0.0, "b": 0.0}, 0.2)
 		self.assertFalse(checked["a"][1])
+
+	def test_a_cast_that_acts_on_dashes_is_dashed(self):
+		"""R-KEE-35: Time Dilation only changes dashes, and the route's dashes every 6 s miss its 4 s window; Slam's reads the same way."""
+		with tempfile.TemporaryDirectory() as out:
+			with contextlib.redirect_stdout(io.StringIO()):
+				probe.gen_intercession(out, 1, stage="all")
+			read = lambda name: open(os.path.join(out, name), encoding="utf-8").read()
+			for name in ("Quicksilver-Vector", "Quicksilver-Rebound", "Quicksilver-Momentum", "Forge-Slam"):
+				self.assertIn("cast_dash_s", read(f"IK-{name}-none-cast.txt"), name)
+				self.assertNotIn("cast_dash_s", read(f"IK-{name}-none-plain.txt"), name)
+			self.assertNotIn("cast_dash_s", read("IK-Storm-Tempest-none-cast.txt"))
 
 
 class BotHistogram(unittest.TestCase):

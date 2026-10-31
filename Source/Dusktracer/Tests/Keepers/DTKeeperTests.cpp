@@ -2377,6 +2377,31 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamPullInterval, "PullInterval") // R-KEE-21
 	return true;
 }
 
+DT_KEEPER_PARAM_TEST(FDTKeeperParamFieldTick, "FieldTick") // R-KEE-09, R-KEE-16: a field tick is not a hit
+{
+	using namespace DTKeeperParamTest;
+	using namespace DTKeeperExpressTest;
+	FDTKeeperHarness H;
+	H.AddEnemy(FVector2f(300.0f, 0.0f)); // takes the rounds
+	const int32 Inside = H.AddEnemy(FVector2f(350.0f, 0.0f));
+	const uint32 Serial = H.Enemies.GetSerials()[Inside];
+	H.Patron(EDTPath::Tide);
+	H.Bless(Blessing(TEXT("Tide.Frost"), TEXT("Key")));
+	FDTWeaponFlags Flags;
+	FDTFlagEntry& Entry = AddFlag(Flags, DTCat::EFlag::Field, EDTPath::Forge);
+	Entry.Params.Set(DTFlagParam::RadiusUu, 120.0f);
+	Entry.Params.Set(DTFlagParam::DurationS, 2.0f);
+	Entry.Params.Set(DTFlagParam::Dps, 0.2f);
+	H.Weapons.AddFlagSource(0, TestSource, Flags);
+	H.StepMany(DTConst::SIM_FIXED_HZ * 4);
+	const int32 Rifle = H.CountHits(DTWeapons::WeaponSource(DTWeapons::FindWeapon(PulseRifle)));
+	const int32 Ticks = H.CountHits(DTKeepers::KeeperSource(EDTPath::Forge));
+	TestTrue(FString::Printf(TEXT("the fields ticked (%d)"), Ticks), Ticks > Rifle);
+	TestEqual(TEXT("only the rifle's hits roll the enchantment"), static_cast<int32>(H.Keepers.GetCounters(0).HitsRolled), Rifle);
+	TestEqual(TEXT("what only the fields touch is never Chilled by a roll"), StatusesOn(H, Serial, EDTStatus::Chill), 0);
+	return true;
+}
+
 DT_KEEPER_PARAM_TEST(FDTKeeperParamFieldStatus, "FieldStatus") // R-KEE-22
 {
 	using namespace DTKeeperParamTest;

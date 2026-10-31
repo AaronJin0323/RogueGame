@@ -592,6 +592,35 @@ DT_S2_TEST(FDTKeeperS2EconomyKey, "Card.Shade.Economy.Key") // T-KEE-29
 	return true;
 }
 
+DT_S2_TEST(FDTKeeperS2EconomyVolley, "Card.Shade.Economy.Volley") // T-KEE-29: a payday replaces one volley
+{
+	using namespace DTKeeperS2Test;
+	const uint16 Shade = Src(EDTPath::Shade);
+	const uint16 Rifle = DTWeapons::WeaponSource(DTWeapons::FindWeapon(PulseRifle));
+	FDTKeeperHarness H;
+	Own(H, EDTPath::Shade, TEXT("Shade.Economy"), { TEXT("Key") });
+	H.AddEnemy(FVector2f(300.0f, 0.0f));
+	const float Cooldown = H.Weapons.GetLastSpec(0, 0).Cooldown;
+	const int32 Gap = FMath::CeilToInt(Cooldown * DTConst::SIM_FIXED_HZ);
+	int32 Guard = 0;
+	while (H.CountHits(Rifle) == 0 && Guard++ < Second * 3)
+	{
+		H.StepOnce(); // the rifle has just fired: its cooldown is running
+	}
+	const int32 Before = H.CountHits(Rifle);
+	H.Weapons.AddDebt(0, 15);
+	H.StepOnce();
+	TestTrue(TEXT("a payday waits for the next volley"), H.Weapons.IsPaydayReady(0));
+	TestEqual(TEXT("nothing is paid between volleys"), H.CountHits(Shade), 0);
+	H.StepMany(Gap + 1);
+	TestFalse(TEXT("the next volley spends it"), H.Weapons.IsPaydayReady(0));
+	H.StepMany(FMath::CeilToInt(300.0f / H.Weapons.GetLastSpec(0, 0).Speed * DTConst::SIM_FIXED_HZ) + 2);
+	TestTrue(TEXT("its round lands as Shade"), H.CountHits(Shade) > 0);
+	// The rounds already in flight land; a volley fired with the payday would add to them within its flight time.
+	TestTrue(FString::Printf(TEXT("instead of its pattern (%d rifle hits then, %d now)"), Before, H.CountHits(Rifle)), H.CountHits(Rifle) <= Before + 1);
+	return true;
+}
+
 DT_S2_TEST(FDTKeeperS2EconomyAmp1, "Card.Shade.Economy.Amp1") // T-KEE-29
 {
 	using namespace DTKeeperS2Test;
