@@ -1,24 +1,24 @@
 Key,en,zh-Hans,Context,Kw
 SplitCore.Name,Split Core,裂芯,Offer card name of Mod.SplitCore (modifiers.md Text).,
-SplitCore.Desc,"On hit, rounds split into a fan of smaller rounds.",命中时，弹体分裂成一扇小弹。,"Offer card line of Mod.SplitCore: describes the behaviour, never a catalog number.",Flag.Split
+SplitCore.Desc,"On hit, rounds split into a fan of smaller rounds.",命中时，子弹分裂成扇形的小子弹。,"Offer card line of Mod.SplitCore: describes the behaviour, never a catalog number.",Flag.Split
 ScatterShell.Name,Scatter Shell,子母弹,Offer card name of Mod.ScatterShell (modifiers.md Text).,
-ScatterShell.Desc,"When a round expires or detonates, it bursts into a ring of rounds.",弹体飞完或引爆时，炸成一圈子弹。,"Offer card line of Mod.ScatterShell: describes the behaviour, never a catalog number.",Flag.Split
+ScatterShell.Desc,"When a round expires or detonates, it bursts into a ring of rounds.",子弹飞完或引爆时，炸成一圈子弹。,"Offer card line of Mod.ScatterShell: describes the behaviour, never a catalog number.",Flag.Split
 Pierce.Name,Pierce Rounds,穿透弹,Offer card name of Mod.Pierce (modifiers.md Text).,
-Pierce.Desc,Rounds pass through more enemies.,弹体可以穿透更多敌人。,"Offer card line of Mod.Pierce: describes the behaviour, never a catalog number.",
+Pierce.Desc,Rounds pass through more enemies.,子弹可以穿透更多敌人。,"Offer card line of Mod.Pierce: describes the behaviour, never a catalog number.",
 Mirror.Name,Mirror,镜射,Offer card name of Mod.Mirror (modifiers.md Text).,
 Mirror.Desc,Each volley is copied facing backwards.,每次齐射都向身后再射一次。,"Offer card line of Mod.Mirror: describes the behaviour, never a catalog number.",
 ChainTrigger.Name,Chain Trigger,连锁扳机,Offer card name of Mod.ChainTrigger (modifiers.md Text).,
 ChainTrigger.Desc,A kill by this weapon fires one free volley.,这把武器击杀敌人时，免费再齐射一次。,"Offer card line of Mod.ChainTrigger: describes the behaviour, never a catalog number.",
 LingeringField.Name,Lingering Field,滞留场,Offer card name of Mod.LingeringField (modifiers.md Text).,
-LingeringField.Desc,"Impacts, sweeps and detonations leave a damage zone.",命中、横扫和爆炸处留下伤害区。,"Offer card line of Mod.LingeringField: describes the behaviour, never a catalog number.",Flag.Field
+LingeringField.Desc,"Impacts, sweeps and detonations leave a damage zone.",命中、横扫和爆炸处留下伤害区域。,"Offer card line of Mod.LingeringField: describes the behaviour, never a catalog number.",Flag.Field
 Backwash.Name,Backwash,回流,Offer card name of Mod.Backwash (modifiers.md Text).,
-Backwash.Desc,Hits pull the enemy back toward where the round came from.,命中时把敌人拉向弹体射来的方向。,"Offer card line of Mod.Backwash: describes the behaviour, never a catalog number.",Flag.Pull
+Backwash.Desc,Hits pull the enemy back toward where the round came from.,命中时把敌人拉向子弹射来的方向。,"Offer card line of Mod.Backwash: describes the behaviour, never a catalog number.",Flag.Pull
 Conduit.Name,Conduit,主司回路,Offer card name of Mod.Conduit (modifiers.md Text).,
 Conduit.Desc,Every hit applies your Patron's status.,每次命中都附加主司的状态。,"Offer card line of Mod.Conduit: describes the behaviour, never a catalog number.",Flag.StatusApply
 Fork.Name,Fork,分叉,Offer card name of Mod.Fork (modifiers.md Text).,
-Fork.Desc,Each volley adds side rounds.,每次齐射在两侧加射弹体。,"Offer card line of Mod.Fork: describes the behaviour, never a catalog number.",
+Fork.Desc,Each volley adds side rounds.,每次齐射在两侧加射子弹。,"Offer card line of Mod.Fork: describes the behaviour, never a catalog number.",
 Ricochet.Name,Ricochet Plate,跳弹板,Offer card name of Mod.Ricochet (modifiers.md Text).,
-Ricochet.Desc,A round that hits bounces on to a new enemy.,命中的弹体会弹向新的敌人。,"Offer card line of Mod.Ricochet: describes the behaviour, never a catalog number.",Flag.Ricochet
+Ricochet.Desc,A round that hits bounces on to a new enemy.,命中的子弹会弹射到新的敌人身上。,"Offer card line of Mod.Ricochet: describes the behaviour, never a catalog number.",Flag.Ricochet
 Homing.Name,Homing Gyro,寻的陀螺,Offer card name of Mod.Homing (modifiers.md Text).,
 Homing.Desc,Rounds steer toward the nearest enemy.,子弹会自动飞向最近的敌人。,"Offer card line of Mod.Homing: describes the behaviour, never a catalog number.",
 OrbitLock.Name,Orbit Lock,环绕锁定,Offer card name of Mod.OrbitLock (modifiers.md Text).,

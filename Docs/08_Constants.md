@@ -475,3 +475,4 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.SETTINGS.OUTLINE_ROUND_DARK_RATIO | 1.8 | ratio | GATED(S3) | settings.md, T-SET-10 |
 | C.SETTINGS.CVD_DELTA_E_MIN | 20 | delta_e | CORE | settings.md, T-SET-11 |
 | C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN | 15 | delta_e | CORE | settings.md, T-SET-11 |
+| C.SETTINGS.RUN_OVER_GUARD_S | 1.0 | s | GATED(S3) | settings.md, T-SET-21 |

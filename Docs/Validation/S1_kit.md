@@ -6,7 +6,7 @@ Exit test (`12_Production §2`, S1): **3 validators × 2 runs**, none of them th
 - Tell the scheduler "S1 session starting": automated runs stop (holds in `STATE.md`) so frame times are clean.
 - Build: the package the scheduler gives, a folder from `Tools\Package.ps1` (`Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans). Copy that folder to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-usc_redist.x64.exe` from it once.
 - Launch: double-click `Play_en.bat` or `Play_zh-Hans.bat` (full-screen arena, director on, bot off, a fresh seed each launch). Pad: plug it in before launch; keyboard/mouse and pad both work at any time. The session must have one tester on a pad: `pad` in the gate only passes from that run.
-- Between runs: the game has no restart. After the death or victory screen press Alt+F4 (the host does it for a pad tester), then launch again. Alt+F4 mid-run is safe; the run file closes with reason `quit`.
+- Between runs: after death or victory the screen offers Restart run and Quit to desktop, keyboard or pad; a restart takes a fresh seed and writes new run files. Pause (`Esc`, pad Menu) offers the same plus Abandon run, each with a confirmation. Alt+F4 mid-run is safe too; the run file closes with reason `quit`.
 - Have this sheet and a clock. Note the run timer (HUD) at each key moment.
 
 ## The one sentence (say only this)

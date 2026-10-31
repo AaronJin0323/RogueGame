@@ -18,6 +18,7 @@ import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_matrix  # noqa: E402
+import loc_build  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 import s2_exit  # noqa: E402
@@ -408,6 +409,72 @@ class Contrast(unittest.TestCase):
 		self.assertTrue(contrast_check.masked(640, 20, 1280, 720))
 		self.assertTrue(contrast_check.masked(100, 650, 1280, 720))
 		self.assertFalse(contrast_check.masked(640, 400, 1280, 720))
+
+
+class Loc(unittest.TestCase):
+	def row(self, en, zh, key="Test.Row", context=""):
+		return {"Key": key, "en": en, "zh-Hans": zh, "Context": context, "Kw": "", "_line": 2}
+
+	def bad(self, en, zh, key="Test.Row", context=""):
+		return loc_build.check_row("ST_Test", self.row(en, zh, key, context))
+
+	def test_a_clean_row_passes(self):
+		self.assertEqual(self.bad("Hits Burn {chance_pct}% of the time.", "命中有 {chance_pct}% 几率灼烧。"), [])
+
+	def test_missing_zh_fails(self):
+		self.assertTrue(any("empty zh-Hans" in v for v in self.bad("Dash", "  ")))
+
+	def test_a_repeated_argument_must_repeat(self):
+		self.assertEqual(self.bad("{0} and {0}", "{0} 和 {0}"), [])
+		self.assertTrue(any("{0}" in v for v in self.bad("{0} and {0}", "{0} 和")))
+		self.assertTrue(any("{1}" in v for v in self.bad("{0}", "{0} 和 {1}")))
+
+	def test_a_broken_brace_fails(self):
+		self.assertTrue(any("brace" in v for v in self.bad("Hp {Hp}", "生命 {Hp}}")))
+
+	def test_a_retired_word_fails_even_on_a_name(self):
+		self.assertTrue(any("守望者" in v for v in self.bad("The Warden approaches", "守望者逼近")))
+		self.assertTrue(any("冰缓" in v for v in self.bad("Slow", "冰缓", key="Test.Name")))
+
+	def test_an_en_term_needs_its_zh_term(self):
+		self.assertTrue(any("Chill" in v for v in self.bad("Hits Chill.", "命中让敌人变冷。")))
+		self.assertEqual(self.bad("Hits Chill.", "命中让敌人减速。"), [])
+
+	def test_a_name_may_say_a_term_in_its_own_way(self):
+		self.assertEqual(self.bad("Cold Volley", "寒息", key="Test.Name"), [])
+
+	def test_an_exact_term_has_one_zh(self):
+		self.assertTrue(any("Debt" in v for v in self.bad("Debt", "债务", key="Test.Name")))
+		self.assertTrue(any("Held" in v for v in self.bad("Held", "保留", key="Test.Name")))
+		self.assertEqual(self.bad("Held", "已保留", key="Test.Name"), [])
+
+	def test_untranslated_text_fails_unless_an_endonym(self):
+		self.assertTrue(any("untranslated" in v for v in self.bad("Graphics", "Graphics")))
+		self.assertEqual(self.bad("English", "English", context="Endonym: do not translate."), [])
+		self.assertEqual(self.bad("{Tool}  [{Keys}]", "{Tool}  [{Keys}]"), [])
+
+	def test_half_width_punctuation_between_cjk_fails(self):
+		self.assertTrue(any("half-width" in v for v in self.bad("Dash, then Dash.", "冲刺,再冲刺。")))
+		self.assertEqual(self.bad("Dash: A", "冲刺：A"), [])
+
+	def test_a_number_argument_keeps_its_space(self):
+		self.assertTrue(any("space" in v for v in self.bad("For {duration_s} s", "持续{duration_s} 秒")))
+		self.assertTrue(any("space" in v for v in self.bad("For {duration_s} s", "持续 {duration_s}秒")))
+		self.assertEqual(self.bad("Reforges {Weapon}", "重铸{Weapon}"), [])
+
+	def test_a_budget_in_the_context_binds_the_zh(self):
+		note = "Card name. <= 18 chars en / 6 zh."
+		self.assertEqual(self.bad("Name", "一二三四五六", key="Test.Name", context=note), [])
+		self.assertTrue(any("budget" in v for v in self.bad("Name", "一二三四五六七", key="Test.Name", context=note)))
+		self.assertEqual(self.bad("{a} s", "{a} 秒", context="Line. <= 2 zh chars"), [])
+
+	def test_a_key_the_code_asks_for_must_exist(self):
+		with tempfile.TemporaryDirectory() as root:
+			os.makedirs(os.path.join(root, "Source", "A"))
+			with open(os.path.join(root, "Source", "A", "B.cpp"), "w", encoding="utf-8") as f:
+				f.write('FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));\nFText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Gone"));\n')
+			tables = [("ST_UI", [{"Key": "Hud.Dash"}])]
+			self.assertEqual(loc_build.check_code_keys(root, tables), ["Source/A/B.cpp:2 ST_UI Hud.Gone: no such row"])
 
 
 if __name__ == "__main__":
