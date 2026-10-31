@@ -615,7 +615,7 @@ private:
 	/** Sweep Beam (R-RFG-08): the arc of this tick. */
 	void StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
 	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. */
-	void OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
+	bool OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
 		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS);
 	void StepForceField(const FDTSimContext& Context, FField& Field);
 	void AddShockStack(const FDTSimContext& Context, int32 OwnerId, uint32 Serial);

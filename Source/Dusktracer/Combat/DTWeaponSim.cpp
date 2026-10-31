@@ -1145,8 +1145,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			const int32 Row = Spec.EvolveRow;
 			const float Grow = DTReforge::Param(Row, TEXT("grow_s"));
-			OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
-				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s")));
+			if (!OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
+				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s"))))
+			{
+				return false; // the last ring still lives: the cooldown stays ready, or a volley is lost for a whole cooldown
+			}
 			break;
 		}
 		const FVector2f Base(1.0f, 0.0f);
@@ -1949,19 +1952,19 @@ void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 S
 	EmitArc(Context, Runtime, Shot, DTWeaponSimLocal::Rotate(Runtime.BeamDir, Sweep * (Done - 0.5f)), DTReforge::Param(Row, TEXT("width_deg")), Spec.Range, false);
 }
 
-void FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
+bool FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
 	float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS)
 {
 	for (const FField& Live : Fields)
 	{
 		if (Live.bForce && Live.OwnerId == OwnerId && Live.Slot == Slot)
 		{
-			return; // one per weapon (R-RFG-12, R-RFG-13)
+			return false; // one per weapon (R-RFG-12, R-RFG-13)
 		}
 	}
 	if (!TryEmit(Runtime))
 	{
-		return;
+		return false;
 	}
 	FField& Field = Fields.AddDefaulted_GetRef();
 	Field.OwnerId = OwnerId;
@@ -1977,6 +1980,7 @@ void FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Run
 	Field.PushUuS = PushUuS;
 	Field.TickS = TickS;
 	++FieldsOpened;
+	return true;
 }
 
 void FDTWeaponSim::StepForceField(const FDTSimContext& Context, FField& Field)

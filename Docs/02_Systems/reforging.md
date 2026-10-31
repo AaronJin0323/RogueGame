@@ -66,7 +66,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - T-RFG-09 `Dusktracer.Reforging.Carpet`: one landing makes the stated strikes along the line, in order, and no strike walks.
 - T-RFG-10 `Dusktracer.Reforging.Cyclone`, `.CycloneStillness`: hits all round while moving, none at rest; a Stillness charge gathered at rest is carried by the first spin, not lost.
 - T-RFG-11 `Dusktracer.Reforging.Murmuration`: a missile outlives a plain one, moves on after a hit and hits several enemies once each.
-- T-RFG-12 `Dusktracer.Reforging.PulseWall`, `.PulseWallLook`: one ring; it grows, hurts its band, and pushes out through displacements only; it draws both edges of the band and no disc.
+- T-RFG-12 `Dusktracer.Reforging.PulseWall`, `.PulseWallGap`, `.PulseWallLook`: one ring; it grows, hurts its band, and pushes out through displacements only; a ring follows a ring with no volley lost; it draws both edges of the band and no disc.
 - T-RFG-13 `Dusktracer.Reforging.Vortex`: rounds turn; an expiry opens one pull zone.
 - T-RFG-14 `Dusktracer.Reforging.Singularity`: one live mine, summed damage, the longer pull.
 - T-RFG-15 `Dusktracer.Reforging.Overload`: stacks count, discharge at the limit, the cooldown holds, a Shocked kill discharges, the source is the Keeper, no weapon slot.
