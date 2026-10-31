@@ -200,6 +200,8 @@ void ADTHUD::DrawHUD()
 	};
 
 	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Product.Name")), DTHUDLocal::TitleScale);
+	// Developer lines, not player text: the Shipping build validators play draws neither (package.md R-PKG-02).
+#if !UE_BUILD_SHIPPING
 	const FText RoundTrip = FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip"));
 	DrawLine(RoundTrip, 1.0f);
 	if (!bLoggedRoundTrip)
@@ -208,7 +210,6 @@ void ADTHUD::DrawHUD()
 		UE_LOG(LogDT, Log, TEXT("LocRoundTrip culture=%s text=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(), *RoundTrip.ToString());
 	}
 
-	// Developer readout, not player text.
 	if (FrameTimes.IsValid() && FrameTimes->bHasSample)
 	{
 		const double Fps = FrameTimes->FrameMs > 0.0 ? 1000.0 / FrameTimes->FrameMs : 0.0;

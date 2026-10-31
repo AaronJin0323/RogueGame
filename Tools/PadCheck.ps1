@@ -1,8 +1,9 @@
 # Package check (gate step `pad`, 02_Systems/package.md R-PKG-07..09): what a machine can prove about the package, off-screen.
 #   & Tools\PadCheck.ps1 [-Cultures en,zh-Hans] [-LoadTimeout 300]
-# Shipping (T-PKG-02): -RenderOffScreen launch, a run starts, the sim reaches the first CSV interval, WM_CLOSE (what Alt+F4 sends) ends it,
-# run_end reads quit. Export (T-PKG-04): the zip holds that run and power_split.py reads it. Development (T-PKG-03): drawn text, log, screenshot
-# against the arena golden. T-PKG-05: no visible window of the game's process at any time. The check's own run files are deleted afterwards.
+# Shipping (T-PKG-02): -RenderOffScreen launch, the bot plays past the first CSV interval and quits the game; run_start and run_end are right.
+# Export (T-PKG-04): the zip holds that run and power_split.py reads it. Development (T-PKG-03): drawn text, log, screenshot against the arena
+# golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-05: no visible window of the game's process at any time.
+# -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted.
 # A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
 param(
@@ -19,6 +20,7 @@ $StampFile = Join-Path $PackageRoot "package_stamp.json"
 $LogDir = Join-Path $Root "Saved\Logs"
 $WorkDir = Join-Path $Root "Saved\PadCheck"
 $Playtests = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
+$DevPlaytests = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 $MarkerSeed = 770077
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
@@ -49,7 +51,7 @@ foreach ($File in $ShipExe, $DevExe, $Export) {
 	if (-not (Test-Path $File)) { Stop-Check "NOT RUN (package incomplete, no $File)" 2 }
 }
 
-# --- window helpers (the check must never show one; WM_CLOSE reaches the hidden game window) ------------------------
+# --- window helper: the check must never show one ------------------------------------------------------------------
 Add-Type -TypeDefinition @"
 using System;
 using System.Collections.Generic;
@@ -59,14 +61,12 @@ public static class DTWindows {
 	[DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr lParam);
 	[DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
 	[DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-	[DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
 	static List<IntPtr> Of(uint target) {
 		var found = new List<IntPtr>();
 		EnumWindows((h, l) => { uint pid; GetWindowThreadProcessId(h, out pid); if (pid == target) found.Add(h); return true; }, IntPtr.Zero);
 		return found;
 	}
 	public static int Visible(int pid) { int n = 0; foreach (var h in Of((uint)pid)) if (IsWindowVisible(h)) n++; return n; }
-	public static int Close(int pid) { var all = Of((uint)pid); foreach (var h in all) PostMessage(h, 0x0010, IntPtr.Zero, IntPtr.Zero); return all.Count; }
 }
 "@
 
@@ -77,7 +77,9 @@ function Watch-Windows($Proc) { if (-not $Proc.HasExited) { $script:ShownWindows
 function Stop-ByPid($Proc) { if (-not $Proc.HasExited) { & taskkill /PID $Proc.Id /T /F | Out-Null } }
 
 function Remove-MarkerRuns {
-	if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*" -File | Remove-Item -Force }
+	foreach ($Dir in $Playtests, $DevPlaytests) {
+		if (Test-Path $Dir) { Get-ChildItem $Dir -Filter "${MarkerSeed}_*" -File | Remove-Item -Force }
+	}
 }
 
 $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended")
@@ -89,34 +91,21 @@ try {
 	# --- Shipping: run start, telemetry, quit ---------------------------------------------------------------------------
 	foreach ($Culture in $Cultures) {
 		$Before = @(if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | ForEach-Object { $_.Name } })
-		$Proc = Start-Process -FilePath $ShipExe -ArgumentList ($OffScreen + @("-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick")) -PassThru
+		$BotArgs = @("-DTBot=Steered", ("-DTBotMaxSeconds={0}" -f ($Interval + 5)), "-DTBotQuit")
+		$Proc = Start-Process -FilePath $ShipExe -ArgumentList ($OffScreen + @("-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick") + $BotArgs) -PassThru
 		Write-Host "padcheck: Shipping $Culture (PID $($Proc.Id))"
-		$Jsonl = $null
-		$Csv = $null
 		try {
-			$Deadline = (Get-Date).AddSeconds($LoadTimeout)
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and -not $Jsonl) {
-				Start-Sleep -Seconds 1
-				Watch-Windows $Proc
-				if (Test-Path $Playtests) { $Jsonl = Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | Where-Object { $Before -notcontains $_.Name } | Select-Object -First 1 }
-			}
-			if (-not $Jsonl) { Note-Fail "$Culture Shipping: no telemetry file in $LoadTimeout s (exited=$($Proc.HasExited))"; continue }
-			$Csv = [IO.Path]::ChangeExtension($Jsonl.FullName, ".csv")
-			$Deadline = (Get-Date).AddSeconds($Interval + 60)
-			$Rows = 0
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and $Rows -lt 2) {
-				Start-Sleep -Seconds 1
-				Watch-Windows $Proc
-				if (Test-Path $Csv) { $Rows = @(Get-Content $Csv -Encoding UTF8).Count }
-			}
-			if ($Rows -lt 2) { Note-Fail "$Culture Shipping: no closed CSV interval (exited=$($Proc.HasExited))" }
-			$Exited = $Proc.HasExited
-			$Posted = [DTWindows]::Close($Proc.Id)
-			if (-not $Exited -and -not $Proc.WaitForExit(30000)) { Note-Fail "$Culture Shipping: WM_CLOSE to $Posted window(s) did not end the game" }
+			$Deadline = (Get-Date).AddSeconds($LoadTimeout + $Interval)
+			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
+			if (-not $Proc.HasExited) { Note-Fail "$Culture Shipping: the game did not quit by itself" }
 		}
 		finally {
 			Stop-ByPid $Proc
 		}
+		$Jsonl = if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | Where-Object { $Before -notcontains $_.Name } | Select-Object -First 1 }
+		if (-not $Jsonl) { Note-Fail "$Culture Shipping: no telemetry file in $Playtests"; continue }
+		$Rows = @(Get-Content ([IO.Path]::ChangeExtension($Jsonl.FullName, ".csv")) -Encoding UTF8).Count
+		if ($Rows -lt 3) { Note-Fail "$Culture Shipping: $Rows CSV line(s), expected a header, a closed interval and the last partial one" }
 		$Lines = @(Get-Content $Jsonl.FullName -Encoding UTF8)
 		$Start = $Lines | Select-Object -First 1
 		$End = $Lines | Select-Object -Last 1
@@ -124,7 +113,7 @@ try {
 		if ($Start -notmatch '"kind":"run_start"') { Note-Fail "$Culture Shipping: first record is not run_start" }
 		if ($Start -notmatch ('"culture":"' + [regex]::Escape($Culture) + '"')) { Note-Fail "$Culture Shipping: run_start culture: $Start" }
 		if ($Build -ne $Stamp.commit) { Note-Fail "$Culture Shipping: build '$Build' is not the stamp '$($Stamp.commit)'" }
-		if ($End -notmatch '"kind":"run_end"' -or $End -notmatch '"reason":"quit"') { Note-Fail "$Culture Shipping: last record is not run_end quit: $($End.Substring(0, [Math]::Min(160, $End.Length)))" }
+		if ($End -notmatch '"kind":"run_end"' -or $End -notmatch '"reason":"bot_timeout"') { Note-Fail "$Culture Shipping: last record is not run_end bot_timeout: $($End.Substring(0, [Math]::Min(160, $End.Length)))" }
 		Write-Host ("    {0} records, build {1}, last: {2}" -f $Lines.Count, $Build, ($End -replace '^(.{0,90}).*$', '$1'))
 	}
 
@@ -160,7 +149,7 @@ try {
 		$Shot = Join-Path $WorkDir "$Tag.png"
 		$Remove = @($Log, $Shot) | Where-Object { Test-Path $_ }
 		if ($Remove) { Remove-Item $Remove -Force }
-		$ArgList = $OffScreen + @($Map, "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector")
+		$ArgList = $OffScreen + @($Map, "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector", "-DTSeed=$MarkerSeed")
 		$Proc = Start-Process -FilePath $DevExe -ArgumentList $ArgList -PassThru
 		Write-Host "padcheck: Development $Culture (PID $($Proc.Id))"
 		$Deadline = (Get-Date).AddSeconds($LoadTimeout)
@@ -182,6 +171,10 @@ try {
 		elseif ($Drawn.Matches[0].Groups[1].Value -ne $Culture -or $Drawn.Matches[0].Groups[2].Value.Trim() -cne $Expected) {
 			Note-Fail "$Culture Development: drew '$($Drawn.Matches[0].Groups[2].Value.Trim())' as '$($Drawn.Matches[0].Groups[1].Value)', expected '$Expected'"
 		}
+		# The screenshot hook exits mid-run through RequestExit, where a close message also ends up (R-PKG-05).
+		$DevRun = if (Test-Path $DevPlaytests) { Get-ChildItem $DevPlaytests -Filter "${MarkerSeed}_*.jsonl" | Sort-Object LastWriteTime | Select-Object -Last 1 }
+		$DevEnd = if ($DevRun) { Get-Content $DevRun.FullName -Encoding UTF8 | Select-Object -Last 1 } else { "" }
+		if ($DevEnd -notmatch '"kind":"run_end"' -or $DevEnd -notmatch '"reason":"quit"') { Note-Fail "$Culture Development: exit mid-run left no run_end quit: $DevEnd" }
 		if (-not (Test-Path $Shot)) { Note-Fail "$Culture Development: no screenshot" }
 		else {
 			$Golden = Join-Path $Root "Docs\Validation\goldens\arena_empty_$Culture.png"
