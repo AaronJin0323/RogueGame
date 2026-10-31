@@ -19,6 +19,8 @@ class DUSKTRACER_API ADTEnemyBulletRenderer : public AActor
 
 public:
 	static constexpr int32 NumCustomData = 7;
+	/** Outline discs (settings.md R-SET-10): 0-2 linear RGB, 3 emissive (M_CueColor). */
+	static constexpr int32 NumOutlineData = 4;
 
 	ADTEnemyBulletRenderer();
 
@@ -33,6 +35,8 @@ public:
 	float GetMeshRadius() const { return MeshRadius; }
 	int32 GetInstanceCount() const;
 	UInstancedStaticMeshComponent* GetInstances() const { return Instances; }
+	int32 GetOutlineCount() const;
+	UInstancedStaticMeshComponent* GetOutlines() const { return Outlines; }
 	bool IsUsingFallbackMaterial() const { return bFallbackMaterial; }
 
 private:
@@ -41,6 +45,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UInstancedStaticMeshComponent> Instances;
+
+	/** Danger outlines: two flat discs under each round; empty while the setting is off. */
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UInstancedStaticMeshComponent> Outlines;
 
 	float MeshRadius = 1.0f;
 	bool bFallbackMaterial = false;

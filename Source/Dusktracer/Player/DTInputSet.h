@@ -27,6 +27,8 @@ public:
 	/** The five gameplay actions, in the order of combat_core.md Data. */
 	TArray<UInputAction*> GetActions() const;
 	TArray<UInputMappingContext*> GetContexts() const;
+	/** Rebuilds both contexts from a binding table (settings.md R-SET-13); Pause, Aim and the stick stay fixed. */
+	void ApplyBindings(const struct FDTBindings& Bindings);
 
 	UPROPERTY() TObjectPtr<UInputAction> Move;
 	UPROPERTY() TObjectPtr<UInputAction> Aim;
