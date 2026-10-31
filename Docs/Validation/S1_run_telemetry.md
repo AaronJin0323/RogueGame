@@ -42,7 +42,7 @@ Growth is every new record and field together, weapon and modifier records inclu
 | Tide Frost, Storm (dies at 481 s) | 8.000 | 0.017 | IN |
 | None (dies at 675 s) | 10.283 | 0.000 | IN |
 
-No number was tuned on this; a bot at skill 1.0 is a bound. The None arm reads zero because the Rifle's two rounds land in one step and kill together. The median hides a long tail: its mean over the run is 6.4 s and one Swarm enemy died 426 s after its first hit, a straggler that the crowd kept out of the nearest-target pick. That is real, not stale stamps: on the same sim, for every step with kills, the new maximum and sum never exceed the old spawn-to-death ones on any arm, and that enemy had lived 472 s.
+No number was tuned on this; a bot at skill 1.0 is a bound. The None arm's zero fits the Rifle's two rounds of 14 landing in one step, which is not traced per kill. The median hides a long tail: that arm's mean over the run is 6.4 s and one Swarm enemy died 426 s after its first hit; why it went unhit so long is not read. The tail is real, not stale stamps: on the same sim, for every step with kills, the new maximum and sum never exceed the old spawn-to-death ones on any arm, and that enemy had lived 472 s.
 
 **Casts**, old `enemies_hit`/`damage` -> new `enemies_hit`/`damage` (applied), raw:
 - Storm Downpour, Forge: 0/0 -> 25/358, raw 489; 0/0 -> 51/965, raw 1136; 0/0 -> 55/1099, raw 1181.
