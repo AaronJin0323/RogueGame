@@ -96,3 +96,6 @@ Every slot of this build runs at about the cap. It is the cap, not the crowd, th
 - **The renderer on target hardware:** GPU is the 4080 proxy (D-011). Fields draw as discs and reaction cues are capped, so visual density is not a look, and contended GPU readings stand as bounds.
 - **A clean margin:** see the contention note.
 - **Frames at 60:** the capture is uncapped, so per-frame p50 reads under what a capped 60 fps frame would read.
+
+## Gate
+`Tools\Gate.ps1 -Base dev/s2`: PASS at 959e2f4, 392 tests run, 0 failed, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run. Commits after it are this line.
