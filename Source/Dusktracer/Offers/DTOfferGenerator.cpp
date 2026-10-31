@@ -1,4 +1,5 @@
 #include "Offers/DTOfferGenerator.h"
+#include "Keepers/DTReactions.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
 
@@ -118,6 +119,12 @@ namespace DTOfferGenLocal
 	}
 
 	/** Kind rules of R-OFF-05 / R-OFF-09 / R-OFF-14 on top of the roll. */
+	/** A duo card is at least Rare (reactions.md R-REA-08). */
+	EDTRarity DuoRarity(const FDTOfferCard& Card, EDTRarity Rarity)
+	{
+		return Rarity == EDTRarity::Common && DTReactions::FindDuo(Card.ContentId) != INDEX_NONE ? EDTRarity::Rare : Rarity;
+	}
+
 	EDTRarity FinalRarity(EDTCardKind Kind, EDTHandKind HandKind, EDTRarity Rolled)
 	{
 		EDTRarity Rarity = Kind == EDTCardKind::WeaponUpgrade ? Rolled : EDTRarity::Common;
@@ -423,19 +430,31 @@ int32 DTOffers::TierForFavor(int32 Favor)
 bool DTOffers::AddBlessing(FDTKeeperRunState& Keepers, FName BlessingId)
 {
 	const FDTBlessingInfo Info = FindBlessing(BlessingId);
-	if (!Info.IsValid() || Keepers.Owned.Contains(BlessingId))
+	const int32 Duo = DTReactions::FindDuo(BlessingId);
+	if ((!Info.IsValid() && Duo == INDEX_NONE) || Keepers.Owned.Contains(BlessingId))
 	{
 		return false;
 	}
 	Keepers.Owned.Add(BlessingId);
-	const int32 P = DTOfferGenLocal::PathIndex(Info.Path);
-	int32 Owned = 0;
-	for (const FName& Id : Keepers.Owned)
+	const auto Refavor = [&Keepers](EDTPath Path)
 	{
-		Owned += FindBlessing(Id).Path == Info.Path ? 1 : 0;
+		const int32 P = DTOfferGenLocal::PathIndex(Path);
+		int32 Owned = 0;
+		for (const FName& Id : Keepers.Owned)
+		{
+			Owned += FindBlessing(Id).Path == Path || DTReactions::DuoCountsFor(DTReactions::FindDuo(Id), Path) ? 1 : 0; // reactions.md R-REA-09
+		}
+		Keepers.Favor[P] = Owned * DTConst::TIER_FAVOR_PER_BLESSING;
+		Keepers.Tier[P] = FMath::Max(Keepers.Tier[P], TierForFavor(Keepers.Favor[P]));
+	};
+	if (Duo != INDEX_NONE)
+	{
+		Refavor(DTCat::Reactions[Duo].PathA);
+		Refavor(DTCat::Reactions[Duo].PathB);
+		return true;
 	}
-	Keepers.Favor[P] = Owned * DTConst::TIER_FAVOR_PER_BLESSING;
-	Keepers.Tier[P] = FMath::Max(Keepers.Tier[P], TierForFavor(Keepers.Favor[P]));
+	Refavor(Info.Path);
+	const int32 P = DTOfferGenLocal::PathIndex(Info.Path);
 	const int32 Leading = LeadingArchetype(Keepers, Info.Path);
 	Keepers.Leading[P] = Leading == INDEX_NONE ? NAME_None : FName(DTCat::Archetypes[Leading].Id);
 	return true;
@@ -510,6 +529,7 @@ float DTOffers::Weight(const FDTPlayerRunState& Player, const FDTOfferCard& Card
 		const FDTBlessingInfo Info = FindBlessing(Card.ContentId);
 		if (!Info.IsValid())
 		{
+			W *= DTReactions::FindDuo(Card.ContentId) != INDEX_NONE ? DTConst::OFFER_WEIGHT_DUO : 1.0f; // reactions.md R-REA-08
 			break;
 		}
 		W *= 1.0f + DTConst::OFFER_WEIGHT_FAVOR * static_cast<float>(Player.Keepers.Favor[PathIndex(Info.Path)]);
@@ -640,6 +660,17 @@ TArray<FDTOfferCard> DTOffers::Candidates(const FDTPlayerRunState& Player, const
 			{
 				continue; // (e)
 			}
+			Add(EDTCardKind::Blessing, Id, NAME_None);
+		}
+	}
+
+	// (h) the committed pair's duo card (reactions.md R-REA-08).
+	const int32 Duo = ValidPath(Second) && Pool.Unlocked.Contains(DTReactions::UnlockId()) ? DTReactions::FindPair(Patron, Second) : INDEX_NONE;
+	if (Duo != INDEX_NONE)
+	{
+		const FName Id(DTCat::Reactions[Duo].BlessingId);
+		if (!Player.Keepers.Owned.Contains(Id) && !Banished.Contains(Id))
+		{
 			Add(EDTCardKind::Blessing, Id, NAME_None);
 		}
 	}
@@ -928,7 +959,7 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		FDTOfferCard& Card = Hand.Cards[Slot];
 		const bool bRoll = Slot < UE_ARRAY_COUNT(bNeedRarity) ? bNeedRarity[Slot] : true;
 		const EDTRarity Rolled = bRoll ? RollRarity(Rng) : Card.Rarity;
-		Card.Rarity = FinalRarity(Card.Kind, Kind, Rolled);
+		Card.Rarity = DuoRarity(Card, FinalRarity(Card.Kind, Kind, Rolled));
 	}
 
 	FillReserve(Hand.Cards, Size);
@@ -954,7 +985,7 @@ void DTOffers::RefillSlot(const FDTPlayerRunState& Player, const FDTOfferPool& P
 	FDTOfferCard Card;
 	if (DrawFrom(Pool2, Rng, [](const FDTOfferCard&) { return true; }, Card))
 	{
-		Card.Rarity = FinalRarity(Card.Kind, Hand.HandKind, RollRarity(Rng));
+		Card.Rarity = DuoRarity(Card, FinalRarity(Card.Kind, Hand.HandKind, RollRarity(Rng)));
 		Hand.Cards[Slot] = Card;
 		return;
 	}

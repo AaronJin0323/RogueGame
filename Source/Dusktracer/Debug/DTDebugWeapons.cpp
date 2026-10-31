@@ -1,6 +1,7 @@
 // Weapon and modifier debug console commands (R-TEC-12: compiled out of Shipping; D-013 DT.Unlock).
 
 #include "CoreMinimal.h"
+#include "Keepers/DTReactions.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -79,14 +80,15 @@ namespace DTDebugWeapons
 		UDTWeaponSubsystem* Weapons = Find(World);
 		if (!Weapons || Args.Num() < 1)
 		{
-			UE_LOG(LogDT, Log, TEXT("DT.Unlock <Weapon.*|Mod.*|Keeper.*>"));
+			UE_LOG(LogDT, Log, TEXT("DT.Unlock <Weapon.*|Mod.*|Keeper.*|Reaction.Duos>"));
 			return;
 		}
 		const FName Raw(*Args[0]);
 		const int32 Weapon = DTWeapons::FindWeapon(Raw);
 		const int32 Mod = DTWeapons::FindModifier(Raw);
 		const bool bKeeper = DTOffers::ParseKeeper(Raw) != EDTPath::None;
-		const FName Id = Weapon != INDEX_NONE ? DTWeapons::WeaponId(Weapon) : (Mod != INDEX_NONE ? DTWeapons::ModifierId(Mod) : (bKeeper ? Raw : NAME_None));
+		const bool bDuos = Raw == DTReactions::UnlockId();
+		const FName Id = Weapon != INDEX_NONE ? DTWeapons::WeaponId(Weapon) : (Mod != INDEX_NONE ? DTWeapons::ModifierId(Mod) : (bKeeper || bDuos ? Raw : NAME_None));
 		if (Id.IsNone())
 		{
 			UE_LOG(LogDT, Warning, TEXT("DT.Unlock %s: unknown id"), *Args[0]);

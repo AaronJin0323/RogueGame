@@ -1,0 +1,63 @@
+Key,en,zh-Hans,Context,Kw
+Toast.Format,{Name}: {Toast},{Name}：{Toast},Reaction first-fire line under the director's banner (reactions.md R-REA-12).,
+Duo.Plaque,Duo · {A} + {B},双司 · {A} + {B},Plaque line on a duo card; A and B are Keeper names.,Duo
+StormForge.Name,Plasma,等离子,"Reaction name, shown on its first fire in a run (reactions.md).",
+StormForge.Toast,Arcs ignite burning enemies.,电弧引燃灼烧中的敌人。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+StormTide.Name,Conduction,传导,"Reaction name, shown on its first fire in a run (reactions.md).",
+StormTide.Toast,Arcs run through everything chilled.,电弧贯穿所有减速的敌人。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+StormShade.Name,Writ,传票,"Reaction name, shown on its first fire in a run (reactions.md).",
+StormShade.Toast,Shocked marks call down bolts when they die.,感电的标记敌人死亡时召来落雷。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+StormRadiance.Name,Flash Arc,闪弧,"Reaction name, shown on its first fire in a run (reactions.md).",
+StormRadiance.Toast,Crits on shocked enemies arc and blind.,暴击感电的敌人会放出电弧并致盲。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+StormQuicksilver.Name,Live Rail,活轨,"Reaction name, shown on its first fire in a run (reactions.md).",
+StormQuicksilver.Toast,Ricochets and dashes discharge Shock.,弹射与冲刺会释放感电。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ForgeTide.Name,Steam,蒸汽,"Reaction name, shown on its first fire in a run (reactions.md).",
+ForgeTide.Toast,Fire meets ice and bursts.,火与冰相遇，迸发蒸汽。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ForgeShade.Name,Cremation,火葬,"Reaction name, shown on its first fire in a run (reactions.md).",
+ForgeShade.Toast,Marked burning enemies leave seeking embers.,灼烧中的标记敌人留下追踪余烬。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ForgeRadiance.Name,Flare,耀斑,"Reaction name, shown on its first fire in a run (reactions.md).",
+ForgeRadiance.Toast,Crits set off Burn at once.,暴击立刻引爆灼烧。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ForgeQuicksilver.Name,Wildfire,野火,"Reaction name, shown on its first fire in a run (reactions.md).",
+ForgeQuicksilver.Toast,Speed sets your bullets alight.,速度点燃你的子弹。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+TideShade.Name,Deep Ledger,深账,"Reaction name, shown on its first fire in a run (reactions.md).",
+TideShade.Toast,Frozen marks are executed sooner.,被冻结的标记敌人更早被斩杀。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+TideRadiance.Name,Refraction,折射,"Reaction name, shown on its first fire in a run (reactions.md).",
+TideRadiance.Toast,Crits on ice split into shards.,暴击被冻结的敌人会碎成光片。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+TideQuicksilver.Name,Black Ice,黑冰,"Reaction name, shown on its first fire in a run (reactions.md).",
+TideQuicksilver.Toast,Dashing through the chilled freezes them.,冲刺穿过减速的敌人会将其冻结。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ShadeRadiance.Name,Exposure,曝露,"Reaction name, shown on its first fire in a run (reactions.md).",
+ShadeRadiance.Toast,Blinded marks take more and spread the mark.,被致盲的标记敌人受到更多伤害，并扩散标记。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+ShadeQuicksilver.Name,Repossession,收回,"Reaction name, shown on its first fire in a run (reactions.md).",
+ShadeQuicksilver.Toast,Dash through weak marked enemies to execute them.,冲刺穿过残血的标记敌人，将其斩杀。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+RadianceQuicksilver.Name,Afterglow,余晖,"Reaction name, shown on its first fire in a run (reactions.md).",
+RadianceQuicksilver.Toast,Speed sharpens your crits.,速度让你的暴击更锋利。,Reaction toast: the rule in a few words (build_depth_text.md 4).,Reaction
+Duo.StormForge.Name,Arc Furnace,弧炉,Duo blessing card name (zh authored here; the source has none).,
+Duo.StormForge.Desc,Plasma bursts leave burning ground for {field_s} s.,等离子爆发留下持续 {field_s} 秒的燃烧地面。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Burn
+Duo.StormTide.Name,Storm Surge,风暴潮,Duo blessing card name (zh authored here; the source has none).,
+Duo.StormTide.Desc,"Conduction has no limit, and every {every_n}rd jump Freezes.",传导不再有上限，每第 {every_n} 次跳跃会冻结敌人。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Freeze
+Duo.StormShade.Name,Summons,传唤,Duo blessing card name (zh authored here; the source has none).,
+Duo.StormShade.Desc,"Writ bolts Mark what they strike, and strike the unmarked when no mark is left.",传票的落雷会标记被击中的敌人；没有标记时也会击中未标记的敌人。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Mark
+Duo.StormRadiance.Name,Blinding Arc,致盲电弧,Duo blessing card name (zh authored here; the source has none).,
+Duo.StormRadiance.Desc,Flash Arc Blinds for {blind_s} s. Blinded enemies take +{arc_vuln_pct}% from Storm.,闪弧致盲 {blind_s} 秒；被致盲的敌人受到风暴的伤害 +{arc_vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind
+Duo.StormQuicksilver.Name,Lightning Step,雷步,Duo blessing card name (zh authored here; the source has none).,
+Duo.StormQuicksilver.Desc,Dashing leaves a Shocking trail. Live Rail chains once more.,冲刺留下感电轨迹。活轨再连锁一次。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Shock
+Duo.ForgeTide.Name,Pressure Cooker,压力釜,Duo blessing card name (zh authored here; the source has none).,
+Duo.ForgeTide.Desc,"Steam Chills and Burns what it hits, setting off more Steam.",蒸汽让命中的敌人减速并灼烧，引发更多蒸汽。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Chill;Status.Burn
+Duo.ForgeShade.Name,Pyre Debt,火葬债,Duo blessing card name (zh authored here; the source has none).,
+Duo.ForgeShade.Desc,Cremation embers count as Marked kills.,火葬余烬的击杀算作标记击杀。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Mark
+Duo.ForgeRadiance.Name,Sunspot,日斑,Duo blessing card name (zh authored here; the source has none).,
+Duo.ForgeRadiance.Desc,Flare detonations crit.,耀斑引爆必定暴击。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,
+Duo.ForgeQuicksilver.Name,Afterburner,加力,Duo blessing card name (zh authored here; the source has none).,
+Duo.ForgeQuicksilver.Desc,Dashes always start Wildfire. +{speed_pct}% speed near Burning enemies.,冲刺必定引发野火。靠近灼烧中的敌人时，移速 +{speed_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Burn
+Duo.TideShade.Name,Cold Storage,冷藏,Duo blessing card name (zh authored here; the source has none).,
+Duo.TideShade.Desc,Deep Ledger executions Freeze enemies nearby.,深账斩杀时冻结附近的敌人。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Freeze
+Duo.TideRadiance.Name,Diamond Dust,钻石尘,Duo blessing card name (zh authored here; the source has none).,
+Duo.TideRadiance.Desc,Refraction shards Chill. Shards that crit Blind.,折射光片让敌人减速。暴击的光片会致盲。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Chill;Status.Blind
+Duo.TideQuicksilver.Name,Glide,滑行,Duo blessing card name (zh authored here; the source has none).,
+Duo.TideQuicksilver.Desc,Black Ice also works off Chilled enemies.,黑冰对减速的敌人同样生效。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Chill
+Duo.ShadeRadiance.Name,Spotlight,聚光,Duo blessing card name (zh authored here; the source has none).,
+Duo.ShadeRadiance.Desc,"Every Blinded enemy, Marked or not, takes +{vuln_pct}% damage.",所有被致盲的敌人，无论是否被标记，伤害 +{vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind;Status.Mark
+Duo.ShadeQuicksilver.Name,Fast Collection,速收,Duo blessing card name (zh authored here; the source has none).,
+Duo.ShadeQuicksilver.Desc,Repossession works below {below_pct}% HP; +{charges} dash charge for {charge_s} s.,收回在敌人生命低于 {below_pct}% 时生效；之后 {charge_s} 秒内冲刺次数 +{charges}。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,
+Duo.RadianceQuicksilver.Name,Lightspeed,光速,Duo blessing card name (zh authored here; the source has none).,
+Duo.RadianceQuicksilver.Desc,Afterglow's crit bonus doubles. Crits refund {refund_pct}% dash cooldown.,余晖暴击加成翻倍。暴击返还 {refund_pct}% 冲刺冷却。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,

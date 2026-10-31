@@ -419,6 +419,19 @@ void FDTWeaponSim::ResetTransient()
 		Player.bHasHeroPos = false;
 		Player.bDashWas = false;
 		Player.TailwindLeft = 0.0f;
+		Player.ReactionsFired = 0;
+		Player.ReactionCounters.Reset();
+		Player.ReactionReadyStep.Reset();
+		Player.StepPulled.Reset();
+		Player.ToastRow = INDEX_NONE;
+		Player.ToastUntilStep = 0;
+		Player.WildfireLeft = 0.0f;
+		Player.DuoChargeLeft = 0.0f;
+		Player.DuoRefundReadyIn = 0.0f;
+		Player.TrailDistance = 0.0f;
+		Player.bDuoDashWas = false;
+		Player.ConductedJumps = 0;
+		Player.DuoSpeedMul = 1.0f;
 		Player.DashesDone = 0;
 		Player.DashRefund = 0.0f;
 		Player.DashRefundUsed = 0.0f;
@@ -551,6 +564,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.bCharged = Shot.bCharged;
 		Round.bEmber = Shot.bEmber;
 		Round.bLance = Shot.bLance;
+		Round.DuoRow = Shot.DuoRow;
 		Round.RoundId = RoundId;
 		Round.Pierce = Spawn.Pierce;
 		Round.bBoomerang = Shot.Motion.bBoomerang;
@@ -1869,6 +1883,7 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 			}
 		}
 		StepKeeperHero(Context, Bullets, Owner, PlayerRt, Player);
+		StepDuoCrit(PlayerRt, Owner);
 		if (PlayerRt.PaydayMult > 0.0f)
 		{
 			FirePayday(Context, Bullets, Owner, PlayerRt);
@@ -2055,6 +2070,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.bCharged = Round.bCharged;
 			Impact.bEmber = Round.bEmber;
 			Impact.bLance = Round.bLance;
+			Impact.DuoRow = Round.DuoRow;
 			Impact.bSpent = --Round.PierceLeft <= 0;
 			if (Impact.bSpent && Round.bBoomerang && !Round.bReturning)
 			{
@@ -2078,6 +2094,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 	}
 	EstimateOverkill(View);
 	AccrueSun(View);
+	CaptureDuoHits(View);
 }
 
 void FDTWeaponSim::EstimateOverkill(const FDTWorldView& View)
@@ -2240,6 +2257,7 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	const TArray<FArcMark> Marks = MoveTemp(ArcMarks);
 	ArcMarks.Reset();
 	ReactToKills(Context, Marks);
+	ReactDuoKills(Context, Bullets); // before Marks of the dead are dropped
 	StepCleaved.Reset();
 	StepSlammed.Reset();
 	StepKeeperState(Context);
@@ -2255,6 +2273,7 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	{
 		StepHeldControl(Context, Owner, Players[Owner]);
 	}
+	StepDuos(Context, Bullets);
 
 	// Mod.ChainTrigger: a kill by the weapon fires a free volley, at most once per its interval.
 	for (const FDTKill& Kill : View.Kills)
@@ -3000,6 +3019,11 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		return;
 	}
+	if (Impact.DuoRow != INDEX_NONE)
+	{
+		ReactDuoRound(Context, Impact, HitEnemy);
+		return;
+	}
 	if (Impact.bCrit && bEnemyHit)
 	{
 		ReactToCrit(Context, *Runtime, Impact, HitEnemy);
@@ -3221,6 +3245,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				Move.EnemySerial = View.EnemySerials[Enemy];
 				Move.Delta = To / Dist * FMath::Min(Distance, Dist);
 				Move.OwnerId = Impact.OwnerId;
+				if (LiveReactionsOf(Impact.OwnerId) != 0)
+				{
+					Puller.StepPulled.Add(Move.EnemySerial); // reactions.md R-REA-04
+				}
 				if (bCrush || bCluster)
 				{
 					Moved.Emplace(Enemy, View.EnemyPositions[Enemy] + Move.Delta);
@@ -3378,7 +3406,11 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				break;
 			}
 			const bool bFromCleave = bCarries && FromModifier(Flag.Entry.SourceId);
-			const int32 Bounces = bFromCleave ? FMath::RoundToInt(Params.Get(DTFlagParam::Bounces)) : Impact.BouncesLeft;
+			int32 Bounces = bFromCleave ? FMath::RoundToInt(Params.Get(DTFlagParam::Bounces)) : Impact.BouncesLeft;
+			if (Flag.IsNative() && !bBounced && !bFromCleave && Impact.Kind == EImpact::RoundHit && Impact.bSpent)
+			{
+				Bounces += DuoBounces(Context, Impact, HitEnemy, Bounces > 0);
+			}
 			if (!Flag.IsNative() || bBounced || (!bFromCleave && (Impact.Kind != EImpact::RoundHit || !Impact.bSpent)) || Bounces <= 0)
 			{
 				break;
@@ -3489,7 +3521,7 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 		V.Dir = Arc.Dir;
 		V.Radius = Arc.Reach;
 		V.ArcDeg = Arc.ArcDeg;
-		V.Path = PathOf(Arc.OwnerId);
+		V.Path = Arc.Tint != EDTPath::None ? Arc.Tint : PathOf(Arc.OwnerId);
 	}
 
 	// Control cues (R-PRE-11). Reads only: what StepHeldControl acts on, never a position or a timer of its own.

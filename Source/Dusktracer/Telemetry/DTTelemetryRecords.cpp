@@ -39,6 +39,7 @@ namespace DTTelNames
 		{
 		case EDTTelBlessingRole::Key: return TEXT("Key");
 		case EDTTelBlessingRole::Amp: return TEXT("Amp");
+		case EDTTelBlessingRole::Duo: return TEXT("Duo");
 		default: return TEXT("Trait");
 		}
 	}
@@ -246,6 +247,22 @@ void FDTTelemetryCore::RecordStatusApplied(int32 Owner, EDTStatus Status, int32 
 	if (P && Status < EDTStatus::Count && Count > 0)
 	{
 		P->StatusApplied[static_cast<int32>(Status)] += Count;
+	}
+}
+
+void FDTTelemetryCore::RecordReaction(int32 Owner, FName Pair, int32 Fires, float Damage, bool bFirst)
+{
+	FPlayerInterval* P = Players.IsValidIndex(Owner) ? &Players[Owner] : nullptr;
+	if (!P)
+	{
+		return;
+	}
+	FReactionInterval& Row = P->Reactions.FindOrAdd(Pair);
+	Row.Fires += Fires;
+	Row.Damage += Damage;
+	if (bFirst)
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("reaction_first"), Owner)).Name(TEXT("pair"), Pair).Line();
 	}
 }
 
@@ -534,6 +551,21 @@ void FDTTelemetryCore::WriteIntervalRecords(int32 Player)
 	const FPlayerInterval& P = Players[Player];
 
 	// status{applied{Status: n}} (keepers.md), only when something was applied.
+	// reaction{fires{Pair: n}, damage{Pair: x}} (reactions.md), only when one fired.
+	if (P.Reactions.Num() > 0)
+	{
+		TArray<FName> Pairs;
+		P.Reactions.GetKeys(Pairs);
+		Pairs.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
+		FDTTelJson Fires;
+		FDTTelJson Damage;
+		for (const FName& Pair : Pairs)
+		{
+			Fires.Int(Pair.ToString(), P.Reactions[Pair].Fires);
+			Damage.Num(Pair.ToString(), P.Reactions[Pair].Damage);
+		}
+		JsonlOut += FDTTelJson(JsonHead(TEXT("reaction"), Player)).Raw(TEXT("fires"), Fires.Close()).Raw(TEXT("damage"), Damage.Close()).Line();
+	}
 	FDTTelJson Applied;
 	bool bAnyStatus = false;
 	for (int32 Status = 0; Status < static_cast<int32>(EDTStatus::Count); ++Status)

@@ -47,3 +47,7 @@ Flag.VolleyOnDash.Name,Dash volley,冲刺齐射,"Keyword note term, the word car
 Flag.VolleyOnDash.Desc,Dashing fires your weapons along the dash.,冲刺时武器沿冲刺方向齐射。,"Keyword note under the card on hover or focus for Flag.VolleyOnDash. Plain, number-free, <= 20 words en / 40 chars zh.",
 Flag.SpeedScale.Name,Momentum,动量,"Keyword note term, the word cards use for Flag.SpeedScale (Docs/Glossary.md, keepers.md Text).",
 Flag.SpeedScale.Desc,Built by moving and dashing; each point adds damage and fire rate. Getting hit loses some.,移动和冲刺时积累，每点增加伤害和射速。被击中会失去一些。,"Keyword note under the card on hover or focus for Flag.SpeedScale. Plain, number-free, <= 20 words en / 40 chars zh.",
+Duo.Name,Duo,双司,Keyword note term (keyword_glossary.md).,
+Duo.Desc,An advance that belongs to both of your Keepers and strengthens their reaction.,同时属于你两位司者的预支，会强化它们的反应。,Keyword note under a duo card (keyword_glossary.md).,
+Reaction.Name,Reaction,反应,Keyword note term (keyword_glossary.md).,
+Reaction.Desc,"When two Keepers' effects meet on one enemy, something new happens.",两位司者的效果落在同一个敌人身上时，会产生新的效果。,Keyword note under a duo card (keyword_glossary.md).,

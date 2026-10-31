@@ -204,7 +204,7 @@ bool FDTWeaponSim::CanExecute(int32 Enemy, float Below) const
 	}
 	const float Max = Enemies->GetMaxHp()[Enemy];
 	const float Hp = Enemies->GetHp()[Enemy];
-	return Enemies->GetRoles()[Enemy] != EDTEnemyRole::Boss && Hp > 0.0f && Max > 0.0f && Hp <= Max * Below;
+	return Enemies->GetRoles()[Enemy] != EDTEnemyRole::Boss && Hp > 0.0f && Max > 0.0f && Hp <= Max * DuoExecuteBelow(Enemy, Below);
 }
 
 int32 FDTWeaponSim::ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId)
@@ -466,7 +466,10 @@ void FDTWeaponSim::ReactKeeperKills(const FDTSimContext& Context, FDTBulletPool*
 			continue;
 		}
 		FPlayerRuntime& Player = Players[Kill.OwnerId];
-		const bool bMarked = IsMarked(Kill.OwnerId, Kill.EnemySerial);
+		// Pyre Debt: a Cremation ember's kill counts as a Marked kill (reactions.md).
+		const bool bPyre = (Player.DuoReactions & (1u << static_cast<int32>(DTCat::EReaction::ForgeShade))) != 0 &&
+			Kill.SourceId == DTReactions::Source(static_cast<int32>(DTCat::EReaction::ForgeShade));
+		const bool bMarked = IsMarked(Kill.OwnerId, Kill.EnemySerial) || bPyre;
 		const bool bWeapon = Kill.WeaponSlot != INDEX_NONE;
 		if (const FDTFlagEntry* Debt = KeeperEntry(Kill.OwnerId, DTCat::EFlag::Debt))
 		{

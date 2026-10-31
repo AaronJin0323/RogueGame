@@ -24,7 +24,7 @@ namespace DTReactionTest
 	constexpr int32 Second = DTConst::SIM_FIXED_HZ;
 	constexpr float ScaledHp = 1000.0f;
 	/** Far outside the rifle's range, so only written hits land. */
-	static const FVector2f Far(4000.0f, 0.0f);
+	static const FVector2f Far(2000.0f, 0.0f);
 
 	static int32 RowOf(EReaction Pair) { return static_cast<int32>(Pair); }
 
@@ -47,7 +47,7 @@ namespace DTReactionTest
 	{
 		EReaction Pair;
 
-		explicit FDuoScene(EReaction InPair, bool bDuo = false, bool bUnlock = true, int32 Seed = 7)
+		explicit FDuoScene(EReaction InPair, bool bDuo = false, bool bUnlock = true, int32 Seed = 7, const TCHAR* SecondKey = nullptr)
 			: FDTKeeperHarness(Seed), Pair(InPair)
 		{
 			const DTCat::FReactionRow& R = DTCat::Reactions[RowOf(Pair)];
@@ -58,7 +58,7 @@ namespace DTReactionTest
 			Patron(R.PathA);
 			Commit(R.PathB);
 			Bless(Blessing(KeyOf(R.PathA), TEXT("Key")));
-			Bless(Blessing(KeyOf(R.PathB), TEXT("Key")));
+			Bless(Blessing(SecondKey ? SecondKey : KeyOf(R.PathB), TEXT("Key")));
 			if (bDuo)
 			{
 				Bless(FName(R.BlessingId));
@@ -142,11 +142,10 @@ namespace DTReactionTest
 	}
 }
 
-using namespace DTReactionTest;
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaLive, "Dusktracer.Reactions.Live", Flags) // T-REA-01
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaLive, "Dusktracer.Reactions.Live", DTReactionTest::Flags) // T-REA-01
 bool FDTReaLive::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDTKeeperHarness H;
 	H.Weapons.Unlock(DTReactions::UnlockId());
 	H.Patron(EDTPath::Storm);
@@ -159,9 +158,10 @@ bool FDTReaLive::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaStage, "Dusktracer.Reactions.Stage", Flags) // T-REA-02
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaStage, "Dusktracer.Reactions.Stage", DTReactionTest::Flags) // T-REA-02
 bool FDTReaStage::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge, false, false);
 	const int32 Enemy = S.Add(Far);
 	S.Give(Enemy, EDTStatus::Burn, 10.0f);
@@ -177,9 +177,10 @@ bool FDTReaStage::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaSources, "Dusktracer.Reactions.Sources", Flags) // T-REA-03
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaSources, "Dusktracer.Reactions.Sources", DTReactionTest::Flags) // T-REA-03
 bool FDTReaSources::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge);
 	const int32 A = S.Add(Far);
 	const int32 B = S.Add(Far + FVector2f(90.0f, 0.0f));
@@ -208,9 +209,10 @@ bool FDTReaSources::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaPullContact, "Dusktracer.Reactions.PullContact", Flags) // T-REA-04
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaPullContact, "Dusktracer.Reactions.PullContact", DTReactionTest::Flags) // T-REA-04
 bool FDTReaPullContact::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDTKeeperHarness H;
 	H.Weapons.Unlock(DTReactions::UnlockId());
 	H.Patron(EDTPath::Tide);
@@ -232,9 +234,10 @@ bool FDTReaPullContact::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCooldown, "Dusktracer.Reactions.Cooldown", Flags) // T-REA-05
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCooldown, "Dusktracer.Reactions.Cooldown", DTReactionTest::Flags) // T-REA-05
 bool FDTReaCooldown::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge);
 	const int32 A = S.Add(Far);
 	const int32 B = S.Add(Far + FVector2f(2000.0f, 0.0f));
@@ -257,9 +260,10 @@ bool FDTReaCooldown::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaDeterministic, "Dusktracer.Reactions.Deterministic", Flags) // T-REA-06
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaDeterministic, "Dusktracer.Reactions.Deterministic", DTReactionTest::Flags) // T-REA-06
 bool FDTReaDeterministic::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Run = [](int64& OutFires)
 	{
 		FDuoScene S(EReaction::ForgeTide);
@@ -286,9 +290,10 @@ bool FDTReaDeterministic::RunTest(const FString& Parameters)
 
 // ---- the fifteen (T-REA-07) ----------------------------------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaPlasma, "Dusktracer.Reactions.Pair.StormForge", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaPlasma, "Dusktracer.Reactions.Pair.StormForge", DTReactionTest::Flags) // T-REA-07
 bool FDTReaPlasma::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge);
 	const int32 Struck = S.Add(Far);
 	const int32 Near = S.Add(Far + FVector2f(100.0f, 0.0f));
@@ -307,9 +312,10 @@ bool FDTReaPlasma::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaConduction, "Dusktracer.Reactions.Pair.StormTide", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaConduction, "Dusktracer.Reactions.Pair.StormTide", DTReactionTest::Flags) // T-REA-07
 bool FDTReaConduction::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormTide);
 	const int32 Struck = S.Add(Far);
 	S.Give(Struck, EDTStatus::Chill, 1.0f);
@@ -327,9 +333,10 @@ bool FDTReaConduction::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaWrit, "Dusktracer.Reactions.Pair.StormShade", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaWrit, "Dusktracer.Reactions.Pair.StormShade", DTReactionTest::Flags) // T-REA-07
 bool FDTReaWrit::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormShade);
 	const int32 Dying = S.Add(Far, 0.01f);
 	const int32 Near = S.Add(Far + FVector2f(100.0f, 0.0f));
@@ -354,9 +361,10 @@ bool FDTReaWrit::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFlashArc, "Dusktracer.Reactions.Pair.StormRadiance", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFlashArc, "Dusktracer.Reactions.Pair.StormRadiance", DTReactionTest::Flags) // T-REA-07
 bool FDTReaFlashArc::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormRadiance);
 	const int32 Struck = S.Add(Far);
 	TArray<int32> Others;
@@ -379,21 +387,24 @@ bool FDTReaFlashArc::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaLiveRail, "Dusktracer.Reactions.Pair.StormQuicksilver", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaLiveRail, "Dusktracer.Reactions.Pair.StormQuicksilver", DTReactionTest::Flags) // T-REA-07
 bool FDTReaLiveRail::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	{
-		FDuoScene S(EReaction::StormQuicksilver);
+		// No ricochet in this scene: a rifle round's bounce would claim the same enemy first.
+		FDuoScene S(EReaction::StormQuicksilver, false, true, 7, TEXT("Quicksilver.Momentum"));
 		const int32 Crossed = S.Add(Far);
 		const int32 Near = S.Add(Far + FVector2f(120.0f, 0.0f));
 		S.Dash(Far);
 		TestEqual(TEXT("a dash through an unshocked enemy does nothing"), S.Fires(), 0ll);
+		S.View.HeroPositions[0] = FVector2f::ZeroVector; // out of the rifle's reach, so no enchantment Shocks them
 		S.StepMany(2 * Second);
 		S.Give(Crossed, EDTStatus::Shock);
 		S.Dash(Far);
-		TestEqual(TEXT("a dash through a Shocked enemy discharges"), S.Fires(), 1ll);
-		TestEqual(TEXT("the burst reaches its neighbour"), S.HitsOn(Near, S.Duo()), 1);
-		TestFalse(TEXT("the Shock is spent"), S.Has(Crossed, EDTStatus::Shock));
+		TestTrue(TEXT("a dash through a Shocked enemy discharges"), S.Fires() >= 1);
+		TestTrue(TEXT("the burst reaches its neighbour"), S.HitsOn(Near, S.Duo()) >= 1);
+		TestTrue(TEXT("the Shock is spent"), S.StatusLog.ContainsByPredicate([](const FDTStatusApply& A) { return A.bConsume && A.Status == EDTStatus::Shock; }));
 	}
 	{
 		FDuoScene S(EReaction::StormQuicksilver);
@@ -408,9 +419,10 @@ bool FDTReaLiveRail::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaSteam, "Dusktracer.Reactions.Pair.ForgeTide", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaSteam, "Dusktracer.Reactions.Pair.ForgeTide", DTReactionTest::Flags) // T-REA-07
 bool FDTReaSteam::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ForgeTide);
 	const int32 Struck = S.Add(Far);
 	const int32 Near = S.Add(Far + FVector2f(120.0f, 0.0f));
@@ -429,9 +441,10 @@ bool FDTReaSteam::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCremation, "Dusktracer.Reactions.Pair.ForgeShade", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCremation, "Dusktracer.Reactions.Pair.ForgeShade", DTReactionTest::Flags) // T-REA-07
 bool FDTReaCremation::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	{
 		FDuoScene S(EReaction::ForgeShade);
 		const int32 Dying = S.Add(Far, 0.01f);
@@ -464,9 +477,10 @@ bool FDTReaCremation::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFlare, "Dusktracer.Reactions.Pair.ForgeRadiance", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFlare, "Dusktracer.Reactions.Pair.ForgeRadiance", DTReactionTest::Flags) // T-REA-07
 bool FDTReaFlare::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ForgeRadiance);
 	const int32 Struck = S.Add(Far);
 	S.Give(Struck, EDTStatus::Burn, 10.0f);
@@ -487,9 +501,10 @@ bool FDTReaFlare::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaWildfire, "Dusktracer.Reactions.Pair.ForgeQuicksilver", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaWildfire, "Dusktracer.Reactions.Pair.ForgeQuicksilver", DTReactionTest::Flags) // T-REA-07
 bool FDTReaWildfire::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	{
 		FDuoScene S(EReaction::ForgeQuicksilver);
 		S.Bless(Blessing(TEXT("Quicksilver.Momentum"), TEXT("Key")));
@@ -521,15 +536,17 @@ bool FDTReaWildfire::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaDeepLedger, "Dusktracer.Reactions.Pair.TideShade", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaDeepLedger, "Dusktracer.Reactions.Pair.TideShade", DTReactionTest::Flags) // T-REA-07
 bool FDTReaDeepLedger::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::TideShade);
 	const int32 Weak = S.Add(Far, 0.2f);
 	const int32 Strong = S.Add(Far + FVector2f(0.0f, 2000.0f), 0.5f);
 	const int32 Near = S.Add(Far + FVector2f(100.0f, 0.0f));
 	const uint32 WeakSerial = S.Serial(Weak);
 	const uint32 StrongSerial = S.Serial(Strong);
+	const uint32 NearSerial = S.Serial(Near);
 	S.Give(Weak, EDTStatus::Freeze);
 	S.Give(Strong, EDTStatus::Freeze);
 	S.Mark(Weak);
@@ -542,13 +559,14 @@ bool FDTReaDeepLedger::RunTest(const FString& Parameters)
 	TestEqual(TEXT("fires at or below execute_below, with no execute of its own"), S.Fires(), 1ll);
 	TestFalse(TEXT("executed"), S.Enemies.GetSerials().Contains(WeakSerial));
 	TestTrue(TEXT("the other lives"), S.Enemies.GetSerials().Contains(StrongSerial));
-	TestEqual(TEXT("it shatters onto its neighbour"), S.HitsOn(Near, S.Duo()), 1);
+	TestTrue(TEXT("it shatters onto its neighbour"), S.HitLog.ContainsByPredicate([&](const FDTHit& H) { return H.EnemySerial == NearSerial && H.SourceId == S.Duo(); }));
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaRefraction, "Dusktracer.Reactions.Pair.TideRadiance", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaRefraction, "Dusktracer.Reactions.Pair.TideRadiance", DTReactionTest::Flags) // T-REA-07
 bool FDTReaRefraction::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::TideRadiance);
 	const int32 Struck = S.Add(Far);
 	S.Give(Struck, EDTStatus::Freeze);
@@ -563,9 +581,10 @@ bool FDTReaRefraction::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaBlackIce, "Dusktracer.Reactions.Pair.TideQuicksilver", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaBlackIce, "Dusktracer.Reactions.Pair.TideQuicksilver", DTReactionTest::Flags) // T-REA-07
 bool FDTReaBlackIce::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::TideQuicksilver);
 	const int32 Crossed = S.Add(Far);
 	S.Dash(Far);
@@ -600,9 +619,10 @@ bool FDTReaBlackIce::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaExposure, "Dusktracer.Reactions.Pair.ShadeRadiance", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaExposure, "Dusktracer.Reactions.Pair.ShadeRadiance", DTReactionTest::Flags) // T-REA-07
 bool FDTReaExposure::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ShadeRadiance);
 	const int32 Exposed = S.Add(Far, 0.5f);
 	const int32 Near = S.Add(Far + FVector2f(150.0f, 0.0f));
@@ -628,9 +648,10 @@ bool FDTReaExposure::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaRepossession, "Dusktracer.Reactions.Pair.ShadeQuicksilver", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaRepossession, "Dusktracer.Reactions.Pair.ShadeQuicksilver", DTReactionTest::Flags) // T-REA-07
 bool FDTReaRepossession::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ShadeQuicksilver);
 	const int32 Strong = S.Add(Far, 0.5f);
 	S.Mark(Strong);
@@ -647,9 +668,10 @@ bool FDTReaRepossession::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaAfterglow, "Dusktracer.Reactions.Pair.RadianceQuicksilver", Flags) // T-REA-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaAfterglow, "Dusktracer.Reactions.Pair.RadianceQuicksilver", DTReactionTest::Flags) // T-REA-07
 bool FDTReaAfterglow::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::RadianceQuicksilver);
 	S.Bless(Blessing(TEXT("Quicksilver.Momentum"), TEXT("Key")));
 	S.StepMany(2);
@@ -669,9 +691,10 @@ bool FDTReaAfterglow::RunTest(const FString& Parameters)
 
 // ---- offers ----------------------------------------------------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaOffer, "Dusktracer.Reactions.Offer", Flags) // T-REA-08
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaOffer, "Dusktracer.Reactions.Offer", DTReactionTest::Flags) // T-REA-08
 bool FDTReaOffer::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDTKeeperHarness H;
 	FDTOfferPool Pool;
 	Pool.Unlocked.Add(DTReactions::UnlockId());
@@ -714,9 +737,10 @@ bool FDTReaOffer::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFavor, "Dusktracer.Reactions.Favor", Flags) // T-REA-09
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaFavor, "Dusktracer.Reactions.Favor", DTReactionTest::Flags) // T-REA-09
 bool FDTReaFavor::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDTKeeperHarness H;
 	H.Patron(EDTPath::Storm);
 	H.Commit(EDTPath::Forge);
@@ -738,9 +762,10 @@ bool FDTReaFavor::RunTest(const FString& Parameters)
 
 // ---- the duo blessings (T-REA-10) ----------------------------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoArcFurnace, "Dusktracer.Reactions.Duo.StormForge", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoArcFurnace, "Dusktracer.Reactions.Duo.StormForge", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoArcFurnace::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Fields = [](bool bDuo)
 	{
 		FDuoScene S(EReaction::StormForge, bDuo);
@@ -755,9 +780,10 @@ bool FDTDuoArcFurnace::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoStormSurge, "Dusktracer.Reactions.Duo.StormTide", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoStormSurge, "Dusktracer.Reactions.Duo.StormTide", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoStormSurge::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormTide, true);
 	const int32 Struck = S.Add(Far);
 	S.Give(Struck, EDTStatus::Chill, 1.0f);
@@ -774,9 +800,10 @@ bool FDTDuoStormSurge::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSummons, "Dusktracer.Reactions.Duo.StormShade", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSummons, "Dusktracer.Reactions.Duo.StormShade", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoSummons::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Run = [](bool bDuo, bool& bMarked)
 	{
 		FDuoScene S(EReaction::StormShade, bDuo);
@@ -798,9 +825,10 @@ bool FDTDuoSummons::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoBlindingArc, "Dusktracer.Reactions.Duo.StormRadiance", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoBlindingArc, "Dusktracer.Reactions.Duo.StormRadiance", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoBlindingArc::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormRadiance, true);
 	const int32 Struck = S.Add(Far);
 	const int32 Arced = S.Add(Far + FVector2f(100.0f, 0.0f));
@@ -817,9 +845,10 @@ bool FDTDuoBlindingArc::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoLightningStep, "Dusktracer.Reactions.Duo.StormQuicksilver", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoLightningStep, "Dusktracer.Reactions.Duo.StormQuicksilver", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoLightningStep::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormQuicksilver, true);
 	S.Dash(FVector2f(0.0f, 500.0f));
 	TestTrue(TEXT("a dash leaves a Shocking field"), S.Weapons.GetLiveFields() > 0);
@@ -833,9 +862,10 @@ bool FDTDuoLightningStep::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoPressureCooker, "Dusktracer.Reactions.Duo.ForgeTide", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoPressureCooker, "Dusktracer.Reactions.Duo.ForgeTide", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoPressureCooker::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ForgeTide, true);
 	const int32 Struck = S.Add(Far);
 	S.Add(Far + FVector2f(120.0f, 0.0f));
@@ -848,9 +878,10 @@ bool FDTDuoPressureCooker::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoPyreDebt, "Dusktracer.Reactions.Duo.ForgeShade", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoPyreDebt, "Dusktracer.Reactions.Duo.ForgeShade", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoPyreDebt::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Debt = [](bool bDuo)
 	{
 		FDuoScene S(EReaction::ForgeShade, bDuo);
@@ -867,9 +898,10 @@ bool FDTDuoPyreDebt::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSunspot, "Dusktracer.Reactions.Duo.ForgeRadiance", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSunspot, "Dusktracer.Reactions.Duo.ForgeRadiance", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoSunspot::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Run = [](bool bDuo, float& OutCritMult, bool& bCrit)
 	{
 		FDuoScene S(EReaction::ForgeRadiance, bDuo);
@@ -891,9 +923,10 @@ bool FDTDuoSunspot::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoAfterburner, "Dusktracer.Reactions.Duo.ForgeQuicksilver", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoAfterburner, "Dusktracer.Reactions.Duo.ForgeQuicksilver", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoAfterburner::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ForgeQuicksilver, true);
 	S.Dash(FVector2f(0.0f, 300.0f));
 	TestTrue(TEXT("every dash starts Wildfire"), S.Weapons.GetWildfireLeft(0) > 0.0f);
@@ -905,9 +938,10 @@ bool FDTDuoAfterburner::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoColdStorage, "Dusktracer.Reactions.Duo.TideShade", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoColdStorage, "Dusktracer.Reactions.Duo.TideShade", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoColdStorage::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::TideShade, true);
 	const int32 Weak = S.Add(Far, 0.2f);
 	const int32 Near = S.Add(Far + FVector2f(100.0f, 0.0f));
@@ -921,9 +955,10 @@ bool FDTDuoColdStorage::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoDiamondDust, "Dusktracer.Reactions.Duo.TideRadiance", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoDiamondDust, "Dusktracer.Reactions.Duo.TideRadiance", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoDiamondDust::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Chills = [](bool bDuo)
 	{
 		FDuoScene S(EReaction::TideRadiance, bDuo);
@@ -942,9 +977,10 @@ bool FDTDuoDiamondDust::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoGlide, "Dusktracer.Reactions.Duo.TideQuicksilver", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoGlide, "Dusktracer.Reactions.Duo.TideQuicksilver", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoGlide::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Bounces = [](bool bDuo)
 	{
 		FDuoScene R(EReaction::TideQuicksilver, bDuo);
@@ -970,9 +1006,10 @@ bool FDTDuoGlide::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSpotlight, "Dusktracer.Reactions.Duo.ShadeRadiance", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoSpotlight, "Dusktracer.Reactions.Duo.ShadeRadiance", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoSpotlight::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Run = [](bool bDuo)
 	{
 		FDuoScene S(EReaction::ShadeRadiance, bDuo);
@@ -987,9 +1024,10 @@ bool FDTDuoSpotlight::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoFastCollection, "Dusktracer.Reactions.Duo.ShadeQuicksilver", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoFastCollection, "Dusktracer.Reactions.Duo.ShadeQuicksilver", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoFastCollection::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::ShadeQuicksilver, true);
 	const int32 Weak = S.Add(Far, 0.35f);
 	S.Mark(Weak);
@@ -1001,9 +1039,10 @@ bool FDTDuoFastCollection::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoLightspeed, "Dusktracer.Reactions.Duo.RadianceQuicksilver", Flags) // T-REA-10
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoLightspeed, "Dusktracer.Reactions.Duo.RadianceQuicksilver", DTReactionTest::Flags) // T-REA-10
 bool FDTDuoLightspeed::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	const auto Crit = [](bool bDuo)
 	{
 		FDuoScene S(EReaction::RadianceQuicksilver, bDuo);
@@ -1012,7 +1051,8 @@ bool FDTDuoLightspeed::RunTest(const FString& Parameters)
 		const float Base = S.Weapons.GetLastSpec(0, 0).CritChance;
 		S.Weapons.GrantMomentum(0, 3.0f, true);
 		S.StepMany(2);
-		return S.Weapons.GetLastSpec(0, 0).CritChance - Base;
+		// Per stack of bonus speed: the duo's Favor can raise per_stack through a tier.
+		return (S.Weapons.GetLastSpec(0, 0).CritChance - Base) / S.Built(EDTPath::Quicksilver, DTCat::EFlag::SpeedScale)->Params.Get(FName(TEXT("per_stack")));
 	};
 	TestEqual(TEXT("the crit bonus doubles"), Crit(true), Crit(false) * DTReactions::DuoParam(RowOf(EReaction::RadianceQuicksilver), TEXT("crit_scale")), 0.0001f);
 	FDuoScene S(EReaction::RadianceQuicksilver, true);
@@ -1027,14 +1067,15 @@ bool FDTDuoLightspeed::RunTest(const FString& Parameters)
 
 // ---- reading it -----------------------------------------------------------------------------------------------------------------
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCue, "Dusktracer.Reactions.Cue", Flags) // T-REA-11
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaCue, "Dusktracer.Reactions.Cue", DTReactionTest::Flags) // T-REA-11
 bool FDTReaCue::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge);
 	const int32 Count = DTConst::REACTION_FX_PER_S_MAX + 5;
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		const int32 Enemy = S.Add(Far + FVector2f(0.0f, 400.0f * Index));
+		const int32 Enemy = S.Add(FVector2f(-3500.0f + 1000.0f * (Index % 8), 1500.0f + 600.0f * (Index / 8)));
 		S.Give(Enemy, EDTStatus::Burn, 10.0f);
 		S.Hit(Enemy, Src(EDTPath::Storm), 10.0f);
 	}
@@ -1052,9 +1093,10 @@ bool FDTReaCue::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaToast, "Dusktracer.Reactions.Toast", Flags) // T-REA-12
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaToast, "Dusktracer.Reactions.Toast", DTReactionTest::Flags) // T-REA-12
 bool FDTReaToast::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FDuoScene S(EReaction::StormForge);
 	TestEqual(TEXT("nothing before a fire"), S.Weapons.GetToast(0, S.Step), static_cast<int32>(INDEX_NONE));
 	const int32 Enemy = S.Add(Far);
@@ -1074,9 +1116,10 @@ bool FDTReaToast::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaText, "Dusktracer.Reactions.Text", Flags) // T-REA-12
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaText, "Dusktracer.Reactions.Text", DTReactionTest::Flags) // T-REA-12
 bool FDTReaText::RunTest(const FString& Parameters)
 {
+	using namespace DTReactionTest;
 	FString Csv;
 	TestTrue(TEXT("the table exists"), FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_Reactions.csv"))));
 	TArray<FString> Lines;

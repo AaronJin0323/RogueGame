@@ -37,6 +37,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
+	/** Logs fires and damage per player and pair (DT.Reactions.Stats, and at shutdown so a perf scene can prove them). */
+	void LogReactions() const;
 
 	// IDTSimSystem (EDTSimPhase::Effects)
 	virtual void SimStep(const FDTSimContext& Context) override;

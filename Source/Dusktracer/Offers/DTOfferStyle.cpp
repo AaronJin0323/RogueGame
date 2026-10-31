@@ -1,4 +1,5 @@
 #include "Offers/DTOfferStyle.h"
+#include "Keepers/DTReactions.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
@@ -13,6 +14,8 @@ namespace DTOfferStyleLocal
 	const TCHAR* const ColumnNames[] = { TEXT("Key"), TEXT("Amp1"), TEXT("Amp2"), TEXT("Trait") };
 	const TCHAR* const UiTable = TEXT("ST_UI");
 	const TCHAR* const KeepersTable = TEXT("ST_Keepers");
+
+	const TCHAR* const ReactionsTable = TEXT("ST_Reactions");
 	const TCHAR* const WeaponsTable = TEXT("ST_Weapons");
 	const TCHAR* const ModifiersTable = TEXT("ST_Modifiers");
 	const TCHAR* const KeywordsTable = TEXT("ST_Keywords");
@@ -157,6 +160,13 @@ static bool DTOfferTextKey(const FDTOfferCard& Card, const TCHAR* Suffix, FStrin
 	case EDTCardKind::Blessing:
 	{
 		const FDTBlessingInfo Info = DTOffers::FindBlessing(Card.ContentId);
+		const int32 Duo = DTReactions::FindDuo(Card.ContentId);
+		if (Duo != INDEX_NONE)
+		{
+			OutTable = ReactionsTable;
+			OutKey = FString::Printf(TEXT("Duo.%s.%s"), DTCat::Reactions[Duo].Pair, Suffix);
+			return true;
+		}
 		if (!Info.IsValid())
 		{
 			return false;
@@ -233,7 +243,20 @@ FText DTOfferText::Desc(const FDTOfferCard& Card)
 	{
 		// Every numeric parameter of the effect spec: raw, as a percentage and, for uu distances, in metres.
 		const FDTBlessingInfo Info = DTOffers::FindBlessing(Card.ContentId);
-		for (const TPair<FString, double>& Param : DTOffers::SpecParams(DTCat::Archetypes[Info.Archetype].Effects[Info.Column]))
+		const int32 Duo = DTReactions::FindDuo(Card.ContentId);
+		TArray<TPair<FString, double>> Params;
+		if (Duo != INDEX_NONE)
+		{
+			for (int32 Index = 0; Index < DTCat::Reactions[Duo].NumDuoParams; ++Index)
+			{
+				Params.Emplace(DTCat::Reactions[Duo].DuoParams[Index].Name, DTCat::Reactions[Duo].DuoParams[Index].Value);
+			}
+		}
+		else
+		{
+			Params = DTOffers::SpecParams(DTCat::Archetypes[Info.Archetype].Effects[Info.Column]);
+		}
+		for (const TPair<FString, double>& Param : Params)
 		{
 			Args.Add(Param.Key, Number(Param.Value));
 			Args.Add(Param.Key + TEXT("_pct"), Number(FMath::RoundToDouble(Param.Value * Percent)));
@@ -284,6 +307,18 @@ FText DTOfferText::Line(const FDTOfferCard& Card, const FDTPlayerRunState& Playe
 	case EDTCardKind::Blessing:
 	{
 		const FDTBlessingInfo Info = DTOffers::FindBlessing(Card.ContentId);
+		const int32 Duo = DTReactions::FindDuo(Card.ContentId);
+		if (Duo != INDEX_NONE)
+		{
+			FDTOfferCard Keeper;
+			Keeper.Kind = EDTCardKind::Keeper;
+			FFormatNamedArguments Args;
+			Keeper.ContentId = DTOffers::KeeperId(DTCat::Reactions[Duo].PathA);
+			Args.Add(TEXT("A"), Name(Keeper));
+			Keeper.ContentId = DTOffers::KeeperId(DTCat::Reactions[Duo].PathB);
+			Args.Add(TEXT("B"), Name(Keeper));
+			return FText::Format(FromTable(ReactionsTable, TEXT("Duo.Plaque")), Args);
+		}
 		if (!Info.IsValid())
 		{
 			return FText::GetEmpty();

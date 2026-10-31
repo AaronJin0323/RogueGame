@@ -1,4 +1,7 @@
 #include "Game/DTHUD.h"
+#include "Core/DTCatalogGen.h"
+#include "Combat/DTWeaponSubsystem.h"
+#include "Keepers/DTReactions.h"
 #include "CanvasItem.h"
 #include "ChartCreation.h"
 #include "Engine/Canvas.h"
@@ -285,6 +288,27 @@ void ADTHUD::DrawHUD()
 			Canvas->TextSize(Font, Line.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
 			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx), Line, Font, DTHUDLocal::UIText);
 			Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+			Item.EnableShadow(FLinearColor::Black);
+			Canvas->DrawItem(Item);
+		}
+	}
+
+	// A reaction's first fire, under the banner (reactions.md R-REA-12).
+	if (const UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr)
+	{
+		const UDTSimSubsystem* SimSys = GetWorld()->GetSubsystem<UDTSimSubsystem>();
+		const int32 Row = SimSys ? Weapons->GetSim().GetToast(0, SimSys->GetStepIndex()) : INDEX_NONE;
+		if (Row != INDEX_NONE)
+		{
+			const FString Pair(DTCat::Reactions[Row].Pair);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Name"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Name")));
+			Args.Add(TEXT("Toast"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Toast")));
+			const FText Line = FText::Format(FText::FromStringTable(TEXT("ST_Reactions"), TEXT("Toast.Format")), Args);
+			float Width = 0.0f;
+			float Height = 0.0f;
+			Canvas->TextSize(Font, Line.ToString(), Width, Height, 1.0f, 1.0f);
+			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx + 2.0f * Height), Line, Font, DTHUDLocal::UIText);
 			Item.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(Item);
 		}

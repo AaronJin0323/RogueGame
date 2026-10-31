@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/Function.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
 #include "Combat/DTBulletPool.h"
@@ -544,7 +545,7 @@ private:
 	/** Up to Count enemies within Range of From, nearest first; Filter says which. */
 	void NearestEnemies(const FDTWorldView& View, const FVector2f& From, float Range, int32 Count, uint32 Skip, TFunctionRef<bool(int32)> Filter, TArray<int32>& Out) const;
 	void CaptureDuoHits(const FDTWorldView& View);
-	void ReactDuoKills(const FDTSimContext& Context);
+	void ReactDuoKills(const FDTSimContext& Context, FDTBulletPool* Bullets);
 	void StepDuos(const FDTSimContext& Context, FDTBulletPool* Bullets);
 	void ReactDuoHit(const FDTSimContext& Context, FDTBulletPool* Bullets, FPlayerRuntime& Player, const FDuoHit& Hit, int32 Enemy);
 	void StepDuoDash(const FDTSimContext& Context, FPlayerRuntime& Player, int32 OwnerId);

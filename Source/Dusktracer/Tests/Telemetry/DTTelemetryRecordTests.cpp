@@ -552,4 +552,25 @@ bool FDTTelStaleSerial::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReaTelemetry, "Dusktracer.Reactions.Telemetry", DTTelRecordTest::Flags) // T-REA-12
+bool FDTReaTelemetry::RunTest(const FString& Parameters)
+{
+	using namespace DTTelRecordTest;
+	FDTTelemetryCore Core;
+	Core.Start(MakeConfig(1));
+	Core.RecordReaction(0, TEXT("StormForge"), 2, 30.0f, true);
+	Core.RecordReaction(0, TEXT("StormForge"), 1, 10.5f, false);
+	Steps(Core, 0, StepsPerInterval());
+	FString Csv;
+	FString Jsonl;
+	Finish(Core, Csv, Jsonl);
+	const TArray<FString> First = OfKind(Jsonl, TEXT("reaction_first"));
+	TestEqual(TEXT("one first"), First.Num(), 1);
+	TestTrue(TEXT("names its pair"), First.IsValidIndex(0) && First[0].Contains(TEXT("\"pair\":\"StormForge\"")));
+	const TArray<FString> Lines = OfKind(Jsonl, TEXT("reaction"));
+	TestEqual(TEXT("one record per interval"), Lines.Num(), 1);
+	TestTrue(TEXT("fires and damage"), Lines.IsValidIndex(0) && Lines[0].Contains(TEXT("\"fires\":{\"StormForge\":3},\"damage\":{\"StormForge\":40.5000}")));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

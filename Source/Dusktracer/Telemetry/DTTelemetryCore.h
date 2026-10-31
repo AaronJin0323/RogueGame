@@ -141,6 +141,8 @@ public:
 	void RecordKeeperCommit(int32 Owner, EDTTelKeeperRole Role, EDTPath Path, FName PrimaryLeading);
 	/** Status procs; aggregated into one status{applied{}} record per player at each interval end. */
 	void RecordStatusApplied(int32 Owner, EDTStatus Status, int32 Count = 1);
+	/** A step's fires and damage of a pair; bFirst writes reaction_first (reactions.md). */
+	void RecordReaction(int32 Owner, FName Pair, int32 Fires, float Damage, bool bFirst);
 	void RecordIntercession(int32 Owner, const FDTTelIntercession& Cast);
 
 	// combat_core.md
@@ -202,6 +204,12 @@ private:
 		int32 Throttled = 0;
 	};
 
+	struct FReactionInterval
+	{
+		int32 Fires = 0;
+		double Damage = 0.0;
+	};
+
 	struct FPlayerInterval
 	{
 		int32 Kills = 0;
@@ -212,6 +220,7 @@ private:
 		int32 ThreatActions = 0;
 		int32 IntercessionDenied = 0;
 		int32 StatusApplied[static_cast<int32>(EDTStatus::Count)] = {};
+		TMap<FName, FReactionInterval> Reactions;
 		int32 Level = 1;
 		int64 XpTotal = 0;
 		EDTTelInputDevice InputDevice = EDTTelInputDevice::Unknown;

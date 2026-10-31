@@ -34,7 +34,9 @@ enum class EDTTelBlessingRole : uint8
 {
 	Key,
 	Amp,
-	Trait
+	Trait,
+	/** A duo card (reactions.md). */
+	Duo
 };
 
 /** keeper_pick (keepers.md §Telemetry), one per blessing taken. */

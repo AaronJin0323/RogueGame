@@ -326,6 +326,10 @@ EDTWeaponResult UDTWeaponSubsystem::Socket(int32 OwnerId, FName WeaponId, FName 
 
 bool UDTWeaponSubsystem::IsInPool(FName Id) const
 {
+	if (Id == DTReactions::UnlockId())
+	{
+		return Unlocked.Contains(Id);
+	}
 	const int32 Weapon = DTWeapons::FindWeapon(Id);
 	if (Weapon != INDEX_NONE)
 	{

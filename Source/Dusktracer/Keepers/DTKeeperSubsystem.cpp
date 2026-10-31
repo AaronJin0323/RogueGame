@@ -79,8 +79,26 @@ void UDTKeeperSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	}
 }
 
+void UDTKeeperSubsystem::LogReactions() const
+{
+	const UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+	const FDTRunState* Run = GetRun();
+	for (int32 Owner = 0; Weapons && Run && Owner < Run->GetNumPlayers(); ++Owner)
+	{
+		for (int32 Row = 0; Row < DTCat::NumReactions; ++Row)
+		{
+			const FDTReactionCounters& Counters = Weapons->GetSim().GetReactionCounters(Owner, Row);
+			if (Counters.Fires > 0)
+			{
+				UE_LOG(LogDT, Log, TEXT("Reactions p%d: %s fires %lld damage %.0f"), Owner, DTCat::Reactions[Row].Pair, Counters.Fires, Counters.Damage);
+			}
+		}
+	}
+}
+
 void UDTKeeperSubsystem::Deinitialize()
 {
+	LogReactions();
 	if (UDTSimSubsystem* SimSys = SimSubsystem.Get())
 	{
 		SimSys->Unregister(this);
@@ -194,11 +212,14 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 			if (const FDTHeroState* State = Hero->GetState(OwnerId))
 			{
 				const FDTKeeperSim::FHeroRiders Riders = Sim.GetHeroRiders(OwnerId);
-				if (State->Stats.DashCooldownMul != Riders.DashCooldownMul || State->Stats.DashChargesBonus != Riders.DashCharges)
+				const FDTDuoHero Duo = Weapons->GetSim().GetDuoHero(OwnerId); // reactions.md
+				const int32 Charges = Riders.DashCharges + Duo.DashCharges;
+				if (State->Stats.DashCooldownMul != Riders.DashCooldownMul || State->Stats.DashChargesBonus != Charges || State->Stats.MoveSpeedMul != Duo.MoveSpeedMul)
 				{
 					FDTHeroStats Stats = State->Stats;
 					Stats.DashCooldownMul = Riders.DashCooldownMul;
-					Stats.DashChargesBonus = Riders.DashCharges;
+					Stats.DashChargesBonus = Charges;
+					Stats.MoveSpeedMul = Duo.MoveSpeedMul;
 					Hero->SetStats(OwnerId, Stats);
 				}
 				if (const float Refund = Weapons->GetSim().TakeDashRefund(OwnerId))
@@ -213,12 +234,15 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 		}
 	}
 	TArray<FDTKeeperCastRecord> Casts = Sim.TakeFinishedCasts();
-	if (Casts.Num() == 0)
-	{
-		return;
-	}
 	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
 	{
+		if (Weapons)
+		{
+			for (const FDTReactionEvent& Event : Weapons->GetSim().TakeReactionEvents())
+			{
+				Telemetry->Records().RecordReaction(Event.OwnerId, FName(DTCat::Reactions[Event.Row].Pair), Event.Fires, Event.Damage, Event.bFirst);
+			}
+		}
 		for (const FDTKeeperCastRecord& Cast : Casts)
 		{
 			Telemetry->Records().RecordIntercession(Cast.OwnerId, Cast.Record);

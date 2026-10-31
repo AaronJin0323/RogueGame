@@ -384,6 +384,33 @@ bool FDTEnemyPool::ApplyStatus(const FDTStatusApply& Apply)
 	const bool bBoss = Role[Index] == EDTEnemyRole::Boss;
 	const float FreezeSeconds = DTConst::STATUS_FREEZE_S * FMath::Max(0.0f, Apply.FreezeScale);
 
+	if (Apply.bConsume)
+	{
+		// reactions.md R-REA-07: a reaction spends the status; this pool owns its state.
+		switch (Apply.Status)
+		{
+		case EDTStatus::Shock:
+			A.ShockLeft = 0.0f;
+			break;
+		case EDTStatus::Burn:
+			for (FDTBurnStack& Stack : A.Burn)
+			{
+				Stack.Left = 0.0f;
+			}
+			break;
+		case EDTStatus::Chill:
+			A.ChillStacks = 0;
+			A.ChillLeft = 0.0f;
+			break;
+		case EDTStatus::Freeze:
+			A.FreezeLeft = 0.0f;
+			break;
+		default:
+			break;
+		}
+		return true;
+	}
+
 	switch (Apply.Status)
 	{
 	case EDTStatus::Shock:

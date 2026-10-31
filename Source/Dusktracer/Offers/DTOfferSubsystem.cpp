@@ -1,4 +1,5 @@
 #include "Offers/DTOfferSubsystem.h"
+#include "Keepers/DTReactions.h"
 #include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
@@ -174,6 +175,10 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 		{
 			Pool.Unlocked.Add(DTWeapons::ModifierId(Mod));
 		}
+	}
+	if (Weapons->IsInPool(DTReactions::UnlockId()))
+	{
+		Pool.Unlocked.Add(DTReactions::UnlockId()); // reactions.md R-REA-02
 	}
 	for (const EDTPath Path : DTOffers::AllKeepers())
 	{
@@ -506,6 +511,19 @@ bool UDTOfferSubsystem::Pick(int32 OwnerId, int32 Slot)
 			Rec.Favor = Player.Keepers.Favor[static_cast<int32>(Info.Path)];
 			Rec.Tier = Player.Keepers.Tier[static_cast<int32>(Info.Path)];
 			Rec.Leading = Player.Keepers.Leading[static_cast<int32>(Info.Path)];
+			Telemetry->Records().RecordKeeperPick(OwnerId, Rec);
+		}
+		const int32 Duo = DTReactions::FindDuo(Outcome.Blessing);
+		if (Telemetry && Duo != INDEX_NONE)
+		{
+			const EDTPath First = DTCat::Reactions[Duo].PathA;
+			FDTTelKeeperPick Rec;
+			Rec.Blessing = Outcome.Blessing;
+			Rec.Path = First;
+			Rec.Role = EDTTelBlessingRole::Duo;
+			Rec.Favor = Player.Keepers.Favor[static_cast<int32>(First)];
+			Rec.Tier = Player.Keepers.Tier[static_cast<int32>(First)];
+			Rec.Leading = Player.Keepers.Leading[static_cast<int32>(First)];
 			Telemetry->Records().RecordKeeperPick(OwnerId, Rec);
 		}
 		OnBlessingTaken.Broadcast(OwnerId, Outcome.Blessing);

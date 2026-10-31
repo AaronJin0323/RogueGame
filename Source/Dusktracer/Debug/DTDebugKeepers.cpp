@@ -192,6 +192,17 @@ namespace DTDebugKeepers
 		UE_LOG(LogDT, Log, TEXT("DT.Intercede player %d: meter filled, cast at the next step"), Player);
 	}
 
+	static void Reactions(const TArray<FString>& Args, UWorld* World)
+	{
+		if (UDTKeeperSubsystem* Keepers = Find(World))
+		{
+			Keepers->LogReactions();
+		}
+	}
+
+	static FAutoConsoleCommandWithWorldAndArgs ReactionsCmd(TEXT("DT.Reactions.Stats"),
+		TEXT("DT.Reactions.Stats: per player and pair, reaction fires and damage (reactions.md)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Reactions));
 	static FAutoConsoleCommandWithWorldAndArgs BlessCmd(TEXT("DT.Bless"),
 		TEXT("DT.Bless <BlessingId> [player]: grant a blessing (e.g. Blessing.Storm.Tempest.Key) and rebuild the Keeper flags"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Bless));

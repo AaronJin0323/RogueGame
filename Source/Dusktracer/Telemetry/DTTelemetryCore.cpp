@@ -534,6 +534,7 @@ void FDTTelemetryCore::ResetInterval()
 		P.ThreatActions = 0;
 		P.IntercessionDenied = 0;
 		FMemory::Memzero(P.StatusApplied);
+		P.Reactions.Reset();
 		for (TPair<uint16, FWeaponInterval>& Weapon : P.Weapons)
 		{
 			Weapon.Value.Spawned = 0;

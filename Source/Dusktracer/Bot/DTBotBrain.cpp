@@ -1,4 +1,5 @@
 #include "Bot/DTBotBrain.h"
+#include "Keepers/DTReactions.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Misc/Crc.h"
@@ -35,6 +36,8 @@ namespace DTBotTuning
 	constexpr float IntercessionRadiusUU = 700.0f;
 	/** Bot v1, skill 0: a decision every this many seconds of reaction delay; movement and aim noise in degrees. */
 	constexpr float MaxReactionS = 0.25f;
+	/** A duo card (reactions.md): above an off-archetype blessing, under the arm's own cards. */
+	constexpr float DuoScore = 66.0f;
 	constexpr float MaxMoveNoiseDeg = 35.0f;
 	constexpr float MaxAimNoiseDeg = 20.0f;
 	constexpr int32 SeedSalt = 0x0B07;
@@ -739,7 +742,7 @@ float FDTBotBrain::CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 		const FDTBlessingInfo Info = DTOffers::FindBlessing(Card.ContentId);
 		if (!Info.IsValid())
 		{
-			return 20.0f;
+			return DTReactions::FindDuo(Card.ContentId) != INDEX_NONE ? DTBotTuning::DuoScore : 20.0f;
 		}
 		const FString Arch = FString(DTCat::Archetypes[Info.Archetype].Id);
 		const bool bMine = Info.Path == Config.Path && !Config.Archetype.IsNone() && Arch.EndsWith(FString(TEXT(".")) + Config.Archetype.ToString());
