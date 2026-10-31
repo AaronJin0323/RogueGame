@@ -10,6 +10,9 @@ public class Dusktracer : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// One float mode in every target, so a seed plays the same in the editor and in a package (07_Technical R-TEC-15).
+		FPSemantics = FPSemanticsMode.Precise;
+
 		// Subfolders (Core/, Combat/, ...) are include roots: #include "Combat/DTBulletSubsystem.h".
 		PublicIncludePaths.Add(ModuleDirectory);
 
