@@ -124,7 +124,10 @@ function Start-Run($Label, $Seed, $Extra) {
 
 if ($Jobs) {
 	foreach ($Job in (Import-Csv $Jobs)) {
-		$RunDir = Start-Run $Job.label $Job.seed @("-DTBot=Steered", "-DTNoDirector", "-DTProbe=`"$($Job.script)`"")
+		# A scene's S2 Keepers need their unlock too (keepers.md R-KEE-23), or the Patron hand gives the run a Keeper of its own.
+		$Named = @(Get-Content $Job.script | Where-Object { $_ -match '^(patron|second) ' } | ForEach-Object { ($_ -split ' ')[1] } | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
+		$Extra = @("-DTBot=Steered", "-DTNoDirector", "-DTProbe=`"$($Job.script)`"") + $(if ($Named.Count) { @("-DTUnlock=" + ($Named -join ',')) } else { @() })
+		$RunDir = Start-Run $Job.label $Job.seed $Extra
 		Copy-Item $Job.script (Join-Path $RunDir "scene.txt")
 	}
 	Reap-Runs 1

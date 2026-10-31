@@ -9,6 +9,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/DTConstantsGen.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
 #include "Keepers/DTKeeperSpec.h"
@@ -55,6 +56,8 @@ public:
 	/** Seconds left of OwnerId's cast that scales enemy time (R-KEE-37), and its whole length; 0 with none running. */
 	float GetDilationLeft(int32 OwnerId) const;
 	float GetDilationTotal(int32 OwnerId) const;
+	/** The scale the next Quicksilver cast reads; C.INTERCESSION.QUICKSILVER_TIME_SCALE unless a test or dt.Exp.DilationScale sets it. */
+	void SetDilationScale(float Scale) { DilationScale = Scale; }
 
 	// --- the step --------------------------------------------------------------------------------------------------------
 	/** EDTSimPhase::Bullets, after the pool stepped: copies the player hits ResolveHits will apply (Enemies: frozen state, optional). */
@@ -146,6 +149,7 @@ private:
 	/** The strongest per-hit damage among OwnerId's weapons (Slam's dmg_ratio basis, keepers.md Data). */
 	float StrongestDamage(const FDTSimContext& Context, int32 OwnerId, const FDTWeaponSim* Weapons) const;
 
+	float DilationScale = static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE);
 	TArray<FPlayer> Players;
 	TArray<FCapturedHit> Captured;
 	TMap<uint32, int32> SerialToIndex;

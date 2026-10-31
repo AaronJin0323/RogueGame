@@ -276,7 +276,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.INTERCESSION.RADIANCE_BEAM_DMG | 0.5 | ratio | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
 | C.INTERCESSION.RADIANCE_FAN_DEG | 60 | deg | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
 | C.INTERCESSION.QUICKSILVER_DURATION_S | 4.0 | s | GATED(S2) | keepers.md, R-KEE-35, T-KEE-35 |
-| C.INTERCESSION.QUICKSILVER_TIME_SCALE | 0.3 | ratio | GATED(S2) | keepers.md, R-KEE-37, T-KEE-37 |
+| C.INTERCESSION.QUICKSILVER_TIME_SCALE | 1.0 | ratio | GATED(S2) | keepers.md, R-KEE-37, T-KEE-37 |
 | C.INTERCESSION.RETUNE_STEP_MAX | 2.0 | × per pass | GATED(S1) | keepers.md R-KEE-15, T-KEE-15 (weak ×2 up, strong ×0.5 down) |
 
 ## Offers and progression (02_Systems/offers.md, progression.md)

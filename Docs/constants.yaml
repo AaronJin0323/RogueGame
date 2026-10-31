@@ -232,7 +232,7 @@ keepers:
   INTERCESSION.RADIANCE_BEAM_DMG:{ value: 0.5, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
   INTERCESSION.RADIANCE_FAN_DEG:{ value: 60, unit: deg, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
   INTERCESSION.QUICKSILVER_DURATION_S:{ value: 4.0, unit: s, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-35, T-KEE-35] }
-  INTERCESSION.QUICKSILVER_TIME_SCALE:{ value: 0.3, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-37, T-KEE-37] }
+  INTERCESSION.QUICKSILVER_TIME_SCALE:{ value: 1.0, unit: ratio, tag: GATED(S2), dependents: [02_Systems/keepers.md, R-KEE-37, T-KEE-37] }
 
 offers:
   OFFER.KEYWORD_NOTES_MAX:     { value: 4, unit: n, tag: GATED(S1), dependents: [02_Systems/offers.md, R-OFF-13, T-OFF-17] }

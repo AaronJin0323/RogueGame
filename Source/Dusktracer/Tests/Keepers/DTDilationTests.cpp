@@ -20,6 +20,8 @@ namespace DTDilationTest
 
 	constexpr int32 Second = DTConst::SIM_FIXED_HZ;
 	constexpr float Half = 0.5f;
+	// The rule is pinned at this scale; the number itself is the constant's (neutral today, keepers.md Open).
+	constexpr float TestScale = 0.3f;
 	constexpr float PosEps = 0.5f;
 
 	/** One pool stepped alone: a far hero, and no weapons, so only enemy time moves it. */
@@ -125,6 +127,7 @@ namespace DTDilationTest
 	static uint32 RunScene(int32 Seed, bool bCast)
 	{
 		FDTKeeperHarness H(Seed);
+		H.Keepers.SetDilationScale(TestScale);
 		H.Patron(EDTPath::Quicksilver);
 		FRandomStream Rng(Seed);
 		for (int32 Index = 0; Index < 30; ++Index)
@@ -166,10 +169,11 @@ namespace DTDilationTest
 DT_DILATION_TEST(FDTDilationScale, "Dilation.Scale") // T-KEE-37
 {
 	using namespace DTDilationTest;
-	const float Scale = static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE);
+	const float Scale = TestScale;
 	const int32 Steps = FMath::RoundToInt(DTConst::INTERCESSION_QUICKSILVER_DURATION_S * Second);
 	{
 		FDTKeeperHarness H;
+		H.Keepers.SetDilationScale(Scale);
 		H.Patron(EDTPath::Quicksilver);
 		H.StepOnce();
 		TestEqual(TEXT("no cast, no scale"), H.View.EnemyTimeScale, 1.0f);
@@ -184,6 +188,7 @@ DT_DILATION_TEST(FDTDilationScale, "Dilation.Scale") // T-KEE-37
 	}
 	{
 		FDTKeeperHarness H;
+		H.Keepers.SetDilationScale(Scale);
 		H.Patron(EDTPath::Storm);
 		H.Keepers.QueueIntercession(0);
 		H.StepMany(2);
@@ -192,6 +197,7 @@ DT_DILATION_TEST(FDTDilationScale, "Dilation.Scale") // T-KEE-37
 	}
 	{
 		FDTKeeperHarness H(7, 2);
+		H.Keepers.SetDilationScale(Scale);
 		H.Patron(EDTPath::Quicksilver, 0);
 		H.Patron(EDTPath::Quicksilver, 1);
 		H.Keepers.QueueIntercession(0);
@@ -513,6 +519,14 @@ DT_DILATION_TEST(FDTHudMeters, "Hud.Meters") // T-KEE-38
 	}
 	{
 		FDTKeeperHarness H;
+		H.Patron(EDTPath::Quicksilver);
+		H.Keepers.QueueIntercession(0);
+		H.StepMany(2);
+		TestNull(TEXT("a neutral cast shows nothing"), Find(Read(H), TEXT("Hud.Dilation")));
+	}
+	{
+		FDTKeeperHarness H;
+		H.Keepers.SetDilationScale(TestScale);
 		H.Patron(EDTPath::Quicksilver);
 		H.Keepers.QueueIntercession(0);
 		H.StepMany(2);

@@ -14,6 +14,10 @@
 
 namespace DTKeeperSubsystemLocal
 {
+#if !UE_BUILD_SHIPPING
+	static TAutoConsoleVariable<float> CVarDilationScale(TEXT("dt.Exp.DilationScale"), -1.0f,
+		TEXT("Experiment, expires 2027-01-31: enemy time during Time Dilation (keepers.md R-KEE-37), 0 to 1; below 0 reads C.INTERCESSION.QUICKSILVER_TIME_SCALE"));
+#endif
 	/** D-015: every player starts owning this weapon at its first level, right after the Patron pick. */
 	static const FName StartingWeapon(TEXT("Weapon.PulseRifle"));
 	constexpr int32 StartingLevel = 1;
@@ -198,6 +202,10 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 {
 	UWorld* World = GetWorld();
 	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+#if !UE_BUILD_SHIPPING
+	const float Experiment = DTKeeperSubsystemLocal::CVarDilationScale.GetValueOnGameThread();
+	Sim.SetDilationScale(Experiment >= 0.0f ? FMath::Min(Experiment, 1.0f) : static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE));
+#endif
 	Sim.StepEffects(Context, Weapons ? &Weapons->GetSim() : nullptr);
 	if (UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr)
 	{

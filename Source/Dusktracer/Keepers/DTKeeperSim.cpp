@@ -613,7 +613,7 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 	}
 	case EDTPath::Quicksilver:
 		// R-KEE-35: enemy time slows (R-KEE-37, published at the end of StepEffects) and every dash of the window fires.
-		Cast.TimeScale = static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE);
+		Cast.TimeScale = DilationScale;
 		if (!Player.Built[Base].Has(DTCat::EFlag::VolleyOnDash))
 		{
 			FDTSpecClause Volley = MakeClause(DTCat::EFlag::VolleyOnDash);

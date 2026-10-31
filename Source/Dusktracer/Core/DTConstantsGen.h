@@ -239,7 +239,7 @@ namespace DTConst
 	inline constexpr float INTERCESSION_RADIANCE_BEAM_DMG = 0.5f; // ratio, GATED(S2)
 	inline constexpr int32 INTERCESSION_RADIANCE_FAN_DEG = 60; // deg, GATED(S2)
 	inline constexpr float INTERCESSION_QUICKSILVER_DURATION_S = 4.0f; // s, GATED(S2)
-	inline constexpr float INTERCESSION_QUICKSILVER_TIME_SCALE = 0.3f; // ratio, GATED(S2)
+	inline constexpr float INTERCESSION_QUICKSILVER_TIME_SCALE = 1.0f; // ratio, GATED(S2)
 	// offers
 	inline constexpr int32 OFFER_KEYWORD_NOTES_MAX = 4; // n, GATED(S1)
 	inline constexpr int32 OFFER_SECOND_KEEPER_LEVEL = 8; // level, CORE
