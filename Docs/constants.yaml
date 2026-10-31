@@ -182,6 +182,14 @@ arena:
   PERF.CAPTURE_FRAMES:         { value: 1800, unit: n,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
   PERF.LOAD_MIN_RATIO:         { value: 0.95, unit: ratio, tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
   PERF.GPU_PROXY_4080_TO_4070: { value: 1.6,  unit: x,     tag: GATED(S4),  dependents: [07_Technical.md, Tools/Perf.ps1, T-TEC-10] }
+  PERF.S2_WARMUP_S:             { value: 20, unit: s, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_ELITES:               { value: 24, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_CROWD_HP_SCALE:       { value: 1000, unit: x, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_HERO_ORBIT_UU:        { value: 900, unit: uu, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_FILL_RATIO:           { value: 0.97, unit: ratio, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_STEAM_MIN_PER_S:      { value: 6, unit: per_s, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_PAIRS_MIN:            { value: 12, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  PERF.S2_ELITES_MIN:           { value: 12, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
 telemetry:
   TEL.INTERVAL_S:              { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-01] }
   TEL.RATE_UNIT_S:             { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }

@@ -8,6 +8,7 @@
 #include "Tests/Keepers/DTKeeperHarness.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
+#include "Debug/DTPerfScene.h"
 #include "Keepers/DTReactions.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -777,6 +778,43 @@ bool FDTDuoArcFurnace::RunTest(const FString& Parameters)
 	};
 	TestEqual(TEXT("no card, no ground"), Fields(false), 0);
 	TestEqual(TEXT("the burst leaves a field"), Fields(true), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDuoFieldEmit, "Dusktracer.Reactions.Duo.FieldEmit", DTReactionTest::Flags) // R-WPN-09, S2_perf.md
+bool FDTDuoFieldEmit::RunTest(const FString& Parameters)
+{
+	using namespace DTReactionTest;
+	FDuoScene S(EReaction::StormForge, true);
+	const int32 Struck = S.Add(Far);
+	S.Give(Struck, EDTStatus::Burn, 10.0f);
+	const int64 Before = S.Weapons.GetCounters(0, 0).Spawned; // the rifle has nothing in reach
+	S.Hit(Struck, Src(EDTPath::Storm), 100.0f);
+	S.StepMany(2);
+	const FDTWeaponCounters& C = S.Weapons.GetCounters(0, 0);
+	TestEqual(TEXT("the field is counted a duo field"), C.DuoFields, static_cast<int64>(1));
+	TestEqual(TEXT("and spends one emission of slot 0"), C.Spawned - Before, static_cast<int64>(1));
+	TestEqual(TEXT("the cap had room"), C.DuoFieldsThrottled, static_cast<int64>(0));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPerfFiller, "Dusktracer.Reactions.PerfFiller", DTReactionTest::Flags) // S2_perf.md
+bool FDTPerfFiller::RunTest(const FString& Parameters)
+{
+	using namespace DTReactionTest;
+	FDuoScene S(EReaction::ForgeTide);
+	const FVector2f At = Far + FVector2f(30.0f, 0.0f);
+	const int32 Enemy = S.Add(At);
+	S.Give(Enemy, EDTStatus::Burn, 0.0f);
+	S.Give(Enemy, EDTStatus::Chill);
+	const float Hp = S.Enemies.GetHp()[Enemy];
+	FDTBulletSpawn Round = DTPerfScene::FillerRound(0.0f);
+	Round.Position = Far;
+	S.Bullets.Spawn(Round);
+	S.StepMany(2);
+	TestTrue(TEXT("the filler collides as a round does"), S.Bullets.GetCounters().Hits > 0);
+	TestEqual(TEXT("it deals nothing"), S.Enemies.GetHp()[Enemy], Hp);
+	TestEqual(TEXT("and starts no reaction on an enemy that is ready for one"), S.Fires(), static_cast<int64>(0));
 	return true;
 }
 

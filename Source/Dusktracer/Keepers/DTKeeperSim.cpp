@@ -1,6 +1,7 @@
 #include "Keepers/DTKeeperSim.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
+#include "Dusktracer.h"
 #include "Enemies/DTEnemyPool.h"
 
 namespace DTKeeperSimLocal
@@ -233,6 +234,7 @@ void FDTKeeperSim::ResetRun()
 
 void FDTKeeperSim::CaptureHits(const FDTSimContext& Context, const FDTEnemyPool* Enemies)
 {
+	CSV_SCOPED_TIMING_STAT(DT, KeeperCapture);
 	if (!Context.Run || !Context.View)
 	{
 		return;
@@ -373,6 +375,7 @@ void FDTKeeperSim::Enchant(const FDTSimContext& Context, FPlayer& Player, const 
 
 void FDTKeeperSim::StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapons)
 {
+	CSV_SCOPED_TIMING_STAT(DT, KeeperEffects);
 	using namespace DTKeeperSimLocal;
 	if (!Context.Run || !Context.View)
 	{

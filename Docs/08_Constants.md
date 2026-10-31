@@ -223,6 +223,14 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PERF.CAPTURE_FRAMES | 1800 | n | CORE | Tools/Perf.ps1, T-TEC-10 |
 | C.PERF.LOAD_MIN_RATIO | 0.95 | ratio | CORE | Tools/Perf.ps1, T-TEC-10 (median live bullets and enemies must reach this share of the caps, or the measurement is void) |
 | C.PERF.GPU_PROXY_4080_TO_4070 | 1.6 | x | GATED(S4) | 07_Technical §5, Tools/Perf.ps1, T-TEC-10 (D-011) |
+| C.PERF.S2_WARMUP_S | 20 | s | CORE | Tools/Perf.ps1 -Scene S2 (the crowd arrives and takes its statuses before the capture) |
+| C.PERF.S2_ELITES | 24 | n | CORE | Debug/DTDebugPerfScene (elites held in the crowd, the six affixes in turn) |
+| C.PERF.S2_CROWD_HP_SCALE | 1000 | x | CORE | Debug/DTDebugPerfScene (a scene setting, no game number: `Docs/Validation/S2_perf.md`) |
+| C.PERF.S2_HERO_ORBIT_UU | 900 | uu | CORE | Debug/DTDebugPerfScene |
+| C.PERF.S2_FILL_RATIO | 0.97 | ratio | CORE | Debug/DTDebugPerfScene (of C.BULLETS.CAP, weapon rounds included) |
+| C.PERF.S2_STEAM_MIN_PER_S | 6 | per_s | CORE | Tools/Perf.ps1 -Scene S2 (the heaviest arm of `S2_duos.md`) |
+| C.PERF.S2_PAIRS_MIN | 12 | n | CORE | Tools/Perf.ps1 -Scene S2 (pairs that fired in the window, of 15) |
+| C.PERF.S2_ELITES_MIN | 12 | n | CORE | Tools/Perf.ps1 -Scene S2 (median live elites) |
 
 
 ## Telemetry (02_Systems/telemetry.md)

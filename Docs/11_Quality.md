@@ -40,7 +40,7 @@ Per-minute CSV (`Saved/Playtests/<seed>_<time>.csv`) and a JSONL event log, both
 Protocol, cadence and the note template: `Harness/H07 §4`, `Harness/templates/validation_note.md`. Notes go to `Docs/Validation/<date>_<stage>.md`; stage findings to `Docs/Validation/findings_S<n>.md`. Pass rules are written in the note before the session.
 
 ## 5. Measurement
-GPU and performance runs hold `Saved/gpu.lock`; readings taken under contention are discarded. Report p50 and p95 against `C.BUDGET.*`. Bot numbers are bounds until calibrated against humans.
+GPU and performance runs hold `Saved/gpu.lock`; readings taken under contention are discarded. Report p50 and p95 against `C.BUDGET.*`. Bot numbers are bounds until calibrated against humans. A scene proves its load from counts taken in the capture window, never from its settings (`Tools/Perf.ps1 -Scene S2`, `Docs/Validation/S2_perf.md`).
 
 ## 6. Release checklist
 `Harness/H07 §7`, plus: secret scan clean; licence log complete for every shipped asset.

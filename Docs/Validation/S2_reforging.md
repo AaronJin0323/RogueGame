@@ -135,5 +135,5 @@ Spawned XP over model 0.789 against 0.789; runs at 30 decisions or more 58 again
 - Under the arm Quicksilver/Rebound:Storm fell from 15 wins to 12 and Radiance/Lance:Storm to 13: evolving a Rifle may strip what their Keeper cards need. Not traced.
 - Against the control Radiance/Solar:Tide fell from 11 at the boss to 8, Whirlpool from 5 to 2, Shade/Economy from 15 to 13. 15 seeds, not separated from noise; these arms lean on Keeper hits, so the slot fix may matter there.
 - Zenith's boss time drops by a quarter on 28 runs: the one row that shows in any number.
-- The perf scene owns no Reforging card: Shades, lances and rings are unmeasured at caps.
+- Shades, lances and rings at the caps: `S2_perf.md`.
 - A human, on any of this.

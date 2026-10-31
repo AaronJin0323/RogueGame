@@ -54,7 +54,7 @@ T-KEE-15 and T-KEE-18 were not reread: their probes do not unlock reactions, and
 | Caps with a live pair: 5975 bullets, 389 enemies | StormForge 3 | 2.22 / 2.76 | 3.90 (6.24) | PASS |
 | Weapons only: 70 bullets, 398 enemies | StormForge 41 | 1.31 / 1.63 | 1.59 (2.55) | PASS |
 
-The commands are in `Saved/Perf/perf.csv`; `Tools/Perf.ps1` prints a scene's fires from its telemetry. Scene three runs 17 s at about the rate the battery shows on a typical arm (2 to 3 fires a second). **The stress emitter kills the crowd before weapons reach it**, so at the bullet cap only 3 reactions fired: caps and reaction load were not met in one scene. The worst arm (Steam, about 6 a second over a run) and a field-heavy Arc Furnace were not staged.
+The commands are in `Saved/Perf/perf.csv`; `Tools/Perf.ps1` prints a scene's fires from its telemetry. Scene three runs 17 s at about the rate the battery shows on a typical arm (2 to 3 fires a second). **The stress emitter kills the crowd before weapons reach it**, so at the bullet cap only 3 reactions fired: caps and reaction load were not met in one scene. The worst arm (Steam, about 6 a second over a run) and a field-heavy Arc Furnace are staged in `S2_perf.md`.
 
 ## What the source lacked, and what was invented
 All marked in `reactions.md`; numbers in `number_change_log.csv`.
@@ -75,5 +75,5 @@ All marked in `reactions.md`; numbers in `number_change_log.csv`.
 - **Wildfire is either always on or never**: a few Momentum stacks pass `speed_over`, so it starts once and stays lit (1 fire a run, 1.7% of damage). Without Momentum and with no field it needs Afterburner.
 - **Quicksilver reactions carry no damage**: Black Ice and Afterglow read 0.000. Their worth is control and crit, which this table cannot see. Rebound:Tide lost two wins to its control and Lance:Quicksilver none, within noise.
 - **Exposure is the largest at 12.3%** and is a state, so it runs on every hit of a stunned Marked enemy, past the per-enemy cooldown. Blinding enemies at 15% of hits makes that common on Radiance arms.
-- **Fields and arcs add emission load** through `TryEmit`: Arc Furnace and Lightning Step spend a weapon's spawn cap (R-WPN-09), so a duo can throttle its own rifle in a dense fight. Not measured.
+- **Fields and arcs add emission load** through `TryEmit`: Arc Furnace and Lightning Step spend a weapon's spawn cap (R-WPN-09), so a duo shares its rifle's cap in a dense fight. Measured in `S2_perf.md`: the field loses, not the rifle.
 - **A Tide or Forge Patron with an S2 second is not reachable by a bot arm**: the Patron hand holds the unlocked Keeper first and three cards, so the arm's Patron may be absent and the bot takes another. Arms here use the S2 Keeper as Patron for that reason. A human sees the same hand.

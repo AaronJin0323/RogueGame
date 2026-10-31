@@ -4,6 +4,7 @@
 #include "Combat/DTReforge.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
+#include "Dusktracer.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Keepers/DTKeeperSpec.h"
 
@@ -607,7 +608,7 @@ void FDTWeaponSim::ReactDuoHit(const FDTSimContext& Context, FDTBulletPool* Bull
 				Ground.Replace(DTFlagParam::DurationS, DTReactions::DuoParam(Row, TEXT("field_s")));
 				Ground.Replace(DTFlagParam::Dps, DTReactions::DuoParam(Row, TEXT("field_dps")));
 				Ground.SetWord(DTFlagParam::Status, FName(TEXT("Status.Burn")));
-				SpawnField(Owner, 0, DTReactions::Source(Row), At, Ground, Burst);
+				SpawnField(Owner, 0, DTReactions::Source(Row), At, Ground, Burst, true);
 			}
 		}
 	}
@@ -796,7 +797,7 @@ void FDTWeaponSim::StepDuoDash(const FDTSimContext& Context, FPlayerRuntime& Pla
 			Trail.Replace(DTFlagParam::RadiusUu, 0.5f * Spacing);
 			Trail.Replace(DTFlagParam::DurationS, DTReactions::DuoParam(Row, TEXT("trail_s")));
 			Trail.SetWord(DTFlagParam::Status, FName(TEXT("Status.Shock")));
-			SpawnField(OwnerId, 0, DTReactions::Source(Row), Hero, Trail, 0.0f);
+			SpawnField(OwnerId, 0, DTReactions::Source(Row), Hero, Trail, 0.0f, true);
 		}
 	}
 
@@ -884,6 +885,7 @@ void FDTWeaponSim::StepDuoCrit(FPlayerRuntime& Player, int32 OwnerId)
 
 void FDTWeaponSim::StepDuos(const FDTSimContext& Context, FDTBulletPool* Bullets)
 {
+	CSV_SCOPED_TIMING_STAT(DT, StepDuos);
 	using namespace DTWeaponSimDuosLocal;
 	if (!Enemies || !Unlocked.Contains(DTReactions::UnlockId()))
 	{

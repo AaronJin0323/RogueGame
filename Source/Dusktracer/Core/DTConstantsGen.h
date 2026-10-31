@@ -188,6 +188,14 @@ namespace DTConst
 	inline constexpr int32 PERF_CAPTURE_FRAMES = 1800; // n, CORE
 	inline constexpr float PERF_LOAD_MIN_RATIO = 0.95f; // ratio, CORE
 	inline constexpr float PERF_GPU_PROXY_4080_TO_4070 = 1.6f; // x, GATED(S4)
+	inline constexpr int32 PERF_S2_WARMUP_S = 20; // s, CORE
+	inline constexpr int32 PERF_S2_ELITES = 24; // n, CORE
+	inline constexpr int32 PERF_S2_CROWD_HP_SCALE = 1000; // x, CORE
+	inline constexpr int32 PERF_S2_HERO_ORBIT_UU = 900; // uu, CORE
+	inline constexpr float PERF_S2_FILL_RATIO = 0.97f; // ratio, CORE
+	inline constexpr int32 PERF_S2_STEAM_MIN_PER_S = 6; // per_s, CORE
+	inline constexpr int32 PERF_S2_PAIRS_MIN = 12; // n, CORE
+	inline constexpr int32 PERF_S2_ELITES_MIN = 12; // n, CORE
 	// telemetry
 	inline constexpr float TEL_INTERVAL_S = 60.0f; // s, CORE
 	inline constexpr float TEL_RATE_UNIT_S = 60.0f; // s, CORE

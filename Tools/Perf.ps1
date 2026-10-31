@@ -1,6 +1,9 @@
 # T-TEC-10 performance measurement (07_Technical R-TEC-10, 11_Quality s5) on the stress arena.
 #   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX 1920 -ResY 1080] [-Warmup <s>] [-Frames <n>]
-#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en]
+#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2]
+# -Scene S2 is the S2 proof scene (DT.PerfScene S2, Docs/Validation/S2_perf.md): it adds to the same budgets and load floors a proof
+# from the capture window itself (the CSV's DT/S2Sum_* last minus first, DT/S2Live_* median, and the DT/ phase timers as a profile),
+# and fails when the window did not hold the load. -Cmds picks a variant of the scene and keeps the proof. Off, the run is as before.
 # Holds the GPU semaphore Saved\gpu.lock (an exclusively opened file) for the whole run and refuses to start while
 # another process holds it: readings taken under contention are discarded, so none are taken.
 # Launches the game like Tools\Smoke.ps1 with the stress commands (default: C.ENEMIES.CAP enemies, C.BULLETS.CAP
@@ -17,7 +20,9 @@ param(
 	[int]$Frames = -1,
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[string]$Culture = "en",
-	[int]$LoadTimeout = 900
+	[int]$LoadTimeout = 900,
+	[ValidateSet("Caps", "S2")]
+	[string]$Scene = "Caps"
 )
 
 trap { Write-Host "PERF: FAIL (script error: $_)"; exit 1 }
@@ -46,9 +51,12 @@ $GpuProxy = Get-Constant "PERF.GPU_PROXY_4080_TO_4070"
 $LoadMin = Get-Constant "PERF.LOAD_MIN_RATIO"
 $BulletCap = Get-Constant "BULLETS.CAP"
 $EnemyCap = Get-Constant "ENEMIES.CAP"
-if ($Warmup -lt 0) { $Warmup = Get-Constant "PERF.WARMUP_S" }
+$IsS2 = $Scene -eq "S2"
+if ($Warmup -lt 0) { $Warmup = Get-Constant $(if ($IsS2) { "PERF.S2_WARMUP_S" } else { "PERF.WARMUP_S" }) }
 if ($Frames -lt 0) { $Frames = [int](Get-Constant "PERF.CAPTURE_FRAMES") }
-if (-not $PSBoundParameters.ContainsKey("Cmds")) { $Cmds = "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
+if (-not $PSBoundParameters.ContainsKey("Cmds")) {
+	$Cmds = if ($IsS2) { "DT.PerfScene S2" } else { "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
+}
 
 # --- GPU semaphore --------------------------------------------------------------------------------------------------
 $LockPath = Join-Path $Saved "gpu.lock"
@@ -77,6 +85,7 @@ try {
 		"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", ("-DTCsvAfter={0}" -f $Warmup), "-csvStartOnEvent=DTPerfStart",
 		"-csvCaptureOnEventFrameCount=$Frames", "-ExitAfterCsvProfiling", "-csvGpuStats")
 	if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
+	if ($IsS2) { $ArgList += "-DTNoDirector" }  # no timeline in the scene: what fires is the build's, the crowd is the scene's
 	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru
 	Write-Host ("perf: {0} {1}x{2} cmds='{3}' warmup {4} s, {5} frames, GPU '{6}' (PID {7})" -f $Map, $ResX, $ResY, $Cmds, $Warmup, $Frames, $Gpu, $Proc.Id)
 
@@ -143,6 +152,49 @@ Write-Host ("    FrameTime   p50 {0} ms  p95 {1} ms" -f (Fmt $R.frame50), (Fmt $
 Write-Host ("    GameThread  p50 {0} ms  p95 {1} ms   budget p50 <= {2}, p95 <= {3}" -f (Fmt $R.game50), (Fmt $R.game95), $GtP50Max, $GtP95Max)
 Write-Host ("    Load        bullets p50 {0} (cap {1})  enemies p50 {2} (cap {3})  need >= {4} of cap" -f (Fmt $R.bul50), $BulletCap, (Fmt $R.enm50), $EnemyCap, $LoadMin)
 $Factor = if ($Gpu -match "4080") { $GpuProxy } else { 1.0 }
+# --- the S2 scene's proof, from the capture window ------------------------------------------------------------------------
+$Sums = @{}
+$Lives = @{}
+if ($IsS2) {
+	$Rows = New-Object System.Collections.Generic.List[string]
+	foreach ($L in $Lines[1..($Lines.Count - 1)]) {
+		if ($L.StartsWith("[") -or $L -eq $Lines[0]) { break }
+		$Rows.Add($L)
+	}
+	$Inv = [Globalization.CultureInfo]::InvariantCulture
+	function Cell([string[]]$Cells, [int]$I) {  # a stat not yet written in a frame is an empty cell
+		$V = 0.0
+		if ($I -lt $Cells.Count) { [void][double]::TryParse($Cells[$I], [Globalization.NumberStyles]::Float, $Inv, [ref]$V) }
+		return $V
+	}
+	$Seconds = 0.0
+	$FrameCol = $Cols["frame"]
+	foreach ($Row in $Rows) { $Seconds += (Cell $Row.Split(",") $FrameCol) / 1000.0 }
+	for ($I = 0; $I -lt $Header.Count; $I++) {
+		$Name = $Header[$I]
+		if ($Name -like "DT/S2Sum_*") {
+			$List = New-Object System.Collections.Generic.List[double]  # monotonic: the window is its span (the last frames hold no stats)
+			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
+			$Span = @($List.ToArray() | Where-Object { $_ -gt 0 } | Measure-Object -Minimum -Maximum)
+			$Sums[$Name.Substring(9)] = if ($Span.Count -gt 0) { $Span[0].Maximum - $Span[0].Minimum } else { 0 }
+		}
+		elseif ($Name -like "DT/S2Live_*") {
+			$List = New-Object System.Collections.Generic.List[double]
+			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
+			$Lives[$Name.Substring(10)] = Pct $List 0.50
+		}
+		elseif ($Name -like "DT/*" -and $Name -notlike "DT/Live*") {
+			$List = New-Object System.Collections.Generic.List[double]
+			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
+			Write-Host ("    profile     {0,-32} mean {1} p50 {2} p95 {3} ms" -f $Name, (Fmt (($List | Measure-Object -Average).Average)), (Fmt (Pct $List 0.50)), (Fmt (Pct $List 0.95)))
+		}
+	}
+	Write-Host ("    window      {0:0.0} s" -f $Seconds)
+	$Fires = @($Sums.Keys | Where-Object { $_ -like "Fire_*" } | Sort-Object)
+	foreach ($K in $Fires) { Write-Host ("    fired       {0,-26} {1,7}  {2,7:0.0}/s" -f $K.Substring(5), $Sums[$K], ($Sums[$K] / $Seconds)) }
+	foreach ($K in ($Sums.Keys | Where-Object { $_ -notlike "Fire_*" } | Sort-Object)) { Write-Host ("    counted     {0,-26} {1,7}  {2,7:0.0}/s" -f $K, $Sums[$K], ($Sums[$K] / $Seconds)) }
+	foreach ($K in ($Lives.Keys | Sort-Object)) { Write-Host ("    live p50    {0,-26} {1,7}" -f $K, $Lives[$K]) }
+}
 $Gpu95Judged = $R.gpu95 * $Factor
 # A scene with Reaction.Duos proves its reactions from the run's telemetry (reactions.md).
 $Session = Select-String -Path $Log -Pattern "Telemetry: session seed=\S+ players=\d+ -> (.+)\.csv" -ErrorAction SilentlyContinue | Select-Object -Last 1
@@ -157,9 +209,23 @@ if ([double]::IsNaN($R.game50)) { $Why += "no GameThreadTime column" }
 elseif ($R.game50 -gt $GtP50Max -or $R.game95 -gt $GtP95Max) { $Why += "game thread over budget" }
 if (-not [double]::IsNaN($R.gpu95) -and $Gpu95Judged -gt $GpuMax) { $Why += "GPU over budget" }
 # A pass at a lighter load than the caps proves nothing: the median live counts must reach C.PERF.LOAD_MIN_RATIO of them.
-if ($PSBoundParameters.ContainsKey("Cmds") -eq $false) {
+if ($IsS2 -or $PSBoundParameters.ContainsKey("Cmds") -eq $false) {
 	if ([double]::IsNaN($R.bul50) -or $R.bul50 -lt $BulletCap * $LoadMin) { $Why += "bullet load below cap" }
 	if ([double]::IsNaN($R.enm50) -or $R.enm50 -lt $EnemyCap * $LoadMin) { $Why += "enemy load below cap" }
+}
+# The S2 scene proves its load from what fired in the window, never from its settings.
+if ($IsS2) {
+	$Steam = if ($Sums.ContainsKey("Fire_ForgeTide")) { $Sums["Fire_ForgeTide"] / $Seconds } else { 0 }
+	$Pairs = @($Sums.Keys | Where-Object { $_ -like "Fire_*" -and $Sums[$_] -gt 0 }).Count
+	if ($Steam -lt (Get-Constant "PERF.S2_STEAM_MIN_PER_S")) { $Why += ("Steam {0:0.0}/s under its floor" -f $Steam) }
+	if ($Pairs -lt (Get-Constant "PERF.S2_PAIRS_MIN")) { $Why += "$Pairs pairs fired" }
+	if ($Lives["Elites"] -lt (Get-Constant "PERF.S2_ELITES_MIN")) { $Why += "too few elites" }
+	foreach ($A in 0..5) { if (-not ($Lives["Affix$A"] -gt 0)) { $Why += "affix $A not alive" } }
+	foreach ($Need in @("Lances", "Rings", "Shades", "Kills", "Dashes", "DuoFields0", "Discharges", "Husks", "Pillars")) {
+		if (-not ($Sums[$Need] -gt 0)) { $Why += "no $Need in the window" }
+	}
+	if ($Lives["Shades"] -lt 1) { $Why += "no Shade alive" }
+	if ($Sums["Decisions"] -ne 0) { $Why += "the build changed in the window" }
 }
 $Verdict = if ($Why.Count -eq 0) { "PASS" } else { "FAIL" }
 

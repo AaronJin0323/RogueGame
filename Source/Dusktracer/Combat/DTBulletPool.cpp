@@ -1,5 +1,6 @@
 #include "Combat/DTBulletPool.h"
 #include "Core/DTSimTypes.h"
+#include "Dusktracer.h"
 
 FDTBulletPool::FDTBulletPool(int32 InCapacity)
 	: Capacity(FMath::Max(1, InCapacity))
@@ -312,6 +313,7 @@ void FDTBulletPool::StepMotion(int32 Index, float Dt, const FDTWorldView& View, 
 
 void FDTBulletPool::Step(float Dt, FDTWorldView& View)
 {
+	CSV_SCOPED_TIMING_STAT(DT, PoolStep);
 	PrevPos = Pos;
 	RoundReports.Reset();
 	bSerialsBuilt = false;

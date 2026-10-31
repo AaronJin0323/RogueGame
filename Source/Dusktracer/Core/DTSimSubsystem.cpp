@@ -97,8 +97,10 @@ int32 UDTSimSubsystem::AdvanceFrame(float DeltaTime)
 
 void UDTSimSubsystem::Tick(float DeltaTime)
 {
+	CSV_SCOPED_TIMING_STAT(DT, SimTick);
 	Super::Tick(DeltaTime);
 	AdvanceFrame(DeltaTime);
+	CSV_SCOPED_TIMING_STAT(DT, SimRender);
 	const float Alpha = Clock.GetAlpha();
 	for (const TArray<IDTSimSystem*>& PhaseSystems : Systems)
 	{
