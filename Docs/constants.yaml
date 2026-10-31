@@ -410,3 +410,4 @@ weapons:
   SETTINGS.OUTLINE_ROUND_DARK_RATIO: { value: 1.8, unit: ratio, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-10] }
   SETTINGS.CVD_DELTA_E_MIN: { value: 20, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }
   SETTINGS.CVD_MUZZLE_DELTA_E_MIN: { value: 15, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }
+  SETTINGS.RUN_OVER_GUARD_S: { value: 1.0, unit: s, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-21] }

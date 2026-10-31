@@ -132,7 +132,8 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 void UDTBotSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
-	const FDTBotConfig Config = ReadConfig();
+	FDTBotConfig Config = ReadConfig();
+	Config.Seed = ADTGameMode::GetRunSeed(&InWorld); // a restarted run's seed is the map's (settings.md R-SET-24)
 	if (Config.Policy != EDTBotPolicy::Off)
 	{
 		StepsPerFrame = FMath::Max(0, DTBotSubsystemLocal::CVarBotFast.GetValueOnGameThread());

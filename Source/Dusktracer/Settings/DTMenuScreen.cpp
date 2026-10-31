@@ -30,7 +30,11 @@ namespace DTMenuScreenLocal
 	const TCHAR* const GraphicsKeys[] = { TEXT("Settings.Graphics.Epic"), TEXT("Settings.Graphics.High"), TEXT("Settings.Graphics.Medium"), TEXT("Settings.Graphics.Low") };
 	const TCHAR* const MotionKeys[] = { TEXT("Settings.Motion.Full"), TEXT("Settings.Motion.Reduced"), TEXT("Settings.Motion.Custom") };
 	const TCHAR* const WindowKeys[] = { TEXT("Settings.Window.Fullscreen"), TEXT("Settings.Window.Windowed") };
-	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
+	const TCHAR* const PauseRowKeys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
+	const TCHAR* const EndKeys[] = { TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"), TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"),
+		TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"), TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"),
+		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory") };
+	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
 		TEXT("Settings.Percent"), TEXT("Settings.LanguageName.en"), TEXT("Settings.LanguageName.zhHans"), TEXT("Settings.On"), TEXT("Settings.Off"),
 		TEXT("Settings.Controls.Open"), TEXT("Settings.Hint.Volume"), TEXT("Settings.Hint.Graphics"), TEXT("Settings.Hint.Shake"), TEXT("Settings.Hint.Flash"),
 		TEXT("Settings.Hint.DangerOutline"), TEXT("Menu.Hint.Pause"), TEXT("Menu.Hint.Settings"), TEXT("Menu.Hint.Controls"), TEXT("Controls.Title"),
@@ -108,6 +112,8 @@ TArray<FString> DTMenuText::AllKeys()
 	Add(MotionKeys, UE_ARRAY_COUNT(MotionKeys));
 	Add(WindowKeys, UE_ARRAY_COUNT(WindowKeys));
 	Add(OtherKeys, UE_ARRAY_COUNT(OtherKeys));
+	Add(PauseRowKeys, UE_ARRAY_COUNT(PauseRowKeys));
+	Add(EndKeys, UE_ARRAY_COUNT(EndKeys));
 	for (int32 Slot = 0; Slot < static_cast<int32>(EDTBindSlot::Num); ++Slot)
 	{
 		Keys.Add(DTBindings::ActionKey(static_cast<EDTBindSlot>(Slot)));
@@ -173,6 +179,38 @@ FText DTMenuText::StatusLine(const FDTMenuState& State)
 	}
 }
 
+const TCHAR* DTMenuText::TitleKey(const FDTMenuState& State)
+{
+	switch (State.Screen)
+	{
+	case EDTMenuScreen::Pause: return TEXT("Pause.Title");
+	case EDTMenuScreen::Settings: return TEXT("Settings.Title");
+	case EDTMenuScreen::Confirm:
+		return State.Pending == EDTMenuAction::Restart ? TEXT("Pause.ConfirmRestartTitle")
+			: (State.Pending == EDTMenuAction::Abandon ? TEXT("Pause.ConfirmAbandonTitle") : TEXT("Pause.ConfirmQuitTitle"));
+	case EDTMenuScreen::RunOver:
+		return State.RunOver == EDTRunOverKind::Victory ? TEXT("Hud.Victory") : (State.RunOver == EDTRunOverKind::Abandoned ? TEXT("Pause.Abandoned") : TEXT("Hud.RunOver"));
+	default: return TEXT("Controls.Title");
+	}
+}
+
+const TCHAR* DTMenuText::PlainRowKey(const FDTMenuState& State, int32 Row)
+{
+	if (State.Screen == EDTMenuScreen::RunOver)
+	{
+		return Row == static_cast<int32>(EDTRunOverRow::Restart) ? TEXT("Pause.Restart") : TEXT("Pause.Quit");
+	}
+	if (State.Screen == EDTMenuScreen::Confirm)
+	{
+		if (Row == static_cast<int32>(EDTConfirmRow::Cancel))
+		{
+			return TEXT("Pause.AbandonCancel");
+		}
+		return State.Pending == EDTMenuAction::Restart ? TEXT("Pause.RestartConfirm") : (State.Pending == EDTMenuAction::Abandon ? TEXT("Pause.AbandonConfirm") : TEXT("Pause.QuitConfirm"));
+	}
+	return DTMenuScreenLocal::PauseRowKeys[Row];
+}
+
 void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings)
 {
 	using namespace DTMenuScreenLocal;
@@ -193,14 +231,16 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 	P.Tile(X, Y0, W, H, Token(DTPal::UI_Panel, PanelAlpha));
 	P.Frame(X, Y0, W, H, Token(DTPal::UI_Text, HintAlpha));
 
-	const TCHAR* TitleKey = State.Screen == EDTMenuScreen::Pause ? TEXT("Pause.Title") : (State.Screen == EDTMenuScreen::Settings ? TEXT("Settings.Title") : TEXT("Controls.Title"));
+	const FText Title = Ui(DTMenuText::TitleKey(State));
 	const float RowH = DTMenuLayout::RowHeight(P.T) * P.S;
 	const float Inner = W - 2.0f * Pad * P.S;
 	const float Left = X + Pad * P.S;
 	const float Right = X + W - Pad * P.S;
 	const float KbmX = Left + LabelColumn * Inner;
 	const float PadX = Left + PadColumn * Inner;
-	P.Centered(Ui(TitleKey), X + 0.5f * W, Y0 + Pad * 0.5f * P.S, TitleScale, Text);
+	// The run-over titles are whole sentences: they shrink to the panel rather than leave it (R-SET-12).
+	const float TitleWidth = static_cast<float>(P.Measure(Title, TitleScale).X);
+	P.Centered(Title, X + 0.5f * W, Y0 + Pad * 0.5f * P.S, TitleWidth > Inner ? TitleScale * Inner / TitleWidth : TitleScale, Text);
 
 	float Y = Y0 + DTMenuLayout::TitleHeight(P.T) * P.S;
 	if (State.Screen == EDTMenuScreen::Controls)
@@ -217,13 +257,13 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 		const float TextH = P.Measure(Ui(TEXT("Pause.Title")), BodyScale).Y;
 		const float TextY = CentreY - 0.5f * TextH;
 		const bool bFocus = Row == State.Focus;
-		if (State.Screen == EDTMenuScreen::Pause)
+		if (State.Screen == EDTMenuScreen::Pause || State.Screen == EDTMenuScreen::Confirm || State.Screen == EDTMenuScreen::RunOver)
 		{
 			if (bFocus)
 			{
 				P.Frame(Left, Y + FocusInset * P.S, Inner, RowH - 2.0f * FocusInset * P.S, Text);
 			}
-			P.Centered(Ui(Row == static_cast<int32>(EDTPauseRow::Resume) ? TEXT("Pause.Resume") : TEXT("Pause.Settings")), X + 0.5f * W, TextY, BodyScale, Text);
+			P.Centered(Ui(DTMenuText::PlainRowKey(State, Row)), X + 0.5f * W, TextY, BodyScale, Text);
 		}
 		else if (State.Screen == EDTMenuScreen::Settings)
 		{
@@ -282,12 +322,17 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 	{
 		Line = DTMenuText::StatusLine(State);
 	}
+	else if (State.Screen == EDTMenuScreen::Confirm)
+	{
+		Line = Ui(TEXT("Pause.ConfirmBody"));
+	}
 	Y += 10.0f * P.S;
 	if (!Line.IsEmpty())
 	{
 		P.Centered(Line, X + 0.5f * W, Y, HintScale, Text);
 	}
 	Y += P.Measure(Ui(TEXT("Pause.Title")), HintScale).Y + 8.0f * P.S;
-	const TCHAR* Footer = State.Screen == EDTMenuScreen::Pause ? TEXT("Menu.Hint.Pause") : (State.Screen == EDTMenuScreen::Settings ? TEXT("Menu.Hint.Settings") : TEXT("Menu.Hint.Controls"));
+	const TCHAR* Footer = State.Screen == EDTMenuScreen::RunOver ? TEXT("Menu.Hint.RunOver")
+		: (State.Screen == EDTMenuScreen::Settings ? TEXT("Menu.Hint.Settings") : (State.Screen == EDTMenuScreen::Controls ? TEXT("Menu.Hint.Controls") : TEXT("Menu.Hint.Pause")));
 	P.Centered(Ui(Footer), X + 0.5f * W, Y, HintScale, Hint);
 }

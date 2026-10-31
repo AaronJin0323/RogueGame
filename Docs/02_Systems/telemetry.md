@@ -52,7 +52,7 @@ JSONL: one object per line; every record starts with `t` (sim seconds), `step`, 
 | `kill` | `kills kills_by_source{name: kills} ttk_n ttk_sum_s`, `ttk_min_s ttk_max_s` (when `ttk_n` is above zero) | once per player per step with kills (R-TEL-04); `ttk_n` counts the kills whose TTK is known |
 | `hit` | `hits damage damage_by_source{name: damage}` | once per player per step with hits (R-TEL-04) |
 | `sources` | `interval damage{} kills{} hits{}` by source name | per player at each interval end |
-| `run_end` | `reason steps unowned_events mirror_desyncs` | session end |
+| `run_end` | `reason steps unowned_events mirror_desyncs` | session end; `reason` is `death`, `victory`, `quit`, `restart`, `abandoned` (`settings.md` R-SET-22, R-SET-23), `bot_timeout` or an end-play name |
 
 S1 kinds are defined in the owning spec's §Telemetry, in this record format, aggregated per step per player whenever they can occur more than once per step (R-TEL-04): `offer` `offer_pick` `offer_tool` (`offers.md`); `keeper_pick` `keeper_commit` `intercession` `status` (`keepers.md`); `dash` `hero_damaged` `hero_down` (`combat_core.md`); `xp` `level_up` `gems_merged` (`progression.md`); `weapon` `weapon_acquired` `weapon_level` (`weapons.md`); `modifier_socketed` `modifier_dormant` (`modifiers.md`); `dir_block` (`director.md`); `boss_start` `boss_phase` `boss_calibrated` `boss_end` (`boss.md`). `run_end` gains the per-player fields of `offers.md` and `progression.md`. A new kind or field is legal without a change here; a CSV column is not (R-TEL-06).
 

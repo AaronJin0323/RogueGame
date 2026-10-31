@@ -44,6 +44,35 @@ int32 ADTGameMode::GetCommandLineSeed()
 	return Seed;
 }
 
+int32 ADTGameMode::GetRunSeed(const UWorld* World)
+{
+	return World ? ParseSeed(World->URL, FCommandLine::Get()) : GetCommandLineSeed();
+}
+
+int32 ADTGameMode::ParseSeed(const FURL& Url, const TCHAR* CommandLine)
+{
+	int32 Seed = 0;
+	if (const TCHAR* Option = Url.GetOption(TEXT("DTSeed="), nullptr))
+	{
+		LexFromString(Seed, Option);
+		return Seed;
+	}
+	FParse::Value(CommandLine, TEXT("DTSeed="), Seed);
+	return Seed;
+}
+
+int32 ADTGameMode::NextSeed(int32 Current, uint32 Entropy)
+{
+	// Keeps to the positive half so the file name reads as a launcher's; a hit on the old seed or zero steps past it.
+	const int32 Mixed = static_cast<int32>(GetTypeHash(HashCombine(GetTypeHash(Current), Entropy)) & MAX_int32);
+	return Mixed == Current || Mixed == 0 ? (Current == 1 ? 2 : 1) : Mixed;
+}
+
+void ADTGameMode::AbandonRun()
+{
+	bRunOver = true;
+}
+
 void ADTGameMode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -54,7 +83,7 @@ void ADTGameMode::BeginPlay()
 		UE_LOG(LogDT, Error, TEXT("ADTGameMode: no UDTSimSubsystem in this world; run not started"));
 		return;
 	}
-	const int32 Seed = GetCommandLineSeed();
+	const int32 Seed = GetRunSeed(MyWorld);
 	Sim->StartRun(Seed, 1);
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld->GetSubsystem<UDTTelemetrySubsystem>())
 	{

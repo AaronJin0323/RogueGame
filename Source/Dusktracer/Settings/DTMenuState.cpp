@@ -24,6 +24,48 @@ void FDTMenuState::Close()
 	Status = EDTMenuStatus::None;
 }
 
+void FDTMenuState::OpenRunOver(EDTRunOverKind Kind)
+{
+	Close();
+	Screen = EDTMenuScreen::RunOver;
+	Focus = 0;
+	RunOver = Kind;
+	Pending = EDTMenuAction::None;
+}
+
+void FDTMenuState::AcceptPause(FDTMenuOutcome& Outcome)
+{
+	switch (static_cast<EDTPauseRow>(Focus))
+	{
+	case EDTPauseRow::Resume:
+		Close();
+		Outcome.bClosed = true;
+		break;
+	case EDTPauseRow::Settings:
+		Screen = EDTMenuScreen::Settings;
+		Focus = 0;
+		break;
+	case EDTPauseRow::Restart: Ask(EDTMenuAction::Restart); break;
+	case EDTPauseRow::Abandon: Ask(EDTMenuAction::Abandon); break;
+	default: Ask(EDTMenuAction::Quit); break;
+	}
+}
+
+void FDTMenuState::Ask(EDTMenuAction Action)
+{
+	Pending = Action;
+	Screen = EDTMenuScreen::Confirm;
+	Focus = static_cast<int32>(EDTConfirmRow::Cancel); // R-SET-20
+}
+
+void FDTMenuState::BackToPause()
+{
+	const EDTPauseRow Row = Pending == EDTMenuAction::Restart ? EDTPauseRow::Restart : (Pending == EDTMenuAction::Abandon ? EDTPauseRow::Abandon : EDTPauseRow::Quit);
+	Pending = EDTMenuAction::None;
+	Screen = EDTMenuScreen::Pause;
+	Focus = static_cast<int32>(Row);
+}
+
 int32 FDTMenuState::NumRows() const
 {
 	switch (Screen)
@@ -31,6 +73,8 @@ int32 FDTMenuState::NumRows() const
 	case EDTMenuScreen::Pause: return static_cast<int32>(EDTPauseRow::Num);
 	case EDTMenuScreen::Settings: return static_cast<int32>(EDTSettingRow::Num);
 	case EDTMenuScreen::Controls: return ResetRow() + 1;
+	case EDTMenuScreen::Confirm: return static_cast<int32>(EDTConfirmRow::Num);
+	case EDTMenuScreen::RunOver: return static_cast<int32>(EDTRunOverRow::Num);
 	default: return 0;
 	}
 }
@@ -83,16 +127,22 @@ FDTMenuOutcome FDTMenuState::Apply(EDTMenuCommand Command, FDTUserSettings& Sett
 	case EDTMenuCommand::Accept:
 		if (Screen == EDTMenuScreen::Pause)
 		{
-			if (Focus == static_cast<int32>(EDTPauseRow::Resume))
+			AcceptPause(Outcome);
+		}
+		else if (Screen == EDTMenuScreen::Confirm)
+		{
+			if (Focus == static_cast<int32>(EDTConfirmRow::Confirm))
 			{
-				Close();
-				Outcome.bClosed = true;
+				Outcome.Action = Pending;
 			}
 			else
 			{
-				Screen = EDTMenuScreen::Settings;
-				Focus = 0;
+				BackToPause();
 			}
+		}
+		else if (Screen == EDTMenuScreen::RunOver)
+		{
+			Outcome.Action = Focus == static_cast<int32>(EDTRunOverRow::Restart) ? EDTMenuAction::Restart : EDTMenuAction::Quit;
 		}
 		else if (Screen == EDTMenuScreen::Settings)
 		{
@@ -133,7 +183,11 @@ FDTMenuOutcome FDTMenuState::Apply(EDTMenuCommand Command, FDTUserSettings& Sett
 			Screen = EDTMenuScreen::Pause;
 			Focus = static_cast<int32>(EDTPauseRow::Settings);
 		}
-		else
+		else if (Screen == EDTMenuScreen::Confirm)
+		{
+			BackToPause();
+		}
+		else if (Screen != EDTMenuScreen::RunOver) // the run is over: there is nothing to go back to (R-SET-21)
 		{
 			Close();
 			Outcome.bClosed = true;
