@@ -85,6 +85,8 @@ struct FDTHit
 	bool bCrit = false;
 	/** Spawned with pierce above one (the Tank's plate reads it). */
 	bool bPierce = false;
+	/** A field's tick: damage on the hit path, but not a hit to the rules (keepers.md R-KEE-16), so it rolls no enchantment. */
+	bool bFieldTick = false;
 };
 
 enum class EDTHeroHitKind : uint8

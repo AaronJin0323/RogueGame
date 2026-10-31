@@ -600,13 +600,12 @@ DT_S2_TEST(FDTKeeperS2EconomyVolley, "Card.Shade.Economy.Volley") // T-KEE-29: a
 	FDTKeeperHarness H;
 	Own(H, EDTPath::Shade, TEXT("Shade.Economy"), { TEXT("Key") });
 	H.AddEnemy(FVector2f(300.0f, 0.0f));
-	const float Cooldown = H.Weapons.GetLastSpec(0, 0).Cooldown;
-	const int32 Gap = FMath::CeilToInt(Cooldown * DTConst::SIM_FIXED_HZ);
 	int32 Guard = 0;
 	while (H.CountHits(Rifle) == 0 && Guard++ < Second * 3)
 	{
 		H.StepOnce(); // the rifle has just fired: its cooldown is running
 	}
+	const int32 Gap = FMath::CeilToInt(H.Weapons.GetLastSpec(0, 0).Cooldown * DTConst::SIM_FIXED_HZ);
 	const int32 Before = H.CountHits(Rifle);
 	H.Weapons.AddDebt(0, 15);
 	H.StepOnce();

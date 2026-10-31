@@ -498,15 +498,26 @@ void FDTWeaponSim::ForcePayday(int32 OwnerId, float Mult, float ExecuteBelow)
 	Player.PaydayExecute = ExecuteBelow;
 }
 
-void FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player)
+void FDTWeaponSim::PayNow(int32 OwnerId)
 {
-	using namespace DTWeaponSimKeepersLocal;
-	FDTWorldView& View = *Context.View;
+	FPlayerRuntime& Player = EnsurePlayer(OwnerId);
+	Player.bPaydayNow = Player.PaydayMult > 0.0f;
+}
+
+void FDTWeaponSim::FirePaydayNow(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player)
+{
 	int32 Slot = INDEX_NONE;
 	for (int32 Candidate = 0; Candidate < Player.Weapons.Num(); ++Candidate)
 	{
 		Slot = Slot == INDEX_NONE || Player.Weapons[Candidate].Spec.LoadRank < Player.Weapons[Slot].Spec.LoadRank ? Candidate : Slot;
 	}
+	FirePayday(Context, Bullets, OwnerId, Slot, Player);
+}
+
+bool FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FPlayerRuntime& Player)
+{
+	using namespace DTWeaponSimKeepersLocal;
+	FDTWorldView& View = *Context.View;
 	FWeaponRuntime* Runtime = FindRuntime(OwnerId, Slot);
 	const FVector2f Hero = HeroOf(View, OwnerId);
 	const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
@@ -514,7 +525,7 @@ void FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bulle
 	EnemiesInCircle(View, Hero, Frame, Local);
 	if (!Runtime || Local.Num() == 0)
 	{
-		return; // the next volley with a screen to hunt
+		return false; // the next volley with a screen to hunt
 	}
 	const FDTFlagEntry* Entry = KeeperEntry(OwnerId, DTCat::EFlag::Debt);
 	const uint16 Source = Entry ? Entry->SourceId : DTWeapons::KeeperSource(EDTPath::Shade);
@@ -538,6 +549,8 @@ void FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bulle
 	ExecuteMarked(Context, OwnerId, Player.PaydayExecute, Source);
 	Player.PaydayMult = 0.0f;
 	Player.PaydayExecute = 0.0f;
+	Player.bPaydayNow = false;
+	return true;
 }
 
 // ---- kills -------------------------------------------------------------------------------------------------------------------

@@ -43,7 +43,7 @@ FIELD = 120
 FIELD_HP_MULT = 40.0  # at the Handoff's 10x a level 16 build still reaches the refill's kill ceiling (S1_keeper_power.md §3)
 FIELD_MINUTE = 10.5  # C.LEVEL.L16_MIN in minutes: the swarm a level 16 build meets
 CAST_WINDOW_S = 12.0  # long enough for every variant's window and the Freeze after it
-CAST_DASH_S = 1.0  # Slam's variant refills the dash on every landing: its cast is as many dashes as a player presses
+CAST_DASH_S = 1.0  # Slam refills the dash on every landing and Time Dilation acts only on dashes: such a cast is as many dashes as a player presses
 ABLATE_WARMUP_S = 8.0  # the field walks in from the spawn ring
 ABLATE_WINDOW_S = 10.0
 # The steered median at level 16 across the battery (S1_probes.md); one loadout, so a combination differs only by its cards.
@@ -169,7 +169,7 @@ def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT, stage="S1"):
 		for arm, at, jobs in (("cast", cast_at, cast_jobs), ("plain", None, plain_jobs)):
 			script = os.path.join(out_dir, f"{tag}-{arm}.txt")
 			with open(script, "w", encoding="utf-8", newline="\n") as f:
-				dash = CAST_DASH_S if name == "Slam" and at is not None else None
+				dash = CAST_DASH_S if (name == "Slam" or path == "Quicksilver") and at is not None else None
 				f.write(scene(path, second, blessings, weapons, FIELD, hp, cast_at, CAST_WINDOW_S, at, dash))
 			for seed in range(1, seeds + 1):
 				# A seed per combination: two runs of one seed start minutes apart, so telemetry names never collide.

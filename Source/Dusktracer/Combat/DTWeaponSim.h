@@ -148,6 +148,8 @@ public:
 	bool IsPaydayReady(int32 OwnerId) const;
 	/** Makes the next volley a payday at Mult, executing at or below ExecuteBelow. */
 	void ForcePayday(int32 OwnerId, float Mult, float ExecuteBelow);
+	/** A cast's `instant_payday` or `cast_debt`: a waiting payday pays this step, not at the next volley (R-KEE-35). */
+	void PayNow(int32 OwnerId);
 	float GetMomentum(int32 OwnerId) const;
 	/** Raises Momentum to at least Stacks; bHold stops it fading until the next call (R-KEE-34). */
 	void GrantMomentum(int32 OwnerId, float Stacks, bool bHold);
@@ -324,6 +326,7 @@ private:
 		/** Above zero: the next volley is a payday. */
 		float PaydayMult = 0.0f;
 		float PaydayExecute = 0.0f;
+		bool bPaydayNow = false;
 		int32 LastingKills = 0;
 		int32 LastingLive = 0;
 		uint32 LastCritSerial = 0;
@@ -689,7 +692,9 @@ private:
 	/** The Marked enemy nearest From within Range; 0 when none. */
 	uint32 NearestMarked(int32 OwnerId, const FVector2f& From, float Range, const FDTWorldView& View) const;
 	void StepHunters(const FDTSimContext& Context, FDTBulletPool* Bullets);
-	void FirePayday(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player);
+	/** Spends the waiting payday as this slot's volley; false with no enemy on screen. */
+	bool FirePayday(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FPlayerRuntime& Player);
+	void FirePaydayNow(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player);
 	void ReactKeeperKills(const FDTSimContext& Context, FDTBulletPool* Bullets);
 	bool RollShot(const FDTSimContext& Context, const FDTWeaponSpec& Spec, const FShot& Shot, float& InOutDamage) const;
 	void ReactToCrit(const FDTSimContext& Context, FWeaponRuntime& Runtime, const FImpact& Impact, int32 HitEnemy);

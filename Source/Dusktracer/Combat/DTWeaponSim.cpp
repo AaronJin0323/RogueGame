@@ -13,7 +13,7 @@
 //   MineHit    (one enemy in a detonation):   StatusApply, Chain
 //   Detonation (one per mine):                Split (children burst), Field, Pull, Echo (fallback: repeats in place)
 //   Expiry     (a tracked round's life ran out): Split on=Expiry (Mod.ScatterShell), Mod.SpreadWave's wave
-// Field ticks, echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains).
+// Echo strikes, chain jumps, slams and mine pull ticks are hits but never impacts (no reaction chains). A field's tick is neither (R-KEE-16).
 // Kills (StepEffects, ReactToKills): arc forks, burning explosions, Burn spread. Crush, pulled_vuln and explosion hits carry
 // no weapon slot: they are Keeper-only and never feed the enchantment or other reactions.
 
@@ -415,6 +415,7 @@ void FDTWeaponSim::ResetTransient()
 		Player.Debt = 0;
 		Player.PaydayMult = 0.0f;
 		Player.PaydayExecute = 0.0f;
+		Player.bPaydayNow = false;
 		Player.LastingKills = 0;
 		Player.LastingLive = 0;
 		Player.LastCritSerial = 0;
@@ -2302,8 +2303,13 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 			++Index;
 			continue;
 		}
-		// A field ticks every step for its damage per second (a tick is a hit, never an impact).
+		// A field ticks every step for its damage per second: damage only, neither a hit to the Keepers nor an impact (R-KEE-16).
+		const int32 FirstTick = Context.View->Hits.Num();
 		HitCircle(Context, Field.OwnerId, Field.Slot, Field.SourceId, Field.Position, Field.Radius, Field.DamagePerSecond * Dt, false, nullptr);
+		for (int32 Tick = FirstTick; Tick < Context.View->Hits.Num(); ++Tick)
+		{
+			Context.View->Hits[Tick].bFieldTick = true;
+		}
 		if (bStatusPulse && !Field.Params.GetWord(DTFlagParam::Status).IsNone())
 		{
 			EnemiesInCircle(*Context.View, Field.Position, Field.Radius + MaxEnemyRadius, InField);
@@ -2403,9 +2409,9 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 		}
 		StepKeeperHero(Context, Bullets, Owner, PlayerRt, Player);
 		StepDuoCrit(PlayerRt, Owner);
-		if (PlayerRt.PaydayMult > 0.0f)
+		if (PlayerRt.bPaydayNow)
 		{
-			FirePayday(Context, Bullets, Owner, PlayerRt);
+			FirePaydayNow(Context, Bullets, Owner, PlayerRt);
 		}
 		StepStillness(Context, Owner, PlayerRt);
 		StepSlamTriggers(Context, Bullets, Owner, PlayerRt);
@@ -2430,6 +2436,11 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 			Instance.Cooldown -= Context.StepSeconds;
 			if (Instance.Cooldown > 0.0f)
 			{
+				continue;
+			}
+			if (PlayerRt.PaydayMult > 0.0f && FirePayday(Context, Bullets, Owner, Slot, PlayerRt))
+			{
+				Instance.Cooldown = FMath::Max(Instance.Cooldown + Runtime.Spec.Cooldown, 0.0f); // the payday was this volley (R-KEE-29)
 				continue;
 			}
 			if (FireVolley(Context, Bullets, Player, Slot, Runtime, 0, false))
