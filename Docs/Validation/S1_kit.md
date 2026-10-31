@@ -4,8 +4,9 @@ Exit test (`12_Production §2`, S1): **3 validators × 2 runs**, none of them th
 
 ## Before each tester
 - Tell the scheduler "S1 session starting": automated runs stop (holds in `STATE.md`) so frame times are clean.
-- Build: `main` at the hash the scheduler gives (gate green). Run `Tools\Build.bat` once.
-- Launch: `Tools\Play.bat en` or `Tools\Play.bat zh-Hans` (full-screen arena, director on, bot off). Pad: plug it in before launch; keyboard/mouse and pad both work at any time.
+- Build: the package the scheduler gives, a folder from `Tools\Package.ps1` (`Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans). Copy that folder to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-usc_redist.x64.exe` from it once.
+- Launch: double-click `Play_en.bat` or `Play_zh-Hans.bat` (full-screen arena, director on, bot off, a fresh seed each launch). Pad: plug it in before launch; keyboard/mouse and pad both work at any time. The session must have one tester on a pad: `pad` in the gate only passes from that run.
+- Between runs: the game has no restart. After the death or victory screen press Alt+F4 (the host does it for a pad tester), then launch again. Alt+F4 mid-run is safe; the run file closes with reason `quit`.
 - Have this sheet and a clock. Note the run timer (HUD) at each key moment.
 
 ## The one sentence (say only this)
@@ -37,7 +38,10 @@ Do not explain Keepers, archetypes, flags, Intercession or the card kinds.
 5. "What would make you play again?"
 
 ## After the session
-- Send the scheduler: this sheet, and the whole `Saved\Playtests\` folder (one CSV + JSONL per run). Nothing else is needed: per-minute damage taken, dashes, decisions and the damage split by source are in the logs.
+- Hand over: double-click `ExportTelemetry.bat`. It makes `Dusktracer_Telemetry_<time>.zip` on the desktop (one CSV + JSONL per run, from `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, and a `MANIFEST.txt`) and prints the path. Nothing leaves the PC by itself: you carry the zip. Send the scheduler the zip and this sheet; nothing else is needed: per-minute damage taken, dashes, decisions and the damage split by source are in the logs.
+- What the zip holds: gameplay only (seed, build hash, culture, last input device, combat numbers, cards offered and picked, Keeper and weapon choices, the local start time). No name, account, machine name, path or hardware. This build writes no engine log; `-IncludeLogs` adds log and crash folders if any exist, and those can name the Windows user, so it is off by default.
+- Crash: note the time on the sheet. The run's file has no `run_end`; the seed in its file name replays the start on the proof build.
+- Sessions on one PC share the folder: the zip holds every run so far, so tell runs apart by the start time noted on this sheet.
 - The scheduler fills `Harness/templates/validation_note.md` as `Docs/Validation/S1_session.md` and triages every finding (class, layer, owner).
 
 ## Pass rule (written before the sessions; `12_Production §2`, `00_Vision §4`)
