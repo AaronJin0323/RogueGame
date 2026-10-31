@@ -40,6 +40,7 @@ void UDTHubSubsystem::Enter()
 	State.Open(DTHubData::Patrons(Read, [Weapons](FName Id) { return Weapons && Weapons->IsInPool(Id); }), DTHubData::ParsePath(Read.LastPatron));
 	Codex = DTHubData::BuildCodex(DTHubData::ReadCodexTable(), Read);
 	State.CodexRows = Codex.Num();
+	State.CodexFirst = FMath::Max(0, Codex.IndexOfByPredicate([](const FDTCodexRow& Row) { return Row.bRead; }));
 	Tree = DTHubTabs::MakeTree(GetWorld());
 	if (UDTMenuSubsystem* Menu = GetWorld() ? GetWorld()->GetSubsystem<UDTMenuSubsystem>() : nullptr)
 	{
@@ -115,12 +116,25 @@ void UDTHubSubsystem::HandleOutcome(const FDTHubOutcome& Outcome)
 	}
 }
 
+void UDTHubSubsystem::SyncPage()
+{
+	State.Window = DTHubLayout::ListWindow(DTSettings::TextScale(), State.Page != EDTHubPage::Stats); // the Ledger-stone has no detail pane
+	State.TreeRows = Tree.IsValid() ? Tree->NumRows() : 0;
+	State.TreeHeadings.Reset();
+	for (int32 Row = 0; Row < State.TreeRows; ++Row)
+	{
+		if (Tree->IsHeading(Row))
+		{
+			State.TreeHeadings.Add(Row);
+		}
+	}
+}
+
 void UDTHubSubsystem::Command(EDTMenuCommand Command)
 {
 	if (bActive && !bBeginPending)
 	{
-		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale(), State.Page != EDTHubPage::Stats);
-		State.TreeRows = Tree.IsValid() ? Tree->NumRows() : 0;
+		SyncPage();
 		HandleOutcome(State.Apply(Command));
 	}
 }
@@ -174,13 +188,12 @@ void UDTHubSubsystem::Draw(UCanvas* Canvas)
 {
 	if (bActive)
 	{
-		State.Window = DTHubLayout::ListWindow(DTSettings::TextScale(), State.Page != EDTHubPage::Stats); // the Ledger-stone has no detail pane
-		State.TreeRows = Tree.IsValid() ? Tree->NumRows() : 0;
+		SyncPage();
 		FDTHubView View;
 		View.State = &State;
 		View.Codex = &Codex;
 		View.Profile = Profile();
 		View.Tree = Tree.Get();
-		DTHubScreen::Draw(Canvas, View, DTSettings::Live());
+		Overflow = DTHubScreen::Draw(Canvas, View, DTSettings::Live());
 	}
 }

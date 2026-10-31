@@ -31,5 +31,6 @@ namespace DTHubText
 
 namespace DTHubScreen
 {
-	DUSKTRACER_API void Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSettings& Settings);
+	/** Returns how many strings of this frame ran past their room (R-VIG-16; Tools/VigilCheck.ps1 reads it on the real font). */
+	DUSKTRACER_API int32 Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSettings& Settings);
 }

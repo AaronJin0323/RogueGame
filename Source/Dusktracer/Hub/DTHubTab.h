@@ -20,11 +20,15 @@ public:
 	virtual FText Header() const = 0;
 	/** Accept on a row. The page writes its own data; the hub only redraws. */
 	virtual void Accept(int32 Row) = 0;
+	/** A heading groups the rows under it: drawn, never focused, takes no Accept (R-VIG-20). */
+	virtual bool IsHeading(int32 Row) const { return false; }
+	/** A row that cannot be taken yet: drawn grey, and its value says why in words (R-VIG-15). */
+	virtual bool IsDimmed(int32 Row) const { return false; }
 };
 
 namespace DTHubTabs
 {
-	/** Registers what builds the Tree tab, once at module start. With none the tab is an empty page. */
+	/** Registers what builds the Tree tab, once at module start (DTTreeTab::Register). With none the tab is an empty page. */
 	DUSKTRACER_API void SetTreeFactory(TFunction<TSharedPtr<IDTHubTab>(UWorld*)> Factory);
 	DUSKTRACER_API TSharedPtr<IDTHubTab> MakeTree(UWorld* World);
 }

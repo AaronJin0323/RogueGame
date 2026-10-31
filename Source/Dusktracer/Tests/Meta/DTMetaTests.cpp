@@ -704,7 +704,7 @@ bool FDTMetReaders::RunTest(const FString& Parameters)
 {
 	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GameSourceDir(), TEXT("Dusktracer")));
 	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Offers/DTOfferSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp"),
-		TEXT("Hub/DTHubData.h"), TEXT("Hub/DTHubFlow.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp") };
+		TEXT("Hub/DTHubData.h"), TEXT("Hub/DTHubFlow.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp"), TEXT("Dusktracer.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);

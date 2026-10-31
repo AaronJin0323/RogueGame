@@ -1,8 +1,10 @@
 #include "Hub/DTHubCheck.h"
 
 #if !UE_BUILD_SHIPPING
+#include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTSimSubsystem.h"
 #include "Dusktracer.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Core/DTConstantsGen.h"
 #include "GameFramework/PlayerController.h"
@@ -10,8 +12,10 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
 #include "Hub/DTHubSubsystem.h"
+#include "Hub/DTHubTab.h"
 #include "InputKeyEventArgs.h"
 #include "Meta/DTMetaSubsystem.h"
+#include "Meta/DTTree.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -28,6 +32,10 @@ namespace DTHubCheckLocal
 	constexpr double GiveUpS = 60.0;
 	// Sim steps a run plays before the proof presses anything in it.
 	constexpr int64 ReadyStep = 60;
+	const TCHAR* const ScatterNode = TEXT("Trunk.ScatterCannon");
+	const TCHAR* const StormNode = TEXT("Branch.Storm.Blessing4");
+	const TCHAR* const StormNext = TEXT("Branch.Storm.Blessing5");
+	const TCHAR* const SealedNode = TEXT("Branch.Shade.Blessing4");
 
 	/** One step of the script: runs each tick until it says it is done. */
 	using FStep = TFunction<bool(UDTHubSubsystem*)>;
@@ -43,6 +51,8 @@ namespace DTHubCheckLocal
 		int64 ShotSize = -1;
 		double ShotPollAt = 0.0;
 		bool bShotAsked = false;
+		int32 WalkLeft = INDEX_NONE;
+		int32 WalkBad = 0;
 	};
 	static FCheck Check;
 
@@ -144,6 +154,43 @@ namespace DTHubCheckLocal
 		});
 	}
 
+	/** Sets the balance by the debug command MetaCheck uses: no hub file holds a session, and a run of a second earns nothing to spend. */
+	static void Fund(int64 Amount)
+	{
+		Check.Steps.Add([Amount](UDTHubSubsystem* Hub)
+		{
+			GEngine->Exec(Hub->GetWorld(), *FString::Printf(TEXT("DT.Meta.Currency %lld"), Amount));
+			return true;
+		});
+	}
+
+	/** Walks focus through the whole page, a row a frame, on the real font: every frame's overflow counts (R-VIG-16). */
+	static void Walk(const FString& What)
+	{
+		Check.Steps.Add([What](UDTHubSubsystem* Hub)
+		{
+			if (Check.WalkLeft == INDEX_NONE)
+			{
+				Check.WalkLeft = Hub->GetState().NumRows();
+				Check.WalkBad = 0;
+				return false; // the frame after this tick is the first one read
+			}
+			if (Hub->GetOverflow() > 0)
+			{
+				++Check.WalkBad;
+				UE_LOG(LogDT, Log, TEXT("VIGILCHECK %s: %d past their room on row %d"), *What, Hub->GetOverflow(), Hub->GetState().Focus);
+			}
+			if (Check.WalkLeft-- == 0)
+			{
+				Check.WalkLeft = INDEX_NONE;
+				Expect(FString::Printf(TEXT("%s fits at the largest text, every row"), *What), Check.WalkBad == 0);
+				return true;
+			}
+			Hub->Command(EDTMenuCommand::Down);
+			return false;
+		});
+	}
+
 	static bool IsPage(UDTHubSubsystem* Hub, EDTHubPage Page)
 	{
 		return Hub->IsActive() && Hub->GetState().Page == Page;
@@ -164,6 +211,36 @@ namespace DTHubCheckLocal
 		UWorld* World = Hub->GetWorld();
 		const UDTSimSubsystem* Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
 		return World && !Hub->IsActive() && World->URL.HasOption(TEXT("DTSeed")) && Sim && Sim->GetStepIndex() >= ReadyStep;
+	}
+
+	static const FDTMetaProfile& Profile(UDTHubSubsystem* Hub)
+	{
+		return *UDTMetaSubsystem::ReadProfile(Hub);
+	}
+
+	static int32 Rank(UDTHubSubsystem* Hub, const TCHAR* Node)
+	{
+		return Profile(Hub).TreeRanks.FindRef(FName(Node));
+	}
+
+	/** The page's row of a catalog node: its nodes in catalog order, with headings between. */
+	static int32 TreeRow(UDTHubSubsystem* Hub, const TCHAR* Node)
+	{
+		const IDTHubTab* Tab = Hub->GetTree();
+		int32 Left = DTTree::FindNode(FName(Node));
+		for (int32 Row = 0; Tab && Row < Tab->NumRows(); ++Row)
+		{
+			if (!Tab->IsHeading(Row) && Left-- == 0)
+			{
+				return Row;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	static bool OnNode(UDTHubSubsystem* Hub, const TCHAR* Node)
+	{
+		return IsPage(Hub, EDTHubPage::Tree) && Hub->GetState().Focus == TreeRow(Hub, Node);
 	}
 
 	static EDTPath RunPatron(UDTHubSubsystem* Hub)
@@ -195,22 +272,19 @@ namespace DTHubCheckLocal
 		Is(TEXT("pad B leaves the Shrine"), [](UDTHubSubsystem* Hub) { return OnRow(Hub, EDTHubRow::Patron); });
 		Press(EKeys::Down);
 		Press(EKeys::Enter);
-		Is(TEXT("the Tree slot opens empty"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Tree) && Hub->GetState().NumRows() == 0; });
+		Is(TEXT("Contracts opens on the Tree's first node, past its heading"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, TEXT("Trunk.Reroll")) && Hub->GetTree()->IsHeading(0); });
 		Shot(TEXT("contracts"));
+		Press(EKeys::Enter);
+		Is(TEXT("Accept with an empty balance buys nothing"), [](UDTHubSubsystem* Hub) { return Profile(Hub).TreeRanks.IsEmpty() && IsPage(Hub, EDTHubPage::Tree); });
 		Press(EKeys::Escape);
 		Press(EKeys::Down);
 		Press(EKeys::Gamepad_FaceButton_Bottom);
-		Is(TEXT("pad A opens the Codex"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Codex) && Hub->GetCodex().Num() > 0; });
-		// The book opens on Layer 0; the six Keeper rows at Layer 1 are readable from the start, so the shot sits on one.
-		Until([](UDTHubSubsystem* Hub)
+		Is(TEXT("pad A opens the Codex on its first read row, at the top of the window, inside the reach"), [](UDTHubSubsystem* Hub)
 		{
 			const FDTHubState& State = Hub->GetState();
-			if (State.Page == EDTHubPage::Codex && Hub->GetCodex().IsValidIndex(State.Focus) && Hub->GetCodex()[State.Focus].bRead)
-			{
-				return true;
-			}
-			Hub->Command(EDTMenuCommand::Down);
-			return false;
+			const TArray<FDTCodexRow>& Book = Hub->GetCodex();
+			return IsPage(Hub, EDTHubPage::Codex) && Book.IsValidIndex(State.Focus) && Book[State.Focus].bRead && State.Scroll == State.Focus
+				&& !Book.ContainsByPredicate([](const FDTCodexRow& Row) { return Row.Layer > DTConst::NARR_PREWIN_LAYER_MAX; });
 		});
 		Shot(TEXT("codex"));
 		Press(EKeys::Gamepad_FaceButton_Right);
@@ -263,18 +337,73 @@ namespace DTHubCheckLocal
 			return Profile && Profile->Runs == 1 && Profile->LastPatron == TEXT("Forge") && Hub->GetState().Selected == EDTPath::Forge
 				&& !Hub->GetWorld()->URL.HasOption(TEXT("DTSeed")) && OnRow(Hub, EDTHubRow::Begin);
 		});
+
+		// Contracts by key events, both devices: two purchases at exact money, and every refusal spends nothing.
+		Fund(DTConst::TREE_COST_WEAPON + DTConst::TREE_COST_BLESSING4);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Enter);
+		Press(EKeys::Gamepad_DPad_Down);
+		Press(EKeys::Down);
+		Press(EKeys::S);
+		Is(TEXT("focus reaches the Scatter Cannon's node"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, ScatterNode); });
+		Press(EKeys::Enter);
+		Is(TEXT("Enter buys it: rank, unlock and price"), [](UDTHubSubsystem* Hub)
+		{
+			return Rank(Hub, ScatterNode) == 1 && Profile(Hub).Unlocked.Contains(TEXT("Weapon.ScatterCannon")) && Profile(Hub).Currency == DTConst::TREE_COST_BLESSING4;
+		});
+		Shot(TEXT("contracts_bought"));
+		Press(EKeys::SpaceBar);
+		Is(TEXT("a second Accept buys nothing"), [](UDTHubSubsystem* Hub) { return Rank(Hub, ScatterNode) == 1 && Profile(Hub).Currency == DTConst::TREE_COST_BLESSING4; });
+		Press(EKeys::Right);
+		Is(TEXT("a page right lands on a node, past a heading"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, SealedNode); });
+		Shot(TEXT("contracts_sealed"));
+		Press(EKeys::Enter);
+		Is(TEXT("Accept on a sealed Keeper's node buys nothing"), [](UDTHubSubsystem* Hub) { return Rank(Hub, SealedNode) == 0 && Profile(Hub).Currency == DTConst::TREE_COST_BLESSING4; });
+		Press(EKeys::Gamepad_DPad_Left);
+		Press(EKeys::Down);
+		Press(EKeys::Down);
+		Is(TEXT("focus steps over a heading to the next group"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, StormNode); });
+		Press(EKeys::Down);
+		Shot(TEXT("contracts_locked"));
+		Press(EKeys::Gamepad_FaceButton_Bottom);
+		Is(TEXT("Accept on a node with its prerequisite missing buys nothing"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, StormNext) && Rank(Hub, StormNext) == 0 && Profile(Hub).Currency == DTConst::TREE_COST_BLESSING4; });
+		Press(EKeys::Up);
+		Press(EKeys::Gamepad_FaceButton_Bottom);
+		Is(TEXT("pad A buys at exact money"), [](UDTHubSubsystem* Hub) { return Rank(Hub, StormNode) == 1 && Profile(Hub).Currency == 0; });
+		Press(EKeys::Gamepad_FaceButton_Right);
+		Is(TEXT("pad B leaves Contracts on its row"), [](UDTHubSubsystem* Hub) { return OnRow(Hub, EDTHubRow::Tree); });
 	}
 
 	/** A second launch on the same file: the Patron survived the process, and the run's Restart still does what it did. */
 	static void BuildReboot()
 	{
 		Is(TEXT("a new process opens on the saved Patron"), [](UDTHubSubsystem* Hub) { return Hub->GetState().Selected == EDTPath::Forge && OnRow(Hub, EDTHubRow::Begin); });
+		Is(TEXT("a new process holds both purchases and what they opened"), [](UDTHubSubsystem* Hub)
+		{
+			const TSet<FName>& Unlocked = Profile(Hub).Unlocked;
+			return Rank(Hub, ScatterNode) == 1 && Rank(Hub, StormNode) == 1 && Rank(Hub, StormNext) == 0 && Unlocked.Contains(TEXT("Weapon.ScatterCannon"))
+				&& Unlocked.Contains(TEXT("Blessing.Storm.Tempest.Amp1")) && !Unlocked.Contains(TEXT("Weapon.RailLance"));
+		});
 		Press(EKeys::Up);
 		Press(EKeys::Up);
 		Press(EKeys::Enter);
 		Is(TEXT("the Ledger-stone shows the run"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Stats) && UDTMetaSubsystem::ReadProfile(Hub)->Runs == 1; });
 		Shot(TEXT("ledger_after"));
 		Press(EKeys::Gamepad_FaceButton_Right);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Enter);
+		Is(TEXT("the page reads the bought node Complete"), [](UDTHubSubsystem* Hub)
+		{
+			return IsPage(Hub, EDTHubPage::Tree) && Hub->GetTree()->RowValue(TreeRow(Hub, ScatterNode)).EqualTo(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.State.Maxed")));
+		});
+		Shot(TEXT("contracts_after"));
+		Press(EKeys::Gamepad_FaceButton_Right);
+		Press(EKeys::Down);
+		Press(EKeys::Down);
 		Press(EKeys::Down);
 		Press(EKeys::Down);
 		Press(EKeys::Enter);
@@ -289,6 +418,59 @@ namespace DTHubCheckLocal
 		Press(EKeys::Enter);
 		Until([](UDTHubSubsystem* Hub) { return RunReady(Hub) && !Hub->GetWorld()->URL.HasOption(TEXT("DTPatron")); });
 		Is(TEXT("Restart reloads into a run, not the hub"), [](UDTHubSubsystem* Hub) { return RunPatron(Hub) != EDTPath::None; });
+	}
+
+	/** The same save, -DTPoolGate: a run begun from the hub carries what was bought, and only that. */
+	static void BuildGated()
+	{
+		Press(EKeys::Enter);
+		Until(RunReady);
+		Is(TEXT("the run reads the gate"), [](UDTHubSubsystem*) { return UDTMetaSubsystem::GatesPool(); });
+		Is(TEXT("the bought weapon is in this run's pool"), [](UDTHubSubsystem* Hub) { return Hub->GetWorld()->GetSubsystem<UDTWeaponSubsystem>()->IsInPool(TEXT("Weapon.ScatterCannon")); });
+		Is(TEXT("nodes not bought stay shut"), [](UDTHubSubsystem* Hub)
+		{
+			const UDTWeaponSubsystem* Weapons = Hub->GetWorld()->GetSubsystem<UDTWeaponSubsystem>();
+			return !Weapons->IsInPool(TEXT("Weapon.RailLance")) && !Weapons->IsInPool(TEXT("Mod.Fork")) && !Weapons->IsInPool(TEXT("Mod.ScatterShell"));
+		});
+		Is(TEXT("the run's grant holds the bought branch and not the next"), [](UDTHubSubsystem* Hub)
+		{
+			const FDTPoolGrant Grant = UDTMetaSubsystem::GetRunGrant(Hub);
+			return Grant.bGated && Grant.Unlocked.Contains(TEXT("Blessing.Storm.Tempest.Amp1")) && !Grant.Unlocked.Contains(TEXT("Blessing.Storm.Downpour.Amp1"));
+		});
+	}
+
+	/** The same save at C.SETTINGS.TEXT_MAX_PCT: shots of every page, and every row of each measured on the real font. */
+	static void BuildLarge()
+	{
+		Is(TEXT("the launch reads the largest text"), [](UDTHubSubsystem* Hub)
+		{
+			return Hub->GetState().Window == DTHubLayout::ListWindow(static_cast<float>(DTConst::SETTINGS_TEXT_MAX_PCT) / DTConst::SETTINGS_TEXT_MIN_PCT);
+		});
+		Walk(TEXT("the root"));
+		Shot(TEXT("root_large"));
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Enter);
+		Shot(TEXT("shrine_large"));
+		Walk(TEXT("the Shrine"));
+		Press(EKeys::Escape);
+		Press(EKeys::Down);
+		Press(EKeys::Enter);
+		Shot(TEXT("contracts_large"));
+		Walk(TEXT("Contracts"));
+		Press(EKeys::Escape);
+		Press(EKeys::Down);
+		Press(EKeys::Enter);
+		Shot(TEXT("codex_large"));
+		Walk(TEXT("the Codex"));
+		Press(EKeys::Escape);
+		Press(EKeys::Down);
+		Press(EKeys::Enter);
+		Shot(TEXT("ledger_large"));
+		Walk(TEXT("the Ledger-stone"));
 	}
 
 	static void Finish(const TCHAR* Why)
@@ -311,7 +493,22 @@ void DTHubCheck::Tick(UDTHubSubsystem* Hub)
 	if (!Check.bBuilt)
 	{
 		Check.bBuilt = true;
-		Script == TEXT("Reboot") ? BuildReboot() : BuildFirst();
+		if (Script == TEXT("Reboot"))
+		{
+			BuildReboot();
+		}
+		else if (Script == TEXT("Gated"))
+		{
+			BuildGated();
+		}
+		else if (Script == TEXT("Large"))
+		{
+			BuildLarge();
+		}
+		else
+		{
+			BuildFirst();
+		}
 		Check.StepAt = FPlatformTime::Seconds();
 	}
 	if (Elapsed() > GiveUpS)

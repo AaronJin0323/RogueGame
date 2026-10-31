@@ -35,7 +35,11 @@ struct DUSKTRACER_API FDTHubState
 	/** The chosen Patron, None until one is. */
 	EDTPath Selected = EDTPath::None;
 	int32 CodexRows = 0;
+	/** The book's first read row: where the page opens (R-VIG-08). */
+	int32 CodexFirst = 0;
 	int32 TreeRows = 0;
+	/** Tree rows focus passes over (R-VIG-20). */
+	TSet<int32> TreeHeadings;
 
 	/** Opens the root; LastPatron is chosen when it is open (R-VIG-06). */
 	void Open(const TArray<FDTHubPatron>& InPatrons, EDTPath LastPatron);
@@ -48,6 +52,11 @@ private:
 	void ToRoot(EDTHubRow Row);
 	void AcceptRoot(FDTHubOutcome& Outcome);
 	void KeepInWindow();
+	bool IsHeading(int32 Row) const;
+	/** One row on, wrapping, past any heading. */
+	void StepFocus(int32 Step);
+	/** Off a heading the focus landed on: onward, or back from the end of the page. */
+	void LeaveHeading(int32 Step);
 };
 
 /** Layout of the hub in reference pixels at a 1080-line canvas (R-VIG-16). */
@@ -56,6 +65,8 @@ namespace DTHubLayout
 	DUSKTRACER_API float PanelHeight();
 	DUSKTRACER_API float HeaderHeight(float TextScale);
 	DUSKTRACER_API float DetailHeight(float TextScale);
+	/** Lines the detail pane holds at any text size. */
+	DUSKTRACER_API int32 DetailLineCount();
 	DUSKTRACER_API float FooterHeight(float TextScale);
 	/** List rows that fit under the header, over the detail pane when the page has one; never under one. */
 	DUSKTRACER_API int32 ListWindow(float TextScale, bool bDetail = true);

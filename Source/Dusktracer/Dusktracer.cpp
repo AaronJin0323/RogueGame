@@ -1,5 +1,6 @@
 #include "Dusktracer.h"
 #include "Internationalization/StringTableRegistry.h"
+#include "Meta/DTTreeTab.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
@@ -26,6 +27,7 @@ public:
 		LOCTABLE_FROMFILE_GAME("ST_World", "ST_World", "DT/Text/Generated/ST_World.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Discoveries", "ST_Discoveries", "DT/Text/Generated/ST_Discoveries.csv");
 		LOCTABLE_FROMFILE_GAME("ST_Tree", "ST_Tree", "DT/Text/Generated/ST_Tree.csv");
+		DTTreeTab::Register();
 	}
 };
 
