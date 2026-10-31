@@ -19,7 +19,7 @@ The switch keeps every budget of the caps scene and adds a proof: the verdict re
 - **Bullets.** Real rounds plus filler up to `C.PERF.S2_FILL_RATIO` of the cap. A filler round collides as any round does but deals nothing and belongs to no player, so it kills nothing and starts no reaction (`Dusktracer.Reactions.PerfFiller`). That is what lets weapons reach the crowd, which the caps scene's emitter does not.
 
 ## Proof
-Five runs of the scene on the same game code, 1800 frames at 1920x1080. One run's window, in full:
+Four runs of the scene on the same game code, 1800 frames at 1920x1080. One run's window, in full:
 
 | Reaction | Fires | Per s | | Counted | In the window |
 |---|---|---|---|---|---|
@@ -63,9 +63,9 @@ Every proof above stands at 1000× swarm HP. That number is mine, chosen after 3
 | 100× | 7523 | 274 | 13.43 / 22.67 | FAIL |
 | 30× | 9706 | 239 | 12.66 / 15.22 | FAIL |
 
-The real kill rate sits near 20 a second (the arrival ceiling of `S1_keeper_power.md`), so 1000× already kills twice that and 300× nine times. Between 181 and 7523 kills a second the build runs away: kills feed Writ, embers, Shades and discharges, which kill more, and the crowd dies on the ring as it lands. That is not a state a run reaches: it needs all six Keepers on crowd that never gets harder than this and 150 times the real kill rate. It is reported because the budget does fail there, and what costs the time at 100×, per frame: weapons 2.92, weapon effects 2.90, observer 2.19, duos 1.36 of the effects, tick 9.89 ms.
+The real kill rate sits near 20 a second (the arrival ceiling of `S1_keeper_power.md`), so 1000× already kills twice that and 300× nine times. Between 300× and 100× the build runs away: on-kill reactions rise from about 40 to thousands a second, and the crowd stays under the cap though it is refilled every step. That is not a state a run reaches: it needs all six Keepers at over 300 times the real kill rate. It is reported because the budget does fail there, and what costs the time at 100×, per frame: weapons 2.92, weapon effects 2.90, observer 2.19, duos 1.36 of the effects, tick 9.89 ms.
 
-**A lead from that profile, not fixed:** a Shade that replaces the oldest at `shades_max` starts with its timer at zero, so at the cap every Marked kill fires a free volley of the first weapon, ahead of R-RFG-19's "on that weapon's cooldown". It explains most of `StepWeapons` at 100×. At a real kill rate it is also a damage gain, about two extra Rifle volleys a second, so fixing it moves bot numbers: that is a BUG to triage on its own. `ObserveBullets` also rebuilds two hash maps per step, which is the first place to look if the observer ever matters. Neither is needed for this proof.
+**A lead from that profile, not fixed:** a Shade that replaces the oldest at `shades_max` starts with its timer at zero, so at the cap every Marked kill fires a free volley of the first weapon, ahead of R-RFG-19's "on that weapon's cooldown". It likely carries much of `StepWeapons` at 100×, though no timer splits it. It is also a damage gain at any kill rate, so fixing it moves bot numbers: that is a BUG to triage on its own. `ObserveBullets` also rebuilds two hash maps per step, which is the first place to look if the observer ever matters. Neither is needed for this proof.
 
 ## Do duo fields spend the weapon's emit cap?
 **Yes, slot 0's, and in a saturated slot they mostly lose.** Arc Furnace and Lightning Step open fields on weapon slot 0 through `TryEmit`, counted now as `DuoFields` and `DuoFieldsThrottled` (`Dusktracer.Reactions.Duo.FieldEmit`).
