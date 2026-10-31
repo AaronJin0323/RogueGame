@@ -46,11 +46,15 @@ foreach ($Config in $Configs) {
 	New-Item -ItemType Directory -Force $Dest | Out-Null
 	$Log = Join-Path $LogDir "Package_$Config.log"
 	$Args = @("BuildCookRun", "-project=`"$Project`"", "-noP4", "-platform=Win64", "-clientconfig=$Config", "-map=$Map",
-		"-build", "-nocompileeditor", "-stage", "-pak", "-iostore", "-compressed", "-prereqs", "-nodebuginfo",
+		"-skipbuild", "-nocompileeditor", "-stage", "-pak", "-iostore", "-compressed", "-prereqs", "-nodebuginfo",
 		"-archive", "-archivedirectory=`"$Dest`"", "-unattended", "-utf8output", "-nosplash",
 		("-CookCultures=" + ($Cultures -join "+")))
 	# The cook does not depend on the config: the second config stages the first one's cooked output.
 	if ($First -and -not $SkipCook) { $Args += "-cook" } else { $Args += "-skipcook" }
+	# Tools\Build.bat waits for the UBT mutex; BuildCookRun -build fails at once when another worktree is compiling.
+	Write-Host "package: game target $Config"
+	$Out = & cmd /c "`"$Root\Tools\Build.bat`" Dusktracer $Config 2>&1"
+	if ($LASTEXITCODE -ne 0) { $Out | Select-Object -Last 10 | ForEach-Object { "    $_" }; Stop-Package "$Config build" }
 	Write-Host "package: $Config (log $Log)"
 	$Watch = [Diagnostics.Stopwatch]::StartNew()
 	& cmd /c "`"$Uat`" $($Args -join ' ') > `"$Log`" 2>&1"
