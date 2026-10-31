@@ -171,3 +171,6 @@ python -I Tools\bot_compare.py before=Saved\BotRuns\sf_before after=Saved\BotRun
 - **T-OFF-15:** PASS 86/86 before, 90/90 after, mean decisions 29.13 and 29.03.
 - **The direction is not what the bug predicts.** Taking free damage away should cost wins, and the arms gained them. Six of 49 runs changed result: five better, one worse (Hound seed 8). On 15 seeds that is inside the noise, and every Collection run diverges after L16, so it does not show that the fix helps. What it does show is that the fix cost no reach or wins on these arms. Mean win time moved from 964.3 to 967.4 s, on different sets of winners. Why the arms did not lose is not traced.
 - **Not read:** the 100× crowd of `S2_perf.md`, where the lead guessed these volleys carry much of `StepWeapons`. `Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 Hp=100"` would read it.
+
+## Gate
+`Tools\Gate.ps1 -Base dev/s2`: PASS at fa24a51, 393 tests run, 0 failed, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run. The commit after it is this line.
