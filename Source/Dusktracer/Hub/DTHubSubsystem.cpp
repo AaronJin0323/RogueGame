@@ -66,7 +66,10 @@ bool UDTHubSubsystem::IsAcceptHeld() const
 
 void UDTHubSubsystem::BeginRun()
 {
-	const int32 CommandSeed = ADTGameMode::GetCommandLineSeed();
+	// -DTSeed names a launch's first run: a launcher gives one seed, and a launch holds as many runs as a person plays (R-VIG-07).
+	static bool bCommandSeedUsed = false;
+	const int32 CommandSeed = bCommandSeedUsed ? 0 : ADTGameMode::GetCommandLineSeed();
+	bCommandSeedUsed = true;
 	const int32 Seed = CommandSeed != 0 ? CommandSeed : ADTGameMode::NextSeed(0, FPlatformTime::Cycles());
 	PendingOptions = DTHubData::RunOptions(Seed, State.Selected, *Profile());
 	bBeginPending = true; // as a restart: the key that chose it comes up first, so it never reaches the run (settings.md R-SET-23)
