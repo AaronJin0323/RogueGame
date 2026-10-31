@@ -5,6 +5,12 @@ Transform.Forge.Name,Kiln,窑炉,Offer card name of Transform.Forge (reforging.m
 Transform.Forge.Desc,Enemies that die Burning become slag husks that cleave anything near them.,灼烧中死去的敌人变成熔渣残骸，横斩身边的一切。,Transform.Forge rules. No number: the catalog may change it.,Status.Burn;Flag.ConvertMelee
 Transform.Tide.Name,Glacier,冰川,Offer card name of Transform.Tide (reforging.md Text).,
 Transform.Tide.Desc,"Frozen enemies become ice pillars that block enemies and their shots, then shatter into Chill.",被冻结的敌人变成冰柱，挡住敌人和敌方弹幕，随后碎裂并施加冰缓。,Transform.Tide rules. No number: the catalog may change it.,Status.Freeze;Status.Chill
+Transform.Shade.Name,Collection,收账,Offer card name of Transform.Shade (reforging.md Text).,
+Transform.Shade.Desc,Marked enemies that die rise as Shades that orbit you and fire your first weapon.,被标记的敌人死后化为亡影，环绕你，用你的第一把武器射击。,Transform.Shade rules. No number: the catalog may change it.,Status.Mark;Flag.Hunter
+Transform.Radiance.Name,Zenith,天顶,Offer card name of Transform.Radiance (reforging.md Text).,
+Transform.Radiance.Desc,"Charged shots split into charged lances, and every overkill bursts in light.",蓄能弹分裂成蓄能光矛，每次多余的伤害都会炸成光。,Transform.Radiance rules. No number: the catalog may change it.,Flag.Charge;Flag.CritSplit;Flag.Nova
+Transform.Quicksilver.Name,Slipstream Drive,滑流,Offer card name of Transform.Quicksilver (reforging.md Text).,
+Transform.Quicksilver.Desc,"One more dash charge. Dashes fire all weapons, and your power keeps rising with speed, without a cap.",冲刺次数增加。冲刺时发射所有武器，速度越快威力越强，没有上限。,Transform.Quicksilver rules. No number: the catalog may change it.,Flag.VolleyOnDash;Flag.SpeedScale
 Evolve.PulseRifle.Name,Railstorm,轨暴,Offer card name of Evolve.PulseRifle (reforging.md Text).,
 Evolve.PulseRifle.Desc,Bolts become orbiting blades that launch at the nearest enemy and return.,弹体变成环绕你的刀刃，射向最近的敌人后返回。,Evolve.PulseRifle rules. No number: the catalog may change it.,
 Evolve.ScatterCannon.Name,Flechette,箭霰,Offer card name of Evolve.ScatterCannon (reforging.md Text).,

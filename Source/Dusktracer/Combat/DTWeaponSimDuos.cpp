@@ -1,6 +1,7 @@
 // Duo reactions and duo blessings (reactions.md). Numbers come from reactions.csv. A reaction's hit carries Keeper.Duo.<Pair> and
 // no weapon slot, so no proc feeds on it and no reaction starts from it (R-REA-03). Nothing here draws from a stream (R-REA-06), and
 // with Reaction.Duos out of the pool nothing here runs (R-REA-02).
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
 #include "Enemies/DTEnemyPool.h"
@@ -105,6 +106,10 @@ FDTDuoHero FDTWeaponSim::GetDuoHero(int32 OwnerId) const
 		const FPlayerRuntime& Player = Players[OwnerId];
 		Hero.MoveSpeedMul = Player.DuoSpeedMul;
 		Hero.DashCharges = Player.DuoChargeLeft > 0.0f ? FMath::RoundToInt32(DTReactions::DuoParam(RowOf(EReaction::ShadeQuicksilver), TEXT("charges"))) : 0;
+	}
+	if (Players.IsValidIndex(OwnerId) && Players[OwnerId].SlipstreamRow != INDEX_NONE)
+	{
+		Hero.DashCharges += FMath::RoundToInt32(DTReforge::Param(Players[OwnerId].SlipstreamRow, TEXT("dash_charges"))); // R-RFG-21
 	}
 	return Hero;
 }

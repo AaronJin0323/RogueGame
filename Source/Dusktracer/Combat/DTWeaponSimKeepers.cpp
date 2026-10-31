@@ -1,6 +1,7 @@
 // The S2 Keeper mechanics of the weapon system (keepers.md §9): Mark, Blind, hunters, Debt, crit reactions, novas, dash volleys,
 // Momentum. Every parameter comes from expression.csv; a hit made here carries no weapon slot unless a rule says it does, so no
 // proc feeds on it (R-KEE-13's Keeper hits). Reads the flag sources directly, so they count before the next compose.
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
 #include "Enemies/DTEnemyPool.h"
@@ -270,12 +271,41 @@ uint32 FDTWeaponSim::NearestMarked(int32 OwnerId, const FVector2f& From, float R
 
 int32 FDTWeaponSim::GetLiveHunters(int32 OwnerId) const
 {
-	return Hunters.FilterByPredicate([OwnerId](const FHunter& H) { return H.OwnerId == OwnerId; }).Num();
+	return Hunters.FilterByPredicate([OwnerId](const FHunter& H) { return H.OwnerId == OwnerId && !H.bShade; }).Num();
 }
 
 int32 FDTWeaponSim::GetLiveShades(int32 OwnerId) const
 {
-	return 0;
+	return Hunters.FilterByPredicate([OwnerId](const FHunter& H) { return H.OwnerId == OwnerId && H.bShade; }).Num();
+}
+
+FDTReforgeRead FDTWeaponSim::GetReforgeRead(int32 OwnerId) const
+{
+	FDTReforgeRead Out = Players.IsValidIndex(OwnerId) ? Players[OwnerId].Read : FDTReforgeRead();
+	Out.Shades = Players.IsValidIndex(OwnerId) ? Players[OwnerId].ShadesRaised : 0;
+	return Out;
+}
+
+void FDTWeaponSim::RaiseShade(int32 OwnerId, FPlayerRuntime& Player)
+{
+	const int32 Row = Player.CollectionRow;
+	if (GetLiveShades(OwnerId) >= FMath::RoundToInt(DTReforge::Param(Row, TEXT("shades_max"))))
+	{
+		int32 Oldest = INDEX_NONE;
+		for (int32 Index = 0; Index < Hunters.Num(); ++Index)
+		{
+			if (Hunters[Index].OwnerId == OwnerId && Hunters[Index].bShade && (Oldest == INDEX_NONE || Hunters[Index].ShadeNumber < Hunters[Oldest].ShadeNumber))
+			{
+				Oldest = Index;
+			}
+		}
+		Hunters.RemoveAtSwap(Oldest);
+	}
+	FHunter& Shade = Hunters.AddDefaulted_GetRef();
+	Shade.OwnerId = OwnerId;
+	Shade.DmgRatio = DTReforge::Param(Row, TEXT("dmg"));
+	Shade.bShade = true;
+	Shade.ShadeNumber = Player.ShadesRaised++;
 }
 
 void FDTWeaponSim::RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio)
@@ -298,12 +328,16 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 	FDTWorldView& View = *Context.View;
 	const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
 	const float Walk = static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) * Context.StepSeconds;
+	for (FPlayerRuntime& Player : Players)
+	{
+		Player.ShadeOrbitDeg = FMath::Fmod(Player.ShadeOrbitDeg + static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S) * Context.StepSeconds, 360.0f);
+	}
 	for (int32 Index = 0; Index < Hunters.Num();)
 	{
 		FHunter& Hunter = Hunters[Index];
 		const FDTFlagEntry* Entry = KeeperEntry(Hunter.OwnerId, DTCat::EFlag::Hunter);
 		const uint16 Source = Entry ? Entry->SourceId : DTWeapons::KeeperSource(EDTPath::Shade);
-		if (!Hunter.bLasting)
+		if (!Hunter.bLasting && !Hunter.bShade)
 		{
 			Hunter.Left -= Context.StepSeconds;
 			if (Hunter.Left <= 0.0f)
@@ -325,6 +359,14 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 		{
 			Slot = Slot == INDEX_NONE || Player.Weapons[Candidate].Spec.LoadRank < Player.Weapons[Slot].Spec.LoadRank ? Candidate : Slot;
 		}
+		if (Hunter.bShade)
+		{
+			// R-RFG-19: the first weapon, from a seat on the orbit; a replaced Shade's seat goes to the one that replaces it.
+			Slot = 0;
+			const int32 Seats = FMath::Max(1, FMath::RoundToInt(DTReforge::Param(Player.CollectionRow, TEXT("shades_max"))));
+			Hunter.Position = HeroOf(View, Hunter.OwnerId) + Rotate(FVector2f(static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU), 0.0f),
+				Player.ShadeOrbitDeg + 360.0f * static_cast<float>(Hunter.ShadeNumber % Seats) / static_cast<float>(Seats));
+		}
 		FWeaponRuntime* Runtime = FindRuntime(Hunter.OwnerId, Slot);
 		int32 Target = INDEX_NONE;
 		if (!Runtime || !FindNearest(View, Hunter.Position, Frame, 0, Target))
@@ -335,7 +377,7 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 		const FVector2f To = View.EnemyPositions[Target] - Hunter.Position;
 		const float Dist = To.Size();
 		const FVector2f Dir = SafeDir(To, FVector2f(1.0f, 0.0f));
-		if (Dist > Spec.Range)
+		if (Dist > Spec.Range && !Hunter.bShade)
 		{
 			Hunter.Position += Dir * Walk;
 		}
@@ -476,6 +518,10 @@ void FDTWeaponSim::ReactKeeperKills(const FDTSimContext& Context, FDTBulletPool*
 			Kill.SourceId == DTReactions::Source(static_cast<int32>(DTCat::EReaction::ForgeShade));
 		const bool bMarked = IsMarked(Kill.OwnerId, Kill.EnemySerial) || bPyre;
 		const bool bWeapon = Kill.WeaponSlot != INDEX_NONE;
+		if (Player.CollectionRow != INDEX_NONE && bMarked)
+		{
+			RaiseShade(Kill.OwnerId, Player);
+		}
 		if (const FDTFlagEntry* Debt = KeeperEntry(Kill.OwnerId, DTCat::EFlag::Debt))
 		{
 			if (bMarked)
@@ -788,7 +834,16 @@ void FDTWeaponSim::StepKeeperHero(const FDTSimContext& Context, FDTBulletPool* B
 		Stacks += bDashStart ? Params.Get(ParamDashStacks) : 0.0f;
 		Stacks -= bHurt ? Params.Get(ParamHitLoss) : 0.0f;
 		Stacks -= Moved <= KINDA_SMALL_NUMBER && !Player.bMomentumHold ? Params.Get(ParamDecayPerS) * Context.StepSeconds : 0.0f;
-		Player.Momentum = FMath::Clamp(Stacks, 0.0f, Cap);
+		if (Player.SlipstreamRow != INDEX_NONE)
+		{
+			// R-RFG-21: no cap; a leak on what is held, so the level stands where speed balances it.
+			Stacks -= Stacks * DTReforge::Param(Player.SlipstreamRow, TEXT("leak_per_s")) * Context.StepSeconds;
+			Player.Momentum = FMath::Max(Stacks, 0.0f);
+		}
+		else
+		{
+			Player.Momentum = FMath::Clamp(Stacks, 0.0f, Cap);
+		}
 		const float Mult = 1.0f + Player.Momentum * Params.Get(ParamPerStack);
 		for (FWeaponRuntime& Weapon : Player.Weapons)
 		{

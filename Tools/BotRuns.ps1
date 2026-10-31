@@ -32,7 +32,9 @@ param(
 	[string]$Jobs = "",
 	[double]$Stagger = 1.5,
 	# Non-starter ids to put in the run pool (DT.Unlock, D-013), comma-separated; "S2" = every S2 row of the catalogs plus the S1 non-starters.
-	[string[]]$Unlock = @()
+	[string[]]$Unlock = @(),
+	# R-BOT-16: the measuring arm that takes the primary weapon's upgrades first until it can evolve.
+	[switch]$PrimaryFirst
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -112,7 +114,7 @@ function Start-Run($Label, $Seed, $Extra) {
 	$Record = Join-Path $RunDir "bot.csv"
 	$ArgList = @("`"$Project`"", $Map, "-game", "-nullrhi", "-nosplash", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
 		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotVersion=$BotVersion", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
-		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $UnlockArg + $Extra
+		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $UnlockArg + $Extra + $(if ($PrimaryFirst) { @("-DTBotPrimaryFirst") } else { @() })
 	Reap-Runs ([Math]::Max(1, $Parallel))
 	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
 	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }

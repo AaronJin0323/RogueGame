@@ -119,6 +119,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	Config.SecondPath = FDTBotConfig::ParsePath(CVarBotSecond.GetValueOnGameThread());
 	Config.Version = FDTBotConfig::KnownVersion(CVarBotVersion.GetValueOnGameThread());
 	Config.Skill = CVarBotSkill.GetValueOnGameThread();
+	Config.bPrimaryFirst = FParse::Param(FCommandLine::Get(), TEXT("DTBotPrimaryFirst"));
 	Config.Seed = ADTGameMode::GetCommandLineSeed();
 	return Config;
 }
@@ -385,7 +386,14 @@ void UDTBotSubsystem::WriteRecord() const
 			Reforge = Weapon.Evolve != INDEX_NONE ? DTReforge::RowId(Weapon.Evolve).ToString() : Reforge;
 		}
 	}
-	const FString Summary = FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nreforge=%s\nconfig=%s\n"),
+	FDTReforgeRead Read;
+	if (const UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr)
+	{
+		Read = Weapons->GetSim().GetReforgeRead(0);
+	}
+	const FString ReadText = FString::Printf(TEXT("reforge_read=pillars:%d;pillar_s:%.2f;by_hit:%d;by_time:%d;discharges:%d;husks:%d;shades:%d\n"),
+		Read.Pillars, Read.PillarSeconds, Read.ShatterByHit, Read.ShatterByTime, Read.Discharges, Read.Husks, Read.Shades);
+	const FString Summary = ReadText + FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nreforge=%s\nconfig=%s\n"),
 		bVictory ? TEXT("victory") : (bDead ? TEXT("death") : TEXT("timeout")), EndSeconds, Level630, Sim.IsValid() ? Sim->GetStepIndex() : -1,
 		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, Hits, HitsStill, HitsWall, *Reforge, *Brain.GetConfig().Describe());
 	FFileHelper::SaveStringToFile(Csv, *OutPath);

@@ -972,9 +972,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		}
 		return Current;
 	};
-	if (!bFree)
+	if (!bFree && ChargeShot(Spec, Instance.ShotCounter + 1, Shot))
 	{
-		ChargeShot(Spec, Instance.ShotCounter + 1, Shot);
+		const FVector2f Along = MineCells.Num() > 0 ? SafeDir(MineCells[0] - Hero, AimDir)
+			: (Seekers.Num() > 0 ? SafeDir(View.EnemyPositions[Seekers[0]] - Hero, AimDir) : Dir);
+		SplitCharged(Context, Bullets, Runtime, Shot, Hero, Along);
 	}
 	// Stillness: a charge reshapes the weapon's own next volley.
 	if (!bFree && Runtime.StillCharges > 0)
@@ -1234,9 +1236,9 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		const FVector2f From = DronePos(Drone);
 		const FVector2f Dir = SafeDir(View.EnemyPositions[Enemy] - From, FVector2f(1.0f, 0.0f));
 		FShot Shot = MakeShot(Owner, Slot, Runtime, Source, From);
-		if (bCharge)
+		if (bCharge && ChargeShot(Spec, Instance.ShotCounter + 1, Shot))
 		{
-			ChargeShot(Spec, Instance.ShotCounter + 1, Shot);
+			SplitCharged(Context, Bullets, Runtime, Shot, From, Dir);
 		}
 		if (bCharge && Runtime.StillCharges > 0)
 		{
@@ -1502,12 +1504,12 @@ void FDTWeaponSim::Detonate(const FDTSimContext& Context, int32 OwnerId, int32 S
 // ------------------------------------------------------------------------------------------------------------------
 // Activation-time expressions, stillness, slam
 
-void FDTWeaponSim::ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const
+bool FDTWeaponSim::ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const
 {
 	const FDTResolvedFlag* Charge = Spec.FindFlag(DTCat::EFlag::Charge);
 	if (!Charge)
 	{
-		return;
+		return false;
 	}
 	static const FName ParamPierceAdd(TEXT("pierce_add"));
 	static const FName ParamChargedCrit(TEXT("charged_crit"));
@@ -1521,6 +1523,92 @@ void FDTWeaponSim::ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot
 		Shot.CritBonus = Params.Get(ParamChargedCrit);
 		Shot.bForceCrit = Params.Get(ParamAlwaysCrit) > 0.0f;
 		Shot.SourceId = Charge->Entry.SourceId; // reshaping by a Keeper flag is the Keeper's (R-WPN-07)
+		return true;
+	}
+	return false;
+}
+
+void FDTWeaponSim::SplitCharged(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FShot& Charged, const FVector2f& From, const FVector2f& Dir)
+{
+	const int32 Row = Players.IsValidIndex(Charged.OwnerId) ? Players[Charged.OwnerId].ZenithRow : INDEX_NONE;
+	if (Row == INDEX_NONE)
+	{
+		return;
+	}
+	FShot Lance = MakeShot(Charged.OwnerId, Charged.Slot, Runtime, Charged.SourceId, From);
+	Lance.Damage = Charged.Damage * DTReforge::Param(Row, TEXT("lance_dmg"));
+	Lance.Pierce = FMath::RoundToInt(DTReforge::Param(Row, TEXT("lance_pierce")));
+	Lance.Bounces = 0;
+	Lance.bTrack = true;
+	Lance.Generation = 1; // one generation only (keeper_identity_spec R26)
+	Lance.bLance = true;  // a lance runs no reaction of its own (R-KEE-32)
+	if (Lance.Speed <= 0.0f)
+	{
+		Lance.Speed = static_cast<float>(DTConst::WEAPON_CHILD_SPEED_UU_S);
+		Lance.Radius = static_cast<float>(DTConst::WEAPON_CHILD_RADIUS_UU);
+		Lance.Life = static_cast<float>(DTConst::WEAPON_CHILD_RANGE_UU) / Lance.Speed;
+	}
+	const int32 Lances = FMath::RoundToInt(DTReforge::Param(Row, TEXT("lances")));
+	const float Fan = DTReforge::Param(Row, TEXT("fan_deg"));
+	for (int32 Index = 0; Index < Lances; ++Index)
+	{
+		const float Part = Lances > 1 ? static_cast<float>(Index) / static_cast<float>(Lances - 1) : 0.5f;
+		SpawnRound(Context, Bullets, Runtime, Lance, From, DTWeaponSimLocal::Rotate(Dir, Fan * (Part - 0.5f)));
+	}
+}
+
+void FDTWeaponSim::GrantPathFlags(int32 OwnerId, FPlayerRuntime& Player)
+{
+	const auto Lacks = [&Player](FName Own, DTCat::EFlag Flag)
+	{
+		for (const FFlagSource& Source : Player.Sources)
+		{
+			if (Source.Tag != Own && Source.Flags.Entries.ContainsByPredicate([Flag](const FDTFlagEntry& Entry) { return Entry.Flag == Flag; }))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+	if (Player.ZenithRow != INDEX_NONE)
+	{
+		static const FName Tag(TEXT("Reforge.Zenith"));
+		const int32 Row = Player.ZenithRow;
+		const uint16 Source = DTWeapons::KeeperSource(EDTPath::Radiance);
+		FDTWeaponFlags Flags;
+		if (Lacks(Tag, DTCat::EFlag::Charge))
+		{
+			FDTFlagEntry& Charge = Flags.Add(DTCat::EFlag::Charge, Source, EDTFlagTier::Key);
+			Charge.Params.Set(DTFlagParam::EveryN, DTReforge::Param(Row, TEXT("every_n")));
+			Charge.Params.Set(DTFlagParam::Mult, DTReforge::Param(Row, TEXT("mult")));
+		}
+		if (Lacks(Tag, DTCat::EFlag::Nova))
+		{
+			FDTFlagEntry& Nova = Flags.Add(DTCat::EFlag::Nova, Source, EDTFlagTier::Key);
+			Nova.Params.Set(DTFlagParam::RadiusUu, DTReforge::Param(Row, TEXT("nova_uu")));
+			Nova.Params.Set(DTFlagParam::Dmg, DTReforge::Param(Row, TEXT("nova_dmg")));
+		}
+		AddFlagSource(OwnerId, Tag, Flags);
+	}
+	if (Player.SlipstreamRow != INDEX_NONE)
+	{
+		static const FName Tag(TEXT("Reforge.Slipstream"));
+		const int32 Row = Player.SlipstreamRow;
+		const uint16 Source = DTWeapons::KeeperSource(EDTPath::Quicksilver);
+		FDTWeaponFlags Flags;
+		if (Lacks(Tag, DTCat::EFlag::VolleyOnDash))
+		{
+			Flags.Add(DTCat::EFlag::VolleyOnDash, Source, EDTFlagTier::Key).Params.Set(DTFlagParam::DmgMult, DTReforge::Param(Row, TEXT("dmg_mult")));
+		}
+		if (Lacks(Tag, DTCat::EFlag::SpeedScale))
+		{
+			FDTFlagEntry& Speed = Flags.Add(DTCat::EFlag::SpeedScale, Source, EDTFlagTier::Key);
+			for (const TCHAR* Name : { TEXT("per_stack"), TEXT("per_100uu"), TEXT("dash_stacks"), TEXT("hit_loss"), TEXT("decay_per_s") })
+			{
+				Speed.Params.Set(FName(Name), DTReforge::Param(Row, Name));
+			}
+		}
+		AddFlagSource(OwnerId, Tag, Flags);
 	}
 }
 
@@ -1961,6 +2049,7 @@ void FDTWeaponSim::Discharge(const FDTSimContext& Context, int32 OwnerId, const 
 		return; // R-RFG-15: at most once per cooldown_s (the source's per-enemy cooldown)
 	}
 	Ready = Context.StepIndex + FMath::RoundToInt64(DTReforge::Param(Row, TEXT("cooldown_s")) / Context.StepSeconds);
+	++Player.Read.Discharges;
 	const float Range = DTReforge::Param(Row, TEXT("range_uu"));
 	const int32 Jumps = FMath::RoundToInt(DTReforge::Param(Row, TEXT("jumps")));
 	TArray<int32> Near;
@@ -1981,7 +2070,6 @@ void FDTWeaponSim::Discharge(const FDTSimContext& Context, int32 OwnerId, const 
 		Hit.Damage = Damage;
 		Hit.Position = View.EnemyPositions[Enemy];
 		Hit.SourceId = Source;
-		Hit.WeaponSlot = 0;
 		ApplyStatus(Context, Shock, FDTEnemyHandle{ Enemy, View.EnemySerials[Enemy] }, Damage, OwnerId, Source);
 		const FVector2f To = View.EnemyPositions[Enemy] - From;
 		AddFlash(OwnerId, From, DTWeaponSimLocal::SafeDir(To, FVector2f(1.0f, 0.0f)), To.Size(), 6.0f, 0.12f);
@@ -2024,7 +2112,7 @@ void FDTWeaponSim::StepHusks(const FDTSimContext& Context)
 		{
 			Husk.ReadyIn += DTReforge::Param(Row, TEXT("cleave_s"));
 			const float Reach = DTReforge::Param(Row, TEXT("cleave_r_uu"));
-			HitCircle(Context, Husk.OwnerId, 0, DTWeapons::KeeperSource(EDTPath::Forge), Husk.Position, Reach,
+			HitCircle(Context, Husk.OwnerId, INDEX_NONE, DTWeapons::KeeperSource(EDTPath::Forge), Husk.Position, Reach,
 				DTReforge::Param(Row, TEXT("dmg")) * StrongestDamage(Husk.OwnerId), false, nullptr);
 			AddFlash(Husk.OwnerId, Husk.Position, FVector2f(1.0f, 0.0f), Reach, 360.0f, 0.15f);
 		}
@@ -2058,6 +2146,7 @@ void FDTWeaponSim::StepPillars(const FDTSimContext& Context, int32 OwnerId, FPla
 			!Player.Pillars.ContainsByPredicate([Serial](const FPillar& P) { return P.Serial == Serial; }))
 		{
 			Player.Pillars.Add(FPillar{ Serial, DTReforge::Param(Row, TEXT("pillar_s")) });
+			++Player.Read.Pillars;
 			Player.FrozenStruck.Remove(Serial); // what froze it is not a strike on the pillar
 		}
 	}
@@ -2075,9 +2164,13 @@ void FDTWeaponSim::StepPillars(const FDTSimContext& Context, int32 OwnerId, FPla
 		Pillar.Left -= Context.StepSeconds;
 		if (Pillar.Left <= 0.0f || Player.FrozenStruck.Contains(Pillar.Serial))
 		{
+			const bool bByTime = Pillar.Left <= 0.0f;
+			Player.Read.ShatterByTime += bByTime ? 1 : 0;
+			Player.Read.ShatterByHit += bByTime ? 0 : 1;
+			Player.Read.PillarSeconds += DTReforge::Param(Row, TEXT("pillar_s")) - FMath::Max(0.0f, Pillar.Left);
 			const FVector2f At = View.EnemyPositions[Enemy];
 			const float Reach = DTReforge::Param(Row, TEXT("shatter_uu"));
-			HitCircle(Context, OwnerId, 0, Source, At, Reach, DTReforge::Param(Row, TEXT("shatter_dmg")) * StrongestDamage(OwnerId), false, nullptr);
+			HitCircle(Context, OwnerId, INDEX_NONE, Source, At, Reach, DTReforge::Param(Row, TEXT("shatter_dmg")) * StrongestDamage(OwnerId), false, nullptr);
 			FDTFlagParams Chill;
 			Chill.SetWord(DTFlagParam::Status, FName(TEXT("Status.Chill")));
 			TArray<int32> Near;
@@ -2272,10 +2365,14 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 		FDTPlayerRunState& Player = Run.GetPlayer(Owner);
 		FPlayerRuntime& PlayerRt = Players[Owner];
 		const TArray<int32> Ranks = DTWeaponCompose::LoadRanks(Player.Weapons);
-		const TArray<FDTFlagEntry> Flags = GetPlayerFlags(Owner);
 		PlayerRt.OverloadRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Overload);
 		PlayerRt.KilnRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Kiln);
 		PlayerRt.GlacierRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Glacier);
+		PlayerRt.CollectionRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Collection);
+		PlayerRt.ZenithRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Zenith);
+		PlayerRt.SlipstreamRow = DTReforge::OwnedPathRow(Player, EDTPathReforge::Slipstream);
+		GrantPathFlags(Owner, PlayerRt);
+		const TArray<FDTFlagEntry> Flags = GetPlayerFlags(Owner);
 		const FVector2f HeroNow = DTWeaponSimLocal::HeroOf(View, Owner);
 		PlayerRt.HeroSpeed = PlayerRt.bHasLastHero ? FVector2f::Distance(HeroNow, PlayerRt.LastHero) / Context.StepSeconds : 0.0f;
 		PlayerRt.LastHero = HeroNow;
@@ -3247,6 +3344,7 @@ void FDTWeaponSim::ReactToKills(const FDTSimContext& Context, TConstArrayView<FA
 		if (Player.KilnRow != INDEX_NONE && (Deaths[Index].StatusMask & BurnBit) != 0 &&
 			Husks.FilterByPredicate([&Kill](const FHusk& H) { return H.OwnerId == Kill.OwnerId; }).Num() < FMath::RoundToInt(DTReforge::Param(Player.KilnRow, TEXT("husks_max"))))
 		{
+			++Player.Read.Husks;
 			FHusk& Husk = Husks.AddDefaulted_GetRef(); // R-RFG-16
 			Husk.OwnerId = Kill.OwnerId;
 			Husk.Position = Kill.Position;
@@ -3979,6 +4077,24 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 	}
 	for (const FField& Field : Fields)
 	{
+		if (Field.BandUu > 0.0f)
+		{
+			// A ring acts on its band only (R-RFG-12): draw that band's two edges as beaded arcs, never a filled disc.
+			const float Outer = Field.CurrentRadius();
+			for (const float Radius : { Outer, Outer - Field.BandUu })
+			{
+				if (Radius > 0.0f)
+				{
+					FDTWeaponVisual& Ring = Out.AddDefaulted_GetRef();
+					Ring.Kind = FDTWeaponVisual::EKind::Arc;
+					Ring.Position = Field.Position;
+					Ring.Radius = Radius;
+					Ring.ArcDeg = 360.0f;
+					Ring.Path = PathOf(Field.OwnerId);
+				}
+			}
+			continue;
+		}
 		FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
 		V.Kind = FDTWeaponVisual::EKind::Field;
 		V.Position = Field.Position;

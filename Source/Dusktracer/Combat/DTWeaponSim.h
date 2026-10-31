@@ -55,6 +55,18 @@ struct FDTWeaponVisual
 	EDTPath Path = EDTPath::None;
 };
 
+/** What Path rows did in a run (reforging.md Telemetry): the bot record reads it, nothing in the sim does. */
+struct FDTReforgeRead
+{
+	int32 Pillars = 0;
+	float PillarSeconds = 0.0f;
+	int32 ShatterByHit = 0;
+	int32 ShatterByTime = 0;
+	int32 Discharges = 0;
+	int32 Husks = 0;
+	int32 Shades = 0;
+};
+
 /** What reactions ask of the hero (reactions.md): the Keeper subsystem writes them into FDTHeroStats. */
 struct FDTDuoHero
 {
@@ -107,6 +119,7 @@ public:
 	int32 GetLiveHunters(int32 OwnerId) const;
 	/** Collection's Shades alive (R-RFG-19). */
 	int32 GetLiveShades(int32 OwnerId) const;
+	FDTReforgeRead GetReforgeRead(int32 OwnerId) const;
 	/** Raises Count hunters at At with this life and share of the best weapon's damage, under max_live (R-KEE-27). */
 	void RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio);
 	int32 GetDebt(int32 OwnerId) const;
@@ -269,6 +282,13 @@ private:
 		int32 OverloadRow = INDEX_NONE;
 		int32 KilnRow = INDEX_NONE;
 		int32 GlacierRow = INDEX_NONE;
+		int32 CollectionRow = INDEX_NONE;
+		int32 ZenithRow = INDEX_NONE;
+		int32 SlipstreamRow = INDEX_NONE;
+		/** Collection: Shades raised so far (the oldest is the lowest) and the orbit's angle. */
+		int32 ShadesRaised = 0;
+		FDTReforgeRead Read;
+		float ShadeOrbitDeg = 0.0f;
 		/** Overload: Shock stacks by serial, the step each enemy may discharge again, and who discharges this step. */
 		TMap<uint32, int32> ShockStacks;
 		TMap<uint32, int64> DischargeReadyStep;
@@ -333,6 +353,9 @@ private:
 		float Timer = 0.0f;
 		float DmgRatio = 0.0f;
 		bool bLasting = false;
+		/** Collection's Shade (R-RFG-19): rides the orbit, never expires; its raise number places it and names the oldest. */
+		bool bShade = false;
+		int32 ShadeNumber = 0;
 	};
 
 	/** What kind of contact an impact was; decides which reactions run (see DTWeaponSim.cpp). */
@@ -520,7 +543,13 @@ private:
 	bool TryEmit(FWeaponRuntime& Runtime);
 	bool RollCrit(const FDTSimContext& Context, const FDTWeaponSpec& Spec, float& InOutDamage) const;
 	/** Flag.Charge on this shot of the weapon (keepers.md R-KEE-31). */
-	void ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const;
+	/** True when this shot is a charged one (keepers.md R-KEE-31). */
+	bool ChargeShot(const FDTWeaponSpec& Spec, int32 ShotNumber, FShot& Shot) const;
+	/** Zenith: a charged shot fans its lances (R-RFG-20). */
+	void SplitCharged(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FShot& Charged, const FVector2f& From, const FVector2f& Dir);
+	/** The flags a Path row brings, those no card of the owner already holds (R-RFG-20, R-RFG-21). */
+	void GrantPathFlags(int32 OwnerId, FPlayerRuntime& Player);
+	void RaiseShade(int32 OwnerId, FPlayerRuntime& Player);
 	int32 IndexOfSerialIn(const FDTWorldView& View, uint32 Serial) const;
 	void SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FShot& Shot,
 		const FVector2f& Position, const FVector2f& Dir);

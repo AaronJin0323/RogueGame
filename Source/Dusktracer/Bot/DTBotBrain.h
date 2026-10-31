@@ -35,6 +35,8 @@ struct DUSKTRACER_API FDTBotConfig
 	int32 Version = 1;
 	/** 1 = the bound: no reaction delay and no error; 0 = the largest. V1 and v2 read it differently (R-BOT-08). */
 	float Skill = 1.0f;
+	/** R-BOT-16: a measuring arm; takes the primary weapon's upgrades first until it can evolve. */
+	bool bPrimaryFirst = false;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
 	/** Intercession presses: CastAuto = when the meter is full and a crowd is near; CastNever = none (a probe's no-cast arm);

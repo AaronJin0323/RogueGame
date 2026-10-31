@@ -1,4 +1,5 @@
 #include "Bot/DTBotBrain.h"
+#include "Combat/DTReforge.h"
 #include "Keepers/DTReactions.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
@@ -55,6 +56,8 @@ namespace DTBotTuning
 	/** A second weapon still beats an upgrade whatever its reach (a hair over WeaponUpgrade's 60): reach chooses between weapons. */
 	constexpr float SecondWeaponFloor = 61.0f;
 	constexpr float SecondFirstScore = 94.0f;
+	/** R-BOT-16: above every card score; a Keeper card scores 200. */
+	constexpr float PrimaryFirstScore = 300.0f;
 	constexpr float SecondNextScore = 65.0f;
 	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
 	constexpr int32 ProbeLegS = 1;
@@ -186,8 +189,9 @@ FString FDTBotConfig::Describe() const
 	static const TCHAR* Names[] = { TEXT("Storm"), TEXT("Forge"), TEXT("Tide"), TEXT("Shade"), TEXT("Radiance"), TEXT("Quicksilver") };
 	const int32 P = static_cast<int32>(Path);
 	const int32 S = static_cast<int32>(SecondPath == EDTPath::None ? DefaultSecond(Path) : SecondPath);
-	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d"), PolicyName(Policy),
-		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed, Version);
+	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d%s"), PolicyName(Policy),
+		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed, Version,
+		bPrimaryFirst ? TEXT(" primary_first=1") : TEXT(""));
 }
 
 int32 FDTBotConfig::KnownVersion(int32 Version)
@@ -818,6 +822,16 @@ float FDTBotBrain::CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Han
 		break;
 	case EDTCardKind::WeaponUpgrade:
 		Score -= Aware * ReachPenalty * (1.0f - ReachUse(WeaponReach(Card.TargetWeapon.IsNone() ? Card.ContentId : Card.TargetWeapon, Player)));
+		if (Config.bPrimaryFirst)
+		{
+			// R-BOT-16: the upgrade the evolution needs outranks every other card, and stops mattering at the level.
+			const int32 Primary = DTReforge::PrimarySlot(Player.Weapons);
+			if (Primary != INDEX_NONE && Player.Weapons[Primary].Id == (Card.TargetWeapon.IsNone() ? Card.ContentId : Card.TargetWeapon)
+				&& Player.Weapons[Primary].Level < DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL)
+			{
+				return PrimaryFirstScore;
+			}
+		}
 		break;
 	case EDTCardKind::Mod:
 		Score -= Aware * ReachPenalty * ModReachShare * (1.0f - ReachUse(WeaponReach(Card.TargetWeapon, Player)));

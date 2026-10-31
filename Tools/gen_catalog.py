@@ -33,7 +33,7 @@ STATUSES = ["Shock", "Burn", "Chill", "Freeze", "Mark", "Blind"]       # EDTStat
 ROLES = ["Swarm", "Tank", "Rusher", "Turret", "Boss"]                  # EDTEnemyRole order (Core/DTSimTypes.h)
 AFFIXES = ["Armored", "Swift", "Volatile", "Splitter", "Vampiric", "Shielded"]  # EDTAffix order (Core/DTSimTypes.h)
 REACTION_PARAMS = 6  # FReactionRow slots per cell
-REFORGE_BEHAVIOURS = ["Overload", "Kiln", "Glacier", "OrbitLaunch", "EmbedBlast", "ContactBlades", "SweepBeam", "CarpetLine",
+REFORGE_BEHAVIOURS = ["Overload", "Kiln", "Glacier", "Collection", "Zenith", "Slipstream", "OrbitLaunch", "EmbedBlast", "ContactBlades", "SweepBeam", "CarpetLine",
 	"MoveSpin", "Persist", "PulseWall", "Vortex", "Merge"]  # EDTPathReforge, EDTEvolve (Combat/DTReforge.h)
 TIMELINE_PHASES = ["Harvest", "Threat", "Boss"]
 TIMELINE_EVENTS = ["None", "EliteWave", "SwarmRing", "RusherStampede", "TurretNest", "Boss"]

@@ -741,9 +741,8 @@ bool FDTReforgeZenith::RunTest(const FString& Parameters)
 	FDTHarness N;
 	N.Weapons.Give(N.Run, 0, FName(TEXT("Weapon.PulseRifle")), 8);
 	N.Run.GetPlayer(0).PathReforges.Add(Row);
-	N.AddEnemy(FVector2f(200.0f, 0.0f), 1.0f);
-	const int32 Next = N.AddEnemy(FVector2f(200.0f + 0.5f * DTReforge::Param(Row, TEXT("nova_uu")), 300.0f), ToughHp);
-	N.Enemies.SetPosition(Next, FVector2f(200.0f, 0.5f * DTReforge::Param(Row, TEXT("nova_uu"))));
+	const int32 Next = N.AddEnemy(FVector2f(200.0f, 0.5f * DTReforge::Param(Row, TEXT("nova_uu"))), ToughHp); // first: removing the other leaves its index alone
+	N.AddEnemy(FVector2f(100.0f, 0.0f), 1.0f); // the nearer: it is shot first
 	RunSteps(N, FMath::RoundToInt(1.0f / Dt));
 	TestTrue(TEXT("an overkill bursts"), HitsOn(N, N.Enemies.GetSerials()[Next], Radiance) > 0);
 	return true;
@@ -937,6 +936,43 @@ bool FDTBotCardReforge::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("no Reforging card: no opinion"), FDTBotBrain::ReforgePick(Filler, 0), static_cast<int32>(INDEX_NONE));
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardPrimaryFirst, "Dusktracer.Bot.CardPrimaryFirst", DTWeaponTestHarness::TestFlags) // T-BOT-16
+bool FDTBotCardPrimaryFirst::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	Commit(H, TEXT("Weapon.PulseRifle"), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL - 1);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.ArcBlade")), 1);
+	FDTOfferCard Upgrade;
+	Upgrade.Kind = EDTCardKind::WeaponUpgrade;
+	Upgrade.ContentId = FName(TEXT("Weapon.PulseRifle"));
+	Upgrade.TargetWeapon = Upgrade.ContentId;
+	FDTOfferCard Side = Upgrade;
+	Side.ContentId = FName(TEXT("Weapon.ArcBlade"));
+	Side.TargetWeapon = Side.ContentId;
+	FDTOfferCard Key;
+	Key.Kind = EDTCardKind::Blessing;
+	Key.ContentId = FName(TEXT("Blessing.Storm.Tempest.Key"));
+	FDTOfferHand Hand;
+	Hand.HandKind = EDTHandKind::Level;
+	Hand.Cards = { Key, Side, Upgrade };
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Version = 2;
+	Config.Path = EDTPath::Storm;
+	Config.Archetype = FName(TEXT("Tempest"));
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	TestEqual(TEXT("the arm off: the Key"), Brain.ChooseCard(Hand, H.Run.GetPlayer(0)), 0);
+	Config.bPrimaryFirst = true;
+	Brain.Reset(Config);
+	TestEqual(TEXT("the arm on: the primary's upgrade"), Brain.ChooseCard(Hand, H.Run.GetPlayer(0)), 2);
+	H.Run.GetPlayer(0).Weapons[0].Level = DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
+	TestEqual(TEXT("at the level it stops mattering"), Brain.ChooseCard(Hand, H.Run.GetPlayer(0)), 0);
 	return true;
 }
 
