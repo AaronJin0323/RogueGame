@@ -126,6 +126,7 @@ FDTPoolGrant DTTree::MakeGrant(const FDTMetaProfile& Profile, bool bGated)
 	}
 	Grant.bGated = true;
 	Grant.Unlocked = Profile.Unlocked;
+	Grant.LastPatron = Profile.LastPatron;
 	for (const DTCat::FTreeNodeRow& Data : DTCat::TreeNodes)
 	{
 		const int32 Amount = FMath::Clamp(Profile.TreeRanks.FindRef(FName(Data.Id)), 0, Data.Ranks) * Data.GrantPerRank;

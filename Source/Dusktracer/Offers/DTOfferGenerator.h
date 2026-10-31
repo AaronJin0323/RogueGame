@@ -33,8 +33,10 @@ struct FDTOfferPool
 	TSet<FName> Unlocked;
 	/** The caps each owned weapon slot expresses now (UDTWeaponSubsystem composes them); a missing slot uses its declared caps. */
 	TArray<FDTCapList> SlotCaps;
-	/** A person's run: Tree-locked ids stay out unless in Unlocked. False for every tool run, so a tool run sees the full pool (meta.md R-MET-23). */
+	/** A person's run: Tree-locked ids stay out unless in Unlocked, and a met Keeper takes no seat from another. False for every tool run, so a tool run sees the full pool (meta.md R-MET-23). */
 	bool bMetaGate = false;
+	/** The Keeper.<Path> that leads the Patron hand, so its seats always hold it: the one a run started from the hub names (vigil.md R-VIG-07), else the save's last Patron. No tool run has one. */
+	FName LeadPatron;
 };
 
 /** What the save hands a run, read once per world (meta.md R-MET-22, R-MET-24). The default hands nothing and gates nothing. */
@@ -43,6 +45,8 @@ struct FDTPoolGrant
 	bool bGated = false;
 	/** The profile's Unlocked set. */
 	TSet<FName> Unlocked;
+	/** The profile's LastPatron: on a Restart, which chooses nobody, it keeps its seat in the Patron hand (keepers.md R-KEE-23). */
+	FName LastPatron;
 	/** Offer tools the Trunk adds to the C.OFFER.* starting counts. */
 	int32 Rerolls = 0;
 	int32 Banishes = 0;

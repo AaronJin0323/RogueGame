@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md), firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -155,6 +155,26 @@ if (-not (Skipped "vigil")) {
 	$Out | Set-Content (Join-Path $LogDir "Gate_vigil.log") -Encoding utf8
 	Report "vigil" (($Out | Select-String "^VIGIL:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "WRONG|VIGIL: FAIL"; Fail "vigil" }
+}
+if (-not (Skipped "firstrun")) {
+	# R-OFF-15 on a person's first pool: the `tests` step's T-OFF-15 reads the tool pool, so first_run_locked.csv could thin the real one unseen (meta.md R-MET-25).
+	$Battery = Join-Path $Root "Saved\BotRuns\gate_firstrun"
+	if (Test-Path $Battery) { Remove-Item $Battery -Recurse -Force }
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\BotRuns.ps1") -BotVersion 2 -FreshPool -Arms "Steered:Storm:Tempest,Steered:Forge:Hammer,Steered:Tide:Frost" -FirstSeed 9100 -Seeds 2 `
+		-Check T-OFF-15 -Parallel 6 -Stagger 0.5 -Out $Battery 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_firstrun.log") -Encoding utf8
+	$Verdict = ($Out | Select-String "^BOTRUNS:" | Select-Object -Last 1).Line
+	Report "firstrun" $Verdict
+	if ($Rc -ne 0 -or $Verdict -notmatch "T-OFF-15: PASS") { Fail "firstrun" }
+}
+if (-not (Skipped "win")) {
+	# meta.md T-MET-29: a win on a real gated save, on one launch: the toast, the file, the Shrine, the bestiary and the Recollections, off-screen.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\WinCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_win.log") -Encoding utf8
+	Report "win" (($Out | Select-String "^WIN:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "WRONG|WIN: FAIL"; Fail "win" }
 }
 if (-not (Skipped "contrast")) {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.

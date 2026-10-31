@@ -8,7 +8,7 @@ Written from `reference/original_docs/01_GameDesign.md §8.4`, `04_Narrative.md 
 ## Rules
 ### The door
 - **R-VIG-01** A map load opens the hub when the process has one (R-VIG-02) and the map came with no `DTSeed` option. The hub world is the same map with no run: `ADTGameMode` holds the sim before begin play, so no run starts and no step runs, no hero spawns, no telemetry session opens and no file is written. The whole screen is the hub. `[invented]` the same map: a second map is a binary asset for a page that draws nothing of it.
-- **R-VIG-02** Tool runs skip the hub. A process that `meta.md` R-MET-14 calls a tool run (`-unattended`, automation, `-DTBot*`, `-DTNoSave`) starts its run as it did before the hub existed. `-DTHub` overrides this for `Tools/VigilCheck.ps1` alone; nothing else passes it. R-MET-16 holds: the hub adds no reader of the save to any sim system, and the map options of R-VIG-07 are absent from every tool run, so input hash, steps and CSV of a seed do not move.
+- **R-VIG-02** Tool runs skip the hub. A process that `meta.md` R-MET-14 calls a tool run (`-unattended`, automation, `-DTBot*`, `-DTNoSave`) starts its run as it did before the hub existed. `-DTHub` overrides this for `Tools/VigilCheck.ps1` and `Tools/WinCheck.ps1` alone; nothing else passes it. R-MET-16 holds: the hub adds no reader of the save to any sim system, and the map options of R-VIG-07 are absent from every tool run, so input hash, steps and CSV of a seed do not move.
 
 ### The page
 - **R-VIG-03** Root rows, in order: Shrine, Contracts, Codex, Ledger-stone, Settings, Begin, Quit to desktop. `[invented]` the order and the Quit row: the source lists pages, and a hub with no way out is a dead end. The root opens on Begin when a Patron is chosen, else on the Shrine.
@@ -17,7 +17,7 @@ Written from `reference/original_docs/01_GameDesign.md §8.4`, `04_Narrative.md 
 ### The Shrine
 - **R-VIG-05** Every Keeper is a row, in Path order. A Keeper is open when it is a run's Keeper (`keepers.md` R-KEE-23), or `Keeper.<Path>` is in the profile's `Unlocked`, or this launch's pool holds it (`-DTUnlock`). The others are sealed: greyed, marked `Hub.Shrine.Locked`, and on focus the detail line is `Hub.Shrine.LockedHint`. Accept on a sealed Keeper does nothing. An open Keeper's detail is its `<Path>.Desc`.
 - **R-VIG-06** `LastPatron` (`meta.md` R-MET-05) is the chosen Patron when the root opens, unless it is sealed. The Shrine opens on the chosen Keeper. The hub never writes it: the bank does, at the end of the run that used it.
-- **R-VIG-07** Begin with no Patron opens the Shrine. With one, the run starts by a map reload with the options `DTSeed`, `DTPatron` and, for a saved Keeper unlock, `DTUnlock`. The seed is `-DTSeed` when given, else a fresh one as R-SET-26 says. The Patron hand still opens and is still picked, through the same `Pick` as any card, before the first step, so its telemetry and its Rifle (D-015) are the hand's; the player sees no hand. The key that chose Begin must come up first (R-SET-23). `[invented]` the options as the channel: a reload is the clean reset R-SET-24 asks for.
+- **R-VIG-07** Begin with no Patron opens the Shrine. With one, the run starts by a map reload with the options `DTSeed`, `DTPatron` and, for a saved Keeper unlock, `DTUnlock`. The seed is `-DTSeed` when given, else a fresh one as R-SET-26 says. The Patron hand still opens and is still picked, through the same `Pick` as any card, before the first step, so its telemetry and its Rifle (D-015) are the hand's; the chosen Keeper leads it, so a save's met Keepers never push the choice out of its seats (`keepers.md` R-KEE-23); the player sees no hand. The key that chose Begin must come up first (R-SET-23). `[invented]` the options as the channel: a reload is the clean reset R-SET-24 asks for.
 
 ### The Codex
 - **R-VIG-08** The page lists `ST_Codex` by `Layer`, then key (`03_Narrative` §4). A row deeper than the profile's reach is not listed: reach is `C.NARR.PREWIN_LAYER_MAX` before the first win and `C.NARR.LAYER_MAX` after. `Codex.EntryTitle` is a format and no entry. A listed row not unlocked shows `Codex.Locked` as its line and nothing of its title or text. An unlocked row's title comes from its subject (a Keeper's name, an enemy's name, the Discovery's name); `Codex.Root.Title` is its own title and has no body. The header is `Codex.Count`.
@@ -103,6 +103,5 @@ None. The hub has no run, so no record. A started run reads as any run, and its 
 ## Open
 | Question | Data that resolves it |
 |---|---|
-| Which unlock opens Keepers 4 to 6? `Keeper.<Path>` is read here and no node or Discovery writes it | a new Discovery or Tree row, by decision (`meta.md` Open) |
 | Should Restart keep the chosen Patron rather than open the hand, and carry `DTUnlock`? | a human reading; the brief kept it as it was |
 | Should the run-over screen return by itself after a time? | a human reading |

@@ -239,6 +239,11 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 		}
 	}
 	Pool.bMetaGate = RunGrant.bGated; // meta.md R-MET-22
+	const FName Lead = ChosenPatron.IsNone() ? RunGrant.LastPatron : ChosenPatron;
+	if (!Lead.IsNone())
+	{
+		Pool.LeadPatron = FName(*(TEXT("Keeper.") + Lead.ToString())); // keepers.md R-KEE-23
+	}
 	for (const FName& Id : RunGrant.Unlocked)
 	{
 		if (DTOffers::IsTreeLocked(Id))

@@ -22,6 +22,7 @@ import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import evolve_read  # noqa: E402
+import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
 import loc_build  # noqa: E402
 import pressure  # noqa: E402
@@ -596,6 +597,48 @@ class Doors(unittest.TestCase):
 		targets = self.targets()
 		for row in self.catalog("first_run_locked.csv"):
 			self.assertIn(row["id"], targets[row["door"]])
+
+	def rule_states(self):
+		"""R-MET-27's table: Discovery id to the words of its state."""
+		rule = self.spec().split("**R-MET-27**")[1].split("**R-MET-28**")[0]
+		states = {}
+		for line in rule.splitlines():
+			if line.startswith("| `"):
+				cells = line.split("|")
+				for name in re.findall(r"`(\w+)`", cells[1]):
+					states[name] = cells[2].strip()
+		return states
+
+	def test_the_door_table_is_the_catalog(self):
+		table = dict(re.findall(r"^\| `((?:Keeper\.\w+|Reaction\.Duos))` \| `(\w+)` \|$", self.spec(), re.M))
+		self.assertEqual(set(table), gen_catalog.pool_doors())
+		targets = self.targets()
+		for item, door in table.items():
+			self.assertIn(item, targets[door])
+
+	def test_a_keeper_door_opens_on_a_first_run(self):
+		states = self.rule_states()
+		for row, items in self.targets().items():
+			if any(i.startswith("Keeper.") for i in items):
+				self.assertEqual(states[row], "open on a first run", row)
+
+	def test_the_generators_lists_are_the_rule(self):
+		states = self.rule_states()
+		self.assertEqual(gen_catalog.NOT_FIRST_RUN, {row for row, state in states.items() if state != "open on a first run"})
+		self.assertEqual(gen_catalog.STATED_OUT, {row for row, state in states.items() if "stated out" in state})
+
+	def test_a_stated_out_row_is_out_of_reach_and_opens_nothing(self):
+		elites = gen_catalog.elites_per_run(self.catalog("timeline_arena1.csv"))
+		rows = {r["id"]: r for r in self.catalog("discoveries.csv")}
+		self.assertEqual(elites, 9)
+		for row in gen_catalog.STATED_OUT:
+			self.assertGreater(int(rows[row]["threshold"]), elites)
+			self.assertEqual(rows[row]["targets"], "")
+
+	def test_a_bestiary_row_names_a_role_or_is_stated_out(self):
+		with open(os.path.join(self.ROOT, "Content", "DT", "Text", "ST_Codex.csv"), encoding="utf-8-sig", newline="") as f:
+			cells = {r["Unlock"].split(".", 1)[1] for r in csv.DictReader(f) if r["Key"].startswith("Codex.Enemy.")}
+		self.assertEqual(cells - set(gen_catalog.ROLES), set(re.findall(r"`Kill\.(\w+)`", self.spec().split("**R-MET-28**")[1].split("### Discoveries")[0])))
 
 
 @unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")

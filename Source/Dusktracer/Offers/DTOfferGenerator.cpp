@@ -797,6 +797,14 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		if (Kind == EDTHandKind::Patron)
 		{
+			// The seats below would drop this Keeper once a save has met enough others (R-KEE-23).
+			const int32 Lead = Keepers.IndexOfByPredicate([&Pool](const FDTOfferCard& Card) { return Card.ContentId == Pool.LeadPatron; });
+			if (Lead > 0)
+			{
+				const FDTOfferCard Card = Keepers[Lead];
+				Keepers.RemoveAt(Lead);
+				Keepers.Insert(Card, 0);
+			}
 			// Path order, unweighted: no Favor exists yet.
 			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size; ++Index)
 			{
@@ -805,8 +813,9 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		else
 		{
-			// R-KEE-23: an unlocked Keeper keeps its seat at the commitment too.
-			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size;)
+			// R-KEE-23: an unlocked Keeper keeps its seat at the commitment too, in a tool run. A save's Keepers all draw (R-OFF-08): a seat for
+			// each would shut the S1 Keepers out of a full profile's hand, and meta only widens the pool.
+			for (int32 Index = 0; !Pool.bMetaGate && Index < Keepers.Num() && Hand.Cards.Num() < Size;)
 			{
 				if (Pool.Unlocked.Contains(Keepers[Index].ContentId))
 				{

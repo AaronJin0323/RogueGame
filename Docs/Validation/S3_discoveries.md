@@ -34,7 +34,7 @@ These are bot counts: the bot skips primary upgrades unless it carries (`S2_bot_
 | Row | State | Why |
 |---|---|---|
 | `Elites10` | **unreachable** | `timeline_arena1.csv` spawns 2 + 3 + 4 = 9 elites a run; 103 of 135 runs read exactly 9, none above. The row is kept at 10 because its text says 10 |
-| `Crit500` | not earned | best crit 285, on a Radiance arm; only Radiance arms crit at all. Not proved unreachable |
+| `Crit500` | not earned here | best crit 285, on a Radiance arm carrying nothing heavy; only Radiance arms crit at all. `S3_doors.md` earns it |
 | `ScatterKills500`, `RailKills300` | a purchase away on a person's save | both weapons are `starter = no`, and no Discovery target opens them; `Trunk.ScatterCannon` and `Trunk.RailLance` do (D-024). `meta.md` R-MET-27 holds the state of every row |
 
 **Roles and items that do not exist.** None of the 15 conditions names a missing role: Breaker and Tallyman appear only in the bestiary rows `Codex.Enemy.Bruiser` and `Codex.Enemy.Support`, whose `Kill.Bruiser` and `Kill.Support` stay unreachable until those roles exist. What is missing is seven source targets, modifiers this catalog does not hold. Those rows still earn and still open their Recollection, and write no pool key:
@@ -80,6 +80,6 @@ Planted counters: T-MET-41 walks every row one short and at its threshold, and `
 
 ## Not verified
 
-- The toast has not been seen: tool runs are `-nullrhi`, and a no-file bot run adds none, so no screenshot exists. T-MET-44 proves the text, not the layout, at any text size. HUMAN.
+- The toast at the largest text size: T-MET-44 proves the text, `S3_doors.md` shot it at the default size only. HUMAN.
 - `Elite3Mods` counts dormant sockets. No run separates the two readings.
 - A Blind's short Freeze counts toward `Freeze100` by the rule; the arms' split between it and a true Tide freeze is unread.

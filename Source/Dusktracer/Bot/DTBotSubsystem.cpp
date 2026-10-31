@@ -661,9 +661,9 @@ void UDTBotSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	const UWorld* World = GetWorld();
-	if (!bActive || !World || !World->HasBegunPlay())
+	if (!bActive || !World || !World->HasBegunPlay() || !Sim.IsValid() || Sim->GetRun().GetNumPlayers() == 0)
 	{
-		return;
+		return; // a hub world holds the sim with no run, so there is nothing to drive (Tools/WinCheck.ps1 comes back to one)
 	}
 	MutePawn();
 	if (StepsPerFrame > 0)

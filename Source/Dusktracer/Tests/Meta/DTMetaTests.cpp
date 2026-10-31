@@ -704,7 +704,7 @@ bool FDTMetReaders::RunTest(const FString& Parameters)
 {
 	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GameSourceDir(), TEXT("Dusktracer")));
 	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Offers/DTOfferSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp"),
-		TEXT("Hub/DTHubData.h"), TEXT("Hub/DTHubFlow.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp") };
+		TEXT("Hub/DTHubData.h"), TEXT("Hub/DTHubFlow.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp"), TEXT("Debug/DTDebugWinCheck.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);
@@ -830,7 +830,8 @@ bool FDTMetDiscoveryCatalog::RunTest(const FString& Parameters)
 		for (const TCHAR* Target : Row.Targets)
 		{
 			const FString Key(Target);
-			TestTrue(FString::Printf(TEXT("%s target %s in tag spelling"), Row.Id, Target), Key.IsEmpty() || Key.StartsWith(TEXT("Weapon.")) || Key.StartsWith(TEXT("Mod.")));
+			TestTrue(FString::Printf(TEXT("%s target %s in tag spelling"), Row.Id, Target), Key.IsEmpty() || Key.StartsWith(TEXT("Weapon.")) || Key.StartsWith(TEXT("Mod."))
+				|| Key.StartsWith(TEXT("Keeper.")) || Key == TEXT("Reaction.Duos"));
 		}
 		const FString Name = FText::FromStringTable(TEXT("ST_Discoveries"), FString::Printf(TEXT("Discovery.%s.Name"), Row.Id)).ToString();
 		TestFalse(FString::Printf(TEXT("%s has its name"), Row.Id), Name.IsEmpty() || Name.Contains(TEXT("MISSING")));
