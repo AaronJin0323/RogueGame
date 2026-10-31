@@ -36,7 +36,7 @@ function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_$Step.log") -Encoding utf8
 	Report $Step (($Out | Select-String "^${Verdict}:" | Select-Object -Last 1).Line)
-	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX)"; Fail $Step }
+	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX|  ST_|  Source/)"; Fail $Step }
 }
 
 function Ubt([string]$Step, [string]$Target, [string]$Config, [string]$Extra = "") {

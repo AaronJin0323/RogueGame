@@ -38,7 +38,7 @@ Duo.StormTide.Desc,"Conduction has no limit, and every {every_n}rd jump Freezes.
 Duo.StormShade.Name,Summons,传唤,Duo blessing card name (zh authored here; the source has none).,
 Duo.StormShade.Desc,"Writ bolts Mark what they strike, and strike the unmarked when no mark is left.",传票的落雷会标记被击中的敌人；没有标记时也会击中未标记的敌人。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Mark
 Duo.StormRadiance.Name,Blinding Arc,致盲电弧,Duo blessing card name (zh authored here; the source has none).,
-Duo.StormRadiance.Desc,Flash Arc Blinds for {blind_s} s. Blinded enemies take +{arc_vuln_pct}% from Storm.,闪弧致盲 {blind_s} 秒；被致盲的敌人受到风暴的伤害 +{arc_vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind
+Duo.StormRadiance.Desc,Flash Arc Blinds for {blind_s} s. Blinded enemies take +{arc_vuln_pct}% from Storm.,闪弧致盲 {blind_s} 秒；被致盲的敌人受到的司雷伤害 +{arc_vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind
 Duo.StormQuicksilver.Name,Lightning Step,雷步,Duo blessing card name (zh authored here; the source has none).,
 Duo.StormQuicksilver.Desc,Dashing leaves a Shocking trail. Live Rail chains once more.,冲刺留下感电轨迹。活轨再连锁一次。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Shock
 Duo.ForgeTide.Name,Pressure Cooker,压力釜,Duo blessing card name (zh authored here; the source has none).,
@@ -56,7 +56,7 @@ Duo.TideRadiance.Desc,Refraction shards Chill. Shards that crit Blind.,折射光
 Duo.TideQuicksilver.Name,Glide,滑行,Duo blessing card name (zh authored here; the source has none).,
 Duo.TideQuicksilver.Desc,Black Ice also works off Chilled enemies.,黑冰对减速的敌人同样生效。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Chill
 Duo.ShadeRadiance.Name,Spotlight,聚光,Duo blessing card name (zh authored here; the source has none).,
-Duo.ShadeRadiance.Desc,"Every Blinded enemy, Marked or not, takes +{vuln_pct}% damage.",所有被致盲的敌人，无论是否被标记，伤害 +{vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind;Status.Mark
+Duo.ShadeRadiance.Desc,"Every Blinded enemy, Marked or not, takes +{vuln_pct}% damage.",所有被致盲的敌人，无论是否被标记，受到的伤害 +{vuln_pct}%。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,Status.Blind;Status.Mark
 Duo.ShadeQuicksilver.Name,Fast Collection,速收,Duo blessing card name (zh authored here; the source has none).,
 Duo.ShadeQuicksilver.Desc,Repossession works below {below_pct}% HP; +{charges} dash charge for {charge_s} s.,收回在敌人生命低于 {below_pct}% 时生效；之后 {charge_s} 秒内冲刺次数 +{charges}。,Duo blessing card rules; args are reactions.csv Duo parameters (_pct x100).,
 Duo.RadianceQuicksilver.Name,Lightspeed,光速,Duo blessing card name (zh authored here; the source has none).,

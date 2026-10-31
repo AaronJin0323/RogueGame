@@ -11,7 +11,7 @@ One command runs them all on the merged tree: `& Tools\Gate.ps1` from PowerShell
 | `secrets` | keys/tokens in tracked files (public repo, D-006) | `Tools/secret_scan.py` | live |
 | `docs` | docs lint (`Harness/H02 §4`) | `Tools/docs_lint.py` | live |
 | `constants` | generated header out of date (R-TEC-07) | `Tools/gen_constants.py --check` | live |
-| `loc` | missing en/zh, forbidden words, round-trip string (R-TEC-08) | `Tools/loc_build.py --check` | live |
+| `loc` | missing en/zh, forbidden words, round-trip string, argument match, glossary drift, zh style and budgets, missing rows (R-TEC-08) | `Tools/loc_build.py --check` | live |
 | `build` | editor build, 0 compiler warnings | `Tools/Build.bat` | live |
 | `nonunity` | each `.cpp` compiles alone (R-TEC-09) | UBT `-SingleFile` per changed file (`-AllFiles` for all) | live |
 | `shipping` | test/debug code leaking into Shipping (R-TEC-12) | `Tools/Build.bat Shipping` (game target) | live |
