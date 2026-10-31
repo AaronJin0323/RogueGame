@@ -424,4 +424,6 @@ namespace DTConst
 	inline constexpr float META_CURRENCY_HEAT_BONUS = 0.15f; // ratio, GATED(S3)
 	inline constexpr int32 META_ACT_START = 1; // n, CORE
 	inline constexpr int32 META_ACT_MAX = 3; // n, CORE
+	inline constexpr int32 NARR_PREWIN_LAYER_MAX = 2; // layer, CORE
+	inline constexpr int32 NARR_LAYER_MAX = 3; // layer, CORE
 }

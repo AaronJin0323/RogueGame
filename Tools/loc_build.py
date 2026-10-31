@@ -4,12 +4,14 @@
 The per-table CSVs in Content/DT/Text/ST_<Table>.csv are the truth for en and zh-Hans. Everything the engine
 reads is generated from them and never committed or merged by hand (.gitignore covers the outputs).
 
-Source CSV: UTF-8, header exactly `Key,en,zh-Hans,Context,Kw`
+Source CSV: UTF-8, header exactly `Key,en,zh-Hans,Context,Kw`, or that plus `Layer,Unlock` on story tables
   Key      canonical dotted ASCII identifier (Product.Name), never display text
   en       English source string
   zh-Hans  Simplified Chinese, authored from the fiction (Docs/Glossary.md)
   Context  translator / developer note
   Kw       optional `;`-separated glossary keys for <kw> keyword notes
+  Layer    story layer 0..C.NARR.LAYER_MAX (03_Narrative R-NAR-03); reaches the game as string-table metadata
+  Unlock   what first shows the row: Start, Tier.<n>, Run.L8, Kill.<Role>, Discovery.<Id>, Win, Wins3.FormIII
 
 Modes (default --check):
   --check  T-TEC-08: every row has Key, en and zh-Hans; keys are unique per table and match KEY_RE;
@@ -20,6 +22,9 @@ Modes (default --check):
            .Name rows an en game term needs its zh word. House style (zh_glossary §1): no untranslated row unless its
            Context says "do not translate", no half-width punctuation next to CJK, a number {arg} is set off from CJK
            by a space, a zh character budget stated in Context holds. Every literal FromStringTable(TEXT("ST_X"), TEXT("Key")) in Source has its row.
+           Narrative (03_Narrative R-NAR-02..06): a table with the Layer and Unlock columns gives every row a layer in 0..C.NARR.LAYER_MAX
+           and a known unlock; a row above C.NARR.PREWIN_LAYER_MAX needs an unlock that takes a win; the scope counts hold; no Act II/III or
+           NPC key; no truth word below its layer; Keeper lines keep their word and character caps; no retired name in any column.
            Prints `LOC: PASS (...)` or `LOC: FAIL (...)` plus one line per violation; exit 0 / 1.
   --build  runs the check, then writes (deterministic, byte-identical on re-run):
            Content/DT/Text/Generated/ST_<Table>.csv          UE string-table import CSV (Key,SourceString,Comment,Kw;
@@ -38,6 +43,9 @@ import csv
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dtconst  # noqa: E402
 
 KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)+$")
 KW_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)*$")
@@ -114,6 +122,23 @@ ZH_TERMS = [(re.compile(p, f), z) for p, f, z in (
     (r"\bdamage zone\b", re.I, ("伤害区域",)),
 )]
 HEADER = ["Key", "en", "zh-Hans", "Context", "Kw"]
+STORY_HEADER = HEADER + ["Layer", "Unlock"]
+KEEPER_LINE_WORDS_MAX = 12  # 03_Narrative R-NAR-05; the same caps as R-KEE-08.
+KEEPER_LINE_ZH_MAX = 20
+NARRATIVE_TABLES = ("ST_Codex", "ST_KeeperLines", "ST_World", "ST_Discoveries")
+# Retired by G01_Name and 04_Narrative: the old project name and code prefix, the Greek enemies, the old Path.
+RETIRED_RE = re.compile(r"\b(RogueHero|RH\.\w+|URH\w+|God\.\w+|Harpy|Hoplite|Centaur|Gorgon|Cyclops|Siren|Asterion|Underworld)\b")
+# The exact count of each row family (03_Narrative R-NAR-02).
+SCOPE_COUNTS = (
+    ("tier lines", r"^Keeper\.\w+\.Tier[123]$", 18), ("passed-over lines", r"^Keeper\.\w+\.PassedOver$", 6),
+    ("Recollections", r"^Codex\.Recollection\.\w+$", 15), ("common-knowledge entries", r"^Codex\.Keeper\.\w+$", 6),
+    ("the ROOT stop line", r"^Codex\.Root\.Title$", 1), ("bestiary lines", r"^Codex\.Enemy\.\w+$", 7),
+    ("Warden Form III entries", r"^Codex\.Warden\.FormIII$", 1),
+)
+OUT_OF_SCOPE_RE = re.compile(r"^(Npc|Ending|Fate|Refusal|Arena)\.|\.Act[23]$|\.Bid\.|^Codex\.(Facet|Fate|Arena)\.|Depth[23]|Outfall|Sump")
+KEEPER_LINE_RE = re.compile(r"^Keeper\.\w+\.(Tier[123]|PassedOver)$")
+UNLOCK_WINS = {"Start": 0, "Run.L8": 0, "Win": 1, "Wins3.FormIII": 3}  # The others are read by unlock_wins.
+TRUTH_WORDS = (("ROOT", 3), ("Original", 3), ("fork", 3), ("facet", 3), ("Yard", 2), ("原件", 3), ("清理场", 2))
 ROUND_TRIP = ("ST_UI", "Test.LocRoundTrip")
 TABLE_FILE_RE = re.compile(r"^ST_[A-Za-z0-9]+\.csv$")
 PO_CULTURE = "zh-Hans"
@@ -136,7 +161,7 @@ def load_tables(root):
         with open(os.path.join(d, name), "r", encoding="utf-8-sig", newline="") as f:
             reader = csv.reader(f)
             header = next(reader, None)
-            if header != HEADER:
+            if header not in (HEADER, STORY_HEADER):
                 errors.append(f"{table}: header {header!r} != {HEADER!r}")
                 continue
             rows = []
@@ -144,10 +169,10 @@ def load_tables(root):
                 if not any(c.strip() for c in cells):
                     continue
                 line = reader.line_num
-                if len(cells) != len(HEADER):
-                    errors.append(f"{table}:{line}: {len(cells)} columns, expected {len(HEADER)}")
+                if len(cells) != len(header):
+                    errors.append(f"{table}:{line}: {len(cells)} columns, expected {len(header)}")
                     continue
-                row = dict(zip(HEADER, cells))
+                row = dict(zip(header, cells))
                 row["_line"] = line
                 rows.append(row)
         tables.append((table, rows))
@@ -183,6 +208,8 @@ def check_row(table, row):
     for col in HEADER:
         for m in GREEK_RE.finditer(row[col]):
             v.append(f"{where}: {col} contains Greek mythology name {m.group(0)!r}")
+        for m in RETIRED_RE.finditer(row[col]):
+            v.append(f"{where}: {col} contains retired name {m.group(0)!r}")
     en_args, zh_args = collections.Counter(ARG_RE.findall(en)), collections.Counter(ARG_RE.findall(zh))
     if en_args - zh_args:
         v.append(f"{where}: zh-Hans drops {sorted((en_args - zh_args).elements())}")
@@ -204,9 +231,10 @@ def check_terms(where, row):
         if word in zh:
             v.append(f"{where}: zh-Hans uses retired {word!r}, the word is {instead!r}")
     want = ZH_EXACT.get(en.strip())
-    if want and zh.strip() != want:
+    # A Keeper's HUD short and Path names are their own words: en Shade is 幽 and 幽影 there (zh_glossary §3).
+    if want and zh.strip() != want and not key.endswith((".Short", ".Path")):
         v.append(f"{where}: {en!r} is {want!r}, not {zh!r}")
-    if not key.endswith(".Name"):
+    if not key.endswith((".Name", ".Short", ".Path")):
         for pattern, words in ZH_TERMS:
             m = pattern.search(ARG_RE.sub("", en))
             if m and not any(w in zh for w in words):
@@ -247,6 +275,71 @@ def check_code_keys(root, tables):
     return v
 
 
+def unlock_wins(unlock, discoveries):
+    """Wins a player must have before this unlock can fire, or None for an unknown unlock."""
+    if unlock in UNLOCK_WINS:
+        return UNLOCK_WINS[unlock]
+    if re.fullmatch(r"Tier\.[123]", unlock) or re.fullmatch(r"Kill\.(Swarm|Tank|Rusher|Turret|Bruiser|Support)", unlock):
+        return 0
+    if unlock == "Kill.Boss":
+        return 1  # The Warden falls only in a win.
+    m = re.fullmatch(r"Discovery\.(\w+)", unlock)
+    if m and m.group(1) in discoveries:
+        return 1 if m.group(1) == "Win" else 0
+    return None
+
+
+def check_row_layer(where, row, discoveries, prewin_max, layer_max):
+    """Layer, unlock and truth-word rules of one story row (T-NAR-03, T-NAR-04)."""
+    v = []
+    text = row["Layer"].strip()
+    if not text.isdigit() or int(text) > layer_max:
+        return [f"{where}: Layer {text!r} is not in 0..{layer_max}"]
+    layer = int(text)
+    unlock = row["Unlock"].strip()
+    wins = unlock_wins(unlock, discoveries)
+    if wins is None:
+        v.append(f"{where}: unknown Unlock {unlock!r}")
+    elif layer > prewin_max and wins == 0:
+        v.append(f"{where}: Layer {layer} is reachable before the first win by {unlock}")
+    for word, first in TRUTH_WORDS:
+        if layer < first and (word in row["en"] or word in row["zh-Hans"]):
+            v.append(f"{where}: {word!r} needs Layer {first}, the row is Layer {layer}")
+    return v
+
+
+def check_story(tables, prewin_max=None, layer_max=None):
+    """T-NAR-02..06: the narrative scope and its layer discipline."""
+    consts = dtconst.load()
+    prewin_max = consts["NARR.PREWIN_LAYER_MAX"]["value"] if prewin_max is None else prewin_max
+    layer_max = consts["NARR.LAYER_MAX"]["value"] if layer_max is None else layer_max
+    discoveries = {r["Key"].split(".")[1] for r in dict(tables).get("ST_Discoveries", []) if r["Key"].endswith(".Name")}
+    v, story = [], []
+    for table, rows in tables:
+        for row in rows:
+            where = f"{table}:{row['_line']} {row['Key']}"
+            if table in NARRATIVE_TABLES:
+                if OUT_OF_SCOPE_RE.search(row["Key"]):
+                    v.append(f"{where}: Act II/III or NPC row is out of the v0.1 scope")
+                if GOD_EN_RE.search(row["Context"]) or "神明" in row["Context"]:
+                    v.append(f"{where}: Context contains a forbidden word")
+            if "Layer" in row:
+                story.append(row)
+                v.extend(check_row_layer(where, row, discoveries, prewin_max, layer_max))
+            elif table in ("ST_Codex", "ST_KeeperLines"):
+                v.append(f"{where}: this table needs the Layer and Unlock columns")
+            if KEEPER_LINE_RE.match(row["Key"]):
+                words = len(row["en"].split())
+                size = len(re.sub(r"\s", "", row["zh-Hans"]))
+                if words > KEEPER_LINE_WORDS_MAX or size > KEEPER_LINE_ZH_MAX:
+                    v.append(f"{where}: Keeper line is {words} words, {size} chars; the cap is {KEEPER_LINE_WORDS_MAX}, {KEEPER_LINE_ZH_MAX}")
+    for family, pattern, want in SCOPE_COUNTS:
+        got = sum(1 for r in story if re.match(pattern, r["Key"]))
+        if got != want:
+            v.append(f"story tables: {got} {family}, the v0.1 scope is {want}")
+    return v
+
+
 def check(root):
     tables, violations = load_tables(root)
     nrows = 0
@@ -265,6 +358,7 @@ def check(root):
     if not any(r["Key"] == rt_key for r in rt_rows):
         violations.append(f"{rt_table}: round-trip key {rt_key} missing")
     violations.extend(check_code_keys(root, tables))
+    violations.extend(check_story(tables))
     summary = f"{len(tables)} tables, {nrows} rows"
     if violations:
         print(f"LOC: FAIL ({summary}, {len(violations)} violations)")
@@ -284,9 +378,11 @@ def ue_csv_cell(s):
 
 
 def ue_string_table_csv(rows):
-    out = ["Key,SourceString,Comment,Kw"]
+    extra = ["Layer", "Unlock"] if rows and "Layer" in rows[0] else []
+    out = [",".join(["Key", "SourceString", "Comment", "Kw"] + extra)]
     for r in rows:
-        out.append(",".join(ue_csv_cell(c) for c in (r["Key"], r["en"], r["Context"], r["Kw"].strip())))
+        cells = [r["Key"], r["en"], r["Context"], r["Kw"].strip()] + [r[c].strip() for c in extra]
+        out.append(",".join(ue_csv_cell(c) for c in cells))
     return "\n".join(out) + "\n"
 
 

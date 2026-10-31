@@ -1,0 +1,43 @@
+Key,en,zh-Hans,Context,Kw,Layer,Unlock
+World.Keep,The Keep,守境,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Keepers,The Keepers,司者,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Vigil,Vigil,守夜镇,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Breach,The Breach,裂口,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Yard,The Yard,清理场,The Keepers' name for the Breach. A clue: first shown with the Recollection that uses it (03_Narrative R-NAR-03).,,2,Discovery.Dashes100
+World.Ichor,Ichor,神血,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.CastOffs,The Cast-offs,弃物,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Reclaimer,The Reclaimer,回收者,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Asset,The asset,资产,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Contracts,Contracts,契约,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Recollections,Recollections,忆痕,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Codex,Codex,典册,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Favor,Favor,神眷,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Patron,Patron,主司,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Intercession,Intercession,神临,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Renegotiate,Renegotiate,重议,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Refuse,Refuse,拒约,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+World.Hold,Hold,保留,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+Hub.Shrine,Shrine,祠堂,Hub label.,,0,Start
+Hub.Contracts,Contracts,契约,Hub label.,,0,Start
+Hub.Codex,Codex,典册,Hub label.,,0,Start
+Hub.LedgerStone,Ledger-stone,账碑,Hub label.,,0,Start
+Hub.Begin,Begin,启程,Hub label.,,0,Start
+Hub.Settings,Settings,设置,Hub label.,,0,Start
+Hub.Recovered,Asset recovered. Repairs this cycle: {Count}.,资产已回收。本周期返修：{Count} 次。,"Return-after-death line, machine voice. {Count} deaths since the last win.",,0,Start
+Hub.Quota,Quota,加征,"Proper noun or mechanic word, zh_glossary §2.",,0,Start
+Hub.Quota.Change1,Flare Pylons open their wide fan from 6:00.,耀柱自 6:00 起就展开宽幅扇射。,"Quota level text, cumulative.",,0,Start
+Hub.Quota.Change2,Every elite carries one more affix.,每个精英多带一个词缀。,"Quota level text, cumulative.",,0,Start
+Hub.Quota.Change3,Each event arrives with a lighter second one.,每次事件都会附带一次较弱的事件。,"Quota level text, cumulative.",,0,Start
+Hub.Quota.Change4,Coursers charge twice.,驿骑会连冲两次。,"Quota level text, cumulative.",,0,Start
+Hub.Quota.Change5,The Warden rages from half its strength.,典狱生命降至一半时即进入狂暴。,"Quota level text, cumulative.",,0,Start
+Summary.Reclaimed,Reclaimed {0},回收 {0},"Run summary line, display only. {0} Ichor reclaimed.",,0,Start
+Summary.SixShare,The Six's share {0},六司所取 {0},"Run summary line, display only. {0} Ichor taken as the Six's share.",,0,Start
+Summary.Retained,Retained {0},留存 {0},Run summary line. {0} Ichor retained.,,0,Start
+Summary.FiledUnder,Filed under: {0},归档编号：{0},"Run summary seed line. {0} run seed, culture-invariant.",,0,Start
+MuscleMemory.Title,Muscle Memory,身忆,"Muscle Memory name, zh_naming §7.2. No system reads this row yet.",,0,Start
+MuscleMemory.Stage1.Name,Flinch,惊觉,Stage name. No system reads this row yet.,,0,Start
+MuscleMemory.Stage1.Desc,"Once per run, a hit that would kill you leaves you at 1 HP with 1 s of invulnerability.",每局一次：受到致命伤害时，保留 1 点生命，并获得 1 秒无敌。,Stage rules. No system reads this row yet.,,0,Start
+MuscleMemory.Stage2.Name,Reflex,本能,Stage name. No system reads this row yet.,,0,Start
+MuscleMemory.Stage2.Desc,Dashing through an active enemy telegraph gives back half the dash cooldown.,冲刺穿过敌人的攻击预警区域时，返还一半冲刺冷却。,Stage rules. No system reads this row yet.,,0,Start
+MuscleMemory.Stage3.Name,Form,架势,Stage name. No system reads this row yet.,,0,Start
+MuscleMemory.Stage3.Desc,The first weapon you take in a run can reach level 9.,每局拿到的第一件武器，最高可升到 Lv.9。,Stage rules. No system reads this row yet.,,0,Start

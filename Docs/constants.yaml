@@ -418,3 +418,6 @@ weapons:
   META.CURRENCY_HEAT_BONUS: { value: 0.15, unit: ratio, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
   META.ACT_START: { value: 1, unit: n, tag: CORE, dependents: [02_Systems/meta.md, T-MET-09] }
   META.ACT_MAX: { value: 3, unit: n, tag: CORE, dependents: [02_Systems/meta.md, T-MET-09] }
+  # Narrative (03_Narrative.md)
+  NARR.PREWIN_LAYER_MAX: { value: 2, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03, T-NAR-06] }
+  NARR.LAYER_MAX: { value: 3, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03] }

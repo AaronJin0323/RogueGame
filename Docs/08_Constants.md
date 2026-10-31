@@ -483,3 +483,10 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.META.CURRENCY_HEAT_BONUS | 0.15 | ratio | GATED(S3) | meta.md, T-MET-02 |
 | C.META.ACT_START | 1 | n | CORE | meta.md, T-MET-09 |
 | C.META.ACT_MAX | 3 | n | CORE | meta.md, T-MET-09 |
+
+## Narrative (03_Narrative.md)
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.NARR.PREWIN_LAYER_MAX | 2 | layer | CORE | 03_Narrative.md, T-NAR-03, T-NAR-06 |
+| C.NARR.LAYER_MAX | 3 | layer | CORE | 03_Narrative.md, T-NAR-03 |
