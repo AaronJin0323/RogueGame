@@ -425,7 +425,7 @@ def main(argv):
 			"" if share == "" or label not in power else ("IN" if abs(share - arm_mean) <= arch_band else "OUT"),
 			mean(r["casts"] for r in rs), cast,
 			"" if cast == "" or not keeper_mean else ("IN" if abs(cast / keeper_mean - 1.0) <= cast_band else f"OUT ({cast / keeper_mean:.2f}x)")))
-	lines += ["", "Deaths by minute (Nth minute of the run counts as N-1; wins and timeouts stay out; `12_Production` names a band, no spec sets it yet):", "",
+	lines += ["", "Deaths by minute (Nth minute of the run counts as N-1; wins and timeouts stay out; the band is for humans, `bot.md` R-BOT-17, so nothing here is judged against it):", "",
 		"| Arm | Deaths | Median death min | Minute: runs |", "|---|---|---|---|"]
 	for label in labels:
 		rs = [r for r in runs if r["label"] == label]

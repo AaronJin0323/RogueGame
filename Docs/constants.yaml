@@ -310,6 +310,10 @@ combat:
   DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09] }
   DIR.NOPICK_DEATH_BAND_S:     { value: [480, 720], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-01] }
   DIR.BOT_RUNS:                { value: 10,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-01] }
+  DEATH.FIRST_ATTEMPT_CUTOFF_S: { value: 600, unit: s,     tag: GATED(S2),  dependents: [02_Systems/bot.md, R-BOT-17, T-BOT-17] }
+  DEATH.FIRST_ATTEMPT_SHARE:   { value: 0.5,  unit: ratio, tag: GATED(S2),  dependents: [02_Systems/bot.md, R-BOT-17, T-BOT-17] }
+  DEATH.STEERED_WIN_BAND:      { value: [0.30, 0.40], unit: ratio, tag: GATED(S2), dependents: [02_Systems/bot.md, R-BOT-17, T-BOT-17] }
+  DEATH.BOSS_KILL_SHARE:       { value: 0.33, unit: ratio, tag: GATED(S2),  dependents: [02_Systems/bot.md, R-BOT-17, T-BOT-17] }
   DIR.BREATH_S:                { value: 6.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-04] }
   DIR.SPAWN_RING_MIN_UU:       { value: 1350, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }
   DIR.SPAWN_RING_MAX_UU:       { value: 1700, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-05] }

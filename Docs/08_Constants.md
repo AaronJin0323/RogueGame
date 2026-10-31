@@ -364,6 +364,10 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09 |
 | C.DIR.NOPICK_DEATH_BAND_S | 480–720 | s | GATED(S1) | director.md, T-DIR-01 |
 | C.DIR.BOT_RUNS | 10 | n | GATED(S1) | director.md, T-DIR-01 |
+| C.DEATH.FIRST_ATTEMPT_CUTOFF_S | 600 | s | GATED(S2) | bot.md, R-BOT-17, T-BOT-17 |
+| C.DEATH.FIRST_ATTEMPT_SHARE | 0.5 | ratio | GATED(S2) | bot.md, R-BOT-17, T-BOT-17 |
+| C.DEATH.STEERED_WIN_BAND | 0.30–0.40 | ratio | GATED(S2) | bot.md, R-BOT-17, T-BOT-17 |
+| C.DEATH.BOSS_KILL_SHARE | 0.33 | ratio | GATED(S2) | bot.md, R-BOT-17, T-BOT-17 |
 | C.DIR.BREATH_S | 6.0 | s | GATED(S1) | director.md, T-DIR-04 |
 | C.DIR.SPAWN_RING_MIN_UU | 1350 | uu | GATED(S1) | director.md, T-DIR-05 |
 | C.DIR.SPAWN_RING_MAX_UU | 1700 | uu | GATED(S1) | director.md, T-DIR-05 |

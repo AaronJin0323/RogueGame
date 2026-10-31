@@ -17,6 +17,7 @@ import contrast_check  # noqa: E402
 import gen_matrix  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
+import s2_exit  # noqa: E402
 
 
 class Matrix(unittest.TestCase):
@@ -157,6 +158,71 @@ class BotLabel(unittest.TestCase):
 	def test_config(self):
 		self.assertEqual(bot_summary.read_config("policy=Steered path=Tide skill=0.60 seed=3 version=2"), ("2", "0.60"))
 		self.assertEqual(bot_summary.read_config("policy=Steered skill=1.00 seed=3"), ("1", "1.00"))
+
+
+class S2Exit(unittest.TestCase):
+	"""T-BOT-17: the probe lines parse; human readings stay NOT READ whatever the bots do; no data is NOT READ."""
+
+	CONSTS = {k: {"value": v} for k, v in {"POWER.KEEPER_SHARE_L16": 0.6, "POWER.ARCHETYPE_BAND": 0.15, "INTERCESSION.BAND": 0.2}.items()}
+	T18 = "T-KEE-18: FAIL (18 arms: share below 0.6 on 3, gain outside the band on 9, outside the archetype band on 0; mean share 0.701)"
+	T15 = "T-KEE-15: FAIL (21/144 combinations within +-0.2 of their Keeper's mean; Shade mean 1)"
+
+	@staticmethod
+	def run_row(keeper, outcome="victory", end_s="950", reached="1"):
+		return {"label": f"Steered-{keeper}-X", "outcome": outcome, "end_s": end_s, "reached_boss": reached}
+
+	def rows(self):
+		return [self.run_row(k) for k in s2_exit.KEEPERS]
+
+	def verdicts(self, t18, t15, bots):
+		return {name: v for name, v, _ in s2_exit.exit_lines(t18, t15, bots, self.CONSTS)}
+
+	def test_probe_lines(self):
+		self.assertEqual(s2_exit.read_t18(self.T18), {"arms": 18, "share_fails": 3, "gain_fails": 9, "band_fails": 0, "mean": 0.701})
+		self.assertEqual(s2_exit.read_t15(self.T15), (21, 144))
+		self.assertIsNone(s2_exit.read_t18("T-KEE-18: n/a (no complete build)"))
+		self.assertIsNone(s2_exit.read_t15(None))
+
+	def test_probe_line_is_the_one_probe_writes(self):
+		lines = []
+		with tempfile.TemporaryDirectory() as root:
+			self.assertIsNone(probe.read_ablation(root, lines))
+		self.assertIn("T-KEE-18: n/a", lines[-1])
+		self.assertIn("share below {need} on {fails['share']}, gain outside the band on {fails['gain']}", open(probe.__file__, encoding="utf-8").read())
+
+	def test_verdicts(self):
+		v = self.verdicts(s2_exit.read_t18(self.T18), s2_exit.read_t15(self.T15), [("1.0", self.rows())])
+		self.assertEqual((v["Keeper share"], v["Build bands"], v["Intercession"], v["Bots win a full run"]), ("FAIL", "PASS", "FAIL", "PASS"))
+
+	def test_a_keeper_with_no_win_fails(self):
+		rows = self.rows()
+		rows[0] = self.run_row("Storm", "death", "300", "0")
+		self.assertEqual(self.verdicts(None, None, [("1.0", rows)])["Bots win a full run"], "FAIL")
+
+	def test_humans_are_never_read(self):
+		perfect = {"arms": 18, "share_fails": 0, "gain_fails": 0, "band_fails": 0, "mean": 0.8}
+		v = self.verdicts(perfect, (144, 144), [("1.0", self.rows())])
+		self.assertEqual((v["Humans win a full run"], v["Death histogram"]), ("NOT READ", "NOT READ"))
+
+	def test_wrong_patron_is_found(self):
+		with tempfile.TemporaryDirectory() as root:
+			for name, picked in (("IK-Tide-Frost-Shade_Hound-cast_s1", "Shade"), ("IK-Tide-Frost-none-cast_s2", "Tide")):
+				folder = os.path.join(root, name)
+				os.makedirs(folder)
+				with open(os.path.join(folder, "scene.txt"), "w", encoding="utf-8") as f:
+					f.write("patron Tide\nsecond Shade\n")
+				with open(os.path.join(folder, "run.log"), "w", encoding="utf-8") as f:
+					f.write(f"LogDT: Offer p0: picked slot 2 Keeper.{picked}\n")
+			self.assertEqual(probe.wrong_patrons(root), ["IK-Tide-Frost-Shade_Hound-cast_s1"])
+
+	def test_no_data_is_not_read(self):
+		self.assertEqual(set(self.verdicts(None, None, []).values()), {"NOT READ"})
+
+	def test_death_shape(self):
+		rows = [self.run_row("Storm", "death", "300", "0"), self.run_row("Storm", "death", "1000"), self.run_row("Storm"), self.run_row("Tide")]
+		s = s2_exit.death_shape(rows, 600)
+		self.assertEqual((s["runs"], s["deaths"], s["early"], s["wins"], s["reached"]), (4, 2, 0.25, 0.5, 3))
+		self.assertAlmostEqual(s["boss_kill"], 1 / 3)
 
 
 class Ablation(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Scene probes for Keeper power (02_Systems/keepers.md, Docs/Validation/S1_probes.md). Stdlib only.
 
 Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5] [--stage S1|S2|all]            writes the T-KEE-15 scenes and <dir>/jobs.csv
-        python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1] [--stage S1|S2|all]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
+        python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1] [--stage S1|S2|all] [--max-build <seed>]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
         & Tools\\BotRuns.ps1 -Jobs <dir>\\jobs.csv -Parallel 14 -Out <dir>\\runs   runs them headless
         python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
 
@@ -30,6 +30,7 @@ import csv
 import glob
 import json
 import os
+import re
 import statistics
 import sys
 
@@ -59,7 +60,8 @@ SHOWCASE_S2 = {
 	"Steered-Radiance-Lance-Storm": ("Radiance", "Lance"), "Steered-Radiance-Prism-Storm": ("Radiance", "Prism"), "Steered-Radiance-Solar-Tide": ("Radiance", "Solar"),
 	"Steered-Quicksilver-Vector-Forge": ("Quicksilver", "Vector"), "Steered-Quicksilver-Momentum-Storm": ("Quicksilver", "Momentum"), "Steered-Quicksilver-Rebound-Storm": ("Quicksilver", "Rebound"),
 }
-CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra")
+PICK = re.compile(r"Offer p0: picked slot \d+ Keeper\.(\w+)")
+CONFIGS = ("full", "no_keepers","no_package", "no_mods", "no_levels", "no_extra")
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")
 
 
@@ -175,7 +177,7 @@ def gen_intercession(out_dir, seeds, mult=FIELD_HP_MULT, stage="S1"):
 	write_jobs(out_dir, cast_jobs + plain_jobs)
 
 
-def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1"):
+def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1", max_build=None):
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	hp = field_hp(consts, mult)
@@ -190,6 +192,8 @@ def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1"):
 			with open(snap, encoding="utf-8") as f:
 				build = parse_build(f.read())
 			build_seed = int(folder.rsplit("_s", 1)[1])
+			if max_build is not None and build_seed > max_build:
+				continue
 			count += 1
 			for config in CONFIGS:
 				second, blessings, weapons = ablate(build, config, path, name)
@@ -227,6 +231,22 @@ def read_run(folder):
 			elif '"kind":"run_end"' in line:
 				ended = True
 	return (damage, casts, hi - lo) if ended else None
+
+
+def wrong_patrons(runs_root):
+	"""Run folders whose log shows a first Keeper pick other than the scene's Patron: such a run read another Keeper's power."""
+	out = []
+	for folder in glob.glob(os.path.join(runs_root, "*_s*")):
+		scene_path, log = os.path.join(folder, "scene.txt"), os.path.join(folder, "run.log")
+		if not (os.path.exists(scene_path) and os.path.exists(log)):
+			continue
+		with open(scene_path, encoding="utf-8") as f:
+			patron = next((line.split()[1] for line in f if line.startswith("patron ")), None)
+		with open(log, encoding="utf-8", errors="replace") as f:
+			picked = next((m[1] for m in map(PICK.search, f) if m), None)
+		if patron and picked != patron:
+			out.append(os.path.basename(folder))
+	return sorted(out)
 
 
 def read_all(runs_root):
@@ -360,7 +380,8 @@ def main(argv):
 		gen_intercession(target, seeds or 5, mult, stage)
 		return 0
 	if command == "ablation":
-		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1, mult, stage)
+		max_build = int(argv[argv.index("--max-build") + 1]) if "--max-build" in argv else None
+		gen_ablation(target, argv[argv.index("--builds") + 1], seeds or 1, mult, stage, max_build)
 		return 0
 	if command != "read":
 		print(__doc__)

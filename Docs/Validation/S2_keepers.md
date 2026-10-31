@@ -7,9 +7,10 @@ Branch `dev/s2-keepers`, from `dev/s2`. Class: SYSTEM. Layer: Keeper content and
 & Tools\BotRuns.ps1 -ArmSet S2Keepers -Seeds 15 -BotVersion 2 -Skill 1.0 -Parallel 10 -Stagger 0.4 -Out Saved\BotRuns\s2k_v2
 python -I Tools\probe.py intercession Saved\Probes\s2k_ik --seeds 2 --stage S2
 & Tools\BotRuns.ps1 -Jobs Saved\Probes\s2k_ik\jobs.csv -Parallel 10 -Stagger 0.4 -Out Saved\Probes\s2k_ik\runs
-python -I Tools\probe.py ablation Saved\Probes\s2k_ab --builds Saved\BotRuns\s2k_v2 --stage S2
+python -I Tools\probe.py ablation Saved\Probes\s2k_ab --builds Saved\BotRuns\s2k_v2 --stage S2 --max-build 5
+& Tools\BotRuns.ps1 -Jobs Saved\Probes\s2k_ab\jobs.csv -Parallel 12 -Stagger 0.4 -Out Saved\Probes\s2k_ab\runs
 ```
-The ablation job list was cut to builds 1 to 5 per arm (258 runs of 792); Solar has 3 complete builds.
+The ablation job list is cut to builds 1 to 5 per arm (258 runs of 792); Solar has 3 complete builds.
 
 ## Failing first
 `Dusktracer.Keepers.S2.*` went in over stubs (commit 1a445f3): 19 of 20 reached were red, then a test crash stopped the batch, so the later tests (the casts among them) were not seen red. Several test faults were found on the way to green, in the tests, not the game. One game fault was found by them: a hunter fanned a rifle's two rounds across a cone and missed its target.
@@ -53,20 +54,23 @@ Damage share by source over the runs, top Keepers: Hound Storm 38 Shade 33; Hunt
 | Quicksilver/Momentum | 24834 | -1760 | 47782 | 23236 |
 
 ## T-KEE-18, ablation at level 16: FAIL
-**Same fault, not rerun:** these jobs also ran without the unlock, so the table below is not a reading of S2 Patrons.
-Share 8 of 9 arms, gain 3 of 9, archetype band 6 of 9; mean share 0.676. Five builds an arm (Solar 3), one seed, so a thin reading.
+**The first reading here was wrong and is replaced.** Same fault as T-KEE-15: those jobs ran without the unlock, so the scenes ran as Storm. Rerun on `dev/s2-exit` from 0747e3c through the fixed `BotRuns -Jobs`, on the same `bot.csv.L16` snapshots of `s2k_v2` and the same cut (builds 1 to 5, 258 runs); `Patron` picks the named Keeper in all 258 logs. Criteria unchanged. The tree has moved since those snapshots (Reforging, meters, neutral dilation), so the build list is old and the game is today's.
 
-| Arm | Full DPS | Share | Package gain |
-|---|---|---|---|
-| Quicksilver/Momentum | 9203 | 0.606 | 2.97 |
-| Quicksilver/Rebound | 6073 | 0.648 | 1.76 |
-| Quicksilver/Vector | 11773 | 0.855 | 0.94 |
-| Radiance/Lance | 12484 | 0.749 | 3.73 |
-| Radiance/Prism | 7967 | 0.620 | 2.20 |
-| Radiance/Solar | 11265 | 0.618 | 2.36 |
-| Shade/Economy | 6641 | 0.522 | 1.11 |
-| Shade/Hound | 3822 | 0.617 | 2.03 |
-| Shade/Hunters | 10777 | 0.852 | 0.96 |
+Share 6 of 9 arms, gain 3 of 9, archetype band 6 of 9; mean share 0.690. Five builds an arm (Solar 3), one seed, so a thin reading.
+
+| Arm | Full DPS | Share | Package gain | Was (share, gain) |
+|---|---|---|---|---|
+| Quicksilver/Momentum | 9391 | 0.598 FAIL | 3.14 | 0.606, 2.97 |
+| Quicksilver/Rebound | 6007 | 0.659 | 1.82 | 0.648, 1.76 |
+| Quicksilver/Vector | 11749 | 0.857 OUT | 0.98 | 0.855, 0.94 |
+| Radiance/Lance | 10518 | 0.725 | 3.35 | 0.749, 3.73 |
+| Radiance/Prism | 7556 | 0.605 | 2.06 | 0.620, 2.20 |
+| Radiance/Solar | 7165 | 0.754 | 2.02 | 0.618, 2.36 |
+| Shade/Economy | 7168 | 0.501 FAIL OUT | 1.29 | 0.522, 1.11 |
+| Shade/Hound | 3933 | 0.580 FAIL | 2.14 | 0.617, 2.03 |
+| Shade/Hunters | 10074 | 0.931 OUT | 0.95 | 0.852, 0.96 |
+
+**How it moved:** still FAIL, and worse on share: arms below `C.POWER.KEEPER_SHARE_L16` go 1 to 3 (Momentum at 0.598 and Hound at 0.580 drop under it), while the mean rises 0.676 to 0.690 because the spread widened: Hunters +0.08, Solar +0.14. Gain and band counts stand at 3 and 6 of 9, with the same arms in or out (gain passes on Prism, Solar and Hound). The largest moves in full DPS are Solar's and Lance's, down 36 and 16 percent; the cause was not traced. Readings only; nothing was tuned against them.
 
 ## Perf at caps
 Default scene: game p50 2.26, p95 3.05 ms, GPU p95 2.64 raw (4.23 proxied), 5975 bullets, 388 enemies: PASS. A second scene with `DT.Bless` of six S2 cards read the same (game p95 3.06), but `DT.Give` may not be a command and the scene has no Patron or proof that a hunter, nova or Momentum ran: **it says nothing about S2 cost**. The real cost is unmeasured.

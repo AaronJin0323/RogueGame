@@ -125,7 +125,8 @@ function Start-Run($Label, $Seed, $Extra) {
 if ($Jobs) {
 	foreach ($Job in (Import-Csv $Jobs)) {
 		# A scene's S2 Keepers need their unlock too (keepers.md R-KEE-23), or the Patron hand gives the run a Keeper of its own.
-		$Named = @(Get-Content $Job.script | Where-Object { $_ -match '^(patron|second) ' } | ForEach-Object { ($_ -split ' ')[1] } | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
+		# Only the Patron: an unlocked Keeper leads the hand, so an unlocked second pushes Tide out of it, and the scene seats its second itself.
+		$Named = @(Get-Content $Job.script | Where-Object { $_ -match '^patron ' } | ForEach-Object { ($_ -split ' ')[1] } | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
 		$Extra = @("-DTBot=Steered", "-DTNoDirector", "-DTProbe=`"$($Job.script)`"") + $(if ($Named.Count) { @("-DTUnlock=" + ($Named -join ',')) } else { @() })
 		$RunDir = Start-Run $Job.label $Job.seed $Extra
 		Copy-Item $Job.script (Join-Path $RunDir "scene.txt")

@@ -27,6 +27,7 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 **Reading it**
 - **R-BOT-12** The bot record gives what the S2 gates read: `version`, `skill` (in `config=`), the outcome, the end time, the hit that ended the run (`last_hit`: hit kind, role, attack id), and the hits taken: all, with the stick at rest, near an arena edge (`HitWallBandUU`) (`hits`, `hits_still`, `hits_wall`). `Tools/bot_summary.py` writes the death-minute histogram per arm; `Tools/bot_compare.py` lines up batches arm by arm on boss reach, wins and median death minute, and prints the hit shares per batch.
 - **R-BOT-13** Every reported bot number names its version and skill and is a bound until calibrated against humans. `C.XP.REFERENCE_PICKUP_RATIO` is the only human anchor today; a skill that reads near it on pickup is a hint, never a calibration.
+- **R-BOT-17** The death histogram conforms (`12_Production` S2 row) when, at base Heat, three human readings hold, as the source states them (`Handoff_Dusktracer/game/reference/original_docs/01_GameDesign.md` §3.5, Difficulty targets; `G03_Retrospective_EN_ZH.md` S2 row: "death histogram matches §3.5"): first-time players die before `C.DEATH.FIRST_ATTEMPT_CUTOFF_S` on about `C.DEATH.FIRST_ATTEMPT_SHARE` of first attempts, a player who has learned to steer a Path wins inside `C.DEATH.STEERED_WIN_BAND`, and the boss kills about `C.DEATH.BOSS_KILL_SHARE` of the players who reach it. The source gives no tolerance on "roughly half" or "about a third" and none is added here. Each clause names a human population and no skill is calibrated against one (R-BOT-13), so a bot reading is printed beside the band and is never judged by it: `Tools/s2_exit.py` reports the reading NOT READ until human sessions exist.
 
 ## Numbers
 Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain.cpp`) and `DTBotSkillTuning` (`Bot/DTBotPerception.cpp`) and changing them is recorded in `Docs/Validation/S2_bot_v2.md`, not in `number_change_log.csv`. The bot reads game values through `DTConst` and `DTCat` and owns none of them.
@@ -36,6 +37,10 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 | Skill profile | `DTBotSkillTuning::*`, `DTBotTuning::StickTauS`, `WallProbeUU` | tool parameter | R-BOT-04…08, R-BOT-14, T-BOT-03, T-BOT-14 |
 | Card scores | `DTBotTuning::ReachPenalty`, `ModReachShare`, `SecondWeaponFloor`, `SecondFirstScore`, `SecondNextScore`, `DTBotSkillTuning::MaxTasteScore` | tool parameter | R-BOT-09…11 |
 | Reach sampling | `DTBotTuning::ReachSampleS`, `ReachWindowS`, `ReachMinSamples`, `ReachPriorUU` | tool parameter | R-BOT-09 |
+| First-attempt cutoff | C.DEATH.FIRST_ATTEMPT_CUTOFF_S | GATED(S2) | R-BOT-17, T-BOT-17 |
+| First-attempt share dead | C.DEATH.FIRST_ATTEMPT_SHARE | GATED(S2) | R-BOT-17, T-BOT-17 |
+| Steering player's wins | C.DEATH.STEERED_WIN_BAND | GATED(S2) | R-BOT-17, T-BOT-17 |
+| Boss kills of reachers | C.DEATH.BOSS_KILL_SHARE | GATED(S2) | R-BOT-17, T-BOT-17 |
 
 ## Data
 | Field | Type | Notes |
@@ -62,6 +67,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - T-BOT-12 `Tools/tools_test.py` `BotHistogram`: death minutes bin per arm, wins and timeouts stay out of the histogram, `Tools/bot_compare.py` lines up two batches.
 - T-BOT-13 `Tools/tools_test.py` `BotLabel`: the summary names version and skill read from the records and says a batch mixes them.
 - T-BOT-14 `Dusktracer.Bot.LeavesClearance`: below `1.0` a slower chaser inside the clearance is walked away from, not waited for, and in a corner the stick takes the way out along the wall; `LeaveUU` is `0` at skill `1.0` and shrinks with skill.
+- T-BOT-17 `Tools/tools_test.py` `S2Exit`: the reader reads the probe lines and a batch; the human readings and the death histogram stay NOT READ however good the bot's numbers are; a reading with no data is NOT READ.
 - HUMAN: not measured. When O-008 sessions exist, compare human boss reach, death minute and pickup against the skill rows of `Docs/Validation/S2_bot_v2.md`, and only then call any setting a player.
 
 ## Telemetry
@@ -76,4 +82,4 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 ## Open
 - Where each skill sits against humans → O-008 sessions.
 - Whether the default flips to version `2` → at the S1 exit, when `main` stops being the S1 build.
-- A band for the death histogram: `12_Production` names one, no spec sets it → the S2 gate brief, after human death minutes exist.
+- Whether R-BOT-17's cutoff still means ten minutes: the source's clock positions were scaled when the run shortened (the source's D-71) and this line kept its number, stated here as written → O-008 sessions.
