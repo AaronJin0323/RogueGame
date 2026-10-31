@@ -1,43 +1,56 @@
-# S1 field tick (PAUSED, incomplete)
+# S1 field tick
 
-Status: **paused on the owner's request. The fix is written but has never been built or run. No after reading exists and no verdict is given.**
+**Verdict: BUG fixed on `fix/field-tick`. The S1 bot effect is small overall: 154 → 151 wins, with flips nearly balanced (18 lost, 15 gained). Two arms moved 4 in boss reach, past the noise of 2-3, so they are worth a look. No number was tuned, and T-KEE criteria are unchanged.** A bot reading is never a human reading.
 
-Port to `main` of the `dev/s2` fix for R-KEE-16 ("field ticks are not hits"): `bFieldTick` on `FDTHit`, set in `StepDeferred`, skipped in `FDTKeeperSim::CaptureHits`. It also stops ticks reaching `frozen_vuln` and the layer status, which read the same capture. The payday and Vector changes are not ported.
+Class BUG, weapon and Keeper layers. It replaces the path by which a field's tick reached the Keepers. It is a port to `main` of the `dev/s2` fix for R-KEE-16 ("field ticks are not hits"): `bFieldTick` on `FDTHit`, set in `StepDeferred`, skipped in `FDTKeeperSim::CaptureHits`. The payday and Vector changes are not ported. T-KEE-09 now names the new test; its pass criteria stay as they were.
 
-## Done
-- The bug exists on `main`. `Dusktracer.Keepers.Param.FieldTick` seen red on main's production code (`80dd32a`): rolls 3008, expected 16; Chill on the enemy only the field touches 233, expected 0.
-- Baseline below.
+## The test
+`Dusktracer.Keepers.Param.FieldTick` (4 s, one Tide Key, one Field):
 
-## Left, in order
-1. Build; see `FieldTick` green.
-2. `Tools\BotRuns.ps1` with the same arms, seeds and `-Parallel 12` on the fixed build; fill the after column.
-3. `Tools\Gate.ps1` to PASS, verdict here. Docs lint has not been run on this file.
+| | Expected | Red, `80dd32a` production code | Green |
+|---|---|---|---|
+| Hits rolled | 16 (the rifle's) | 3008 | Success |
+| Chill on the enemy only the field touches | 0 | 233 | Success |
 
-Open choice: `dev/s2` also named the new test in T-KEE-09 in `keepers.md`. Not ported, because the brief keeps T-KEE criteria unchanged.
+The fix also stops ticks reaching `frozen_vuln` and the layer status, because they read the same capture. A tick's damage is unchanged. A field's own `status` pulse (R-KEE-22) is separate code and untouched.
 
-## Baseline (before)
-Bot readings at skill 1.0, 19 arms, seeds 1..15, built from `80dd32a` plus only the new test. Raw output: `Saved/BotRuns/field_before` in the worktree, git-ignored. A bot reading is never a human reading, and a shift of 2-3 on a 15-seed arm can be noise.
+## Bot reading
+19 arms, seeds 1..15, skill 1.0, `-Parallel 12`, same command both sides. Before is `80dd32a` production code plus the test; after adds the fix. All 285 runs have a record on each side. Raw output: `Saved/BotRuns/field_before` and `field_after` (git-ignored). BotRuns prints FAIL and exits 1 on both sides only because of T-OFF-15.
 
-Steered: 198 runs reach the boss, 154 win. T-DIR-01 PASS 588.6 s. T-OFF-15 FAIL 197/198, which BotRuns reports as `FAIL` with exit 1; all 285 runs have a record. Both totals match `Docs/STATE.md`.
+| | Before | After |
+|---|---|---|
+| Steered runs at the boss | 198 | 192 |
+| Wins | 154 | 151 |
+| T-DIR-01 | PASS 588.6 s | PASS 588.6 s |
+| T-OFF-15 | FAIL 197/198 | FAIL 191/192 |
 
-| Arm | Wins | Median end s | Level @630 | Keeper share |
-|---|---|---|---|---|
-| None | 0 | 588.6 | 9.467 | 0.17 |
-| Forge-Furnace | 10 | 984.9 | 17.467 | 0.67 |
-| Forge-Furnace-Tide | 6 | 814.9 | 17.133 | 0.582 |
-| Forge-Hammer | 13 | 962.9 | 17.267 | 0.705 |
-| Forge-Hammer-Tide | 10 | 968.1 | 17.467 | 0.673 |
-| Forge-Slam | 11 | 977.4 | 16.8 | 0.642 |
-| Forge-Slam-Tide | 3 | 943.1 | 16.533 | 0.544 |
-| Storm-ArcGrid | 11 | 979.2 | 17.2 | 0.587 |
-| Storm-ArcGrid-Forge | 12 | 976.6 | 17.533 | 0.681 |
-| Storm-Downpour | 14 | 973.5 | 17.133 | 0.676 |
-| Storm-Downpour-Forge | 14 | 990.8 | 17.133 | 0.743 |
-| Storm-Tempest | 6 | 982.2 | 16.8 | 0.496 |
-| Storm-Tempest-Forge | 14 | 986.6 | 17.667 | 0.599 |
-| Tide-Frost | 7 | 967.0 | 14.6 | 0.511 |
-| Tide-Frost-Storm | 9 | 1000.5 | 14.733 | 0.508 |
-| Tide-Stillness | 3 | 957.1 | 14.133 | 0.404 |
-| Tide-Stillness-Storm | 6 | 741.0 | 13.667 | 0.33 |
-| Tide-Whirlpool | 3 | 682.0 | 14.067 | 0.405 |
-| Tide-Whirlpool-Storm | 2 | 555.8 | 13.6 | 0.351 |
+T-OFF-15 has the same count of misses: one run on each side. Paired by arm and seed, 115 of 285 runs are unchanged, including all 15 of the control `None`. The other 170 diverge: dropping the rolls also changes the Combat stream draws, so a changed run is not a pure measure of the fix. 18 wins became losses and 15 losses became wins.
+
+| Arm | Boss before | Boss after | Wins before | Wins after | Lost | Gained | Unchanged | Median end s before | after | Keeper share before | after |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| None | 0 | 0 | 0 | 0 | 0 | 0 | 15/15 | 588.6 | 588.6 | 0.17 | 0.17 |
+| Forge-Furnace | 14 | 14 | 10 | 11 | 1 | 2 | 0/15 | 984.9 | 970.6 | 0.67 | 0.67 |
+| Forge-Furnace-Tide | 6 | 7 | 6 | 4 | 2 | 0 | 1/15 | 814.9 | 853.5 | 0.582 | 0.572 |
+| Forge-Hammer | 14 | 14 | 13 | 14 | 0 | 1 | 1/15 | 962.9 | 971.5 | 0.705 | 0.712 |
+| Forge-Hammer-Tide | 13 | 9 | 10 | 8 | 2 | 0 | 4/15 | 968.1 | 944.0 | 0.673 | 0.673 |
+| Forge-Slam | 14 | 13 | 11 | 11 | 1 | 1 | 6/15 | 977.4 | 977.0 | 0.642 | 0.637 |
+| Forge-Slam-Tide | 10 | 6 | 3 | 3 | 2 | 2 | 4/15 | 943.1 | 872.0 | 0.544 | 0.525 |
+| Storm-ArcGrid | 12 | 12 | 11 | 11 | 0 | 0 | 12/15 | 979.2 | 979.2 | 0.587 | 0.584 |
+| Storm-ArcGrid-Forge | 15 | 14 | 12 | 13 | 0 | 1 | 8/15 | 976.6 | 975.3 | 0.681 | 0.679 |
+| Storm-Downpour | 15 | 15 | 14 | 14 | 0 | 0 | 9/15 | 973.5 | 993.8 | 0.676 | 0.67 |
+| Storm-Downpour-Forge | 15 | 15 | 14 | 14 | 1 | 1 | 0/15 | 990.8 | 983.0 | 0.743 | 0.749 |
+| Storm-Tempest | 10 | 11 | 6 | 6 | 0 | 0 | 12/15 | 982.2 | 985.4 | 0.496 | 0.497 |
+| Storm-Tempest-Forge | 15 | 15 | 14 | 15 | 0 | 1 | 2/15 | 986.6 | 983.5 | 0.599 | 0.598 |
+| Tide-Frost | 10 | 9 | 7 | 4 | 4 | 1 | 4/15 | 967.0 | 913.6 | 0.511 | 0.521 |
+| Tide-Frost-Storm | 11 | 12 | 9 | 9 | 1 | 1 | 8/15 | 1000.5 | 978.3 | 0.508 | 0.503 |
+| Tide-Stillness | 9 | 9 | 3 | 4 | 0 | 1 | 4/15 | 957.1 | 936.6 | 0.404 | 0.368 |
+| Tide-Stillness-Storm | 6 | 7 | 6 | 5 | 2 | 1 | 10/15 | 741.0 | 743.7 | 0.33 | 0.368 |
+| Tide-Whirlpool | 5 | 4 | 3 | 2 | 2 | 1 | 6/15 | 682.0 | 446.7 | 0.405 | 0.354 |
+| Tide-Whirlpool-Storm | 4 | 6 | 2 | 3 | 0 | 1 | 9/15 | 555.8 | 780.1 | 0.351 | 0.362 |
+
+## Reading
+- Most arms moved within the 2-3 that can be noise on 15 seeds.
+- Past it: boss reach on Forge-Hammer-Tide (13 → 9) and Forge-Slam-Tide (10 → 6), both -4. Tide-Frost's wins (7 → 4, -3) sit at the edge of it.
+- All three carry Tide, so losing tick-rolled Chill and `frozen_vuln` is a plausible cause. That is a hypothesis: nothing here measured it, and 15 seeds cannot separate it from the stream change. Other Tide arms moved the other way.
+- The two large median swings on Whirlpool arms are arms of 2-3 wins whose median sits across a bimodal gap, not a clear effect.
+- Held for a human reading, untuned.
