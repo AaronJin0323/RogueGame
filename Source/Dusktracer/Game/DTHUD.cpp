@@ -216,6 +216,7 @@ void ADTHUD::DrawHUD()
 		DrawLine(FText::AsCultureInvariant(FString::Printf(TEXT("%.0f fps  %.2f ms frame  %.2f ms game"),
 			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)), 1.0f);
 	}
+#endif // !UE_BUILD_SHIPPING
 
 	DrawHeroes();
 	// Above the world HUD; only the offer screen draws over it (progression.md R-PRG-11).

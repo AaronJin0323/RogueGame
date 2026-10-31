@@ -25,12 +25,15 @@ Validators play without the editor (O-008, `Validation/S1_kit.md`). One script m
 - A run's two files hold gameplay only (`telemetry.md` §Data): seed, build hash, culture, last input device, per-interval combat numbers, cards offered and picked, Keeper and weapon choices, and three wall-clock fields (`run_start.wall`, `offer_pick.wall_decide_s`, `run_end.wall_paused_s`). No name, account, machine name, path, hardware, IP or free text. The file name is the seed and the local start time.
 
 ## Acceptance
-- T-PKG-01 `Tools/Package.ps1`: exits 0 and prints `PACKAGE: PASS`, with both configs under `Saved/Package/`.
-- T-PKG-02 `Tools/PadCheck.ps1` Shipping half: `run_start` and `run_end`, a closed interval, `build` and `culture` right, en and zh-Hans.
-- T-PKG-03 `Tools/PadCheck.ps1` Development half: drawn text, log, screenshot and `run_end` `quit`, en and zh-Hans.
-- T-PKG-04 `Tools/PadCheck.ps1` export: the zip holds that run and its `MANIFEST.txt`, and `power_split.py` reads the exported files.
-- T-PKG-05 `Tools/PadCheck.ps1` window count: no visible window of the game's process during the check.
-- T-PKG-06 `Tools/Gate.ps1` step `pad`: `NOT RUN` without a current clean package; `NOT RUN` with one and no `pad` run; a failed check fails the gate.
+- T-PKG-01 `Tools/Package.ps1`: exits clean and prints `PACKAGE: PASS`, with both configs under `Saved/Package/`.
+- T-PKG-02 `Tools/PadCheck.ps1` Development half: drawn text, log, screenshot and `run_end` `quit`.
+- T-PKG-03 `Tools/PadCheck.ps1` cultures: `run_start.culture` and the drawn text are right in en and zh-Hans.
+- T-PKG-04 `Tools/PadCheck.ps1` launchers: both `Play_*.bat` are in the package, with their culture and a fresh seed.
+- T-PKG-05 `Tools/PadCheck.ps1` Shipping half: the run lands in `%LOCALAPPDATA%`, with `run_start`, `run_end`, a closed interval and the right `build`.
+- T-PKG-06 `Tools/PadCheck.ps1` export: the zip holds that run and its `MANIFEST.txt`, nothing else, and `power_split.py` reads the exported files.
+- T-PKG-07 `Tools/PadCheck.ps1` windows: no visible window of the game's process during the check.
+- T-PKG-08 `Tools/Gate.ps1` step `pad`: `NOT RUN` without a current clean package; a failed check fails the gate.
+- T-PKG-09 `Tools/PadCheck.ps1` human half: `NOT RUN` with no `pad` run of this build, `PASS` only with one.
 - HUMAN: a validator on a gamepad plays this package and `input_device` reads `pad`; full-screen, Alt+F4 leaving `run_end` `quit` in Shipping, and the look of `zh-Hans` cards on a real display.
 
 ## Telemetry

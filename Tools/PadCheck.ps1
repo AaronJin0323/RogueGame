@@ -1,10 +1,10 @@
 # Package check (gate step `pad`, 02_Systems/package.md R-PKG-07..09): what a machine can prove about the package, off-screen.
 #   & Tools\PadCheck.ps1 [-Cultures en,zh-Hans] [-LoadTimeout 300]
-# Shipping (T-PKG-02): -RenderOffScreen launch, the bot plays past the first CSV interval and quits the game; run_start and run_end are right.
-# Export (T-PKG-04): the zip holds that run and power_split.py reads it. Development (T-PKG-03): drawn text, log, screenshot against the arena
-# golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-05: no visible window of the game's process at any time.
+# Shipping (T-PKG-05, cultures T-PKG-03): -RenderOffScreen launch, the bot plays past the first CSV interval and quits the game; run_start and run_end are right.
+# Export (T-PKG-06): the zip holds that run and power_split.py reads it. Development (T-PKG-02): drawn text, log, screenshot against the arena
+# golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no visible window of the game's process at any time.
 # -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted.
-# A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that.
+# A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -51,6 +51,10 @@ foreach ($File in $ShipExe, $DevExe, $Export) {
 	if (-not (Test-Path $File)) { Stop-Check "NOT RUN (package incomplete, no $File)" 2 }
 }
 
+foreach ($Culture in $Cultures) {
+	$Bat = Join-Path $PackageRoot "Shipping\Windows\Play_$Culture.bat"
+	if (-not (Test-Path $Bat) -or -not (Select-String -Path $Bat -SimpleMatch "-culture=$Culture -DTSeed=%RANDOM%" -Quiet)) { Stop-Check "FAIL (launcher Play_$Culture.bat missing or wrong)" 1 }
+}
 # --- window helper: the check must never show one ------------------------------------------------------------------
 Add-Type -TypeDefinition @"
 using System;
