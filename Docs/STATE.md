@@ -4,7 +4,7 @@
 - Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance passes merged under D-017; exit test not booked (O-008)
 - Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `OPEN.md` holds human-only items
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (234, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (235, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
 - Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Docs/Validation/S1_bot_baseline.md`). Tool runs open no window: `-nullrhi` or `-RenderOffScreen`
 
@@ -20,7 +20,7 @@
 - Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
 
 ## In flight
-- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites landed (gate 270 tests, perf PASS). Keepers 4–6 and the bot's early-death trace on branches off it
+- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade/Radiance/Quicksilver (T-KEE-15 and T-KEE-18 FAIL on them, untuned), L16 Reforging, duo reactions behind `Reaction.Duos` landed, with Reforging rows for Keepers 4–6 (`79abddd`: gate 405 tests; no human has played any of it). S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`): 1 PASS, 3 FAIL, 2 NOT READ: share 8/18, build bands 9/18, Intercession 46/282 FAIL; bots win PASS (Tide 5/45 at skill 1.0); humans win and death histogram (R-BOT-17) human only. Held for a human reading, untuned: payday self-pay, Tide's early power and boss answer, Time Dilation scale, T-KEE-15's route. Duos show no bot lift, Steam fights its own arm, Repossession barely fires (`S2_duos.md`). Evolutions rarely reach a hand because the bot skips primary upgrades; `-PrimaryFirst` reads 0.77 of hands, the human upgrade rate is unread. R-RFG-18 missed: power band low, T-OFF-15 309/310 against 318/318 (`S2_reforging.md`). Invented `leak_per_s` 0.15 awaits a human read. `Perf.ps1 -Scene S2` PASS at both caps only at 300× crowd HP or more, game p95 up to 6.32 ms under contention; 100× and 30× FAIL at over 300× the real kill rate (`S2_perf.md`). Shade timer bug at `shades_max` fixed. HUD meters in; Time Dilation built but its scale is reverted to 1.0 (0.3 and 0.7 failed), so no cast slows yet. `BotRuns -Jobs` probe faults fixed (earlier S2 cast readings void; T-KEE-15 now 25/144 on Keepers 4–6, T-KEE-18 reran, still FAIL). Trace fixed field ticks rolling enchantments (R-KEE-16), payday timing, Vector's probe route; the field-tick fix is also on `main` (`S1_field_tick.md`). On `main` 198 → 192 at the boss, 154 → 151 wins; two Forge/Tide arms fell past noise (13 → 9, 10 → 6), cause unmeasured, held for a human reading. Packaged build, settings screen and an evolutions reading are on branches
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)

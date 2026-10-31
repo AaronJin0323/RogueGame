@@ -24,6 +24,8 @@
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTXPBar.h"
+#include "Settings/DTMenuSubsystem.h"
+#include "Settings/DTUserSettings.h"
 
 namespace DTHUDLocal
 {
@@ -125,7 +127,8 @@ void ADTHUD::DrawHeroes()
 	const FText MeterLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Intercession"));
 	const FText MeterReady = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.IntercessionReady"));
 	const FText AimLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));
-	const float LineH = TextHeight(DashLabel, 1.0f);
+	const float TextScale = DTSettings::TextScale();
+	const float LineH = TextHeight(DashLabel, TextScale);
 	const float BlockH = 3.0f * (LineH + LineGapPx) + 2.0f * (BarHeightPx + LineGapPx) + PipSizePx + LineGapPx;
 	const float MeterH = LineH + LineGapPx + BarHeightPx + LineGapPx;
 
@@ -156,12 +159,12 @@ void ADTHUD::DrawHeroes()
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Hp"), FText::AsNumber(FMath::CeilToInt(FMath::Max(0.0f, S.Hp))));
 		Args.Add(TEXT("MaxHp"), FText::AsNumber(FMath::CeilToInt(S.MaxHp)));
-		Text(FText::Format(HpFormat, Args), X, Y, 1.0f);
+		Text(FText::Format(HpFormat, Args), X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.MaxHp > 0.0f ? S.Hp / S.MaxHp : 0.0f, BarFill);
 		Y += BarHeightPx + LineGapPx;
 
-		Text(DashLabel, X, Y, 1.0f);
+		Text(DashLabel, X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		const int32 MaxCharges = FDTHeroSim::ComputeMaxCharges(S.Stats);
 		const float Cooldown = DTConst::DASH_COOLDOWN_S * S.Stats.DashCooldownMul;
@@ -183,7 +186,7 @@ void ADTHUD::DrawHeroes()
 		Y += PipSizePx + LineGapPx;
 
 		const bool bReady = S.Intercession01 >= 1.0f;
-		Text(bReady ? MeterReady : MeterLabel, X, Y, 1.0f);
+		Text(bReady ? MeterReady : MeterLabel, X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.Intercession01, bReady ? BarReady : BarFill);
 		Y += BarHeightPx + LineGapPx;
@@ -193,7 +196,7 @@ void ADTHUD::DrawHeroes()
 			FFormatNamedArguments MeterArgs;
 			MeterArgs.Add(TEXT("Value"), FText::AsNumber(FMath::CeilToInt(Meter.Value)));
 			MeterArgs.Add(TEXT("Max"), FText::AsNumber(FMath::CeilToInt(Meter.Max)));
-			Text(FText::Format(FText::FromStringTable(TEXT("ST_UI"), Meter.Key.ToString()), MeterArgs), X, Y, 1.0f);
+			Text(FText::Format(FText::FromStringTable(TEXT("ST_UI"), Meter.Key.ToString()), MeterArgs), X, Y, TextScale);
 			Y += LineH + LineGapPx;
 			if (Meter.Fill01 >= 0.0f)
 			{
@@ -203,7 +206,7 @@ void ADTHUD::DrawHeroes()
 		}
 		if (Hero->GetAimMode(OwnerId) == EDTAimMode::Manual)
 		{
-			Text(AimLabel, X, Y, 1.0f);
+			Text(AimLabel, X, Y, TextScale);
 		}
 		Y += LineH + LineGapPx + BlockGapPx;
 	}
@@ -213,8 +216,8 @@ void ADTHUD::DrawHeroes()
 		const FText RunOver = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.RunOver"));
 		float Width = 0.0f;
 		float Height = 0.0f;
-		Canvas->TextSize(Font, RunOver.ToString(), Width, Height, RunOverScale, RunOverScale);
-		Text(RunOver, (Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f, RunOverScale);
+		Canvas->TextSize(Font, RunOver.ToString(), Width, Height, RunOverScale * TextScale, RunOverScale * TextScale);
+		Text(RunOver, (Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f, RunOverScale * TextScale);
 	}
 }
 
@@ -242,8 +245,10 @@ void ADTHUD::DrawEliteLabels()
 		const FText Label = DTElite::LabelText(Pool.GetAux(Index).AffixMask);
 		float Width = 0.0f;
 		float Height = 0.0f;
-		Canvas->TextSize(Font, Label.ToString(), Width, Height);
+		const float TextScale = DTSettings::TextScale();
+		Canvas->TextSize(Font, Label.ToString(), Width, Height, TextScale, TextScale);
 		FCanvasTextItem Item(FVector2D(Screen.X - 0.5f * Width, Screen.Y + DTHUDLocal::EliteLabelGapPx), Label, Font, DTHUDLocal::UIText);
+		Item.Scale = FVector2D(TextScale, TextScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
 	}
@@ -258,6 +263,8 @@ void ADTHUD::DrawHUD()
 	}
 
 	UFont* const Font = GEngine->GetLargeFont();
+	const float TextScale = DTSettings::TextScale();
+	const float TitleScale = DTHUDLocal::TitleScale * TextScale;
 	float Y = DTHUDLocal::MarginPx;
 	auto DrawLine = [this, Font, &Y](const FText& Line, float Scale)
 	{
@@ -271,30 +278,32 @@ void ADTHUD::DrawHUD()
 		Y += Height + DTHUDLocal::LineGapPx;
 	};
 
-	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Product.Name")), DTHUDLocal::TitleScale);
+	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Product.Name")), TitleScale);
+	// Developer lines, not player text: the Shipping build validators play draws neither (package.md R-PKG-02).
+#if !UE_BUILD_SHIPPING
 	const FText RoundTrip = FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip"));
-	DrawLine(RoundTrip, 1.0f);
+	DrawLine(RoundTrip, TextScale);
 	if (!bLoggedRoundTrip)
 	{
 		bLoggedRoundTrip = true;
 		UE_LOG(LogDT, Log, TEXT("LocRoundTrip culture=%s text=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(), *RoundTrip.ToString());
 	}
 
-	// Developer readout, not player text.
 	if (FrameTimes.IsValid() && FrameTimes->bHasSample)
 	{
 		const double Fps = FrameTimes->FrameMs > 0.0 ? 1000.0 / FrameTimes->FrameMs : 0.0;
 		DrawLine(FText::AsCultureInvariant(FString::Printf(TEXT("%.0f fps  %.2f ms frame  %.2f ms game"),
-			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)), 1.0f);
+			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)), TextScale);
 	}
+#endif // !UE_BUILD_SHIPPING
 
 	DrawEliteLabels();
 	DrawHeroes();
 	// Above the world HUD; only the offer screen draws over it (progression.md R-PRG-11).
-	FDTXPBar::Draw(Canvas, GetWorld(), Font);
+	FDTXPBar::Draw(Canvas, GetWorld(), Font, TextScale);
 	if (const UDTBossSubsystem* Boss = GetWorld() ? GetWorld()->GetSubsystem<UDTBossSubsystem>() : nullptr)
 	{
-		Boss->DrawBossBar(Canvas);
+		Boss->DrawBossBar(Canvas, TextScale);
 	}
 
 	// Run timer, top right: sim time since run start (validators note moments against it; S1_kit.md).
@@ -304,9 +313,9 @@ void ADTHUD::DrawHUD()
 		const FText Clock = FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d"), Seconds / 60, Seconds % 60));
 		float Width = 0.0f;
 		float Height = 0.0f;
-		Canvas->TextSize(Font, Clock.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Canvas->TextSize(Font, Clock.ToString(), Width, Height, TitleScale, TitleScale);
 		FCanvasTextItem Item(FVector2D(Canvas->ClipX - Width - DTHUDLocal::MarginPx, DTHUDLocal::MarginPx), Clock, Font, DTHUDLocal::UIText);
-		Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Item.Scale = FVector2D(TitleScale, TitleScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
 	}
@@ -320,9 +329,9 @@ void ADTHUD::DrawHUD()
 			const FText Line = FText::FromStringTable(TEXT("ST_UI"), Banner == EDTDirBanner::Threat ? TEXT("Hud.Threat") : TEXT("Hud.BossIncoming"));
 			float Width = 0.0f;
 			float Height = 0.0f;
-			Canvas->TextSize(Font, Line.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+			Canvas->TextSize(Font, Line.ToString(), Width, Height, TitleScale, TitleScale);
 			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx), Line, Font, DTHUDLocal::UIText);
-			Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+			Item.Scale = FVector2D(TitleScale, TitleScale);
 			Item.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(Item);
 		}
@@ -342,8 +351,9 @@ void ADTHUD::DrawHUD()
 			const FText Line = FText::Format(FText::FromStringTable(TEXT("ST_Reactions"), TEXT("Toast.Format")), Args);
 			float Width = 0.0f;
 			float Height = 0.0f;
-			Canvas->TextSize(Font, Line.ToString(), Width, Height, 1.0f, 1.0f);
+			Canvas->TextSize(Font, Line.ToString(), Width, Height, TextScale, TextScale);
 			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx + 2.0f * Height), Line, Font, DTHUDLocal::UIText);
+			Item.Scale = FVector2D(TextScale, TextScale);
 			Item.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(Item);
 		}
@@ -355,9 +365,9 @@ void ADTHUD::DrawHUD()
 		const FText Victory = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Victory"));
 		float Width = 0.0f;
 		float Height = 0.0f;
-		Canvas->TextSize(Font, Victory.ToString(), Width, Height, DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Canvas->TextSize(Font, Victory.ToString(), Width, Height, TitleScale, TitleScale);
 		FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f), Victory, Font, DTHUDLocal::UIText);
-		Item.Scale = FVector2D(DTHUDLocal::TitleScale, DTHUDLocal::TitleScale);
+		Item.Scale = FVector2D(TitleScale, TitleScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
 	}
@@ -366,5 +376,10 @@ void ADTHUD::DrawHUD()
 	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
 	{
 		Offers->DrawScreen(Canvas);
+	}
+	// The pause screen opens over a hand too (settings.md R-SET-16).
+	if (UDTMenuSubsystem* Menu = GetWorld() ? GetWorld()->GetSubsystem<UDTMenuSubsystem>() : nullptr)
+	{
+		Menu->Draw(Canvas);
 	}
 }

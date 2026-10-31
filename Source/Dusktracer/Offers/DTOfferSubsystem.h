@@ -83,6 +83,14 @@ public:
 	/** Debug and capture: move the focus to Slot of the open hand. */
 	void SetFocus(int32 OwnerId, int32 Slot);
 	const FDTOfferPlayerStats* GetStats(int32 OwnerId) const;
+	/** The pause screen is over the hand: hand input stops (settings.md R-SET-16). */
+	void HoldInput() { bInputHeld = true; }
+	bool IsInputHeld() const { return bInputHeld; }
+	/** The pause screen closed after Seconds: the guard restarts, held keys need a fresh press, menu time is not decision time. */
+	void ResumeAfterMenu(double Seconds);
+	double GetOpenedWall(int32 OwnerId) const;
+	/** The confirm guard of the open hand is running now. */
+	bool IsGuarded(int32 OwnerId) const;
 	int32 GetHoneStacks(int32 OwnerId) const;
 	/** Reserve kinds whose effect lives outside the run state (R-OFF-12); a pick calls it, tests may too. */
 	void ApplyReserve(int32 OwnerId, EDTReserveKind Kind);
@@ -120,6 +128,8 @@ private:
 	void ShowHand(int32 OwnerId, const FDTOfferHand& Hand);
 	void ApplyWorld(int32 OwnerId, const FDTPickOutcome& Outcome);
 	void HandleLocalInput();
+	/** Records the keys down now, so only a fresh press acts (R-OFF-11 e). */
+	void SnapshotInput(FPlayerFlow& Flow);
 	void SetPaused(bool bWanted);
 	bool CanUnpause() const;
 	/** UDTSimSubsystem::OnStepEnd: requests the sim pause when any player has a hand pending (07_Technical R-TEC-14). */
@@ -132,6 +142,7 @@ private:
 	int64 LastStep = -1;
 	FDelegateHandle StepEndHandle;
 	bool bPausedByOffers = false;
+	bool bInputHeld = false;
 	bool bCursorShown = false;
 	bool bCursorWasShown = false;
 

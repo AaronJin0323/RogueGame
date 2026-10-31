@@ -46,7 +46,7 @@ public:
 	void ForcePhase(int32 Phase);
 
 	/** HUD hook (ADTHUD::DrawHUD): the boss name and its effective HP bar while the fight runs (boss.md Text). */
-	void DrawBossBar(UCanvas* Canvas) const;
+	void DrawBossBar(UCanvas* Canvas, float TextScale = 1.0f) const;
 
 	const FDTBossCore& GetCore() const { return Core; }
 	bool IsFightPending() const { return bStartRequested; }

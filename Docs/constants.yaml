@@ -399,3 +399,14 @@ weapons:
   MOD.MIN_COMPATIBLE:          { value: 4,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/modifiers.md, T-MOD-07] }
   MOD.SPLIT_GENERATIONS_MAX:   { value: 2,    unit: n,     tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/keepers.md, T-MOD-05] }
   MOD.CRIT_CHANCE_CAP:         { value: 0.60, unit: ratio, tag: CORE,       dependents: [02_Systems/modifiers.md, 02_Systems/combat_core.md, T-MOD-05] }
+  SETTINGS.FILE_VERSION: { value: 1, unit: n, tag: CORE, dependents: [02_Systems/settings.md, T-SET-03] }
+  SETTINGS.VOLUME_MAX_PCT: { value: 100, unit: pct, tag: CORE, dependents: [02_Systems/settings.md, T-SET-07] }
+  SETTINGS.VOLUME_STEP_PCT: { value: 10, unit: pct, tag: CORE, dependents: [02_Systems/settings.md, T-SET-07] }
+  SETTINGS.TEXT_MIN_PCT: { value: 100, unit: pct, tag: CORE, dependents: [02_Systems/settings.md, T-SET-12] }
+  SETTINGS.TEXT_MAX_PCT: { value: 150, unit: pct, tag: CORE, dependents: [02_Systems/settings.md, T-SET-12] }
+  SETTINGS.TEXT_STEP_PCT: { value: 25, unit: pct, tag: CORE, dependents: [02_Systems/settings.md, T-SET-12] }
+  SETTINGS.OUTLINE_BAND_UU: { value: 8, unit: uu, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-10] }
+  SETTINGS.OUTLINE_ROUND_RATIO: { value: 1.5, unit: ratio, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-10] }
+  SETTINGS.OUTLINE_ROUND_DARK_RATIO: { value: 1.8, unit: ratio, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-10] }
+  SETTINGS.CVD_DELTA_E_MIN: { value: 20, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }
+  SETTINGS.CVD_MUZZLE_DELTA_E_MIN: { value: 15, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }

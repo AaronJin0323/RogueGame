@@ -405,4 +405,15 @@ namespace DTConst
 	inline constexpr int32 MOD_MIN_COMPATIBLE = 4; // n, GATED(S1)
 	inline constexpr int32 MOD_SPLIT_GENERATIONS_MAX = 2; // n, CORE
 	inline constexpr float MOD_CRIT_CHANCE_CAP = 0.6f; // ratio, CORE
+	inline constexpr int32 SETTINGS_FILE_VERSION = 1; // n, CORE
+	inline constexpr int32 SETTINGS_VOLUME_MAX_PCT = 100; // pct, CORE
+	inline constexpr int32 SETTINGS_VOLUME_STEP_PCT = 10; // pct, CORE
+	inline constexpr int32 SETTINGS_TEXT_MIN_PCT = 100; // pct, CORE
+	inline constexpr int32 SETTINGS_TEXT_MAX_PCT = 150; // pct, CORE
+	inline constexpr int32 SETTINGS_TEXT_STEP_PCT = 25; // pct, CORE
+	inline constexpr int32 SETTINGS_OUTLINE_BAND_UU = 8; // uu, GATED(S3)
+	inline constexpr float SETTINGS_OUTLINE_ROUND_RATIO = 1.5f; // ratio, GATED(S3)
+	inline constexpr float SETTINGS_OUTLINE_ROUND_DARK_RATIO = 1.8f; // ratio, GATED(S3)
+	inline constexpr int32 SETTINGS_CVD_DELTA_E_MIN = 20; // delta_e, CORE
+	inline constexpr int32 SETTINGS_CVD_MUZZLE_DELTA_E_MIN = 15; // delta_e, CORE
 }

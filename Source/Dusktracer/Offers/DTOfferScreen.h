@@ -48,6 +48,8 @@ namespace DTOfferInput
 	DUSKTRACER_API FDTOfferCommand ForKey(const FKey& Key);
 	/** The keys bound to Action (PickSlot: the number keys), for hints and tests. */
 	DUSKTRACER_API TArray<FKey> KeysFor(EDTOfferAction Action);
+	/** A tool's bound keys as a prompt shows them, "R / X" (settings.md R-SET-13). */
+	DUSKTRACER_API FText ToolGlyphs(EDTOfferAction Tool);
 }
 
 /** What the screen draws this frame. */

@@ -460,3 +460,18 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.MOD.MIN_COMPATIBLE | 4 | n per weapon | GATED(S1) | modifiers.md, T-MOD-07 |
 | C.MOD.SPLIT_GENERATIONS_MAX | 2 | n | CORE | modifiers.md, keepers.md, T-MOD-05 |
 | C.MOD.CRIT_CHANCE_CAP | 0.60 | ratio | CORE | modifiers.md, combat_core.md, T-MOD-05 |
+
+## Settings (02_Systems/settings.md)
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.SETTINGS.FILE_VERSION | 1 | n | CORE | settings.md, T-SET-03 |
+| C.SETTINGS.VOLUME_MAX_PCT | 100 | pct | CORE | settings.md, T-SET-07 |
+| C.SETTINGS.VOLUME_STEP_PCT | 10 | pct | CORE | settings.md, T-SET-07 |
+| C.SETTINGS.TEXT_MIN_PCT | 100 | pct | CORE | settings.md, T-SET-12 |
+| C.SETTINGS.TEXT_MAX_PCT | 150 | pct | CORE | settings.md, T-SET-12 |
+| C.SETTINGS.TEXT_STEP_PCT | 25 | pct | CORE | settings.md, T-SET-12 |
+| C.SETTINGS.OUTLINE_BAND_UU | 8 | uu | GATED(S3) | settings.md, T-SET-10 |
+| C.SETTINGS.OUTLINE_ROUND_RATIO | 1.5 | ratio | GATED(S3) | settings.md, T-SET-10 |
+| C.SETTINGS.OUTLINE_ROUND_DARK_RATIO | 1.8 | ratio | GATED(S3) | settings.md, T-SET-10 |
+| C.SETTINGS.CVD_DELTA_E_MIN | 20 | delta_e | CORE | settings.md, T-SET-11 |
+| C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN | 15 | delta_e | CORE | settings.md, T-SET-11 |

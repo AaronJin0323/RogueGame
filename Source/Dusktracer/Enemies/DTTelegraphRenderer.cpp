@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
+#include "Settings/DTUserSettings.h"
 
 namespace DTTelegraphRender
 {
@@ -257,6 +258,20 @@ void ADTTelegraphRenderer::SetTelegraphs(TConstArrayView<FDTTelegraph> Telegraph
 		const FLinearColor Edge = DTPal::Linear(DTPal::Telegraph_Edge);
 		const float EdgeData[NumCustomData] = { Edge.R, Edge.G, Edge.B, 1.0f };
 		FDTTelegraph Layer;
+		if (DTSettings::DangerOutline())
+		{
+			// Danger outlines (settings.md R-SET-10): a light band outside the dark edge, under everything else.
+			const FLinearColor Light = DTPal::Linear(DTPal::Assist_Light);
+			const float LightData[NumCustomData] = { Light.R, Light.G, Light.B, 1.0f };
+			const float Grown = static_cast<float>(DTConst::PRE_TELEGRAPH_EDGE_UU + DTConst::SETTINGS_OUTLINE_BAND_UU);
+			for (const FDTTelegraph& Telegraph : Telegraphs)
+			{
+				if (OffsetShape(Telegraph, Grown, Layer))
+				{
+					AddLayer(Layer, DrawZ - LayerZ, LightData);
+				}
+			}
+		}
 		for (const FDTTelegraph& Telegraph : Telegraphs)
 		{
 			if (OffsetShape(Telegraph, static_cast<float>(DTConst::PRE_TELEGRAPH_EDGE_UU), Layer))

@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), then the steps that do not exist yet: pad, scope; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -141,7 +141,16 @@ if (-not (Skipped "contrast")) {
 	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
 }
-NotRun "pad" "no package yet"
+if (-not (Skipped "pad")) {
+	# package.md R-PKG-08/09: judges a clean, current package off-screen; a real pad needs a human, so this reads NOT RUN until a run shows one.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\PadCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_pad.log") -Encoding utf8
+	$Verdict = (($Out | Select-String "^PADCHECK:" | Select-Object -Last 1).Line) -replace "^PADCHECK:\s*", ""
+	if ($Rc -eq 0) { Report "pad" $Verdict }
+	elseif ($Rc -eq 2) { NotRun "pad" ($Verdict -replace "^NOT RUN \((.*)\)$", '$1') }
+	else { Report "pad" $Verdict; Show $Out "^  ! "; Fail "pad" }
+}
 NotRun "scope" "no brief in flight"
 NotRun "mac" "deferred, D-007"
 

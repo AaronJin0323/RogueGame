@@ -7,6 +7,7 @@
 #include "Engine/Font.h"
 #include "Offers/DTOfferGenerator.h"
 #include "Offers/DTOfferStyle.h"
+#include "Settings/DTUserSettings.h"
 
 namespace DTOfferScreenLocal
 {
@@ -19,6 +20,7 @@ namespace DTOfferScreenLocal
 	constexpr float SideMargin = 32.0f;
 	constexpr float TitleTop = 0.12f;  // of the canvas height
 	constexpr float CardsTop = 0.21f;
+	constexpr float CardsMaxH = 0.56f; // of the canvas height
 	constexpr float FocusRaise = 14.0f;
 	constexpr float IconSize = 52.0f;
 	constexpr float ToolW = 380.0f;
@@ -47,8 +49,6 @@ namespace DTOfferScreenLocal
 	constexpr float NotesScaleStep = 0.05f;
 
 	const TCHAR* const ToolKeys[] = { TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock") };
-	// Key glyph names (device names, the same in every culture).
-	const TCHAR* const ToolGlyphs[] = { TEXT("R / X"), TEXT("B / Y"), TEXT("L / RB") };
 	const EDTOfferAction ToolActions[] = { EDTOfferAction::Reroll, EDTOfferAction::Banish, EDTOfferAction::Lock };
 
 	FLinearColor Token(const FColor& Color, float Alpha = 1.0f)
@@ -63,6 +63,8 @@ namespace DTOfferScreenLocal
 		UCanvas* Canvas = nullptr;
 		UFont* Font = nullptr;
 		float S = 1.0f;
+		/** Text size (settings.md R-SET-12), on top of the canvas scale. */
+		float TextMul = DTSettings::TextScale();
 
 		void Tile(float X, float Y, float W, float H, const FLinearColor& Color) const
 		{
@@ -100,13 +102,13 @@ namespace DTOfferScreenLocal
 		{
 			float W = 0.0f;
 			float H = 0.0f;
-			Canvas->TextSize(Font, Text, W, H, Scale * S, Scale * S);
+			Canvas->TextSize(Font, Text, W, H, Scale * S * TextMul, Scale * S * TextMul);
 			return FVector2D(W, H);
 		}
 		void Text(const FText& Line, float X, float Y, float Scale, const FLinearColor& Color) const
 		{
 			FCanvasTextItem Item(FVector2D(X, Y), Line, Font, Color);
-			Item.Scale = FVector2D(Scale * S, Scale * S);
+			Item.Scale = FVector2D(Scale * S * TextMul, Scale * S * TextMul);
 			Item.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(Item);
 		}
@@ -257,26 +259,39 @@ double FDTOfferInputGuard::Remaining(double Now) const
 
 const TArray<FKey>& DTOfferInput::Keys()
 {
-	static const TArray<FKey> All = {
-		EKeys::Left, EKeys::A, EKeys::Gamepad_DPad_Left, EKeys::Gamepad_LeftStick_Left,
-		EKeys::Right, EKeys::D, EKeys::Gamepad_DPad_Right, EKeys::Gamepad_LeftStick_Right,
+	// Fixed keys, then the player's (settings.md R-SET-13); rebuilt because the table can change between hands.
+	static TArray<FKey> All;
+	const FDTBindings& B = DTSettings::Live().Bindings;
+	All = {
+		EKeys::Left, B.Get(EDTBindSlot::UiPrev, EDTBindDevice::Kbm), EKeys::Gamepad_DPad_Left, EKeys::Gamepad_LeftStick_Left,
+		EKeys::Right, B.Get(EDTBindSlot::UiNext, EDTBindDevice::Kbm), EKeys::Gamepad_DPad_Right, EKeys::Gamepad_LeftStick_Right,
 		EKeys::Enter, EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom,
 		EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five,
 		EKeys::NumPadOne, EKeys::NumPadTwo, EKeys::NumPadThree, EKeys::NumPadFour, EKeys::NumPadFive,
-		EKeys::R, EKeys::Gamepad_FaceButton_Left,
-		EKeys::B, EKeys::Gamepad_FaceButton_Top,
-		EKeys::L, EKeys::Gamepad_RightShoulder };
+		B.Get(EDTBindSlot::UiReroll, EDTBindDevice::Kbm), B.Get(EDTBindSlot::UiReroll, EDTBindDevice::Pad),
+		B.Get(EDTBindSlot::UiBanish, EDTBindDevice::Kbm), B.Get(EDTBindSlot::UiBanish, EDTBindDevice::Pad),
+		B.Get(EDTBindSlot::UiLock, EDTBindDevice::Kbm), B.Get(EDTBindSlot::UiLock, EDTBindDevice::Pad) };
 	return All;
+}
+
+FText DTOfferInput::ToolGlyphs(EDTOfferAction Tool)
+{
+	const FDTBindings& B = DTSettings::Live().Bindings;
+	const EDTBindSlot Slot = Tool == EDTOfferAction::Reroll ? EDTBindSlot::UiReroll : (Tool == EDTOfferAction::Banish ? EDTBindSlot::UiBanish : EDTBindSlot::UiLock);
+	return FText::AsCultureInvariant(FString::Printf(TEXT("%s / %s"), *DTBindings::Glyph(B.Get(Slot, EDTBindDevice::Kbm)).ToString(),
+		*DTBindings::Glyph(B.Get(Slot, EDTBindDevice::Pad)).ToString()));
 }
 
 FDTOfferCommand DTOfferInput::ForKey(const FKey& Key)
 {
 	FDTOfferCommand Command;
-	if (Key == EKeys::Left || Key == EKeys::A || Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
+	const FDTBindings& B = DTSettings::Live().Bindings;
+	const auto Is = [&B, &Key](EDTBindSlot Slot) { return Key == B.Get(Slot, EDTBindDevice::Kbm) || (B.Get(Slot, EDTBindDevice::Pad).IsValid() && Key == B.Get(Slot, EDTBindDevice::Pad)); };
+	if (Key == EKeys::Left || Is(EDTBindSlot::UiPrev) || Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
 	{
 		Command.Action = EDTOfferAction::Prev;
 	}
-	else if (Key == EKeys::Right || Key == EKeys::D || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
+	else if (Key == EKeys::Right || Is(EDTBindSlot::UiNext) || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
 	{
 		Command.Action = EDTOfferAction::Next;
 	}
@@ -284,15 +299,15 @@ FDTOfferCommand DTOfferInput::ForKey(const FKey& Key)
 	{
 		Command.Action = EDTOfferAction::Confirm;
 	}
-	else if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
+	else if (Is(EDTBindSlot::UiReroll))
 	{
 		Command.Action = EDTOfferAction::Reroll;
 	}
-	else if (Key == EKeys::B || Key == EKeys::Gamepad_FaceButton_Top)
+	else if (Is(EDTBindSlot::UiBanish))
 	{
 		Command.Action = EDTOfferAction::Banish;
 	}
-	else if (Key == EKeys::L || Key == EKeys::Gamepad_RightShoulder)
+	else if (Is(EDTBindSlot::UiLock))
 	{
 		Command.Action = EDTOfferAction::Lock;
 	}
@@ -527,7 +542,8 @@ void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 		W *= Shrink;
 		Gap *= Shrink;
 	}
-	const float H = CardH * P.S;
+	// Taller cards at larger text (R-SET-12); the tools and notes below move with them, inside the canvas.
+	const float H = FMath::Min(CardH * P.S * FMath::Sqrt(P.TextMul), Canvas->ClipY * CardsMaxH);
 	const float X0 = 0.5f * (Canvas->ClipX - (N * W + (N - 1) * Gap));
 	const float Y0 = Canvas->ClipY * CardsTop;
 	for (int32 Slot = 0; Slot < N; ++Slot)
@@ -559,7 +575,7 @@ void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 			P.Rect(Rect, Token(DTPal::UI_Text, Alpha), Thin);
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("Tool"), DTOfferText::Ui(ToolKeys[Tool]));
-			Args.Add(TEXT("Keys"), FText::AsCultureInvariant(ToolGlyphs[Tool]));
+			Args.Add(TEXT("Keys"), DTOfferInput::ToolGlyphs(ToolActions[Tool]));
 			Args.Add(TEXT("Count"), FText::AsNumber(Counts[Tool]));
 			const FText Label = FText::Format(DTOfferText::Ui(TEXT("Offer.Tool.Button")), Args);
 			const FVector2D LabelSize = P.Measure(Label.ToString(), BodyScale);

@@ -28,5 +28,5 @@ struct DUSKTRACER_API FDTXPBar
 	static void BuildRows(const FDTRunState& Run, double SimTime, TConstArrayView<double> LastLevelUpTime, TArray<FDTXPBarRow>& Out);
 
 	/** Draws every player's row at the top centre of the canvas. No-op without a run (no sim subsystem). */
-	static void Draw(UCanvas* Canvas, UWorld* World, UFont* Font);
+	static void Draw(UCanvas* Canvas, UWorld* World, UFont* Font, float TextScale = 1.0f);
 };
