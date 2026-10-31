@@ -22,6 +22,7 @@ Modes (default --check):
            .Name rows an en game term needs its zh word. House style (zh_glossary §1): no untranslated row unless its
            Context says "do not translate", no half-width punctuation next to CJK, a number {arg} is set off from CJK
            by a space, a zh character budget stated in Context holds. Every literal FromStringTable(TEXT("ST_X"), TEXT("Key")) in Source has its row.
+           Every table is registered in Source/Dusktracer/Dusktracer.cpp: one that is not never loads, and the gather never reaches its zh-Hans.
            Narrative (03_Narrative R-NAR-02..06): a table with the Layer and Unlock columns gives every row a layer in 0..C.NARR.LAYER_MAX
            and a known unlock; a row above C.NARR.PREWIN_LAYER_MAX needs an unlock that takes a win; the scope counts hold; no Act II/III or
            NPC key; no truth word below its layer; Keeper lines keep their word and character caps; no retired name in any column.
@@ -63,6 +64,7 @@ HALF_PUNCT_RE = re.compile(f"[{CJK}][,;:!?()]|[,;:!?()][{CJK}]")
 NAME_ARGS = ("{Weapon}", "{Keeper}", "{Archetype}", "{Tool}", "{Name}", "{Toast}", "{A}", "{B}", "{0}", "{1}", "{Keys}")
 ARG_SPACE_RE = re.compile(f"[{CJK}](\\{{\\w+\\}})|(\\{{\\w+\\}})[{CJK}]")
 CODE_KEY_RE = re.compile(r'FromStringTable\(\s*TEXT\("(ST_\w+)"\)\s*,\s*TEXT\("([^"]+)"\)\s*\)')
+REGISTER_RE = re.compile(r'LOCTABLE_FROMFILE_GAME\(\s*"(ST_\w+)"\s*,\s*"\1"\s*,\s*"DT/Text/Generated/\1\.csv"\s*\)')
 NO_TRANSLATE = "do not translate"
 ZH_BUDGET_RE = re.compile(r"(\d+)\s*(?:chars\s*)?zh\b|(\d+) zh chars")  # `<= 90 en / 40 zh`; an {arg} counts one, spaces none
 # Words the glossaries retired, with the word that replaced them (zh_naming §5, keyword_glossary Rules, zh_glossary §7).
@@ -275,6 +277,12 @@ def check_code_keys(root, tables):
     return v
 
 
+def check_registered(names, module_text):
+    """A table the module does not register never loads, and the gather, which follows the macro, never reaches its zh-Hans."""
+    registered = set(REGISTER_RE.findall(module_text))
+    return [f"{name}: no LOCTABLE_FROMFILE_GAME in Source/Dusktracer/Dusktracer.cpp" for name in names if name not in registered]
+
+
 def unlock_wins(unlock, discoveries):
     """Wins a player must have before this unlock can fire, or None for an unknown unlock."""
     if unlock in UNLOCK_WINS:
@@ -358,6 +366,8 @@ def check(root):
     if not any(r["Key"] == rt_key for r in rt_rows):
         violations.append(f"{rt_table}: round-trip key {rt_key} missing")
     violations.extend(check_code_keys(root, tables))
+    with open(os.path.join(root, "Source", "Dusktracer", "Dusktracer.cpp"), "r", encoding="utf-8-sig") as f:
+        violations.extend(check_registered([t for t, _ in tables], f.read()))
     violations.extend(check_story(tables))
     summary = f"{len(tables)} tables, {nrows} rows"
     if violations:

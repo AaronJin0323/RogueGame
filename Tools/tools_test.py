@@ -435,6 +435,16 @@ class Story(unittest.TestCase):
 	def test_real_tables_pass(self):
 		self.assertEqual(loc_build.check_story(self.real()), [])
 
+	def test_an_unregistered_table_fails(self):
+		line = 'LOCTABLE_FROMFILE_GAME("ST_UI", "ST_UI", "DT/Text/Generated/ST_UI.csv");'
+		self.assertEqual(loc_build.check_registered(["ST_UI"], line), [])
+		self.assertIn("ST_Tree", " ".join(loc_build.check_registered(["ST_UI", "ST_Tree"], line)))
+
+	def test_every_real_table_is_registered(self):
+		root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+		with open(os.path.join(root, "Source", "Dusktracer", "Dusktracer.cpp"), "r", encoding="utf-8-sig") as f:
+			self.assertEqual(loc_build.check_registered([t for t, _ in self.real()], f.read()), [])
+
 	def test_layer_three_before_a_win_fails(self):
 		for unlock in ("Start", "Tier.3", "Run.L8", "Kill.Tank", "Discovery.Survive10"):
 			self.assertIn("reachable before the first win", " ".join(self.layer_faults(self.row(layer="3", unlock=unlock))))

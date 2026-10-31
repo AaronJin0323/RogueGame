@@ -18,6 +18,7 @@
 #include "Telemetry/DTTelemetrySubsystem.h"
 #include "UObject/Package.h"
 #include "Settings/DTMenuScreen.h"
+#include "Settings/DTPathCheck.h"
 #include "Settings/DTRestartCheck.h"
 #include "Settings/DTSettingsSubsystem.h"
 
@@ -487,6 +488,7 @@ void UDTMenuSubsystem::Tick(float DeltaTime)
 #if !UE_BUILD_SHIPPING
 	TickDevShot();
 	DTRestartCheck::Tick(this);
+	DTPathCheck::Tick(this);
 #endif
 }
 
