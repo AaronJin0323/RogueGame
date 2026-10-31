@@ -20,6 +20,7 @@
 #include "Enemies/DTElite.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Game/DTGameMode.h"
+#include "Keepers/DTKeeperSubsystem.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTXPBar.h"
@@ -126,8 +127,28 @@ void ADTHUD::DrawHeroes()
 	const FText AimLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));
 	const float LineH = TextHeight(DashLabel, 1.0f);
 	const float BlockH = 3.0f * (LineH + LineGapPx) + 2.0f * (BarHeightPx + LineGapPx) + PipSizePx + LineGapPx;
+	const float MeterH = LineH + LineGapPx + BarHeightPx + LineGapPx;
 
-	float Y = Canvas->ClipY - MarginPx - BlockH * Hero->GetNumHeroes() - BlockGapPx * (Hero->GetNumHeroes() - 1);
+	// Keeper meters of each player (keepers.md R-KEE-38): the block grows upward by what the player holds.
+	const UDTWeaponSubsystem* Weapons = GetWorld()->GetSubsystem<UDTWeaponSubsystem>();
+	const UDTKeeperSubsystem* Keepers = GetWorld()->GetSubsystem<UDTKeeperSubsystem>();
+	auto ReadMeters = [&](int32 OwnerId)
+	{
+		MeterScratch.Reset();
+		if (Weapons && Keepers)
+		{
+			const FDTKeeperSim& Sim = Keepers->GetSim();
+			DTKeeperMeters::Build(Weapons->GetSim().GetKeeperMeters(OwnerId), Sim.GetDilationLeft(OwnerId), Sim.GetDilationTotal(OwnerId), MeterScratch);
+		}
+	};
+	float MetersH = 0.0f;
+	for (int32 OwnerId = 0; OwnerId < Hero->GetNumHeroes(); ++OwnerId)
+	{
+		ReadMeters(OwnerId);
+		MetersH += MeterH * MeterScratch.Num();
+	}
+
+	float Y = Canvas->ClipY - MarginPx - BlockH * Hero->GetNumHeroes() - BlockGapPx * (Hero->GetNumHeroes() - 1) - MetersH;
 	for (int32 OwnerId = 0; OwnerId < Hero->GetNumHeroes(); ++OwnerId)
 	{
 		const FDTHeroState& S = *Hero->GetState(OwnerId);
@@ -166,6 +187,20 @@ void ADTHUD::DrawHeroes()
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.Intercession01, bReady ? BarReady : BarFill);
 		Y += BarHeightPx + LineGapPx;
+		ReadMeters(OwnerId);
+		for (const FDTHudMeter& Meter : MeterScratch)
+		{
+			FFormatNamedArguments MeterArgs;
+			MeterArgs.Add(TEXT("Value"), FText::AsNumber(FMath::CeilToInt(Meter.Value)));
+			MeterArgs.Add(TEXT("Max"), FText::AsNumber(FMath::CeilToInt(Meter.Max)));
+			Text(FText::Format(FText::FromStringTable(TEXT("ST_UI"), Meter.Key.ToString()), MeterArgs), X, Y, 1.0f);
+			Y += LineH + LineGapPx;
+			if (Meter.Fill01 >= 0.0f)
+			{
+				Bar(X, Y, BarWidthPx, Meter.Fill01, DTPal::Linear(Meter.Color));
+			}
+			Y += BarHeightPx + LineGapPx;
+		}
 		if (Hero->GetAimMode(OwnerId) == EDTAimMode::Manual)
 		{
 			Text(AimLabel, X, Y, 1.0f);

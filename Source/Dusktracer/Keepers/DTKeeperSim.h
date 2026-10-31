@@ -95,6 +95,9 @@ private:
 		bool bActive = false;
 		FDTIntercessionPlan Plan;
 		float TimeLeft = 0.0f;
+		/** The window's whole length, and what it scales enemy time to (R-KEE-37); 1 = not at all. */
+		float TimeTotal = 0.0f;
+		float TimeScale = 1.0f;
 		float RingTimer = 0.0f;
 		float NetTimer = 0.0f;
 		float LayerTimer = 0.0f;

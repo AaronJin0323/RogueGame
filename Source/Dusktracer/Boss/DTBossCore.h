@@ -54,6 +54,7 @@ struct FDTBossStepIn
 	float StepSeconds = 0.0f;
 	/** Enemy time per sim time (keepers.md R-KEE-37). */
 	float TimeScale = 1.0f;
+	float EnemySeconds() const { return StepSeconds * TimeScale; }
 	int64 StepIndex = 0;
 	FDTWorldView* View = nullptr;
 	FDTEnemyPool* Pool = nullptr;

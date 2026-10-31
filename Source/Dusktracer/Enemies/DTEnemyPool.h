@@ -308,12 +308,13 @@ private:
 	void ApplyDisplacements(TArray<FDTDisplacement>& Displacements);
 	void TickStatuses(float Dt, TArray<FDTHit>* OutHits);
 	void AssignTokens(TConstArrayView<FVector2f> Heroes, bool bThreatBlock);
-	void StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2f> Heroes);
+	/** Dt is enemy time, LeadDt sim time (keepers.md R-KEE-37); the same outside a Time Dilation. */
+	void StepRoles(float Dt, float LeadDt, int64 StepIndex, TConstArrayView<FVector2f> Heroes);
 	void PublishTelegraphs(TArray<FDTTelegraph>& Out, TConstArrayView<FVector2f> Heroes) const;
 	void FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFirePattern InPattern, bool bClose, int32 Volley,
 		int32 Target, float InDmgScale, uint32 InSerial);
-	void StepOrphans(float Dt, FDTWorldView& View);
-	void StepElites(float Dt, FDTWorldView& View);
+	void StepOrphans(float Dt, float LeadDt, FDTWorldView& View);
+	void StepElites(float Dt, float LeadDt, FDTWorldView& View);
 	void StepBlasts(float Dt, FDTWorldView& View);
 	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin, FName AttackId = NAME_None);
 	void AppendContacts(FDTWorldView& View) const;

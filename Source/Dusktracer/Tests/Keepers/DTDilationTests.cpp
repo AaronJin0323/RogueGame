@@ -224,7 +224,9 @@ DT_DILATION_TEST(FDTDilationEnemies, "Dilation.Enemies") // T-KEE-37
 			Full.StepOnce();
 		}
 		TestTrue(TEXT("it left its spot"), Full.Pool.GetPositions()[A].X > 10.0f);
-		TestTrue(TEXT("two seconds at half are one second of walking"), FVector2f::Distance(Full.Pool.GetPositions()[A], Slow.Pool.GetPositions()[B]) < PosEps);
+		const float Off = FVector2f::Distance(Full.Pool.GetPositions()[A], Slow.Pool.GetPositions()[B]);
+		// Steering integrates per step, so the walks differ by about one step of it at full speed, never more.
+		TestTrue(*FString::Printf(TEXT("two seconds at half are one second of walking, off by %.2f"), Off), Off <= Full.Pool.GetSpeeds()[A] * Dt);
 	}
 	{
 		FRig Rig(Half);

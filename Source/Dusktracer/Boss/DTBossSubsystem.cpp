@@ -156,6 +156,7 @@ void UDTBossSubsystem::SimStep(const FDTSimContext& Context)
 	}
 	FDTBossStepIn In;
 	In.StepSeconds = Context.StepSeconds;
+	In.TimeScale = Context.View->EnemyTimeScale;
 	In.StepIndex = Context.StepIndex;
 	In.View = Context.View;
 	In.Pool = &Enemy->GetPool();

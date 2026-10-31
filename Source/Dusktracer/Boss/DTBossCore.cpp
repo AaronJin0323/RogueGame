@@ -510,7 +510,7 @@ void FDTBossCore::Step(const FDTBossStepIn& In, IDTBossSink& Sink)
 	StepAdds(In, Sink);
 	if (ShiftLeft > 0.0f)
 	{
-		ShiftLeft = ShiftLeft - In.StepSeconds > DTBossCoreLocal::TimerEps ? ShiftLeft - In.StepSeconds : 0.0f;
+		ShiftLeft = ShiftLeft - In.EnemySeconds() > DTBossCoreLocal::TimerEps ? ShiftLeft - In.EnemySeconds() : 0.0f;
 	}
 
 	// R-BOS-03: always inside the hazard ring, however it got there.
@@ -539,7 +539,7 @@ void FDTBossCore::Walk(const FDTBossStepIn& In)
 	const FVector2f Dir = Dist > UE_KINDA_SMALL_NUMBER ? To / Dist : Facing(Pool);
 	// R-ENM-22 through R-BOS-11: each Chill stack slows the walk (the boss never freezes).
 	const float Slow = FMath::Max(0.0f, 1.0f - Pool.GetAux(Hull.Index).ChillStacks * DTConst::STATUS_CHILL_SLOW_PER_STACK);
-	const float Move = static_cast<float>(DTConst::BOSS_WALK_SPEED_UU_S) * Slow * In.StepSeconds;
+	const float Move = static_cast<float>(DTConst::BOSS_WALK_SPEED_UU_S) * Slow * In.EnemySeconds();
 	// Towards the standoff ring around the target, never inside it (R-BOS-03): approach or back off.
 	const float Along = FMath::Clamp(Dist - Standoff(), -Move, Move);
 	Pool.SetScriptedPosition(Hull, KeepInside(Pos + Dir * Along));
@@ -587,7 +587,7 @@ void FDTBossCore::StepBody(const FDTBossStepIn& In, IDTBossSink& Sink)
 	using namespace DTBossCoreLocal;
 	FDTEnemyPool& Pool = *In.Pool;
 	FDTWorldView& View = *In.View;
-	const float Dt = In.StepSeconds;
+	const float Dt = In.EnemySeconds();
 	const float HeroRadius = static_cast<float>(DTConst::HERO_RADIUS_UU);
 
 	if (!IsShifting())
@@ -629,7 +629,7 @@ void FDTBossCore::StepBody(const FDTBossStepIn& In, IDTBossSink& Sink)
 	}
 
 	case EBody::Windup:
-		Body.Left -= Dt;
+		Body.Left -= In.StepSeconds; // a telegraph's lead runs in sim time (keepers.md R-KEE-37, R-DIR-10)
 		if (Body.Left > TimerEps)
 		{
 			break;
@@ -678,7 +678,7 @@ void FDTBossCore::StepBody(const FDTBossStepIn& In, IDTBossSink& Sink)
 
 	case EBody::SweepWindup:
 	{
-		Body.Left -= Dt;
+		Body.Left -= In.StepSeconds;
 		if (Body.Left > TimerEps)
 		{
 			break;
@@ -856,12 +856,12 @@ void FDTBossCore::FireRing(const FDTBossStepIn& In, FPendingRing& Ring)
 void FDTBossCore::StepRings(const FDTBossStepIn& In, IDTBossSink& Sink)
 {
 	using namespace DTBossCoreLocal;
-	const float Dt = In.StepSeconds;
+	const float Dt = In.EnemySeconds();
 	// Rings telegraphed in earlier steps count down first, so a ring started this step shows its whole lead (R-ENM-13).
 	for (int32 Index = 0; Index < Rings.Num();)
 	{
 		FPendingRing& Ring = Rings[Index];
-		Ring.Left -= Dt;
+		Ring.Left -= In.StepSeconds;
 		if (Ring.Left <= TimerEps)
 		{
 			FireRing(In, Ring);
@@ -946,10 +946,10 @@ void FDTBossCore::StepSpiral(const FDTBossStepIn& In, IDTBossSink& Sink)
 		Attacks[Spiral.Rec].DamageWidth = LaneAngleRequiredDeg();
 	}
 	// `arc_deg` is the turn rate; the lane sector turns at C.BOSS.SPIRAL_LANE_RATE_RATIO of it (R-BOS-07).
-	Spiral.ArmDeg = WrapDeg(Spiral.ArmDeg + R.ArcDeg * In.StepSeconds);
-	Spiral.LaneDeg = WrapDeg(Spiral.LaneDeg + R.ArcDeg * DTConst::BOSS_SPIRAL_LANE_RATE_RATIO * In.StepSeconds);
-	Spiral.EmitAccum += In.StepSeconds;
-	const float Interval = FMath::Max(R.Interval_s, In.StepSeconds);
+	Spiral.ArmDeg = WrapDeg(Spiral.ArmDeg + R.ArcDeg * In.EnemySeconds());
+	Spiral.LaneDeg = WrapDeg(Spiral.LaneDeg + R.ArcDeg * DTConst::BOSS_SPIRAL_LANE_RATE_RATIO * In.EnemySeconds());
+	Spiral.EmitAccum += In.EnemySeconds();
+	const float Interval = FMath::Max(R.Interval_s, In.EnemySeconds());
 	const int32 Arms = FMath::Max(1, R.Count);
 	const float HalfLane = 0.5f * LaneAngleRequiredDeg();
 	FDTEnemyBulletPool& Rounds = Pool.GetRounds();
@@ -1024,10 +1024,10 @@ void FDTBossCore::StepHazard(const FDTBossStepIn& In, IDTBossSink& Sink)
 		Hazard.WindLeft = 0.0f;
 		Attacks[Hazard.Rec].LandStep = In.StepIndex;
 	}
-	Hazard.Radius = FMath::Max(static_cast<float>(DTConst::BOSS_HAZARD_MIN_RADIUS_UU), Hazard.Radius - R.Speed_uu_s * In.StepSeconds);
+	Hazard.Radius = FMath::Max(static_cast<float>(DTConst::BOSS_HAZARD_MIN_RADIUS_UU), Hazard.Radius - R.Speed_uu_s * In.EnemySeconds());
 	Attacks[Hazard.Rec].DamageLength = Hazard.Radius;
 	Attacks[Hazard.Rec].FootprintLength = Hazard.Radius; // drawn at the radius it damages from, every step
-	const float Interval = FMath::Max(R.Interval_s, In.StepSeconds);
+	const float Interval = FMath::Max(R.Interval_s, In.EnemySeconds());
 	const int32 NumHeroes = FMath::Min(View.HeroPositions.Num(), Hazard.OutsideFor.Num());
 	for (int32 Hero = 0; Hero < NumHeroes; ++Hero)
 	{
@@ -1039,7 +1039,7 @@ void FDTBossCore::StepHazard(const FDTBossStepIn& In, IDTBossSink& Sink)
 			Hazard.bHitOnce[Hero] = false;
 			continue;
 		}
-		Hazard.OutsideFor[Hero] += In.StepSeconds;
+		Hazard.OutsideFor[Hero] += In.EnemySeconds();
 		if (Hazard.OutsideFor[Hero] < DTConst::BOSS_HAZARD_GRACE_S - TimerEps)
 		{
 			continue; // a short crossing is forgiven
@@ -1053,7 +1053,7 @@ void FDTBossCore::StepHazard(const FDTBossStepIn& In, IDTBossSink& Sink)
 		}
 		else
 		{
-			Hazard.TickAccum[Hero] += In.StepSeconds;
+			Hazard.TickAccum[Hero] += In.EnemySeconds();
 			if (Hazard.TickAccum[Hero] >= Interval - TimerEps)
 			{
 				Hazard.TickAccum[Hero] -= Interval;
@@ -1076,13 +1076,13 @@ void FDTBossCore::StepAdds(const FDTBossStepIn& In, IDTBossSink& Sink)
 	{
 		return;
 	}
-	AddsTimer -= In.StepSeconds;
+	AddsTimer -= In.EnemySeconds();
 	if (AddsTimer > TimerEps)
 	{
 		return;
 	}
 	const DTCat::FBossAttackRow& R = DTCat::BossWarden[Row];
-	AddsTimer += FMath::Max(R.Interval_s, In.StepSeconds);
+	AddsTimer += FMath::Max(R.Interval_s, In.EnemySeconds());
 	FDTEnemyPool& Pool = *In.Pool;
 	const int32 Room = FMath::Max(0, DTConst::BOSS_ADDS_ALIVE_MAX - Pool.CountRole(EDTEnemyRole::Tank));
 	const FVector2f Pos = HullPos(Pool);

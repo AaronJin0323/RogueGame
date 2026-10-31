@@ -175,12 +175,12 @@ bool FDTKeeperSim::IsCasting(int32 OwnerId) const
 
 float FDTKeeperSim::GetDilationLeft(int32 OwnerId) const
 {
-	return 0.0f;
+	return IsCasting(OwnerId) && Players[OwnerId].Cast.TimeScale < 1.0f ? Players[OwnerId].Cast.TimeLeft : 0.0f;
 }
 
 float FDTKeeperSim::GetDilationTotal(int32 OwnerId) const
 {
-	return 0.0f;
+	return IsCasting(OwnerId) && Players[OwnerId].Cast.TimeScale < 1.0f ? Players[OwnerId].Cast.TimeTotal : 0.0f;
 }
 
 const FDTIntercessionPlan& FDTKeeperSim::GetActivePlan(int32 OwnerId) const
@@ -478,6 +478,13 @@ void FDTKeeperSim::StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapo
 	{
 		Weapons->AbsorbStatuses(Context);
 	}
+	// R-KEE-37: read by the next Enemies phase, so the scale changes on a step boundary; the smallest of the running casts holds.
+	float EnemyScale = 1.0f;
+	for (const FPlayer& Player : Players)
+	{
+		EnemyScale = Player.Cast.bActive ? FMath::Min(EnemyScale, Player.Cast.TimeScale) : EnemyScale;
+	}
+	View.EnemyTimeScale = EnemyScale;
 	LastStep = Context.StepIndex;
 }
 
@@ -605,7 +612,8 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 		break;
 	}
 	case EDTPath::Quicksilver:
-		// R-KEE-35: every dash of the window fires; the slow-motion is not built (keepers.md Open).
+		// R-KEE-35: enemy time slows (R-KEE-37, published at the end of StepEffects) and every dash of the window fires.
+		Cast.TimeScale = static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE);
 		if (!Player.Built[Base].Has(DTCat::EFlag::VolleyOnDash))
 		{
 			FDTSpecClause Volley = MakeClause(DTCat::EFlag::VolleyOnDash);
@@ -625,6 +633,7 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 			Cast.TimeLeft = Clause.GetNum(ParamDurationS); // Furnace, Frost, Stillness name their window
 		}
 	}
+	Cast.TimeTotal = Cast.TimeLeft;
 
 	// Layer of the second Keeper (from the commitment): its hits carry the second's source.
 	if (Plan.Layer != INDEX_NONE && IsPath(Plan.LayerPath))

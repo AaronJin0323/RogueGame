@@ -739,7 +739,7 @@ void FDTEnemyPool::FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFi
 	}
 }
 
-void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2f> Heroes)
+void FDTEnemyPool::StepRoles(float Dt, float LeadDt, int64 StepIndex, TConstArrayView<FVector2f> Heroes)
 {
 	using namespace DTEnemyPoolImpl;
 	const int32 Count = Num();
@@ -830,7 +830,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 			switch (A.State)
 			{
 			case EDTEnemyState::WindUp:
-				A.StateLeft -= Dt;
+				A.StateLeft -= LeadDt; // a telegraph's lead runs in sim time (R-KEE-37, R-DIR-10)
 				if (A.StateLeft > TimerEps)
 				{
 					break; // standing still, direction locked, band on the ground
@@ -916,7 +916,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 			{
 				// R-ENM-19 is judged on the distance to the locked target; the telegraph shows the same footprint.
 				A.bCloseFan = TargetDelta.SizeSquared() < FanMinSq;
-				A.StateLeft -= Dt;
+				A.StateLeft -= LeadDt;
 				if (A.StateLeft > TimerEps)
 				{
 					break;
@@ -995,7 +995,7 @@ void FDTEnemyPool::SpawnEliteChildren(FRandomStream* Rng)
 	PendingChildren.Reset();
 }
 
-void FDTEnemyPool::StepElites(float Dt, FDTWorldView& View)
+void FDTEnemyPool::StepElites(float Dt, float LeadDt, FDTWorldView& View)
 {
 	using namespace DTEnemyPoolImpl;
 	const float RangeSq = FMath::Square(static_cast<float>(DTConst::AFFIX_VAMPIRIC_RANGE_UU));
@@ -1006,7 +1006,7 @@ void FDTEnemyPool::StepElites(float Dt, FDTWorldView& View)
 			continue;
 		}
 		FDTEnemyAux& A = Aux[Index];
-		A.AliveSeconds += Dt;
+		A.AliveSeconds += LeadDt;
 		if (!DTElite::Has(A.AffixMask, EDTAffix::Vampiric) || A.IsFrozen())
 		{
 			continue; // a frozen elite holds its timers (R-ENM-22)
@@ -1027,7 +1027,7 @@ void FDTEnemyPool::StepElites(float Dt, FDTWorldView& View)
 		}
 		if (A.DrainLinkLeft > 0.0f)
 		{
-			A.DrainLinkLeft -= Dt;
+			A.DrainLinkLeft -= LeadDt;
 			if (A.DrainLinkLeft > TimerEps)
 			{
 				continue;
@@ -1106,7 +1106,7 @@ void FDTEnemyPool::CountThreat(EDTEnemyRole InRole, const FVector2f& Origin, FNa
 	Action.AttackId = AttackId.IsNone() ? FDTEnemyRoleDef::Get(InRole).AttackId : AttackId;
 }
 
-void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
+void FDTEnemyPool::StepOrphans(float Dt, float LeadDt, FDTWorldView& View)
 {
 	using namespace DTEnemyPoolImpl;
 	const float HeroRadius = static_cast<float>(DTConst::HERO_RADIUS_UU);
@@ -1116,7 +1116,7 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 		bool bDone = false;
 		if (!O.bLanded)
 		{
-			O.Left -= Dt;
+			O.Left -= LeadDt;
 			if (O.Left > TimerEps)
 			{
 				continue;
@@ -1291,7 +1291,9 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 {
 	check(Context.View);
 	FDTWorldView& View = *Context.View;
-	const float Dt = Context.StepSeconds;
+	// R-KEE-37: statuses and telegraph leads run in sim time, everything else on the enemy side in enemy time.
+	const float SimDt = Context.StepSeconds;
+	const float Dt = SimDt * View.EnemyTimeScale;
 	SpawnEliteChildren(nullptr); // the subsystem has already flushed these with the Spawn stream; tests come here
 	PrevPos = Pos;
 
@@ -1305,14 +1307,14 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 	}
 	View.StatusApplies.Reset();
 	ApplyDisplacements(View.Displacements);
-	TickStatuses(Dt, &View.Hits);
+	TickStatuses(SimDt, &View.Hits);
 
 	ResolveInit(View.HeroPositions);
 	AssignTokens(View.HeroPositions, View.bThreatBlock);
-	StepRoles(Dt, Context.StepIndex, View.HeroPositions);
-	StepOrphans(Dt, View);
-	StepElites(Dt, View);
-	StepBlasts(Dt, View);
+	StepRoles(Dt, SimDt, Context.StepIndex, View.HeroPositions);
+	StepOrphans(Dt, SimDt, View);
+	StepElites(Dt, SimDt, View);
+	StepBlasts(SimDt, View);
 
 	Publish(View);
 	PublishTelegraphs(View.Telegraphs, View.HeroPositions);
@@ -1325,7 +1327,7 @@ void FDTEnemyPool::Move(float Dt, TConstArrayView<FVector2f> Heroes)
 	PrevPos = Pos;
 	StepThreats.Reset();
 	ResolveInit(Heroes);
-	StepRoles(Dt, 0, Heroes);
+	StepRoles(Dt, Dt, 0, Heroes);
 }
 
 void FDTEnemyPool::Publish(FDTWorldView& View) const

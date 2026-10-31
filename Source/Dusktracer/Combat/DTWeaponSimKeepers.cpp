@@ -424,7 +424,39 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 
 FDTKeeperMeterRead FDTWeaponSim::GetKeeperMeters(int32 OwnerId) const
 {
-	return FDTKeeperMeterRead();
+	using namespace DTWeaponSimKeepersLocal;
+	FDTKeeperMeterRead Out;
+	if (!Players.IsValidIndex(OwnerId))
+	{
+		return Out;
+	}
+	const FPlayerRuntime& Player = Players[OwnerId];
+	if (const FDTFlagEntry* Debt = KeeperEntry(OwnerId, DTCat::EFlag::Debt))
+	{
+		Out.bDebt = true;
+		Out.Debt = Player.Debt;
+		Out.DebtMax = FMath::RoundToInt(Debt->Params.Get(ParamDebtMax));
+	}
+	Out.bPayday = IsPaydayReady(OwnerId);
+	if (const FDTFlagEntry* Speed = KeeperEntry(OwnerId, DTCat::EFlag::SpeedScale))
+	{
+		Out.bMomentum = true;
+		Out.Momentum = Player.Momentum;
+		Out.MomentumMax = Player.SlipstreamRow != INDEX_NONE ? 0.0f : Speed->Params.Get(ParamStacksMax); // R-RFG-21: no cap
+	}
+	// The player's word for a hunter and a Collection Shade is the same (ST_Keywords Flag.Hunter).
+	const FDTFlagEntry* Hunter = KeeperEntry(OwnerId, DTCat::EFlag::Hunter);
+	Out.Shades = GetLiveHunters(OwnerId) + GetLiveShades(OwnerId);
+	Out.bShades = Hunter != nullptr || Player.CollectionRow != INDEX_NONE || Out.Shades > 0;
+	if (Hunter)
+	{
+		Out.ShadesMax += FMath::RoundToInt(Hunter->Params.Get(DTFlagParam::MaxLive)) + FMath::RoundToInt(Hunter->Params.Get(ParamLastingMax));
+	}
+	if (Player.CollectionRow != INDEX_NONE)
+	{
+		Out.ShadesMax += FMath::RoundToInt(DTReforge::Param(Player.CollectionRow, TEXT("shades_max")));
+	}
+	return Out;
 }
 
 int32 FDTWeaponSim::GetDebt(int32 OwnerId) const
