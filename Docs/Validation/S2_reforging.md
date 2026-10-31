@@ -127,8 +127,8 @@ Spawned XP over model 0.789 against 0.789; runs at 30 decisions or more 58 again
 - **Cyclone with Stillness: no bug.** The charge gathered at rest is carried by the first spin (T-RFG-10). At rest the weapon is silent, which is the card. No battery run took this pair.
 
 ## Perf and gate
-PERF_LINE
-GATE_LINE
+`Tools\Perf.ps1`: PASS, game p50 2.24, p95 2.75 ms, GPU p95 4.90 raw (7.84 proxied, budget 12), 5975 bullets, 388 enemies, 1800 frames. The scene owns no Reforging card.
+`Tools\Gate.ps1 -Base dev/s2`: PASS, 390 tests run, 0 failed, 0 warnings, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run.
 
 ## What still reads wrong
 - Under the arm Blade Halo won 3 of 11 runs, Railstorm 71 of 84. Eleven runs, unsorted by arm, but the first number that card has.
