@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), meta (Tools/MetaCheck.ps1, meta.md), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -139,6 +139,14 @@ if (-not (Skipped "restart")) {
 	$Out | Set-Content (Join-Path $LogDir "Gate_restart.log") -Encoding utf8
 	Report "restart" (($Out | Select-String "^RESTART:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "INPUTCHECK|RESTART: FAIL"; Fail "restart" }
+}
+if (-not (Skipped "meta")) {
+	# meta.md: the save on real launches, headless: no tool run touches it, a run banks it, a bad file goes aside, a win reaches a fight.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\MetaCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_meta.log") -Encoding utf8
+	Report "meta" (($Out | Select-String "^META:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "^  ! |META: FAIL"; Fail "meta" }
 }
 if (-not (Skipped "contrast")) {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.

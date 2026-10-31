@@ -11,6 +11,7 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
+#include "Meta/DTRunRecorder.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHero.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
@@ -453,7 +454,10 @@ void UDTMenuSubsystem::Draw(UCanvas* Canvas)
 {
 	if (IsOpen())
 	{
-		DTMenuScreen::Draw(Canvas, State, DTSettings::Live());
+		// The bank runs when the run's session closes, a tick after the screen opens for a death or a win (meta.md R-MET-06).
+		const UDTRunRecorder* Recorder = GetWorld() ? GetWorld()->GetSubsystem<UDTRunRecorder>() : nullptr;
+		const bool bSummary = State.Screen == EDTMenuScreen::RunOver && Recorder && Recorder->GetAward().bBanked;
+		DTMenuScreen::Draw(Canvas, State, DTSettings::Live(), bSummary ? DTMenuText::RunSummary(Recorder->GetAward().Retained, Recorder->GetAward().Balance) : FText::GetEmpty());
 	}
 }
 

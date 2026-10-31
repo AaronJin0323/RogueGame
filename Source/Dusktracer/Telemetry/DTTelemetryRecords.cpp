@@ -366,6 +366,15 @@ void FDTTelemetryCore::RecordDirBlock(const FDTTelDirBlock& Block)
 		.Raw(TEXT("dashes"), ByOwner<int32>(Block.Dashes, [](const int32& V) { return FString::FromInt(V); })).Line();
 }
 
+void FDTTelemetryCore::RecordRunAward(const TCHAR* End, int64 Retained, int64 Steps, int64 Kills, int64 Elites, bool bBoss, int32 Heat)
+{
+	if (bActive)
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("run_award"), INDEX_NONE)).Str(TEXT("end"), End).Int(TEXT("retained"), Retained).Int(TEXT("steps"), Steps)
+			.Int(TEXT("kills"), Kills).Int(TEXT("elites"), Elites).Bool(TEXT("boss"), bBoss).Int(TEXT("heat"), Heat).Line();
+	}
+}
+
 void FDTTelemetryCore::RecordBossStart(FName Form, int32 Wins, int32 NumPlayers)
 {
 	if (bActive)

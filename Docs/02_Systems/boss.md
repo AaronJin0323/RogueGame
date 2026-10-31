@@ -43,7 +43,7 @@ Per-phase and per-attack numbers (thresholds, latest starts, wind-ups, intervals
 | `FDTBossBrain` | world-free state | `Phase`, `ShiftLeft`, `Action`, `ActionLeft`, `FightTime`, `RingPhase`, `LaneBearing`, `SpiralAngle`, `HazardRadius` |
 | HP state | per fight | `ReserveHp`, `EffectiveMax`, `DamageInWindow`, `bCalibrated`; the bar and phases read the effective fraction |
 | `FDTTelegraph` | `enemies.md` | ring telegraph with a lane gap; charge corridor; sweep sector; hazard ring |
-| `Wins` | meta save | cumulative wins (form choice); owned by the meta save |
+| `Wins` | meta save | cumulative wins (form choice); owned by the meta save, read once at the start of the fight (`meta.md` R-MET-17) |
 
 Phase table (form I; numbers in `09_Catalog/boss_warden.csv`):
 

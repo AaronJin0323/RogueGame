@@ -149,6 +149,7 @@ void UDTTelemetrySubsystem::EndSession(const FString& Reason)
 	{
 		return;
 	}
+	OnSessionEnding.Broadcast(Reason);
 	Core.End(Reason);
 	Flush();
 	Writer.Wait();

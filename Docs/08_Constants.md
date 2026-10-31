@@ -476,3 +476,10 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 | C.SETTINGS.CVD_DELTA_E_MIN | 20 | delta_e | CORE | settings.md, T-SET-11 |
 | C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN | 15 | delta_e | CORE | settings.md, T-SET-11 |
 | C.SETTINGS.RUN_OVER_GUARD_S | 1.0 | s | GATED(S3) | settings.md, T-SET-21 |
+| C.META.CURRENCY_PER_MINUTE | 10 | currency | GATED(S3) | meta.md, T-MET-02 |
+| C.META.CURRENCY_PER_KILL | 0.1 | currency | GATED(S3) | meta.md, T-MET-02 |
+| C.META.CURRENCY_PER_ELITE | 50 | currency | GATED(S3) | meta.md, T-MET-02 |
+| C.META.CURRENCY_BOSS_KILL | 500 | currency | GATED(S3) | meta.md, T-MET-02 |
+| C.META.CURRENCY_HEAT_BONUS | 0.15 | ratio | GATED(S3) | meta.md, T-MET-02 |
+| C.META.ACT_START | 1 | n | CORE | meta.md, T-MET-09 |
+| C.META.ACT_MAX | 3 | n | CORE | meta.md, T-MET-09 |

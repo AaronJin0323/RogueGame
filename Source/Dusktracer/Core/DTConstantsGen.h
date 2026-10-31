@@ -417,4 +417,11 @@ namespace DTConst
 	inline constexpr int32 SETTINGS_CVD_DELTA_E_MIN = 20; // delta_e, CORE
 	inline constexpr int32 SETTINGS_CVD_MUZZLE_DELTA_E_MIN = 15; // delta_e, CORE
 	inline constexpr float SETTINGS_RUN_OVER_GUARD_S = 1.0f; // s, GATED(S3)
+	inline constexpr int32 META_CURRENCY_PER_MINUTE = 10; // currency, GATED(S3)
+	inline constexpr float META_CURRENCY_PER_KILL = 0.1f; // currency, GATED(S3)
+	inline constexpr int32 META_CURRENCY_PER_ELITE = 50; // currency, GATED(S3)
+	inline constexpr int32 META_CURRENCY_BOSS_KILL = 500; // currency, GATED(S3)
+	inline constexpr float META_CURRENCY_HEAT_BONUS = 0.15f; // ratio, GATED(S3)
+	inline constexpr int32 META_ACT_START = 1; // n, CORE
+	inline constexpr int32 META_ACT_MAX = 3; // n, CORE
 }
