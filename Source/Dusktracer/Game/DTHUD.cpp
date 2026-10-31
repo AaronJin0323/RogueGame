@@ -20,6 +20,7 @@
 #include "Enemies/DTElite.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Game/DTGameMode.h"
+#include "Hub/DTHubSubsystem.h"
 #include "Keepers/DTKeeperSubsystem.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
@@ -259,6 +260,19 @@ void ADTHUD::DrawHUD()
 	Super::DrawHUD();
 	if (!Canvas || !GEngine)
 	{
+		return;
+	}
+	if (const ADTGameMode* HubMode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr; HubMode && HubMode->IsHub())
+	{
+		// The hub is the whole screen; nothing of a run exists to draw (vigil.md R-VIG-01). Settings opens over it.
+		if (UDTHubSubsystem* Hub = GetWorld()->GetSubsystem<UDTHubSubsystem>())
+		{
+			Hub->Draw(Canvas);
+		}
+		if (UDTMenuSubsystem* HubMenu = GetWorld()->GetSubsystem<UDTMenuSubsystem>())
+		{
+			HubMenu->Draw(Canvas);
+		}
 		return;
 	}
 

@@ -10,9 +10,10 @@ enum class EDTMenuScreen : uint8 { None, Pause, Settings, Controls, Confirm, Run
 enum class EDTMenuCommand : uint8 { None, Up, Down, Left, Right, Accept, Back };
 enum class EDTPauseRow : uint8 { Resume, Settings, Restart, Abandon, Quit, Num };
 enum class EDTConfirmRow : uint8 { Confirm, Cancel, Num };
-enum class EDTRunOverRow : uint8 { Restart, Quit, Num };
+/** ReturnToHub comes after Num: it is a row only when the process has a hub, and then it is the first (vigil.md R-VIG-13). */
+enum class EDTRunOverRow : uint8 { Restart, Quit, Num, ReturnToHub };
 /** What ending the run a screen asks for; the confirmation holds one until it is answered. */
-enum class EDTMenuAction : uint8 { None, Restart, Abandon, Quit };
+enum class EDTMenuAction : uint8 { None, Restart, Abandon, Quit, ReturnToHub };
 /** How the run ended, for the run-over screen's title. */
 enum class EDTRunOverKind : uint8 { Death, Victory, Abandoned };
 /** What the Controls status line says. */
@@ -42,8 +43,16 @@ struct DUSKTRACER_API FDTMenuState
 	/** What the open confirmation will do (R-SET-20). */
 	EDTMenuAction Pending = EDTMenuAction::None;
 	EDTRunOverKind RunOver = EDTRunOverKind::Death;
+	/** Opened from the hub: Back from Settings or a confirmation closes (vigil.md R-VIG-11). */
+	bool bHubHost = false;
+	/** This process has a hub: the run-over screen leads with the way back (vigil.md R-VIG-13). */
+	bool bHubRow = false;
 
 	void Open();
+	/** The hub's Quit row: the confirmation alone, on Cancel. */
+	void OpenQuitConfirm();
+	/** What the run-over row at this position is. */
+	EDTRunOverRow RunOverRowAt(int32 Row) const;
 	void Close();
 	/** The run ended: the only screen left for it (R-SET-21). */
 	void OpenRunOver(EDTRunOverKind Kind);

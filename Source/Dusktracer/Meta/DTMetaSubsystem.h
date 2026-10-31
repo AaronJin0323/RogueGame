@@ -28,6 +28,8 @@ public:
 	static bool GatesPool();
 	/** R-MET-22: what the save hands this run. No session, or a process that does not gate, hands nothing. */
 	static FDTPoolGrant GetRunGrant(const UObject* WorldContext);
+	/** The profile, read only (the hub, vigil.md R-VIG-14); nullptr with no session. */
+	static const FDTMetaProfile* ReadProfile(const UObject* WorldContext);
 
 private:
 	FDTMetaSession Session;

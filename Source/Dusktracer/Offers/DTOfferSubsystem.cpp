@@ -102,6 +102,30 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		}
 		UE_LOG(LogDT, Log, TEXT("Offers: pool gated, %d unlocked, tools +%d +%d +%d"), RunGrant.Unlocked.Num(), RunGrant.Rerolls, RunGrant.Banishes, RunGrant.Locks);
 	}
+	// A run started from the hub names its Patron on the map (vigil.md R-VIG-07); no tool run has the option.
+	if (const TCHAR* Patron = InWorld.URL.GetOption(TEXT("DTPatron="), nullptr))
+	{
+		ChosenPatron = FName(Patron);
+	}
+}
+
+void UDTOfferSubsystem::PickChosenPatron()
+{
+	const FDTOfferHand* Hand = GetOpenHand(0);
+	if (ChosenPatron.IsNone() || !Hand || Hand->HandKind != EDTHandKind::Patron)
+	{
+		return;
+	}
+	const FString Wanted = ChosenPatron.ToString();
+	ChosenPatron = NAME_None; // one hand: a name it does not hold leaves the hand open to the player
+	for (int32 Slot = 0; Slot < Hand->Cards.Num(); ++Slot)
+	{
+		if (Wanted == DTOffers::PathName(DTOffers::ParseKeeper(Hand->Cards[Slot].ContentId)))
+		{
+			Pick(0, Slot);
+			return;
+		}
+	}
 }
 
 TStatId UDTOfferSubsystem::GetStatId() const
@@ -378,6 +402,7 @@ void UDTOfferSubsystem::Tick(float DeltaTime)
 		return;
 	}
 	UpdateFlow();
+	PickChosenPatron();
 	if (IsAutoPick())
 	{
 		// Unattended: every hand takes slot 0 at once (a pick opens the next queued hand).

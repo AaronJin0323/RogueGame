@@ -25,6 +25,12 @@ public:
 	/** Opens on the settings or controls screen, as the dev commands do. */
 	void OpenAt(EDTMenuScreen Screen);
 	void Close();
+	/** This world is the hub: Back from these screens returns to it (vigil.md R-VIG-11). */
+	void SetHubHost() { State.bHubHost = true; }
+	/** The hub's Quit row. */
+	void OpenQuitConfirm();
+	/** The run-over screen's way back: a reload with no seed lands in the hub (vigil.md R-VIG-13). */
+	void ReturnToHub();
 	/** The run ended: opens the run-over screen over anything (R-SET-21); Tick calls it when the game mode reads the run as over. */
 	void OpenRunOver(EDTRunOverKind Kind);
 	/** Closes the run if it is open and reloads the map on a new seed (R-SET-23); ForcedSeed is the proof runs' way to name it. */
@@ -43,6 +49,7 @@ public:
 	void SetPauseOverride(TFunction<void(bool)> InOverride) { PauseOverride = MoveTemp(InOverride); }
 	/** Test seams: receive the seed instead of reloading the map, count the exit instead of leaving, say whether Accept is down. */
 	void SetRestartOverride(TFunction<void(int32)> InOverride) { RestartOverride = MoveTemp(InOverride); }
+	void SetReturnOverride(TFunction<void()> InOverride) { ReturnOverride = MoveTemp(InOverride); }
 	void SetQuitOverride(TFunction<void()> InOverride) { QuitOverride = MoveTemp(InOverride); }
 	void SetHeldOverride(TFunction<bool()> InOverride) { HeldOverride = MoveTemp(InOverride); }
 #if !UE_BUILD_SHIPPING
@@ -75,6 +82,7 @@ private:
 	TSet<FKey> Down;
 	TFunction<void(bool)> PauseOverride;
 	TFunction<void(int32)> RestartOverride;
+	TFunction<void()> ReturnOverride;
 	TFunction<void()> QuitOverride;
 	TFunction<bool()> HeldOverride;
 	double OpenedWall = 0.0;
@@ -82,6 +90,8 @@ private:
 	float RunOverGuardLeft = 0.0f;
 	/** The run is closed and the reload waits for the key that chose it to come up; the menu takes nothing more. */
 	bool bRestartPending = false;
+	/** The pending reload goes to the hub, not to a new run. */
+	bool bReturnPending = false;
 	bool bLeaving = false;
 	int32 PendingSeed = 0;
 	bool bPausedByMenu = false;

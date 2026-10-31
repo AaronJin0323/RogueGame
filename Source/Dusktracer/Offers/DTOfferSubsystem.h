@@ -135,6 +135,8 @@ private:
 	/** UDTSimSubsystem::OnStepEnd: requests the sim pause when any player has a hand pending (07_Technical R-TEC-14). */
 	void HandleStepEnd();
 	bool IsAnyHandPending() const;
+	/** Takes the Patron the hub chose from the open Patron hand, through Pick like any card (vigil.md R-VIG-07). */
+	void PickChosenPatron();
 	void SetCursor(bool bShow);
 
 	TArray<FPlayerFlow> Flows;
@@ -145,6 +147,8 @@ private:
 	FDelegateHandle StepEndHandle;
 	bool bPausedByOffers = false;
 	bool bInputHeld = false;
+	/** The map's DTPatron, until its hand opens. */
+	FName ChosenPatron;
 	bool bCursorShown = false;
 	bool bCursorWasShown = false;
 

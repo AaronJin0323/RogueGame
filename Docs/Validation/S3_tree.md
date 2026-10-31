@@ -74,7 +74,7 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 ## Not verified
 - A person's launch was not run: every launch here is headless. The gate path was read through `-DTPoolGate`, which takes the same branch.
 - Nobody writes `Keeper.<Path>` or `Reaction.Duos` yet, so on a person's save the three S2 branches cannot be bought and S2 Keepers cannot be met. This matches today's reach but leaves nine nodes dark.
-- Until the screen lands, a person on this branch has the first-run pool and no way to spend. `DT.Tree.Buy` works in non-Shipping builds.
+- Until the Contracts page lands, a person on this branch has the first-run pool and no way to spend: `DTHubTabs::SetTreeFactory` has no factory, and the hub's tab reads `Hub.Tree.Empty`. So `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` wait on that page too, and every Discovery a run can earn still lands in the save. `DT.Tree.Buy` works in non-Shipping builds.
 - The Trunk's tools in a played hand: covered by T-MET-20 and T-OFF-10's counts, no bot reads them.
 
 ## Invented zh (no source row; for a native reader)

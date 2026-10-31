@@ -11,7 +11,7 @@ bool UDTSimSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 void UDTSimSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
-	if (Run.GetNumPlayers() == 0)
+	if (Run.GetNumPlayers() == 0 && !bHeldForHub)
 	{
 		StartRun(0, 1);
 	}
@@ -99,6 +99,10 @@ void UDTSimSubsystem::Tick(float DeltaTime)
 {
 	CSV_SCOPED_TIMING_STAT(DT, SimTick);
 	Super::Tick(DeltaTime);
+	if (bHeldForHub)
+	{
+		return; // a hub world has no run and no step (vigil.md R-VIG-01)
+	}
 	AdvanceFrame(DeltaTime);
 	CSV_SCOPED_TIMING_STAT(DT, SimRender);
 	const float Alpha = Clock.GetAlpha();

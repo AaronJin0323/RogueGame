@@ -124,6 +124,12 @@ FDTMetaSession* UDTMetaSubsystem::FindSession(const UObject* WorldContext)
 	return Meta ? &Meta->Session : nullptr;
 }
 
+const FDTMetaProfile* UDTMetaSubsystem::ReadProfile(const UObject* WorldContext)
+{
+	const FDTMetaSession* Found = FindSession(WorldContext);
+	return Found ? &Found->Profile : nullptr;
+}
+
 int32 UDTMetaSubsystem::GetWins(const UObject* WorldContext)
 {
 	const FDTMetaSession* Found = FindSession(WorldContext);

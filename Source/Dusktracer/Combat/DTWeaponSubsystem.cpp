@@ -236,6 +236,16 @@ void UDTWeaponSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UDTWeaponSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
+	// The same route from the hub, on the map (vigil.md R-VIG-07); no tool run has the option.
+	if (const TCHAR* UnlockOption = InWorld.URL.GetOption(TEXT("DTUnlock="), nullptr))
+	{
+		TArray<FString> Ids;
+		FString(UnlockOption).ParseIntoArray(Ids, TEXT(","));
+		for (const FString& Id : Ids)
+		{
+			Unlock(FName(*Id));
+		}
+	}
 	UDTSimSubsystem* SimSys = InWorld.GetSubsystem<UDTSimSubsystem>();
 	UDTBulletSubsystem* BulletSys = InWorld.GetSubsystem<UDTBulletSubsystem>();
 	Bullets = BulletSys;

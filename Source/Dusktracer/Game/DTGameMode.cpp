@@ -10,6 +10,8 @@
 #include "Game/DTHUD.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
+#include "Hub/DTHubFlow.h"
+#include "Hub/DTHubSubsystem.h"
 #include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
 #include "TimerManager.h"
@@ -73,10 +75,30 @@ void ADTGameMode::AbandonRun()
 	bRunOver = true;
 }
 
+void ADTGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	UWorld* const MyWorld = GetWorld();
+	UDTSimSubsystem* const Sim = MyWorld ? MyWorld->GetSubsystem<UDTSimSubsystem>() : nullptr;
+	bHub = Sim && DTHubFlow::WantsHub(MyWorld->URL);
+	if (bHub)
+	{
+		Sim->HoldForHub();
+	}
+}
+
 void ADTGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	UWorld* const MyWorld = GetWorld();
+	if (bHub)
+	{
+		if (UDTHubSubsystem* const Hub = MyWorld ? MyWorld->GetSubsystem<UDTHubSubsystem>() : nullptr)
+		{
+			Hub->Enter();
+		}
+		return;
+	}
 	UDTSimSubsystem* const Sim = MyWorld ? MyWorld->GetSubsystem<UDTSimSubsystem>() : nullptr;
 	if (!Sim)
 	{
@@ -162,7 +184,7 @@ void ADTGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ADTGameMode::RestartPlayer(AController* NewPlayer)
 {
-	if (!NewPlayer || NewPlayer->IsPendingKillPending())
+	if (!NewPlayer || NewPlayer->IsPendingKillPending() || bHub)
 	{
 		return;
 	}

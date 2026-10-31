@@ -26,6 +26,8 @@ class DUSKTRACER_API ADTGameMode : public AGameModeBase
 public:
 	ADTGameMode();
 
+	/** Reads whether this map load is the hub (vigil.md R-VIG-01) before any system starts a run. */
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void BeginPlay() override;
 	/** Ends the telemetry session with the reason (writes the last interval and run_end, R-TEL-08). */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -38,6 +40,9 @@ public:
 
 	/** True once the boss is defeated (boss.md R-BOS; the run ends in victory). */
 	bool IsVictory() const { return bVictory; }
+
+	/** True in a hub world: no run, no hero, no telemetry session. */
+	bool IsHub() const { return bHub; }
 
 	/** The run seed from the command line (-DTSeed=<n>), 0 when absent. */
 	static int32 GetCommandLineSeed();
@@ -73,4 +78,5 @@ private:
 	FDelegateHandle BossDefeatedHandle;
 	bool bRunOver = false;
 	bool bVictory = false;
+	bool bHub = false;
 };

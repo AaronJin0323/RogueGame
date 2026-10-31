@@ -78,7 +78,7 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 | Reserve cards | in | always; R-OFF-12 |
 | Tools | `C.OFFER.REROLLS`, `C.OFFER.BANISH`, `C.OFFER.LOCK` | one more each from the Trunk |
 
-`first_run_locked.csv` holds the source's Discovery targets that are `starter=yes` here (GDD §8.3), because a Discovery that opens what is already open earns nothing `[invented]`, D-024. The column stays the tool pool: `starter` is what a tool run reads (R-MET-23), and a gated pool reads this file on top of it. The generator fails on a row that is not `starter=yes`, on `Weapon.PulseRifle` (the start, D-015), and on a `door` that is not a Discovery naming the row.
+`first_run_locked.csv` holds the source's Discovery targets that are `starter=yes` here (GDD §8.3), because a Discovery that opens what is already open earns nothing `[invented]`, D-024. The column stays the tool pool: `starter` is what a tool run reads (R-MET-23), and a gated pool reads this file on top of it. The generator fails on a row that is not `starter=yes` and on `Weapon.PulseRifle` (the start, D-015).
 
 | Id | Door |
 |---|---|
@@ -92,7 +92,7 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: there the Pulse Rifle fits all four open modifiers, and the Orbital Drones only `Mod.Pierce` and `Mod.Backwash`, under `C.MOD.MIN_COMPATIBLE`.
 
 - **R-MET-26** A purchase checks in this order: a known node, a session with a writable file, a rank left, `requires`, the balance. It takes the price, adds the rank to `TreeRanks` and the node's ids to `Unlocked`, and autosaves as a bank does (R-MET-13): a failed write keeps the purchase in memory and the next save carries it. A tool run has no file and buys nothing. A screen calls `UDTMetaSubsystem::FindSession`, then `DTTree::ListNodes`, `GetNode`, `CanBuy` and `Buy`, and takes names from `NodeName` and `NodeDesc`.
-- **R-MET-27** Every Discovery has a door on a person's save or is listed here as shut. A row is shut only for what the table says; nothing is removed. The generator fails on a `starter=no` row with neither a node nor a Discovery, and on a `starter=yes` Discovery target missing from `first_run_locked.csv`.
+- **R-MET-27** Every Discovery has a door on a person's save or is listed here as shut. A row is shut only for what the table says; nothing is removed. Every "after" row is a purchase, and a person has no way to buy until the Contracts page exists: `DTHubTabs::SetTreeFactory` has no factory yet, so that tab is empty (`vigil.md` R-VIG-12). The generator fails on a `starter=no` row with neither a node nor a Discovery, on a `starter=yes` Discovery target missing from `first_run_locked.csv`, and on a `door` that does not name its row.
 
 | Discovery | State on a person's save | Why |
 |---|---|---|
@@ -221,7 +221,7 @@ R-MOD-07 counts every `starter` row, so T-MOD-07 does not see a first run: there
 `ST_Tree`, a new table, en and zh-Hans: the source's `Tree.*` rows for kept nodes and the screen's states, none for a cut node (D-023). A node's `text_key` gives `<key>.Name` and `<key>.Desc`; `Desc` takes the Keeper's name and the tool count. The two blessing lines are rewritten, because a node opens more than one card. The three invented Trunk nodes have invented text, en and zh-Hans. No row carries a story layer: surface text. Invented zh is listed in `Docs/Validation/S3_tree.md`.
 
 ## Out of scope
-- The Tree's screen; the Hub; the Codex screen, which reads `Unlock`; the return line after a death. The fields exist; the systems are their own specs.
+- The Tree's screen; the return line after a death. The hub and the Codex are `vigil.md`. The fields exist; the systems are their own specs.
 - A mid-run toast, and `Discovery.Unlocks` until a Codex screen draws it.
 - Heat, Keeper Bids (Lien), Omens and Off-ledger shares, all of which change the award later; the Currency Reserve card (`offers.md`).
 - Cloud saves, several profiles, a save-reset screen, a backup copy beyond R-MET-12.
