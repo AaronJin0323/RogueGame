@@ -1,5 +1,6 @@
 #include "Meta/DTTreeTab.h"
 #include "Core/DTCatalogGen.h"
+#include "Engine/World.h"
 #include "Hub/DTHubScreen.h"
 #include "Meta/DTMetaSession.h"
 #include "Meta/DTMetaSubsystem.h"
