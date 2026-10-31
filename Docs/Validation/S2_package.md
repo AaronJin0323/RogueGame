@@ -151,7 +151,7 @@ Branch `dev/s2-fp`, from `dev/s2` at `dede08a`. `FPSemantics = Precise` on the `
 | Editor, Development, Shipping | 14 | 16 | 870.3 s |
 | Kept `/fp:fast` Development | 16 | 14 | 893.6 s |
 
-Seed 101 dies at 617 s in all three now. The editor's figures did not move from the table above, and the game's took the editor's value. `steps` reads one apart on seeds 101, 105 and 128 with equal hashes, the known death case.
+Seed 101 dies at 617 s in all three now. The editor's figures did not move from the table above, and the game's took the editor's value. `steps` reads one apart on seeds 101, 105 and 128 with equal hashes, the known death case. `Tools/PackageRestartCheck.ps1` passes on the package with `20009843` gone: seed 9107 reads `276faf8e` in Development and Shipping, the editor's value above.
 
 **Frame cost.** `Tools/Perf.ps1` launches the editor, which was `/fp:precise` already, so its before and after can only read equal, and do. It is the control. The cost a player pays was read in a Development package, with a copy of the tool changed in the executable, the CSV folder and the launch arguments; budgets, parsing and the S2 proof are the tool's. The `/fp:fast` package was kept and run alternating with the new one. Game p50 / p95 ms, 1920x1080, 1800 frames, every run PASS at full load:
 
