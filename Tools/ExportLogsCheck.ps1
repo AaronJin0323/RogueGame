@@ -85,7 +85,7 @@ try {
 
 	# --- the export, as a double-click runs it ---------------------------------------------------------------------------
 	$OutDir = Join-Path $WorkDir "out"
-	$Nul = Join-Path $WorkDir "nul.txt"
+	$Nul = Join-Path $WorkDir "stdin.txt"
 	$Said = Join-Path $WorkDir "said.txt"
 	[IO.File]::WriteAllText($Nul, "`r`n")
 	$Line = "/d /c `"`"$(Join-Path $Copy 'Export_Logs.bat')`" -OutDir `"$OutDir`"`""
