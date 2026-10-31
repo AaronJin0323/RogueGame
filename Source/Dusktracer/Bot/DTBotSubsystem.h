@@ -12,6 +12,8 @@
 //   -DTBotMaxSeconds=<s>                dt.Bot.MaxSeconds  ends the telemetry session ("bot_timeout") at this sim time
 //   -DTBotQuit                          dt.Bot.Quit        quits the process once the run is over and telemetry is written
 //   -DTBotOut=<file.csv>                                   writes the bot record (below) at run end
+//   -DTBotTrace=<file.csv>                                 appends one line per step (input hash, hero and pool bits, every RNG seed), for reading
+//                                                          the first divergent step of two launches; compare only inside one float mode (07_Technical R-TEC-15)
 //   -DTProbe=<file>                                        runs a probe scene instead of a run (DTProbeScript.h; Tools/probe.py);
 //                                                          pair with -DTNoDirector: the bot fights the script's field with its build
 // Bot record (Tools/BotRuns.ps1 reads it): hero events are counted from UDTHeroSubsystem::OnHeroEvent per sim minute,

@@ -229,6 +229,8 @@ $Shipping = Read-Record $OutE
 $ShipEnd = Get-LastRecord (Get-RunFile $ShipRuns $Seed "jsonl")
 $BridgeOk = ($CsvShipping.Length -gt 0) -and ($CsvShipping -ceq $CsvRestarted)
 if (-not $BridgeOk) { Note-Fail "the Shipping fresh CSV is not the restarted Development CSV" }
+# T-TEC-15: both are game targets, /fp:fast. The editor's hash is not comparable here (07_Technical R-TEC-15).
+if (-not $Shipping["input_hash"] -or $Shipping["input_hash"] -ne $Restarted["input_hash"]) { Note-Fail "Shipping input_hash $($Shipping['input_hash']), Development $($Restarted['input_hash'])" }
 if ($ShipEnd -notmatch '"reason":"bot_timeout"') { Note-Fail "E ends: $ShipEnd" }
 Write-Host ("    E Shipping input_hash {0}, steps {1}, csv same as restarted Development={2}" -f $Shipping["input_hash"], $Shipping["steps"], $BridgeOk)
 

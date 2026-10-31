@@ -46,7 +46,7 @@ The first two passes failed; each failure was the check's, none the game's.
 
 - Same cook compared the `.pak` too: see above. Now `.utoc` and `.ucas`.
 - A loose search for "failed to load" caught profiler DLLs that are not installed (`aqProf`, `VtuneApi`, `WinPixGpuCapturer`), an unset default sound concurrency, and a shader library's second open. Now any warning or error.
-- Each world logs `Run start seed=0` when its sim starts, before the game mode's real line, which made 4 lines and read a reload short. Now a real seed only. Telemetry opens one session per run; the seed-0 line is noise, left alone.
+- Each world logs `Run start seed=0` when its sim starts, before the game mode's real line, which made 4 lines and read a reload short. Now a real seed only. Telemetry opens one session per run; the seed-0 line is noise, left alone. Read further below.
 - The shot used `-DTBotFast`, whose run ends before world time reaches the shot. Launch D now runs in real time.
 
 The hud reads `Lv.1` in zh-Hans where the golden reads `等级 1`: that is the zh audit's `Level.Label`, not a stale string.
@@ -56,6 +56,79 @@ The hud reads `Lv.1` in zh-Hans where the golden reads `等级 1`: that is the z
 - Restart pressed in Shipping: no hook reaches it there and an off-screen run has no window for a key. The bridge above is evidence, not that act. Needs real hands, and its files land in `%LOCALAPPDATA%`.
 - A real key through the operating system: the check sends key events into the player controller.
 - A restart from the run-over screen in the package (a closed run keeps `death` or `victory`): editor tests only.
-- Many restarts in one process: the hook restarts once per launch, so a slow leak would not show.
 - Bindings, Graphics and Window across a reload: an off-screen run has no window to change; bindings were not rebound here.
 - Volume as heard, full screen, a slower disk.
+
+## Editor hash against package hash
+
+Branch `dev/s2-hash`, from `dev/s2` at `271d4f9`. Seed 9107, same bot settings: editor `-game` reads `276faf8e`, the package `20009843`.
+
+**Result.** Not a BUG. The cause is the compiler's float mode: UBT builds the editor target `/fp:precise` and game targets `/fp:fast` (`VCToolChain.cs`, default FP semantics; `Dusktracer.Shared.rsp` of each target differs there). No sim state, clock, render, culture or load order is in it. It is a build difference, the same kind as compiled-out code, with one cost: a seed's result does not carry between the editor and a package. Rule: `07_Technical` R-TEC-15.
+
+**One difference at a time**, 90 s of bot, 5400 steps, all launches off-screen.
+
+| Launch | Hash |
+|---|---|
+| Editor `-nullrhi`, no culture (baseline) | `276faf8e` |
+| Editor, `-culture=en` | `276faf8e` |
+| Editor, `-culture=zh-Hans` | `276faf8e` |
+| Editor, `-RenderOffScreen` | `276faf8e` |
+| Editor, `-RenderOffScreen -culture=en` | `276faf8e` |
+| Editor, `-DTBotFast=7` | `276faf8e` |
+| Development, `-RenderOffScreen -culture=en` (baseline) | `20009843` |
+| Development, `-RenderOffScreen`, no culture | `20009843` |
+| Development, `-nullrhi` | `20009843` |
+| Development, `-nullrhi -culture=en` | `20009843` |
+| Development, `-culture=zh-Hans` | `20009843` |
+| Development, `-DTBotFast=7` | `20009843` |
+| **Development built `/fp:precise`** | **`276faf8e`** |
+| **Editor built `/fp:fast`** | **`20009843`** |
+
+The last two are module `FPSemantics` flipped for one build, then reverted. Each step trace is byte-equal to the other family's, 5399 lines, 0 differ. At 15 s: real time, `-benchmark -fps=60` and `-DTBotFast=60` agree inside each build (`c087294c` editor, `36f3aae8` Development), so frame time is out too. The `DT` subsystems begin play in the same order in both builds.
+
+**First divergent step**, from `-DTBotTrace`.
+
+| Step | What differs |
+|---|---|
+| 50 and before | nothing |
+| 51 | enemy 1: position X 1 ulp (-1506.08655 / -1506.08667), velocity Y 2 ulp (-13.821538 / -13.8215361). Hero, inputs, RNG equal |
+| 81 | first input differs, so `input_hash` parts |
+| 82 | hero position, X 2 ulp, Y 6 ulp |
+| 241 | gem positions first differ |
+| 5399 | hero apart by 0.0028 uu, the most in the run |
+
+Over those 90 s no RNG seed, enemy, round or gem count and no level ever differs. The exact instruction was not read; the trace names the enemy and the step, and the two flipped builds name the flag.
+
+**It grows.** Full runs, 30 seeds (101 to 130), Storm/Tempest, bot v2, skill 1.0, no time cap, `-DTBotFast=600`:
+
+| Pair | `input_hash` equal | Outcome equal |
+|---|---|---|
+| Development, Shipping | 30/30 | 30/30 |
+| Editor, Development built `/fp:precise` | 30/30 | 30/30 |
+| Editor, Development | 0/30 | 24/30 |
+
+| Build | Wins | Deaths | Mean end |
+|---|---|---|---|
+| Editor | 14 | 16 | 870.3 s |
+| Development, Shipping | 16 | 14 | 893.6 s |
+
+Seed 101 dies at 617 s in the editor and wins at 993 s in the package. 14 against 16 on 30 seeds is inside noise, which does not prove the families equal: it is one arm, read once. The pair rows prove the float mode is the whole cause, over full runs and not just 90 s. `steps` in the bot record read one apart on some death runs inside a pair with equal hashes (a frame runs on after the end), so compare `input_hash`.
+
+**What this voids.** No earlier comparison. Every hash match in `S1_*`, `S2_bot_v2.md`, `S2_evolutions.md` and `Tools/RestartCheck.ps1` is editor against editor, because `BotRuns.ps1` launches the editor, and `Tools/PackageRestartCheck.ps1` is game against game. The only cross-family comparison was this finding.
+
+**What it costs.** Bot batteries read the `/fp:precise` editor; players get `/fp:fast`. A bot reading stands as an aggregate and says nothing about a named seed in a package. Inside the game family a recompile may move results, so Development equals Shipping as a reading on each package, now checked by T-TEC-15. Not changed: the game stays `/fp:fast`. `FPSemantics = Precise` on the module would join the families with one line, at the cost of every game-side hash and an unmeasured frame cost; left as an option.
+
+## Many restarts in one process
+
+`-DTRestartLoops=200 -DTRestartAtStep=1830 -DTRestartSeed=9107 -DTSeed=9107`, 45 s of bot, `-nullrhi`. Each run is read at step 1800 from the log's trace line; the last run plays to its end.
+
+| Build | Runs read | Distinct at step 1800 | Last run against a fresh launch | Worlds | Objects, restart 1, 2, 200 | Memory, restart 1, 200 |
+|---|---|---|---|---|---|---|
+| Editor | 201 | 1 (`f675ed63`) | `8140e527` both | 1 | 51899, 51833, 51833 | 1762, 1786 MB |
+| Development | 201 | 1 (`a3816e94`) | `78ec0c97` both | 1 | 35178, 35178, 35178 | 352, 354 MB |
+
+No leak read and no drift: 200 reloads later a run is bit for bit the first one, with no object or world left behind. The package's memory moves 1.4 MB in 200 and flattens. The editor's rises 24 MB, 0.12 MB a restart; that is not attributed, and it is not a build a player gets. Shipping cannot run the hook. A restart on the same seed inside one second appends to the old run's telemetry file (the name is seed and second); only this forced loop can do that, since Restart run takes a fresh seed.
+
+## The `Run start seed=0` line
+
+`UDTSimSubsystem::OnWorldBeginPlay` starts a placeholder run so systems that begin play before the game mode see one player. `ADTGameMode::BeginPlay` then starts the real run, which rebuilds the run state and every stream. Harmless: with the placeholder's seed changed to 12345 for one build the hash stays `276faf8e`, so nothing is carried from it. Left alone; a tool that counts run starts filters on a real seed. A launch with no `-DTSeed` really does run on seed 0.
