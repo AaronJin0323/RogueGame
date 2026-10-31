@@ -71,7 +71,7 @@ It cannot show a rate, a median, a band or a verdict. One run cannot say what is
 ## 5. What stopped at the Key
 The brief's "zero rifle output" is true of Weapon-source damage and not of the rifle. **The rifle kept swinging.** Hammer reshaped it, and the arcs are credited to `Keeper.Forge`:
 
-1. The Pulse Rifle fires 2 rounds at levels 1 and 2, 3 from level 3 (`weapons.csv`). Hammer's Key converts 2 rounds. On his rifle that is every round, so nothing flies (R-WPN-10), and the Projectile cap goes with it.
+1. The Pulse Rifle fires 2 rounds at levels 1 and 2 and more from level 3 (`weapons.csv`). Hammer's Key converts 2 rounds. On his rifle that is every round, so nothing flies (R-WPN-10), and the Projectile cap goes with it.
 2. A Keeper-caused cleave carries `Keeper.<Path>` (R-WPN-07, D-015), so `Weapon.*` reads zero. `Keeper.Forge` goes from about 1 damage per hit before the Key to 17.4 per hit in interval 6.
 3. `Modifier.*` stops too, from interval 6 on, though neither mod goes dormant: the caps left are Melee, Aimed and Expiry, and both still fit. Scatter Shell acts when a round expires, and no round flies. Chain Trigger's free volleys are reshaped the same way, so their hits read `Keeper.Forge`.
 4. Reach falls from 900 uu to an arc of 380, then 494 after `Hammer.Amp2`.
