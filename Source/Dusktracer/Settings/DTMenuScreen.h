@@ -15,6 +15,8 @@ namespace DTMenuText
 	DUSKTRACER_API FText RowLabel(EDTSettingRow Row);
 	DUSKTRACER_API FText RowValue(EDTSettingRow Row, const FDTUserSettings& Settings);
 	DUSKTRACER_API FText StatusLine(const FDTMenuState& State);
+	/** The one run-summary line (meta.md R-MET-06). */
+	DUSKTRACER_API FText RunSummary(int64 Retained, int64 Balance);
 	/** The ST_UI key of the screen's title (run-over screens carry the HUD's end line, R-SET-21). */
 	DUSKTRACER_API const TCHAR* TitleKey(const FDTMenuState& State);
 	/** The ST_UI key of a plain row (pause, confirmation, run-over screens). */
@@ -23,5 +25,6 @@ namespace DTMenuText
 
 namespace DTMenuScreen
 {
-	DUSKTRACER_API void Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings);
+	/** RunSummary: the line under the run-over rows, empty until the run is banked. */
+	DUSKTRACER_API void Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings, const FText& RunSummary = FText::GetEmpty());
 }

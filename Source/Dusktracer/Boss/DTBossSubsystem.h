@@ -53,9 +53,6 @@ public:
 
 	FDTOnBossDefeated OnBossDefeated;
 
-	/** Cumulative wins for the form choice (R-BOS-01); the meta save owns them (S3), 0 until then. */
-	static int32 GetWins() { return 0; }
-
 private:
 	class FSink : public IDTBossSink
 	{

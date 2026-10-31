@@ -262,6 +262,20 @@ bool FDTSetSimUntouched::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetSummaryLine, "Dusktracer.Meta.SummaryLine", DTSettingsTest::Flags) // T-MET-06
+bool FDTMetSummaryLine::RunTest(const FString& Parameters)
+{
+	const FString Line = DTMenuText::RunSummary(12, 345).ToString();
+	TestTrue(TEXT("the award"), Line.Contains(TEXT("12")));
+	TestTrue(TEXT("the balance"), Line.Contains(TEXT("345")));
+	TestFalse(TEXT("the key resolves"), Line.Contains(TEXT("MISSING")));
+	TestTrue(TEXT("listed with the menu's keys"), DTMenuText::AllKeys().Contains(TEXT("Summary.Line")));
+	FString Csv;
+	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
+	TestTrue(TEXT("the row carries both languages"), Csv.Contains(TEXT("Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetReaders, "Dusktracer.Settings.Readers", DTSettingsTest::Flags) // T-SET-02
 bool FDTSetReaders::RunTest(const FString& Parameters)
 {

@@ -24,3 +24,4 @@
 | D-020 | Pulse Wall's `dps` is a ratio of one round's damage, per enemy | RULE | applied |
 | D-021 | The `Dusktracer` module builds `/fp:precise` in every target | RULE | applied |
 | D-022 | S3 starts on `dev/s3` before the S1 and S2 exit tests | GO-NOGO | applied |
+| D-023 | The Tree keeps pool and utility nodes only; the old stat ranks are cut | RULE | applied |

@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/World.h"
+#include "Meta/DTMetaSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
@@ -151,7 +152,8 @@ void UDTBossSubsystem::SimStep(const FDTSimContext& Context)
 				DashesAtStart.Add(Hero->GetState(Owner)->Dashes);
 			}
 		}
-		Core.Start(GetWins(), Context.View->HeroPositions, Sink);
+		// R-BOS-01, meta.md R-MET-17: read once; 0 with no save, so a tool run never moves its form.
+		Core.Start(UDTMetaSubsystem::GetWins(this), Context.View->HeroPositions, Sink);
 		UE_LOG(LogDT, Log, TEXT("Boss: the Warden (form %s) queued at step %lld"), FDTBossCore::FormName(Core.GetForm()), Context.StepIndex);
 	}
 	FDTBossStepIn In;

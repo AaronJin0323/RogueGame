@@ -33,7 +33,7 @@ namespace DTMenuScreenLocal
 	const TCHAR* const PauseRowKeys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
 	const TCHAR* const EndKeys[] = { TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"), TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"),
 		TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"), TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"),
-		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory") };
+		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line") };
 	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
 		TEXT("Settings.Percent"), TEXT("Settings.LanguageName.en"), TEXT("Settings.LanguageName.zhHans"), TEXT("Settings.On"), TEXT("Settings.Off"),
 		TEXT("Settings.Controls.Open"), TEXT("Settings.Hint.Volume"), TEXT("Settings.Hint.Graphics"), TEXT("Settings.Hint.Shake"), TEXT("Settings.Hint.Flash"),
@@ -179,6 +179,11 @@ FText DTMenuText::StatusLine(const FDTMenuState& State)
 	}
 }
 
+FText DTMenuText::RunSummary(int64 Retained, int64 Balance)
+{
+	return FText::Format(DTMenuScreenLocal::Ui(TEXT("Summary.Line")), FText::AsNumber(Retained), FText::AsNumber(Balance));
+}
+
 const TCHAR* DTMenuText::TitleKey(const FDTMenuState& State)
 {
 	switch (State.Screen)
@@ -211,7 +216,7 @@ const TCHAR* DTMenuText::PlainRowKey(const FDTMenuState& State, int32 Row)
 	return DTMenuScreenLocal::PauseRowKeys[Row];
 }
 
-void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings)
+void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUserSettings& Settings, const FText& RunSummary)
 {
 	using namespace DTMenuScreenLocal;
 	const int32 Rows = State.NumRows();
@@ -325,6 +330,10 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 	else if (State.Screen == EDTMenuScreen::Confirm)
 	{
 		Line = Ui(TEXT("Pause.ConfirmBody"));
+	}
+	else if (State.Screen == EDTMenuScreen::RunOver)
+	{
+		Line = RunSummary;
 	}
 	Y += 10.0f * P.S;
 	if (!Line.IsEmpty())

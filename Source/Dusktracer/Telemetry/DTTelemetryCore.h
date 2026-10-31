@@ -168,6 +168,10 @@ public:
 	void RecordBossCalibrated(float WindowDps, float EffectiveMax, bool bClamped);
 	void RecordBossEnd(const FDTTelBossEnd& End);
 
+	// meta.md
+	/** One per banked run, before run_end; run-derived only (R-MET-16). */
+	void RecordRunAward(const TCHAR* End, int64 Retained, int64 Steps, int64 Kills, int64 Elites, bool bBoss, int32 Heat);
+
 	// progression.md
 	/** Aggregated: one xp{gems, xp} record per player per step with pickups. */
 	void RecordXp(int32 Owner, int32 Gems, int32 Xp);

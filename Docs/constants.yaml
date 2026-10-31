@@ -411,3 +411,13 @@ weapons:
   SETTINGS.CVD_DELTA_E_MIN: { value: 20, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }
   SETTINGS.CVD_MUZZLE_DELTA_E_MIN: { value: 15, unit: delta_e, tag: CORE, dependents: [02_Systems/settings.md, T-SET-11] }
   SETTINGS.RUN_OVER_GUARD_S: { value: 1.0, unit: s, tag: GATED(S3), dependents: [02_Systems/settings.md, T-SET-21] }
+  META.CURRENCY_PER_MINUTE: { value: 10, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
+  META.CURRENCY_PER_KILL: { value: 0.1, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
+  META.CURRENCY_PER_ELITE: { value: 50, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
+  META.CURRENCY_BOSS_KILL: { value: 500, unit: currency, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
+  META.CURRENCY_HEAT_BONUS: { value: 0.15, unit: ratio, tag: GATED(S3), dependents: [02_Systems/meta.md, T-MET-02] }
+  META.ACT_START: { value: 1, unit: n, tag: CORE, dependents: [02_Systems/meta.md, T-MET-09] }
+  META.ACT_MAX: { value: 3, unit: n, tag: CORE, dependents: [02_Systems/meta.md, T-MET-09] }
+  # Narrative (03_Narrative.md)
+  NARR.PREWIN_LAYER_MAX: { value: 2, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03, T-NAR-06] }
+  NARR.LAYER_MAX: { value: 3, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03] }

@@ -10,6 +10,9 @@
 #include "Telemetry/DTTelemetryWriter.h"
 #include "DTTelemetrySubsystem.generated.h"
 
+/** A session is closing: its records are still open. Once per session. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FDTOnSessionEnding, const FString& /*Reason*/);
+
 /**
  * Game/PIE worlds only. Registers for EDTSimPhase::Director (the end of each step, R-TEL-01) and observes every run
  * event through FDTRunState's sink (R-TEL-02). A session runs from StartSession (the game mode, with the run seed) to
@@ -38,6 +41,9 @@ public:
 	/** Queues everything buffered so far for writing (never blocks). */
 	void Flush();
 	bool IsSessionActive() const { return Core.IsActive(); }
+
+	/** Bound by the run recorder (meta.md R-MET-04): every way a run ends comes through EndSession. */
+	FDTOnSessionEnding OnSessionEnding;
 
 	// Enemy-system hooks (kill attribution and swarm TTK; see FDTTelemetryCore).
 	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum) { Core.OnEnemiesSpawned(StepIndex, bCleared, PoolNum); }

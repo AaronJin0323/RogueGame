@@ -141,3 +141,4 @@ Controls.Swapped,{0} set; {1} took its old key.,「{0}」已设置；「{1}」�
 Controls.Bound,{0} set.,「{0}」已设置。,Controls status line after a rebind. {0} the action name.,
 Controls.Reset,Reset to defaults,恢复默认,Controls screen button: restore every key and button.,
 Controls.ResetDone,Defaults restored.,已恢复默认按键。,Controls status line after Reset to defaults.,
+Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},"One run-summary line on the run-over screen. {0} the run's award, {1} the balance after it. Wording from Summary.Retained and RunSummary.Balance.",
