@@ -4,6 +4,8 @@
 
 Class BUG, weapon and Keeper layers. It replaces the path by which a field's tick reached the Keepers. It is a port to `main` of the `dev/s2` fix for R-KEE-16 ("field ticks are not hits"): `bFieldTick` on `FDTHit`, set in `StepDeferred`, skipped in `FDTKeeperSim::CaptureHits`. The payday and Vector changes are not ported. T-KEE-09 now names the new test; its pass criteria stay as they were.
 
+Gate: `GATE: PASS (a0a266d; 3 not run)`, 235 tests run of 235 found, 0 failed. Not run: pad, scope, mac.
+
 ## The test
 `Dusktracer.Keepers.Param.FieldTick` (4 s, one Tide Key, one Field):
 
