@@ -58,6 +58,10 @@ namespace DTBotTuning
 	constexpr float SecondFirstScore = 94.0f;
 	/** R-BOT-16: above every card score; a Keeper card scores 200. */
 	constexpr float PrimaryFirstScore = 300.0f;
+	/** R-BOT-18: above every card score, and under Reserve's 5. */
+	constexpr float CarryScore = 300.0f;
+	constexpr float CarryRefuseScore = 1.0f;
+	constexpr int32 CarryGiftLead = 2;
 	constexpr float SecondNextScore = 65.0f;
 	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
 	constexpr int32 ProbeLegS = 1;
@@ -191,7 +195,8 @@ FString FDTBotConfig::Describe() const
 	const int32 S = static_cast<int32>(SecondPath == EDTPath::None ? DefaultSecond(Path) : SecondPath);
 	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d%s"), PolicyName(Policy),
 		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed, Version,
-		bPrimaryFirst ? TEXT(" primary_first=1") : TEXT(""));
+		bPrimaryFirst ? TEXT(" primary_first=1") : TEXT(""))
+		+ (CarryWeapon.IsNone() ? FString() : FString::Printf(TEXT(" carry=%s%s"), *CarryWeapon.ToString(), bCarryHold ? TEXT(" carry_hold=1") : TEXT("")));
 }
 
 int32 FDTBotConfig::KnownVersion(int32 Version)
@@ -804,9 +809,43 @@ float FDTBotBrain::CardTaste(FName ContentId) const
 	return Taste.FRandRange(-1.0f, 1.0f) * Profile.TasteScore;
 }
 
+bool FDTBotBrain::CarryCardScore(const FDTOfferCard& Card, const FDTPlayerRunState& Player, float& OutScore) const
+{
+	using namespace DTBotTuning;
+	if (Config.CarryWeapon.IsNone() || Card.Kind != EDTCardKind::WeaponUpgrade)
+	{
+		return false;
+	}
+	const FName Carry = Config.CarryWeapon;
+	const FDTWeaponInstance* Carried = Player.Weapons.FindByPredicate([Carry](const FDTWeaponInstance& W) { return W.Id == Carry; });
+	if (Player.PathReforges.Num() > 0 || (Carried && Carried->Evolve != INDEX_NONE))
+	{
+		return false; // the Reforging pick is made: the arm is over
+	}
+	const FName Id = Card.TargetWeapon.IsNone() ? Card.ContentId : Card.TargetWeapon;
+	if (Id != Carry)
+	{
+		OutScore = CarryRefuseScore;
+		return true;
+	}
+	const int32 Primary = DTReforge::PrimarySlot(Player.Weapons);
+	const bool bReady = Carried && Primary != INDEX_NONE && Player.Weapons[Primary].Id == Carry && Carried->Level >= DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
+	if (bReady)
+	{
+		return false;
+	}
+	OutScore = CarryScore;
+	return true;
+}
+
 float FDTBotBrain::CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const
 {
 	using namespace DTBotTuning;
+	float Carried = 0.0f;
+	if (CarryCardScore(Card, Player, Carried))
+	{
+		return Carried;
+	}
 	float Score = CardScore(Card, Hand, Player);
 	const float Aware = Profile.FitAwareness;
 	switch (Card.Kind)
@@ -881,6 +920,39 @@ int32 FDTBotBrain::ReforgePick(const FDTOfferHand& Hand, int32 Seed)
 	return Slots[Want % Slots.Num()];
 }
 
+int32 FDTBotBrain::CarryGiftLevel(const FDTPlayerRunState& Player, FName Carry)
+{
+	const FDTWeaponInstance* Carried = Player.Weapons.FindByPredicate([Carry](const FDTWeaponInstance& W) { return W.Id == Carry; });
+	if (!Carried || Carried->Evolve != INDEX_NONE || Player.PathReforges.Num() > 0 || Player.Level < DTConst::OFFER_REFORGING_LEVEL - DTBotTuning::CarryGiftLead)
+	{
+		return 0;
+	}
+	int32 Target = DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
+	for (const FDTWeaponInstance& Weapon : Player.Weapons)
+	{
+		Target = Weapon.Id != Carry ? FMath::Max(Target, Weapon.Level + 1) : Target;
+	}
+	return Target > Carried->Level ? Target : 0;
+}
+
+int32 FDTBotBrain::CarryPick(const FDTOfferHand& Hand) const
+{
+	if (Config.CarryWeapon.IsNone())
+	{
+		return INDEX_NONE;
+	}
+	for (int32 Index = 0; Index < Hand.Cards.Num(); ++Index)
+	{
+		const FDTOfferCard& Card = Hand.Cards[Index];
+		const bool bPath = Card.Kind == EDTCardKind::Reforging && Card.TargetWeapon.IsNone();
+		if (Config.bCarryHold ? bPath : (Card.Kind == EDTCardKind::Reforging && Card.TargetWeapon == Config.CarryWeapon))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
 int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player)
 {
 	if (Hand.Cards.Num() == 0)
@@ -898,7 +970,8 @@ int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState&
 		break;
 	case EDTBotPolicy::Steered:
 	{
-		const int32 Reforge = Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? ReforgePick(Hand, Config.Seed) : INDEX_NONE;
+		const int32 Carry = Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? CarryPick(Hand) : INDEX_NONE;
+		const int32 Reforge = Carry != INDEX_NONE ? Carry : (Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? ReforgePick(Hand, Config.Seed) : INDEX_NONE);
 		if (Reforge != INDEX_NONE)
 		{
 			Slot = Reforge;

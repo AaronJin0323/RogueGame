@@ -452,6 +452,26 @@ bool FDTReforgePulseWall::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallGap, "Dusktracer.Reforging.PulseWallGap", DTWeaponTestHarness::TestFlags) // T-RFG-12
+bool FDTReforgePulseWallGap::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	FDTHarness H;
+	const int32 Row = GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+	H.AddEnemy(FVector2f(DTReforge::Param(Row, TEXT("radius_uu")) - 20.0f, 0.0f));
+	const float Life = DTReforge::Param(Row, TEXT("grow_s")) + DTReforge::Param(Row, TEXT("hold_s"));
+	const int32 Steps = FMath::RoundToInt(5.0f * Life / Dt);
+	int32 Dark = 0;
+	for (int32 Step = 0; Step < Steps; ++Step)
+	{
+		H.StepOnce();
+		Dark += H.Weapons.GetLiveFields() == 0 ? 1 : 0;
+	}
+	TestTrue(FString::Printf(TEXT("the cooldown equals the ring's life, so a ring follows a ring: %d of %d steps with none"), Dark, Steps), Dark <= 10);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeVortex, "Dusktracer.Reforging.Vortex", DTWeaponTestHarness::TestFlags) // T-RFG-13
 bool FDTReforgeVortex::RunTest(const FString& Parameters)
 {
@@ -1022,6 +1042,87 @@ bool FDTBotCardPrimaryFirst::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the arm on: the primary's upgrade"), Brain.ChooseCard(Hand, H.Run.GetPlayer(0)), 2);
 	H.Run.GetPlayer(0).Weapons[0].Level = DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
 	TestEqual(TEXT("at the level it stops mattering"), Brain.ChooseCard(Hand, H.Run.GetPlayer(0)), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotCardCarry, "Dusktracer.Bot.CardCarry", DTWeaponTestHarness::TestFlags) // T-BOT-18
+bool FDTBotCardCarry::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Blade(TEXT("Weapon.ArcBlade"));
+	const FName Drones(TEXT("Weapon.OrbitalDrones"));
+	FDTHarness H;
+	Commit(H, TEXT("Weapon.PulseRifle"), 1);
+	FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+	const auto Make = [](EDTCardKind Kind, FName Id, FName Target)
+	{
+		FDTOfferCard Card;
+		Card.Kind = Kind;
+		Card.ContentId = Id;
+		Card.TargetWeapon = Target;
+		return Card;
+	};
+	const FDTOfferCard Key = Make(EDTCardKind::Blessing, FName(TEXT("Blessing.Storm.Tempest.Key")), NAME_None);
+	const FDTOfferCard Reserve = Make(EDTCardKind::Reserve, FName(TEXT("Reserve.Xp")), NAME_None);
+	const FDTOfferCard RifleUp = Make(EDTCardKind::WeaponUpgrade, Rifle, Rifle);
+	const FDTOfferCard BladeUp = Make(EDTCardKind::WeaponUpgrade, Blade, Blade);
+	const FDTOfferCard DronesNew = Make(EDTCardKind::Weapon, Drones, NAME_None);
+	H.Weapons.Give(H.Run, 0, Blade, 1);
+	FDTOfferHand Hand;
+	Hand.HandKind = EDTHandKind::Level;
+	Hand.Cards = { Key, RifleUp, BladeUp };
+
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Version = 2;
+	Config.Path = EDTPath::Storm;
+	Config.Archetype = FName(TEXT("Tempest"));
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	const float PlainKey = Brain.ScoreCard(Key, Hand, Player);
+	const float PlainRifle = Brain.ScoreCard(RifleUp, Hand, Player);
+	const float PlainBlade = Brain.ScoreCard(BladeUp, Hand, Player);
+	TestEqual(TEXT("the arm off: the Key"), Brain.ChooseCard(Hand, Player), 0);
+
+	Config.CarryWeapon = Blade;
+	Brain.Reset(Config);
+	TestEqual(TEXT("the arm leaves other kinds' scores alone"), Brain.ScoreCard(Key, Hand, Player), PlainKey);
+	TestEqual(TEXT("level tie with the Rifle: the carried upgrade"), Brain.ChooseCard(Hand, Player), 2);
+	FDTOfferHand Other = Hand;
+	Other.Cards = { RifleUp, Reserve };
+	TestEqual(TEXT("the Rifle's upgrade stays under Reserve"), Brain.ChooseCard(Other, Player), 1);
+	Other.Cards = { DronesNew, Reserve };
+	TestEqual(TEXT("a new weapon reads as usual"), Brain.ChooseCard(Other, Player), 0);
+
+	Player.Level = DTConst::OFFER_REFORGING_LEVEL - 3;
+	TestEqual(TEXT("no grant before its level"), FDTBotBrain::CarryGiftLevel(Player, Blade), 0);
+	Player.Level = DTConst::OFFER_REFORGING_LEVEL - 2;
+	TestEqual(TEXT("the grant reaches the evolution level"), FDTBotBrain::CarryGiftLevel(Player, Blade), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL);
+	Player.Weapons[0].Level = DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
+	TestEqual(TEXT("the grant clears every other weapon"), FDTBotBrain::CarryGiftLevel(Player, Blade), DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL + 1);
+	Player.Weapons[1].Level = DTConst::OFFER_REFORGE_EVOLVE_MIN_LEVEL;
+	TestEqual(TEXT("at the level but behind the Rifle on the tie: still the upgrade"), Brain.ChooseCard(Hand, Player), 2);
+	Player.Weapons[0].Level = 1;
+	TestEqual(TEXT("primary at the level: the Key again"), Brain.ChooseCard(Hand, Player), 0);
+	TestEqual(TEXT("nothing left to grant"), FDTBotBrain::CarryGiftLevel(Player, Blade), 0);
+	Player.Weapons[1].Level = 1;
+
+	FDTOfferHand Forge;
+	Forge.HandKind = EDTHandKind::Reforging;
+	Forge.Cards = { Make(EDTCardKind::Reforging, FName(TEXT("Transform.Storm")), NAME_None), Make(EDTCardKind::Reforging, FName(TEXT("Transform.Tide")), NAME_None),
+		Make(EDTCardKind::Reforging, FName(TEXT("Evolve.ArcBlade")), Blade) };
+	TestEqual(TEXT("the evolution, whatever the seed's card"), Brain.ChooseCard(Forge, Player), 2);
+	Config.bCarryHold = true;
+	Brain.Reset(Config);
+	TestEqual(TEXT("the control takes the Path card"), Brain.ChooseCard(Forge, Player), 0);
+	TestTrue(TEXT("config names the control"), Config.Describe().EndsWith(TEXT("carry=Weapon.ArcBlade carry_hold=1")));
+
+	Player.PathReforges.Add(0);
+	TestEqual(TEXT("a Reforging pick ends the arm: the Rifle"), Brain.ScoreCard(RifleUp, Hand, Player), PlainRifle);
+	TestEqual(TEXT("a Reforging pick ends the arm: the carried weapon"), Brain.ScoreCard(BladeUp, Hand, Player), PlainBlade);
+	TestEqual(TEXT("a Reforging pick ends the grant"), FDTBotBrain::CarryGiftLevel(Player, Blade), 0);
 	return true;
 }
 

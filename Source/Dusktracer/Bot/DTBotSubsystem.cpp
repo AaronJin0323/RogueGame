@@ -120,6 +120,11 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	Config.Version = FDTBotConfig::KnownVersion(CVarBotVersion.GetValueOnGameThread());
 	Config.Skill = CVarBotSkill.GetValueOnGameThread();
 	Config.bPrimaryFirst = FParse::Param(FCommandLine::Get(), TEXT("DTBotPrimaryFirst"));
+	if (FParse::Value(Cmd, TEXT("DTBotCarry="), Text))
+	{
+		Config.CarryWeapon = FName(*Text);
+		Config.bCarryHold = FParse::Param(Cmd, TEXT("DTBotCarryHold"));
+	}
 	Config.Seed = ADTGameMode::GetCommandLineSeed();
 	return Config;
 }
@@ -229,6 +234,35 @@ void UDTBotSubsystem::ApplyProbe()
 		Probe.Blessings.Num(), Probe.Weapons.Num(), Probe.Field, Probe.HpScale, Probe.WarmupS, Probe.WindowS, Probe.CastAtS);
 }
 
+void UDTBotSubsystem::ApplyCarry()
+{
+	const FName Carry = Brain.GetConfig().CarryWeapon;
+	UDTSimSubsystem* SimSys = Sim.Get();
+	UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+	if (Carry.IsNone() || !SimSys || !Weapons)
+	{
+		return;
+	}
+	const FDTPlayerRunState& Player = SimSys->GetRun().GetPlayer(0);
+	if (!bCarryGiven && Player.Keepers.Primary != EDTPath::None)
+	{
+		bCarryGiven = true;
+		if (!Player.Weapons.ContainsByPredicate([Carry](const FDTWeaponInstance& W) { return W.Id == Carry; }))
+		{
+			const EDTWeaponResult Given = Weapons->Give(0, Carry, 1);
+			UE_CLOG(Given != EDTWeaponResult::Ok, LogDT, Error, TEXT("Bot: carry %s refused (%d)"), *Carry.ToString(), static_cast<int32>(Given));
+		}
+	}
+	const int32 Target = FDTBotBrain::CarryGiftLevel(Player, Carry);
+	if (Target > 0)
+	{
+		const FDTWeaponInstance* Carried = Player.Weapons.FindByPredicate([Carry](const FDTWeaponInstance& W) { return W.Id == Carry; });
+		CarryGift += Target - Carried->Level;
+		const EDTWeaponResult Raised = Weapons->LevelUp(0, Carry, Target);
+		UE_CLOG(Raised != EDTWeaponResult::Ok, LogDT, Error, TEXT("Bot: carry %s to L%d refused (%d)"), *Carry.ToString(), Target, static_cast<int32>(Raised));
+	}
+}
+
 void UDTBotSubsystem::WriteBuildSnapshot()
 {
 	bSnapshotDone = true;
@@ -259,6 +293,8 @@ void UDTBotSubsystem::Activate(const FDTBotConfig& Config)
 	Hits = HitsStill = HitsWall = 0;
 	bStickAtRest = true;
 	bProbe = bProbeApplied = bSnapshotDone = false;
+	bCarryGiven = false;
+	CarryGift = 0;
 	Level630 = 0;
 	EndSeconds = 0.0;
 	HeroEventHandle = Heroes->OnHeroEvent.AddUObject(this, &UDTBotSubsystem::HandleHeroEvent);
@@ -393,7 +429,8 @@ void UDTBotSubsystem::WriteRecord() const
 	}
 	const FString ReadText = FString::Printf(TEXT("reforge_read=pillars:%d;pillar_s:%.2f;by_hit:%d;by_time:%d;discharges:%d;husks:%d;shades:%d\n"),
 		Read.Pillars, Read.PillarSeconds, Read.ShatterByHit, Read.ShatterByTime, Read.Discharges, Read.Husks, Read.Shades);
-	const FString Summary = ReadText + FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nreforge=%s\nconfig=%s\n"),
+	const FString CarryText = Brain.GetConfig().CarryWeapon.IsNone() ? FString() : FString::Printf(TEXT("carry_gift=%d\n"), CarryGift);
+	const FString Summary = ReadText + CarryText + FString::Printf(TEXT("outcome=%s\nend_s=%.4f\nlevel_630=%d\nsteps=%lld\ndash_presses=%d\nintercession_presses=%d\npicks=%d\ndeclines=%d\ninput_hash=%08x\nlast_hit=%s\nhits=%d\nhits_still=%d\nhits_wall=%d\nreforge=%s\nconfig=%s\n"),
 		bVictory ? TEXT("victory") : (bDead ? TEXT("death") : TEXT("timeout")), EndSeconds, Level630, Sim.IsValid() ? Sim->GetStepIndex() : -1,
 		Stats.DashPresses, Stats.IntercessionPresses, Stats.Picks, Stats.Declines, InputHash, *LastHit, Hits, HitsStill, HitsWall, *Reforge, *Brain.GetConfig().Describe());
 	FFileHelper::SaveStringToFile(Csv, *OutPath);
@@ -472,6 +509,7 @@ void UDTBotSubsystem::HandleStepEnd()
 		{
 			ApplyProbe();
 		}
+		ApplyCarry();
 		if (!bSnapshotDone && Player.Level >= DTConst::TEL_POWER_CHECK_LEVEL)
 		{
 			WriteBuildSnapshot();

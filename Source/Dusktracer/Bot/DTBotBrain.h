@@ -37,6 +37,10 @@ struct DUSKTRACER_API FDTBotConfig
 	float Skill = 1.0f;
 	/** R-BOT-16: a measuring arm; takes the primary weapon's upgrades first until it can evolve. */
 	bool bPrimaryFirst = false;
+	/** R-BOT-18: a measuring arm; this weapon is made the primary and carried to its evolution. None = off. */
+	FName CarryWeapon;
+	/** R-BOT-18: that arm's control: the same picks, and the Reforging hand takes its Path card, not the evolution. */
+	bool bCarryHold = false;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
 	/** Intercession presses: CastAuto = when the meter is full and a crowd is near; CastNever = none (a probe's no-cast arm);
@@ -82,6 +86,10 @@ public:
 	int32 ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState& Player);
 	/** R-BOT-15: the Reforging card this seed reads (Patron, second Keeper, evolution, cycling); INDEX_NONE with none in the hand. */
 	static int32 ReforgePick(const FDTOfferHand& Hand, int32 Seed);
+	/** R-BOT-18: the Reforging card the carry arm reads; INDEX_NONE with the arm off or its card missing. */
+	int32 CarryPick(const FDTOfferHand& Hand) const;
+	/** R-BOT-18: the level to grant Carry now, 0 for none. */
+	static int32 CarryGiftLevel(const FDTPlayerRunState& Player, FName Carry);
 
 	const FDTBotStats& GetStats() const { return Stats; }
 	FDTBotStats& GetStats() { return Stats; }
@@ -116,6 +124,8 @@ private:
 	FDTHeroInput ProbeInput(const FDTBotWorld& World);
 	float CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
 	float CardScoreV2(const FDTOfferCard& Card, const FDTOfferHand& Hand, const FDTPlayerRunState& Player) const;
+	/** R-BOT-18: true when the carry arm sets this card's score. */
+	bool CarryCardScore(const FDTOfferCard& Card, const FDTPlayerRunState& Player, float& OutScore) const;
 	int32 ReactionSteps() const;
 
 	FDTBotConfig Config;

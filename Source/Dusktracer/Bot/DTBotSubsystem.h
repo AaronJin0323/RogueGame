@@ -80,6 +80,8 @@ private:
 	void HandleHeroEvent(const FDTHeroEvent& Event);
 	void WriteRecord() const;
 	void ApplyProbe();
+	/** R-BOT-18: the grants of the carry arm. */
+	void ApplyCarry();
 	void WriteBuildSnapshot();
 
 	struct FMinute
@@ -109,6 +111,9 @@ private:
 	bool bProbe = false;
 	bool bProbeApplied = false;
 	bool bSnapshotDone = false;
+	/** R-BOT-18: the carried weapon was handed over; the levels the arm granted. */
+	bool bCarryGiven = false;
+	int32 CarryGift = 0;
 
 	FDTBotBrain Brain;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;

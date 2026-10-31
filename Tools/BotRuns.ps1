@@ -13,6 +13,7 @@
 # copied from Saved/Playtests and the log. Then Tools/bot_summary.py writes summary.csv + summary.md and runs -Check.
 # -Check T-DIR-01 alone defaults to the no-pick arm with C.DIR.BOT_RUNS seeds.
 # Prints "BOTRUNS: PASS|FAIL (...)"; exit 0 / 1 (a failed check or a run with no record fails).
+# -Carry runs the measuring arm of R-BOT-18: every -Arms arm once per weapon, unlocking only that weapon, labelled <arm>-Carry-<Name>.
 # -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
 param(
@@ -34,7 +35,11 @@ param(
 	# Non-starter ids to put in the run pool (DT.Unlock, D-013), comma-separated; "S2" = every S2 row of the catalogs plus the S1 non-starters.
 	[string[]]$Unlock = @(),
 	# R-BOT-16: the measuring arm that takes the primary weapon's upgrades first until it can evolve.
-	[switch]$PrimaryFirst
+	[switch]$PrimaryFirst,
+	# R-BOT-18: makes each named weapon the primary and carries it to its evolution. "All" = every row of Docs/09_Catalog/weapons.csv.
+	[string[]]$Carry = @(),
+	# R-BOT-18: that arm's control, which takes the Path card at the Reforging hand.
+	[switch]$CarryHold
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -138,18 +143,28 @@ if ($Jobs) {
 	exit $(if ($Missing) { 1 } else { 0 })
 }
 
+$Carry = @($Carry | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+if ($Carry -contains "All") { $Carry = @(Import-Csv (Join-Path $Root "Docs\09_Catalog\weapons.csv") | ForEach-Object { $_.id } | Select-Object -Unique) }
+$CarryRuns = if ($Carry.Count) { $Carry } else { @("") }
 foreach ($Arm in $Arms) {
 	$Parts = $Arm -split ':'
 	$Policy = $Parts[0]
-	$Label = ($Parts -join '-')
-	foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
-		$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
-		if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
-		if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
-		if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
-		$Keepers = @($Parts | Select-Object -Skip 1 | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
-		if ($Keepers.Count) { $Extra += "-DTUnlock=" + ($Keepers -join ',') }
-		$null = Start-Run $Label $Seed $Extra
+	foreach ($Weapon in $CarryRuns) {
+		$Label = ($Parts -join '-') + $(if ($Weapon) { "-Carry-" + ($Weapon -replace '^Weapon\.', '') } else { "" })
+		foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
+			$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
+			if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
+			if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
+			if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
+			$Unlocks = @($Parts | Select-Object -Skip 1 | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
+			if ($Weapon) {
+				$Unlocks += $Weapon
+				$Extra += "-DTBotCarry=$Weapon"
+				if ($CarryHold) { $Extra += "-DTBotCarryHold" }
+			}
+			if ($Unlocks.Count) { $Extra += "-DTUnlock=" + ($Unlocks -join ',') }
+			$null = Start-Run $Label $Seed $Extra
+		}
 	}
 }
 Reap-Runs 1

@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
+import evolve_read  # noqa: E402
 import gen_matrix  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
@@ -171,6 +172,58 @@ class BotLabel(unittest.TestCase):
 	def test_config(self):
 		self.assertEqual(bot_summary.read_config("policy=Steered path=Tide skill=0.60 seed=3 version=2"), ("2", "0.60"))
 		self.assertEqual(bot_summary.read_config("policy=Steered skill=1.00 seed=3"), ("1", "1.00"))
+
+
+class CarryRead(unittest.TestCase):
+	"""T-BOT-18: a carry run reads as taken, level, damage either side of the pick, and its log faults."""
+
+	def run_folder(self, root, label="Steered-Tide-Frost-Forge-Carry-ArcBlade_s3", log="[1][2]LogDT: Warning: odd\n[1][3]LogDT: Warning: odd\n"):
+		folder = os.path.join(root, label)
+		os.makedirs(folder)
+		with open(os.path.join(folder, "bot.csv.txt"), "w", encoding="utf-8") as stream:
+			stream.write("carry_gift=3\noutcome=victory\nend_s=950.0\nreforge=Evolve.ArcBlade\nhits=4\nlast_hit=a/b/c\nconfig=policy=Steered seed=3 version=2 carry=Weapon.ArcBlade\n")
+		with open(os.path.join(folder, "run.log"), "w", encoding="utf-8") as stream:
+			stream.write(log)
+		cards = [{"id": "Transform.Tide"}, {"id": "Evolve.ArcBlade"}]
+		records = [{"kind": "offer", "hand_id": 3, "hand_kind": "Reforging", "cards": cards},
+			{"kind": "offer_pick", "hand_id": 3, "card_kind": "Reforging", "id": "Evolve.ArcBlade"},
+			{"kind": "reforge", "t": 90.0, "dormant": "Mod.Fork", "weapon_level": 6},
+			{"kind": "sources", "owner": 0, "t": 60.0, "damage": {"Weapon.ArcBlade": 10, "Weapon.PulseRifle": 10}, "hits": {"Weapon.ArcBlade": 2}},
+			{"kind": "sources", "owner": 0, "t": 120.0, "damage": {"Weapon.ArcBlade": 500}},
+			{"kind": "sources", "owner": 0, "t": 180.0, "damage": {"Weapon.ArcBlade": 30, "Weapon.PulseRifle": 10}, "hits": {"Weapon.ArcBlade": 6}},
+			{"kind": "sources", "owner": 0, "t": 210.0, "damage": {"Weapon.ArcBlade": 15, "Weapon.PulseRifle": 5}}]
+		with open(os.path.join(folder, "1_1.jsonl"), "w", encoding="utf-8") as stream:
+			stream.write("\n".join(json.dumps(r, separators=(",", ":")) for r in records))
+		return folder
+
+	def test_run(self):
+		with tempfile.TemporaryDirectory() as root:
+			run = evolve_read.read_carry_run(self.run_folder(root), 900.0)
+		self.assertEqual((run["weapon"], run["seed"], run["reached"], run["reforge"]), ("Weapon.ArcBlade", 3, True, "Evolve.ArcBlade"))
+		self.assertEqual((run["hand"], run["level"], run["gift"], run["offered"]), (True, 6, 3, True))
+		self.assertEqual(run["fault_lines"], 2)
+		self.assertEqual(len(run["faults"]), 1)
+		damage = run["damage"]
+		self.assertEqual(damage["before"], 10.0)  # the pick's own interval counts on neither side
+		self.assertEqual(damage["after"], 30.0)
+		self.assertEqual(damage["all_after"], 40.0)
+		self.assertEqual((damage["hits_before"], damage["hits_after"]), (2.0, 4.0))
+		self.assertAlmostEqual(damage["share_after"], 0.75)
+
+	def test_rows(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.run_folder(root)
+			self.run_folder(root, label="Steered-Tide-Frost-Forge-Carry-ArcBlade_s4", log="")
+			rows = evolve_read.carry_rows(evolve_read.read_carry(root, 900.0))
+		self.assertEqual(len(rows), 1)
+		row = rows[0]
+		self.assertEqual((row["runs"], row["taken"], row["wins"], row["faults"], row["zero"]), (2, 2, 2, 2, 0))
+		self.assertEqual(row["rel"], 3.0)
+		self.assertEqual(row["dormant"]["Mod.Fork"], 2)
+
+	def test_no_log_is_a_fault(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.assertEqual(evolve_read.read_faults(root), (["no log"], 1))
 
 
 class S2Exit(unittest.TestCase):

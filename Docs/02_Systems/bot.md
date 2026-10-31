@@ -22,6 +22,7 @@ The bot is a tool, not a feature: it plays seeded headless runs so bands, gates 
 - **R-BOT-10** Second Keeper: until the second Keeper holds a blessing, its blessings outrank every card but the archetype's own Key and first Amp; after that they still outrank upgrades (`SecondFirstScore`, `SecondNextScore`). A second Keeper does not sit unblessed through a run of upgrades.
 - **R-BOT-15** Reforging: a hand with Reforging cards reads one of them by run seed, cycling Patron, second Keeper, evolution, so one batch reads all three (`reforging.md`). It takes a Reforging card over any filler blessing, and when the seed's card is missing it takes the next. This is a measuring choice, not a model of what a player likes. V1 stays as it was (R-BOT-01): a Reforging card scores its flat floor.
 - **R-BOT-16** `-DTBotPrimaryFirst` is a measuring arm, off by default: while the primary weapon (`weapons.md` R-WPN-03) is under `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL`, its upgrade outranks every card. It separates what the offers supply from what the card rules choose; it models no player. `config=` names it.
+- **R-BOT-18** `-DTBotCarry=<Weapon.Id>` is a measuring arm, off by default, for reading an evolution the Rifle's lead never reaches: it makes the weapon the primary and carries it to the Reforging hand. Offers show one weapon's upgrade in about one hand of six, so cards alone reach few evolutions, and the arm grants what they miss, as a probe scene does (the one exception to R-BOT-02, and only here): when the Patron commits it gives the weapon at level one, and at `C.OFFER.REFORGING_LEVEL` minus two (`CarryGiftLead`, the most levels one pickup was seen to add) it raises the weapon to `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL`, or one over any other weapon if that is higher. Until a Reforging pick is made, the weapon's upgrade outranks every card (`CarryScore`) and every other weapon's upgrade scores under Reserve (`CarryRefuseScore`). At the Reforging hand it takes the carried weapon's evolution, and when that card is missing R-BOT-15 stands. `-DTBotCarryHold` is its control: the same run, but the hand takes its first Path card. After the pick the card rules are the plain ones. `BotRuns.ps1 -Carry` runs it. The record's `carry_gift=` says how many levels the arm granted. It models no player, its grant is free power, and with the arm off nothing changes. `config=` names it.
 - **R-BOT-11** Card error: below `1.0` the bot reads each card's value through a taste: a score offset fixed per content id for the whole run (`TasteScore`), so it keeps misjudging the same card rather than rolling dice per hand. The fit terms of R-BOT-09 and R-BOT-10 count at weight `skill`: a weak player sees them less. Keeper cards take no taste: the Patron and second Keeper name the arm, and an arm must stay the arm it says it is.
 
 **Reading it**
@@ -36,6 +37,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 |---|---|---|---|
 | Skill profile | `DTBotSkillTuning::*`, `DTBotTuning::StickTauS`, `WallProbeUU` | tool parameter | R-BOT-04…08, R-BOT-14, T-BOT-03, T-BOT-14 |
 | Card scores | `DTBotTuning::ReachPenalty`, `ModReachShare`, `SecondWeaponFloor`, `SecondFirstScore`, `SecondNextScore`, `DTBotSkillTuning::MaxTasteScore` | tool parameter | R-BOT-09…11 |
+| Carry arm | `DTBotTuning::CarryScore`, `CarryRefuseScore`, `CarryGiftLead` | tool parameter | R-BOT-18 |
 | Reach sampling | `DTBotTuning::ReachSampleS`, `ReachWindowS`, `ReachMinSamples`, `ReachPriorUU` | tool parameter | R-BOT-09 |
 | First-attempt cutoff | C.DEATH.FIRST_ATTEMPT_CUTOFF_S | GATED(S2) | R-BOT-17, T-BOT-17 |
 | First-attempt share dead | C.DEATH.FIRST_ATTEMPT_SHARE | GATED(S2) | R-BOT-17, T-BOT-17 |
@@ -47,6 +49,8 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 |---|---|---|
 | `FDTBotConfig::Version` | `int32` | `1` or `2`; default `1` (R-BOT-01) |
 | `FDTBotConfig::Skill` | `float` | clamped to the unit range; v1 and v2 read it differently |
+| `FDTBotConfig::CarryWeapon` | `FName` | none = off (R-BOT-18) |
+| `FDTBotConfig::bCarryHold` | `bool` | the arm's control: no evolution taken |
 | `FDTBotSkillProfile` | struct | `ReactionS HoldS MarginUU LeaveUU CueMissP AttentionRounds ThreatRangeUU HorizonS StickErrDeg DashPlanP ImminentS CastCrowd TasteScore FitAwareness` |
 | `FDTBotPerception` | class | ring of past frames, the attended rounds, the cue list (R-BOT-04…06) |
 
@@ -63,6 +67,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - T-BOT-10 `Dusktracer.Bot.CardSecond`: with no second-Keeper blessing owned the Key beats an upgrade and a new weapon; after one, a second-Keeper card still beats an upgrade; the archetype's own Key still comes first.
 - T-BOT-15 `Dusktracer.Bot.CardReforge`: three seeds in a row take the three cards; a Reforging card beats a filler blessing; a missing card falls to the next.
 - T-BOT-16 `Dusktracer.Bot.CardPrimaryFirst`: off, the Key; on, the primary's upgrade over the Key and another weapon's upgrade; at the level, the Key again.
+- T-BOT-18 `Dusktracer.Bot.CardCarry`: off, the plain card; on, the carried upgrade over the Key, the Rifle's upgrade under Reserve, a new weapon as usual, the carried weapon at the level gives the Key back, a level tie with the Rifle does not; the grant waits for its level and clears every other weapon; the Reforging hand takes the evolution, the hold takes the Path card; a Reforging pick ends the arm. `Tools/tools_test.py` `CarryRead`: the reader turns a run into taken, level, grant, damage before and after the pick, and log faults.
 - T-BOT-11 `Dusktracer.Bot.CardTaste`: no taste at skill `1.0`; below it the same card reads the same score across hands of a run, differs by seed, and Keeper hands ignore it.
 - T-BOT-12 `Tools/tools_test.py` `BotHistogram`: death minutes bin per arm, wins and timeouts stay out of the histogram, `Tools/bot_compare.py` lines up two batches.
 - T-BOT-13 `Tools/tools_test.py` `BotLabel`: the summary names version and skill read from the records and says a batch mixes them.
@@ -71,7 +76,7 @@ Tool parameters, not game numbers: values live in `DTBotTuning` (`Bot/DTBotBrain
 - HUMAN: not measured. When O-008 sessions exist, compare human boss reach, death minute and pickup against the skill rows of `Docs/Validation/S2_bot_v2.md`, and only then call any setting a player.
 
 ## Telemetry
-- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>`, `hits=`, `hits_still=`, `hits_wall=`, `reforge=<id>`, `reforge_read=` (`reforging.md` Telemetry), and `config=` gains `version=`. The game's telemetry is unchanged.
+- Bot record `<out>.txt` gains `last_hit=<kind>/<role>/<attack>`, `hits=`, `hits_still=`, `hits_wall=`, `reforge=<id>`, `reforge_read=` (`reforging.md` Telemetry), and `config=` gains `version=`, and `primary_first=1`, `carry=<Weapon.Id>` and `carry_hold=1` when those arms run; `carry_gift=` is written for the carry arm. The game's telemetry is unchanged.
 
 ## Text
 - None: a tool, never player-facing.
