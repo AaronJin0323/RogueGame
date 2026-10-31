@@ -8,7 +8,7 @@
 
 /**
  * Default pawn ADTHero (one per local player, OwnerId = local player index) at the origin, followed by the ADTCameraPawn
- * (player 0); HUD ADTHUD. On BeginPlay starts a run seeded from -DTSeed=<n> (default 0) and its telemetry session
+ * (player 0); HUD ADTHUD. On BeginPlay starts a run on UDTSimSubsystem::GetLaunchSeed (07_Technical R-TEC-16) and its telemetry session
  * (02_Systems/telemetry.md) and the director (UDTDirector; -DTNoDirector keeps it off); EndPlay ends the session. When every hero is down the run ends with reason Death
  * (telemetry session ended "death"; the sim keeps stepping so debug and measurement paths still run).
  *
@@ -38,9 +38,6 @@ public:
 
 	/** True once the boss is defeated (boss.md R-BOS; the run ends in victory). */
 	bool IsVictory() const { return bVictory; }
-
-	/** The run seed from the command line (-DTSeed=<n>), 0 when absent. */
-	static int32 GetCommandLineSeed();
 
 private:
 	void HandleAllHeroesDown(int64 StepIndex);

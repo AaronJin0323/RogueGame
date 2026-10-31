@@ -34,7 +34,7 @@ namespace DTDebugBot
 			UE_LOG(LogDT, Log, TEXT("DT.Bot: off (pawn input stays muted until the next run)"));
 			return;
 		}
-		FDTBotConfig Config = UDTBotSubsystem::ReadConfig();
+		FDTBotConfig Config = Bot->ReadConfig();
 		Config.Policy = Args.Num() > 0 ? FDTBotConfig::ParsePolicy(Args[0]) : EDTBotPolicy::Steered;
 		if (Config.Policy == EDTBotPolicy::Off)
 		{

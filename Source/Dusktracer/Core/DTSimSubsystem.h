@@ -4,8 +4,10 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Core/DTFixedStep.h"
+#include "Core/DTRunSeed.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimTypes.h"
+#include "Misc/Optional.h"
 #include "DTSimSubsystem.generated.h"
 
 /**
@@ -22,6 +24,12 @@ public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
+
+	/**
+	 * The seed this world's run starts on (07_Technical R-TEC-16), decided once per world: the game mode and the bot
+	 * read one number, and a new world (Play in the editor again) draws a new one.
+	 */
+	const FDTRunSeed& GetLaunchSeed();
 
 	/** Starts a new run: reseeds every stream, resets per-player state and the shared view. */
 	void StartRun(int32 RunSeed, int32 NumPlayers);
@@ -59,6 +67,7 @@ private:
 	FDTFixedStep Clock;
 	FDTRunState Run;
 	FDTWorldView View;
+	TOptional<FDTRunSeed> LaunchSeed;
 	int64 StepIndex = 0;
 	bool bPauseRequested = false;
 	TArray<IDTSimSystem*> Systems[static_cast<int32>(EDTSimPhase::Count)];
