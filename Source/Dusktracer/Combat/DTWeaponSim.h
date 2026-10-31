@@ -35,6 +35,8 @@ struct FDTWeaponCounters
 	int64 Spawned = 0;   // emissions that passed the spawn-rate cap
 	int64 Throttled = 0; // emissions dropped by the spawn-rate cap (R-WPN-09)
 	int64 Impacts = 0;   // hits this weapon's emissions made, seen by the weapon system
+	int64 DuoFields = 0; // of Spawned: emissions a duo reaction's field spent on this weapon (S2_perf.md)
+	int64 DuoFieldsThrottled = 0; // of Throttled: duo fields the spawn-rate cap dropped
 };
 
 /** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
@@ -65,6 +67,7 @@ struct FDTReforgeRead
 	int32 Discharges = 0;
 	int32 Husks = 0;
 	int32 Shades = 0;
+	int32 Lances = 0;
 };
 
 /** What reactions ask of the hero (reactions.md): the Keeper subsystem writes them into FDTHeroStats. */
@@ -696,7 +699,7 @@ private:
 	/** Momentum, tailwind and dash volleys: reads hero motion, rewrites this step's composed specs. */
 	void StepKeeperHero(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, FPlayerRuntime& Player, FDTPlayerRunState& RunPlayer);
 	void StepKeeperState(const FDTSimContext& Context);
-	void SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage);
+	void SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage, bool bDuo = false);
 	int32 HitCircle(const FDTSimContext& Context, int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& Center,
 		float Radius, float Damage, bool bRollCrit, const FDTWeaponSpec* Spec, TArray<FDTEnemyHandle>* OutHit = nullptr);
 

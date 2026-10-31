@@ -289,6 +289,7 @@ FDTReforgeRead FDTWeaponSim::GetReforgeRead(int32 OwnerId) const
 void FDTWeaponSim::RaiseShade(int32 OwnerId, FPlayerRuntime& Player)
 {
 	const int32 Row = Player.CollectionRow;
+	float SeatTimer = 0.0f;
 	if (GetLiveShades(OwnerId) >= FMath::RoundToInt(DTReforge::Param(Row, TEXT("shades_max"))))
 	{
 		int32 Oldest = INDEX_NONE;
@@ -299,11 +300,14 @@ void FDTWeaponSim::RaiseShade(int32 OwnerId, FPlayerRuntime& Player)
 				Oldest = Index;
 			}
 		}
+		// R-RFG-19: the seat keeps its cooldown, so a kill at the cap neither buys a volley nor delays one.
+		SeatTimer = Hunters[Oldest].Timer;
 		Hunters.RemoveAtSwap(Oldest);
 	}
 	FHunter& Shade = Hunters.AddDefaulted_GetRef();
 	Shade.OwnerId = OwnerId;
 	Shade.DmgRatio = DTReforge::Param(Row, TEXT("dmg"));
+	Shade.Timer = SeatTimer;
 	Shade.bShade = true;
 	Shade.ShadeNumber = Player.ShadesRaised++;
 }

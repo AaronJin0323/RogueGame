@@ -135,5 +135,42 @@ Spawned XP over model 0.789 against 0.789; runs at 30 decisions or more 58 again
 - Under the arm Quicksilver/Rebound:Storm fell from 15 wins to 12 and Radiance/Lance:Storm to 13: evolving a Rifle may strip what their Keeper cards need. Not traced.
 - Against the control Radiance/Solar:Tide fell from 11 at the boss to 8, Whirlpool from 5 to 2, Shade/Economy from 15 to 13. 15 seeds, not separated from noise; these arms lean on Keeper hits, so the slot fix may matter there.
 - Zenith's boss time drops by a quarter on 28 runs: the one row that shows in any number.
-- The perf scene owns no Reforging card: Shades, lances and rings are unmeasured at caps.
+- Shades, lances and rings at the caps: `S2_perf.md`.
 - A human, on any of this.
+
+# Collection: a replacing Shade's free volley (2026-10-31)
+
+Class: BUG. Layer: `Combat/` (`RaiseShade`). Replaces: a replacing Shade's timer of zero; no rule, number or card moved. The lead came from `S2_perf.md`. Every number is a bot at skill 1.0: **a bound, never a human reading.**
+
+## Failing first
+`Dusktracer.Reforging.CollectionCooldown`: a full orbit of 10 Shades over one enemy for 3 s, with and without a Marked kill on every step. On the code of 6cacd12: expected 120 hits, got 358. So the bug is real: each replacement fired at once, and a Shade replaced within its cooldown never reached its own volley. Green after the fix, with exactly 120.
+
+## The fix
+The replacing Shade takes the replaced Shade's timer, as it already took the seat. Starting at a full cooldown instead would have starved the orbit: `shades_max` kills inside one cooldown and no Shade ever fires. A Shade raised below the cap still starts at zero, so a run has at most `shades_max` of those; left as it is, and not read here.
+
+## Bot effect
+Six arms, seeds 1..15, 90 runs a batch, the same command on both sides. Three have Shade as Patron, three as second. Before is this branch's test on the unfixed sim, 6cacd12's game code.
+```
+$Arms = "Steered:Shade:Hound:Storm,Steered:Shade:Hunters:Forge,Steered:Shade:Economy:Storm,Steered:Storm:Tempest:Shade,Steered:Forge:Hammer:Shade,Steered:Tide:Frost:Shade"
+& Tools\BotRuns.ps1 -Arms $Arms -Seeds 15 -BotVersion 2 -Skill 1.0 -Parallel 8 -Stagger 1.5 -Check T-OFF-15 -Out Saved\BotRuns\sf_after
+python -I Tools\bot_compare.py before=Saved\BotRuns\sf_before after=Saved\BotRuns\sf_after
+```
+
+| Arm: boss reach, wins | before | after |
+|---|---|---|
+| Shade/Hound:Storm | 14/15, 14 | 15/15, 14 |
+| Shade/Hunters:Forge | 15/15, 15 | 15/15, 15 |
+| Shade/Economy:Storm | 13/15, 12 | 15/15, 14 |
+| Storm/Tempest:Shade | 15/15, 14 | 15/15, 14 |
+| Forge/Hammer:Shade | 15/15, 15 | 15/15, 15 |
+| Tide/Frost:Shade | 14/15, 14 | 15/15, 15 |
+| All six | 86/90, 84 | 90/90, 87 |
+| The 49 Collection runs | 45/49, 44 | 49/49, 47 |
+
+- **The change is contained.** The 41 runs that raised no Shade have the same input hash on both sides. The same 49 runs took Collection, and all 49 passed the cap, with about 1300 Shades raised per run.
+- **T-OFF-15:** PASS 86/86 before, 90/90 after, mean decisions 29.13 and 29.03.
+- **The direction is not what the bug predicts.** Taking free damage away should cost wins, and the arms gained them. Six of 49 runs changed result: five better, one worse (Hound seed 8). On 15 seeds that is inside the noise, and every Collection run diverges after L16, so it does not show that the fix helps. What it does show is that the fix cost no reach or wins on these arms. Mean win time moved from 964.3 to 967.4 s, on different sets of winners. Why the arms did not lose is not traced.
+- **Not read:** the 100× crowd of `S2_perf.md`, where the lead guessed these volleys carry much of `StepWeapons`. `Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 Hp=100"` would read it.
+
+## Gate
+`Tools\Gate.ps1 -Base dev/s2`: PASS at fa24a51, 393 tests run, 0 failed, smoke en and zh-Hans, contrast 7/7; pad, scope and mac not run. The commit after it is this line.

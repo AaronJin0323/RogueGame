@@ -1,6 +1,7 @@
 #include "Combat/DTWeaponSim.h"
 #include "Combat/DTBulletPool.h"
 #include "Core/DTConstantsGen.h"
+#include "Dusktracer.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Telemetry/DTTelemetrySources.h"
 
@@ -1550,6 +1551,7 @@ void FDTWeaponSim::SplitCharged(const FDTSimContext& Context, FDTBulletPool* Bul
 	}
 	const int32 Lances = FMath::RoundToInt(DTReforge::Param(Row, TEXT("lances")));
 	const float Fan = DTReforge::Param(Row, TEXT("fan_deg"));
+	Players[Charged.OwnerId].Read.Lances += Lances;
 	for (int32 Index = 0; Index < Lances; ++Index)
 	{
 		const float Part = Lances > 1 ? static_cast<float>(Index) / static_cast<float>(Lances - 1) : 0.5f;
@@ -2201,7 +2203,7 @@ void FDTWeaponSim::StepPillars(const FDTSimContext& Context, int32 OwnerId, FPla
 	}
 }
 
-void FDTWeaponSim::SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage)
+void FDTWeaponSim::SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const FVector2f& At, const FDTFlagParams& Params, float BaseDamage, bool bDuo)
 {
 	FWeaponRuntime* Runtime = FindRuntime(OwnerId, Slot);
 	if (!Runtime)
@@ -2223,8 +2225,10 @@ void FDTWeaponSim::SpawnField(int32 OwnerId, int32 Slot, uint16 SourceId, const 
 	}
 	if (!TryEmit(*Runtime))
 	{
+		Runtime->Counters.DuoFieldsThrottled += bDuo ? 1 : 0;
 		return;
 	}
+	Runtime->Counters.DuoFields += bDuo ? 1 : 0;
 	FField& Field = Fields.AddDefaulted_GetRef();
 	Field.OwnerId = OwnerId;
 	Field.Slot = static_cast<int8>(Slot);
@@ -2338,6 +2342,7 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 
 void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bullets)
 {
+	CSV_SCOPED_TIMING_STAT(DT, StepWeapons);
 	if (!Context.Run || !Context.View)
 	{
 		return;
@@ -2459,6 +2464,7 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 
 void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 {
+	CSV_SCOPED_TIMING_STAT(DT, ObserveBullets);
 	using namespace DTWeaponSimLocal;
 	if (!Context.View)
 	{
@@ -2749,6 +2755,7 @@ int32 FDTWeaponSim::IndexOfSerial(uint32 Serial) const
 
 void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bullets)
 {
+	CSV_SCOPED_TIMING_STAT(DT, WeaponEffects);
 	if (!Context.Run || !Context.View)
 	{
 		return;

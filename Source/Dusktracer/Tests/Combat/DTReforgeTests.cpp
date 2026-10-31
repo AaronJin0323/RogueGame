@@ -686,6 +686,55 @@ bool FDTReforgeCollection::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeCollectionCooldown, "Dusktracer.Reforging.CollectionCooldown", DTWeaponTestHarness::TestFlags) // T-RFG-19
+bool FDTReforgeCollectionCooldown::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Row = DTReforge::FindPath(EDTPath::Shade);
+	const uint16 Shade = DTWeapons::KeeperSource(EDTPath::Shade);
+	const int32 Max = FMath::RoundToInt(DTReforge::Param(Row, TEXT("shades_max")));
+	// A full orbit over one enemy for three seconds, with or without a Marked kill on every step.
+	const auto Scene = [Row, Shade, Max](bool bKills)
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+		H.Run.GetPlayer(0).PathReforges.Add(Row);
+		H.StepOnce();
+		uint32 Serial = 900000;
+		const auto MarkedKill = [&H, &Serial]()
+		{
+			FDTKill Dead;
+			Dead.EnemySerial = ++Serial;
+			Dead.OwnerId = 0;
+			Dead.Position = FVector2f(5000.0f, 0.0f);
+			H.Weapons.ApplyMark(0, Dead.EnemySerial, H.Step);
+			H.PendingKills.Add(Dead);
+		};
+		for (int32 Index = 0; Index < Max; ++Index)
+		{
+			MarkedKill();
+			H.StepOnce();
+		}
+		H.AddEnemy(FVector2f(350.0f, 0.0f));
+		H.HitLog.Reset();
+		const int32 Steps = FMath::RoundToInt(3.0f / Dt);
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			if (bKills)
+			{
+				MarkedKill();
+			}
+			H.StepOnce();
+		}
+		return H.CountHitsFrom(Shade);
+	};
+	const int32 Steady = Scene(false);
+	TestTrue(TEXT("a full orbit fires"), Steady > 0);
+	TestEqual(TEXT("replacing the oldest buys no volley and costs none: the seats keep the weapon's cooldown"), Scene(true), Steady);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeZenith, "Dusktracer.Reforging.Zenith", DTWeaponTestHarness::TestFlags) // T-RFG-20
 bool FDTReforgeZenith::RunTest(const FString& Parameters)
 {

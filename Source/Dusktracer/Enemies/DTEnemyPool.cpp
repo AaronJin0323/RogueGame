@@ -2,6 +2,7 @@
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTRunState.h"
+#include "Dusktracer.h"
 #include "Enemies/DTElite.h"
 
 namespace DTEnemyPoolImpl
@@ -1289,6 +1290,7 @@ void FDTEnemyPool::AppendContacts(FDTWorldView& View) const
 
 void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 {
+	CSV_SCOPED_TIMING_STAT(DT, StepEnemies);
 	check(Context.View);
 	FDTWorldView& View = *Context.View;
 	// R-KEE-37: statuses and telegraph leads run in sim time, everything else on the enemy side in enemy time.
@@ -1440,6 +1442,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 
 int32 FDTEnemyPool::ResolveHits(const FDTSimContext& Context)
 {
+	CSV_SCOPED_TIMING_STAT(DT, ResolveHits);
 	check(Context.View && Context.Run);
 	FDTWorldView& View = *Context.View;
 	View.Kills.Reset();
