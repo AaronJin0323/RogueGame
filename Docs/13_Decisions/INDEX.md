@@ -23,3 +23,4 @@
 | D-019 | Frost and Stillness casts drop Tide's line | RULE | applied |
 | D-020 | Pulse Wall's `dps` is a ratio of one round's damage, per enemy | RULE | applied |
 | D-021 | The `Dusktracer` module builds `/fp:precise` in every target | RULE | applied |
+| D-022 | S3 starts on `dev/s3` before the S1 and S2 exit tests | GO-NOGO | applied |
