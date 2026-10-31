@@ -1,7 +1,7 @@
 # T-TEC-10 performance measurement (07_Technical R-TEC-10, 11_Quality s5) on the stress arena.
 #   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX 1920 -ResY 1080] [-Warmup <s>] [-Frames <n>]
 #                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2] [-Package]
-# -Package measures the Development package of Tools\Package.ps1 instead of the editor (R-TEC-15: the frame cost a player's float mode pays;
+# -Package (T-PKG-12) measures the Development package of Tools\Package.ps1 instead of the editor (R-TEC-15: the frame cost a player's float mode pays;
 # Shipping has no CSV profiler, so Development stands in). The same scene, budgets and proof; perf.csv marks the row "[package]".
 # -Scene S2 is the S2 proof scene (DT.PerfScene S2, Docs/Validation/S2_perf.md): it adds to the same budgets and load floors a proof
 # from the capture window itself (the CSV's DT/S2Sum_* last minus first, DT/S2Live_* median, and the DT/ phase timers as a profile),
