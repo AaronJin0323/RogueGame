@@ -58,6 +58,21 @@ void FDTMenuState::Ask(EDTMenuAction Action)
 	Focus = static_cast<int32>(EDTConfirmRow::Cancel); // R-SET-20
 }
 
+void FDTMenuState::OpenQuitConfirm()
+{
+	Open();
+	Ask(EDTMenuAction::Quit);
+}
+
+EDTRunOverRow FDTMenuState::RunOverRowAt(int32 Row) const
+{
+	if (!bHubRow)
+	{
+		return static_cast<EDTRunOverRow>(Row);
+	}
+	return Row == 0 ? EDTRunOverRow::ReturnToHub : static_cast<EDTRunOverRow>(Row - 1);
+}
+
 void FDTMenuState::BackToPause()
 {
 	const EDTPauseRow Row = Pending == EDTMenuAction::Restart ? EDTPauseRow::Restart : (Pending == EDTMenuAction::Abandon ? EDTPauseRow::Abandon : EDTPauseRow::Quit);
@@ -74,7 +89,7 @@ int32 FDTMenuState::NumRows() const
 	case EDTMenuScreen::Settings: return static_cast<int32>(EDTSettingRow::Num);
 	case EDTMenuScreen::Controls: return ResetRow() + 1;
 	case EDTMenuScreen::Confirm: return static_cast<int32>(EDTConfirmRow::Num);
-	case EDTMenuScreen::RunOver: return static_cast<int32>(EDTRunOverRow::Num);
+	case EDTMenuScreen::RunOver: return static_cast<int32>(EDTRunOverRow::Num) + (bHubRow ? 1 : 0);
 	default: return 0;
 	}
 }
@@ -135,6 +150,12 @@ FDTMenuOutcome FDTMenuState::Apply(EDTMenuCommand Command, FDTUserSettings& Sett
 			{
 				Outcome.Action = Pending;
 			}
+			else if (bHubHost)
+			{
+				Pending = EDTMenuAction::None;
+				Close();
+				Outcome.bClosed = true;
+			}
 			else
 			{
 				BackToPause();
@@ -142,7 +163,8 @@ FDTMenuOutcome FDTMenuState::Apply(EDTMenuCommand Command, FDTUserSettings& Sett
 		}
 		else if (Screen == EDTMenuScreen::RunOver)
 		{
-			Outcome.Action = Focus == static_cast<int32>(EDTRunOverRow::Restart) ? EDTMenuAction::Restart : EDTMenuAction::Quit;
+			const EDTRunOverRow Row = RunOverRowAt(Focus);
+			Outcome.Action = Row == EDTRunOverRow::ReturnToHub ? EDTMenuAction::ReturnToHub : (Row == EDTRunOverRow::Restart ? EDTMenuAction::Restart : EDTMenuAction::Quit);
 		}
 		else if (Screen == EDTMenuScreen::Settings)
 		{
@@ -178,12 +200,12 @@ FDTMenuOutcome FDTMenuState::Apply(EDTMenuCommand Command, FDTUserSettings& Sett
 			Focus = static_cast<int32>(EDTSettingRow::Controls);
 			Status = EDTMenuStatus::None;
 		}
-		else if (Screen == EDTMenuScreen::Settings)
+		else if (Screen == EDTMenuScreen::Settings && !bHubHost)
 		{
 			Screen = EDTMenuScreen::Pause;
 			Focus = static_cast<int32>(EDTPauseRow::Settings);
 		}
-		else if (Screen == EDTMenuScreen::Confirm)
+		else if (Screen == EDTMenuScreen::Confirm && !bHubHost)
 		{
 			BackToPause();
 		}

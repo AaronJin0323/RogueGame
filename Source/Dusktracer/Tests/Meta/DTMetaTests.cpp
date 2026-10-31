@@ -697,7 +697,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetReaders, "Dusktracer.Meta.Readers", DTMet
 bool FDTMetReaders::RunTest(const FString& Parameters)
 {
 	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GameSourceDir(), TEXT("Dusktracer")));
-	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp") };
+	const TArray<FString> Allowed = { TEXT("Boss/DTBossSubsystem.cpp"), TEXT("Settings/DTMenuSubsystem.cpp"),
+		TEXT("Hub/DTHubData.h"), TEXT("Hub/DTHubFlow.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);
@@ -707,7 +708,7 @@ bool FDTMetReaders::RunTest(const FString& Parameters)
 	{
 		FString Rel = File;
 		FPaths::MakePathRelativeTo(Rel, *(Root + TEXT("/")));
-		if (Rel.StartsWith(TEXT("Meta/")) || Rel.StartsWith(TEXT("Tests/Meta/")))
+		if (Rel.StartsWith(TEXT("Meta/")) || Rel.StartsWith(TEXT("Tests/Meta/")) || Rel.StartsWith(TEXT("Tests/Hub/")))
 		{
 			continue;
 		}

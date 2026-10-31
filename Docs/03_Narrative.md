@@ -70,4 +70,4 @@ The Codex sorts by layer, not unlock time, so the book reads as a descent. `Code
 
 ## 7. Replace points
 
-No system reads these tables yet. The Vigil hub, Codex screen, Discovery tracker and toast channel own how rows appear, and they must honour `Unlock`; if they cannot, the row's `Unlock` changes, not the rule. Warden form names are not in v0.1: the Handoff has only zh for them and the UI does not show them.
+`ST_Codex` is read by the hub (`02_Systems/vigil.md` R-VIG-08, R-VIG-09); no system reads the others yet. The Discovery tracker and toast channel own how rows appear, and they must honour `Unlock`; if they cannot, the row's `Unlock` changes, not the rule. Warden form names are not in v0.1: the Handoff has only zh for them and the UI does not show them.

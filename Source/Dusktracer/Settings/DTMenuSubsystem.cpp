@@ -7,6 +7,7 @@
 #include "Game/DTGameMode.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
+#include "Hub/DTHubFlow.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
@@ -227,9 +228,22 @@ void UDTMenuSubsystem::Close()
 	SetPaused(false);
 }
 
+void UDTMenuSubsystem::OpenQuitConfirm()
+{
+	if (!IsOpen())
+	{
+		RequestPause();
+	}
+	if (IsOpen())
+	{
+		State.OpenQuitConfirm();
+	}
+}
+
 void UDTMenuSubsystem::OpenRunOver(EDTRunOverKind Kind)
 {
 	State.OpenRunOver(Kind);
+	State.bHubRow = DTHubFlow::Enabled();
 	RunOverGuardLeft = DTConst::SETTINGS_RUN_OVER_GUARD_S;
 	SnapshotKeys();
 	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)
@@ -278,9 +292,34 @@ void UDTMenuSubsystem::RestartRun(TOptional<int32> ForcedSeed)
 	bLeaving = true;
 }
 
+void UDTMenuSubsystem::ReturnToHub()
+{
+	if (bLeaving)
+	{
+		return;
+	}
+	CloseRun(TEXT("restart")); // a run already closed keeps its own reason
+	bReturnPending = true;
+	bRestartPending = true;
+	bLeaving = true;
+}
+
 void UDTMenuSubsystem::FinishRestart()
 {
 	bRestartPending = false;
+	if (bReturnPending)
+	{
+		UE_LOG(LogDT, Log, TEXT("Menu: return to the hub"));
+		if (ReturnOverride)
+		{
+			ReturnOverride();
+		}
+		else if (UWorld* World = GetWorld())
+		{
+			UGameplayStatics::OpenLevel(World, FName(*UWorld::RemovePIEPrefix(World->GetOutermost()->GetName())));
+		}
+		return;
+	}
 	UE_LOG(LogDT, Log, TEXT("Menu: restart on seed %d"), PendingSeed);
 	if (RestartOverride)
 	{
@@ -314,6 +353,7 @@ void UDTMenuSubsystem::HandleOutcome(const FDTMenuOutcome& Outcome)
 	case EDTMenuAction::Restart: RestartRun(); break;
 	case EDTMenuAction::Abandon: AbandonRun(); break;
 	case EDTMenuAction::Quit: QuitGame(); break;
+	case EDTMenuAction::ReturnToHub: ReturnToHub(); break;
 	default: break;
 	}
 	if (Outcome.bClosed)

@@ -33,7 +33,7 @@ namespace DTMenuScreenLocal
 	const TCHAR* const PauseRowKeys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
 	const TCHAR* const EndKeys[] = { TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"), TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"),
 		TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"), TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"),
-		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line") };
+		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line"), TEXT("RunSummary.ReturnTo") };
 	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
 		TEXT("Settings.Percent"), TEXT("Settings.LanguageName.en"), TEXT("Settings.LanguageName.zhHans"), TEXT("Settings.On"), TEXT("Settings.Off"),
 		TEXT("Settings.Controls.Open"), TEXT("Settings.Hint.Volume"), TEXT("Settings.Hint.Graphics"), TEXT("Settings.Hint.Shake"), TEXT("Settings.Hint.Flash"),
@@ -203,7 +203,8 @@ const TCHAR* DTMenuText::PlainRowKey(const FDTMenuState& State, int32 Row)
 {
 	if (State.Screen == EDTMenuScreen::RunOver)
 	{
-		return Row == static_cast<int32>(EDTRunOverRow::Restart) ? TEXT("Pause.Restart") : TEXT("Pause.Quit");
+		const EDTRunOverRow Kind = State.RunOverRowAt(Row);
+		return Kind == EDTRunOverRow::ReturnToHub ? TEXT("RunSummary.ReturnTo") : (Kind == EDTRunOverRow::Restart ? TEXT("Pause.Restart") : TEXT("Pause.Quit"));
 	}
 	if (State.Screen == EDTMenuScreen::Confirm)
 	{
@@ -268,7 +269,8 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 			{
 				P.Frame(Left, Y + FocusInset * P.S, Inner, RowH - 2.0f * FocusInset * P.S, Text);
 			}
-			P.Centered(Ui(DTMenuText::PlainRowKey(State, Row)), X + 0.5f * W, TextY, BodyScale, Text);
+			// Only RunSummary.ReturnTo takes an argument: the hub's name.
+			P.Centered(FText::Format(Ui(DTMenuText::PlainRowKey(State, Row)), FText::FromStringTable(TEXT("ST_World"), TEXT("World.Vigil"))), X + 0.5f * W, TextY, BodyScale, Text);
 		}
 		else if (State.Screen == EDTMenuScreen::Settings)
 		{

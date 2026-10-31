@@ -127,7 +127,7 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (the meta row 
 `ST_UI.Summary.Line`: one row, en and zh-Hans. The wording comes from `Summary.Retained` and `RunSummary.Balance` of the source tables, joined on one line. Name of the currency: Ichor, 神血 (`G01_Name.md`, `Glossary.md`). Every other source row with Ichor in it (`Tree.*`, `Summary.*`) waits for its screen.
 
 ## Out of scope
-- The Tree, its costs and screen; Discoveries and their table; the Hub; Codex layers; the return line after a death. The fields exist; the systems are their own specs.
+- The Tree, its costs and screen; Discoveries and their table; the return line after a death. The hub and the Codex are `vigil.md`. The fields exist; the systems are their own specs.
 - Heat, Keeper Bids (Lien), Omens and Off-ledger shares, all of which change the award later; the Currency Reserve card (`offers.md`).
 - Cloud saves, several profiles, a save-reset screen, a backup copy beyond R-MET-12.
 - Co-op: one profile, the team's tally. A second profile is `coop.md`'s to ask for.

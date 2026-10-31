@@ -41,6 +41,8 @@ public:
 	int32 AdvanceFrame(float DeltaTime);
 
 	/** Pause at the next step boundary (an open hand in solo, offers.md R-OFF-11): held until ClearPauseRequest. */
+	/** This world is the hub: no run starts by itself and no step runs (vigil.md R-VIG-01). Set before begin play. */
+	void HoldForHub() { bHeldForHub = true; }
 	void RequestPause() { bPauseRequested = true; }
 	void ClearPauseRequest() { bPauseRequested = false; }
 	bool IsPauseRequested() const { return bPauseRequested; }
@@ -61,5 +63,6 @@ private:
 	FDTWorldView View;
 	int64 StepIndex = 0;
 	bool bPauseRequested = false;
+	bool bHeldForHub = false;
 	TArray<IDTSimSystem*> Systems[static_cast<int32>(EDTSimPhase::Count)];
 };

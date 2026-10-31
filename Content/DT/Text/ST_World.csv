@@ -41,3 +41,6 @@ MuscleMemory.Stage2.Name,Reflex,本能,Stage name. No system reads this row yet.
 MuscleMemory.Stage2.Desc,Dashing through an active enemy telegraph gives back half the dash cooldown.,冲刺穿过敌人的攻击预警区域时，返还一半冲刺冷却。,Stage rules. No system reads this row yet.,,0,Start
 MuscleMemory.Stage3.Name,Form,架势,Stage name. No system reads this row yet.,,0,Start
 MuscleMemory.Stage3.Desc,The first weapon you take in a run can reach level 9.,每局拿到的第一件武器，最高可升到 Lv.9。,Stage rules. No system reads this row yet.,,0,Start
+Hub.Shrine.Prompt,Accept one Keeper's terms for this run.,选一位司者作为本局的主司。,Shrine subtitle; source wording and zh_overrides.,,0,Start
+Hub.Shrine.Locked,Sealed,封存,Shrine marker on a Keeper that cannot be chosen yet; source wording and zh_overrides.,,0,Start
+Hub.Shrine.LockedHint,This Keeper is not taking terms yet.,这位司者暂时还不能选。,Shrine hint on a focused sealed Keeper; source wording and zh_overrides.,,0,Start

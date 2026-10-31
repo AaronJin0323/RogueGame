@@ -23,6 +23,8 @@ public:
 	static FDTMetaSession* FindSession(const UObject* WorldContext);
 	/** R-MET-17: 0 with no session. */
 	static int32 GetWins(const UObject* WorldContext);
+	/** The profile, read only (the hub, vigil.md R-VIG-14); nullptr with no session. */
+	static const FDTMetaProfile* ReadProfile(const UObject* WorldContext);
 
 private:
 	FDTMetaSession Session;

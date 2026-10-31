@@ -282,7 +282,8 @@ bool FDTSetReaders::RunTest(const FString& Parameters)
 	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GameSourceDir(), TEXT("Dusktracer")));
 	const TArray<FString> Allowed = {
 		TEXT("Game/DTHUD.cpp"), TEXT("Offers/DTOfferScreen.cpp"), TEXT("Player/DTHero.cpp"), TEXT("Player/DTInputSet.cpp"),
-		TEXT("Enemies/DTTelegraphRenderer.cpp"), TEXT("Enemies/DTEnemyBulletRenderer.cpp") };
+		TEXT("Enemies/DTTelegraphRenderer.cpp"), TEXT("Enemies/DTEnemyBulletRenderer.cpp"),
+		TEXT("Hub/DTHubState.h"), TEXT("Hub/DTHubScreen.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);
@@ -292,7 +293,7 @@ bool FDTSetReaders::RunTest(const FString& Parameters)
 	{
 		FString Rel = File;
 		FPaths::MakePathRelativeTo(Rel, *(Root + TEXT("/")));
-		if (Rel.StartsWith(TEXT("Settings/")) || Rel.StartsWith(TEXT("Tests/Settings/")))
+		if (Rel.StartsWith(TEXT("Settings/")) || Rel.StartsWith(TEXT("Tests/Settings/")) || Rel.StartsWith(TEXT("Tests/Hub/")))
 		{
 			continue;
 		}
