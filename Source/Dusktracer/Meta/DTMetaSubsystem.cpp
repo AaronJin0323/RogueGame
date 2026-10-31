@@ -2,6 +2,8 @@
 #include "Dusktracer.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Meta/DTDiscovery.h"
+#include "Meta/DTRunRecorder.h"
 #include "Misc/App.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/CommandLine.h"
@@ -34,6 +36,16 @@ namespace DTMetaSubsystemLocal
 				Session->Write();
 			}
 		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs CmdPlant(TEXT("DT.Meta.Plant"), TEXT("Add to a counter of this run's tally (Tools/MetaCheck.ps1): DT.Meta.Plant <key> <amount>."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UDTRunRecorder* Recorder = World ? World->GetSubsystem<UDTRunRecorder>() : nullptr;
+			if (Recorder && Args.Num() == 2)
+			{
+				Recorder->AddCounter(FName(*Args[0]), FCString::Atoi64(*Args[1]));
+			}
+		}));
 #endif
 }
 
@@ -56,9 +68,10 @@ FString UDTMetaSubsystem::ActivePath()
 void UDTMetaSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	Session.OnBank.AddStatic(&DTDiscovery::Apply);
 	const FString Path = ActivePath();
 	const EDTMetaOpen Opened = Session.Open(Path);
-	UE_LOG(LogDT, Log, TEXT("Meta: opened (%d) %s, balance %lld, wins %d"), static_cast<int32>(Opened), Path.IsEmpty() ? TEXT("no save") : *Path, Session.Profile.Currency, Session.Profile.Wins);
+	UE_LOG(LogDT, Log, TEXT("Meta: opened (%d) %s, balance %lld, wins %d, discoveries %d"), static_cast<int32>(Opened), Path.IsEmpty() ? TEXT("no save") : *Path, Session.Profile.Currency, Session.Profile.Wins, Session.Profile.Discoveries.Num());
 }
 
 FDTMetaSession* UDTMetaSubsystem::FindSession(const UObject* WorldContext)

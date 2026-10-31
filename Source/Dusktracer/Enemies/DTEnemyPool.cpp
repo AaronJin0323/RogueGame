@@ -480,6 +480,7 @@ bool FDTEnemyPool::ApplyStatus(const FDTStatusApply& Apply)
 		{
 			A.ChillStacks = 0;
 			A.ChillLeft = 0.0f;
+			Counters.FreezesBegun += A.FreezeLeft > 0.0f ? 0 : 1;
 			A.FreezeLeft = FreezeSeconds;
 			A.FreezeOwner = Apply.OwnerId;
 			A.FreezeSource = Apply.SourceId;
@@ -496,6 +497,7 @@ bool FDTEnemyPool::ApplyStatus(const FDTStatusApply& Apply)
 		}
 		A.ChillStacks = 0;
 		A.ChillLeft = 0.0f;
+		Counters.FreezesBegun += A.FreezeLeft > 0.0f ? 0 : 1;
 		A.FreezeLeft = FMath::Max(A.FreezeLeft, FreezeSeconds);
 		A.FreezeOwner = Apply.OwnerId;
 		A.FreezeSource = Apply.SourceId;
@@ -1385,6 +1387,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 		{
 			Damage *= 1.0f + DTConst::STATUS_SHOCK_DAMAGE_TAKEN; // R-ENM-22
 		}
+		Counters.BestCrit = Hit.bCrit ? FMath::Max(Counters.BestCrit, Damage) : Counters.BestCrit;
 		const float Dealt = FMath::Min(Damage, FMath::Max(0.0f, Hp[Index]));
 		Hp[Index] -= Damage;
 		// The event holds whole points: the rest carries to this owner and source's next hit, so a field's ticks add up (R-TEL-05).

@@ -564,6 +564,51 @@ def gen_elites(ctx):
 	return out
 
 
+DISCOVERY_TARGETS_MAX = 3  # FDiscoveryRow::Targets
+DISCOVERY_COUNTER = re.compile(r"^(Seconds|Kills|Elites|BossKills|Dashes|Status\.Freeze|Best\.[A-Za-z0-9]+|Kills\.Weapon\.[A-Za-z0-9]+)$")
+
+
+def read_text_table(name):
+	with open(os.path.join(ROOT, "Content", "DT", "Text", name), encoding="utf-8-sig", newline="") as f:
+		return list(csv.DictReader(f))
+
+
+def gen_discoveries(ctx):
+	"""meta.md R-MET-40: each row names real text, and its targets are real pool ids in their tag spelling."""
+	rows = read_csv(ctx, "discoveries.csv", ["id", "counter", "threshold", "targets", "recollection"], doc_only=["absent", "ref"])
+	unique(ctx, rows, lambda r: r["id"], "discovery")
+	pool = {r["id"] for name in ("weapons.csv", "modifiers.csv") for r in csv.DictReader(open(os.path.join(CATALOG, name), encoding="utf-8", newline=""))}
+	text = {r["Key"] for r in read_text_table("ST_Discoveries.csv")}
+	codex = {r["Key"]: r["Unlock"] for r in read_text_table("ST_Codex.csv")}
+	named = {key.split(".")[1] for key in text if key.endswith(".Name")}
+	if {r["id"] for r in rows} != named:
+		ctx.err("discoveries.csv", f"rows must match the Discovery.<Id>.Name rows of ST_Discoveries: {sorted(named ^ {r['id'] for r in rows})}")
+	out = []
+	for i, r in enumerate(rows):
+		where = r["_where"]
+		if not DISCOVERY_COUNTER.match(r["counter"]):
+			ctx.err(f"{where}:counter", f"'{r['counter']}' is not a recorder counter")
+		weapon = re.fullmatch(r"Kills\.Weapon\.(\w+)", r["counter"])
+		if weapon and f"Weapon.{weapon.group(1)}" not in pool:
+			ctx.err(f"{where}:counter", f"no row Weapon.{weapon.group(1)} in weapons.csv")
+		if f"Discovery.{r['id']}.Desc" not in text:
+			ctx.err(f"{where}:id", "no Desc row in ST_Discoveries")
+		if codex.get(r["recollection"]) != f"Discovery.{r['id']}":
+			ctx.err(f"{where}:recollection", f"ST_Codex row must carry Unlock Discovery.{r['id']}")
+		targets = [t for t in r["targets"].split(";") if t]
+		if len(targets) > DISCOVERY_TARGETS_MAX:
+			ctx.err(f"{where}:targets", f"more than {DISCOVERY_TARGETS_MAX}")
+		for target in targets:
+			if target not in pool:
+				ctx.err(f"{where}:targets", f"'{target}' is not a weapons.csv or modifiers.csv id")
+		slots = (targets + [""] * DISCOVERY_TARGETS_MAX)[:DISCOVERY_TARGETS_MAX]
+		threshold = num(ctx, r, "threshold", "int", f"Discoveries[{i}].Threshold", False)
+		out.append(
+			f"\t\t{{ {cpp_str(r['id'])}, {cpp_str(r['counter'])}, {threshold}, "
+			f"{{ {', '.join(cpp_str(t) for t in slots)} }}, {cpp_str(r['recollection'])} }},")
+	return out
+
+
 def gen_boss(ctx):
 	cols = ["form", "phase", "enter_hp_frac", "latest_start_s", "attack", "telegraph", "signature", "windup_s",
 			"interval_s", "count", "speed_uu_s", "damage", "extent_uu", "arc_deg"]
@@ -659,6 +704,7 @@ def render(ctx):
 	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
 	affixes = gen_elites(ctx)
+	discoveries = gen_discoveries(ctx)
 	boss = gen_boss(ctx)
 	xp = gen_xp(ctx)
 	timeline = gen_timeline(ctx, "timeline_arena1.csv")
@@ -879,6 +925,20 @@ def render(ctx):
 	] + affixes + [
 		"\t};",
 		"",
+		"\t// --- discoveries.csv (meta.md R-MET-40) ---",
+		"\tstruct FDiscoveryRow",
+		"\t{",
+		"\t\tconst TCHAR* Id;",
+		"\t\tconst TCHAR* Counter;      // a tally counter, met at or above Threshold",
+		"\t\tint32 Threshold;",
+		f"\t\tconst TCHAR* Targets[{DISCOVERY_TARGETS_MAX}];  // pool ids, tag spelling; empty = unused",
+		"\t\tconst TCHAR* Recollection; // ST_Codex row, whose Unlock is Discovery.<Id>",
+		"\t};",
+		"\tinline constexpr FDiscoveryRow Discoveries[] =",
+		"\t{",
+	] + discoveries + [
+		"\t};",
+		"",
 		"\t// --- boss_warden.csv ---",
 		"\tstruct FBossAttackRow",
 		"\t{",
@@ -951,7 +1011,8 @@ def render(ctx):
 		"\tinline constexpr int32 NumFlags = static_cast<int32>(EFlag::Count);",
 		"\tinline constexpr int32 NumEnemies = static_cast<int32>(UE_ARRAY_COUNT(Enemies));",
 		"\tinline constexpr int32 NumAffixes = static_cast<int32>(UE_ARRAY_COUNT(Affixes));",
-		"\tinline constexpr int32 NumBossAttacks = static_cast<int32>(UE_ARRAY_COUNT(BossWarden));",
+		"\tinline constexpr int32 NumDiscoveries = static_cast<int32>(UE_ARRAY_COUNT(Discoveries));",
+		"\tinline constexpr int32 NumBossAttacks =static_cast<int32>(UE_ARRAY_COUNT(BossWarden));",
 		"\tinline constexpr int32 NumXpLevels = static_cast<int32>(UE_ARRAY_COUNT(XpCurve));",
 		"\tinline constexpr int32 NumTimelineArena1 = static_cast<int32>(UE_ARRAY_COUNT(TimelineArena1));",
 		"\tinline constexpr int32 NumConstantRefs = static_cast<int32>(UE_ARRAY_COUNT(ConstantRefs));",
@@ -1023,7 +1084,7 @@ def main(argv):
 		if stale:
 			print(f"CATALOG: FAIL ({', '.join(stale)} out of date; run python -I Tools/gen_catalog.py)")
 			return 1
-		print(f"CATALOG: PASS (10 catalogs, {len(ctx.ckeys)} C. cells resolved, "
+		print(f"CATALOG: PASS (11 catalogs, {len(ctx.ckeys)} C. cells resolved, "
 			  f"{sum(len(v) for v in ctx.tags.values())} tags)")
 		return 0
 	for path, text in outputs:

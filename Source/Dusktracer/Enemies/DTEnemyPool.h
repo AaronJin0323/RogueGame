@@ -172,6 +172,9 @@ struct FDTEnemyCounters
 	int64 ThreatActions[static_cast<int32>(EDTEnemyRole::Count)] = {}; // charges started, bursts fired
 	int64 TokenWaits = 0;       // steps a ready ranged unit held for want of an aim token
 	int64 AttacksSkippedForLead = 0;
+	// Only the run recorder reads these two (meta.md R-MET-41).
+	int64 FreezesBegun = 0;     // an enemy going from not frozen to frozen; StatusesApplied also counts every refresh
+	float BestCrit = 0.0f;      // the largest critical hit as applied
 };
 
 /**

@@ -46,7 +46,7 @@ if ($Changed.Count -gt 0) { Stop-Check "NOT RUN (package $($Stamp.commit) is sta
 
 $ShipExe = Join-Path $PackageRoot "Shipping\Windows\Dusktracer\Binaries\Win64\Dusktracer-Win64-Shipping.exe"
 $DevExe = Join-Path $PackageRoot "Development\Windows\Dusktracer\Binaries\Win64\Dusktracer.exe"
-$Export = Join-Path $PackageRoot "Shipping\Windows\ExportTelemetry.ps1"
+$Export = Join-Path $PackageRoot "Shipping\Windows\Export_Logs.ps1"
 foreach ($File in $ShipExe, $DevExe, $Export) {
 	if (-not (Test-Path $File)) { Stop-Check "NOT RUN (package incomplete, no $File)" 2 }
 }
@@ -135,7 +135,7 @@ try {
 		$Manifest = @(Get-ChildItem $Open -Recurse -Filter MANIFEST.txt)
 		if ($Inside.Count -ne $Cultures.Count) { Note-Fail "export holds $($Inside.Count) check run(s), expected $($Cultures.Count)" }
 		if ($Manifest.Count -ne 1) { Note-Fail "export has no MANIFEST.txt" }
-		$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin ".csv", ".jsonl", ".txt" })
+		$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin ".csv", ".jsonl", ".log", ".txt" })
 		if ($Stray.Count) { Note-Fail "export carries other files: $($Stray[0].Name)" }
 		if ($Inside.Count) {
 			$Split = & python -I (Join-Path $Root "Tools\power_split.py") $Inside[0].FullName 2>&1

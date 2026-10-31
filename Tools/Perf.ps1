@@ -1,6 +1,8 @@
 # T-TEC-10 performance measurement (07_Technical R-TEC-10, 11_Quality s5) on the stress arena.
 #   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX 1920 -ResY 1080] [-Warmup <s>] [-Frames <n>]
-#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2]
+#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2] [-Package]
+# -Package (T-PKG-12) measures the Development package of Tools\Package.ps1 instead of the editor (R-TEC-15: the frame cost a player's float mode pays;
+# Shipping has no CSV profiler, so Development stands in). The same scene, budgets and proof; perf.csv marks the row "[package]".
 # -Scene S2 is the S2 proof scene (DT.PerfScene S2, Docs/Validation/S2_perf.md): it adds to the same budgets and load floors a proof
 # from the capture window itself (the CSV's DT/S2Sum_* last minus first, DT/S2Live_* median, and the DT/ phase timers as a profile),
 # and fails when the window did not hold the load. -Cmds picks a variant of the scene and keeps the proof. Off, the run is as before.
@@ -22,7 +24,8 @@ param(
 	[string]$Culture = "en",
 	[int]$LoadTimeout = 900,
 	[ValidateSet("Caps", "S2")]
-	[string]$Scene = "Caps"
+	[string]$Scene = "Caps",
+	[switch]$Package
 )
 
 trap { Write-Host "PERF: FAIL (script error: $_)"; exit 1 }
@@ -35,6 +38,14 @@ $Saved = Join-Path $Root "Saved"
 $LogDir = Join-Path $Saved "Logs"
 $PerfDir = Join-Path $Saved "Perf"
 $CsvDir = Join-Path $Saved "Profiling\CSV"
+$Target = @("`"$Project`"", $Map, "-game")
+if ($Package) {
+	$Staged = Join-Path $Saved "Package\Development\Windows\Dusktracer"
+	$Exe = Join-Path $Staged "Binaries\Win64\Dusktracer.exe"
+	if (-not (Test-Path $Exe)) { Write-Host "PERF: FAIL (no $Exe; Tools\Package.ps1; not run)"; exit 1 }
+	$CsvDir = Join-Path $Staged "Saved\Profiling\CSV"
+	$Target = @($Map)
+}
 New-Item -ItemType Directory -Force $LogDir, $PerfDir | Out-Null
 $Log = Join-Path $LogDir "Perf.log"
 
@@ -81,7 +92,7 @@ try {
 	$Before = @(if (Test-Path $CsvDir) { Get-ChildItem $CsvDir -Filter *.csv | ForEach-Object { $_.FullName } })
 
 	if (Test-Path $Log) { Remove-Item $Log -Force }
-	$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
+	$ArgList = $Target + @("-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
 		"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", ("-DTCsvAfter={0}" -f $Warmup), "-csvStartOnEvent=DTPerfStart",
 		"-csvCaptureOnEventFrameCount=$Frames", "-ExitAfterCsvProfiling", "-csvGpuStats")
 	if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
@@ -231,7 +242,7 @@ $Verdict = if ($Why.Count -eq 0) { "PASS" } else { "FAIL" }
 
 $Result = Join-Path $PerfDir "perf.csv"
 if (-not (Test-Path $Result)) { "time,commit,gpu,res,cmds,frames,frame_p50,frame_p95,game_p50,game_p95,gpu_p50,gpu_p95,verdict" | Set-Content $Result -Encoding ascii }
-('{0},{1},"{2}",{3}x{4},"{5}",{6},{7},{8},{9},{10},{11},{12},{13}' -f $Stamp, $Head, $Gpu, $ResX, $ResY, $Cmds, $N,
+('{0},{1},"{2}",{3}x{4},"{5}",{6},{7},{8},{9},{10},{11},{12},{13}' -f $Stamp, $Head, $Gpu, $ResX, $ResY, ($(if ($Package) { "[package] " }) + $Cmds), $N,
 	(Fmt $R.frame50), (Fmt $R.frame95), (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu50), (Fmt $R.gpu95), $Verdict) | Add-Content $Result -Encoding ascii
 
 $Summary = "game p50 {0} / p95 {1} ms, GPU p95 {2} ms, load {3} bullets / {4} enemies, {5} frames" -f (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu95), (Fmt $R.bul50), (Fmt $R.enm50), $N
