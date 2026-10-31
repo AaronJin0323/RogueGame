@@ -129,6 +129,7 @@ namespace DTBossTest
 			Pool.StepEnemies(Context);
 			FDTBossStepIn In;
 			In.StepSeconds = Dt;
+			In.TimeScale = View.EnemyTimeScale;
 			In.StepIndex = StepIndex;
 			In.View = &View;
 			In.Pool = &Pool;
@@ -989,6 +990,60 @@ bool FDTBossWorld::RunTest(const FString& Parameters)
 	}
 	World->DestroyWorld(true);
 	GEngine->DestroyWorldContext(World);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBossDilation, "Dusktracer.Keepers.S2.Dilation.Boss", DTBossTest::Flags) // T-KEE-37, R-DIR-10
+bool FDTBossDilation::RunTest(const FString& Parameters)
+{
+	using namespace DTBossTest;
+	constexpr float Half = 0.5f;
+	// Runs a fight until its first attack has landed: the lead in steps, and how far the hull walked before it.
+	const auto Fight = [](float Scale, int32& OutLead, float& OutWalked)
+	{
+		FHarness H(5);
+		H.View.EnemyTimeScale = Scale;
+		H.Begin();
+		H.Adopt();
+		const FVector2f Start = H.Pool.GetPositions()[H.HullIndex()];
+		for (int32 N = 0; N < 120 && H.Core.GetAttacks().Num() == 0; ++N)
+		{
+			H.Step();
+			OutWalked = FVector2f::Distance(Start, H.Pool.GetPositions()[H.HullIndex()]);
+		}
+		for (int32 N = 0; N < 1200 && (H.Core.GetAttacks().Num() == 0 || H.Core.GetAttacks()[0].LandStep < 0); ++N)
+		{
+			H.Step();
+		}
+		const TConstArrayView<FDTBossAttackRec> Attacks = H.Core.GetAttacks();
+		OutLead = Attacks.Num() > 0 ? static_cast<int32>(Attacks[0].LandStep - Attacks[0].TelegraphStep) : INDEX_NONE;
+	};
+	int32 LeadFull = 0;
+	int32 LeadSlow = 0;
+	float WalkFull = 0.0f;
+	float WalkSlow = 0.0f;
+	Fight(1.0f, LeadFull, WalkFull);
+	Fight(Half, LeadSlow, WalkSlow);
+	TestTrue(TEXT("the boss telegraphs"), LeadFull > 0);
+	TestEqual(TEXT("a boss wind-up does not stretch"), LeadSlow, LeadFull);
+
+	// The walk and the charge run in enemy time; the fight clock does not.
+	FHarness Full(5);
+	FHarness Slow(5);
+	Slow.View.EnemyTimeScale = Half;
+	Full.Begin();
+	Slow.Begin();
+	Full.Adopt();
+	Slow.Adopt();
+	const FVector2f StartFull = Full.Pool.GetPositions()[Full.HullIndex()];
+	const FVector2f StartSlow = Slow.Pool.GetPositions()[Slow.HullIndex()];
+	Full.RunSteps(20);
+	Slow.RunSteps(20);
+	const float MovedFull = FVector2f::Distance(StartFull, Full.Pool.GetPositions()[Full.HullIndex()]);
+	const float MovedSlow = FVector2f::Distance(StartSlow, Slow.Pool.GetPositions()[Slow.HullIndex()]);
+	TestTrue(TEXT("the hull moved"), MovedFull > 0.0f);
+	TestTrue(TEXT("at half speed"), FMath::IsNearlyEqual(MovedSlow, MovedFull * Half, 1.0f));
+	TestEqual(TEXT("the fight clock runs in sim time"), Slow.Core.GetFightTime(), Full.Core.GetFightTime());
 	return true;
 }
 

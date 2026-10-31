@@ -74,6 +74,21 @@ struct FDTDuoHero
 	int32 DashCharges = 0;
 };
 
+/** Keeper state with a HUD meter (keepers.md R-KEE-38). A maximum of zero means no cap. */
+struct FDTKeeperMeterRead
+{
+	bool bDebt = false;
+	int32 Debt = 0;
+	int32 DebtMax = 0;
+	bool bPayday = false;
+	bool bMomentum = false;
+	float Momentum = 0.0f;
+	float MomentumMax = 0.0f;
+	bool bShades = false;
+	int32 Shades = 0;
+	int32 ShadesMax = 0;
+};
+
 class DUSKTRACER_API FDTWeaponSim
 {
 public:
@@ -122,6 +137,8 @@ public:
 	FDTReforgeRead GetReforgeRead(int32 OwnerId) const;
 	/** Raises Count hunters at At with this life and share of the best weapon's damage, under max_live (R-KEE-27). */
 	void RaiseHunters(int32 OwnerId, int32 Count, const FVector2f& At, float LifeS, float DmgRatio);
+	/** Keeper state the HUD shows (R-KEE-38). */
+	FDTKeeperMeterRead GetKeeperMeters(int32 OwnerId) const;
 	int32 GetDebt(int32 OwnerId) const;
 	/** Adds Debt; at debt_max it resets and the owner's next volley is a payday (R-KEE-29). */
 	void AddDebt(int32 OwnerId, int32 Debt);

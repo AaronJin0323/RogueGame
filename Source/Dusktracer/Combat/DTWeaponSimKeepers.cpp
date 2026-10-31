@@ -422,6 +422,11 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 
 // ---- Debt ------------------------------------------------------------------------------------------------------------------
 
+FDTKeeperMeterRead FDTWeaponSim::GetKeeperMeters(int32 OwnerId) const
+{
+	return FDTKeeperMeterRead();
+}
+
 int32 FDTWeaponSim::GetDebt(int32 OwnerId) const
 {
 	return Players.IsValidIndex(OwnerId) ? Players[OwnerId].Debt : 0;

@@ -173,6 +173,16 @@ bool FDTKeeperSim::IsCasting(int32 OwnerId) const
 	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Cast.bActive;
 }
 
+float FDTKeeperSim::GetDilationLeft(int32 OwnerId) const
+{
+	return 0.0f;
+}
+
+float FDTKeeperSim::GetDilationTotal(int32 OwnerId) const
+{
+	return 0.0f;
+}
+
 const FDTIntercessionPlan& FDTKeeperSim::GetActivePlan(int32 OwnerId) const
 {
 	static const FDTIntercessionPlan None;

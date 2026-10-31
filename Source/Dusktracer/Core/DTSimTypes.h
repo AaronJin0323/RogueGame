@@ -224,6 +224,8 @@ struct FDTWorldView
 	// Director -> render; enemies next step (aim tokens); overwritten.
 	TArray<FDTDropInMarker> DropInMarkers;
 	bool bThreatBlock = false;
+	// Keepers (Effects) -> enemies and boss next step (keepers.md R-KEE-37); one step of enemy time is the step times this.
+	float EnemyTimeScale = 1.0f;
 };
 
 /** Everything a system gets when it steps. */

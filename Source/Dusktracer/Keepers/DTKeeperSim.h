@@ -52,6 +52,9 @@ public:
 	bool IsCasting(int32 OwnerId) const;
 	/** The plan of OwnerId's running cast (empty plan when none). */
 	const FDTIntercessionPlan& GetActivePlan(int32 OwnerId) const;
+	/** Seconds left of OwnerId's cast that scales enemy time (R-KEE-37), and its whole length; 0 with none running. */
+	float GetDilationLeft(int32 OwnerId) const;
+	float GetDilationTotal(int32 OwnerId) const;
 
 	// --- the step --------------------------------------------------------------------------------------------------------
 	/** EDTSimPhase::Bullets, after the pool stepped: copies the player hits ResolveHits will apply (Enemies: frozen state, optional). */

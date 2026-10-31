@@ -50,7 +50,10 @@ public:
 /** What one step of the fight reads and writes. */
 struct FDTBossStepIn
 {
+	/** Sim time: telegraph leads and the fight clock read it. */
 	float StepSeconds = 0.0f;
+	/** Enemy time per sim time (keepers.md R-KEE-37). */
+	float TimeScale = 1.0f;
 	int64 StepIndex = 0;
 	FDTWorldView* View = nullptr;
 	FDTEnemyPool* Pool = nullptr;
