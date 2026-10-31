@@ -1,4 +1,4 @@
-// The meta save, the award and the run-end autosave (02_Systems/meta.md T-MET-01..19).
+// The meta save, the award and the run-end autosave (02_Systems/meta.md T-MET-01..19; T-MET-06 is in Tests/Settings, the menu's text being a settings header).
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Meta; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
@@ -24,7 +24,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Player/DTHeroSubsystem.h"
-#include "Settings/DTMenuScreen.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
 #include "Templates/UniquePtr.h"
 
@@ -401,20 +400,6 @@ bool FDTMetBankCounts::RunTest(const FString& Parameters)
 	{
 		TestTrue(Reason, UDTRunRecorder::EndFromReason(Reason) == EDTRunEnd::Left);
 	}
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetSummaryLine, "Dusktracer.Meta.SummaryLine", DTMetaTest::Flags) // T-MET-06
-bool FDTMetSummaryLine::RunTest(const FString& Parameters)
-{
-	const FString Line = DTMenuText::RunSummary(12, 345).ToString();
-	TestTrue(TEXT("the award"), Line.Contains(TEXT("12")));
-	TestTrue(TEXT("the balance"), Line.Contains(TEXT("345")));
-	TestFalse(TEXT("the key resolves"), Line.Contains(TEXT("MISSING")));
-	TestTrue(TEXT("listed with the menu's keys"), DTMenuText::AllKeys().Contains(TEXT("Summary.Line")));
-	FString Csv;
-	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
-	TestTrue(TEXT("the row carries both languages"), Csv.Contains(TEXT("Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},")));
 	return true;
 }
 
