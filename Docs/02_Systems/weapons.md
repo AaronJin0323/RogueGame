@@ -103,7 +103,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 
 ## Telemetry
 - Per weapon and player, per interval: `weapon{source, level, load_rank, spawned, throttled, hits, damage}` (schema owned by `telemetry.md`; hits and damage already arrive by source through R-TEL-05).
-- `weapon_acquired{source}` and `weapon_level{source, level}` (record `owner` = the player) when an offer pick changes the loadout.
+- `weapon_acquired{source}` and `weapon_level{source, level}` (record `owner` = the player) when the loadout changes through `UDTWeaponSubsystem`: an offer pick, the Patron's starting weapon, a bot or debug loadout. A weapon given above its first level writes both. The subsystem reports emissions and the weapon's level and load rank each step for the `weapon` record.
 
 ## Text
 - Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label; budget two rows per weapon plus one; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.

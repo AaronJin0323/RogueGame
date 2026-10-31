@@ -66,7 +66,7 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does.
 
 ## Telemetry
-- Every offer already logs its five cards (`offers.md`); the modifier system adds `modifier_socketed{weapon, modifier}` and `modifier_dormant{weapon, modifier, dormant}` (record `owner` = the player).
+- Every offer already logs its five cards (`offers.md`); the modifier system adds `modifier_socketed{weapon, modifier}` and `modifier_dormant{weapon, modifier, dormant}` (record `owner` = the player). `modifier_dormant` is written for each change composition finds (R-MOD-08), asleep and awake.
 - Damage and kills from modifier-added emissions arrive under `Modifier.<Name>` (R-MOD-09, `telemetry.md` R-TEL-05).
 
 ## Text

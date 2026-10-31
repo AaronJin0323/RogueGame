@@ -7,7 +7,8 @@
 //              IsInPool (starter column + DT.Unlock, D-013)
 //   keepers  - AddFlagSource(OwnerId, SourceTag, FDTWeaponFlags) / RemoveFlagSource (Combat/DTWeaponFlags.h)
 //   hero     - SetHeroStats (the FDTStatSet slice), SetAimManual (combat_core.md R-CMB-04)
-//   telemetry- GetCounters (spawned, throttled, impacts) per player and slot
+//   telemetry- writes its own records (weapons.md, modifiers.md §Telemetry): the inventory calls below when they change the
+//              loadout, emissions and the weapon state each step, dormancy changes as composition finds them
 #pragma once
 
 #include "CoreMinimal.h"
@@ -107,6 +108,8 @@ private:
 	ADTBulletRenderer* EnsureRenderer(int32 Bucket);
 	ADTTelegraphRenderer* EnsureCueRenderer(int32 Bucket);
 	FDTRunState* GetRun() const;
+	/** The step's emissions, each weapon's level and load rank (the per-interval weapon record). */
+	void ReportWeapons(const FDTSimContext& Context);
 
 	FDTWeaponSim Sim;
 	FDTWeaponPhaseAdapter BulletsPhase;

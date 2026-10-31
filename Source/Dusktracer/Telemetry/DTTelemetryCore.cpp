@@ -96,6 +96,7 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	Config = InConfig;
 	Config.NumPlayers = FMath::Max(1, Config.NumPlayers);
 	Config.StepSeconds = Config.StepSeconds > 0.0f ? Config.StepSeconds : 1.0f / DTConst::SIM_FIXED_HZ;
+	HeroPosSteps = FMath::Max<int64>(1, FMath::RoundToInt64(static_cast<double>(Config.HeroPosSeconds) / Config.StepSeconds));
 	Players.Reset();
 	Players.SetNum(Config.NumPlayers);
 	StepsDone = 0;
@@ -106,7 +107,8 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	LastLiveBullets = LastLiveEnemies = 0;
 	LastRecycledTotal = LastRefusedTotal = RecycledAtIntervalStart = RefusedAtIntervalStart = 0;
 	bHaveCounterBase = false;
-	MirrorSpawnStep.Reset();
+	MirrorFirstHitStep.Reset();
+	MirrorSwarm.Reset();
 	MirrorDead.Reset();
 	ResolveHits.Reset();
 	Pending.Reset();
@@ -125,8 +127,8 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	bActive = true;
 
 	JsonlOut += JsonHead(TEXT("run_start"), INDEX_NONE) + FString::Printf(
-		TEXT(",\"seed\":%d,\"players\":%d,\"culture\":%s,\"build\":%s,\"input_device\":%s,\"interval_s\":%.3f,\"step_s\":%.6f,\"wall\":%s}\n"),
-		Config.Seed, Config.NumPlayers, *JsonText(Config.Culture), *JsonText(Config.Build), *JsonText(Config.InputDevice),
+		TEXT(",\"seed\":%d,\"players\":%d,\"culture\":%s,\"build\":%s,\"interval_s\":%.3f,\"step_s\":%.6f,\"wall\":%s}\n"),
+		Config.Seed, Config.NumPlayers, *JsonText(Config.Culture), *JsonText(Config.Build),
 		Config.IntervalSeconds, Config.StepSeconds, *JsonText(Config.WallStart));
 }
 
@@ -138,6 +140,14 @@ void FDTTelemetryCore::End(const FString& Reason)
 		return;
 	}
 	WriteStepRecords();
+	for (int32 Player = 0; Player < Players.Num(); ++Player)
+	{
+		for (const FCastWindow& Window : Players[Player].Casts)
+		{
+			WriteIntercession(Player, Window, false); // the run ended inside the cast
+		}
+		Players[Player].Casts.Reset();
+	}
 	if (StepsDone > IntervalStartStep)
 	{
 		WriteInterval();
@@ -227,7 +237,7 @@ void FDTTelemetryCore::ApplyKill(int32 Owner, bool bRouted, uint16 Source, float
 	}
 }
 
-void FDTTelemetryCore::OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum)
+void FDTTelemetryCore::OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles)
 {
 	if (!bActive)
 	{
@@ -236,23 +246,26 @@ void FDTTelemetryCore::OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 Po
 	CurrentStep = StepIndex;
 	if (bCleared)
 	{
-		MirrorSpawnStep.Reset();
+		MirrorFirstHitStep.Reset();
+		MirrorSwarm.Reset();
 	}
-	ResyncMirror(PoolNum);
+	ResyncMirror(PoolNum, Roles);
 }
 
-void FDTTelemetryCore::ResyncMirror(int32 PoolNum)
+void FDTTelemetryCore::ResyncMirror(int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles)
 {
-	if (PoolNum < MirrorSpawnStep.Num())
+	if (PoolNum < MirrorFirstHitStep.Num())
 	{
 		++MirrorDesyncs; // the pool shrank outside ResolveHits: identities of the remaining slots are unknown
-		MirrorSpawnStep.SetNum(PoolNum);
+		MirrorFirstHitStep.SetNum(PoolNum);
+		MirrorSwarm.SetNum(PoolNum);
 	}
-	while (MirrorSpawnStep.Num() < PoolNum)
+	while (MirrorFirstHitStep.Num() < PoolNum)
 	{
-		MirrorSpawnStep.Add(CurrentStep);
+		const int32 Slot = MirrorFirstHitStep.Add(INDEX_NONE);
+		MirrorSwarm.Add(Roles.IsValidIndex(Slot) && Roles[Slot] == EDTEnemyRole::Swarm ? 1 : 0);
 	}
-	MirrorDead.Init(0, MirrorSpawnStep.Num());
+	MirrorDead.Init(0, MirrorFirstHitStep.Num());
 }
 
 void FDTTelemetryCore::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits, TConstArrayView<uint32> Serials)
@@ -265,11 +278,11 @@ void FDTTelemetryCore::BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hit
 	ResolveHits = Hits;
 	ResolveSerials = Serials;
 	Pending.Reset();
-	MirrorDead.Init(0, MirrorSpawnStep.Num());
+	MirrorDead.Init(0, MirrorFirstHitStep.Num());
 	bInResolve = true;
 }
 
-void FDTTelemetryCore::EndResolve(int32 PoolNum)
+void FDTTelemetryCore::EndResolve(int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles)
 {
 	if (!bActive || !bInResolve)
 	{
@@ -283,7 +296,7 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum)
 	for (const FDTHit& Hit : ResolveHits)
 	{
 		const int32 Slot = Hit.EnemyIndex;
-		if (!MirrorSpawnStep.IsValidIndex(Slot) || MirrorDead[Slot])
+		if (!MirrorFirstHitStep.IsValidIndex(Slot) || MirrorDead[Slot])
 		{
 			continue;
 		}
@@ -298,11 +311,21 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum)
 		}
 		const FPendingEvent& HitEvent = Pending[Next++];
 		ApplyHit(HitEvent.Event.OwnerId, HitEvent.bRouted, Hit.SourceId, HitEvent.Event.Amount);
+		if (HitEvent.bRouted)
+		{
+			const uint32 Serial = Hit.EnemySerial != 0 || !ResolveSerials.IsValidIndex(Slot) ? Hit.EnemySerial : ResolveSerials[Slot];
+			CreditCasts(HitEvent.Event.OwnerId, Hit, Serial, HitEvent.Event.Amount);
+		}
+		if (MirrorFirstHitStep[Slot] < 0)
+		{
+			MirrorFirstHitStep[Slot] = CurrentStep;
+		}
 		if (Pending.IsValidIndex(Next) && Pending[Next].Event.Kind == EDTGameEventKind::Kill)
 		{
 			const FPendingEvent& KillEvent = Pending[Next++];
 			MirrorDead[Slot] = 1;
-			const float Ttk = static_cast<float>(static_cast<double>(CurrentStep - MirrorSpawnStep[Slot]) * Config.StepSeconds);
+			const float Ttk = MirrorSwarm[Slot]
+				? static_cast<float>(static_cast<double>(CurrentStep - MirrorFirstHitStep[Slot]) * Config.StepSeconds) : -1.0f;
 			ApplyKill(KillEvent.Event.OwnerId, KillEvent.bRouted, Hit.SourceId, Ttk);
 		}
 	}
@@ -329,19 +352,20 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum)
 	}
 
 	// Compact like FDTEnemyPool::Compact: back to front, swap-remove (R-ENM-07).
-	for (int32 Slot = MirrorSpawnStep.Num() - 1; Slot >= 0; --Slot)
+	for (int32 Slot = MirrorFirstHitStep.Num() - 1; Slot >= 0; --Slot)
 	{
 		if (MirrorDead[Slot])
 		{
-			MirrorSpawnStep.RemoveAtSwap(Slot, 1, EAllowShrinking::No);
+			MirrorFirstHitStep.RemoveAtSwap(Slot, 1, EAllowShrinking::No);
+			MirrorSwarm.RemoveAtSwap(Slot, 1, EAllowShrinking::No);
 			MirrorDead.RemoveAtSwap(Slot, 1, EAllowShrinking::No);
 		}
 	}
-	if (MirrorSpawnStep.Num() != PoolNum)
+	if (MirrorFirstHitStep.Num() != PoolNum)
 	{
 		++MirrorDesyncs;
 	}
-	ResyncMirror(PoolNum);
+	ResyncMirror(PoolNum, Roles);
 }
 
 void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample)
@@ -388,6 +412,11 @@ void FDTTelemetryCore::EndStep(int64 StepIndex, const FDTTelemetrySample& Sample
 				Best = FMath::Min(Best, FVector2f::DistSquared(Hero, Enemy));
 			}
 			P.NearestSquaredSamples.Add(Best);
+		}
+		if (StepsDone % HeroPosSteps == 0 && Sample.Heroes.IsValidIndex(Player))
+		{
+			const FVector2f Hero = Sample.Heroes[Player];
+			JsonlOut += FDTTelJson(JsonHead(TEXT("hero_pos"), Player)).Int(TEXT("x"), FMath::RoundToInt32(Hero.X)).Int(TEXT("y"), FMath::RoundToInt32(Hero.Y)).Line();
 		}
 	}
 
@@ -506,8 +535,7 @@ void FDTTelemetryCore::WriteInterval()
 			static_cast<long long>(R.RecycledBullets), static_cast<long long>(R.RefusedSpawns), *Rate(R.ThreatActions, E),
 			R.bHasNearest ? *FString::Printf(TEXT("%.1f"), R.NearestEnemyUU) : TEXT(""),
 			*Rate(R.Hits, E), *Rate(static_cast<double>(R.DamageDealt), E), Config.Seed, *CsvText(Config.Build),
-			*CsvText(Config.Culture),
-			*CsvText(Players[Player].bHasInputDevice ? FString(DTTelNames::InputDevice(R.InputDevice)) : Config.InputDevice));
+			*CsvText(Config.Culture), DTTelNames::InputDevice(R.InputDevice));
 
 		const FPlayerInterval& P = Players[Player];
 		if (P.BySource.Num() > 0)

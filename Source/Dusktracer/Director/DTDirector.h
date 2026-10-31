@@ -21,7 +21,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FDTOnBossTime, float /*RunSeconds*/);
  * run start), so test worlds and tools that never start a run see no director spawns. Each step it reads the enemy pool
  * (alive by role, threat actions), the heroes and FDTWorldView::Kills, and drives FDTDirectorCore, which queues spawns
  * (UDTEnemySubsystem::QueueSpawn), drops gems and chests (UDTGemSubsystem), publishes DropInMarkers and bThreatBlock,
- * and writes one dir_block per ended block (telemetry). Drop-in markers are drawn red with the telegraph renderer.
+ * and writes one dir_block per ended block (telemetry), the last one at the run's end. Drop-in markers are drawn red with
+ * the telegraph renderer.
  *
  * Off switches: cvar dt.Director.Enabled (default 1) and the command-line flag -DTNoDirector (sets the cvar to 0 at run
  * start; Tools/Smoke.ps1 passes it so the smoke goldens stay deterministic). Turning the cvar on later starts the
@@ -69,6 +70,10 @@ private:
 	};
 
 	void EnsureRenderer();
+	/** R-DIR-15: every player is down; the open block ends at the fatal hit. */
+	void HandleAllHeroesDown(int64 StepIndex);
+	/** R-DIR-15: the session ends for any other reason (victory, quit, timeout); a no-op once the block closed. */
+	void HandleSessionEnding(const FString& Reason);
 
 	FDTDirectorCore Core;
 	FSink Sink;
@@ -88,4 +93,6 @@ private:
 	TArray<int32> LastDashes;
 	bool bRunStarted = false;
 	bool bWasActive = false;
+	FDelegateHandle AllDownHandle;
+	FDelegateHandle SessionEndingHandle;
 };

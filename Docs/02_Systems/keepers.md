@@ -141,7 +141,8 @@ Per-archetype parameters (`chance=`, `radius_uu=` …) are `GATED(S1)` starting 
 - `keeper_pick{owner, blessing, path, archetype, role, favor, tier, leading}` per blessing taken.
 - `keeper_commit{owner, role, path, primary_leading}` when a Keeper hand is picked: role `Patron` at run start, `Second` at the L8 commitment.
 - `status{owner, applied{Status: n}}` per player at each interval end (procs by status).
-- `intercession{owner, base, variant, layer, enemies_hit, damage}` per cast; marginal damage is measured offline (R-KEE-15, `Tools/probe.py`).
+- `intercession{owner, base, variant, layer, window_s, enemies_hit, damage, damage_raw, complete}` per cast, written when its window closes. The window opens at the step the cast starts and closes one step after it ends, when the last hits the cast emitted have resolved. What counts is every hit landing in the window from the cast's sources, `Keeper.<Base>` and from the commitment the layer's `Keeper.<Path>`: its own area strikes and whatever its overlay reshaped (Split, Chain, Downpour's echoes, cleaves, charged volleys), since D-015 makes those Keeper hits. `damage` and `damage_raw` are applied and raw (`telemetry.md` R-TEL-11). `enemies_hit` is the distinct enemies those hits struck, plus any the cast reached without a hit (a Tide pull's freeze). `complete` is false when the run ended inside the window.
+- The record is attribution over a window, not a marginal: the overlay folds into the Keeper's own flags (`FoldClause`), so a Split the cast widened and a Split a blessing grants are one flag, and passive Keeper damage inside the window counts. What lands after the window (a round in flight, a Burn still ticking) does not. Marginal damage is measured offline (R-KEE-15, `Tools/probe.py`); the `hit` records give a reader the Keeper rate before the cast.
 - Damage, hits and kills by source `Keeper.<Path>` through R-TEL-05.
 
 ## Text

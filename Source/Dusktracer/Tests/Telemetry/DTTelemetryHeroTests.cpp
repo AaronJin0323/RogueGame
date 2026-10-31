@@ -3,8 +3,12 @@
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Telemetry.Hero; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
+#include "Combat/DTWeaponCatalog.h"
+#include "Combat/DTWeaponFlags.h"
+#include "Combat/DTWeaponSubsystem.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
+#include "Director/DTDirector.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Enemies/DTEnemyTypes.h"
 #include "Engine/Engine.h"
@@ -12,6 +16,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
+#include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
@@ -48,6 +53,62 @@ namespace DTTelHeroTest
 		Lines[1].ParseIntoArray(Row, TEXT(","), false);
 		const int32 Index = Header.IndexOfByKey(FString(Column));
 		return Row.IsValidIndex(Index) ? Row[Index] : FString();
+	}
+
+	/** Lines of one kind. */
+	static TArray<FString> OfKind(const FString& Jsonl, const TCHAR* Kind)
+	{
+		TArray<FString> Lines;
+		Jsonl.ParseIntoArrayLines(Lines);
+		const FString Needle = FString::Printf(TEXT("\"kind\":\"%s\""), Kind);
+		return Lines.FilterByPredicate([&Needle](const FString& Line) { return Line.Contains(Needle); });
+	}
+
+	/** The number after "Field": in Line (0 when missing). */
+	static double Number(const FString& Line, const TCHAR* Field)
+	{
+		const FString Needle = FString::Printf(TEXT("\"%s\":"), Field);
+		const int32 At = Line.Find(Needle);
+		return At != INDEX_NONE ? FCString::Atod(*Line + At + Needle.Len()) : 0.0;
+	}
+
+	/** A game world for one test; Close tears it down. */
+	struct FWorld
+	{
+		UWorld* World = nullptr;
+
+		explicit FWorld(const TCHAR* Name)
+		{
+			FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+			World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), Name));
+			Context.SetCurrentWorld(World);
+			World->InitializeActorsForPlay(FURL());
+			World->BeginPlay();
+		}
+
+		void Close()
+		{
+			for (AActor* Actor : FActorRange(World))
+			{
+				if (Actor)
+				{
+					Actor->RouteEndPlay(EEndPlayReason::LevelTransition);
+				}
+			}
+			World->DestroyWorld(true);
+			GEngine->DestroyWorldContext(World);
+		}
+	};
+
+	/** Ends the session and moves its JSONL into OutJsonl (the files are removed). */
+	static void TakeSession(UDTTelemetrySubsystem& Telemetry, const TCHAR* Reason, FString& OutJsonl)
+	{
+		Telemetry.EndSession(Reason);
+		const FString CsvPath = Telemetry.GetWriter().GetCsvPath();
+		const FString JsonlPath = Telemetry.GetWriter().GetJsonlPath();
+		FFileHelper::LoadFileToString(OutJsonl, *JsonlPath);
+		IFileManager::Get().Delete(*CsvPath, false, true, true);
+		IFileManager::Get().Delete(*JsonlPath, false, true, true);
 	}
 }
 
@@ -127,6 +188,134 @@ bool FDTTelHeroRecords::RunTest(const FString& Parameters)
 	}
 	World->DestroyWorld(true);
 	GEngine->DestroyWorldContext(World);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelRunEnd, "Dusktracer.Telemetry.RunEnd", DTTelHeroTest::Flags) // R-DIR-15, R-TEL-08, R-TEL-10 in a real world
+bool FDTTelRunEnd::RunTest(const FString& Parameters)
+{
+	using namespace DTTelHeroTest;
+	FWorld Scene(TEXT("DTTelRunEndWorld"));
+	UWorld* World = Scene.World;
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	UDTHeroSubsystem* Heroes = World->GetSubsystem<UDTHeroSubsystem>();
+	UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+	UDTDirector* Director = World->GetSubsystem<UDTDirector>();
+	FString Jsonl;
+	FVector2f EnemyAt = FVector2f::ZeroVector;
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("telemetry"), Telemetry) && TestNotNull(TEXT("heroes"), Heroes)
+		&& TestNotNull(TEXT("enemies"), Enemies) && TestNotNull(TEXT("director"), Director))
+	{
+		Sim->StartRun(41, 1);
+		Telemetry->StartSession(41, 1);
+		Director->StartRun();
+		Sim->StepNow(DTConst::SIM_FIXED_HZ); // inside the first Harvest block
+
+		// A lethal touch off to one side of the hero: the record must tell the two positions apart.
+		const FVector2f Hero = Sim->GetView().HeroPositions[0];
+		EnemyAt = Hero + FVector2f(0.5f * static_cast<float>(DTConst::HERO_RADIUS_UU), 0.0f);
+		FDTEnemySpawn Lethal;
+		Lethal.Position = EnemyAt;
+		Lethal.DmgScale = static_cast<float>(DTConst::HERO_MAX_HP) * 10.0f;
+		Enemies->QueueSpawn(Lethal);
+		for (int32 Step = 0; Step < DTConst::SIM_FIXED_HZ && !Heroes->IsDown(0); ++Step)
+		{
+			Sim->StepNow(1);
+		}
+		TestTrue(TEXT("the hero went down"), Heroes->IsDown(0));
+		Sim->StepNow(DTConst::SIM_FIXED_HZ); // the sim goes on until the session closes: none of that is the block's
+		TakeSession(*Telemetry, TEXT("death"), Jsonl);
+	}
+
+	const TArray<FString> Blocks = OfKind(Jsonl, TEXT("dir_block"));
+	const TArray<FString> Down = OfKind(Jsonl, TEXT("hero_down"));
+	const TArray<FString> Damaged = OfKind(Jsonl, TEXT("hero_damaged"));
+	TestEqual(TEXT("the block a death falls in is written, once"), Blocks.Num(), 1);
+	TestEqual(TEXT("one hero_down"), Down.Num(), 1);
+	TestEqual(TEXT("the fatal hit"), Damaged.Num(), 1);
+	if (Blocks.Num() == 1 && Down.Num() == 1 && Damaged.Num() == 1)
+	{
+		TestTrue(TEXT("ended by the death"), Blocks[0].Contains(TEXT("\"ended_by\":\"death\"")));
+		TestEqual(TEXT("it ends at the fatal hit"), Number(Blocks[0], TEXT("end_s")), Number(Down[0], TEXT("t")), 1e-3);
+		const double Share = Number(Damaged[0], TEXT("amount")) / Number(Damaged[0], TEXT("max_hp"));
+		const FString Taken = TEXT("\"dmg_taken\":{\"0\":");
+		const int32 At = Blocks[0].Find(Taken);
+		TestTrue(TEXT("dmg_taken holds the fatal hit"), At != INDEX_NONE && FMath::IsNearlyEqual(FCString::Atod(*Blocks[0] + At + Taken.Len()), Share, 1e-3));
+		TestEqual(TEXT("src_x is the enemy's"), Number(Damaged[0], TEXT("src_x")), static_cast<double>(FMath::RoundToInt32(EnemyAt.X)), 200.0);
+		TestTrue(TEXT("the source is not the hero"), Number(Damaged[0], TEXT("src_x")) != Number(Damaged[0], TEXT("hero_x")));
+	}
+
+	const TArray<FString> Start = OfKind(Jsonl, TEXT("run_start"));
+	if (TestEqual(TEXT("one run_start"), Start.Num(), 1))
+	{
+		TestFalse(TEXT("run_start claims no input device"), Start[0].Contains(TEXT("input_device")));
+		const FString Field = TEXT("\"wall\":\"");
+		const int32 At = Start[0].Find(Field);
+		FDateTime Wall;
+		TestTrue(TEXT("wall parses"), At != INDEX_NONE && FDateTime::ParseIso8601(*Start[0].Mid(At + Field.Len()).LeftChop(2), Wall));
+		TestTrue(TEXT("wall is UTC, as its Z says"), FMath::Abs((FDateTime::UtcNow() - Wall).GetTotalMinutes()) < 5.0);
+	}
+	Scene.Close();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelLoadoutRecords, "Dusktracer.Telemetry.LoadoutRecords", DTTelHeroTest::Flags) // T-TEL-12
+bool FDTTelLoadoutRecords::RunTest(const FString& Parameters)
+{
+	using namespace DTTelHeroTest;
+	FWorld Scene(TEXT("DTTelLoadoutWorld"));
+	UWorld* World = Scene.World;
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	UDTWeaponSubsystem* Weapons = World->GetSubsystem<UDTWeaponSubsystem>();
+	UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+	FString Jsonl;
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("telemetry"), Telemetry) && TestNotNull(TEXT("weapons"), Weapons) && TestNotNull(TEXT("enemies"), Enemies))
+	{
+		Sim->StartRun(43, 1);
+		Telemetry->StartSession(43, 1);
+		TestEqual(TEXT("given"), Weapons->Give(0, Rifle, 1), EDTWeaponResult::Ok);
+		TestEqual(TEXT("levelled"), Weapons->LevelUp(0, Rifle, 2), EDTWeaponResult::Ok);
+		TestEqual(TEXT("socketed"), Weapons->Socket(0, Rifle, TEXT("Mod.Pierce")), EDTWeaponResult::Ok);
+		TestEqual(TEXT("a refused gift writes nothing"), Weapons->Give(0, Rifle, 1), EDTWeaponResult::AlreadyOwned);
+
+		// Something to shoot at, for the emissions.
+		FDTEnemySpawn Target;
+		Target.Position = FVector2f(300.0f, 0.0f);
+		Enemies->QueueSpawn(Target);
+		Sim->StepNow(DTConst::SIM_FIXED_HZ);
+
+		// A full conversion puts the Pierce to sleep (R-MOD-08); its end wakes it.
+		FDTWeaponFlags Hammer;
+		Hammer.Add(DTCat::EFlag::ConvertMelee, DTWeapons::KeeperSource(EDTPath::Forge), EDTFlagTier::Key).Params.Set(DTFlagParam::Rounds, 2.0f);
+		Weapons->AddFlagSource(0, TEXT("Test.Hammer"), Hammer);
+		Sim->StepNow(1);
+		Weapons->RemoveFlagSource(0, TEXT("Test.Hammer"));
+		Sim->StepNow(1);
+		TakeSession(*Telemetry, TEXT("test"), Jsonl);
+	}
+
+	TestEqual(TEXT("weapon_acquired"), CountKind(Jsonl, TEXT("weapon_acquired")), 1);
+	TestTrue(TEXT("weapon_acquired names the source"), Jsonl.Contains(TEXT("\"kind\":\"weapon_acquired\",\"owner\":0,\"source\":\"Weapon.PulseRifle\"}")));
+	TestTrue(TEXT("weapon_level carries the level"), Jsonl.Contains(TEXT("\"kind\":\"weapon_level\",\"owner\":0,\"source\":\"Weapon.PulseRifle\",\"level\":2}")));
+	TestEqual(TEXT("weapon_level"), CountKind(Jsonl, TEXT("weapon_level")), 1);
+	TestTrue(TEXT("modifier_socketed"), Jsonl.Contains(TEXT("\"kind\":\"modifier_socketed\",\"owner\":0,\"weapon\":\"Weapon.PulseRifle\",\"modifier\":\"Mod.Pierce\"}")));
+	const TArray<FString> Dormant = OfKind(Jsonl, TEXT("modifier_dormant"));
+	if (TestEqual(TEXT("asleep and awake"), Dormant.Num(), 2))
+	{
+		TestTrue(TEXT("first dormant"), Dormant[0].Contains(TEXT("\"modifier\":\"Mod.Pierce\",\"dormant\":true}")));
+		TestTrue(TEXT("then awake"), Dormant[1].Contains(TEXT("\"modifier\":\"Mod.Pierce\",\"dormant\":false}")));
+	}
+	const TArray<FString> Interval = OfKind(Jsonl, TEXT("weapon"));
+	if (TestEqual(TEXT("the owned weapon's interval record"), Interval.Num(), 1))
+	{
+		TestEqual(TEXT("its level"), Number(Interval[0], TEXT("level")), 2.0);
+		TestEqual(TEXT("its load rank"), Number(Interval[0], TEXT("load_rank")), 0.0);
+		TestTrue(TEXT("its emissions"), Number(Interval[0], TEXT("spawned")) > 0.0);
+	}
+	Scene.Close();
 	return true;
 }
 

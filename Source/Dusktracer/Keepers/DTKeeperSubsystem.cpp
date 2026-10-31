@@ -180,6 +180,14 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 {
 	UWorld* World = GetWorld();
 	UDTWeaponSubsystem* Weapons = World ? World->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+	UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this);
+	if (Telemetry)
+	{
+		for (const FDTKeeperCastRecord& Cast : ClosingCasts)
+		{
+			Telemetry->Records().EndIntercession(Cast.OwnerId, Cast.Touched);
+		}
+	}
 	Sim.StepEffects(Context, Weapons ? &Weapons->GetSim() : nullptr);
 	if (UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr)
 	{
@@ -188,16 +196,13 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 			Hero->RefillDash(OwnerId);
 		}
 	}
-	TArray<FDTKeeperCastRecord> Casts = Sim.TakeFinishedCasts();
-	if (Casts.Num() == 0)
+	ClosingCasts = Sim.TakeFinishedCasts();
+	const TArray<FDTKeeperCastRecord> Opened = Sim.TakeStartedCasts();
+	if (Telemetry)
 	{
-		return;
-	}
-	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
-	{
-		for (const FDTKeeperCastRecord& Cast : Casts)
+		for (const FDTKeeperCastRecord& Cast : Opened)
 		{
-			Telemetry->Records().RecordIntercession(Cast.OwnerId, Cast.Record);
+			Telemetry->Records().BeginIntercession(Cast.OwnerId, Cast.Record);
 		}
 	}
 }

@@ -51,14 +51,15 @@ struct FDTTelKeeperPick
 	FName Leading;
 };
 
-/** intercession (keepers.md §Telemetry), one per cast. NAME_None parts are written as null. */
+/** What an intercession record is about (keepers.md §Telemetry), given when the cast opens. NAME_None parts are written as null. */
 struct FDTTelIntercession
 {
 	FName Base;
 	FName Variant;
 	FName Layer;
-	int32 EnemiesHit = 0;
-	float Damage = 0.0f;
+	/** Keeper.<Base> and, from the commitment, Keeper.<Layer's Path> (0 = none): the sources that count for the cast. */
+	uint16 BaseSource = 0;
+	uint16 LayerSource = 0;
 };
 
 /** dir_block (director.md R-DIR-15, §Telemetry), one per ended block. Strings are the timeline's spelling. */
@@ -70,7 +71,7 @@ struct FDTTelDirBlock
 	float RowStartSeconds = 0.0f;
 	float StartSeconds = 0.0f;
 	float EndSeconds = 0.0f;
-	/** What ended it (e.g. duration, cleared, next_row, boss). */
+	/** What ended it (e.g. duration, cleared, next_row, boss), or the session's end reason for the run's last block (R-DIR-15). */
 	FString EndedBy;
 	int32 SpawnedByRole[static_cast<int32>(EDTEnemyRole::Count)] = {};
 	int32 SkippedAtCap = 0;

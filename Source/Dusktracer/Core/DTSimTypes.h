@@ -96,6 +96,7 @@ struct FDTHeroHit
 	/** Catalog attack id (enemies.csv `attack`, boss_warden.csv `attack`); NAME_None for contact. */
 	FName AttackId;
 	uint32 EnemySerial = 0;
+	/** Where the hit came from (telemetry, R-TEL-10): the enemy, the round, the attack's origin, the safe ring's edge. Never gameplay. */
 	FVector2f Position = FVector2f::ZeroVector;
 };
 

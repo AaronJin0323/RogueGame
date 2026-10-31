@@ -206,11 +206,11 @@ bool FDTTelRecKeepers::RunTest(const FString& Parameters)
 	Core.RecordKeeperPick(1, Pick);
 	Core.RecordKeeperCommit(0, EDTTelKeeperRole::Second, EDTPath::Tide, TEXT("Archetype.Storm.Arc"));
 	FDTTelIntercession Cast;
-	Cast.Base = TEXT("Intercession.Storm");
+	Cast.Base = TEXT("Keeper.Storm");
 	Cast.Variant = TEXT("Archetype.Storm.Arc");
-	Cast.EnemiesHit = 12;
-	Cast.Damage = 340.5f;
-	Core.RecordIntercession(0, Cast);
+	Core.BeginIntercession(0, Cast);
+	Core.EndIntercession(0);
+	Core.EndIntercession(0); // nothing open: no record
 	Core.RecordStatusApplied(0, EDTStatus::Shock);
 	Core.RecordStatusApplied(0, EDTStatus::Shock, 2);
 	Core.RecordStatusApplied(0, EDTStatus::Freeze);
@@ -224,7 +224,8 @@ bool FDTTelRecKeepers::RunTest(const FString& Parameters)
 	TestTrue(TEXT("keeper_commit line"), Jsonl.Contains(Head(TEXT("keeper_commit"), 0)
 		+ TEXT(",\"role\":\"Second\",\"path\":\"Tide\",\"primary_leading\":\"Archetype.Storm.Arc\"}\n")));
 	TestTrue(TEXT("intercession line (no layer before the commitment)"), Jsonl.Contains(Head(TEXT("intercession"), 0)
-		+ TEXT(",\"base\":\"Intercession.Storm\",\"variant\":\"Archetype.Storm.Arc\",\"layer\":null,\"enemies_hit\":12,\"damage\":340.5000}\n")));
+		+ TEXT(",\"base\":\"Keeper.Storm\",\"variant\":\"Archetype.Storm.Arc\",\"layer\":null,\"window_s\":0.0000,\"enemies_hit\":0,\"damage\":0,\"damage_raw\":0.0000,\"complete\":true}\n")));
+	TestEqual(TEXT("one intercession record"), OfKind(Jsonl, TEXT("intercession")).Num(), 1);
 	const TArray<FString> Status = OfKind(Jsonl, TEXT("status"));
 	TestEqual(TEXT("one status record per player with procs per interval"), Status.Num(), 1);
 	TestTrue(TEXT("status line at the interval end"), Status.IsValidIndex(0)
@@ -250,9 +251,10 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	Hit.Kind = EDTHeroHitKind::Bullet;
 	Hit.SourceRole = EDTEnemyRole::Turret;
 	Hit.AttackId = TEXT("Burst");
-	Core.RecordHeroDamaged(0, Hit, 10.0f, 90.0f, 100.0f);
+	Hit.Position = FVector2f(120.4f, -30.6f);
+	Core.RecordHeroDamaged(0, Hit, 10.0f, 90.0f, 100.0f, FVector2f(100.0f, -50.5f));
 	FDTHeroHit Contact;
-	Core.RecordHeroDamaged(0, Contact, 5.0f, 85.0f, 100.0f);
+	Core.RecordHeroDamaged(0, Contact, 5.0f, 85.0f, 100.0f, FVector2f::ZeroVector);
 	Core.RecordHeroDown(0);
 	Core.RecordIntercessionDenied(1);
 	Core.RecordIntercessionDenied(1);
@@ -269,8 +271,9 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	Finish(Core, Csv, Jsonl);
 	TestTrue(TEXT("dash line"), Jsonl.Contains(Head(TEXT("dash"), 1) + TEXT(",\"dir_x\":0.6000,\"dir_y\":0.8000,\"charges_after\":0}\n")));
 	TestTrue(TEXT("hero_damaged line"), Jsonl.Contains(Head(TEXT("hero_damaged"), 0)
-		+ TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\"}\n")));
-	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null}\n")));
+		+ FString::Printf(TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\",")
+			TEXT("\"hero_x\":100,\"hero_y\":%d,\"src_x\":120,\"src_y\":-31}\n"), FMath::RoundToInt32(-50.5f))));
+	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null,\"hero_x\":0,\"hero_y\":0,\"src_x\":0,\"src_y\":0}\n")));
 	TestTrue(TEXT("hero_down line"), Jsonl.Contains(Head(TEXT("hero_down"), 0) + TEXT("}\n")));
 	TestTrue(TEXT("intercession_denied per interval"), Jsonl.Contains(Head(TEXT("intercession_denied"), 1, StepsPerInterval())
 		+ TEXT(",\"interval\":0,\"count\":2}\n")));
@@ -505,6 +508,113 @@ bool FDTTelSourceRegistration::RunTest(const FString& Parameters)
 		bStable &= FDTTelemetrySources::GetName(Ids[Index]) == FString::Printf(TEXT("Weapon.TestRegPar%d"), Index % Names);
 	}
 	TestTrue(TEXT("concurrent registration is stable"), bStable);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelHeroPosition, "Dusktracer.Telemetry.HeroPosition", DTTelRecordTest::Flags) // T-TEL-10
+bool FDTTelHeroPosition::RunTest(const FString& Parameters)
+{
+	using namespace DTTelRecordTest;
+	FDTTelemetryConfig Config = MakeConfig(2);
+	Config.IntervalSeconds = 1000.0f; // no interval record in the way
+	FDTTelemetryCore Core;
+	Core.Start(Config);
+	const int32 Every = FMath::RoundToInt32(DTConst::TEL_HERO_POS_INTERVAL_S * DTConst::SIM_FIXED_HZ);
+	const TArray<FVector2f> Heroes = { FVector2f(10.4f, -20.6f), FVector2f(300.0f, 400.0f) };
+	Steps(Core, 0, 2 * Every + 1, Heroes);
+	Steps(Core, 2 * Every + 1, Every); // no hero published: nothing to write
+
+	FString Csv;
+	FString Jsonl;
+	Finish(Core, Csv, Jsonl);
+	const TArray<FString> Lines = OfKind(Jsonl, TEXT("hero_pos"));
+	TestEqual(TEXT("one record per player per interval, the first at the run's start"), Lines.Num(), 6);
+	if (Lines.Num() == 6)
+	{
+		TestEqual(TEXT("whole uu"), Lines[0], Head(TEXT("hero_pos"), 0) + TEXT(",\"x\":10,\"y\":-21}"));
+		TestEqual(TEXT("per player"), Lines[1], Head(TEXT("hero_pos"), 1) + TEXT(",\"x\":300,\"y\":400}"));
+		TestEqual(TEXT("on the sim clock"), Lines[2], Head(TEXT("hero_pos"), 0, Every) + TEXT(",\"x\":10,\"y\":-21}"));
+		TestEqual(TEXT("and again"), Lines[5], Head(TEXT("hero_pos"), 1, 2 * Every) + TEXT(",\"x\":300,\"y\":400}"));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelCastWindow, "Dusktracer.Telemetry.CastWindow", DTTelRecordTest::Flags) // T-TEL-11
+bool FDTTelCastWindow::RunTest(const FString& Parameters)
+{
+	using namespace DTTelRecordTest;
+	FDTRunState Run;
+	FDTWorldView View;
+	FDTEnemyPool Pool;
+	FDTTelemetryCore Core;
+	Run.Start(3, 1);
+	Run.SetEventSink(&Core);
+	Core.Start(MakeConfig(1));
+	const uint16 Storm = FDTTelemetrySources::RegisterKeeper(EDTPath::Storm);
+	const uint16 Forge = FDTTelemetrySources::RegisterKeeper(EDTPath::Forge);
+	const uint16 Rifle = FDTTelemetrySources::RegisterWeapon(TEXT("TestCastRifle"));
+	for (int32 Index = 0; Index < 4; ++Index)
+	{
+		Pool.Spawn(EDTEnemyRole::Swarm, FVector2f(100.0f * static_cast<float>(Index), 0.0f));
+	}
+	Core.OnEnemiesSpawned(0, false, Pool.Num(), Pool.GetRoles());
+	const TArray<uint32> Serials(Pool.GetSerials());
+	const float Hp = static_cast<float>(DTConst::ENM_SWARM_HP);
+
+	FDTSimContext Context;
+	Context.StepSeconds = StepSeconds();
+	Context.Run = &Run;
+	Context.View = &View;
+	int64 Step = 0;
+	const auto Resolve = [&](int32 Enemy, float Damage, uint16 Source)
+	{
+		FDTHit Hit;
+		Hit.EnemyIndex = Enemy;
+		Hit.OwnerId = 0;
+		Hit.Damage = Damage;
+		Hit.SourceId = Source;
+		View.Hits = { Hit };
+		Context.StepIndex = Step;
+		Core.BeginResolve(Step, View.Hits, Pool.GetSerials());
+		Pool.ResolveHits(Context);
+		Core.EndResolve(Pool.Num(), Pool.GetRoles());
+		Core.EndStep(Step, FDTTelemetrySample());
+		++Step;
+	};
+
+	FDTTelIntercession Cast;
+	Cast.Base = TEXT("Keeper.Storm");
+	Cast.Variant = TEXT("Archetype.Storm.Downpour");
+	Cast.Layer = TEXT("Archetype.Forge.Hammer");
+	Cast.BaseSource = Storm;
+	Cast.LayerSource = Forge;
+
+	Resolve(3, 1.0f, Storm); // before the window: not the cast's
+	Core.BeginIntercession(0, Cast);
+	Resolve(2, 1.0f, Forge);     // the layer's source: raw and applied agree on a hit that fits the enemy's HP
+	Resolve(3, 1.0f, Rifle);     // the weapon's own source is not the cast's
+	Resolve(0, 1000.0f, Storm);  // overkill: 1000 raw, the enemy's whole HP applied
+	const TArray<uint32> Touched = { Serials[1], Serials[2] }; // one more enemy reached without a hit; the other is already counted
+	Core.EndIntercession(0, Touched);
+	Resolve(2, 1.0f, Storm); // after the close: not the cast's
+
+	Core.BeginIntercession(0, Cast);
+	Resolve(2, 1.0f, Storm); // the run ends inside this one
+
+	FString Csv;
+	FString Jsonl;
+	Finish(Core, Csv, Jsonl);
+	const TArray<FString> Lines = OfKind(Jsonl, TEXT("intercession"));
+	TestEqual(TEXT("two windows, two records"), Lines.Num(), 2);
+	if (Lines.Num() == 2)
+	{
+		const auto Seconds = [](int32 N) { return static_cast<double>(N) * StepSeconds(); };
+		TestEqual(TEXT("the closed cast"), Lines[0], Head(TEXT("intercession"), 0, 4) + FString::Printf(
+			TEXT(",\"base\":\"Keeper.Storm\",\"variant\":\"Archetype.Storm.Downpour\",\"layer\":\"Archetype.Forge.Hammer\",\"window_s\":%.4f,")
+			TEXT("\"enemies_hit\":3,\"damage\":%d,\"damage_raw\":1001.0000,\"complete\":true}"), Seconds(3), 1 + FMath::RoundToInt32(Hp)));
+		TestTrue(TEXT("the cast the run cut short says so"), Lines[1].EndsWith(FString::Printf(
+			TEXT("\"window_s\":%.4f,\"enemies_hit\":1,\"damage\":1,\"damage_raw\":1.0000,\"complete\":false}"), Seconds(1))));
+	}
 	return true;
 }
 
