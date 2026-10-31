@@ -15,9 +15,10 @@
 #include "InputActionValue.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
-#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Settings/DTMenuSubsystem.h"
+#include "Settings/DTUserSettings.h"
 
 namespace DTHeroLocal
 {
@@ -210,7 +211,22 @@ void ADTHero::OnIntercessionStarted(const FInputActionValue& Value)
 
 void ADTHero::OnPauseStarted(const FInputActionValue& Value)
 {
-	UGameplayStatics::SetGamePaused(this, !UGameplayStatics::IsGamePaused(this));
+	// The screen opens over anything, the run-start hand included (settings.md R-SET-16); it closes itself.
+	if (UDTMenuSubsystem* Menu = GetWorld() ? GetWorld()->GetSubsystem<UDTMenuSubsystem>() : nullptr)
+	{
+		Menu->RequestPause();
+	}
+}
+
+void ADTHero::RefreshBindings()
+{
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	UEnhancedInputLocalPlayerSubsystem* Subsystem = PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr;
+	if (Subsystem && InputSet)
+	{
+		InputSet->ApplyBindings(DTSettings::Live().Bindings);
+		Subsystem->RequestRebuildControlMappings();
+	}
 }
 
 void ADTHero::SampleFrame()

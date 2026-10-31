@@ -263,7 +263,15 @@ bool UDTOfferSubsystem::OpenNext(int32 OwnerId)
 	Flow.OpenedWall = FPlatformTime::Seconds();
 	Flow.Guard.Open(Flow.OpenedWall);
 	Flow.Stats.HandsByKind[static_cast<int32>(Hand.HandKind)]++;
-	// Keys held when the hand opens never act (R-OFF-11 e): they must be released and pressed again.
+	SnapshotInput(Flow);
+	ShowHand(OwnerId, Hand);
+	UE_LOG(LogDT, Log, TEXT("Offer p%d: hand %d kind=%d level=%d cards=%d"), OwnerId, Hand.HandId, static_cast<int32>(Hand.HandKind), Hand.Level, Hand.Cards.Num());
+	return true;
+}
+
+void UDTOfferSubsystem::SnapshotInput(FPlayerFlow& Flow)
+{
+	// Keys held now never act (R-OFF-11 e): they must be released and pressed again.
 	Flow.Down.Reset();
 	Flow.bMouseDown = false;
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
@@ -280,9 +288,31 @@ bool UDTOfferSubsystem::OpenNext(int32 OwnerId)
 		float MY = 0.0f;
 		Flow.LastMouse = PC->GetMousePosition(MX, MY) ? FVector2D(MX, MY) : FVector2D::ZeroVector;
 	}
-	ShowHand(OwnerId, Hand);
-	UE_LOG(LogDT, Log, TEXT("Offer p%d: hand %d kind=%d level=%d cards=%d"), OwnerId, Hand.HandId, static_cast<int32>(Hand.HandKind), Hand.Level, Hand.Cards.Num());
-	return true;
+}
+
+void UDTOfferSubsystem::ResumeAfterMenu(double Seconds)
+{
+	bInputHeld = false;
+	const double Now = FPlatformTime::Seconds();
+	for (FPlayerFlow& Flow : Flows)
+	{
+		if (Flow.bOpen)
+		{
+			Flow.OpenedWall += Seconds;
+			Flow.Guard.Open(Now);
+			SnapshotInput(Flow);
+		}
+	}
+}
+
+double UDTOfferSubsystem::GetOpenedWall(int32 OwnerId) const
+{
+	return Flows.IsValidIndex(OwnerId) ? Flows[OwnerId].OpenedWall : 0.0;
+}
+
+bool UDTOfferSubsystem::IsGuarded(int32 OwnerId) const
+{
+	return Flows.IsValidIndex(OwnerId) && GetOpenHand(OwnerId) && !Flows[OwnerId].Guard.Allows(FPlatformTime::Seconds());
 }
 
 void UDTOfferSubsystem::UpdateFlow()
@@ -736,7 +766,7 @@ void UDTOfferSubsystem::HandleLocalInput()
 	// Solo: the first local player drives player 0's hand (co-op hands are the co-op release, D-004).
 	constexpr int32 Owner = 0;
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (!PC || !Flows.IsValidIndex(Owner) || !GetOpenHand(Owner) || !Screen)
+	if (bInputHeld || !PC || !Flows.IsValidIndex(Owner) || !GetOpenHand(Owner) || !Screen)
 	{
 		return;
 	}

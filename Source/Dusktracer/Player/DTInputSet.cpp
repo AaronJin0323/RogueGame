@@ -3,6 +3,7 @@
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "Settings/DTUserSettings.h"
 #include "UObject/Package.h"
 
 namespace DTInputSetLocal
@@ -41,7 +42,6 @@ UDTInputSet* UDTInputSet::Create(UObject* Outer)
 void UDTInputSet::Build()
 {
 	using DTInputSetLocal::MakeAction;
-	using DTInputSetLocal::MapAxisKey;
 
 	Move = MakeAction(this, TEXT("IA_Move"), EInputActionValueType::Axis2D);
 	Aim = MakeAction(this, TEXT("IA_Aim"), EInputActionValueType::Axis2D);
@@ -50,22 +50,31 @@ void UDTInputSet::Build()
 	Pause = MakeAction(this, TEXT("IA_Pause"), EInputActionValueType::Boolean);
 	Pause->bTriggerWhenPaused = true;
 
-	// combat_core.md Data, input mapping table.
 	Kbm = NewObject<UInputMappingContext>(this, FName(TEXT("IMC_Gameplay_KBM")), RF_Transient);
-	MapAxisKey(Kbm, Move, EKeys::D, false, false);
-	MapAxisKey(Kbm, Move, EKeys::A, false, true);
-	MapAxisKey(Kbm, Move, EKeys::W, true, false);
-	MapAxisKey(Kbm, Move, EKeys::S, true, true);
+	Pad = NewObject<UInputMappingContext>(this, FName(TEXT("IMC_Gameplay_Pad")), RF_Transient);
+	ApplyBindings(DTSettings::Live().Bindings);
+}
+
+void UDTInputSet::ApplyBindings(const FDTBindings& Bindings)
+{
+	using DTInputSetLocal::MapAxisKey;
+
+	// combat_core.md Data, input mapping table; settings.md R-SET-13 for what a player may change.
+	Kbm->UnmapAll();
+	MapAxisKey(Kbm, Move, Bindings.Get(EDTBindSlot::MoveRight, EDTBindDevice::Kbm), false, false);
+	MapAxisKey(Kbm, Move, Bindings.Get(EDTBindSlot::MoveLeft, EDTBindDevice::Kbm), false, true);
+	MapAxisKey(Kbm, Move, Bindings.Get(EDTBindSlot::MoveUp, EDTBindDevice::Kbm), true, false);
+	MapAxisKey(Kbm, Move, Bindings.Get(EDTBindSlot::MoveDown, EDTBindDevice::Kbm), true, true);
 	Kbm->MapKey(Aim, EKeys::Mouse2D);
-	Kbm->MapKey(Dash, EKeys::SpaceBar);
-	Kbm->MapKey(Intercession, EKeys::Q);
+	Kbm->MapKey(Dash, Bindings.Get(EDTBindSlot::Dash, EDTBindDevice::Kbm));
+	Kbm->MapKey(Intercession, Bindings.Get(EDTBindSlot::Intercession, EDTBindDevice::Kbm));
 	Kbm->MapKey(Pause, EKeys::Escape);
 
-	Pad = NewObject<UInputMappingContext>(this, FName(TEXT("IMC_Gameplay_Pad")), RF_Transient);
+	Pad->UnmapAll();
 	Pad->MapKey(Move, EKeys::Gamepad_Left2D);
 	Pad->MapKey(Aim, EKeys::Gamepad_Right2D);
-	Pad->MapKey(Dash, EKeys::Gamepad_RightShoulder);
-	Pad->MapKey(Intercession, EKeys::Gamepad_LeftShoulder);
+	Pad->MapKey(Dash, Bindings.Get(EDTBindSlot::Dash, EDTBindDevice::Pad));
+	Pad->MapKey(Intercession, Bindings.Get(EDTBindSlot::Intercession, EDTBindDevice::Pad));
 	Pad->MapKey(Pause, EKeys::Gamepad_Special_Right);
 }
 

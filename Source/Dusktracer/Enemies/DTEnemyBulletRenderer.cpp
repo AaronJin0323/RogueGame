@@ -3,7 +3,10 @@
 #include "Dusktracer.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
+#include "Core/DTConstantsGen.h"
+#include "Core/DTPaletteGen.h"
 #include "Misc/PackageName.h"
+#include "Settings/DTUserSettings.h"
 
 namespace DTEnemyBulletRender
 {
@@ -11,6 +14,12 @@ namespace DTEnemyBulletRender
 	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_EnemyRound");
 	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_EnemyRound.M_EnemyRound");
 	static const TCHAR* FallbackMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
+	// Danger outlines (settings.md R-SET-10): a flat cylinder, unlit, so its colour stays achromatic.
+	static const TCHAR* DiscMeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	static const TCHAR* DiscMaterialPackage = TEXT("/Game/DT/Materials/M_CueColor");
+	static const TCHAR* DiscMaterialPath = TEXT("/Game/DT/Materials/M_CueColor.M_CueColor");
+	constexpr float DiscHeightUU = 1.0f;
+	constexpr float DiscStepUU = 1.0f; // the lighter disc sits this much over the darker
 }
 
 ADTEnemyBulletRenderer::ADTEnemyBulletRenderer()
@@ -27,6 +36,15 @@ ADTEnemyBulletRenderer::ADTEnemyBulletRenderer()
 	Instances->SetCastShadow(false);
 	Instances->NumCustomDataFloats = NumCustomData;
 	RootComponent = Instances;
+
+	Outlines = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Outlines"));
+	Outlines->SetupAttachment(Instances);
+	Outlines->SetMobility(EComponentMobility::Movable);
+	Outlines->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Outlines->SetGenerateOverlapEvents(false);
+	Outlines->SetCanEverAffectNavigation(false);
+	Outlines->SetCastShadow(false);
+	Outlines->NumCustomDataFloats = NumOutlineData;
 }
 
 UMaterialInterface* ADTEnemyBulletRenderer::Fallback_EnemyFireMaterial()
@@ -69,6 +87,17 @@ void ADTEnemyBulletRenderer::InitRender(const FLinearColor& Rim, float Emissive,
 	{
 		Instances->SetMaterial(0, Material);
 	}
+
+	if (UStaticMesh* Disc = LoadObject<UStaticMesh>(nullptr, DTEnemyBulletRender::DiscMeshPath))
+	{
+		Outlines->SetStaticMesh(Disc);
+		DiscMeshRadius = FMath::Max(UE_KINDA_SMALL_NUMBER, static_cast<float>(Disc->GetBounds().BoxExtent.X));
+		DiscMeshHeight = FMath::Max(UE_KINDA_SMALL_NUMBER, 2.0f * static_cast<float>(Disc->GetBounds().BoxExtent.Z));
+	}
+	if (FPackageName::DoesPackageExist(DTEnemyBulletRender::DiscMaterialPackage))
+	{
+		Outlines->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, DTEnemyBulletRender::DiscMaterialPath));
+	}
 }
 
 int32 ADTEnemyBulletRenderer::GetInstanceCount() const
@@ -76,8 +105,73 @@ int32 ADTEnemyBulletRenderer::GetInstanceCount() const
 	return Instances->GetInstanceCount();
 }
 
+int32 ADTEnemyBulletRenderer::GetOutlineCount() const
+{
+	return Outlines->GetInstanceCount();
+}
+
+void ADTEnemyBulletRenderer::SetOutlines(TConstArrayView<FTransform> Rounds)
+{
+	using namespace DTEnemyBulletRender;
+	const int32 Wanted = DTSettings::DangerOutline() ? 2 * Rounds.Num() : 0;
+	const int32 Have = Outlines->GetInstanceCount();
+	if (Wanted == 0 && Have == 0)
+	{
+		return;
+	}
+	DiscScratch.Reset(Wanted);
+	if (Wanted > 0)
+	{
+		// Flat under the round, dark first so the light disc lies on it.
+		const float Ratios[] = { DTConst::SETTINGS_OUTLINE_ROUND_DARK_RATIO, DTConst::SETTINGS_OUTLINE_ROUND_RATIO };
+		const float ZScale = DiscHeightUU / DiscMeshHeight;
+		for (const FTransform& Round : Rounds)
+		{
+			const float Radius = static_cast<float>(Round.GetScale3D().X) * MeshRadius;
+			const FVector Under = Round.GetLocation() - FVector(0.0, 0.0, Radius);
+			for (int32 Layer = 0; Layer < 2; ++Layer)
+			{
+				const float Scale = Radius * Ratios[Layer] / DiscMeshRadius;
+				DiscScratch.Add(FTransform(FQuat::Identity, Under + FVector(0.0, 0.0, Layer * DiscStepUU), FVector(Scale, Scale, ZScale)));
+			}
+		}
+	}
+	if (Wanted > Have)
+	{
+		const TArray<FTransform> Added(DiscScratch.GetData() + Have, Wanted - Have);
+		Outlines->AddInstances(Added, false, false, false);
+		const FLinearColor Dark = DTPal::Linear(DTPal::Assist_Dark);
+		const FLinearColor Light = DTPal::Linear(DTPal::Assist_Light);
+		CustomScratch.Reset();
+		for (int32 Index = Have; Index < Wanted; ++Index)
+		{
+			const FLinearColor& Color = Index % 2 == 0 ? Dark : Light;
+			CustomScratch.Append({ Color.R, Color.G, Color.B, 1.0f });
+		}
+		Outlines->SetCustomData(Have, Wanted - 1, CustomScratch, false);
+	}
+	else if (Wanted < Have)
+	{
+		RemoveScratch.Reset();
+		for (int32 Index = Have - 1; Index >= Wanted; --Index)
+		{
+			RemoveScratch.Add(Index);
+		}
+		Outlines->RemoveInstances(RemoveScratch, true);
+	}
+	if (Wanted > 0)
+	{
+		Outlines->BatchUpdateInstancesTransforms(0, DiscScratch, false, true, true);
+	}
+	else
+	{
+		Outlines->MarkRenderStateDirty();
+	}
+}
+
 void ADTEnemyBulletRenderer::SetInstances(TConstArrayView<FTransform> Transforms)
 {
+	SetOutlines(Transforms);
 	const int32 Wanted = Transforms.Num();
 	const int32 Have = Instances->GetInstanceCount();
 	if (Wanted > Have)

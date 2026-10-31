@@ -172,7 +172,7 @@ void UDTBossSubsystem::EndTelemetrySession()
 	}
 }
 
-void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas) const
+void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas, float TextScale) const
 {
 	if (!Canvas || !GEngine || !Core.HasHull())
 	{
@@ -183,14 +183,14 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas) const
 	const FText Name = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.BossName"));
 	float NameW = 0.0f;
 	float NameH = 0.0f;
-	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale, NameScale);
+	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale * TextScale, NameScale * TextScale);
 
 	const float BarW = Canvas->ClipX * BarWidthRatio;
 	const float BarX = (Canvas->ClipX - BarW) * 0.5f;
 	const float BarY = Canvas->ClipY - BottomPx - BarHeightPx;
 
 	FCanvasTextItem Label(FVector2D((Canvas->ClipX - NameW) * 0.5f, BarY - NameGapPx - NameH), Name, Font, DTPal::Linear(DTPal::UI_Text));
-	Label.Scale = FVector2D(NameScale, NameScale);
+	Label.Scale = FVector2D(NameScale * TextScale, NameScale * TextScale);
 	Label.EnableShadow(FLinearColor::Black);
 	Canvas->DrawItem(Label);
 

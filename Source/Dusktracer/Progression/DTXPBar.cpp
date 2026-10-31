@@ -38,7 +38,7 @@ void FDTXPBar::BuildRows(const FDTRunState& Run, double SimTime, TConstArrayView
 	}
 }
 
-void FDTXPBar::Draw(UCanvas* Canvas, UWorld* World, UFont* Font)
+void FDTXPBar::Draw(UCanvas* Canvas, UWorld* World, UFont* Font, float TextScale)
 {
 	UDTSimSubsystem* Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
 	if (!Canvas || !Sim || !Font)
@@ -64,13 +64,14 @@ void FDTXPBar::Draw(UCanvas* Canvas, UWorld* World, UFont* Font)
 	const FText PendingFormat = FText::FromStringTable(TEXT("ST_UI"), TEXT("Level.Pending"));
 	const FText LevelUp = FText::FromStringTable(TEXT("ST_UI"), TEXT("Level.Up"));
 
-	auto Measure = [Canvas, Font](const FText& Line, float& OutW, float& OutH)
+	auto Measure = [Canvas, Font, TextScale](const FText& Line, float& OutW, float& OutH)
 	{
-		Canvas->TextSize(Font, Line.ToString(), OutW, OutH, 1.0f, 1.0f);
+		Canvas->TextSize(Font, Line.ToString(), OutW, OutH, TextScale, TextScale);
 	};
-	auto Text = [Canvas, Font, &TextColor](const FText& Line, float X, float Y)
+	auto Text = [Canvas, Font, &TextColor, TextScale](const FText& Line, float X, float Y)
 	{
 		FCanvasTextItem Item(FVector2D(X, Y), Line, Font, TextColor);
+		Item.Scale = FVector2D(TextScale, TextScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
 	};

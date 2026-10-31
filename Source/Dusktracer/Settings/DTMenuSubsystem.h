@@ -37,6 +37,9 @@ public:
 	const FDTMenuState& GetState() const { return State; }
 	/** Test seam: takes the world pause instead of the game mode. */
 	void SetPauseOverride(TFunction<void(bool)> InOverride) { PauseOverride = MoveTemp(InOverride); }
+#if !UE_BUILD_SHIPPING
+	void ForceDevShot() { bDevShotForced = true; }
+#endif
 
 private:
 	void HandleOutcome(const FDTMenuOutcome& Outcome);
@@ -50,6 +53,7 @@ private:
 	double DevShotAt = -1.0;
 	int64 DevShotLastSize = -1;
 	bool bDevShotAsked = false;
+	bool bDevShotForced = false;
 #endif
 
 	FDTMenuState State;

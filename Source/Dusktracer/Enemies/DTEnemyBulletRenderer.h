@@ -42,6 +42,7 @@ public:
 private:
 	/** R-TEC-05 fallback when M_InstanceColor is missing: the engine basic-shape material (no per-instance colour). */
 	static UMaterialInterface* Fallback_EnemyFireMaterial();
+	void SetOutlines(TConstArrayView<FTransform> Rounds);
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UInstancedStaticMeshComponent> Instances;
@@ -51,6 +52,9 @@ private:
 	TObjectPtr<UInstancedStaticMeshComponent> Outlines;
 
 	float MeshRadius = 1.0f;
+	float DiscMeshRadius = 1.0f;
+	float DiscMeshHeight = 1.0f;
+	TArray<FTransform> DiscScratch;
 	bool bFallbackMaterial = false;
 	float CustomData[NumCustomData] = {};
 	TArray<float> CustomScratch;

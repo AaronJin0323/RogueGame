@@ -7,7 +7,7 @@ Written from `Handoff_Dusktracer/game/G02_Blueprint_DocSet_zh.md` (UX/UI: rebind
 
 ## Rules
 ### Sim isolation
-- **R-SET-01** No setting reaches the sim. A run with every setting changed (culture included) gives the same steps, inputs and telemetry as a run at the defaults (R-TEC-02). Settings change only what is drawn, heard or which physical key sends an action.
+- **R-SET-01** No setting reaches the sim. A run with every setting changed (culture included) gives the same steps, inputs and telemetry as a run at the defaults (R-TEC-02); the one telemetry field that differs is the `culture` tag every record carries. Settings change only what is drawn, heard or which physical key sends an action.
 - **R-SET-02** The settings header is read only by presentation and input code: the list is in T-SET-02, and a new reader is added there on purpose. No file of a sim system may include it. Hit-stop and slow motion, which the source lists, are left out for this reason: here both would change sim time (Out of scope).
 
 ### The file
@@ -36,7 +36,7 @@ Order on the screen, with the default first:
 - **R-SET-08** Graphics sets one engine scalability level for every group, and Window the window mode; both apply on change and at launch when a file was read. Only Epic is measured: the contrast and perf gates run there.
 - **R-SET-09** Motion Reduced turns Screen shake and Screen flashes off, Full turns them on, and either row changed by hand shows Custom; Custom is never stepped onto directly. `DTSettings::AllowShake` and `DTSettings::AllowFlash` are the read points for the effects when they land; nothing in the game shakes or flashes yet, and the rows' focus hints say so.
 - **R-SET-10** Danger outlines (off by default): an achromatic assist for telling danger by shape, not hue. Every red telegraph gets a band of `Pal.Assist.Light`, `C.SETTINGS.OUTLINE_BAND_UU` wide, outside its dark edge (R-PRE-05); every enemy round draws over a `Pal.Assist.Light` disc of `C.SETTINGS.OUTLINE_ROUND_RATIO` of its radius on a `Pal.Assist.Dark` disc of `C.SETTINGS.OUTLINE_ROUND_DARK_RATIO`. It never changes a footprint, never touches a control cue (R-PRE-11) and draws nothing while off. `[invented]` the sizes; the source gives only the colours and the stacking idea.
-- **R-SET-11** Colour-vision check: under protan, deutan and tritan simulation (`Machado 2009` at full severity, `CIE76` distance) enemy rounds and telegraphs stay at least `C.SETTINGS.CVD_DELTA_E_MIN` from every player round token, and the enemy muzzle at least `C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN`. The method and thresholds are the source's. Known debts, named in T-SET-11 and failing it if they grow or vanish: Forge's trail against the telegraph (deutan) and against the muzzle (protan, deutan). Danger outlines are the player's answer until the token question is settled (Open).
+- **R-SET-11** Colour-vision check: under protan, deutan and tritan simulation (`Machado 2009` at full severity, `CIE76` distance) enemy rounds and telegraphs stay at least `C.SETTINGS.CVD_DELTA_E_MIN` from every player round token, and the enemy muzzle at least `C.SETTINGS.CVD_MUZZLE_DELTA_E_MIN`. The method and thresholds are the source's. Known debts, named in T-SET-11 and failing it if they grow or vanish: Forge's trail against the telegraph and against the muzzle, both under deutan. Danger outlines are the player's answer until the token question is settled (Open).
 - **R-SET-12** Text size multiplies the drawn scale of every string on the HUD, the XP bar, the boss bar, the offer screen and these screens. Rows and cards grow with it so nothing leaves its panel at the largest size.
 
 ### Rebinding
@@ -100,7 +100,7 @@ Order on the screen, with the default first:
 - HUMAN: off-screen shots cannot judge these. Keys and pad on real hands; Windowed and Fullscreen on a real desktop; volume once sound exists; a reader's view of the outlines in play, and of the largest text on the offer screen.
 
 ## Telemetry
-None. Settings are not run data; R-TEL records stay equal under R-SET-01.
+None. Settings are not run data; telemetry stays equal under R-SET-01 but for its existing `culture` tag.
 
 ## Text
 Prefixes `ST_UI.Pause.*`, `ST_UI.Settings.*`, `ST_UI.Controls.*`, `ST_UI.Menu.*`; budget `70` rows; en and zh-Hans. Source wording is kept where it exists; `Pause.Title`, `Menu.*`, `Settings.Window*`, `Settings.Hint.*` and the zh of rows missing from `zh_overrides.csv` are `[invented]`, drawn from `zh_glossary.md`.

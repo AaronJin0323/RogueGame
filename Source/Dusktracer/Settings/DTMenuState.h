@@ -57,6 +57,7 @@ namespace DTMenuInput
 namespace DTMenuLayout
 {
 	DUSKTRACER_API float RowHeight(float TextScale);
+	DUSKTRACER_API float TitleHeight(float TextScale);
 	/** Title, rows and footer together. */
 	DUSKTRACER_API float ContentHeight(int32 Rows, float TextScale);
 }

@@ -23,6 +23,9 @@ class DUSKTRACER_API ADTHero : public APawn
 	GENERATED_BODY()
 
 public:
+	/** Rebuilds the input contexts from the live table (settings.md R-SET-14). */
+	void RefreshBindings();
+
 	ADTHero();
 
 	virtual void BeginPlay() override;

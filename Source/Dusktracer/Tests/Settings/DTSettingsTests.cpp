@@ -251,8 +251,11 @@ bool FDTSetSimUntouched::RunTest(const FString& Parameters)
 	TestEqual(TEXT("same input stream"), Changed.InputHash, Base.InputHash);
 	TestEqual(TEXT("same hero position"), Changed.Pos, Base.Pos);
 	TestEqual(TEXT("same HP"), Changed.Hp, Base.Hp);
-	TestEqual(TEXT("identical telemetry CSV"), Changed.Csv, Base.Csv);
-	TestTrue(TEXT("identical telemetry JSONL except wall fields"), StripWall(Changed.Jsonl) == StripWall(Base.Jsonl));
+	// The culture tag is the one field that names a setting (R-SET-01): the run under it must match byte for byte.
+	const auto SameCulture = [](const FString& Text) { return Text.Replace(TEXT("zh-Hans"), TEXT("en")); };
+	TestTrue(TEXT("the tag did change"), Changed.Csv != Base.Csv);
+	TestEqual(TEXT("identical telemetry CSV"), SameCulture(Changed.Csv), SameCulture(Base.Csv));
+	TestTrue(TEXT("identical telemetry JSONL except wall fields"), SameCulture(StripWall(Changed.Jsonl)) == SameCulture(StripWall(Base.Jsonl)));
 	return true;
 }
 
@@ -534,7 +537,7 @@ bool FDTSetColourVision::RunTest(const FString& Parameters)
 		{ TEXT("muzzle"), DTPal::Enemy_Muzzle, DTConst::SETTINGS_CVD_MUZZLE_DELTA_E_MIN } };
 
 	// The debts of R-SET-11, by name: a new failure fails this test, and so does a debt that no longer exists.
-	TSet<FString> Debts = { TEXT("telegraph/Forge/deutan"), TEXT("muzzle/Forge/protan"), TEXT("muzzle/Forge/deutan") };
+	TSet<FString> Debts = { TEXT("telegraph/Forge/deutan"), TEXT("muzzle/Forge/deutan") };
 	for (const FEnemy& Enemy : Enemies)
 	{
 		for (const FToken& Token : Player)
