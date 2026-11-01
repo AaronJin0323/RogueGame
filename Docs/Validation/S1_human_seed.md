@@ -85,7 +85,7 @@ The first versions of `SeedCheck` showed windows on the owner's desktop, against
 
 The project path is now required first, launches run on the hidden desktop, and unattended launches go first, so a stale build fails before any launch that could prompt. The 11 logs kept from the final runs are all `-RenderOffScreen`, with and without `-unattended`, and none created a game window.
 
-`Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured.
+`Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured. `S1_no_windows.md` measured it: under `-nullrhi` that line comes with no native window, so the line is not evidence of one, and the reading above needs that correction.
 
 ## For the merge into dev/s2 and dev/s3
 None of this is reachable on `main`, and none of it was run: it comes from reading both branches. Their launchers carry the old line, which this replaces. `Tools\Play.bat` on both passes `%CULTUREARG%`; `SeedCheck` reads the expanded line, so that needs no change.

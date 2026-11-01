@@ -37,7 +37,7 @@ $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-Res
 # With no -unattended the editor starts a Live Coding session, whose mutex is named from the editor's path: every worktree shares it, and a build in any of
 # them fails while it is held (Tools\Play.bat passes the same flag). Shipping has no Live Coding.
 if (-not $Package) { $OffScreen += "-LiveCoding=false" }
-# Never -nullrhi here: UnrealEditor -game with it still creates a real game window (LogEngine: GameWindow did not exist). -RenderOffScreen creates none.
+# -RenderOffScreen runs the null application, which creates no native window.
 $Tool = $OffScreen + @("-unattended")
 # FDTRunSeed::FreshMin, FreshMax, RejectedExitCode (Source/Dusktracer/Core/DTRunSeed.h).
 $FreshMin = 1

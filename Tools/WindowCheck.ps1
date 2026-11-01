@@ -1,5 +1,6 @@
-# Window check (gate step `windows`, the no-window rule in AGENTS.md): a bot run, a smoke run and a test run, each through its real tool, show nothing on this desktop.
+# Window check (gate step `windows`, 07_Technical R-TEC-17, T-TEC-17): a bot run, a smoke run and a test run, each through its real tool, show nothing on this desktop.
 #   & Tools\WindowCheck.ps1 [-Timeout 300]
+# No game or editor outlives them either: nobody could see a stray on the hidden desktop. A shared daemon (zenserver, UnrealTraceServer) may, and is logged.
 # Tools/WindowWatch.ps1 hooks EVENT_OBJECT_SHOW for the whole step, so a flash is caught; its limits are in that file. A launch that failed would show nothing and
 # prove nothing, so each must also read PASS. Two controls run with it, so the step cannot pass blind:
 #   probe    a process started past the helper, on this desktop, shows a window: one pixel, alpha 0, off every screen, no focus, no taskbar button, 0.2 s. No one
@@ -114,6 +115,7 @@ $Probe = @($Seen.Windows | Where-Object { $_ -like "*'$ProbeTitle'" })
 $Shown = @($Seen.Windows | Where-Object { $_ -notlike "*'$ProbeTitle'" })
 if ($Probe.Count -eq 0) { Note-Fail "the hook missed the probe window, so a pass here would prove nothing" }
 foreach ($Window in $Shown) { Note-Fail "shown on this desktop: $Window" }
+foreach ($Stray in @($Seen.Left | Where-Object { $_ -match "^(UnrealEditor|Dusktracer)" })) { Note-Fail "still running after the step: $Stray" }
 
 $BypassLines = if (Test-Path $BypassReport) { @(Get-Content $BypassReport -Encoding UTF8) } else { @() }
 $BypassVerdict = ($BypassLines | Where-Object { $_ -like "WINDOWS:*" } | Select-Object -Last 1)
@@ -122,7 +124,7 @@ $BypassCaught = ($Control.ExitCode -eq 1) -and ($BypassVerdict -like "WINDOWS: F
 if (-not $BypassProbe) { Note-Fail "the stand-in desktop missed its probe, so the bypass control read nothing" }
 if (-not $BypassCaught) { Note-Fail "the bypass control was not caught (exit $($Control.ExitCode)): $BypassVerdict" }
 
-$Report = @("tree: $($Seen.Tree) processes; lost events: $($Seen.Lost)", "bot: $Bot", "smoke: $Smoke", "tests: $Tests", "probe: $($Probe -join ' | ')", "bypass: $BypassVerdict")
+$Report = @("tree: $($Seen.Tree) processes; lost events: $($Seen.Lost); left running: $($Seen.Left -join ', ')", "bot: $Bot", "smoke: $Smoke", "tests: $Tests", "probe: $($Probe -join ' | ')", "bypass: $BypassVerdict")
 $Report += @($BypassLines | ForEach-Object { "  $_" })
 $Report += "windows of other processes on this desktop, not judged:"
 $Report += @($Seen.Other | ForEach-Object { "  $_" })

@@ -1,7 +1,7 @@
 # Window watch: every window a script's process tree shows on the desktop this script runs on (gate step `windows`, T-PKG-07).
 #   . (Join-Path $PSScriptRoot "WindowWatch.ps1")
 #   Start-DTWindowWatch                    from here this script and all it starts are the tree
-#   $Seen = Stop-DTWindowWatch             .Windows ("<image> pid <pid> class <class> '<title>'"), .Tree (processes), .Other (windows of anything else)
+#   $Seen = Stop-DTWindowWatch             .Windows ("<image> pid <pid> class <class> '<title>'"), .Tree (processes), .Other (windows of anything else), .Left (tree still alive)
 # SetWinEventHook EVENT_OBJECT_SHOW, out of context, so a flash too short for a sampled loop still queues an event; the hook sees one desktop, this script's.
 # The tree is a job holding this script: every descendant joins it at birth, and a job message names it even after it has exited. Children the hidden launch
 # helper puts in its own job nest inside this one, so a daemon that leaves that job stays in this one.
@@ -47,7 +47,9 @@ public static class DTWindowWatch {
 	[DllImport("kernel32.dll")] static extern IntPtr OpenThread(uint access, bool inherit, uint tid);
 	[DllImport("kernel32.dll")] static extern uint GetProcessIdOfThread(IntPtr thread);
 	[DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool QueryFullProcessImageNameW(IntPtr process, uint flags, StringBuilder path, ref int size);
+	[DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr process, out uint code);
 	[DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+	const uint StillActive = 259;
 	const uint EventObjectShow = 0x8002;
 	const uint WmQuit = 0x12;
 	const uint RootAncestor = 2;
@@ -69,6 +71,7 @@ public static class DTWindowWatch {
 	static int Lost;
 	public static string[] Windows = new string[0];
 	public static string[] Other = new string[0];
+	public static string[] Left = new string[0];
 	public static int TreeCount;
 	public static int LostCount;
 
@@ -175,8 +178,19 @@ public static class DTWindowWatch {
 		} }
 		List<string> rows = new List<string>();
 		foreach (KeyValuePair<string, int> row in other) { rows.Add(row.Value + " x " + row.Key); }
+		List<string> left = new List<string>();
+		uint self = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+		foreach (uint pid in Tree) {
+			IntPtr process = OpenProcess(ProcessQueryLimited, false, pid);
+			if (process == IntPtr.Zero) { continue; }
+			bool inside;
+			uint exit;
+			if (pid != self && IsProcessInJob(process, Job, out inside) && inside && GetExitCodeProcess(process, out exit) && exit == StillActive) { left.Add(ImageOf(process) + " pid " + pid); }
+			CloseHandle(process);
+		}
 		Windows = windows.ToArray();
 		Other = rows.ToArray();
+		Left = left.ToArray();
 		LostCount = Lost;
 	}
 }
@@ -187,5 +201,5 @@ function Start-DTWindowWatch { [DTWindowWatch]::Start() }
 
 function Stop-DTWindowWatch {
 	[DTWindowWatch]::Stop()
-	return [pscustomobject]@{ Windows = @([DTWindowWatch]::Windows); Other = @([DTWindowWatch]::Other); Tree = [DTWindowWatch]::TreeCount; Lost = [DTWindowWatch]::LostCount }
+	return [pscustomobject]@{ Windows = @([DTWindowWatch]::Windows); Other = @([DTWindowWatch]::Other); Left = @([DTWindowWatch]::Left); Tree = [DTWindowWatch]::TreeCount; Lost = [DTWindowWatch]::LostCount }
 }

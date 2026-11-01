@@ -17,9 +17,10 @@ One command runs them all on the merged tree: `& Tools\Gate.ps1` from PowerShell
 | `shipping` | test/debug code leaking into Shipping (R-TEC-12) | `Tools/Build.bat Shipping` (game target) | live |
 | `tools` | `Tools/tools_test.py`: the logic of the Python tools (hit kinds, probes, contrast) | Python, stdlib | live |
 | `contrast` | T-PRE-05 on an off-screen late frame (`Tools/contrast_check.py`, `Tools/Smoke.ps1 -Contrast`); an element below `C.PRE.CONTRAST_MIN` or not found fails, unless `Docs/Validation/contrast_debts.txt` names it | game `-RenderOffScreen` | live |
-| `tests` | automation suite `Dusktracer`, headless; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `UnrealEditor-Cmd -nullrhi` | live |
+| `tests` | automation suite `Dusktracer`, headless on the hidden desktop; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `Tools/RunTests.ps1` | live |
 | `smoke` | rendered run on the arena, goldens, contrast | `Tools/Smoke.ps1` | NOT RUN until the S0 arena exists |
 | `seed` | every human launch gets a fresh seed, tools and explicit seeds stay exact, an out-of-range seed is rejected (R-TEC-16): each launcher's real arguments started off-screen and `run_start.seed` read back | `Tools/SeedCheck.ps1` | live |
+| `windows` | a bot, a smoke and a test run show no window on the desktop, with a probe and a bypass control (R-TEC-17); no game outlives them | `Tools/WindowCheck.ps1` | live |
 | `pad` | packaged build runs off-screen in both cultures, telemetry written and exported (`02_Systems/package.md`); a real pad needs a human, so the step reads NOT RUN until a run of this build has `input_device` `pad` | `Tools/PadCheck.ps1` | live, NOT RUN without a current clean package |
 | `scope` | files outside a brief's allowed list | pipeline only | NOT RUN until the first brief |
 | `mac` | Mac build | `Tools/MacGate.sh` | deferred (D-007) |
