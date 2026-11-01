@@ -1,0 +1,41 @@
+# Automation tests, headless and on the hidden desktop: the launch behind gate step `tests`, and the way to run a filter by hand.
+#   & Tools\RunTests.ps1 [-Filter Dusktracer.Keepers] [-Log <path>] [-Floor 0] [-Timeout 3600]
+# Every test found must complete: a crash can stop the run early. A run still alive after -Timeout seconds is killed by its own PID and fails on that count.
+# Prints "TESTS: PASS|FAIL (<n> run of <m> found, <f> failed, floor <n>, <c> crash marker(s))", with "  ! " lines for what failed; exit 0 / 1. Default log: Saved\Logs\RunTests.log.
+param(
+	[string]$Filter = "Dusktracer",
+	[string]$Log = "",
+	[int]$Floor = 0,
+	[int]$Timeout = 3600
+)
+
+trap { Write-Host "TESTS: FAIL (script error: $_)"; exit 1 }
+
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
+$Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+$Project = Join-Path $Root "Dusktracer.uproject"
+if (-not $Log) { $Log = Join-Path $Root "Saved\Logs\RunTests.log" }
+New-Item -ItemType Directory -Force (Split-Path $Log -Parent) | Out-Null
+if (Test-Path $Log) { Remove-Item $Log }
+
+$Proc = Start-DTHidden $Exe @("`"$Project`"", "-ExecCmds=`"Automation RunTests $Filter;Quit`"", "-unattended", "-nopause", "-nullrhi", "-nosplash", "-LiveCoding=false", "-ABSLOG=`"$Log`"")
+if (-not $Proc.WaitForExit($Timeout * 1000)) {
+	Write-Host "  ! killed after $Timeout s (PID $($Proc.Id))"
+	Stop-DTHidden $Proc
+}
+
+$All = @(Select-String -Path $Log -Pattern "Test Completed\. Result=\{")
+$Failed = @($All | Where-Object { $_.Line -notmatch "Result=\{Success\}" })
+$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===")
+$FoundLine = Select-String -Path $Log -Pattern "Found (\d+) automation tests" | Select-Object -First 1
+$Found = if ($FoundLine) { [int]$FoundLine.Matches[0].Groups[1].Value } else { 0 }
+$Summary = "{0} run of {1} found, {2} failed, floor {3}, {4} crash marker(s)" -f $All.Count, $Found, $Failed.Count, $Floor, $Crash.Count
+if ($All.Count -eq 0 -or $All.Count -ne $Found -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
+	$Failed + $Crash | Select-Object -First 12 | ForEach-Object { "  ! " + $_.Line }
+	Write-Host "TESTS: FAIL ($Summary)"
+	exit 1
+}
+Write-Host "TESTS: PASS ($Summary)"
+exit 0
