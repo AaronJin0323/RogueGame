@@ -1025,6 +1025,16 @@ FDTPickOutcome DTOffers::ApplyPickState(FDTPlayerRunState& Player, EDTHandKind H
 	return Out;
 }
 
+static TArray<FDTFlagEntry> DTOfferKeeperFlags(const FDTKeeperRunState& Keepers)
+{
+	TArray<FDTFlagEntry> Flags;
+	for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+	{
+		Flags.Append(DTKeepers::BuildKeeperFlags(Keepers, static_cast<EDTPath>(Path)).Entries);
+	}
+	return Flags;
+}
+
 TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card)
 {
 	TArray<FDTDormantSocket> Out;
@@ -1034,17 +1044,8 @@ TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Pla
 	{
 		return Out;
 	}
-	auto FlagsOf = [](const FDTKeeperRunState& Keepers)
-	{
-		TArray<FDTFlagEntry> Flags;
-		for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
-		{
-			Flags.Append(DTKeepers::BuildKeeperFlags(Keepers, static_cast<EDTPath>(Path)).Entries);
-		}
-		return Flags;
-	};
-	const TArray<FDTFlagEntry> FlagsNow = FlagsOf(Player.Keepers);
-	const TArray<FDTFlagEntry> FlagsPicked = FlagsOf(Picked);
+	const TArray<FDTFlagEntry> FlagsNow = DTOfferKeeperFlags(Player.Keepers);
+	const TArray<FDTFlagEntry> FlagsPicked = DTOfferKeeperFlags(Picked);
 	const FDTWeaponHeroStats Stats; // caps read no stat
 	for (const FDTWeaponInstance& Weapon : Player.Weapons)
 	{
@@ -1058,6 +1059,31 @@ TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Pla
 			{
 				Out.Add(FDTDormantSocket{ Weapon.Id, Weapon.Sockets[Index].ModId });
 			}
+		}
+	}
+	return Out;
+}
+
+TArray<FDTRoundsLeft> DTOffers::RoundsAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card)
+{
+	TArray<FDTRoundsLeft> Out;
+	FDTKeeperRunState Picked = Player.Keepers;
+	if (Card.Kind != EDTCardKind::Blessing || !AddBlessing(Picked, Card.ContentId))
+	{
+		return Out;
+	}
+	const TArray<FDTFlagEntry> FlagsNow = DTOfferKeeperFlags(Player.Keepers);
+	const TArray<FDTFlagEntry> FlagsPicked = DTOfferKeeperFlags(Picked);
+	const FDTWeaponHeroStats Stats; // rounds read no stat
+	for (const FDTWeaponInstance& Weapon : Player.Weapons)
+	{
+		FDTWeaponInstance Now = Weapon;
+		FDTWeaponInstance After = Weapon;
+		const FDTWeaponSpec SpecNow = DTWeaponCompose::Compose(Now, FlagsNow, Stats, 0);
+		const FDTWeaponSpec SpecAfter = DTWeaponCompose::Compose(After, FlagsPicked, Stats, 0);
+		if (SpecAfter.ConvertRounds > SpecNow.ConvertRounds)
+		{
+			Out.Add(FDTRoundsLeft{ Weapon.Id, SpecAfter.Count - SpecAfter.ConvertRounds, SpecAfter.Count });
 		}
 	}
 	return Out;

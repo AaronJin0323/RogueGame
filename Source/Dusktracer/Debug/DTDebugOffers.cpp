@@ -8,9 +8,10 @@
 // -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it); -DTOfferShotMod=<Mod.*>[+<Mod.*>...] sockets
 // them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotRing=<Mod.*>[+...]
 // also gives the Ring Emitter with those socketed; -DTOfferShotBless=<Blessing.*> takes that blessing and opens no hand, so
-// the shot is the HUD with its dormant lines. The log names each card of the hand shot, so a seed can be picked by card.
-// Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500), and never -unattended, which
-// auto-picks slot 0 so no hand is left to shoot.
+// the shot is the HUD with its dormant lines; -DTOfferShotRifle=<level> sets the Pulse Rifle's level (2 by default);
+// -DTTextPct=<pct> draws at that text size (DTOfferStyle::TextMul). The log names each card of the hand shot, so a seed can be
+// picked by card. Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500). -unattended is
+// safe: a shot turns dt.Offer.AutoPick off, or slot 0 would be picked at once and no hand would be left to shoot.
 
 #include "CoreMinimal.h"
 
@@ -248,7 +249,13 @@ namespace DTDebugOffers
 				Offers->Pick(0, Patron); // the run-start Patron hand
 				if (UDTWeaponSubsystem* Weapons = World->GetSubsystem<UDTWeaponSubsystem>())
 				{
-					Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), 2);
+					int32 RifleLevel = 2;
+					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotRifle="), RifleLevel);
+					// The Patron pick has already given the Rifle at level 1, so Give alone would leave it there.
+					if (Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), RifleLevel) == EDTWeaponResult::AlreadyOwned)
+					{
+						Weapons->LevelUp(0, FName(TEXT("Weapon.PulseRifle")), RifleLevel);
+					}
 					Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
 					FString Mods;
 					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotMod="), Mods);
@@ -308,6 +315,10 @@ namespace DTDebugOffers
 		if (!FParse::Value(FCommandLine::Get(), TEXT("DTOfferShot="), Path) || Path.IsEmpty())
 		{
 			return;
+		}
+		if (IConsoleVariable* AutoPick = IConsoleManager::Get().FindConsoleVariable(TEXT("dt.Offer.AutoPick")))
+		{
+			AutoPick->Set(0, ECVF_SetByCode);
 		}
 		TSharedRef<FShot> Shot = MakeShared<FShot>();
 		Shot->Path = FPaths::ConvertRelativePathToFull(Path);

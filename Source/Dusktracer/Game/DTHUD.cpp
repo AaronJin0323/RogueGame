@@ -121,7 +121,8 @@ void ADTHUD::DrawHeroes()
 	const FText MeterLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Intercession"));
 	const FText MeterReady = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.IntercessionReady"));
 	const FText AimLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));
-	const float LineH = TextHeight(DashLabel, 1.0f);
+	const float TextScale = DTOfferStyle::TextMul();
+	const float LineH = TextHeight(DashLabel, TextScale);
 	const float BlockH = 3.0f * (LineH + LineGapPx) + 2.0f * (BarHeightPx + LineGapPx) + PipSizePx + LineGapPx;
 
 	float Y = Canvas->ClipY - MarginPx - BlockH * Hero->GetNumHeroes() - BlockGapPx * (Hero->GetNumHeroes() - 1);
@@ -137,10 +138,10 @@ void ADTHUD::DrawHeroes()
 				const FText Line = DTOfferText::Dormant(TEXT("Dormant.Hud"), Socket);
 				float Width = 0.0f;
 				float Height = 0.0f;
-				Canvas->TextSize(Font, Line.ToString(), Width, Height, 1.0f, 1.0f);
+				Canvas->TextSize(Font, Line.ToString(), Width, Height, TextScale, TextScale);
 				DormantY -= LineH + PanelPadPx;
 				Box(MarginPx - PanelPadPx, DormantY, Width + 2.0f * PanelPadPx, LineH + PanelPadPx, BarBack);
-				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, 1.0f);
+				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, TextScale);
 				DormantY -= LineGapPx;
 			}
 		}
@@ -152,12 +153,12 @@ void ADTHUD::DrawHeroes()
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Hp"), FText::AsNumber(FMath::CeilToInt(FMath::Max(0.0f, S.Hp))));
 		Args.Add(TEXT("MaxHp"), FText::AsNumber(FMath::CeilToInt(S.MaxHp)));
-		Text(FText::Format(HpFormat, Args), X, Y, 1.0f);
+		Text(FText::Format(HpFormat, Args), X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.MaxHp > 0.0f ? S.Hp / S.MaxHp : 0.0f, BarFill);
 		Y += BarHeightPx + LineGapPx;
 
-		Text(DashLabel, X, Y, 1.0f);
+		Text(DashLabel, X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		const int32 MaxCharges = FDTHeroSim::ComputeMaxCharges(S.Stats);
 		const float Cooldown = DTConst::DASH_COOLDOWN_S * S.Stats.DashCooldownMul;
@@ -179,13 +180,13 @@ void ADTHUD::DrawHeroes()
 		Y += PipSizePx + LineGapPx;
 
 		const bool bReady = S.Intercession01 >= 1.0f;
-		Text(bReady ? MeterReady : MeterLabel, X, Y, 1.0f);
+		Text(bReady ? MeterReady : MeterLabel, X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.Intercession01, bReady ? BarReady : BarFill);
 		Y += BarHeightPx + LineGapPx;
 		if (Hero->GetAimMode(OwnerId) == EDTAimMode::Manual)
 		{
-			Text(AimLabel, X, Y, 1.0f);
+			Text(AimLabel, X, Y, TextScale);
 		}
 		Y += LineH + LineGapPx + BlockGapPx;
 	}

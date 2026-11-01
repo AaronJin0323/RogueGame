@@ -9,3 +9,5 @@ ArcBlade.Name,Arc Blade,弧刃,Offer card name of Weapon.ArcBlade (weapons.md Te
 ArcBlade.Desc,Sweeps a wide blade at the closest enemy.,朝最近的敌人挥出宽弧刃。,"Offer card line of Weapon.ArcBlade: names the pattern, never a catalog number.",
 GravityMine.Name,Gravity Mine,引力雷,Offer card name of Weapon.GravityMine (weapons.md Text).,
 GravityMine.Desc,"Drops a mine on a crowd: it pulls them in, then detonates.",在敌群中布雷：先把敌人吸过来，再引爆。,"Offer card line of Weapon.GravityMine: names the pattern, never a catalog number.",Flag.Pull
+Rounds.None,No rounds fly from {Weapon},{Weapon}不再有弹体飞出,"Offer card, boxed above the rarity row, when picking the card would convert every round of that weapon (offers.md R-OFF-13). {Weapon} is a name. zh invented: needs a native read.",
+Rounds.Some,{Kept} of {Count} rounds fly from {Weapon},{Weapon}的 {Count} 发中只剩 {Kept} 发飞出,"Offer card, boxed above the rarity row, when picking the card would convert some rounds of that weapon (offers.md R-OFF-13). {Weapon} is a name; {Kept} and {Count} come from the composition at the weapon's level. zh invented: needs a native read.",

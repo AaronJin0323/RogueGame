@@ -106,7 +106,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - `weapon_acquired{source}` and `weapon_level{source, level}` (record `owner` = the player) when the loadout changes through `UDTWeaponSubsystem`: an offer pick, the Patron's starting weapon, a bot or debug loadout. A weapon given above its first level writes both. The subsystem reports emissions and the weapon's level and load rank each step for the `weapon` record.
 
 ## Text
-- Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label; budget two rows per weapon plus one; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.
+- Prefix `ST_Weapons.<Name>.Name` and `ST_Weapons.<Name>.Desc` per weapon (names from `reference/text_tables/ST_Weapons.csv`), plus `ST_Weapons.Load` for the HUD label and `ST_Weapons.Rounds.None` and `.Some` for what a conversion leaves flying (`offers.md` R-OFF-13); budget two rows per weapon plus three; en + zh-Hans. Offer lines name the weapon's pattern, never a number the catalog may change.
 
 ## Out of scope
 - Weapon evolutions and fusions (S2, `evolution` column); the five S2 weapons' level rows.
