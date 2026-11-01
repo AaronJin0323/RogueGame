@@ -129,6 +129,7 @@ void FDTDirectorCore::StartRun(TConstArrayView<DTCat::FTimelineRow> InRows)
 	LastLandTime.Reset();
 	Forced.Reset();
 	Totals = FDTDirectorTotals();
+	bRunClosed = false;
 	OpenBlock(EDTDirBlock::Harvest, 0.0f);
 }
 
@@ -137,6 +138,15 @@ void FDTDirectorCore::Stop()
 	Block = EDTDirBlock::Idle;
 	DropIns.Reset();
 	PendingThreats.Reset();
+}
+
+void FDTDirectorCore::CloseRun(const TCHAR* EndedBy, IDTDirectorSink& Sink)
+{
+	if (Block != EDTDirBlock::Idle)
+	{
+		CloseBlock(EndedBy, Sink);
+		bRunClosed = true;
+	}
 }
 
 void FDTDirectorCore::Skip(float Seconds)
@@ -172,6 +182,10 @@ void FDTDirectorCore::OpenBlock(EDTDirBlock State, float RowStart)
 
 void FDTDirectorCore::CloseBlock(const TCHAR* EndedBy, IDTDirectorSink& Sink)
 {
+	if (bRunClosed)
+	{
+		return; // R-DIR-15: the run's last record is written; what the sim does after it counts for nothing
+	}
 	Open.Block = Totals.Blocks++;
 	Open.EndSeconds = static_cast<float>(Time);
 	Open.EndedBy = EndedBy;
@@ -649,6 +663,7 @@ void FDTDirectorCore::Step(const FDTDirectorStepIn& In, IDTDirectorSink& Sink)
 		Credit = 0.0f;
 		OpenBlock(EDTDirBlock::Boss, BossSeconds);
 		CloseBlock(TEXT("request"), Sink);
+		OpenBlock(EDTDirBlock::Boss, BossSeconds); // the fight: closed at the run's end (R-DIR-15)
 		Totals.bBossRequested = true;
 		Sink.BossTime(static_cast<float>(Now));
 	}
@@ -656,6 +671,7 @@ void FDTDirectorCore::Step(const FDTDirectorStepIn& In, IDTDirectorSink& Sink)
 	{
 		View.DropInMarkers.Reset();
 		View.bThreatBlock = false;
+		Open.AlivePeak = FMath::Max(Open.AlivePeak, AliveTotal); // the hull and its adds never pass through Emit
 		Time += StepSeconds;
 		return;
 	}

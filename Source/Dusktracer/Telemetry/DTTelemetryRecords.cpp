@@ -244,14 +244,52 @@ void FDTTelemetryCore::RecordStatusApplied(int32 Owner, EDTStatus Status, int32 
 	}
 }
 
-void FDTTelemetryCore::RecordIntercession(int32 Owner, const FDTTelIntercession& Cast)
+void FDTTelemetryCore::BeginIntercession(int32 Owner, const FDTTelIntercession& Cast)
 {
-	if (!RecordOwner(Owner))
+	if (FPlayerInterval* P = RecordOwner(Owner))
+	{
+		FCastWindow& Window = P->Casts.AddDefaulted_GetRef();
+		Window.Cast = Cast;
+		Window.OpenedAtStep = StepsDone;
+	}
+}
+
+void FDTTelemetryCore::EndIntercession(int32 Owner, TConstArrayView<uint32> Touched)
+{
+	FPlayerInterval* P = RecordOwner(Owner);
+	if (!P || P->Casts.Num() == 0)
 	{
 		return;
 	}
-	JsonlOut += FDTTelJson(JsonHead(TEXT("intercession"), Owner)).Name(TEXT("base"), Cast.Base).Name(TEXT("variant"), Cast.Variant)
-		.Name(TEXT("layer"), Cast.Layer).Int(TEXT("enemies_hit"), Cast.EnemiesHit).Num(TEXT("damage"), Cast.Damage).Line();
+	FCastWindow& Window = P->Casts[0];
+	Window.Enemies.Append(Touched);
+	WriteIntercession(Owner, Window, true);
+	P->Casts.RemoveAt(0);
+}
+
+void FDTTelemetryCore::CreditCasts(int32 Player, const FDTHit& Hit, uint32 Serial, int32 Applied)
+{
+	if (!Players.IsValidIndex(Player))
+	{
+		return;
+	}
+	for (FCastWindow& Window : Players[Player].Casts)
+	{
+		if (Hit.SourceId != 0 && (Hit.SourceId == Window.Cast.BaseSource || Hit.SourceId == Window.Cast.LayerSource))
+		{
+			Window.RawDamage += FMath::Max(0.0f, Hit.Damage);
+			Window.AppliedDamage += Applied;
+			Window.Enemies.Add(Serial);
+		}
+	}
+}
+
+void FDTTelemetryCore::WriteIntercession(int32 Owner, const FCastWindow& Window, bool bComplete)
+{
+	JsonlOut += FDTTelJson(JsonHead(TEXT("intercession"), Owner)).Name(TEXT("base"), Window.Cast.Base).Name(TEXT("variant"), Window.Cast.Variant)
+		.Name(TEXT("layer"), Window.Cast.Layer).Num(TEXT("window_s"), static_cast<double>(StepsDone - Window.OpenedAtStep) * Config.StepSeconds)
+		.Int(TEXT("enemies_hit"), Window.Enemies.Num()).Int(TEXT("damage"), Window.AppliedDamage).Num(TEXT("damage_raw"), Window.RawDamage)
+		.Bool(TEXT("complete"), bComplete).Line();
 }
 
 // ---- combat_core.md -----------------------------------------------------------------------------------------------------
@@ -269,7 +307,7 @@ void FDTTelemetryCore::RecordDash(int32 Owner, FVector2f Dir, int32 ChargesAfter
 		.Int(TEXT("charges_after"), ChargesAfter).Line();
 }
 
-void FDTTelemetryCore::RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp)
+void FDTTelemetryCore::RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp, FVector2f HeroPos)
 {
 	FPlayerInterval* P = RecordOwner(Owner);
 	if (!P)
@@ -279,9 +317,17 @@ void FDTTelemetryCore::RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, flo
 	const double Share = MaxHp > 0.0f ? static_cast<double>(FMath::Max(0.0f, Amount)) / MaxHp : 0.0;
 	P->DamageTakenShare += Share;
 	P->RunDamageTakenShare += Share;
-	JsonlOut += FDTTelJson(JsonHead(TEXT("hero_damaged"), Owner)).Num(TEXT("amount"), Amount).Num(TEXT("hp_after"), HpAfter)
+	FDTTelJson Record(JsonHead(TEXT("hero_damaged"), Owner));
+	Record.Num(TEXT("amount"), Amount).Num(TEXT("hp_after"), HpAfter)
 		.Num(TEXT("max_hp"), MaxHp).Str(TEXT("hit_kind"), DTTelNames::HeroHitKind(Hit.Kind)).Str(TEXT("role"), DTTelNames::EnemyRole(Hit.SourceRole))
-		.Name(TEXT("attack"), Hit.AttackId).Line();
+		.Name(TEXT("attack"), Hit.AttackId).Int(TEXT("hero_x"), FMath::RoundToInt32(HeroPos.X)).Int(TEXT("hero_y"), FMath::RoundToInt32(HeroPos.Y))
+		.Int(TEXT("src_x"), FMath::RoundToInt32(Hit.Position.X)).Int(TEXT("src_y"), FMath::RoundToInt32(Hit.Position.Y));
+	if (Hit.Kind == EDTHeroHitKind::Bullet)
+	{
+		Record.Int(TEXT("vel_x"), FMath::RoundToInt32(Hit.RoundVelocity.X)).Int(TEXT("vel_y"), FMath::RoundToInt32(Hit.RoundVelocity.Y))
+			.Num(TEXT("flight_s"), Hit.RoundFlightSeconds);
+	}
+	JsonlOut += Record.Line();
 }
 
 void FDTTelemetryCore::RecordHeroDown(int32 Owner)
@@ -381,7 +427,7 @@ void FDTTelemetryCore::RecordBossEnd(const FDTTelBossEnd& End)
 	const FString PerPlayer = ByOwner<FDTTelBossPlayer>(End.PerPlayer, [](const FDTTelBossPlayer& Player)
 	{
 		TArray<TPair<FString, float>> Attacks;
-		for (const TPair<FName, float>& Attack : Player.DamageTakenByAttack)
+		for (const TPair<FName, float>& Attack : Player.RawDamageByAttack)
 		{
 			Attacks.Emplace(Attack.Key.IsNone() ? FString(TEXT("Contact")) : Attack.Key.ToString(), Attack.Value);
 		}
@@ -391,7 +437,7 @@ void FDTTelemetryCore::RecordBossEnd(const FDTTelBossEnd& End)
 		{
 			ByAttack.Num(Attack.Key, Attack.Value);
 		}
-		return FDTTelJson().Raw(TEXT("damage_taken_by_attack"), ByAttack.Close()).Int(TEXT("dashes"), Player.Dashes)
+		return FDTTelJson().Raw(TEXT("damage_raw_by_attack"), ByAttack.Close()).Int(TEXT("dashes"), Player.Dashes)
 			.Num(TEXT("hits_per_ring"), Player.HitsPerRing).Close();
 	});
 	JsonlOut += FDTTelJson(JsonHead(TEXT("boss_end"), INDEX_NONE)).Str(TEXT("outcome"), End.Outcome).Num(TEXT("fight_time_s"), End.FightTimeSeconds)

@@ -192,13 +192,13 @@ namespace DTTelemetryTest
 					FDTHeroHit Taken;
 					Taken.PlayerId = 0;
 					Taken.Damage = 3.0f;
-					Core.RecordHeroDamaged(0, Taken, 3.0f, 97.0f, 100.0f);
+					Core.RecordHeroDamaged(0, Taken, 3.0f, 97.0f, 100.0f, View.HeroPositions[0]);
 					Core.RecordThreatAction(FVector2f(400.0f, 0.0f), EDTEnemyRole::Rusher, TEXT("Charge"));
 					Core.RecordStatusApplied(0, EDTStatus::Shock);
 					Core.RecordWeaponEmissions(0, Lance, 4, 1);
 					Core.RecordXp(0, 2, 3);
 				}
-				Core.OnEnemiesSpawned(Step, false, Enemies.Num());
+				Core.OnEnemiesSpawned(Step, false, Enemies.Num(), Enemies.GetRoles());
 				Enemies.StepEnemies(Context);
 				if (Step % FireEvery == 0)
 				{
@@ -221,7 +221,7 @@ namespace DTTelemetryTest
 				}
 				Core.BeginResolve(Step, View.Hits, Enemies.GetSerials());
 				Enemies.ResolveHits(Context);
-				Core.EndResolve(Enemies.Num());
+				Core.EndResolve(Enemies.Num(), Enemies.GetRoles());
 				if (Step == Steps / 2)
 				{
 					FDTOfferHand Level;
@@ -355,14 +355,15 @@ bool FDTTelSwarmTtk::RunTest(const FString& Parameters)
 	Context.Run = &Run;
 	Context.View = &View;
 
-	// Slot 0 spawns at step 0, slots 1 and 2 at step 10; at step 30 slots 0 and 2 die (slot 2 through a stale-then-live order).
+	// Three Swarm enemies and a Tank. How long a slot walked in never counts: all four spawn long before their first hit.
 	Pool.Spawn(EDTEnemyRole::Swarm, FVector2f(100.0f, 0.0f));
-	Core.OnEnemiesSpawned(0, false, Pool.Num());
 	Pool.Spawn(EDTEnemyRole::Swarm, FVector2f(200.0f, 0.0f));
 	Pool.Spawn(EDTEnemyRole::Swarm, FVector2f(300.0f, 0.0f));
-	Core.OnEnemiesSpawned(10, false, Pool.Num());
+	Pool.Spawn(EDTEnemyRole::Tank, FVector2f(400.0f, 0.0f));
+	Core.OnEnemiesSpawned(0, false, Pool.Num(), Pool.GetRoles());
 
-	const float Lethal = static_cast<float>(DTConst::ENM_SWARM_HP) * 2.0f;
+	const float Chip = 1.0f;
+	const float Lethal = 1000000.0f;
 	auto MakeHit = [](int32 Enemy, float Damage, uint16 Source)
 	{
 		FDTHit Hit;
@@ -373,20 +374,27 @@ bool FDTTelSwarmTtk::RunTest(const FString& Parameters)
 		return Hit;
 	};
 	const uint16 Weapon = FDTTelemetrySources::FindOrAdd(TEXT("Weapon.TestLance"));
-	View.Hits = { MakeHit(0, Lethal, Weapon), MakeHit(0, Lethal, Weapon), MakeHit(9, Lethal, Weapon), MakeHit(2, Lethal, FDTTelemetrySources::Stress) };
-	Context.StepIndex = 30;
-	Core.BeginResolve(30, View.Hits);
-	Pool.ResolveHits(Context);
-	Core.EndResolve(Pool.Num());
+	auto Resolve = [&](int64 Step, TArray<FDTHit> Hits)
+	{
+		View.Hits = MoveTemp(Hits);
+		Context.StepIndex = Step;
+		Core.BeginResolve(Step, View.Hits);
+		Pool.ResolveHits(Context);
+		Core.EndResolve(Pool.Num(), Pool.GetRoles());
+	};
+	// First hits: slot 0 and the Tank at step 10, slot 1 at step 20.
+	Resolve(10, { MakeHit(0, Chip, Weapon), MakeHit(3, Chip, Weapon) });
+	Resolve(20, { MakeHit(1, Chip, Weapon) });
+	// A second chip moves no stamp. At step 30 slot 0 dies 20 steps after its first hit, the overkill and the stale index are
+	// none, slot 2 dies in one shot (zero), and the Tank dies without a sample.
+	Resolve(25, { MakeHit(0, Chip, Weapon) });
+	Resolve(30, { MakeHit(0, Lethal, Weapon), MakeHit(0, Lethal, Weapon), MakeHit(9, Lethal, Weapon), MakeHit(2, Lethal, FDTTelemetrySources::Stress),
+		MakeHit(3, Lethal, Weapon) });
 	TestEqual(TEXT("mirror stays in sync with the pool"), Core.GetMirrorDesyncs(), static_cast<int64>(0));
 	Core.EndStep(30, FDTTelemetrySample());
 
-	// The survivor (spawned at step 10) dies at step 70: its TTK must follow it through the compaction.
-	View.Hits = { MakeHit(0, Lethal, Weapon) };
-	Context.StepIndex = 70;
-	Core.BeginResolve(70, View.Hits);
-	Pool.ResolveHits(Context);
-	Core.EndResolve(Pool.Num());
+	// The survivor (first hit at step 20) dies at step 70: its stamp must follow it through the compaction.
+	Resolve(70, { MakeHit(0, Lethal, Weapon) });
 	TestEqual(TEXT("still in sync after compaction"), Core.GetMirrorDesyncs(), static_cast<int64>(0));
 
 	Core.EndStep(70, FDTTelemetrySample());
@@ -396,19 +404,18 @@ bool FDTTelSwarmTtk::RunTest(const FString& Parameters)
 	Core.TakeOutput(Csv, Jsonl);
 	// The kill records carry per-step TTK sums (and min/max) of the same per-kill samples the CSV percentile reads.
 	const auto Ttk = [](int32 Steps) { return static_cast<float>(static_cast<double>(Steps) * StepSeconds()); };
-	TestTrue(TEXT("step 30: slots 0 and 2 lived 30 and 20 steps"), Jsonl.Contains(FString::Printf(
-		TEXT("\"ttk_n\":2,\"ttk_sum_s\":%.4f,\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f}"),
-		static_cast<double>(Ttk(30)) + static_cast<double>(Ttk(20)), Ttk(20), Ttk(30))));
-	TestTrue(TEXT("step 70: the survivor lived 60 steps"), Jsonl.Contains(FString::Printf(
-		TEXT("\"ttk_n\":1,\"ttk_sum_s\":%.4f,\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f}"), static_cast<double>(Ttk(60)), Ttk(60), Ttk(60))));
-	TestEqual(TEXT("three kills, the stale index and the overkill are none"), SumKills(Jsonl), 3);
+	TestTrue(TEXT("step 30: 20 steps and a one-shot; the Tank gives no sample"), Jsonl.Contains(FString::Printf(
+		TEXT("\"ttk_n\":2,\"ttk_sum_s\":%.4f,\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f}"), static_cast<double>(Ttk(20)), 0.0f, Ttk(20))));
+	TestTrue(TEXT("step 70: the survivor died 50 steps after its first hit"), Jsonl.Contains(FString::Printf(
+		TEXT("\"ttk_n\":1,\"ttk_sum_s\":%.4f,\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f}"), static_cast<double>(Ttk(50)), Ttk(50), Ttk(50))));
+	TestEqual(TEXT("four kills, the stale index and the overkill are none"), SumKills(Jsonl), 4);
 	TestEqual(TEXT("one kill record per step with kills"), CountKind(Jsonl, TEXT("kill")), 2);
 	const TArray<FString> Rows = Lines(Csv);
 	TestEqual(TEXT("final partial row written at run end"), Rows.Num(), 2);
 	if (Rows.Num() == 2)
 	{
-		TestEqual(TEXT("swarm TTK is the configured percentile (nearest rank)"), Cell(Rows[1], TEXT("swarm_ttk_s")),
-			FString::Printf(TEXT("%.4f"), static_cast<float>(30.0 * StepSeconds())));
+		TestEqual(TEXT("swarm TTK is the configured percentile (nearest rank) of 0, 20 and 50 steps"), Cell(Rows[1], TEXT("swarm_ttk_s")),
+			FString::Printf(TEXT("%.4f"), static_cast<float>(20.0 * StepSeconds())));
 	}
 	return true;
 }
@@ -443,7 +450,7 @@ bool FDTTelHitsPerStep::RunTest(const FString& Parameters)
 	TestEqual(TEXT("two owners in one step -> one record each"), CountKind(Jsonl, TEXT("hit")), 2);
 
 	// Kills aggregate the same way: N kills by one player in one step -> one kill record with the count, the count by
-	// source and the TTK sums. Three enemies spawn at step 0 and three at step 10; all six die at step 40.
+	// source and the TTK sums. Three enemies first take a hit at step 10, three at step 20; all six die at step 40.
 	FDTRunState KillRun;
 	FDTWorldView View;
 	FDTEnemyPool Pool;
@@ -455,15 +462,34 @@ bool FDTTelHitsPerStep::RunTest(const FString& Parameters)
 	for (int32 Index = 0; Index < 2 * Half; ++Index)
 	{
 		Pool.Spawn(EDTEnemyRole::Swarm, FVector2f(100.0f * static_cast<float>(Index), 0.0f));
-		if (Index == Half - 1)
-		{
-			KillCore.OnEnemiesSpawned(0, false, Pool.Num());
-		}
 	}
-	KillCore.OnEnemiesSpawned(10, false, Pool.Num());
+	KillCore.OnEnemiesSpawned(0, false, Pool.Num(), Pool.GetRoles());
 	const uint16 Weapon = FDTTelemetrySources::FindOrAdd(TEXT("Weapon.TestLance"));
 	const int32 ByWeapon = 4;
 	const float Lethal = static_cast<float>(DTConst::ENM_SWARM_HP) * 2.0f;
+	FDTSimContext Context;
+	Context.StepSeconds = StepSeconds();
+	Context.Run = &KillRun;
+	Context.View = &View;
+	for (int32 Group = 0; Group < 2; ++Group)
+	{
+		View.Hits.Reset();
+		for (int32 Index = Group * Half; Index < (Group + 1) * Half; ++Index)
+		{
+			FDTHit Chip;
+			Chip.EnemyIndex = Index;
+			Chip.OwnerId = 0;
+			Chip.Damage = 1.0f;
+			Chip.SourceId = Weapon;
+			View.Hits.Add(Chip);
+		}
+		Context.StepIndex = 10 * (Group + 1);
+		KillCore.BeginResolve(Context.StepIndex, View.Hits);
+		Pool.ResolveHits(Context);
+		KillCore.EndResolve(Pool.Num(), Pool.GetRoles());
+	}
+	KillCore.EndStep(20, FDTTelemetrySample());
+	KillCore.TakeOutput(Csv, Jsonl);
 	View.Hits.Reset();
 	for (int32 Index = 0; Index < 2 * Half; ++Index)
 	{
@@ -474,14 +500,10 @@ bool FDTTelHitsPerStep::RunTest(const FString& Parameters)
 		KillHit.SourceId = Index < ByWeapon ? Weapon : FDTTelemetrySources::Stress;
 		View.Hits.Add(KillHit);
 	}
-	FDTSimContext Context;
-	Context.StepSeconds = StepSeconds();
 	Context.StepIndex = 40;
-	Context.Run = &KillRun;
-	Context.View = &View;
 	KillCore.BeginResolve(40, View.Hits);
 	Pool.ResolveHits(Context);
-	KillCore.EndResolve(Pool.Num());
+	KillCore.EndResolve(Pool.Num(), Pool.GetRoles());
 	KillCore.EndStep(40, FDTTelemetrySample());
 	KillCore.TakeOutput(Csv, Jsonl);
 
@@ -489,13 +511,13 @@ bool FDTTelHitsPerStep::RunTest(const FString& Parameters)
 	double TtkSum = 0.0;
 	for (int32 Index = 0; Index < 2 * Half; ++Index)
 	{
-		TtkSum += static_cast<double>(Ttk(Index < Half ? 40 : 30)); // in kill order, as the core sums them
+		TtkSum += static_cast<double>(Ttk(Index < Half ? 30 : 20)); // in kill order, as the core sums them
 	}
 	TestEqual(TEXT("N kills in one step -> one kill record"), CountKind(Jsonl, TEXT("kill")), 1);
 	TestEqual(TEXT("its kills field is N"), SumKills(Jsonl), 2 * Half);
 	const FString Expected = FString::Printf(
 		TEXT("\"owner\":0,\"kills\":%d,\"kills_by_source\":{\"Stress\":%d,\"Weapon.TestLance\":%d},\"ttk_n\":%d,\"ttk_sum_s\":%.4f,\"ttk_min_s\":%.4f,\"ttk_max_s\":%.4f}"),
-		2 * Half, 2 * Half - ByWeapon, ByWeapon, 2 * Half, TtkSum, Ttk(30), Ttk(40));
+		2 * Half, 2 * Half - ByWeapon, ByWeapon, 2 * Half, TtkSum, Ttk(20), Ttk(30));
 	TestTrue(FString::Printf(TEXT("the record carries counts by source and TTK sums: %s"), *Expected), Jsonl.Contains(Expected));
 	return true;
 }
@@ -638,7 +660,7 @@ bool FDTTelDeterminism::RunTest(const FString& Parameters)
 	TestEqual(TEXT("same number of JSONL records"), Lines(StrippedA).Num(), Lines(StrippedB).Num());
 	TestTrue(TEXT("identical JSONL without wall / wall_* fields"), StrippedA == StrippedB);
 	TestFalse(TEXT("no wall field survives the strip"), StrippedA.Contains(TEXT("\"wall")));
-	for (const TCHAR* Kind : { TEXT("offer"), TEXT("offer_pick"), TEXT("keeper_commit"), TEXT("dash"), TEXT("hero_damaged"), TEXT("xp"),
+	for (const TCHAR* Kind : { TEXT("offer"), TEXT("offer_pick"), TEXT("keeper_commit"), TEXT("dash"), TEXT("hero_damaged"), TEXT("hero_pos"), TEXT("xp"),
 		TEXT("status"), TEXT("weapon"), TEXT("weapon_acquired"), TEXT("weapon_level") })
 	{
 		TestTrue(FString::Printf(TEXT("the fight writes %s records"), Kind), CountKind(StrippedA, Kind) > 0);

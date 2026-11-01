@@ -374,12 +374,19 @@ bool FDTModifiersDormant::RunTest(const FString& Parameters)
 	}));
 	H.StepOnce();
 	const FDTWeaponInstance& Pulse = H.Run.GetPlayer(0).Weapons[0];
+	const TArray<FDTWeaponDormancy> Slept = H.Weapons.TakeDormancyChanges();
+	TestTrue(TEXT("the change is handed to telemetry"), Slept.Num() == 1 && Slept[0].OwnerId == 0 && Slept[0].Weapon == FName(TEXT("Weapon.PulseRifle"))
+		&& Slept[0].Change.ModId == FName(TEXT("Mod.Pierce")) && Slept[0].Change.bDormant);
+	H.StepOnce();
+	TestEqual(TEXT("no change, no record"), H.Weapons.TakeDormancyChanges().Num(), 0);
 	TestEqual(TEXT("kept in its socket"), Pulse.Sockets.Num(), 1);
 	TestTrue(TEXT("dormant"), Pulse.Sockets.Num() == 1 && Pulse.Sockets[0].bDormant);
 	TestEqual(TEXT("inert"), H.Weapons.GetLastSpec(0, 0).Pierce, 1);
 	H.Weapons.RemoveFlagSource(0, TEXT("Test.Hammer"));
 	H.StepOnce();
 	TestFalse(TEXT("wakes when the conversion is gone"), H.Run.GetPlayer(0).Weapons[0].Sockets[0].bDormant);
+	const TArray<FDTWeaponDormancy> Woke = H.Weapons.TakeDormancyChanges();
+	TestTrue(TEXT("and that change too"), Woke.Num() == 1 && !Woke[0].Change.bDormant);
 	TestEqual(TEXT("active again"), H.Weapons.GetLastSpec(0, 0).Pierce, Raised);
 	return true;
 }

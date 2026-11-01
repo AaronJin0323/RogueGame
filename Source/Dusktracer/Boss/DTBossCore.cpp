@@ -300,7 +300,7 @@ void FDTBossCore::Finish(const FString& InOutcome, int64 StepIndex, IDTBossSink&
 	for (int32 Player = 0; Player < DamageByAttack.Num(); ++Player)
 	{
 		FDTTelBossPlayer& Rec = EndRec.PerPlayer.AddDefaulted_GetRef();
-		Rec.DamageTakenByAttack = DamageByAttack[Player];
+		Rec.RawDamageByAttack = DamageByAttack[Player];
 		Rec.HitsPerRing = static_cast<float>(RingHits.IsValidIndex(Player) ? RingHits[Player] : 0) / static_cast<float>(RingCount);
 	}
 	Sink.BossEnd(EndRec);
@@ -694,7 +694,7 @@ void FDTBossCore::StepBody(const FDTBossStepIn& In, IDTBossSink& Sink)
 				&& (Dist <= UE_KINDA_SMALL_NUMBER || FVector2f::DotProduct(Rel / Dist, Body.Dir) >= HalfCos);
 			if (bInside)
 			{
-				AddHeroHit(View, Hero, R.Damage, AttackId(Body.Row), View.HeroPositions[Hero]);
+				AddHeroHit(View, Hero, R.Damage, AttackId(Body.Row), Body.Start);
 			}
 		}
 		FDTBossAttackRec& Rec = Attacks[Body.Rec];
@@ -1062,7 +1062,7 @@ void FDTBossCore::StepHazard(const FDTBossStepIn& In, IDTBossSink& Sink)
 		}
 		if (bHit)
 		{
-			AddHeroHit(View, Hero, R.Damage, AttackId(Hazard.Row), At);
+			AddHeroHit(View, Hero, R.Damage, AttackId(Hazard.Row), At.GetSafeNormal() * Hazard.Radius); // the safe ring's nearest edge
 			++Counters.HazardHits;
 		}
 	}

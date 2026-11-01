@@ -978,7 +978,7 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 						Hit.SourceRole = EDTEnemyRole::Rusher;
 						Hit.AttackId = FDTEnemyRoleDef::Get(EDTEnemyRole::Rusher).AttackId;
 						Hit.EnemySerial = O.EnemySerial;
-						Hit.Position = View.HeroPositions[Hero];
+						Hit.Position = O.Origin;
 					}
 				}
 				CountThreat(EDTEnemyRole::Rusher, O.Origin);

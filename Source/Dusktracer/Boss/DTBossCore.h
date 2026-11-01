@@ -311,7 +311,7 @@ private:
 	FHazard Hazard;
 
 	// Telemetry and test records.
-	TArray<TMap<FName, float>> DamageByAttack; // by player
+	TArray<TMap<FName, float>> DamageByAttack; // raw (R-TEL-11), by player
 	TArray<int32> RingHits;                    // by player
 	FDTBossCounters Counters;
 	TArray<FDTBossRingShot> RingShots;

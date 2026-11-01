@@ -16,8 +16,9 @@ struct FDTTelemetryConfig
 	float IntervalSeconds = DTConst::TEL_INTERVAL_S;
 	FString Build = TEXT("unknown");
 	FString Culture = TEXT("unknown");
-	FString InputDevice = TEXT("unknown");
-	/** Wall-clock start (ISO 8601); JSONL run_start only, never in the CSV (R-TEL-07). */
+	/** Sim seconds between hero_pos records (R-TEL-10). */
+	float HeroPosSeconds = DTConst::TEL_HERO_POS_INTERVAL_S;
+	/** Wall-clock start in UTC (ISO 8601); JSONL run_start only, never in the CSV (R-TEL-08). */
 	FString WallStart;
 };
 
@@ -73,10 +74,11 @@ struct FDTTelemetryRow
  * The clock is the sim step count, never wall time (R-TEL-01). Output accumulates in memory; the owner drains it with
  * TakeOutput() and writes it off the game thread.
  *
- * Kill attribution and swarm TTK come from a mirror of the enemy pool's slots (spawn step per slot): the enemy system
- * reports spawns, then brackets ResolveHits with BeginResolve/EndResolve; the events that arrive in between are matched
- * to the hit list in order (the pool emits one Hit per live target, then one Kill on death, R-ENM-05/06) and the mirror
- * is compacted the way the pool compacts (R-ENM-07).
+ * Kill attribution and swarm TTK come from a mirror of the enemy pool's slots (Swarm or not, first-hit step per slot): the
+ * enemy system reports spawns, then brackets ResolveHits with BeginResolve/EndResolve; the events that arrive in between are
+ * matched to the hit list in order (the pool emits one Hit per live target, then one Kill on death, R-ENM-05/06) and the
+ * mirror is compacted the way the pool compacts (R-ENM-07). That walk is also where a cast's window reads raw and applied
+ * damage side by side (R-TEL-11).
  */
 class DUSKTRACER_API FDTTelemetryCore : public IDTRunEventSink
 {
@@ -97,15 +99,15 @@ public:
 	// IDTRunEventSink
 	virtual void OnRunEvent(const FDTGameEvent& Event, bool bRouted) override;
 
-	/** Enemies phase, after spawn requests are applied: new slots are stamped with StepIndex; bCleared empties the mirror first. */
-	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum);
+	/** Enemies phase, after spawn requests are applied: new slots take their role from Roles; bCleared empties the mirror first. */
+	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles = TConstArrayView<EDTEnemyRole>());
 	/**
 	 * ResolveHits phase, before the pool applies Hits. Serials: the pool's serial per slot (FDTWorldView::EnemySerials);
 	 * when given, a hit whose non-zero serial no longer matches its slot is skipped, as the pool skips it (R-ENM-23).
 	 */
 	void BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits, TConstArrayView<uint32> Serials = TConstArrayView<uint32>());
-	/** ResolveHits phase, after the pool applied and compacted; PoolNum checks the mirror. */
-	void EndResolve(int32 PoolNum);
+	/** ResolveHits phase, after the pool applied and compacted; PoolNum checks the mirror. Roles: as OnEnemiesSpawned. */
+	void EndResolve(int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles = TConstArrayView<EDTEnemyRole>());
 	/** Director phase: per-step samples, the per-step hit and kill records, and the interval rollover on sim time. */
 	void EndStep(int64 StepIndex, const FDTTelemetrySample& Sample);
 
@@ -141,13 +143,24 @@ public:
 	void RecordKeeperCommit(int32 Owner, EDTTelKeeperRole Role, EDTPath Path, FName PrimaryLeading);
 	/** Status procs; aggregated into one status{applied{}} record per player at each interval end. */
 	void RecordStatusApplied(int32 Owner, EDTStatus Status, int32 Count = 1);
-	void RecordIntercession(int32 Owner, const FDTTelIntercession& Cast);
+	/** A cast's window opens: what its sources land until EndIntercession is the cast's (R-TEL-11). */
+	void BeginIntercession(int32 Owner, const FDTTelIntercession& Cast);
+	/**
+	 * Owner's oldest open window closes and writes its intercession record. Touched: serials the cast reached without a hit
+	 * of its own (a Tide pull, a target another hit killed first); they count in enemies_hit. A window still open at End is
+	 * written with complete=false.
+	 */
+	void EndIntercession(int32 Owner, TConstArrayView<uint32> Touched = TConstArrayView<uint32>());
 
 	// combat_core.md
 	/** dash record (one per dash) and the CSV column dashes_per_min. */
 	void RecordDash(int32 Owner, FVector2f Dir, int32 ChargesAfter);
-	/** hero_damaged per applied hit (Amount after the hero's own reductions) and the CSV column damage_taken_per_min. */
-	void RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp);
+	/**
+	 * hero_damaged per applied hit (Amount after the hero's own reductions) and the CSV column damage_taken_per_min.
+	 * HeroPos is where the hit found the hero; Hit.Position is where it came from, and a round adds its velocity and flight time
+	 * (R-TEL-10).
+	 */
+	void RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp, FVector2f HeroPos);
 	void RecordHeroDown(int32 Owner);
 	/** Counted per interval; one intercession_denied{interval, count} record per player at the interval end when above zero. */
 	void RecordIntercessionDenied(int32 Owner);
@@ -192,6 +205,16 @@ public:
 	int32 GetRunDashes(int32 Player) const { return Players.IsValidIndex(Player) ? Players[Player].RunDashes : 0; }
 
 private:
+	/** One open cast: what its sources landed so far (R-TEL-11). */
+	struct FCastWindow
+	{
+		FDTTelIntercession Cast;
+		int64 OpenedAtStep = 0; // StepsDone when it opened
+		double RawDamage = 0.0;
+		int64 AppliedDamage = 0;
+		TSet<uint32> Enemies;
+	};
+
 	struct FWeaponInterval
 	{
 		int32 Level = 1;
@@ -228,6 +251,8 @@ private:
 		// This step's xp pickups (one xp record per player per step).
 		int32 StepGems = 0;
 		int32 StepXp = 0;
+		/** Open casts, oldest first; two only across the step a recast replaces a running cast. */
+		TArray<FCastWindow> Casts;
 		TArray<float> TtkSamples;
 		TArray<float> NearestSquaredSamples;
 		TMap<uint16, FDTTelemetrySourceTotals> BySource;
@@ -256,7 +281,11 @@ private:
 	void WriteStepRecords();
 	void WriteInterval();
 	void ResetInterval();
-	void ResyncMirror(int32 PoolNum);
+	void ResyncMirror(int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles);
+	/** Credits one resolved hit to Player's open casts: raw as emitted, Applied as the pool's Hit event held it. */
+	void CreditCasts(int32 Player, const FDTHit& Hit, uint32 Serial, int32 Applied);
+	/** Writes one intercession record. */
+	void WriteIntercession(int32 Owner, const FCastWindow& Window, bool bComplete);
 	double TimeOfCurrentStep() const;
 	FString JsonHead(const TCHAR* Kind, int32 Owner) const;
 	/** The player's interval, or nullptr (counted as unowned) when the session is off or Owner is not a player. */
@@ -276,6 +305,7 @@ private:
 	int64 IntervalStartStep = 0;  // StepsDone at the start of the interval
 	int64 IntervalSteps = 1;
 	int32 IntervalIndex = 0;
+	int64 HeroPosSteps = 1;       // steps between hero_pos records (R-TEL-10)
 
 	// Last world sample and the counter values at the interval start (per-interval deltas).
 	int32 LastLiveBullets = 0;
@@ -286,8 +316,10 @@ private:
 	int64 RefusedAtIntervalStart = 0;
 	bool bHaveCounterBase = false;
 
-	// Enemy slot mirror: spawn step per slot, and which slots died in the resolve in progress.
-	TArray<int64> MirrorSpawnStep;
+	// Enemy slot mirror: first-hit step per slot (negative until hit), whether the slot is a Swarm enemy, and which slots died
+	// in the resolve in progress.
+	TArray<int64> MirrorFirstHitStep;
+	TArray<uint8> MirrorSwarm;
 	TArray<uint8> MirrorDead;
 	TArray<FDTHit> ResolveHits;
 	TArray<FPendingEvent> Pending;

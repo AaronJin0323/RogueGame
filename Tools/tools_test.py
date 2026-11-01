@@ -11,6 +11,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
@@ -63,6 +64,53 @@ class OfferPick(unittest.TestCase):
 				reads.append(pressure.window_from_jsonl(path, 600.0, 780.0))
 		self.assertEqual(reads[0], reads[1])
 		self.assertAlmostEqual(reads[0][0][0], 0.1 / (100.0 / 60.0))
+
+
+class SwarmTtk(unittest.TestCase):
+	HEADER = "interval,run_time_s,player,swarm_ttk_s\n"
+	OLD = '{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1,"input_device":"unknown"}\n'
+	NEW = '{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}\n'
+
+	def read(self, run_start, rows):
+		with tempfile.TemporaryDirectory() as folder:
+			jsonl, csv_path = os.path.join(folder, "run.jsonl"), os.path.join(folder, "run.csv")
+			with open(jsonl, "w", encoding="utf-8") as f:
+				f.write(run_start)
+			with open(csv_path, "w", encoding="utf-8") as f:
+				f.write(self.HEADER + rows)
+			return pressure.swarm_ttk(csv_path, jsonl)
+
+	def test_median_of_the_interval_cells_per_player(self):
+		rows = "0,60,0,0.1000\n0,60,1,0.5000\n1,120,0,0.3000\n2,180,0,\n3,240,0,0.2000\n"
+		self.assertEqual(self.read(self.NEW, rows), {0: (0.2, 3), 1: (0.5, 1)})
+
+	def test_a_run_from_before_the_first_hit_stamp_reads_nothing(self):
+		self.assertEqual(self.read(self.OLD, "0,60,0,5.1833\n"), {})
+
+	def test_no_jsonl_reads_nothing(self):
+		self.assertFalse(pressure.ttk_is_first_hit(None))
+
+
+class Casts(unittest.TestCase):
+	def read(self, lines):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("".join(line + "\n" for line in lines))
+			return bot_summary.read_casts(path)
+
+	def test_applied_and_raw_means(self):
+		a = '{"kind":"intercession","owner":0,"variant":"V","damage":100,"damage_raw":300.0,"complete":true}'
+		b = '{"kind":"intercession","owner":0,"variant":"V","damage":200,"damage_raw":500.0,"complete":true}'
+		self.assertEqual(self.read([a, b]), (2, 150.0, 400.0, "V"))
+
+	def test_a_cast_the_run_cut_short_is_no_mean(self):
+		a = '{"kind":"intercession","owner":0,"variant":"V","damage":100,"damage_raw":300.0,"complete":true}'
+		b = '{"kind":"intercession","owner":0,"variant":"V","damage":1,"damage_raw":2.0,"complete":false}'
+		self.assertEqual(self.read([a, b]), (2, 100.0, 300.0, "V"))
+
+	def test_a_record_from_before_the_window_counts_as_a_cast_and_reads_no_damage(self):
+		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, None, None, "V"))
 
 
 class Intercession(unittest.TestCase):

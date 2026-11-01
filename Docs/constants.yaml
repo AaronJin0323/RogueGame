@@ -165,6 +165,7 @@ telemetry:
   TEL.RATE_UNIT_S:             { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }
   TEL.TTK_PERCENTILE:          { value: 0.50, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, C.TTK.SWARM_STEERED_MAX] }
   TEL.NEAREST_PERCENTILE:      { value: 0.10, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }
+  TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
   TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
 caps:
   GATE.TEST_FLOOR:             { value: 30,    unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }

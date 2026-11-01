@@ -5,6 +5,7 @@ FDTEnemyBulletPool::FDTEnemyBulletPool(int32 InCapacity)
 {
 	Pos.Reserve(Capacity);
 	PrevPos.Reserve(Capacity);
+	Origin.Reserve(Capacity);
 	Vel.Reserve(Capacity);
 	Radius.Reserve(Capacity);
 	Damage.Reserve(Capacity);
@@ -19,6 +20,7 @@ void FDTEnemyBulletPool::Reset(bool bResetCounters)
 {
 	Pos.Reset();
 	PrevPos.Reset();
+	Origin.Reset();
 	Vel.Reset();
 	Radius.Reset();
 	Damage.Reset();
@@ -42,6 +44,7 @@ int32 FDTEnemyBulletPool::Spawn(const FDTEnemyRoundSpawn& Params)
 	}
 	Pos.Add(Params.Position);
 	PrevPos.Add(Params.Position);
+	Origin.Add(Params.Position);
 	Vel.Add(Params.Velocity);
 	Radius.Add(Params.Radius);
 	Damage.Add(Params.Damage);
@@ -58,6 +61,7 @@ void FDTEnemyBulletPool::RemoveAtSwap(int32 Index)
 {
 	Pos.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	PrevPos.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+	Origin.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Vel.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Radius.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 	Damage.RemoveAtSwap(Index, 1, EAllowShrinking::No);
@@ -115,7 +119,10 @@ void FDTEnemyBulletPool::Step(float Dt, FDTWorldView& View)
 			Hit.SourceRole = SourceRole[Index];
 			Hit.AttackId = AttackId[Index];
 			Hit.EnemySerial = EnemySerial[Index];
-			Hit.Position = P;
+			Hit.Position = Origin[Index];
+			Hit.RoundVelocity = Vel[Index];
+			const float Speed = Vel[Index].Size(); // a round flies straight at one speed
+			Hit.RoundFlightSeconds = Speed > 0.0f ? FVector2f::Distance(Origin[Index], P) / Speed : 0.0f;
 			++Counters.HeroHits;
 			bHit = true;
 			break; // one round, one hero hit

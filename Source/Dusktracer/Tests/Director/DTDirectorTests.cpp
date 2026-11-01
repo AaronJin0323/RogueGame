@@ -1056,6 +1056,89 @@ bool FDTDirBossHandoff::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDirRunEndClose, "Dusktracer.Director.RunEndClose", DTDirTest::Flags) // T-DIR-15
+bool FDTDirRunEndClose::RunTest(const FString& Parameters)
+{
+	using namespace DTDirTest;
+	{
+		// A death inside a block: the block is written with what it held, and nothing after it counts.
+		FHarness H(23, false, EKill::All);
+		H.Start();
+		H.RunTo(40.0);
+		const int32 Ended = H.Blocks.Num();
+		const FDTDirectorTotals Before = H.Dir.GetTotals();
+		TestTrue(TEXT("the run has kills to lose"), Before.Kills > 0);
+		TestTrue(TEXT("mid-block"), H.Dir.GetBlock() != EDTDirBlock::Idle);
+		H.Dir.CloseRun(TEXT("death"), H);
+		if (TestEqual(TEXT("one record more"), H.Blocks.Num(), Ended + 1))
+		{
+			const FDTTelDirBlock& Last = H.Blocks.Last();
+			TestEqual(TEXT("ended by the session's reason"), Last.EndedBy, FString(TEXT("death")));
+			TestEqual(TEXT("at the fatal step"), static_cast<double>(Last.EndSeconds), H.Dir.GetTime(), 1e-3);
+			int32 Kills = 0;
+			int32 Spawned = 0;
+			for (const FDTTelDirBlock& B : H.Blocks)
+			{
+				Kills += B.Kills;
+				for (const int32 N : B.SpawnedByRole)
+				{
+					Spawned += N;
+				}
+			}
+			TestEqual(TEXT("the blocks hold every kill up to it"), Kills, Before.Kills);
+			int32 RunSpawned = 0;
+			for (const int32 N : Before.Spawned)
+			{
+				RunSpawned += N;
+			}
+			TestEqual(TEXT("and every spawn"), Spawned, RunSpawned);
+		}
+		H.Dir.CloseRun(TEXT("death"), H);
+		TestEqual(TEXT("once per run"), H.Blocks.Num(), Ended + 1);
+		const EDTDirBlock Block = H.Dir.GetBlock();
+		const int32 SpawnsAtClose = H.Spawns.Num();
+		H.RunTo(H.Dir.GetTime() + 200.0);
+		TestEqual(TEXT("steps after the close write nothing"), H.Blocks.Num(), Ended + 1);
+		TestTrue(TEXT("and the state machine runs on untouched"), H.Spawns.Num() > SpawnsAtClose || H.Dir.GetBlock() != Block);
+		H.Start();
+		H.RunTo(40.0);
+		H.Dir.CloseRun(TEXT("death"), H);
+		TestEqual(TEXT("a new run closes again"), H.Blocks.Last().EndedBy, FString(TEXT("death")));
+	}
+	{
+		// The boss fight is a block of its own: closed at the run's end, it holds the kills after the request.
+		FHarness H(23, false, EKill::All);
+		H.Start();
+		H.RunTo(DTConst::RUN_LENGTH_TO_BOSS + 2.0);
+		const int32 Ended = H.Blocks.Num();
+		FDTKill Add;
+		Add.OwnerId = 0;
+		H.ExtraKills.Add(Add);
+		H.ExtraKills.Add(Add);
+		H.Alive.SetNum(7); // the hull and its adds: spawned by the boss, gone before the end
+		H.Step();
+		H.Alive.Reset();
+		H.Step();
+		H.Dir.CloseRun(TEXT("victory"), H);
+		if (TestEqual(TEXT("the fight's record"), H.Blocks.Num(), Ended + 1))
+		{
+			const FDTTelDirBlock& Fight = H.Blocks.Last();
+			TestEqual(TEXT("phase Boss"), Fight.Phase, FString(TEXT("Boss")));
+			TestEqual(TEXT("ended by the victory"), Fight.EndedBy, FString(TEXT("victory")));
+			TestEqual(TEXT("from boss time"), static_cast<double>(Fight.StartSeconds), static_cast<double>(DTConst::RUN_LENGTH_TO_BOSS), 1.5 * Dt);
+			TestEqual(TEXT("holds the fight's kills"), Fight.Kills, 2);
+			TestEqual(TEXT("its peak is the fight's, not its two ends'"), Fight.AlivePeak, 7);
+		}
+	}
+	{
+		// A director that never ran has nothing to close.
+		FHarness H(23, false, EKill::All);
+		H.Dir.CloseRun(TEXT("death"), H);
+		TestEqual(TEXT("idle: no record"), H.Blocks.Num(), 0);
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDirBanners, "Dusktracer.Director.Banners", DTDirTest::Flags) // T-DIR-17
 bool FDTDirBanners::RunTest(const FString& Parameters)
 {
@@ -1158,8 +1241,8 @@ bool FDTDirBlockTelemetry::RunTest(const FString& Parameters)
 		Threats += B.ThreatActions;
 		TestTrue(TEXT("ended_by is set"), !B.EndedBy.IsEmpty());
 	}
-	// Kills after the boss request belong to no block; here every enemy dies the step after it spawns and nothing spawns
-	// from boss time, so the blocks sum to the run totals.
+	// Kills after the boss request belong to the fight's block, written at the run's end (T-DIR-15, RunEndClose); here every
+	// enemy dies the step after it spawns and nothing spawns from boss time, so the blocks sum to the run totals.
 	for (int32 Role = 0; Role < static_cast<int32>(EDTEnemyRole::Count); ++Role)
 	{
 		TestEqual(TEXT("spawned_by_role sums to the run total"), Spawned[Role], T.Spawned[Role]);
