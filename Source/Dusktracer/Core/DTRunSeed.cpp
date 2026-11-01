@@ -40,7 +40,8 @@ FDTRunSeed FDTRunSeed::Resolve(const TCHAR* CommandLine, bool bToolRun, uint32 E
 {
 	FDTRunSeed Result;
 	FString Text;
-	if (FParse::Value(CommandLine, TEXT("DTSeed="), Text))
+	// Only whitespace ends the value: by default ',' and ')' end it too, which would run -DTSeed=12,34 on 12.
+	if (FParse::Value(CommandLine, TEXT("DTSeed="), Text, /*bShouldStopOnSeparator*/ false))
 	{
 		Result.Source = ParseValue(Text, Result.Seed) ? EDTSeedSource::Explicit : EDTSeedSource::Rejected;
 	}

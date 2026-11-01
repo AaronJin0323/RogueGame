@@ -44,9 +44,11 @@ bool FDTRunSeedRejected::RunTest(const FString& Parameters)
 {
 	using namespace DTRunSeedTest;
 	// 3276732767 is the old launcher's %RANDOM%%RANDOM% at its highest, the first row just past the top of the range.
+	// The last row is a value FParse::Value ends at a separator by default, which would run the launch on the 12 in front of it.
 	const TCHAR* const Rows[] = {
 		TEXT("2147483648"), TEXT("3276732767"), TEXT("99999999999999999999"), TEXT("-2147483649"),
 		TEXT("abc"), TEXT("12abc"), TEXT("1.5"), TEXT("0x10"), TEXT("-"), TEXT("+"), TEXT("%RANDOM%%RANDOM%"),
+		TEXT("12,34"), TEXT("12)"), TEXT("12,"), TEXT(",12"), TEXT("\"12,34\""),
 	};
 	for (const TCHAR* const Row : Rows)
 	{
