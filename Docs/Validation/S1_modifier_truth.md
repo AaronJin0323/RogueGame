@@ -151,7 +151,7 @@ Same command both sides, `Tools/BotRuns.ps1`, skill 1.0, unchanged base binaries
 
 `bot.csv` is byte-identical on all five, and so is every number of the run CSV and every JSONL line. What differs is `build` and the wall-clock fields `wall`, `wall_decide_s` and `wall_paused_s`. Reading a card composes copies and writes nothing, so a hand costs the sim nothing.
 
-### Decisions (to record at integration)
+### Decisions (recorded as D-030)
 1. The Key's card reads `{cleave_mult}`, ×1.28, not `dmg_mult`, ×1.6. This corrects a display and tunes nothing: the sim always dealt ×1.28. No number in `constants.yaml` or the catalog moved.
 2. Two new rows, `ST_Weapons.Rounds.None` and `.Some`. The brief asked for existing rows, and the rules row was reworded as asked; what depends on the player's own weapons and levels cannot live in a row with catalog arguments. They sit in `ST_Weapons` because `keepers.md` fixes `ST_Keepers` to exact keys; the `weapons.md` budget rises by two.
 3. Two rows, not one "0 of 2": at zero the sentence that matters is that nothing flies.
