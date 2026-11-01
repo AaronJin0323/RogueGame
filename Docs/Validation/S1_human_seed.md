@@ -101,6 +101,8 @@ Both branches need three changes by hand in the restart path:
 - `WantsHub` looks only at the map's option and ignores a command-line `-DTSeed`, so every launch with no `-unattended` stops in the hub: no `StartRun`, no telemetry session, no run file. The four fresh launches and the replay would each wait out the 900 s timeout, and the gate's `seed` step would fail after about 75 minutes. A run there starts only at Begin, and on an empty profile Begin opens the Shrine first (R-VIG-07). `SeedCheck` needs a way through that before this merge. `-DTHubCheck` is the existing way, but it is compiled out of Shipping, so T-PKG-04's fresh-seed reading on Shipping needs a decision at that merge.
 - Two rules now say what a tool run is. `UDTMetaSubsystem::IsToolRun` (R-MET-14) also counts `-DTBot*` and `-DTNoSave`; `FDTRunSeed::IsToolRun` does not. A `-DTNoSave` launch with no seed and no `-unattended` would skip the hub and the save as a tool, yet draw a fresh seed as a person. Recommended: keep the two apart and say so in R-MET-14, because a launch that falls back to seed 0 unasked is the bug this branch removes.
 
+All of this section landed at integration: `D-025` for the restart path, `D-028` for the hub, including the decision on Shipping.
+
 A launch with no `-unattended` is not a tool run under R-SET-05 or R-MET-14, so `SeedCheck`'s launches do read `DTSettings.ini` on `dev/s2` and `DTMeta.sav` on `dev/s3`. Both live under `FPaths::ProjectSavedDir()`, which `-userdir` moves, so each launch sees an empty folder of its own and default settings: never a person's files, culture or display settings.
 
 ## Found on the way, not fixed here

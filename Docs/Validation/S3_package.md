@@ -125,6 +125,7 @@ The 13 tables were registered by hand one at a time, and the gather follows that
 - Shipping past its hub: a key on any hub page, Begin, a person's run, the bank by a person, the way back. Needs real hands (`package.md` HUMAN).
 - That the hub draws in Shipping: D reads no run, which is not a frame.
 - A real key through the operating system, a real window, Fullscreen, a real pad: the proof sends key events into the player controller.
+- At integration the launchers name no seed (D-025, D-028), so the seed text above describes this branch. `-DTSeed` still names a launch's first run.
 - `Play_en.bat` and `Play_zh-Hans.bat` themselves: each opens a full-screen window, so they were not launched; their arguments were copied with `-fullscreen` swapped for off-screen. `-DTSeed=%RANDOM%%RANDOM%` overflows to 2147483647, the owner's run's seed; the seed agent has that, and launchers were not touched.
 - Shipping's real save under `%LOCALAPPDATA%`: never aimed there, on purpose.
 - A win through the hub, a Discovery on a person's save, a Codex row opening by play: a hero who stands still reaches none.

@@ -81,7 +81,7 @@ Layout sizes are reference pixels in `DTHubState.cpp`, presentation as in the me
 | `UDTHubSubsystem` | world subsystem | runs the hub: keys, pages, the start of a run |
 | `UDTSimSubsystem::HoldForHub` | call | R-VIG-01 |
 | `DTPatron`, `DTUnlock` | map options | R-VIG-07 |
-| `-DTHub`, `-DTHubCheck=<First, Reboot, Gated or Large>`, `-DTHubShots=<dir>` | command line | proofs; the last two not in Shipping |
+| `-DTHub`, `-DTHubCheck=<First, Reboot, Gated, Large or Begin>`, `-DTHubShots=<dir>` | command line | proofs; the last two not in Shipping |
 
 ## Acceptance
 - T-VIG-01 `Dusktracer.Hub.Boot`: the rule's four cases; `Tools/VigilCheck.ps1` reads a world with no run, no step and no pawn on a real boot.
@@ -90,7 +90,7 @@ Layout sizes are reference pixels in `DTHubState.cpp`, presentation as in the me
 - T-VIG-04 `Dusktracer.Hub.Navigation`: focus wraps; Back lands on the opening row from every page and moves to Quit at the root; a long page scrolls and pages.
 - T-VIG-05 `Dusktracer.Hub.Shrine`: open and sealed rows by rule, Accept on a sealed row, the hint, both ways a sealed Keeper opens.
 - T-VIG-06 `Dusktracer.Hub.LastPatron`: names read back, the root opens on it, the Shrine on it, a sealed one is not chosen. `Tools/VigilCheck.ps1` proves it across two processes.
-- T-VIG-07 `Dusktracer.Hub.Begin`: no Patron opens the Shrine; the pick lands on Begin; the options, with only Keeper keys travelling. `Tools/VigilCheck.ps1` plays a run on a Patron that is not the first card, under auto-pick. `Tools/PackageHubCheck.ps1` reads two seeds from one launch.
+- T-VIG-07 `Dusktracer.Hub.Begin`: no Patron opens the Shrine; the pick lands on Begin; the options, with only Keeper keys travelling. `Tools/VigilCheck.ps1` plays a run on a Patron that is not the first card, under auto-pick. `Tools/PackageHubCheck.ps1` reads two seeds from one launch. `DTHubFlow::BeginSeed` holds the seed rule: a named seed for the first run, `0` included, a person's fresh seed, a draw for the rest.
 - T-VIG-08 `Dusktracer.Hub.CodexRows`: sort, reach, a locked row shows nothing of itself, the page opens on the first read row at the top of the window with the locked rows still above it, a read row past the reach stays unlisted, every row of the table reads with a title and text in the running culture.
 - T-VIG-09 `Dusktracer.Hub.Unlock`: every cell of the table, each side of its line, and an unknown cell.
 - T-VIG-10 `Dusktracer.Hub.Stats`: each row's value and label.

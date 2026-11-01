@@ -5,7 +5,7 @@
 # -DTNoSave, -DTMetaFile): Start-Game refuses one. Each profile is a folder of its own under Saved\PackageHub, named by -userdir: a temporary LOCALAPPDATA
 # moves nothing, because the engine asks Windows for that folder and not the environment.
 #   A  staged: every Content\DT\Text\ST_*.csv and both Game.locres are in each config's .pak; both configs hold the same cook.
-#   B  Development, real keys, -DTPathCheck=Walk. en on -Seed, as a launcher gives one, picking Storm; zh-Hans with no seed, picking Forge. Fresh save, boot,
+#   B  Development, real keys, -DTPathCheck=Walk. en on -Seed, a launch that names one, picking Storm; zh-Hans with no seed, picking Forge. Fresh save, boot,
 #      every hub page, the Shrine, a run played out to a real death, Vigil, the bank, a second run, Abandon, Vigil, Quit to desktop. Every table reads against
 #      its CSV in that culture, the hands hold nothing a first run keeps shut, and a launch's second run takes a fresh seed. A hero who stands still can die
 #      before a level, and that is the draw's: a walk with no hand starts over on a new draw, en on the next seed, and only $WalkTries walks with none fail.
