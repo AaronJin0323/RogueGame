@@ -897,6 +897,32 @@ class S3Exit(unittest.TestCase):
 		self.assertRegex(run.stdout, r"S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ")
 
 	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_padcheck_keeps_no_line_for_a_package_it_refused(self):
+		"""A run on a moved tree must not overwrite the line kept for the kit's build. The copy has no package beside it, so it launches nothing."""
+		tools = os.path.join(self.root, "Tools")
+		stamp = os.path.join(self.root, "Saved", "Package", "package_stamp.json")
+		kept = os.path.join(self.root, "session", "PadCheck.txt")
+		os.makedirs(tools)
+		os.makedirs(os.path.dirname(stamp))
+		os.makedirs(os.path.dirname(kept))
+		shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "PadCheck.ps1"), tools)
+		with open(kept, "w", encoding="utf-8") as f:
+			f.write("kept\n")
+
+		def check():
+			run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(tools, "PadCheck.ps1"), "-Keep", kept],
+				capture_output=True, encoding="utf-8", errors="replace")
+			self.assertEqual(run.returncode, 2, run.stdout)
+			with open(kept, encoding="utf-8") as f:
+				self.assertEqual(f.read(), "kept\n")
+			return run.stdout
+
+		self.assertIn("NOT RUN (no package", check())
+		with open(stamp, "w", encoding="utf-8") as f:
+			json.dump({"commit": self.BUILD, "dirty": True}, f)
+		self.assertIn("came from a dirty tree", check())
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
 	def test_the_script_finds_the_kept_padcheck_line_in_the_session_folder(self):
 		script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "S3Exit.ps1")
 		self.session()

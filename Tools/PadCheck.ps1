@@ -4,8 +4,9 @@
 # Export (T-PKG-06): the zip holds that run and power_split.py reads it. Development (T-PKG-02): drawn text, log, screenshot against the arena
 # golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no visible window of the game's process at any time.
 # -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check.
-# Shipping runs on a -userdir under Saved\PadCheck, and the export reads it there: nothing here writes to or deletes from %LOCALAPPDATA%\Dusktracer, where a person's
-# runs live. That folder is only read, for the human half. Both folders the check writes belong to this worktree, so two checks in two worktrees cannot meet.
+# Every launch runs on a -userdir under Saved\PadCheck, and the export reads Shipping's there: nothing here writes to or deletes from %LOCALAPPDATA%\Dusktracer, where a person's
+# runs live. That folder is only read, for the human half. Everything the check writes belongs to this worktree, so two checks in two worktrees cannot meet, and each
+# check starts by clearing what the last one left, a killed one included.
 # A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04, by Tools\SeedCheck.ps1 -Package.
 # -Keep writes the verdict on a judged package to that file, the line Tools\S3Exit.ps1 reads (S3_kit.md). A package it refuses to judge writes nothing, so a run on a moved tree keeps the line.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
@@ -28,7 +29,8 @@ $Account = Join-Path $WorkDir "account"
 $UserDir = Join-Path $Account "Dusktracer"
 $Playtests = Join-Path $UserDir "Saved\Playtests"
 $PersonRuns = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
-$DevPlaytests = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
+$DevUser = Join-Path $WorkDir "development"
+$DevPlaytests = Join-Path $DevUser "Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 $MarkerSeed = 770077
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
@@ -100,126 +102,117 @@ function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += 
 function Watch-Windows($Proc) { if (-not $Proc.HasExited) { $script:ShownWindows += [DTWindows]::Visible($Proc.Id) } }
 function Stop-ByPid($Proc) { if (-not $Proc.HasExited) { & taskkill /PID $Proc.Id /T /F | Out-Null } }
 
-function Remove-MarkerRuns {
-	if (Test-Path $DevPlaytests) { Get-ChildItem $DevPlaytests -Filter "${MarkerSeed}_*" -File | Remove-Item -Force }
-}
-
 $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended")
 $Interval = Get-Constant "TEL.INTERVAL_S"
 
-try {
-	# What a killed check left goes here, by the next: its finally never ran.
-	Remove-MarkerRuns
-	if (Test-Path $Account) { Remove-Item $Account -Recurse -Force }
-	New-Item -ItemType Directory -Force $UserDir | Out-Null
+foreach ($Dir in $Account, $DevUser) {
+	if (Test-Path $Dir) { Remove-Item $Dir -Recurse -Force }
+}
+New-Item -ItemType Directory -Force $UserDir, $DevUser | Out-Null
 
-	# --- Shipping: run start, telemetry, quit ---------------------------------------------------------------------------
-	foreach ($Culture in $Cultures) {
-		$Before = @(if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | ForEach-Object { $_.Name } })
-		$BotArgs = @("-DTBot=Steered", ("-DTBotMaxSeconds={0}" -f ($Interval + 5)), "-DTBotQuit")
-		$Proc = Start-Process -FilePath $ShipExe -ArgumentList ($OffScreen + @("-userdir=`"$UserDir`"", "-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick") + $BotArgs) -PassThru
-		Write-Host "padcheck: Shipping $Culture (PID $($Proc.Id))"
-		try {
-			$Deadline = (Get-Date).AddSeconds($LoadTimeout + $Interval)
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
-			if (-not $Proc.HasExited) { Note-Fail "$Culture Shipping: the game did not quit by itself" }
-		}
-		finally {
-			Stop-ByPid $Proc
-		}
-		$Jsonl = if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | Where-Object { $Before -notcontains $_.Name } | Select-Object -First 1 }
-		if (-not $Jsonl) { Note-Fail "$Culture Shipping: no telemetry file in $Playtests"; continue }
-		$Rows = @(Get-Content ([IO.Path]::ChangeExtension($Jsonl.FullName, ".csv")) -Encoding UTF8).Count
-		if ($Rows -lt 3) { Note-Fail "$Culture Shipping: $Rows CSV line(s), expected a header, a closed interval and the last partial one" }
-		$Lines = @(Get-Content $Jsonl.FullName -Encoding UTF8)
-		$Start = $Lines | Select-Object -First 1
-		$End = $Lines | Select-Object -Last 1
-		$Build = if ($Start -match '"build":"([^"]*)"') { $Matches[1] } else { "" }
-		if ($Start -notmatch '"kind":"run_start"') { Note-Fail "$Culture Shipping: first record is not run_start" }
-		if ($Start -notmatch ('"culture":"' + [regex]::Escape($Culture) + '"')) { Note-Fail "$Culture Shipping: run_start culture: $Start" }
-		if ($Build -ne $Stamp.commit) { Note-Fail "$Culture Shipping: build '$Build' is not the stamp '$($Stamp.commit)'" }
-		if ($End -notmatch '"kind":"run_end"' -or $End -notmatch '"reason":"bot_timeout"') { Note-Fail "$Culture Shipping: last record is not run_end bot_timeout: $($End.Substring(0, [Math]::Min(160, $End.Length)))" }
-		Write-Host ("    {0} records, build {1}, last: {2}" -f $Lines.Count, $Build, ($End -replace '^(.{0,90}).*$', '$1'))
-	}
-
-	# --- Export: the hand-over zip, read by the tool the scheduler uses ------------------------------------------------
-	$ExportDir = Join-Path $WorkDir "export"
-	if (Test-Path $ExportDir) { Remove-Item $ExportDir -Recurse -Force }
-	$OwnLocal = $env:LOCALAPPDATA
-	$env:LOCALAPPDATA = $Account
+# --- Shipping: run start, telemetry, quit ---------------------------------------------------------------------------
+foreach ($Culture in $Cultures) {
+	$Before = @(if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | ForEach-Object { $_.Name } })
+	$BotArgs = @("-DTBot=Steered", ("-DTBotMaxSeconds={0}" -f ($Interval + 5)), "-DTBotQuit")
+	$Proc = Start-Process -FilePath $ShipExe -ArgumentList ($OffScreen + @("-userdir=`"$UserDir`"", "-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick") + $BotArgs) -PassThru
+	Write-Host "padcheck: Shipping $Culture (PID $($Proc.Id))"
 	try {
-		$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File $Export -OutDir $ExportDir 2>&1
-		$Rc = $LASTEXITCODE
+		$Deadline = (Get-Date).AddSeconds($LoadTimeout + $Interval)
+		while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
+		if (-not $Proc.HasExited) { Note-Fail "$Culture Shipping: the game did not quit by itself" }
 	}
 	finally {
-		$env:LOCALAPPDATA = $OwnLocal
+		Stop-ByPid $Proc
 	}
-	$Zip = Get-ChildItem $ExportDir -Filter *.zip -ErrorAction SilentlyContinue | Select-Object -First 1
-	if ($Rc -ne 0 -or -not $Zip) { $Out | ForEach-Object { "    $_" }; Note-Fail "export failed" }
-	else {
-		$Open = Join-Path $ExportDir "open"
-		Expand-Archive $Zip.FullName $Open
-		$Inside = @(Get-ChildItem $Open -Recurse -Filter "${MarkerSeed}_*.jsonl")
-		$Manifest = @(Get-ChildItem $Open -Recurse -Filter MANIFEST.txt)
-		if ($Inside.Count -ne $Cultures.Count) { Note-Fail "export holds $($Inside.Count) check run(s), expected $($Cultures.Count)" }
-		if ($Manifest.Count -ne 1) { Note-Fail "export has no MANIFEST.txt" }
-		$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin ".csv", ".jsonl", ".log", ".txt" })
-		if ($Stray.Count) { Note-Fail "export carries other files: $($Stray[0].Name)" }
-		if ($Inside.Count) {
-			$Split = & python -I (Join-Path $Root "Tools\power_split.py") $Inside[0].FullName 2>&1
-			$SplitRc = $LASTEXITCODE
-			if (-not ($Split | Select-String "POWER:")) { $Split | ForEach-Object { "    $_" }; Note-Fail "power_split.py gave no verdict (rc $SplitRc)" }
-			else { Write-Host ("    export ok, " + (($Split | Select-String "POWER:" | Select-Object -Last 1).Line)) }
-		}
-	}
+	$Jsonl = if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | Where-Object { $Before -notcontains $_.Name } | Select-Object -First 1 }
+	if (-not $Jsonl) { Note-Fail "$Culture Shipping: no telemetry file in $Playtests"; continue }
+	$Rows = @(Get-Content ([IO.Path]::ChangeExtension($Jsonl.FullName, ".csv")) -Encoding UTF8).Count
+	if ($Rows -lt 3) { Note-Fail "$Culture Shipping: $Rows CSV line(s), expected a header, a closed interval and the last partial one" }
+	$Lines = @(Get-Content $Jsonl.FullName -Encoding UTF8)
+	$Start = $Lines | Select-Object -First 1
+	$End = $Lines | Select-Object -Last 1
+	$Build = if ($Start -match '"build":"([^"]*)"') { $Matches[1] } else { "" }
+	if ($Start -notmatch '"kind":"run_start"') { Note-Fail "$Culture Shipping: first record is not run_start" }
+	if ($Start -notmatch ('"culture":"' + [regex]::Escape($Culture) + '"')) { Note-Fail "$Culture Shipping: run_start culture: $Start" }
+	if ($Build -ne $Stamp.commit) { Note-Fail "$Culture Shipping: build '$Build' is not the stamp '$($Stamp.commit)'" }
+	if ($End -notmatch '"kind":"run_end"' -or $End -notmatch '"reason":"bot_timeout"') { Note-Fail "$Culture Shipping: last record is not run_end bot_timeout: $($End.Substring(0, [Math]::Min(160, $End.Length)))" }
+	Write-Host ("    {0} records, build {1}, last: {2}" -f $Lines.Count, $Build, ($End -replace '^(.{0,90}).*$', '$1'))
+}
 
-	# --- Development: what Shipping cannot show (R-PKG-02); the same cook -------------------------------------------------
-	$Seconds = Get-Constant "SMOKE.SECONDS"
-	foreach ($Culture in $Cultures) {
-		$Tag = "package_$Culture"
-		$Log = Join-Path $LogDir "PadCheck_$Tag.log"
-		$Shot = Join-Path $WorkDir "$Tag.png"
-		$Remove = @($Log, $Shot) | Where-Object { Test-Path $_ }
-		if ($Remove) { Remove-Item $Remove -Force }
-		$ArgList = $OffScreen + @($Map, "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector", "-DTSeed=$MarkerSeed")
-		$Proc = Start-Process -FilePath $DevExe -ArgumentList $ArgList -PassThru
-		Write-Host "padcheck: Development $Culture (PID $($Proc.Id))"
-		$Deadline = (Get-Date).AddSeconds($LoadTimeout)
-		try {
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
-			if (-not $Proc.HasExited) { Note-Fail "$Culture Development: no self-quit in $LoadTimeout s" }
-		}
-		finally {
-			Stop-ByPid $Proc
-		}
-		$Text = if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 } else { "" }
-		$Lines = $Text -split "`r?`n"
-		if ($Text -notmatch "LogDT: Run start") { Note-Fail "$Culture Development: no Run start" }
-		$Bad = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
-		if ($Bad.Count) { Note-Fail "$Culture Development: $($Bad[0])" }
-		$Expected = (Import-Csv -Path (Join-Path $Root "Content\DT\Text\ST_UI.csv") -Encoding UTF8 | Where-Object { $_.Key -eq "Test.LocRoundTrip" }).$Culture
-		$Drawn = $Lines | Select-String -Pattern "LogDT: LocRoundTrip culture=(\S+) text=(.*)$" | Select-Object -First 1
-		if (-not $Drawn) { Note-Fail "$Culture Development: no LocRoundTrip line" }
-		elseif ($Drawn.Matches[0].Groups[1].Value -ne $Culture -or $Drawn.Matches[0].Groups[2].Value.Trim() -cne $Expected) {
-			Note-Fail "$Culture Development: drew '$($Drawn.Matches[0].Groups[2].Value.Trim())' as '$($Drawn.Matches[0].Groups[1].Value)', expected '$Expected'"
-		}
-		# The screenshot hook exits mid-run through RequestExit, where a close message also ends up (R-PKG-05).
-		$DevRun = if (Test-Path $DevPlaytests) { Get-ChildItem $DevPlaytests -Filter "${MarkerSeed}_*.jsonl" | Sort-Object LastWriteTime | Select-Object -Last 1 }
-		$DevEnd = if ($DevRun) { Get-Content $DevRun.FullName -Encoding UTF8 | Select-Object -Last 1 } else { "" }
-		if ($DevEnd -notmatch '"kind":"run_end"' -or $DevEnd -notmatch '"reason":"quit"') { Note-Fail "$Culture Development: exit mid-run left no run_end quit: $DevEnd" }
-		if (-not (Test-Path $Shot)) { Note-Fail "$Culture Development: no screenshot" }
-		else {
-			$Golden = Join-Path $Root "Docs\Validation\goldens\arena_empty_$Culture.png"
-			$Img = & python -I (Join-Path $Root "Tools\image_check.py") $Shot --golden $Golden 2>&1
-			$ImgRc = $LASTEXITCODE
-			$ImgLine = ($Img | Select-String "^IMAGE:" | Select-Object -Last 1).Line
-			Write-Host "    $ImgLine"
-			if ($ImgRc -ne 0) { Note-Fail "$Culture Development: $ImgLine" }
-		}
-	}
+# --- Export: the hand-over zip, read by the tool the scheduler uses ------------------------------------------------
+$ExportDir = Join-Path $WorkDir "export"
+if (Test-Path $ExportDir) { Remove-Item $ExportDir -Recurse -Force }
+$OwnLocal = $env:LOCALAPPDATA
+$env:LOCALAPPDATA = $Account
+try {
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File $Export -OutDir $ExportDir 2>&1
+	$Rc = $LASTEXITCODE
 }
 finally {
-	Remove-MarkerRuns
+	$env:LOCALAPPDATA = $OwnLocal
+}
+$Zip = Get-ChildItem $ExportDir -Filter *.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($Rc -ne 0 -or -not $Zip) { $Out | ForEach-Object { "    $_" }; Note-Fail "export failed" }
+else {
+	$Open = Join-Path $ExportDir "open"
+	Expand-Archive $Zip.FullName $Open
+	$Inside = @(Get-ChildItem $Open -Recurse -Filter "${MarkerSeed}_*.jsonl")
+	$Manifest = @(Get-ChildItem $Open -Recurse -Filter MANIFEST.txt)
+	if ($Inside.Count -ne $Cultures.Count) { Note-Fail "export holds $($Inside.Count) check run(s), expected $($Cultures.Count)" }
+	if ($Manifest.Count -ne 1) { Note-Fail "export has no MANIFEST.txt" }
+	$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin ".csv", ".jsonl", ".log", ".txt" })
+	if ($Stray.Count) { Note-Fail "export carries other files: $($Stray[0].Name)" }
+	if ($Inside.Count) {
+		$Split = & python -I (Join-Path $Root "Tools\power_split.py") $Inside[0].FullName 2>&1
+		$SplitRc = $LASTEXITCODE
+		if (-not ($Split | Select-String "POWER:")) { $Split | ForEach-Object { "    $_" }; Note-Fail "power_split.py gave no verdict (rc $SplitRc)" }
+		else { Write-Host ("    export ok, " + (($Split | Select-String "POWER:" | Select-Object -Last 1).Line)) }
+	}
+}
+
+# --- Development: what Shipping cannot show (R-PKG-02); the same cook -------------------------------------------------
+$Seconds = Get-Constant "SMOKE.SECONDS"
+foreach ($Culture in $Cultures) {
+	$Tag = "package_$Culture"
+	$Log = Join-Path $LogDir "PadCheck_$Tag.log"
+	$Shot = Join-Path $WorkDir "$Tag.png"
+	$Remove = @($Log, $Shot) | Where-Object { Test-Path $_ }
+	if ($Remove) { Remove-Item $Remove -Force }
+	$ArgList = $OffScreen + @($Map, "-userdir=`"$DevUser`"", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector", "-DTSeed=$MarkerSeed")
+	$Proc = Start-Process -FilePath $DevExe -ArgumentList $ArgList -PassThru
+	Write-Host "padcheck: Development $Culture (PID $($Proc.Id))"
+	$Deadline = (Get-Date).AddSeconds($LoadTimeout)
+	try {
+		while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
+		if (-not $Proc.HasExited) { Note-Fail "$Culture Development: no self-quit in $LoadTimeout s" }
+	}
+	finally {
+		Stop-ByPid $Proc
+	}
+	$Text = if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 } else { "" }
+	$Lines = $Text -split "`r?`n"
+	if ($Text -notmatch "LogDT: Run start") { Note-Fail "$Culture Development: no Run start" }
+	$Bad = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
+	if ($Bad.Count) { Note-Fail "$Culture Development: $($Bad[0])" }
+	$Expected = (Import-Csv -Path (Join-Path $Root "Content\DT\Text\ST_UI.csv") -Encoding UTF8 | Where-Object { $_.Key -eq "Test.LocRoundTrip" }).$Culture
+	$Drawn = $Lines | Select-String -Pattern "LogDT: LocRoundTrip culture=(\S+) text=(.*)$" | Select-Object -First 1
+	if (-not $Drawn) { Note-Fail "$Culture Development: no LocRoundTrip line" }
+	elseif ($Drawn.Matches[0].Groups[1].Value -ne $Culture -or $Drawn.Matches[0].Groups[2].Value.Trim() -cne $Expected) {
+		Note-Fail "$Culture Development: drew '$($Drawn.Matches[0].Groups[2].Value.Trim())' as '$($Drawn.Matches[0].Groups[1].Value)', expected '$Expected'"
+	}
+	# The screenshot hook exits mid-run through RequestExit, where a close message also ends up (R-PKG-05).
+	$DevRun = if (Test-Path $DevPlaytests) { Get-ChildItem $DevPlaytests -Filter "${MarkerSeed}_*.jsonl" | Sort-Object LastWriteTime | Select-Object -Last 1 }
+	$DevEnd = if ($DevRun) { Get-Content $DevRun.FullName -Encoding UTF8 | Select-Object -Last 1 } else { "" }
+	if ($DevEnd -notmatch '"kind":"run_end"' -or $DevEnd -notmatch '"reason":"quit"') { Note-Fail "$Culture Development: exit mid-run left no run_end quit: $DevEnd" }
+	if (-not (Test-Path $Shot)) { Note-Fail "$Culture Development: no screenshot" }
+	else {
+		$Golden = Join-Path $Root "Docs\Validation\goldens\arena_empty_$Culture.png"
+		$Img = & python -I (Join-Path $Root "Tools\image_check.py") $Shot --golden $Golden 2>&1
+		$ImgRc = $LASTEXITCODE
+		$ImgLine = ($Img | Select-String "^IMAGE:" | Select-Object -Last 1).Line
+		Write-Host "    $ImgLine"
+		if ($ImgRc -ne 0) { Note-Fail "$Culture Development: $ImgLine" }
+	}
 }
 
 if ($script:ShownWindows -gt 0) { Note-Fail "a game window was visible ($($script:ShownWindows) sample(s))" }
