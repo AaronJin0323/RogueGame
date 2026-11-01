@@ -4,6 +4,8 @@ Usage:  python -I Tools/tools_test.py
 Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 """
 
+import contextlib
+import io
 import json
 import os
 import sys
@@ -13,6 +15,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
+import owner_read  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 
@@ -111,6 +114,163 @@ class Casts(unittest.TestCase):
 
 	def test_a_record_from_before_the_window_counts_as_a_cast_and_reads_no_damage(self):
 		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, None, None, "V"))
+
+
+class OwnerRead(unittest.TestCase):
+	KEY = "Blessing.Forge.Hammer.Key"
+	LINES = [
+		'{"t":0.0,"step":0,"kind":"run_start","owner":-1,"seed":7,"players":1,"build":"abc","culture":"en"}',
+		'{"t":10.0,"step":1,"kind":"offer","owner":0,"hand_id":1,"hand_kind":"Level","cards":[{"kind":"Weapon"},{"kind":"WeaponUpgrade"},{"kind":"Blessing"}]}',
+		'{"t":10.0,"step":1,"kind":"offer_pick","owner":0,"hand_id":1,"slot":2,"card_kind":"Blessing","id":"Blessing.Forge.Hammer.Key"}',
+		'{"t":60.0,"step":2,"kind":"hero_damaged","owner":0,"amount":10,"hp_after":90,"max_hp":100,"hit_kind":"Contact","role":"Tank"}',
+		'{"t":60.0,"step":2,"kind":"sources","owner":0,"interval":0,"damage":{"Weapon.PulseRifle":5,"Keeper.Storm":5}}',
+		'{"t":120.0,"step":3,"kind":"keeper_pick","owner":0,"blessing":"Blessing.Forge.Hammer.Key"}',
+		'{"t":180.0,"step":4,"kind":"hero_damaged","owner":0,"amount":20,"hp_after":70,"max_hp":100,"hit_kind":"Bullet","role":"Turret"}',
+		'{"t":181.0,"step":4,"kind":"dash","owner":0}',
+		'{"t":200.0,"step":4,"kind":"xp","owner":0,"gems":1,"xp":30}',
+		'{"t":240.0,"step":5,"kind":"sources","owner":0,"interval":3,"damage":{"Keeper.Forge":7}}',
+		'{"t":240.0,"step":5,"kind":"hero_damaged","owner":0,"amount":80,"hp_after":-10,"max_hp":100,"hit_kind":"Bullet","role":"Turret"}',
+		'{"t":240.0,"step":5,"kind":"hero_down","owner":0}',
+		'{"t":240.0,"step":5,"kind":"run_end","owner":-1,"reason":"death","per_player":{"0":{"wall_paused_s":120.0}}}',
+	]
+
+	def read(self, lines=None):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(lines or self.LINES) + "\n")
+			return owner_read.read_run(path, self.KEY)
+
+	def test_a_killing_hit_counts_whole_and_its_overkill_is_named(self):
+		run = self.read()
+		self.assertAlmostEqual(owner_read.hp_lost(run), 1.1)
+		self.assertAlmostEqual(owner_read.overkill(run), 0.1)
+		self.assertAlmostEqual(owner_read.hp_lost(run, 180.0), 0.3)
+		self.assertEqual(owner_read.by_role(run)["Turret"], (100.0, 2))
+
+	def test_the_key_splits_the_rate(self):
+		before, after = owner_read.rate_split(self.read(), 120.0)
+		self.assertAlmostEqual(before, 0.1 / 2.0)
+		self.assertAlmostEqual(after, 1.0 / 2.0)
+
+	def test_a_window_rate_counts_only_the_time_alive_in_it(self):
+		run = self.read()
+		self.assertAlmostEqual(owner_read.rate_window(run, 120.0, 240.0), 1.0 / 2.0)
+		self.assertAlmostEqual(owner_read.rate_window(run, 120.0, 600.0), 1.0 / 2.0, msg="the run ended at 240 s")
+		self.assertIsNone(owner_read.rate_window(run, 300.0, 600.0))
+
+	def test_passes_count_every_card_shown(self):
+		run = self.read()
+		self.assertEqual((run["offered"]["Weapon"], run["offered"]["WeaponUpgrade"]), (1, 1))
+		self.assertEqual((run["picked"]["Weapon"], run["picked"]["WeaponUpgrade"], run["picked"]["Blessing"]), (0, 0, 1))
+
+	def test_weapon_zero_reads_to_the_end_of_the_run(self):
+		run = self.read()
+		self.assertEqual(owner_read.weapon_zero_from(run), 3)
+		self.assertTrue(owner_read.weapon_zero_after_key(run))
+		self.assertFalse(owner_read.weapon_zero_any(run, 6), "no interval from 6 on exists")
+		later = self.LINES[:-3] + ['{"t":300.0,"step":6,"kind":"sources","owner":0,"interval":4,"damage":{"Weapon.PulseRifle":1}}'] + self.LINES[-3:]
+		run = self.read(later)
+		self.assertIsNone(owner_read.weapon_zero_from(run))
+		self.assertFalse(owner_read.weapon_zero_after_key(run))
+		self.assertTrue(owner_read.weapon_zero_any(run, 3))
+
+	def test_no_key_is_no_zero_after_it(self):
+		self.assertFalse(owner_read.weapon_zero_after_key(self.read([line for line in self.LINES if "keeper_pick" not in line])))
+
+	def test_the_rest_of_the_reading(self):
+		run = self.read()
+		self.assertAlmostEqual(owner_read.keeper_share(run), 12.0 / 17.0)
+		self.assertAlmostEqual(owner_read.pause_per_min(run), 30.0)
+		self.assertEqual(run["dashes"], [181.0])
+
+	def test_clock_keeps_the_two_decimals_of_a_step_time(self):
+		self.assertEqual(owner_read.clock(345.65), "5:45.65")
+
+	def test_a_truncated_line_is_skipped(self):
+		run = self.read(self.LINES + ['{"t":241.0,"kind":"dash","ow'])
+		self.assertEqual(len(run["dashes"]), 1)
+
+	def printed(self, lines):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(lines) + "\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				owner_read.print_run(path, self.KEY)
+			return out.getvalue()
+
+	def test_a_killed_run_still_reads(self):
+		"""EndSession writes run_end only on world_end or restart, so a killed process leaves none."""
+		text = self.printed([line for line in self.LINES if "run_end" not in line])
+		self.assertIn("end: unread, no run_end; the file stops at 240.0 s", text)
+		self.assertIn("paused: unread, no run_end", text)
+		self.assertIn("timeline:", text, "the timeline still prints after the paused line")
+
+	def test_a_file_cut_at_every_line_still_reads(self):
+		for count in range(1, len(self.LINES) + 1):
+			self.assertIn("timeline:", self.printed(self.LINES[:count]), f"first {count} lines")
+
+	def test_a_file_cut_at_the_key_reads_no_rate_after_it(self):
+		cut = self.LINES.index(next(line for line in self.LINES if "keeper_pick" in line)) + 1
+		self.assertIn("after unread", self.printed(self.LINES[:cut]))
+
+	def test_a_torn_csv_row_is_skipped(self):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "run.csv")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("interval,player,live_bullets\n6,0,4\n7,0,9\n8,0")
+			self.assertEqual(owner_read.live_bullets(path), [4, 9])
+
+	FULL = [
+		'{"t":0.0,"step":0,"kind":"run_start","owner":-1,"seed":7}',
+		'{"t":0.0,"step":0,"kind":"offer","owner":0,"hand_id":0,"hand_kind":"Patron","cards":[]}',
+		'{"t":0.0,"step":0,"kind":"offer_pick","owner":0,"hand_id":0,"card_kind":"Keeper","id":"Keeper.Storm","wall_decide_s":30.0}',
+		'{"t":20.0,"step":1,"kind":"offer","owner":0,"hand_id":1,"hand_kind":"Level","cards":[]}',
+		'{"t":20.0,"step":1,"kind":"offer_pick","owner":0,"hand_id":1,"card_kind":"Mod","id":"Mod.ChainTrigger","target":"Weapon.PulseRifle","wall_decide_s":10.0}',
+		'{"t":30.0,"step":2,"kind":"hit","owner":0,"hits":1,"damage":4,"damage_by_source":{"Weapon.PulseRifle":4}}',
+		'{"t":40.0,"step":3,"kind":"intercession","owner":0,"variant":"Archetype.Storm.Downpour","layer":null,"enemies_hit":26,"damage":1260.0}',
+		'{"t":45.0,"step":3,"kind":"intercession","owner":0,"variant":"Archetype.Storm.Downpour","layer":"Archetype.Forge.Hammer","enemies_hit":0,"damage":0.0}',
+		'{"t":50.0,"step":4,"kind":"keeper_pick","owner":0,"blessing":"Blessing.Forge.Hammer.Key"}',
+		'{"t":55.0,"step":5,"kind":"hit","owner":0,"hits":2,"damage":34,"damage_by_source":{"Keeper.Forge":34}}',
+		'{"t":60.0,"step":6,"kind":"hero_damaged","owner":0,"amount":10,"hp_after":90,"max_hp":100,"role":"Tank"}',
+		'{"t":60.0,"step":6,"kind":"sources","owner":0,"interval":0,"damage":{"Weapon.PulseRifle":4,"Keeper.Forge":34,"Keeper.Storm":12},"hits":{"Weapon.PulseRifle":1,"Keeper.Forge":2,"Keeper.Storm":3},"kills":{"Keeper.Forge":2}}',
+		'{"t":60.0,"step":6,"kind":"intercession_denied","owner":0,"interval":0,"count":3}',
+		'{"t":70.0,"step":7,"kind":"hero_damaged","owner":0,"amount":20,"hp_after":80,"max_hp":100,"role":"Turret"}',
+		'{"t":120.0,"step":8,"kind":"sources","owner":0,"interval":1,"damage":{"Keeper.Forge":50},"hits":{"Keeper.Forge":5},"kills":{"Keeper.Forge":1}}',
+		'{"t":120.0,"step":8,"kind":"run_end","owner":-1,"reason":"death","per_player":{"0":{"wall_paused_s":40.0}}}',
+	]
+
+	def test_every_number_the_note_reads_is_printed(self):
+		text = self.printed(self.FULL)
+		for line in ("interval 0: damage 50, kills 2; Keeper.Forge 34 in 2 hits, 17.0 per hit, 2 kills; Keeper.Storm 12 in 3 hits, 4.0 per hit, 0 kills; Weapon.PulseRifle 4 in 1 hits, 4.0 per hit, 0 kills",
+			"damage by source, whole run: 100; Keeper.Forge 84, Keeper.Storm 12, Weapon.PulseRifle 4",
+			"last hit by source: Weapon.PulseRifle 0:30.00, Keeper.Forge 0:55.00",
+			"intercession: 40.0 s (0:40.00) Archetype.Storm.Downpour, layer None: 26 enemies, 1260 damage",
+			"intercession: 45.0 s (0:45.00) Archetype.Storm.Downpour, layer Archetype.Forge.Hammer: 0 enemies, 0 damage",
+			"intercessions denied: 3, 3 in interval 0",
+			"hands, wall s to the pick: Patron 30.0, Level 10.0",
+			"paused: 40.0 s, 20.0 s per sim minute, 5.0 without the Patron hand",
+			"gained between hits 10.0 HP",
+			"Keeper share of the whole run (attribution, not L16): 0.960, floor with all of Keeper.Forge out 0.120, Chain Trigger under the Key: True",
+			"Level hand: Mod.ChainTrigger on Weapon.PulseRifle"):
+			self.assertIn(line, text)
+
+	def test_chain_trigger_counts_only_under_the_key_on_a_reshaped_weapon(self):
+		run = self.read(self.FULL)
+		self.assertTrue(owner_read.chain_under_key(run))
+		self.assertFalse(owner_read.chain_under_key(run, 40.0), "the Key came at 50 s")
+		self.assertTrue(owner_read.chain_under_key(run, 50.0))
+		run["mods"] = [(20.0, "Mod.ChainTrigger", "Weapon.ArcBlade")]
+		self.assertFalse(owner_read.chain_under_key(run), "an arc is no folded round: its free volley keeps the modifier's source")
+		run["mods"] = [(20.0, "Mod.Pierce", "Weapon.PulseRifle")]
+		self.assertFalse(owner_read.chain_under_key(run))
+
+	def test_the_floor_takes_the_source_off_the_keeper_side_and_keeps_the_total(self):
+		self.assertEqual(owner_read.share_without([], "Keeper.Forge"), (None, None))
+		rows = [{"damage": {"Keeper.Forge": 25, "Keeper.Storm": 25, "Weapon.PulseRifle": 50}}]
+		self.assertEqual(owner_read.share_without(rows, "Keeper.Forge"), (0.5, 0.25))
 
 
 class Intercession(unittest.TestCase):

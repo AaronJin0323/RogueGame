@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "Bot/DTBotBrain.h"
 #include "Bot/DTBotSubsystem.h"
+#include "Combat/DTWeaponCompose.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
@@ -14,10 +15,13 @@
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
+#include "Keepers/DTKeeperSpec.h"
 #include "Misc/FileHelper.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
+#include "Tests/Combat/DTWeaponTestHarness.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -204,6 +208,102 @@ bool FDTBotCards::RunTest(const FString& Parameters)
 	for (int32 Index = 0; Index < 8; ++Index)
 	{
 		TestEqual(TEXT("Random is seeded"), Brain.ChooseCard(Level, Player), First[Index]);
+	}
+	return true;
+}
+
+// The owner's run (S1_owner_run.md): every Weapon and WeaponUpgrade card passed, Hammer's blessings over the Patron's. The plain
+// Steered order must stay what it was: the filter is off by default, and that keeps input_hash.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotOwnerPathCards, "Dusktracer.Bot.OwnerPathCards", DTBotTest::Flags)
+bool FDTBotOwnerPathCards::RunTest(const FString& Parameters)
+{
+	FDTPlayerRunState Player;
+	auto Card = [](EDTCardKind Kind, const TCHAR* Id)
+	{
+		FDTOfferCard C;
+		C.Kind = Kind;
+		C.ContentId = FName(Id);
+		return C;
+	};
+	const FDTOfferCard Weapon = Card(EDTCardKind::Weapon, TEXT("Weapon.ArcBlade"));
+	const FDTOfferCard Upgrade = Card(EDTCardKind::WeaponUpgrade, TEXT("Weapon.PulseRifle"));
+	const FDTOfferCard Mod = Card(EDTCardKind::Mod, TEXT("Mod.Pierce"));
+	const FDTOfferCard Reserve = Card(EDTCardKind::Reserve, TEXT("Reserve.Hone"));
+	FDTOfferHand Mixed;
+	Mixed.HandKind = EDTHandKind::Level;
+	Mixed.Cards = { Weapon, Upgrade, Mod };
+	FDTOfferHand Spare;
+	Spare.HandKind = EDTHandKind::Chest;
+	Spare.Cards = { Upgrade, Weapon, Reserve };
+	FDTOfferHand ArmsOnly;
+	ArmsOnly.HandKind = EDTHandKind::Chest;
+	ArmsOnly.Cards = { Upgrade, Weapon };
+	FDTOfferHand Blessings;
+	Blessings.HandKind = EDTHandKind::Level;
+	Blessings.Cards = { Card(EDTCardKind::Blessing, TEXT("Blessing.Storm.ArcGrid.Key")), Card(EDTCardKind::Blessing, TEXT("Blessing.Forge.Slam.Key")),
+		Card(EDTCardKind::Blessing, TEXT("Blessing.Forge.Hammer.Key")) };
+
+	FDTBotConfig Config;
+	Config.Policy = EDTBotPolicy::Steered;
+	Config.Path = EDTPath::Storm;
+	Config.Archetype = FName(TEXT("ArcGrid"));
+	Config.SecondPath = EDTPath::Forge;
+	FDTBotBrain Brain;
+	Brain.Reset(Config);
+	TestEqual(TEXT("off: the plain order still takes the weapon"), Brain.ChooseCard(Mixed, Player), 0);
+	TestEqual(TEXT("off: the Patron's archetype still comes first"), Brain.ChooseCard(Blessings, Player), 0);
+	TestFalse(TEXT("off: the record's config line does not change"), Config.Describe().Contains(TEXT("pick=")) || Config.Describe().Contains(TEXT("second_archetype=")));
+
+	Config.Pick = EDTBotPick::BlessingsOnly;
+	Brain.Reset(Config);
+	TestEqual(TEXT("passes both weapon kinds for a modifier"), Brain.ChooseCard(Mixed, Player), 2);
+	TestEqual(TEXT("passes both weapon kinds for a Reserve card"), Brain.ChooseCard(Spare, Player), 2);
+	TestEqual(TEXT("a hand of nothing else is still answered: a player cannot decline"), Brain.ChooseCard(ArmsOnly, Player), 0);
+	TestEqual(TEXT("nothing was declined"), Brain.GetStats().Declines, 0);
+	TestEqual(TEXT("the filter alone leaves the blessing order"), Brain.ChooseCard(Blessings, Player), 0);
+
+	Config.SecondArchetype = FName(TEXT("Hammer"));
+	Brain.Reset(Config);
+	TestEqual(TEXT("the second archetype comes before the Patron's"), Brain.ChooseCard(Blessings, Player), 2);
+	TestTrue(TEXT("the record names the filter and the archetype"), Config.Describe().Contains(TEXT("pick=BlessingsOnly")) && Config.Describe().Contains(TEXT("second_archetype=Hammer")));
+
+	TestTrue(TEXT("parse"), FDTBotConfig::ParsePick(TEXT("blessingsonly")) == EDTBotPick::BlessingsOnly && FDTBotConfig::ParsePick(TEXT("All")) == EDTBotPick::All);
+	return true;
+}
+
+// The sockets S1_owner_run.md §5 reads, on the real Key row. Telemetry cannot show this: nothing calls RecordModifierDormant. With no
+// round left Flag.Split stops at Melee's fallback, so Scatter Shell sleeps; Chain Trigger names no flag and stays awake. At level 3 a
+// round still flies and both stay awake, which is what the upgrades he passed would have kept.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotOwnerPathSockets, "Dusktracer.Bot.OwnerPathSockets", DTBotTest::Flags)
+bool FDTBotOwnerPathSockets::RunTest(const FString& Parameters)
+{
+	using namespace DTWeaponTestHarness;
+	FDTKeeperRunState Keepers;
+	Keepers.Primary = EDTPath::Storm;
+	Keepers.Second = EDTPath::Forge;
+	TestTrue(TEXT("the real Key"), DTOffers::AddBlessing(Keepers, FName(TEXT("Blessing.Forge.Hammer.Key"))));
+	const FDTWeaponFlags Hammer = DTKeepers::BuildKeeperFlags(Keepers, EDTPath::Forge);
+
+	struct FReading
+	{
+		int32 Level;
+		bool bShellSleeps;
+	};
+	for (const FReading Reading : { FReading{ 1, true }, FReading{ 2, true }, FReading{ 3, false } })
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), Reading.Level);
+		TestEqual(TEXT("Scatter Shell socketed"), H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ScatterShell")), EDTWeaponResult::Ok);
+		TestEqual(TEXT("Chain Trigger socketed"), H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ChainTrigger")), EDTWeaponResult::Ok);
+		H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), Hammer);
+		H.StepOnce();
+		const TArray<FDTWeaponInstance::FSocket>& Sockets = H.Run.GetPlayer(0).Weapons[0].Sockets;
+		if (TestEqual(TEXT("both keep their socket"), Sockets.Num(), 2))
+		{
+			TestEqual(FString::Printf(TEXT("level %d: Scatter Shell"), Reading.Level), Sockets[0].bDormant, Reading.bShellSleeps);
+			TestFalse(FString::Printf(TEXT("level %d: Chain Trigger stays awake"), Reading.Level), Sockets[1].bDormant);
+		}
+		TestTrue(FString::Printf(TEXT("level %d: the free volley is still armed"), Reading.Level), H.Weapons.GetLastSpec(0, 0).ChainTriggerSource != 0);
 	}
 	return true;
 }

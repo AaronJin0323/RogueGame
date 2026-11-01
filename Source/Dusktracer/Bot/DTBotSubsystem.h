@@ -6,6 +6,8 @@
 //   -DTBotPath=<Storm|Forge|Tide>       dt.Bot.Path        Steered: Patron Path
 //   -DTBotArchetype=<Tempest|...>       dt.Bot.Archetype   Steered: preferred archetype of that Path
 //   -DTBotSecond=<Path>                 dt.Bot.Second      Steered: second Keeper (default FDTBotConfig::DefaultSecond)
+//   -DTBotSecondArchetype=<Hammer|...>  dt.Bot.SecondArchetype  Steered: the second Keeper's archetype, before the Patron's (default none)
+//   -DTBotPick=<All|BlessingsOnly>      dt.Bot.Pick        Steered: card filter (default All; Docs/Validation/S1_owner_run.md)
 //   -DTBotSkill=<0..1>                  dt.Bot.Skill       1 = no reaction delay, no movement or aim noise (default 1)
 //   -DTBotFast[=<steps>]                dt.Bot.Fast        steps run per frame through UDTSimSubsystem::StepNow (0 = real time)
 //   -DTBotMaxSeconds=<s>                dt.Bot.MaxSeconds  ends the telemetry session ("bot_timeout") at this sim time
