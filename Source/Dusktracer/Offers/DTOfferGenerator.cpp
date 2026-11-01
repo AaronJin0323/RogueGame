@@ -229,16 +229,18 @@ TArray<EDTPath> DTOffers::AllKeepers()
 
 TArray<EDTPath> DTOffers::RunKeepers(const FDTOfferPool& Pool)
 {
-	// R-KEE-23: an unlocked Keeper always has a seat, so it leads, in Path order; the S1 Keepers follow.
+	// R-KEE-23: in a tool run an unlocked Keeper always has a seat, so it leads, in Path order; the S1 Keepers follow.
+	// A gated run seats no met Keeper, so its Keepers stay in Path order.
+	const TArray<EDTPath> Seated = RunKeepers();
 	TArray<EDTPath> Out;
 	for (const EDTPath Path : AllKeepers())
 	{
-		if (Pool.Unlocked.Contains(KeeperId(Path)))
+		if (Pool.Unlocked.Contains(KeeperId(Path)) || (Pool.bMetaGate && Seated.Contains(Path)))
 		{
 			Out.Add(Path);
 		}
 	}
-	for (const EDTPath Path : RunKeepers())
+	for (const EDTPath Path : Seated)
 	{
 		Out.AddUnique(Path);
 	}
@@ -797,7 +799,7 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		if (Kind == EDTHandKind::Patron)
 		{
-			// The seats below would drop this Keeper once a save has met enough others (R-KEE-23).
+			// The seats below hold the head of the list, and this Keeper may sit past them in Path order (R-KEE-23).
 			const int32 Lead = Keepers.IndexOfByPredicate([&Pool](const FDTOfferCard& Card) { return Card.ContentId == Pool.LeadPatron; });
 			if (Lead > 0)
 			{

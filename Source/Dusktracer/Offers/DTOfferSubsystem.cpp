@@ -102,7 +102,7 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		}
 		UE_LOG(LogDT, Log, TEXT("Offers: pool gated, %d unlocked, tools +%d +%d +%d"), RunGrant.Unlocked.Num(), RunGrant.Rerolls, RunGrant.Banishes, RunGrant.Locks);
 	}
-	// A run started from the hub names its Patron on the map (vigil.md R-VIG-07); no tool run has the option.
+	// A run started from the hub names its Patron on the map (vigil.md R-VIG-07); no battery has the option, only the proofs of R-VIG-02.
 	if (const TCHAR* Patron = InWorld.URL.GetOption(TEXT("DTPatron="), nullptr))
 	{
 		ChosenPatron = FName(Patron);

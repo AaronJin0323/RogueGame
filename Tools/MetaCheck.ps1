@@ -4,7 +4,7 @@
 # steps and CSV, and the save appears. C: a second launch reads it and adds to it. D: the file corrupted: it goes aside byte
 # for byte and a fresh one appears. E: a saved win reaches a real fight's start. F: a planted counter earns a Discovery into a file and none with no file.
 # G: the Tree and the first-run locks bought back up to a tool run's pool, gate on, play exactly as A. H: -DTPoolGate with no save offers a person's first pool.
-# I: a Discovery writes a Keeper and the duos, the next gated launch meets that Keeper, and a Patron chosen at the hub, or last played, keeps its seat.
+# I: a Discovery writes a Keeper and the duos, a gated launch that chooses that Keeper meets it, and a Patron chosen at the hub, or last played, leads a hand no other met Keeper has a seat in.
 # Prints "META: PASS (...)" or "META: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\MetaCheck_<tag>.log.
 param(
 	[int]$Seed = 9108,
@@ -140,22 +140,23 @@ $Hands = Read-Jsonl
 $null = Take-Csv
 $FirstOk = (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
 
-# I (T-MET-28): the doors on real launches. A planted row writes a Keeper and the duos into a file; the next gated launch meets that Keeper, and a Patron chosen at the hub keeps its seat beside it.
+# I (T-MET-28): the doors on real launches. A planted row writes a Keeper and the duos into a file; a gated launch that chooses that Keeper meets it. With it last played a Restart, which names nobody, reads it first and then Path order: only the lead seat can hold it. A Patron chosen at the hub leads the same way, and the met Keeper has no seat beside it.
 $DoorSave = Join-Path $OutDir "Door.sav"
 $LogI1 = Invoke-Run "i1" @("-DTMetaFile=`"$DoorSave`"", "-ExecCmds=`"DT.Meta.Plant Best.WeaponLevel 8,DT.Meta.Plant Best.PathsAtTier2 2`"")
 $null = Take-Csv
-$LogI2 = Invoke-Run "i2" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Radiance" "Lance"
+$LogI2 = Invoke-Run "i2" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Radiance" "Lance" "?DTSeed=${Seed}?DTPatron=Radiance"
 $Met = Read-Jsonl
 $null = Take-Csv
-$LogI3 = Invoke-Run "i3" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Tide" "Frost" "?DTSeed=${Seed}?DTPatron=Tide"
-$Chosen = Read-Jsonl
-$null = Take-Csv
-$LogI4 = Invoke-Run "i4" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Tide" "Frost"
+$LogI3 = Invoke-Run "i3" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Radiance" "Lance"
 $Again = Read-Jsonl
+$null = Take-Csv
+$LogI4 = Invoke-Run "i4" @("-DTMetaFile=`"$DoorSave`"", "-DTPoolGate") "Tide" "Frost" "?DTSeed=${Seed}?DTPatron=Tide"
+$Chosen = Read-Jsonl
 $null = Take-Csv
 $WroteDoorOk = (Find-Log $LogI1 "Meta: discoveries met \d+ of 15 \[.*TwoPaths6.*WeaponL8.*\]|Meta: discoveries met \d+ of 15 \[.*WeaponL8.*TwoPaths6.*\]") -and (Find-Log $LogI2 "Offers: pool gated, 5 unlocked")
 $MetOk = ($Met -match '"kind":\s*"offer_pick"[^\n]*"id":\s*"Keeper\.Radiance"') -and ($Met -match '"id":\s*"Blessing\.Radiance\.[A-Za-z]+\.Key"') -and -not ($Met -match '"id":\s*"Blessing\.Radiance\.[A-Za-z]+\.(Amp1|Amp2|Trait)"')
-$ChosenOk = ($Chosen -match '"kind":\s*"offer_pick"[^\n]*"id":\s*"Keeper\.Tide"') -and ($Chosen -match '"hand_kind":\s*"Patron"[^\n]*"id":\s*"Keeper\.Radiance"') -and ($Again -match '"kind":\s*"offer_pick"[^\n]*"id":\s*"Keeper\.Tide"')
+$RestartOk = ($Again -match '"kind":\s*"offer_pick"[^\n]*"id":\s*"Keeper\.Radiance"') -and ($Again -match '"hand_kind":\s*"Patron"[^\n]*"id":\s*"Keeper\.Radiance"[^\n]*"id":\s*"Keeper\.Storm"[^\n]*"id":\s*"Keeper\.Forge"')
+$ChosenOk = $RestartOk -and ($Chosen -match '"kind":\s*"offer_pick"[^\n]*"id":\s*"Keeper\.Tide"') -and ($Chosen -match '"hand_kind":\s*"Patron"[^\n]*"id":\s*"Keeper\.Tide"[^\n]*"id":\s*"Keeper\.Storm"[^\n]*"id":\s*"Keeper\.Forge"')
 
 $Summary = "input_hash {0} / {1}, steps {2} / {3}, csv same={4}, tool run clean={5}, wrote={6}, reread={7}, kept aside={8}, fresh={9}, win reaches fight={10}, discovery saved={11}, no file earns none={12}, tool pool plays the same={13}, first-run pool={14}, door written={15}, Keeper met={16}, chosen Patron seated={17}" -f $A["input_hash"], $B["input_hash"], $A["steps"], $B["steps"], $SameOk, $ToolOk, $WroteOk, $ReadOk, $KeptOk, $FreshOk, $WinsOk, $DiscoveryOk, $NoFileOk, $TreeOk, $FirstOk, $WroteDoorOk, $MetOk, $ChosenOk
 if ($ToolOk -and $SameOk -and $WroteOk -and $ReadOk -and $KeptOk -and $FreshOk -and $WinsOk -and $DiscoveryOk -and $NoFileOk -and $TreeOk -and $FirstOk -and $WroteDoorOk -and $MetOk -and $ChosenOk) {

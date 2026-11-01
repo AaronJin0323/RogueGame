@@ -683,6 +683,9 @@ FIRST_RUN_OPEN_TARGETS = {"Weapon.ArcBlade", "Weapon.RingEmitter"}
 NOT_FIRST_RUN = {"Favor9", "TwoPaths6", "ScatterKills500", "RailKills300", "Crit500", "Elites10"}
 # meta.md R-MET-27: rows stated out, because no run on arena 1 can meet them.
 STATED_OUT = {"Elites10"}
+# meta.md R-MET-28: Keepers over R-OFF-15's Reserve cap on the pool without the Flak Mortar, and the rows that land with it or after it.
+THIN_ON_THE_BARE_POOL = {"Keeper.Shade", "Keeper.Quicksilver"}
+WITH_THE_FLAK_MORTAR = {"ReachL10", "Survive10"}
 
 
 def elites_per_run(timeline):
@@ -717,6 +720,10 @@ def check_doors(ctx):
 			ctx.err("discoveries.csv", f"'{item}' needs exactly one door, has {writers}: a Tree branch or a duo stays dark without it")
 		elif item.startswith("Keeper.") and writers[0] in NOT_FIRST_RUN:
 			ctx.err("discoveries.csv", f"'{item}': door '{writers[0]}' does not open on a first run, and Crit500 and the Keeper's branch wait on this one")
+		elif item in THIN_ON_THE_BARE_POOL and writers[0] not in WITH_THE_FLAK_MORTAR:
+			ctx.err("discoveries.csv", f"'{item}': door '{writers[0]}' can bank below level 10, and this Keeper reads over R-OFF-15 on the pool without the Flak Mortar")
+	if "Weapon.FlakMortar" not in targets.get("ReachL10", []):
+		ctx.err("discoveries.csv", "'ReachL10' must open Weapon.FlakMortar: WITH_THE_FLAK_MORTAR stands on it")
 	for r in tree:
 		for item in r["requires"].split(";"):
 			if item.startswith("Keeper.") and item not in opened and item not in nodes:

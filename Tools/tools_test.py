@@ -622,6 +622,13 @@ class Doors(unittest.TestCase):
 			if any(i.startswith("Keeper.") for i in items):
 				self.assertEqual(states[row], "open on a first run", row)
 
+	def test_a_thin_keeper_lands_with_the_flak_mortar(self):
+		targets = self.targets()
+		self.assertIn("Weapon.FlakMortar", targets["ReachL10"])
+		for item in gen_catalog.THIN_ON_THE_BARE_POOL:
+			doors = {row for row, items in targets.items() if item in items}
+			self.assertTrue(doors and doors <= gen_catalog.WITH_THE_FLAK_MORTAR, item)
+
 	def test_the_generators_lists_are_the_rule(self):
 		states = self.rule_states()
 		self.assertEqual(gen_catalog.NOT_FIRST_RUN, {row for row, state in states.items() if state != "open on a first run"})

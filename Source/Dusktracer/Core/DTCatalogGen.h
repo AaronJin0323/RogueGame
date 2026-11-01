@@ -428,14 +428,14 @@ namespace DTCat
 	};
 	inline constexpr FDiscoveryRow Discoveries[] =
 	{
-		{ TEXT("ReachL10"), TEXT("Best.Level"), 10, { TEXT("Weapon.FlakMortar"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.ReachL10") },
+		{ TEXT("ReachL10"), TEXT("Best.Level"), 10, { TEXT("Weapon.FlakMortar"), TEXT("Keeper.Shade"), TEXT("") }, TEXT("Codex.Recollection.ReachL10") },
 		{ TEXT("ScatterKills500"), TEXT("Kills.Weapon.ScatterCannon"), 500, { TEXT("Mod.ScatterShell"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.ScatterKills500") },
 		{ TEXT("Survive10"), TEXT("Seconds"), 600, { TEXT("Weapon.ArcBlade"), TEXT("Weapon.SeekerSwarm"), TEXT("Keeper.Quicksilver") }, TEXT("Codex.Recollection.Survive10") },
 		{ TEXT("Elite3Mods"), TEXT("Best.EliteKillMods"), 3, { TEXT("Mod.ChainTrigger"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Elite3Mods") },
 		{ TEXT("Freeze100"), TEXT("Status.Freeze"), 100, { TEXT("Weapon.RingEmitter"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Freeze100") },
 		{ TEXT("Crit500"), TEXT("Best.Crit"), 500, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Crit500") },
 		{ TEXT("Win"), TEXT("BossKills"), 1, { TEXT("Weapon.SpiralProjector"), TEXT("Weapon.GravityMine"), TEXT("Mod.Conduit") }, TEXT("Codex.Recollection.Win") },
-		{ TEXT("Kills1000"), TEXT("Kills"), 1000, { TEXT("Keeper.Shade"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Magnify") },
+		{ TEXT("Kills1000"), TEXT("Kills"), 1000, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Magnify") },
 		{ TEXT("WeaponL8"), TEXT("Best.WeaponLevel"), static_cast<int32>(DTConst::WEAPON_LEVEL_MAX), { TEXT("Keeper.Radiance"), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Overclock") },
 		{ TEXT("RailKills300"), TEXT("Kills.Weapon.RailLance"), 300, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.HeavySlug") },
 		{ TEXT("Elites10"), TEXT("Elites"), 10, { TEXT(""), TEXT(""), TEXT("") }, TEXT("Codex.Recollection.Burst") },

@@ -322,11 +322,15 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	Run.Steps = 1;
 	Run.Kills = 1000;
 	FDTMetaProfile Saved;
+	DTDiscovery::Apply(Run, Saved);
+	TestFalse(TEXT("a thousand kills under level 10 open no Keeper: that pool reads over R-OFF-15"), Saved.Unlocked.Contains(Shade));
+	Run.Kills = 0;
+	Run.Counters.Add(TEXT("Best.Level"), 10);
 	TestEqual(TEXT("a Keeper's branch waits for it"), DTTree::GetNode(Saved, TEXT("Branch.Shade.Blessing4")).State, EDTTreeState::Locked);
 	DTDiscovery::Apply(Run, Saved);
-	TestTrue(TEXT("Kills1000 writes Keeper.Shade"), Saved.Unlocked.Contains(Shade));
+	TestTrue(TEXT("ReachL10 writes Keeper.Shade"), Saved.Unlocked.Contains(Shade));
+	TestTrue(TEXT("in the bank that opens the Flak Mortar"), Saved.Unlocked.Contains(TEXT("Weapon.FlakMortar")));
 	TestEqual(TEXT("and that branch is for sale"), DTTree::GetNode(Saved, TEXT("Branch.Shade.Blessing4")).Missing.Num(), 0);
-	Run.Kills = 0;
 	Run.Counters.Add(TEXT("Best.WeaponLevel"), DTConst::WEAPON_LEVEL_MAX);
 	Run.Counters.Add(TEXT("Best.PathsAtTier2"), 2);
 	Run.Steps = 600 * DTConst::SIM_FIXED_HZ;
@@ -342,17 +346,20 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	Pool.Unlocked.Add(Quicksilver);
 	Pool.Unlocked.Add(TEXT("Reaction.Duos"));
 
-	// The Keeper a run leads with is always in the hand, however many Keepers the save has met (R-KEE-23).
+	// A met Keeper takes no seat from another; the Keeper a run leads with takes the first, however many the save has met (R-KEE-23).
 	FDTRunState State;
 	StartRun(State, EDTPath::None);
 	FDTPlayerRunState& Player = State.GetPlayer(0);
+	const FName Storm(TEXT("Keeper.Storm"));
 	const auto Holds = [](const FDTOfferHand& Hand, FName Id) { return Hand.Cards.ContainsByPredicate([Id](const FDTOfferCard& Card) { return Card.ContentId == Id; }); };
 	FRandomStream Rng(3);
-	TestFalse(TEXT("three met Keepers fill the seats"), Holds(DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng), Tide));
-	Pool.LeadPatron = Tide;
+	const FDTOfferHand Plain = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
+	TestTrue(TEXT("three met Keepers shut no S1 Keeper out"), Holds(Plain, Storm) && Holds(Plain, Forge) && Holds(Plain, Tide));
+	Pool.LeadPatron = Shade;
 	const FDTOfferHand Led = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
-	TestEqual(TEXT("the lead takes the first seat"), Led.Cards[0].ContentId, Tide);
 	TestEqual(TEXT("the hand keeps its size"), Led.Cards.Num(), DTConst::OFFER_KEEPER_CHOICES);
+	TestEqual(TEXT("the lead takes the first seat"), Led.Cards[0].ContentId, Shade);
+	TestTrue(TEXT("the others stay in Path order, no other met Keeper among them"), Led.Cards[1].ContentId == Storm && Led.Cards[2].ContentId == Forge);
 	Pool.LeadPatron = NAME_None;
 	FDTMetaProfile Played;
 	Played.LastPatron = TEXT("Forge");
@@ -379,6 +386,8 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	FRandomStream ToolDraw(1);
 	const FDTOfferHand Seated = DTOffers::BuildHand(Player, Tool, EDTHandKind::Keeper, DTConst::OFFER_SECOND_KEEPER_LEVEL, ToolDraw);
 	TestTrue(TEXT("a tool run seats the unlocked Keepers"), Holds(Seated, Shade) && Holds(Seated, Radiance) && Holds(Seated, Quicksilver));
+	const FDTOfferHand ToolPatrons = DTOffers::BuildHand(Player, Tool, EDTHandKind::Patron, 1, ToolDraw);
+	TestTrue(TEXT("in its Patron hand too"), Holds(ToolPatrons, Shade) && Holds(ToolPatrons, Radiance) && Holds(ToolPatrons, Quicksilver));
 
 	// A met Keeper's Keys are in, its Amps wait for its branch (R-MET-25), and a committed pair's duo card reaches a gated pool.
 	Player.Offer.PatronPath = EDTPath::Shade;
