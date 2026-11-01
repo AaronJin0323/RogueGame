@@ -1,7 +1,7 @@
 # Automation tests, headless and on the hidden desktop: the launch behind gate step `tests`, and the way to run a filter by hand.
 #   & Tools\RunTests.ps1 [-Filter Dusktracer.Keepers] [-Log <path>] [-Floor 0] [-Timeout 3600]
 # Every test found must complete: a crash can stop the run early. A run still alive after -Timeout seconds is killed by its own PID and fails on that count.
-# Prints "TESTS: PASS|FAIL (<n> run of <m> found, <f> failed, floor <n>, <c> crash marker(s))", with "  ! " lines for what failed; exit 0 / 1. Default log: Saved\Logs\RunTests.log.
+# Prints "TESTS: PASS|FAIL (<n> run of <m> found, <f> failed, floor <n>, <c> crash marker(s)[, killed after <s> s])", with "  ! " lines for what failed; exit 0 / 1. Default log: Saved\Logs\RunTests.log.
 param(
 	[string]$Filter = "Dusktracer",
 	[string]$Log = "",
@@ -21,7 +21,8 @@ New-Item -ItemType Directory -Force (Split-Path $Log -Parent) | Out-Null
 if (Test-Path $Log) { Remove-Item $Log }
 
 $Proc = Start-DTHidden $Exe @("`"$Project`"", "-ExecCmds=`"Automation RunTests $Filter;Quit`"", "-unattended", "-nopause", "-nullrhi", "-nosplash", "-LiveCoding=false", "-ABSLOG=`"$Log`"")
-if (-not $Proc.WaitForExit($Timeout * 1000)) {
+$Killed = -not $Proc.WaitForExit($Timeout * 1000)
+if ($Killed) {
 	Write-Host "  ! killed after $Timeout s (PID $($Proc.Id))"
 	Stop-DTHidden $Proc
 }
@@ -32,7 +33,8 @@ $Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|==
 $FoundLine = Select-String -Path $Log -Pattern "Found (\d+) automation tests" | Select-Object -First 1
 $Found = if ($FoundLine) { [int]$FoundLine.Matches[0].Groups[1].Value } else { 0 }
 $Summary = "{0} run of {1} found, {2} failed, floor {3}, {4} crash marker(s)" -f $All.Count, $Found, $Failed.Count, $Floor, $Crash.Count
-if ($All.Count -eq 0 -or $All.Count -ne $Found -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
+if ($Killed) { $Summary += ", killed after $Timeout s" }
+if ($Killed -or $All.Count -eq 0 -or $All.Count -ne $Found -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
 	$Failed + $Crash | Select-Object -First 12 | ForEach-Object { "  ! " + $_.Line }
 	Write-Host "TESTS: FAIL ($Summary)"
 	exit 1

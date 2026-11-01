@@ -9,6 +9,8 @@
 #            It would open a window on the owner's desktop if run there, so the script runs on a hidden desktop as its own stand-in and refuses -Bypass on the Default
 #            desktop. The probe runs there too, so a stand-in that cannot see at all reads as a broken control. UnrealEditor.exe is a GUI binary on purpose: a console
 #            binary given a new console is handed to the default terminal, which opens on the real desktop whatever desktop the launch was on (Docs/Validation/S1_no_windows.md).
+#            It has a -userdir of its own, Saved\WindowCheck\bypass, emptied each step: it runs beside the bot run on one seed, and telemetry names only reach the second, so in
+#            one Saved\Playtests the two could append to one file and fail the step. Its 320x180 window would also be saved to this checkout's GameUserSettings.ini.
 # Prints "WINDOWS: PASS|FAIL (...)"; exit 0 / 1. Log: Saved\Logs\WindowCheck.log; bypass log: Saved\WindowCheck\bypass.txt.
 param(
 	[int]$Timeout = 300,
@@ -54,6 +56,7 @@ $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $WorkDir = Join-Path $Root "Saved\WindowCheck"
 $BypassReport = Join-Path $WorkDir "bypass.txt"
+$BypassUser = Join-Path $WorkDir "bypass"
 $Powershell = Join-Path $PSHOME "powershell.exe"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
@@ -62,12 +65,13 @@ New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
 if ($Bypass) {
 	$Desktop = [DTWindowWatch]::DesktopName()
 	if ($Desktop -ieq "Default") { Write-Host "WINDOWS: FAIL (-Bypass refused: this is the Default desktop, the window would reach it)"; exit 1 }
-	$Log = Join-Path $WorkDir "bypass.log"
+	$Log = Join-Path $BypassUser "bypass.log"
+	New-Item -ItemType Directory -Force $BypassUser | Out-Null
 	Start-DTWindowWatch
 	& $Powershell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -ProbeWindow
 	# The one launch in Tools that skips the helper, on purpose. CreateProcess with no desktop named inherits this script's, the stand-in.
-	$Info = New-Object Diagnostics.ProcessStartInfo $Editor, (@("`"$Project`"", $Map, "-game", "-windowed", "-ResX=320", "-ResY=180", "-nosplash", "-unattended", "-nopause", "-nosound", "-LiveCoding=false",
-		"-DTSeed=9107", "-DTBotFast=600", "-DTBotQuit", "-DTBot=None", "-DTBotMaxSeconds=20", "-DTBotOut=`"$(Join-Path $WorkDir 'bypass.csv')`"", "-ABSLOG=`"$Log`"") -join " ")
+	$Info = New-Object Diagnostics.ProcessStartInfo $Editor, (@("`"$Project`"", $Map, "-game", "-windowed", "-ResX=320", "-ResY=180", "-nosplash", "-unattended", "-nopause", "-nosound", "-LiveCoding=false", "-userdir=`"$BypassUser`"",
+		"-DTSeed=9107", "-DTBotFast=600", "-DTBotQuit", "-DTBot=None", "-DTBotMaxSeconds=20", "-DTBotOut=`"$(Join-Path $BypassUser 'bypass.csv')`"", "-ABSLOG=`"$Log`"") -join " ")
 	$Info.UseShellExecute = $false
 	$Proc = [Diagnostics.Process]::Start($Info)
 	if (-not $Proc.WaitForExit($Timeout * 1000)) { & taskkill /PID $Proc.Id /T /F | Out-Null }
@@ -87,7 +91,7 @@ function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += 
 function Get-Verdict($Out, [string]$Word) { return (($Out | Select-String "^${Word}:" | Select-Object -Last 1).Line) }
 
 $BotDir = Join-Path $WorkDir "bot"
-foreach ($Old in $BotDir, $BypassReport) { if (Test-Path $Old) { Remove-Item $Old -Recurse -Force } }
+foreach ($Old in $BotDir, $BypassReport, $BypassUser) { if (Test-Path $Old) { Remove-Item $Old -Recurse -Force } }
 
 Start-DTWindowWatch
 $Control = Start-DTHidden $Powershell @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"", "-Bypass", "-Timeout", "$Timeout")

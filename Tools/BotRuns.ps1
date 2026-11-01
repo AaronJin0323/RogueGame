@@ -3,7 +3,7 @@
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
 #                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly]
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. Each run launches the game headless
-# (UnrealEditor-Cmd -game -nullrhi -unattended, on the hidden desktop of Tools/HiddenLaunch.ps1: -nullrhi still creates a window)
+# (UnrealEditor-Cmd -game -nullrhi -unattended, on the hidden desktop of Tools/HiddenLaunch.ps1: no flag is the no-window rule, AGENTS.md)
 # with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
 # A run still alive after -Timeout wall seconds is killed by its own PID only. -Parallel runs that many processes at once

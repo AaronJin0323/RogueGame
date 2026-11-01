@@ -12,8 +12,9 @@
 # desktop the launch was on (Docs/Validation/S1_no_windows.md). The flag gives it a console with no window; a GUI binary ignores it.
 # A desktop lives until its last user has gone: the handle here closes with the script, and a shared daemon a launch started (zenserver, UnrealTraceServer)
 # keeps the empty desktop alive until it ends, no longer.
-# One desktop and one job per script process, opened at the first launch. The job holds the launched processes only and kills them if the script dies,
-# because nobody can see a stray on this desktop. Their children leave it silently: a daemon other worktrees are using must outlive this script.
+# One desktop per script process, opened at the first launch, with two jobs that kill what they hold if the script dies, because nobody can see a stray on this desktop.
+# The editor's job holds the launched process only. Its children leave silently: a daemon other worktrees are using must outlive this script.
+# The packaged game's job (Dusktracer*.exe) holds the whole tree: the stub's real game is its child, and a package ships no shared daemon.
 # tools_test.py fails on a Start-Process or a direct call of an engine binary anywhere else in Tools.
 
 if (-not ("DTHiddenDesktop" -as [type])) {
@@ -53,24 +54,30 @@ public static class DTHiddenDesktop {
 	const uint SilentBreakawayOk = 0x1000;
 	const int ExtendedLimitInformation = 9;
 	static IntPtr Desktop;
-	static IntPtr Job;
+	static IntPtr EditorJob;
+	static IntPtr GameJob;
 	static string Name;
+	static IntPtr NewJob(uint flags) {
+		IntPtr job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
+		if (job == IntPtr.Zero) { throw new Win32Exception(); }
+		JobLimits limits = new JobLimits();
+		limits.flags = flags;
+		if (!SetInformationJobObject(job, ExtendedLimitInformation, ref limits, Marshal.SizeOf(typeof(JobLimits)))) { CloseHandle(job); throw new Win32Exception(); }
+		return job;
+	}
 	static void Open() {
 		if (Desktop != IntPtr.Zero) { return; }
 		string name = "DTHidden" + Process.GetCurrentProcess().Id;
 		IntPtr desktop = CreateDesktopW(name, IntPtr.Zero, IntPtr.Zero, 0, GenericAll, IntPtr.Zero);
 		if (desktop == IntPtr.Zero) { throw new Win32Exception(); }
-		IntPtr job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
-		if (job == IntPtr.Zero) { CloseDesktop(desktop); throw new Win32Exception(); }
-		JobLimits limits = new JobLimits();
-		limits.flags = KillOnJobClose | SilentBreakawayOk;
-		if (!SetInformationJobObject(job, ExtendedLimitInformation, ref limits, Marshal.SizeOf(typeof(JobLimits)))) { CloseHandle(job); CloseDesktop(desktop); throw new Win32Exception(); }
+		EditorJob = NewJob(KillOnJobClose | SilentBreakawayOk);
+		GameJob = NewJob(KillOnJobClose);
 		Desktop = desktop;
-		Job = job;
 		Name = name;
 	}
 	public static Process Start(string exe, string arguments) {
 		Open();
+		bool packaged = System.IO.Path.GetFileName(exe).StartsWith("Dusktracer", StringComparison.OrdinalIgnoreCase);
 		StartupInfo si = new StartupInfo();
 		si.cb = Marshal.SizeOf(typeof(StartupInfo));
 		si.desktop = "WinSta0\\" + Name;
@@ -79,7 +86,7 @@ public static class DTHiddenDesktop {
 		if (!CreateProcessW(exe, line, IntPtr.Zero, IntPtr.Zero, false, CreateSuspended | CreateNoWindow, IntPtr.Zero, null, ref si, out pi)) { throw new Win32Exception(); }
 		// Suspended until the handle is held, so even a launch that dies at once keeps its exit code.
 		try {
-			if (!AssignProcessToJobObject(Job, pi.process)) { throw new Win32Exception(); }
+			if (!AssignProcessToJobObject(packaged ? GameJob : EditorJob, pi.process)) { throw new Win32Exception(); }
 			Process proc = Process.GetProcessById(pi.pid);
 			IntPtr held = proc.Handle;
 			if (held == IntPtr.Zero || ResumeThread(pi.thread) == 0xFFFFFFFF) { throw new Win32Exception(); }
@@ -113,9 +120,11 @@ public static class DTHiddenDesktop {
 	}
 	public static void Close() {
 		if (Desktop == IntPtr.Zero) { return; }
-		CloseHandle(Job); // kills what is still in the job
+		CloseHandle(EditorJob); // kills what is still in the job
+		CloseHandle(GameJob);
 		CloseDesktop(Desktop);
-		Job = IntPtr.Zero;
+		EditorJob = IntPtr.Zero;
+		GameJob = IntPtr.Zero;
 		Desktop = IntPtr.Zero;
 	}
 }
