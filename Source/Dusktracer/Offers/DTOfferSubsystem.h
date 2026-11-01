@@ -112,6 +112,8 @@ private:
 		int32 HoneStacks = 0;
 		int32 SalvageStacks = 0;
 		FDTOfferPlayerStats Stats;
+		/** Per card of the hand on show: the sockets its pick would make dormant. The build cannot change while a hand is open. */
+		TArray<TArray<FDTDormantSocket>> Dormant;
 	};
 
 	FDTRunState* GetRun() const;

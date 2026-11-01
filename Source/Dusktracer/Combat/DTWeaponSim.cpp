@@ -815,9 +815,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		// R-WPN-10: the converted rounds fold into ONE arc of their summed damage x the conversion ratio.
 		Converted = Spec.ConvertRounds;
 		FShot Cleave = Shot;
-		if (const FDTResolvedFlag* Conversion = Spec.FindFlag(DTCat::EFlag::ConvertMelee))
+		// A Keeper cleave is the Keeper's; a free volley stays the modifier's that fired it (R-WPN-07, R-MOD-09).
+		const FDTResolvedFlag* Conversion = bFree ? nullptr : Spec.FindFlag(DTCat::EFlag::ConvertMelee);
+		if (Conversion)
 		{
-			Cleave.SourceId = ReshapeSource(Conversion->Entry.SourceId, Cleave.SourceId); // a Keeper cleave is the Keeper's
+			Cleave.SourceId = ReshapeSource(Conversion->Entry.SourceId, Cleave.SourceId);
 		}
 		Cleave.Damage = Shot.Damage * static_cast<float>(Converted) * Spec.ConvertDamageFactor;
 		EmitArc(Context, Runtime, Cleave, Dir, Spec.ConvertArcDeg, Spec.ConvertReach, true);

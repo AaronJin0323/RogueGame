@@ -28,8 +28,8 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - **R-MOD-05** Modifiers and flags feed one accumulator per weapon (`weapons.md` R-WPN-09): counts and magnitudes add, ranges and times take the largest, factors multiply. Two caps hold after every source is summed: a round is at most `C.MOD.SPLIT_GENERATIONS_MAX` split generations away from the weapon's original round (counting `Mod.SplitCore`, `Mod.ScatterShell` and `Flag.Split` together; a child at the limit never splits), and a weapon's composed crit chance is clamped to `C.MOD.CRIT_CHANCE_CAP`.
 - **R-MOD-06** Fit with a Keeper archetype is mechanical: the `fits` column says *why* a modifier makes a flag work better (a split fan feeds more chain starts; a pull clusters the crowd for a field). A modifier's effect and parameters are identical whatever Keepers the player holds; there is never a numeric fit bonus. Whether fit changes offer weights is `offers.md`'s call, not this system's.
 - **R-MOD-07** Every S1 weapon has at least `C.MOD.MIN_COMPATIBLE` compatible S1 modifiers, counted over the starter rows alone as well as over all S1 modifiers, so its sockets always leave a choice.
-- **R-MOD-08** When a weapon's effective caps change (a conversion now, a reforge in S2), each socketed modifier is re-checked; one that has become incompatible goes **dormant**: it keeps its socket, is shown as dormant, and contributes nothing until the weapon can express it again. A dormant modifier is never silently removed.
-- **R-MOD-09** Rounds, zones and hits a modifier *adds* (split children, fields, mirror copies, fork rounds, free volleys, bounces) carry the `Modifier.<Name>` telemetry source; a modifier that only changes the weapon's own rounds (pierce) leaves the weapon's source (`weapons.md` R-WPN-07).
+- **R-MOD-08** When a weapon's effective caps change (a conversion now, a reforge in S2), each socketed modifier is re-checked; one that has become incompatible goes **dormant**: it keeps its socket, is shown as dormant, and contributes nothing until the weapon can express it again. A dormant modifier is never silently removed. Shown has two places, in `ST_Modifiers.Dormant.*` text on the panel tone (`04_Presentation` R-PRE-08): the HUD lists every dormant socket, weapon and modifier, above the hero block for as long as it sleeps and draws nothing when none does; and a card whose pick would make a live socket dormant names it before the pick, in a box above the rarity row. The card reads the composition on copies of the weapons, never the card's flags or the round count, so it names whatever the composition silences: a conversion that leaves a round flying still adds its cap and silences a modifier that blocks it (`Mod.SplitCore` under `Melee`), and one that converts every round also silences what needs the carrier cap it removes (`weapons.md` R-WPN-10). Only a blessing can silence a socket: a level can only give a weapon `Projectile` back, and no modifier is blocked by it.
+- **R-MOD-09** Rounds, zones and hits a modifier *adds* (split children, fields, mirror copies, fork rounds, free volleys, bounces) carry the `Modifier.<Name>` telemetry source, also when a Keeper conversion folds them into a cleave; a modifier that only changes the weapon's own rounds (pierce) leaves the weapon's source (`weapons.md` R-WPN-07).
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -52,6 +52,8 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 | `DTModCompat::IsCompatible(Weapon, Modifier)` | function | the single compatibility function of R-MOD-02 |
 | `matrix.csv` | generated catalog (planned) | `modifier, <one column per weapon id>`; header comment names the generator |
 | `FDTWeaponInstance.Sockets[]` | per weapon | `Mod.*` id plus `bDormant` (R-MOD-08) |
+| `DTWeaponCompose::DormantSockets(Player)` | function | the sockets dormant now, read by the HUD |
+| `DTOffers::DormantAfterPick(Player, Card)` | function | the live sockets a pick would make dormant; pure, read once per hand shown |
 
 ## Acceptance
 - T-MOD-01 `Dusktracer.Modifiers.NeverIncompatible`: for every S1 weapon × modifier, the offer generator (run with every modifier in the pool), the socket and the composition agree with `IsCompatible`; no incompatible pair is ever offered, socketed or applied, and every compatible flag-carrying pair resolves `native`.
@@ -62,15 +64,16 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - T-MOD-06 `Dusktracer.Modifiers.NoFitBonus`: a modifier's composed effect is identical with and without the Keepers its `fits` names.
 - T-MOD-07 `Dusktracer.Modifiers.Coverage`: every S1 weapon has at least the minimum compatible modifiers, over the starter rows and over all S1 rows.
 - T-MOD-08 `Dusktracer.Modifiers.Dormant`: a `ConvertMelee` that converts every round of a Pulse Rifle makes its `Mod.Pierce` dormant (kept, inert); the modifier wakes when the conversion is gone.
-- T-MOD-09 `Dusktracer.Modifiers.Source`: split children and fields from a modifier carry `Modifier.<Name>`; pierced hits keep the weapon's source.
-- HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does.
+- T-MOD-09 `Dusktracer.Modifiers.Source`: split children and fields from a modifier carry `Modifier.<Name>`; pierced hits keep the weapon's source. `Dusktracer.Modifiers.FreeVolleySource`: under a Keeper `ConvertMelee` the weapon's own volley is the Keeper's and a `Mod.ChainTrigger` free volley is the modifier's.
+- T-MOD-10 `Dusktracer.Modifiers.DormantShown`: `DTOffers::DormantAfterPick` names exactly the sockets the pick then silences in the sim, Split Core and not Scatter Shell on a conversion that leaves a round flying, all four sockets of the worst legal card, nothing for a socket already asleep or for a card without a conversion; reading it changes no run state and draws from no stream; `DTWeaponCompose::DormantSockets` lists them after the pick; an Intercession moves no socket; both text rows carry both names. `Dusktracer.Modifiers.DormantTable`: for every S1 weapon, level and compatible modifier, the card and the sim agree with the table built by hand from R-WPN-10 and the catalogs of what `Blessing.Forge.Hammer.Key` silences, and no level-up silences a live socket.
+- HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does. A validator who takes a card that puts a modifier to sleep can say so, and which one, without being told.
 
 ## Telemetry
 - Every offer already logs its five cards (`offers.md`); the modifier system adds `modifier_socketed{weapon, modifier}` and `modifier_dormant{weapon, modifier, dormant}` (record `owner` = the player). `modifier_dormant` is written for each change composition finds (R-MOD-08), asleep and awake.
 - Damage and kills from modifier-added emissions arrive under `Modifier.<Name>` (R-MOD-09, `telemetry.md` R-TEL-05).
 
 ## Text
-- Prefix `ST_Modifiers.<Name>.Name` and `ST_Modifiers.<Name>.Desc` per modifier, plus `ST_Modifiers.Dormant` for the socket state; budget two rows per modifier plus one; en + zh-Hans. Card lines describe the behaviour, never a number the catalog may change.
+- Prefix `ST_Modifiers.<Name>.Name` and `ST_Modifiers.<Name>.Desc` per modifier, plus `ST_Modifiers.Dormant.Hud` and `ST_Modifiers.Dormant.Card` for the socket state; budget two rows per modifier plus two; en + zh-Hans. Card lines describe the behaviour, never a number the catalog may change.
 
 ## Out of scope
 - How the `starter` column becomes the run pool and how offers weight modifiers (`offers.md` R-OFF-02, R-OFF-07).

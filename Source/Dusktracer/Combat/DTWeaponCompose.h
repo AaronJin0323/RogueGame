@@ -91,6 +91,13 @@ struct FDTDormancyChange
 	bool bDormant = false;
 };
 
+/** A socket the player sees named (R-MOD-08): dormant now on the HUD, about to be on an offer card. */
+struct FDTDormantSocket
+{
+	FName Weapon;
+	FName Mod;
+};
+
 namespace DTWeaponCompose
 {
 	/** C.LOAD.FACTOR_<Rank+1> for a zero-based rank (R-WPN-03). */
@@ -108,4 +115,7 @@ namespace DTWeaponCompose
 	 */
 	DUSKTRACER_API FDTWeaponSpec Compose(FDTWeaponInstance& Instance, TConstArrayView<FDTFlagEntry> PlayerFlags,
 		const FDTWeaponHeroStats& Stats, int32 LoadRank, TArray<FDTDormancyChange>* OutChanges = nullptr);
+
+	/** Every socket of Player that is dormant now, in slot order: what the last composition left on the sockets. */
+	DUSKTRACER_API TArray<FDTDormantSocket> DormantSockets(const FDTPlayerRunState& Player);
 }

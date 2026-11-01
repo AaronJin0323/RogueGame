@@ -45,6 +45,8 @@ namespace DTOfferScreenLocal
 	constexpr float NotesMargin = 14.0f;  // panel to the canvas bottom
 	constexpr float NotesMinScale = 0.8f; // the note text shrinks to here before it would leave the canvas
 	constexpr float NotesScaleStep = 0.05f;
+	constexpr float DormantPad = 8.0f;
+	constexpr float DormantGap = 10.0f;   // above the rarity row
 
 	const TCHAR* const ToolKeys[] = { TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock") };
 	// Key glyph names (device names, the same in every culture).
@@ -355,7 +357,8 @@ EDTOfferAction UDTOfferScreen::ToolAt(const FVector2D& Position) const
 	return EDTOfferAction::None;
 }
 
-void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, const FBox2D& Rect, int32 Slot, bool bFocus)
+void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, TConstArrayView<FDTDormantSocket> Dormant,
+	const FBox2D& Rect, int32 Slot, bool bFocus)
 {
 	using namespace DTOfferScreenLocal;
 	FPainter P{ Canvas, GEngine->GetLargeFont(), Canvas->ClipY / RefHeight };
@@ -410,6 +413,26 @@ void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const F
 	// Rarity marker (own channel): 1-3 pips in the rarity token plus its label, bottom left.
 	const float Pip = PipSize * P.S;
 	const float BottomY = Rect.Max.Y - Pad - Pip;
+	if (Dormant.Num() > 0)
+	{
+		// What this pick puts to sleep, boxed in the modifier family's token above the rarity row (modifiers.md R-MOD-08).
+		const float BoxPad = DormantPad * P.S;
+		TArray<FString> Lines;
+		for (const FDTDormantSocket& Socket : Dormant)
+		{
+			Lines.Append(P.Wrap(DTOfferText::Dormant(TEXT("Dormant.Card"), Socket).ToString(), BodyScale, Inner - 2.0f * BoxPad));
+		}
+		const float LineH = P.Measure(TEXT("0"), BodyScale).Y;
+		const float BoxH = Lines.Num() * LineH + 2.0f * BoxPad;
+		const float BoxY = BottomY - DormantGap * P.S - BoxH;
+		P.Rect(FBox2D(FVector2D(Rect.Min.X + Pad, BoxY), FVector2D(Rect.Max.X - Pad, BoxY + BoxH)), Token(DTPal::Card_Tech), Thin);
+		float LineY = BoxY + BoxPad;
+		for (const FString& Line : Lines)
+		{
+			P.Text(FText::FromString(Line), Rect.Min.X + Pad + BoxPad, LineY, BodyScale, Text);
+			LineY += LineH;
+		}
+	}
 	const FLinearColor Rarity = Token(DTOfferStyle::RarityToken(Card.Rarity));
 	const int32 Pips = DTOfferStyle::RarityPips(Card.Rarity);
 	for (int32 Index = 0; Index < Pips; ++Index)
@@ -536,7 +559,9 @@ void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 		const float Raise = bFocus ? FocusRaise * P.S : 0.0f;
 		const FBox2D Rect(FVector2D(X0 + Slot * (W + Gap), Y0 - Raise), FVector2D(X0 + Slot * (W + Gap) + W, Y0 - Raise + H));
 		CardRects.Add(Rect);
-		DrawCard(Canvas, Hand.Cards[Slot], *Model.Player, Rect, Slot, bFocus);
+		const TConstArrayView<FDTDormantSocket> Dormant = Model.Dormant && Model.Dormant->IsValidIndex(Slot)
+			? TConstArrayView<FDTDormantSocket>((*Model.Dormant)[Slot]) : TConstArrayView<FDTDormantSocket>();
+		DrawCard(Canvas, Hand.Cards[Slot], *Model.Player, Dormant, Rect, Slot, bFocus);
 	}
 
 	float Y = Y0 + H + RowGap * P.S;
