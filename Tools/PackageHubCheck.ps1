@@ -132,13 +132,14 @@ function Get-Field([string]$Text, [string]$Pattern) { if ($Text -match $Pattern)
 function Read-Log([string]$Tag, [string]$Log) {
 	$Lines = if (Test-Path $Log) { @([IO.File]::ReadAllLines($Log)) } else { @() }
 	if (-not $Lines.Count) { Note-Fail "$Tag has no log" }
-	$Result = @{ Lines = $Lines; Opens = @(); Begins = @(); Meta = ""; Gated = 0; Picked = 0 }
+	$Result = @{ Lines = $Lines; Opens = @(); Begins = @(); Meta = ""; Gated = 0; Picked = 0; NoHand = $false }
 	foreach ($Line in $Lines) {
 		if ($Line -match "LogDT: Hub: open, balance (\d+), runs (\d+), last patron '([^']*)'") { $Result.Opens += ,@([int64]$Matches[1], [int]$Matches[2], $Matches[3]) }
 		elseif ($Line -match "LogDT: Hub: begin (.*)$") { $Result.Begins += $Matches[1].Trim() }
 		elseif ($Line -match "LogDT: Meta: opened \(\d+\) (.*), balance \d+") { $Result.Meta = $Matches[1] }
 		elseif ($Line -match "LogDT: Offers: pool gated, 0 unlocked") { $Result.Gated++ }
 		elseif ($Line -match "LogDT: PATHCHECK: \w+ \(\d+ wrong, (\d+) hand") { $Result.Picked = [int]$Matches[1] }
+		elseif ($Line -match "LogDT: PATHCHECK no hand before the death") { $Result.NoHand = $true }
 	}
 	$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
 	if ($Crash.Count) { Note-Fail "$Tag crash marker: $($Crash[0])" }
@@ -245,7 +246,7 @@ function Invoke-Script([string]$Tag, [string]$Script, [string]$Culture, [string]
 	$Parsed = Read-Log $Tag $Log
 	if (-not ($Parsed.Lines | Where-Object { $_ -match "Engine exit requested \(reason: Win RequestExit\)" })) { Note-Fail "$Tag did not leave through Quit to desktop" }
 	Test-Text $Tag $Culture $Parsed
-	Test-Shots $Tag $Shots @($Pages[$Script] | Where-Object { $_ -ne "hand" -or $Parsed.Picked -gt 0 })
+	Test-Shots $Tag $Shots @($Pages[$Script] | Where-Object { $_ -ne "hand" -or -not $Parsed.NoHand })
 	return $Parsed
 }
 
@@ -269,7 +270,8 @@ foreach ($Culture in "en", "zh-Hans") {
 	$Shots = Join-Path $Dir "shots"
 	$Patron = if ($Culture -eq "en") { "Storm" } else { "Forge" }
 	$Tag = "walk_$Culture"
-	# No hand says nothing of the build (S3_package.md) and proves no hand, so the walk starts over on a clean profile. Only a hand that never comes fails.
+	# The driver's word that no hand came says nothing of the build (S3_package.md) and proves no hand, so the walk starts over on a clean profile.
+	# Only that: a walk that hung or went wrong has already failed. A hand that never comes in $WalkTries walks fails too.
 	for ($Try = 1; $Try -le $WalkTries; $Try++) {
 		if (Test-Path $Dir) { Remove-Item $Dir -Recurse -Force }
 		New-Item -ItemType Directory -Force $User | Out-Null
@@ -277,10 +279,10 @@ foreach ($Culture in "en", "zh-Hans") {
 		$SeedArg = if ($Culture -eq "en") { @("-DTSeed=$WalkSeed") } else { @() }
 		$Log = Invoke-Script $Tag "Walk" $Culture $User $Shots ($SeedArg + @("-DTPathPatron=$Patron"))
 		$Walks[$Culture] = $Try
-		if ($Log.Picked -gt 0) { break }
+		if (-not $Log.NoHand) { break }
 		Write-Host ("    {0} walk {1} of {2}: no hand before the death on {3}" -f $Tag, $Try, $WalkTries, (Get-RunFiles $User "jsonl" | Select-Object -First 1).BaseName)
 	}
-	if ($Log.Picked -eq 0) { Note-Fail "$Tag no hand came in $WalkTries walks" }
+	if ($Log.NoHand) { Note-Fail "$Tag no hand came in $WalkTries walks" }
 	$Runs = Get-RunFiles $User "jsonl"
 	if ($Runs.Count -ne 2) { Note-Fail "$Tag wrote $($Runs.Count) run file(s), expected 2"; continue }
 	$First = Read-Run $Runs[0]
@@ -294,7 +296,7 @@ foreach ($Culture in "en", "zh-Hans") {
 	}
 	if ($First.Seed -eq $Second.Seed) { Note-Fail "$Tag both runs of one launch played seed $($First.Seed)" }
 	if ($SeedArg.Count -and $First.Seed -ne "$WalkSeed") { Note-Fail "$Tag first run on seed $($First.Seed), not the launch's $WalkSeed" }
-	if ($First.Decisions -gt $Log.Picked) { Note-Fail "$Tag $($First.Decisions) hand(s) closed in the first run, $($Log.Picked) by a key: a hand took no person" }
+	if ($First.Decisions -gt $Log.Picked) { Note-Fail "$Tag $($First.Decisions) hand(s) closed in the first run, only $($Log.Picked) by a key" }
 	$Hands = Test-Gated $Tag $First
 	if ($Log.Gated -ne ($Log.Opens.Count + $Log.Begins.Count)) { Note-Fail "$Tag $($Log.Gated) world(s) gated of $($Log.Opens.Count + $Log.Begins.Count)" }
 	$Expected = (Get-SavePath $User) -replace "\\", "/"
