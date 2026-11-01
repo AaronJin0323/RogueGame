@@ -5,8 +5,11 @@
 # what makes it a human launch. The seed read back is run_start.seed in the run file that launch wrote, and the file name must agree.
 # Every launch runs on a hidden Win32 desktop of its own: a launch with no -unattended is one the engine may prompt on, and nothing it opens can reach the
 # desktop anyone is looking at. Windows seen there are written to the log, by owner, class and title.
+# Every launch also has a -userdir of its own, under Saved\SeedCheck: the only run file in there is that launch's, so the check never has to guess which file
+# is its own, and it neither reads nor deletes anything in %LOCALAPPDATA%\Dusktracer or Saved\Playtests, where a person's runs live. The last check's folders,
+# with each launch's log, stay until the next one.
 # Without -Package the game is the editor build (UnrealEditor -game), as Tools\Play.bat starts it; Play_*.bat name a packaged Dusktracer.exe, so their
-# arguments run on the editor build here and on the real Shipping build with -Package (Tools\PadCheck.ps1). The check's run files are deleted.
+# arguments run on the editor build here and on the real Shipping build with -Package (Tools\PadCheck.ps1).
 # Prints "SEEDCHECK: PASS|FAIL (...)"; exit 0 / 1. Log: Saved\Logs\SeedCheck.log.
 param(
 	[string]$Package = "",
@@ -26,9 +29,13 @@ $Log = Join-Path $LogDir "SeedCheck.log"
 Set-Content -Path $Log -Value "" -Encoding ascii
 
 if ($Package) { $Package = (Resolve-Path $Package).Path }
-$Playtests = if ($Package) { Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests" } else { Join-Path $Root "Saved\Playtests" }
+$UserDirs = Join-Path $WorkDir $(if ($Package) { "package" } else { "editor" })
+if (Test-Path $UserDirs) { Remove-Item $UserDirs -Recurse -Force }
 $GameExe = if ($Package) { Join-Path $Package "Dusktracer.exe" } else { $Editor }
 $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720")
+# With no -unattended the editor starts a Live Coding session, whose mutex is named from the editor's path: every worktree shares it, and a build in any of
+# them fails while it is held (Tools\Play.bat passes the same flag). Shipping has no Live Coding.
+if (-not $Package) { $OffScreen += "-LiveCoding=false" }
 # Never -nullrhi here: UnrealEditor -game with it still creates a real game window (LogEngine: GameWindow did not exist). -RenderOffScreen creates none.
 $Tool = $OffScreen + @("-unattended")
 # FDTRunSeed::FreshMin, FreshMax, RejectedExitCode (Source/Dusktracer/Core/DTRunSeed.h).
@@ -70,8 +77,6 @@ function Read-Launcher([string]$Bat, [string]$Culture) {
 	if (-not $Package -and ($Kept -notcontains "-game")) { $Kept = @($Project, "-game") + $Kept }
 	return , $Kept
 }
-
-function Get-Runs { if (Test-Path $Playtests) { @(Get-ChildItem $Playtests -Filter *.jsonl | ForEach-Object { $_.FullName }) } else { @() } }
 
 Add-Type -TypeDefinition @"
 using System;
@@ -136,7 +141,11 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	# One launch. Result: Seed ($null when no run file), Exited (by itself, with no run file) and its ExitCode.
 	# The editor takes the project only as its first argument and opens a dialog without it, so nothing starts in any other order.
 	if (-not $Package -and $ArgList[0] -ne $Project) { throw "$Label would start without the project first" }
-	$Before = Get-Runs
+	$script:Launches++
+	$UserDir = Join-Path $UserDirs $script:Launches
+	$Playtests = Join-Path $UserDir "Saved\Playtests"
+	New-Item -ItemType Directory -Force $UserDir | Out-Null
+	$ArgList += "-userdir=`"$UserDir`""
 	$Started = Get-Date
 	$Proc = [Diagnostics.Process]::GetProcessById([DTHiddenDesktop]::Start($GameExe, ($ArgList -join " ")))
 	$null = $Proc.Handle # ExitCode needs the handle held from the start
@@ -149,9 +158,9 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 		$Deadline = (Get-Date).AddSeconds($LoadTimeout)
 		while ((Get-Date) -lt $Deadline) {
 			foreach ($Window in [DTHiddenDesktop]::Visible()) { $Windows[$Window] = $true }
-			$Run = Get-Runs | Where-Object { $Before -notcontains $_ } | Select-Object -First 1
+			$Run = Get-ChildItem $Playtests -Filter *.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
 			if ($Run) {
-				$First = Get-Content $Run -TotalCount 1 -Encoding UTF8 -ErrorAction SilentlyContinue
+				$First = Get-Content $Run.FullName -TotalCount 1 -Encoding UTF8 -ErrorAction SilentlyContinue
 				if ($First -match '"kind":"run_start".*"seed":(-?\d+)') { $Seed = [int64]$Matches[1]; break }
 			}
 			elseif ($Proc.HasExited) { $Exited = $true; break }
@@ -163,10 +172,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	}
 	$Result = [pscustomobject]@{ Seed = $Seed; Exited = $Exited; ExitCode = $null; Seconds = [int]((Get-Date) - $Started).TotalSeconds }
 	if ($Exited) { $Result.ExitCode = $Proc.ExitCode }
-	if ($Run) {
-		if ($null -ne $Seed -and (Split-Path $Run -Leaf) -notmatch "^${Seed}_") { Note-Fail "${Label}: run_start.seed $Seed is not the file name $(Split-Path $Run -Leaf)" }
-		Remove-Item $Run, ([IO.Path]::ChangeExtension($Run, ".csv")) -Force -ErrorAction SilentlyContinue
-	}
+	if ($null -ne $Seed -and $Run.Name -notmatch "^${Seed}_") { Note-Fail "${Label}: run_start.seed $Seed is not the file name $($Run.Name)" }
 	foreach ($Window in $Windows.Keys) {
 		$Owner = $Window -split " ", 2
 		$Name = (Get-Process -Id ([int]$Owner[0]) -ErrorAction SilentlyContinue).ProcessName
@@ -203,6 +209,7 @@ function Expect-Rejected([string]$Label, [string[]]$ArgList) {
 $script:Fresh = @()
 $script:Exact = 0
 $script:Rejected = 0
+$script:Launches = 0
 $Overflow = "-DTSeed=3276732767" # the old launcher's %RANDOM%%RANDOM% at its highest
 $JustOver = "-DTSeed=2147483648"
 
