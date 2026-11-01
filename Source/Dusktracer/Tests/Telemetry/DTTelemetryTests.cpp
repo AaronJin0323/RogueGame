@@ -700,6 +700,10 @@ bool FDTTelRunStartDriver::RunTest(const FString& Parameters)
 	Reads(TEXT("tool"), TEXT("-DTMetaFile=\"E:\\a b\\DTMeta.sav\" -culture=en"));
 	Reads(TEXT("bot"), TEXT("-DTBot=Steered -unattended"), true, false);
 	Reads(TEXT("bot"), TEXT("-DTSeed=7 -DTBotQuit"));
+	Reads(TEXT("bot"), TEXT("/DTBot=Steered")); // FParse::Value finds these, so the game obeys them
+	Reads(TEXT("bot"), TEXT("DTBot=Steered"));
+	Reads(TEXT("tool"), TEXT("/DTSeed=7"));
+	Reads(TEXT("tool"), TEXT("DTSeed=7"));
 
 	FDTTelemetryConfig Config = MakeConfig(9, 1);
 	FDTTelemetryCore Unset;

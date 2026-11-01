@@ -2,7 +2,7 @@
 
 Exit test (`12_Production §2`, S3): **3 fresh validators × 3 runs**, none of them the owner, ≥ 1 on a gamepad and ≥ 1 in zh-Hans (`§1`); **pass 2 of 3**; a packaged pad pass; `findings_S3.md` written. The scheduler prepares the build; the owner hosts and watches. **Watch, don't explain.**
 
-No session has been played. "Pass 2 of 3", "fresh" and what counts as a run have no definition in the docs yet, and `Harness/H07 §4` wants the pass rule written before the session: settle calls 1 to 3 in `findings_S3.md` first.
+No session has been played. "Pass 2 of 3", "fresh", what counts as a run and how much play makes a gamepad or a zh-Hans validator have no definition in the docs yet, and `Harness/H07 §4` wants the pass rule written before the session: settle calls 1 to 3 in `findings_S3.md` first. Book one validator for a whole session in zh-Hans and one for a whole session on a pad: those read `PASS` however call 8 lands.
 
 ## What a validator gets
 - A folder: the package from `Tools\Package.ps1`, `Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans. Copy it to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from it once.
@@ -10,6 +10,17 @@ No session has been played. "Pass 2 of 3", "fresh" and what counts as a run have
 - The one sentence, and nothing else. Never the Development folder: it has a console (`package.md` R-PKG-02).
 
 The build must be clean: `Saved\Package\package_stamp.json` reads `"dirty": false`. Its `commit` is the kit's build. Write it in `findings_S3.md`.
+
+## Before the first validator: the machine half of the pad row
+`Packaged pad pass` needs `Tools\PadCheck.ps1` on this package as well as a real pad, and PadCheck judges only a package current with the tree. So the scheduler runs it right after `Tools\Package.ps1`, before the tree moves, and keeps its line in the session folder:
+```
+& Tools\PadCheck.ps1 -Keep <session folder>\PadCheck.txt
+```
+It must end `PADCHECK: NOT RUN (package <hash> ok, ...`. That is the good line: NOT RUN there says only that no real pad has played on this account. `FAIL` or any other `NOT RUN` means the package is not ready, and no validator gets it.
+
+No window opens. Its launches stay under `Saved\PadCheck`, so it writes nothing to `%LOCALAPPDATA%\Dusktracer` and is safe on the owner's account. `S3Exit` finds `PadCheck.txt` in the session folder by itself. A later run that finds the package stale or gone leaves the kept line alone; a later run that judges the same package replaces it.
+
+If the line is lost, check out the build's commit in a clean worktree and run `Tools\Package.ps1` and PadCheck there. Without a line the row stays NOT READ, and `Saved\Logs\Gate_pad.log` will not do: every gate overwrites it.
 
 ## A fresh save for each validator
 The save and the run files belong to the Windows account, not to the folder: `%LOCALAPPDATA%\Dusktracer\Saved\SaveGames\DTMeta.sav` and `Saved\Playtests` beside it. Copying the package again does not make a new save.
@@ -36,7 +47,7 @@ Write the Ledger-stone reading in `findings_S3.md` before the first run. A save 
 After the session the zip checks it again:
 - It holds that validator's runs and no others. More files than runs played means the account was shared.
 - `S3Exit` refuses any run in two validators' zips (`under two validators`): they shared a folder, so they shared a save.
-- `S3Exit` reads `Fresh` as FAIL when a validator's first run showed a card no fresh save can hold. It only works one way: a clean hand proves nothing.
+- `S3Exit` reads `Fresh` as FAIL when a validator's first run showed a card no fresh save of that build can hold. It only works one way: a clean hand proves nothing.
 
 The owner's own runs read differently too: `Tools\Play.bat` runs say `config` `Development`, and anything from before this kit has no `driver`. Both are refused.
 
@@ -60,7 +71,9 @@ Do not explain Vigil, Keepers, Contracts, Ichor, archetypes or the card kinds.
 
 Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, each with a confirmation. A run is banked once however the game ends it, so no exit loses what it earned; a crash does.
 
-**Language.** The launcher sets the language at launch: `Play_zh-Hans.bat` for the zh-Hans validator. Settings 设置 → Language 语言 switches it live, and each run records the language it started in. One validator may change it, but `S3Exit` needs ≥ 1 run ended by a death or a win in zh-Hans.
+**Language.** The launcher sets the language at launch: `Play_zh-Hans.bat` for the zh-Hans validator, for every run. Settings 设置 → Language 语言 switches it live, and each run records only the language it started in, so a switch in mid-run is never read. Any validator may change it, but `zh-Hans` reads `PASS` only on a validator with ≥ 3 runs ended by a death or a win, all started in zh-Hans. A mix reads NOT READ until call 8 is made.
+
+**Pad.** The pad validator plugs the pad in before launch and uses it for every run. Each CSV row reads the last device at that interval's end, and a moved mouse or a pressed key reads `kbm`. `Packaged pad pass` takes only a validator with ≥ 3 runs ended by a death or a win, each reading `pad` in some interval and `kbm` in none; anything less reads NOT READ until call 8 is made, and the row names who played what.
 
 **Between sittings.** The save keeps the Ichor, the Contracts and the Patron. Start the same launcher on the same account. Never a new account for the same validator: that is a second save.
 
@@ -99,6 +112,7 @@ Crash: note the time. The run's file has no `run_end`.
 ## What the host reads
 Put each zip in a folder named for its validator, and never a real name: the repo is public (D-006).
 ```
+<session folder>\PadCheck.txt
 <session folder>\V1\Dusktracer_Logs_....zip
 <session folder>\V2\Dusktracer_Logs_....zip
 <session folder>\V3\Dusktracer_Logs_....zip
@@ -106,7 +120,7 @@ Put each zip in a folder named for its validator, and never a real name: the rep
 ```
 & Tools\S3Exit.ps1 -Logs <session folder> [-Build <hash>]
 ```
-It starts no game and writes nothing. It prints one line per validator, the runs it refused, one `EXIT` line per row, then `S3EXIT: <p> PASS, <f> FAIL, <n> NOT READ`. With no `-Build` it takes the clean commit in `package_stamp.json`; with no build named, no run counts.
+It starts no game and writes nothing. It prints one line per validator, the runs it refused, one `EXIT` line per row, then `S3EXIT: <p> PASS, <f> FAIL, <n> NOT READ`. With no `-Build` it takes the clean commit in `package_stamp.json`; with no build named, no run counts. Name `-Build` once a later package has replaced that stamp. It reads the first-run list from that commit, not from the checkout, so run it in a clone that holds the commit.
 
 **A run counts only if its `run_start` says a person played the kit's stamped Shipping build.** Every other run is refused, and the line says why:
 
@@ -126,12 +140,14 @@ Of the accepted runs, one ended by a death or a win is **counted**. `quit`, `res
 
 | `EXIT` row | Reads | PASS | FAIL | NOT READ |
 |---|---|---|---|---|
-| `Validators` | the logs | ≥ 3 folders with ≥ 3 counted runs | some accepted runs, too few | no accepted run |
-| `Fresh` | a human | never: only the host knows | a first run shows a card no fresh save can | otherwise |
-| `zh-Hans` | the logs | a counted run in zh-Hans | `Validators` passed and none | otherwise |
-| `Packaged pad pass` | the logs and `Tools\PadCheck.ps1` | a person's run reads `input_device` `pad` and PadCheck's line passes this package | `Validators` passed and no pad | otherwise |
+| `Validators` | the logs | ≥ 3 folders with ≥ 3 counted runs | some accepted runs, and fewer than 3 folders with ≥ 3 of them | no accepted run, or only the runs they left decide it: call 3 |
+| `Fresh` | a human | never: only the host knows | the first run of a folder shows a card no fresh save of that build can | otherwise, and whenever a refused or torn file in that folder could be older |
+| `zh-Hans` | the logs | a validator with ≥ 3 counted runs, all started in zh-Hans | `Validators` passed and no accepted run in zh-Hans | otherwise: call 8 |
+| `Packaged pad pass` | the logs and `Tools\PadCheck.ps1` | a validator with ≥ 3 counted runs, each reading `pad` and no interval `kbm`, and PadCheck's line passes this package | `Validators` passed and no accepted run reads `pad` | otherwise: call 8, or the line is missing or names another package |
 | `Pass rule` | a human | never here | never here | always: call 1 |
-| `findings_S3.md` | the file | every row read, each with a name | never | otherwise |
+| `findings_S3.md` | the file | every row read, each with a name | never | otherwise; `NOT READ` with a reason behind it, in any case, is no reading |
+
+**A verdict on an open call** comes only where every reading of the call agrees: `PASS` on its strict side, `FAIL` where even its loosest reading misses, and `NOT READ` between.
 
 **NOT READ is not a soft pass.** It means no human evidence reached this row. A row that needs a human stays NOT READ here whatever the logs say, and no number from a bot stands in for one (R-BOT-13). `S3Exit` cannot say the stage is over: a person reads the output and fills `findings_S3.md`, with their name in each row.
 

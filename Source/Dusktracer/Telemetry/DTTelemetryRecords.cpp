@@ -15,12 +15,14 @@ namespace DTTelNames
 		FString Token;
 		for (const TCHAR* Stream = CommandLine; FParse::Token(Stream, Token, /*bUseEscape*/ false);)
 		{
-			if (Token.StartsWith(TEXT("-DTBot")))
+			// FParse::Value finds a switch behind a dash, a slash or nothing, so the game obeys all three and this has to read them all.
+			const FString Name = Token.StartsWith(TEXT("-")) || Token.StartsWith(TEXT("/")) ? Token.Mid(1) : Token;
+			if (Name.StartsWith(TEXT("DTBot")))
 			{
 				return TEXT("bot");
 			}
 			// -DTHubCheck is the real keys of a person's path, compiled out of Shipping (vigil.md): Tools/SeedCheck.ps1 reads a launcher's own arguments through it.
-			bTool |= Token.StartsWith(TEXT("-DT")) && !Token.StartsWith(TEXT("-DTHubCheck"));
+			bTool |= Name.StartsWith(TEXT("DT")) && !Name.StartsWith(TEXT("DTHubCheck"));
 		}
 		return bTool ? TEXT("tool") : TEXT("person");
 	}

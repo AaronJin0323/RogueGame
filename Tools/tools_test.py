@@ -16,6 +16,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_compare  # noqa: E402
@@ -619,12 +620,31 @@ class S3Exit(unittest.TestCase):
 		self.assertEqual((len(logs["validators"]["V1"]["runs"]), len(s3_exit.counted(logs["validators"]["V1"]))), (5, 1))
 		self.assertEqual(rows["Validators"][0], "FAIL")
 
-	def test_a_mix_of_cultures(self):
+	def test_a_count_that_turns_on_a_left_run_waits_for_the_call(self):
+		for who in ("V1", "V2", "V3"):
+			for reason in ("death", "death", "quit" if who == "V3" else "death"):
+				self.put(who, reason=reason)
+		self.assertEqual(self.verdicts()["Validators"], "NOT READ")
+
+	def test_a_mix_of_cultures_waits_for_the_call(self):
+		self.session(zh=False)
+		for name in os.listdir(os.path.join(self.root, "V1")):
+			if name.endswith(".jsonl"):
+				os.remove(os.path.join(self.root, "V1", name))
 		for culture in ("en", "zh-Hans", "en"):
 			self.put("V1", start=self.start(culture=culture))
-		self.assertEqual(self.verdicts()["zh-Hans"], "PASS")
-		text = s3_exit.validator_lines(self.rows()[0])[0]
-		self.assertIn("en 2 zh-Hans 1", text)
+		logs, rows = self.rows()
+		self.assertEqual(rows["Validators"][0], "PASS")
+		self.assertEqual(rows["zh-Hans"][0], "NOT READ", "one run of nine is no reading of '>= 1 zh-Hans'")
+		self.assertIn("call 8", rows["zh-Hans"][1])
+		self.assertIn("en 2 zh-Hans 1", s3_exit.validator_lines(logs)[0])
+
+	def test_a_whole_session_in_chinese_passes(self):
+		for _ in range(3):
+			self.put("V1", start=self.start(culture="zh-Hans"))
+		self.assertEqual(self.verdicts()["zh-Hans"], "PASS", "the row needs one such validator, not the whole count")
+		self.put("V1")
+		self.assertEqual(self.verdicts()["zh-Hans"], "NOT READ")
 
 	def test_no_chinese_fails_only_a_finished_session(self):
 		self.put("V1")
@@ -648,6 +668,20 @@ class S3Exit(unittest.TestCase):
 	def test_a_tools_pad_is_no_pad(self):
 		self.put("V1", start=self.start(driver="tool"), device="pad")
 		self.assertEqual(self.verdicts(pad=True)["Packaged pad pass"], "NOT READ")
+
+	def test_a_touch_of_a_pad_waits_for_the_call(self):
+		self.session(pad=False)
+		self.put("V3", device="pad", reason="quit")
+		verdict, detail = self.rows()[1]["Packaged pad pass"]
+		self.assertEqual(verdict, "NOT READ", "one pad interval in a run they left is no reading of '>= 1 gamepad'")
+		self.assertIn("call 8", detail)
+
+	def test_a_keyboard_interval_takes_a_run_off_the_strict_side(self):
+		self.session()
+		name = sorted(n for n in os.listdir(os.path.join(self.root, "V3")) if n.endswith(".csv"))[0]
+		with open(os.path.join(self.root, "V3", name), "a", encoding="utf-8") as f:
+			f.write("2,60,0,7,abc1234,en,kbm\n")
+		self.assertEqual(self.verdicts()["Packaged pad pass"], "NOT READ")
 
 	def test_padcheck_lines(self):
 		path = os.path.join(self.root, "pad.log")
@@ -740,11 +774,59 @@ class S3Exit(unittest.TestCase):
 		self.put("V2", cards=["Blessing.Storm.Tempest.Amp1"])
 		self.assertEqual(self.verdicts()["Fresh"], "FAIL")
 
+	def test_a_refused_first_run_leaves_the_second_unread(self):
+		self.put("V1", start=self.start(build="fff0000", wall="2026-11-01T10:00:00.000Z"))
+		self.put("V1", start=self.start(wall="2026-11-01T11:00:00.000Z"), cards=["Blessing.Storm.Tempest.Amp1"])
+		self.assertEqual(self.verdicts()["Fresh"], "NOT READ", "the run a mid-session fix refused was the save's first")
+		self.put("V2", name="1_torn", text=self.jsonl(self.start())[9:])
+		self.put("V2", start=self.start(wall="2026-11-01T11:00:00.000Z"), cards=["Blessing.Storm.Tempest.Amp1"])
+		self.assertEqual(self.verdicts()["Fresh"], "NOT READ", "a file torn at its start could be older")
+
+	def test_a_refused_later_run_leaves_the_first_read(self):
+		self.put("V1", start=self.start(wall="2026-11-01T10:00:00.000Z"), cards=["Blessing.Storm.Tempest.Amp1"])
+		self.put("V1", start=self.start(driver="tool", wall="2026-11-01T11:00:00.000Z"))
+		self.assertEqual(self.verdicts()["Fresh"], "FAIL")
+
+	def test_no_catalog_of_the_build_says_so(self):
+		self.put("V1")
+		logs = s3_exit.read_logs(self.root, self.BUILD)
+		verdict, detail = {n: (v, d) for n, v, d in s3_exit.exit_lines(logs, self.BUILD, True, None, None)}["Fresh"]
+		self.assertEqual(verdict, "NOT READ")
+		self.assertIn("no catalog of build", detail)
+
 	def test_the_locked_ids_are_the_catalogs(self):
-		locked = s3_exit.locked_ids()
+		locked = s3_exit.locked_ids("HEAD")
 		self.assertIn("Mod.ScatterShell", locked)
 		self.assertIn("Transform.Storm", locked)
 		self.assertNotIn("Weapon.PulseRifle", locked)
+		self.assertIsNone(s3_exit.locked_ids("fff0000"))
+		self.assertIsNone(s3_exit.locked_ids(""))
+
+	def test_the_locked_ids_are_the_builds_and_not_the_checkouts(self):
+		repo = os.path.join(self.root, "repo")
+		catalog = os.path.join(repo, "Docs", "09_Catalog")
+		os.makedirs(catalog)
+
+		def git(*args):
+			run = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "-C", repo, *args], capture_output=True, encoding="utf-8")
+			self.assertEqual(run.returncode, 0, run.stderr)
+			return run.stdout.strip()
+
+		def commit(locked):
+			with open(os.path.join(catalog, "first_run_locked.csv"), "w", encoding="utf-8") as f:
+				f.write("id,why\n" + "".join(f"{i},x\n" for i in locked))
+			with open(os.path.join(catalog, "tree.csv"), "w", encoding="utf-8") as f:
+				f.write("id,unlocks\nNode.A,Mod.A;Mod.B\nNode.B,\n")
+			git("add", "-A")
+			git("commit", "-m", "x")
+			return git("rev-parse", "--short", "HEAD")
+
+		git("init")
+		build = commit(["Mod.Old"])
+		later = commit(["Mod.Old", "Mod.New"])
+		with mock.patch.object(s3_exit.dtconst, "ROOT", repo):
+			self.assertEqual(s3_exit.locked_ids(build), {"Mod.Old", "Mod.A", "Mod.B"})
+			self.assertIn("Mod.New", s3_exit.locked_ids(later))
 
 	def test_the_fields_are_the_ones_the_game_writes(self):
 		core = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Source", "Dusktracer", "Telemetry", "DTTelemetryCore.cpp")
@@ -757,8 +839,7 @@ class S3Exit(unittest.TestCase):
 			text = f.read()
 		read, total = s3_exit.findings_state(path)
 		self.assertGreater(total, 0)
-		if not read:
-			self.assertEqual(text.count("| NOT READ | not filled |"), total, "no row may read anything until a session fills it")
+		self.assertEqual(text.count("| NOT READ | not filled |") + read, total, "a row holds a reading and a name, or neither")
 
 	def test_findings_rows(self):
 		path = os.path.join(self.root, "findings.md")
@@ -771,7 +852,25 @@ class S3Exit(unittest.TestCase):
 		self.assertEqual(state(("NOT READ", "not filled"), ("**NOT READ**", "not filled")), (0, 2))
 		self.assertEqual(state(("PASS", "not filled")), (0, 1))
 		self.assertEqual(state(("PASS", "owner"), ("3 of 3 asked", "owner")), (2, 2))
+		self.assertEqual(state(("not read", "the host"), ("NOT READ, V2 left early", "the host"), ("Not Read", "the host")), (0, 3))
+		self.assertEqual(state(("Not readable on a pad", "the host"), ("PASS", "Not Filled")), (1, 2))
 		self.assertIsNone(s3_exit.findings_state(os.path.join(self.root, "none.md")))
+
+	def test_a_hand_edited_findings_file_is_no_crash(self):
+		path = os.path.join(self.root, "findings.md")
+		header = "| Row | Reading | Filled by |\n|---|---|---|\n"
+		with open(path, "w", encoding="utf-8") as f:
+			f.write(header + "| a | x |\n| b |\n| c | PASS | the host |\n")
+		self.assertEqual(s3_exit.findings_state(path), (1, 3))
+		with open(path, "w", encoding="utf-8") as f:
+			f.write(header + "|  | PASS | the host |\n")
+		self.assertEqual(s3_exit.findings_state(path), (1, 1), "a row with an empty first cell is still a row")
+		with open(path, "w", encoding="gbk") as f:
+			f.write(header + "| 甲 | PASS | the host |\n| 乙 | NOT READ | not filled |\n")
+		self.assertEqual(s3_exit.findings_state(path), (1, 2))
+		with open(path, "w", encoding="utf-8-sig") as f:
+			f.write(header + "| a | PASS | the host |\n")
+		self.assertEqual(s3_exit.findings_state(path), (1, 1))
 
 	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
 	def test_the_script_reads_a_folder_and_says_so(self):
@@ -786,6 +885,28 @@ class S3Exit(unittest.TestCase):
 		gone = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Logs", os.path.join(self.root, "none")], capture_output=True, encoding="utf-8", errors="replace")
 		self.assertEqual(gone.returncode, 1)
 		self.assertIn("S3EXIT: FAIL", gone.stdout)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_the_script_takes_a_spaced_folder_with_its_trailing_slash(self):
+		script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "S3Exit.ps1")
+		folder = os.path.join(self.root, "s p")
+		os.makedirs(folder)
+		run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Logs", folder + "\\", "-Build", self.BUILD, "-PadLog", "none"],
+			capture_output=True, encoding="utf-8", errors="replace")
+		self.assertEqual(run.returncode, 0, run.stdout)
+		self.assertRegex(run.stdout, r"S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ")
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_the_script_finds_the_kept_padcheck_line_in_the_session_folder(self):
+		script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "S3Exit.ps1")
+		self.session()
+		with open(os.path.join(self.root, "PadCheck.txt"), "w", encoding="utf-8") as f:
+			f.write(f"PADCHECK: NOT RUN (package {self.BUILD} ok, en+zh-Hans, 0 windows; real pad needs a human, no run of this build reads input_device=pad)\n")
+		run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Logs", self.root, "-Build", self.BUILD],
+			capture_output=True, encoding="utf-8", errors="replace")
+		self.assertEqual(run.returncode, 0, run.stdout)
+		self.assertIn("EXIT Packaged pad pass: PASS", run.stdout)
+		self.assertNotIn("PROBLEM", run.stdout)
 
 
 class Ablation(unittest.TestCase):
