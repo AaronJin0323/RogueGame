@@ -33,6 +33,15 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - The repo is public (D-006): never commit keys, tokens, or assets whose licence forbids redistribution.
 - Build: `Tools/Build.bat`. Models: Blender 5.2.2, headless only (path in `Docs/STATE.md`).
 
+## No windows (the owner's standing rule, `07_Technical` R-TEC-17)
+A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the packaged `Play_*.bat` open a window; they are for people, never for agents.
+- No flag is the rule: `-nullrhi`, `-RenderOffScreen` and `-WindowStyle Hidden` are not enough on their own.
+- Start the game or editor only through a Tools script: `Smoke`, `Perf`, `BotRuns`, `RunTests` (`-Filter` for a test by hand) and the check scripts.
+- A new script dot-sources `Tools/HiddenLaunch.ps1` and starts with `Start-DTHidden`, which puts the launch on a hidden desktop. `tools_test.py` fails on a `Start-Process` or a direct call of an engine binary anywhere else in `Tools`. A commandlet (`-run=`) opens no game window and stays as it is.
+- With no script for it: the project path first, then `-game -windowed -RenderOffScreen -nosplash -unattended -LiveCoding=false`. Flags before the project path open a blocking dialog.
+- Never give a console binary a new console: Windows hands it to the default terminal, which opens on the real desktop even from a hidden one.
+- Every package launch names a `-userdir` under `Saved`. Nothing writes to or deletes from `%LOCALAPPDATA%\Dusktracer`: the owner's run files live there.
+
 ## Known traps (from the previous project)
 - C4458: locals/params shadowing members (`Slot`, `World`, `Name`).
 - Forward declaration is not enough for `TWeakObjectPtr<T>` members in some contexts; include the header.

@@ -1,16 +1,19 @@
 # Telemetry hand-over (02_Systems/package.md R-PKG-06). Makes one zip and sends nothing anywhere: a person carries it.
-#   ExportTelemetry.ps1 [-OutDir <folder>] [-IncludeLogs]
+#   ExportTelemetry.ps1 [-OutDir <folder>] [-IncludeLogs] [-UserDir <folder>]
 # Reads the run files of a Shipping package (%LOCALAPPDATA%\Dusktracer\Saved) and of a Development build (Saved beside this script).
+# -UserDir reads the Saved folder of a game started with that -userdir instead, and nothing else: Tools\PadCheck.ps1 exports its own runs that way.
 # Prints "EXPORT: <zip> (<n> runs)" or "EXPORT: FAIL (...)"; exit 0 / 1.
 param(
 	[string]$OutDir = [Environment]::GetFolderPath("Desktop"),
-	[switch]$IncludeLogs
+	[switch]$IncludeLogs,
+	[string]$UserDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 trap { Write-Host "EXPORT: FAIL ($_)"; exit 1 }
 
-$Saved = @((Join-Path $env:LOCALAPPDATA "Dusktracer\Saved"), (Join-Path $PSScriptRoot "Dusktracer\Saved")) | Where-Object { Test-Path $_ }
+$From = if ($UserDir) { @(Join-Path $UserDir "Saved") } else { @((Join-Path $env:LOCALAPPDATA "Dusktracer\Saved"), (Join-Path $PSScriptRoot "Dusktracer\Saved")) }
+$Saved = @($From | Where-Object { Test-Path $_ })
 $Runs = @(foreach ($Dir in $Saved) {
 		$Playtests = Join-Path $Dir "Playtests"
 		if (Test-Path $Playtests) { Get-ChildItem $Playtests -File | Where-Object { $_.Extension -in ".csv", ".jsonl" } }

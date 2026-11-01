@@ -3,7 +3,7 @@
 #                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en]
 # Holds the GPU semaphore Saved\gpu.lock (an exclusively opened file) for the whole run and refuses to start while
 # another process holds it: readings taken under contention are discarded, so none are taken.
-# Launches the game like Tools\Smoke.ps1 with the stress commands (default: C.ENEMIES.CAP enemies, C.BULLETS.CAP
+# Launches the game like Tools\Smoke.ps1, on the hidden desktop of Tools\HiddenLaunch.ps1, with the stress commands (default: C.ENEMIES.CAP enemies, C.BULLETS.CAP
 # bullets), lets ADTGameMode record the CSV event DTPerfStart after -Warmup seconds (default C.PERF.WARMUP_S), and the
 # UE CSV profiler captures -Frames frames from that event (default C.PERF.CAPTURE_FRAMES) and quits the game.
 # Prints p50 / p95 of FrameTime, GameThreadTime and GPU time (when the CSV has it) against C.BUDGET.GAME_THREAD_P50_MS,
@@ -24,6 +24,7 @@ trap { Write-Host "PERF: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $Saved = Join-Path $Root "Saved"
@@ -77,7 +78,7 @@ try {
 		"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", ("-DTCsvAfter={0}" -f $Warmup), "-csvStartOnEvent=DTPerfStart",
 		"-csvCaptureOnEventFrameCount=$Frames", "-ExitAfterCsvProfiling", "-csvGpuStats")
 	if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru
+	$Proc = Start-DTHidden $Exe $ArgList
 	Write-Host ("perf: {0} {1}x{2} cmds='{3}' warmup {4} s, {5} frames, GPU '{6}' (PID {7})" -f $Map, $ResX, $ResY, $Cmds, $Warmup, $Frames, $Gpu, $Proc.Id)
 
 	function Read-Log { if (Test-Path $Log) { Get-Content $Log -Raw -ErrorAction SilentlyContinue } else { "" } }
@@ -89,9 +90,8 @@ try {
 }
 finally {
 	if ($Proc -and -not $Proc.HasExited) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		$Killed = $true
-		Start-Sleep -Seconds 1
 	}
 	$Lock.Dispose()
 	Remove-Item $LockPath -Force -ErrorAction SilentlyContinue

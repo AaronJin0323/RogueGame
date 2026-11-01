@@ -2,9 +2,13 @@
 #   & Tools\PadCheck.ps1 [-Cultures en,zh-Hans] [-LoadTimeout 300]
 # Shipping (T-PKG-05, cultures T-PKG-03): -RenderOffScreen launch, the bot plays past the first CSV interval and quits the game; run_start and run_end are right.
 # Export (T-PKG-06): the zip holds that run and power_split.py reads it. Development (T-PKG-02): drawn text, log, screenshot against the arena
-# golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no visible window of the game's process at any time.
-# -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted.
-# A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04, by Tools\SeedCheck.ps1 -Package.
+# golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no window of the tree on this desktop at any time (Tools/WindowWatch.ps1);
+# every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1.
+# -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check.
+# Every launch has a -userdir under Saved\PadCheck\userdir, so nothing here writes to or deletes from %LOCALAPPDATA%\Dusktracer: run files, crash reporter, pipeline cache,
+# GameUserSettings all land in this worktree, and two checks in two worktrees cannot open one file. The last check's folders stay until the next one.
+# A real pad needs a human: the step passes only when a run of this build in %LOCALAPPDATA%\Dusktracer\Saved\Playtests, which is read and never written, has input_device=pad
+# (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04, by Tools\SeedCheck.ps1 -Package.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -15,12 +19,18 @@ param(
 trap { Write-Host "PADCHECK: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
+. (Join-Path $PSScriptRoot "WindowWatch.ps1")
 $PackageRoot = Join-Path $Root "Saved\Package"
 $StampFile = Join-Path $PackageRoot "package_stamp.json"
 $LogDir = Join-Path $Root "Saved\Logs"
 $WorkDir = Join-Path $Root "Saved\PadCheck"
-$Playtests = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
-$DevPlaytests = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
+$UserDirs = Join-Path $WorkDir "userdir"
+$ShipUser = Join-Path $UserDirs "shipping"
+$DevUser = Join-Path $UserDirs "development"
+$Playtests = Join-Path $ShipUser "Saved\Playtests"
+$DevPlaytests = Join-Path $DevUser "Saved\Playtests"
+$OwnerPlaytests = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 $MarkerSeed = 770077
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
@@ -38,7 +48,7 @@ if (-not (Test-Path $StampFile)) { Stop-Check "NOT RUN (no package; Tools\Packag
 $Stamp = Get-Content $StampFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($Stamp.dirty) { Stop-Check "NOT RUN (package $($Stamp.commit) came from a dirty tree)" 2 }
 Push-Location $Root
-$Changed = @(& git diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject)
+$Changed = @(& git diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject Tools/PackageFiles)
 $DiffRc = $LASTEXITCODE
 Pop-Location
 if ($DiffRc -ne 0) { Stop-Check "NOT RUN (package commit $($Stamp.commit) is not in this history)" 2 }
@@ -51,62 +61,38 @@ foreach ($File in $ShipExe, $DevExe, $Export) {
 	if (-not (Test-Path $File)) { Stop-Check "NOT RUN (package incomplete, no $File)" 2 }
 }
 
+Start-DTWindowWatch
+
 # --- launchers (T-PKG-04): each one started as written, off-screen, on the Shipping build (Tools\SeedCheck.ps1, R-TEC-16) ------
 $SeedOut = @(& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "SeedCheck.ps1") -Package (Join-Path $PackageRoot "Shipping\Windows") -LoadTimeout $LoadTimeout 2>&1)
 $SeedRc = $LASTEXITCODE
 $SeedOut | ForEach-Object { "    $_" }
 if ($SeedRc -ne 0) { Stop-Check "FAIL (launchers: $(($SeedOut | Select-String '^SEEDCHECK:' | Select-Object -Last 1).Line))" 1 }
 
-# --- window helper: the check must never show one ------------------------------------------------------------------
-Add-Type -TypeDefinition @"
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-public static class DTWindows {
-	delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
-	[DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr lParam);
-	[DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
-	[DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-	static List<IntPtr> Of(uint target) {
-		var found = new List<IntPtr>();
-		EnumWindows((h, l) => { uint pid; GetWindowThreadProcessId(h, out pid); if (pid == target) found.Add(h); return true; }, IntPtr.Zero);
-		return found;
-	}
-	public static int Visible(int pid) { int n = 0; foreach (var h in Of((uint)pid)) if (IsWindowVisible(h)) n++; return n; }
-}
-"@
-
 $script:Failures = @()
 $script:ShownWindows = 0
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
-function Watch-Windows($Proc) { if (-not $Proc.HasExited) { $script:ShownWindows += [DTWindows]::Visible($Proc.Id) } }
-function Stop-ByPid($Proc) { if (-not $Proc.HasExited) { & taskkill /PID $Proc.Id /T /F | Out-Null } }
-
-function Remove-MarkerRuns {
-	foreach ($Dir in $Playtests, $DevPlaytests) {
-		if (Test-Path $Dir) { Get-ChildItem $Dir -Filter "${MarkerSeed}_*" -File | Remove-Item -Force }
-	}
-}
 
 $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended")
 $Interval = Get-Constant "TEL.INTERVAL_S"
 
 try {
-	Remove-MarkerRuns
+	if (Test-Path $UserDirs) { Remove-Item $UserDirs -Recurse -Force }
+	New-Item -ItemType Directory -Force $ShipUser, $DevUser | Out-Null
 
 	# --- Shipping: run start, telemetry, quit ---------------------------------------------------------------------------
 	foreach ($Culture in $Cultures) {
 		$Before = @(if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | ForEach-Object { $_.Name } })
 		$BotArgs = @("-DTBot=Steered", ("-DTBotMaxSeconds={0}" -f ($Interval + 5)), "-DTBotQuit")
-		$Proc = Start-Process -FilePath $ShipExe -ArgumentList ($OffScreen + @("-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick") + $BotArgs) -PassThru
+		$Proc = Start-DTHidden $ShipExe ($OffScreen + @("-userdir=`"$ShipUser`"", "-culture=$Culture", "-DTSeed=$MarkerSeed", "-DTOfferAutoPick") + $BotArgs)
 		Write-Host "padcheck: Shipping $Culture (PID $($Proc.Id))"
 		try {
 			$Deadline = (Get-Date).AddSeconds($LoadTimeout + $Interval)
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
+			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1 }
 			if (-not $Proc.HasExited) { Note-Fail "$Culture Shipping: the game did not quit by itself" }
 		}
 		finally {
-			Stop-ByPid $Proc
+			Stop-DTHidden $Proc
 		}
 		$Jsonl = if (Test-Path $Playtests) { Get-ChildItem $Playtests -Filter "${MarkerSeed}_*.jsonl" | Where-Object { $Before -notcontains $_.Name } | Select-Object -First 1 }
 		if (-not $Jsonl) { Note-Fail "$Culture Shipping: no telemetry file in $Playtests"; continue }
@@ -126,7 +112,7 @@ try {
 	# --- Export: the hand-over zip, read by the tool the scheduler uses ------------------------------------------------
 	$ExportDir = Join-Path $WorkDir "export"
 	if (Test-Path $ExportDir) { Remove-Item $ExportDir -Recurse -Force }
-	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File $Export -OutDir $ExportDir 2>&1
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File $Export -OutDir $ExportDir -UserDir $ShipUser 2>&1
 	$Rc = $LASTEXITCODE
 	$Zip = Get-ChildItem $ExportDir -Filter *.zip -ErrorAction SilentlyContinue | Select-Object -First 1
 	if ($Rc -ne 0 -or -not $Zip) { $Out | ForEach-Object { "    $_" }; Note-Fail "export failed" }
@@ -155,16 +141,16 @@ try {
 		$Shot = Join-Path $WorkDir "$Tag.png"
 		$Remove = @($Log, $Shot) | Where-Object { Test-Path $_ }
 		if ($Remove) { Remove-Item $Remove -Force }
-		$ArgList = $OffScreen + @($Map, "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector", "-DTSeed=$MarkerSeed")
-		$Proc = Start-Process -FilePath $DevExe -ArgumentList $ArgList -PassThru
+		$ArgList = $OffScreen + @($Map, "-userdir=`"$DevUser`"", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$Seconds", "-DTNoDirector", "-DTSeed=$MarkerSeed")
+		$Proc = Start-DTHidden $DevExe $ArgList
 		Write-Host "padcheck: Development $Culture (PID $($Proc.Id))"
 		$Deadline = (Get-Date).AddSeconds($LoadTimeout)
 		try {
-			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1; Watch-Windows $Proc }
+			while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1 }
 			if (-not $Proc.HasExited) { Note-Fail "$Culture Development: no self-quit in $LoadTimeout s" }
 		}
 		finally {
-			Stop-ByPid $Proc
+			Stop-DTHidden $Proc
 		}
 		$Text = if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 } else { "" }
 		$Lines = $Text -split "`r?`n"
@@ -193,16 +179,18 @@ try {
 	}
 }
 finally {
-	Remove-MarkerRuns
+	$Seen = Stop-DTWindowWatch
+	Close-DTHidden
 }
 
-if ($script:ShownWindows -gt 0) { Note-Fail "a game window was visible ($($script:ShownWindows) sample(s))" }
+$script:ShownWindows = $Seen.Windows.Count
+foreach ($Window in $Seen.Windows) { Note-Fail "shown on this desktop: $Window" }
 $Culturelist = $Cultures -join "+"
 if ($script:Failures.Count) { Stop-Check "FAIL ($($script:Failures.Count) failure(s), first: $($script:Failures[0]))" 1 }
 
 # --- the human half (R-PKG-09) ------------------------------------------------------------------------------------------
-$PadRuns = @(if (Test-Path $Playtests) {
-		Get-ChildItem $Playtests -Filter *.csv | Where-Object { Select-String -Path $_.FullName -Pattern (",$($Stamp.commit),[^,]*,pad\s*$") -Quiet }
+$PadRuns = @(if (Test-Path $OwnerPlaytests) {
+		Get-ChildItem $OwnerPlaytests -Filter *.csv | Where-Object { Select-String -Path $_.FullName -Pattern (",$($Stamp.commit),[^,]*,pad\s*$") -Quiet }
 	})
 if ($PadRuns.Count) { Stop-Check "PASS (package $($Stamp.commit) ok, $Culturelist; real pad in $($PadRuns.Count) run(s), first $($PadRuns[0].Name))" 0 }
 Stop-Check "NOT RUN (package $($Stamp.commit) ok, $Culturelist, 0 windows; real pad needs a human, no run of this build reads input_device=pad)" 2
