@@ -154,8 +154,8 @@ namespace DTOffers
 	DUSKTRACER_API FDTPickOutcome ApplyPickState(FDTPlayerRunState& Player, EDTHandKind HandKind, const FDTOfferCard& Card);
 	/**
 	 * The live sockets a pick of Card would make dormant (modifiers.md R-MOD-08): composes copies of the player's weapons on
-	 * the Keeper flags without and with the card, so run state and streams stay untouched. Only a blessing can: levels only
-	 * add rounds a conversion leaves alone. An Intercession's overlay is left out, since it passes.
+	 * the Keeper flags without and with the card, so run state and streams stay untouched. Only a blessing or an evolution
+	 * can: levels only add rounds a conversion leaves alone. An Intercession's overlay is left out, since it passes.
 	 */
 	DUSKTRACER_API TArray<FDTDormantSocket> DormantAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card);
 	/** Headless weapon part of a pick (tests, bots): Give / LevelUp / Socket on a bare FDTWeaponSim. */

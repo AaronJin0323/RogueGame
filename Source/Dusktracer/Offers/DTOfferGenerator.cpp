@@ -1139,7 +1139,10 @@ TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Pla
 	TArray<FDTDormantSocket> Out;
 	const bool bAnySocket = Player.Weapons.ContainsByPredicate([](const FDTWeaponInstance& W) { return W.Sockets.Num() > 0; });
 	FDTKeeperRunState Picked = Player.Keepers;
-	if (Card.Kind != EDTCardKind::Blessing || !bAnySocket || !AddBlessing(Picked, Card.ContentId))
+	// A blessing reaches the sockets through the flags, an evolution through its row's caps (reforging.md R-RFG-04).
+	const int32 ReforgeRow = Card.Kind == EDTCardKind::Reforging ? DTReforge::FindRow(Card.ContentId) : INDEX_NONE;
+	const bool bEvolves = ReforgeRow != INDEX_NONE && DTCat::Reforges[ReforgeRow].bEvolve;
+	if (!bAnySocket || !(bEvolves || (Card.Kind == EDTCardKind::Blessing && AddBlessing(Picked, Card.ContentId))))
 	{
 		return Out;
 	}
@@ -1159,6 +1162,10 @@ TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Pla
 	{
 		FDTWeaponInstance Now = Weapon;
 		FDTWeaponInstance After = Weapon;
+		if (bEvolves && Weapon.Id == Card.TargetWeapon)
+		{
+			After.Evolve = ReforgeRow;
+		}
 		DTWeaponCompose::Compose(Now, FlagsNow, Stats, 0);
 		DTWeaponCompose::Compose(After, FlagsPicked, Stats, 0);
 		for (int32 Index = 0; Index < Weapon.Sockets.Num(); ++Index)

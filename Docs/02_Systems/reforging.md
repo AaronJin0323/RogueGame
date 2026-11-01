@@ -58,7 +58,7 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - T-RFG-01 `Dusktracer.Reforging.Catalog`: one row per catalog weapon and one per Keeper of the run; every evolved cap list resolves every flag native or fallback; every row has a name, a rules line and a keyword list that resolves in both cultures.
 - T-RFG-02 `Dusktracer.Reforging.Hand`: all sources present give Patron, second, evolution, Epic, unbanishable; under the level the evolution slot takes a blessing; the primary is the rank-one weapon; taken rows leave; no row at all still gives the card count (T-OFF-09).
 - T-RFG-03 `Dusktracer.Reforging.Pick`: a Path pick grants no Favor and no tier; an Evolve pick marks only that weapon; upgrades still apply.
-- T-RFG-04 `Dusktracer.Reforging.Caps`: an evolved weapon's effective caps are the row's; a modifier it cannot express goes dormant and stays socketed; the offer pool stops showing such modifiers.
+- T-RFG-04 `Dusktracer.Reforging.Caps`: an evolved weapon's effective caps are the row's; a modifier it cannot express goes dormant and stays socketed, and the Evolve card names it before the pick (`modifiers.md` R-MOD-08); the offer pool stops showing such modifiers.
 - T-RFG-05 `Dusktracer.Reforging.Railstorm`: one boomerang per `launch_s`, at the stated pierce and damage.
 - T-RFG-06 `Dusktracer.Reforging.Flechette`: the pellet count, the summed damage, and a strike that lands after `embed_s`.
 - T-RFG-07 `Dusktracer.Reforging.BladeHalo`: no bolts; blades strike what they touch; the radius grows with speed.

@@ -630,8 +630,10 @@ bool FDTModifiersDormantTable::RunTest(const FString& Parameters)
 	const FName Rifle(TEXT("Weapon.PulseRifle"));
 	const FName Ring(TEXT("Weapon.RingEmitter"));
 	const FName Split(TEXT("Mod.SplitCore"));
-	// By hand from R-WPN-10 and the catalogs: a whole conversion loses Projectile, so these four go.
-	const TSet<FName> NeedRounds = { Split, TEXT("Mod.ScatterShell"), TEXT("Mod.Pierce"), TEXT("Mod.Ricochet") };
+	// By hand from R-WPN-10 and the catalogs: a whole conversion loses the carrier cap, so these go.
+	const TSet<FName> NeedRounds = { Split, TEXT("Mod.ScatterShell"), TEXT("Mod.Pierce"), TEXT("Mod.Ricochet"), TEXT("Mod.Homing"), TEXT("Mod.OrbitLock"), TEXT("Mod.Boomerang") };
+	// ConvertMelee is native on these; on Orbital Drones, Arc Blade and Gravity Mine it resolves as a fallback and changes no caps.
+	const TSet<FName> Converts = { Rifle, Ring, TEXT("Weapon.ScatterCannon"), TEXT("Weapon.RailLance"), TEXT("Weapon.FlakMortar"), TEXT("Weapon.SeekerSwarm"), TEXT("Weapon.SpiralProjector") };
 
 	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
 	{
@@ -650,9 +652,10 @@ bool FDTModifiersDormantTable::RunTest(const FString& Parameters)
 				}
 				const FName ModName = DTWeapons::ModifierId(Mod);
 				const FString Cell = FString::Printf(TEXT("%s L%d x %s"), DTCat::Weapons[Weapon].Id, Level, DTCat::Modifiers[Mod].Id);
-				// Only what leads with Projectile converts: the Rifle and the Ring. The Key folds two rounds, the whole of a count of 2.
-				const bool bWhole = WeaponName == Rifle && DTWeapons::GetLevelRow(Weapon, Level)->Count <= 2;
-				const bool bSilenced = bWhole ? NeedRounds.Contains(ModName) : (WeaponName == Rifle || WeaponName == Ring) && ModName == Split;
+				// The Key folds two rounds, the whole of a count of 2 or less.
+				const bool bConverts = Converts.Contains(WeaponName);
+				const bool bWhole = bConverts && DTWeapons::GetLevelRow(Weapon, Level)->Count <= 2;
+				const bool bSilenced = bWhole ? NeedRounds.Contains(ModName) : bConverts && ModName == Split;
 
 				FDTHarness H;
 				H.Weapons.Give(H.Run, 0, WeaponName, Level);
