@@ -1,33 +1,39 @@
-﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-10-30)
+﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-01)
 
 ## Where we are
-- Stage: **S1 Core slice** — entry 2026-10-30 (D-012). Feature-complete on `main`; balance passes merged under D-017; exit test not booked (O-008)
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `OPEN.md` holds human-only items
+- Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number on `dev/s3`: D-029
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1` — live: secrets, docs, constants (+ palette), catalog, loc, build, locbuild, nonunity, shipping, tools, tests (235, every test found must complete, floor 30), smoke en + zh-Hans, contrast. Not run: pad (S3), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
-- Package: `& Tools\Package.ps1` (validator build, `package.md`, `S1_kit.md`); the gate's `pad` step needs a real pad run · Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Docs/Validation/S1_bot_baseline.md`). Tool runs open no window: `-nullrhi` or `-RenderOffScreen`
+- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `fff2443`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
+- No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `-RenderOffScreen`, or the hidden desktop in `Tools/SeedCheck.ps1`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
-## Built (S0 + S1)
-- S0: fixed-step SoA sim, bullets, enemies, telemetry, palette/constants generation, gates (`Docs/Validation/S0_exit.md`)
-- S1 specs: keepers, weapons, modifiers, offers, progression, combat_core, director, enemies (S1), boss — integrated (D-013)
-- Catalog CSVs compile into `DTCat::*` tables + native tags (D-014); Pulse Rifle start; Keeper-caused reshaping is Keeper damage (D-015)
-- Hero + Enhanced Input (KBM + pad, actions built in C++), follow camera, HUD (HP, dash, Intercession, XP bar, run timer, boss bar, victory/death, threat and boss banners)
-- Enemies: Tank/Rusher/Turret roles, enemy fire pool, aim tokens, statuses, serials, dark hull + lit optic, red telegraphs
-- Weapons ×5, modifiers ×10, behaviour-flag layer; Keepers Storm/Forge/Tide with their params expressed except `time_scale` (`keepers.md` Open); Pull holds each enemy per interval, fields apply their status (D-016)
-- Offers: five cards, Patron hand, L8 Keeper hand, L16 hand, reroll/banish/lock, Reserve, card screen en + zh; keyword notes on the focused card; control cues (R-PRE-11), two-tone enemy rounds
-- Progression (gems, magnet, XP, chests); director (pacing, beats, kill-horizon drop-ins, drops, boss time); boss Warden form I; sim pause at the step boundary
-- Bot v1 + `Tools/BotRuns.ps1`; validation kit `Docs/Validation/S1_kit.md`
+## Built on `main` (S0 + S1)
+- S0: fixed-step SoA sim, bullets, enemies, telemetry, palette/constants generation, gates (`Validation/S0_exit.md`). One float mode, `/fp:precise` in every target (D-021)
+- Catalog CSVs compile into `DTCat::*` tables + native tags (D-014). Hero + Enhanced Input (KBM + pad, built in C++), follow camera, HUD, offers (five cards, Patron, L8, L16, reroll/banish/lock, Reserve), progression, director, boss Warden form I, sim pause at the step boundary
+- Keepers Storm, Forge, Tide; 5 weapons, 10 modifiers, behaviour flags (D-015, D-016, D-019); bot v1 with a card filter for the owner's path (`-Policy BlessingsOnly`)
+- From the owner's run (D-025 to D-027): every human launch draws a fresh seed and a bad `-DTSeed` is rejected, not saturated; telemetry says what the run did (true swarm TTK, cast window, applied and raw damage, fatal block, round source, hero position); a free volley stays its modifier's under a conversion; a silenced socket shows on the HUD and on the card
+
+## Built on `dev/s2`
+- Bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade, Radiance, Quicksilver, L16 Reforging, duo reactions, Time Dilation (scale reverted to 1.0), settings and accessibility, restart, abandon and quit, zh audit, 10 evolutions (D-020)
+- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`): 1 PASS, 3 FAIL, 2 NOT READ when last read. Those readings predate D-026 and D-027: attribution carries the Chain Trigger bias and older cast means are raw, so they are stale until reread
+
+## Built on `dev/s3`
+- Narrative v0.1, saves, Ichor (神血, code `Currency`), Discoveries, the Contracts page, Vigil hub, Codex, log export, doors for all content (D-023, D-024), first-run locks of four modifiers, the hub's seed rule and its package proof (D-028)
+- Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
+- No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
 ## In flight
-- S2 on `dev/s2`, unmerged until the S1 exit test: bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade/Radiance/Quicksilver (T-KEE-15 and T-KEE-18 FAIL on them, untuned), L16 Reforging, duo reactions behind `Reaction.Duos` landed, with Reforging rows for Keepers 4–6 (`79abddd`: gate 405 tests; no human has played any of it). S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`): 1 PASS, 3 FAIL, 2 NOT READ: share 8/18, build bands 9/18, Intercession 46/282 FAIL; bots win PASS (Tide 5/45 at skill 1.0); humans win and death histogram (R-BOT-17) human only. Held for a human reading, untuned: payday self-pay, Tide's early power and boss answer, Time Dilation scale, T-KEE-15's route. Duos show no bot lift, Steam fights its own arm, Repossession barely fires (`S2_duos.md`). Evolutions rarely reach a hand because the bot skips primary upgrades; `-PrimaryFirst` reads 0.77 of hands, the human upgrade rate is unread. R-RFG-18 missed: power band low, T-OFF-15 309/310 against 318/318 (`S2_reforging.md`). Invented `leak_per_s` 0.15 awaits a human read. `Perf.ps1 -Scene S2` PASS at both caps only at 300× crowd HP or more, game p95 up to 6.32 ms under contention; 100× and 30× FAIL at over 300× the real kill rate (`S2_perf.md`). Shade timer bug at `shades_max` fixed. HUD meters in; Time Dilation built but its scale is reverted to 1.0 (0.3 and 0.7 failed), so no cast slows yet. `BotRuns -Jobs` probe faults fixed (earlier S2 cast readings void; T-KEE-15 now 25/144 on Keepers 4–6, T-KEE-18 reran, still FAIL). Trace fixed field ticks rolling enchantments (R-KEE-16), payday timing, Vector's probe route; the field-tick fix is also on `main` (`S1_field_tick.md`). On `main` 198 → 192 at the boss, 154 → 151 wins; two Forge/Tide arms fell past noise (13 → 9, 10 → 6), cause unmeasured, held for a human reading. Settings and accessibility screen on `dev/s2` (`settings.md`). All 10 evolutions read by forced arm (`S2_evolutions.md`): none crash; Pulse Wall's skipped rings fixed, its `dps` reading settled (D-020 on `dev/s2`); Blade Halo, Pulse Wall and Vortex lose to Overload; bot kiting hides Blade Halo. Also on `dev/s2` (`271d4f9`, gate 434 tests): restart, abandon and quit controls, Space-held dash fixed, zh audit (121 cells; 47 names for a native reader, `S2_zh.md`), danger outlines pass perf (`S2_perf.md`), restart proven in the package (`S2_package.md`). One float mode (D-021, on both branches): editor and game builds agree on 30/30 seeds at no read frame cost on `dev/s2`, 10/10 on `main`; package-side hashes from before it are out of date, editor hashes did not move
+- Read-only adversarial review of `dev/s3` against `dev/s2`
+- Branches: `fix/no-windows`, `fix/seed-switch`, `fix/card-truth`, `dev/s3-earned-path`, `dev/s3-kit`; they land through `integrate/w3-*`
 
 ## Queue (next 5)
-1. Owner playtest of `main` when free (feel check before validators; the merge hold is waived, D-017)
-2. More S2 slices on branches, `main` stays the S1 build until the exit test
-3. Share cap floor tried and reverted (D-018): income above about 0.85 of the model pushes fast arms past the decision budget, so closing the XP gap moves the XP curve or hand budget too
-4. Heal source against `C.DMG_TAKEN.BAND_MIN10_13`: held until a human reading exists (bot skill 1.0 is a bound)
-5. S1 validation sessions (O-008), then the S1 exit note
+1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
+2. Fix what the `dev/s3` review confirms
+3. Reread the S2 batteries, T-KEE-15 and T-KEE-18 once launches are window-free
+4. S3 external test: kit first, then three fresh validators, human-only
+5. S4 Presentation queues behind the exit tests; art-book fidelity starts there
 
 ## Holds
 - none; automated launches: on (bot runs) — stop them during human sessions
@@ -35,12 +41,16 @@
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
 
+## Held for a human reading, untuned
+- Payday self-pay, Tide's early power and boss answer, Time Dilation scale, T-KEE-15's route, `leak_per_s` 0.15, the 1-second run-over guard, Pulse Wall strength, Forge colour pairs, possible layer leaks in two Keeper lines, heal source against `C.DMG_TAKEN.BAND_MIN10_13`, whether unlocks lower wins (the first-run pool bot won 69 of 90 against 47 for the full pool), all invented prices and zh rows
+
 ## Numbers at risk
-- Probes (`S1_keeper_power.md`, bounds, 40× field): after D-019 (`S1_tide_rule.md`): T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.589, 5/9 arms; package gain 1/9; archetype 5/9). The share formula cannot pass Storm. Pass criteria stay until human readings
-- Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 198 steered runs reach the boss, 154 win, after the free-Slam bug went; a shift of 2–3 on a 15-seed arm can be noise. T-DIR-01 PASS (588.6 s on 15 seeds); T-OFF-15 FAIL 197/198 (seed 6 of Tide/Stillness:Storm, no bug: Rifle alone for 11 minutes, 24 XP short); T-DIR-02 per arm FAIL (0/19 arms in band)
-- Primary Whirlpool and Stillness are the weakest Keeper arms (5–6 of 15 at the boss); Slam arms lost wins. With no heal in S1 the band and boss reach cannot both hold
-- Contrast gate 7/7 on the rendered lit ground (Y 0.112) and shadow; telegraph (3.22) and round (3.14) pass through their dark tones with thin margins. Against the `Pal.Ground.Bright` token gem, tracer core and chest are under 3; the second weather does not exist
-- Carried: T-PRE-05 contrast check PLANNED; real 4070/3060 readings due before S4; telegraph red tuned once (emissive 2)
+- The owner's run (n = 1): 104.2 % HP lost by 563.3 s against bot medians near 7 %; 1.81 dashes per minute; paused 20.6 s per sim minute against the limit of 15; XP 0.733 of the model at 300 s against reference 0.51. Passing weapons alone does not make that pressure in bots, and no skill dashes at that rate. T-DIR-02, L16 Keeper share, boss and Reforging stay unread
+- Probes (`S1_keeper_power.md`, bounds, 40× field): after D-019: T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.589, 5/9 arms). The share formula cannot pass Storm. Pass criteria stay until human readings
+- Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 192 steered runs reach the boss, 151 win. T-DIR-01 PASS (588.6 s). T-OFF-15 FAIL 197/198 (no bug). T-DIR-02 per arm FAIL (0/19 arms in band). Two Forge/Tide arms fell past noise, cause unmeasured
+- Primary Whirlpool and Stillness are the weakest Keeper arms. With no heal in S1 the band and boss reach cannot both hold
+- Contrast gate 7/7 on the rendered lit ground and shadow; telegraph (3.22) and round (3.14) pass with thin margins. The second weather does not exist
+- Carried: real 4070/3060 readings due before S4
 
 ## Pointers (do not inline)
 - Decisions: `Docs/13_Decisions/INDEX.md` · Evidence: `Docs/Validation/` · Dashboard: `Docs/Dashboard/complexity_dashboard.csv` · Number log: `Docs/number_change_log.csv` · Handoff: `Handoff_Dusktracer/game/G00_START_HERE.md`
