@@ -37,10 +37,10 @@ R-KEE-23's seat rule was written for one forced Keeper. Three met Keepers took a
 | Hand | Before | Now, gated | Tool run |
 |---|---|---|---|
 | Patron, chosen at the Shrine | could lose the choice | the choice leads, then Path order | no option, as it was |
-| Patron, Restart | met Keepers took the seats | `LastPatron` leads, then Path order | as it was |
+| Patron, Restart | met Keepers took the seats | `LastPatron` leads, then Path order, the last seat drawn past three Keepers (`S3_earned.md`) | as it was |
 | L8 | every met Keeper seated | R-OFF-08's plain draw | as it was |
 
-Three seats cannot hold six Keepers, so someone waits for the Shrine, and the call is who. A met Keeper does: that is the widening, and R-MET-28's "takes no seat from another Keeper" holds in both hands. The first pass of this branch kept the met Keepers in the Patron hand behind the lead, and the review of it read `Shade Radiance Quicksilver` on a real Restart. With `LastPatron` on a met Keeper one S1 Keeper still drops, Tide, to the seat the person's own last run earned: `meta.md` Open holds that hand.
+Three seats cannot hold six Keepers, so someone waits for the Shrine, and the call is who. A met Keeper does: that is the widening, and R-MET-28's "takes no seat from another Keeper" holds in both hands. The first pass of this branch kept the met Keepers in the Patron hand behind the lead, and the review of it read `Shade Radiance Quicksilver` on a real Restart. With `LastPatron` on a met Keeper one S1 Keeper still drops, Tide, to the seat the person's own last run earned: `S3_earned.md` settles that hand, and the hands read below predate its drawn last seat.
 
 On eight saves past the door, with nobody named, all eight L8 hands read whole and mixed (`Quicksilver Shade Forge`, `Forge Quicksilver Radiance`, `Quicksilver Tide Shade`, `Forge Shade Quicksilver`), and all eight launches started on the bot's Storm. Four of those saves were last played on Shade and read `Shade Storm Forge`, the others `Storm Forge Tide`. The save the review read, a first win with all three doors and `LastPatron` on Shade, now reads `Shade Storm Forge` on a Restart, and the bot takes Storm. `Tools/MetaCheck.ps1` step I proves the lead on real launches, on a Keeper Path order could not reach.
 
@@ -121,5 +121,5 @@ The doors reach neither row early: Tier 3 still needs a purchase, and every S2 K
 - Whether a Keeper arriving this early is welcome. A bot's first win opens all three at once, and the owner's run reached level 10 but took no weapon upgrade, on a full pool that is not a person's first.
 - A person banking `Kills1000` alone: the no-pick bot shows the case, and the generator and `Dusktracer.Meta.KeeperDoors` close it. No person has played it.
 - Which Keepers a person wants on a Restart: the hand is a rule, and the Shrine stays the way to a met Keeper.
-- `Reaction.Duos` and the three new branches on a person's save: `DTHubTabs::SetTreeFactory` had no factory on this branch, so the purchases ran through `DT.Tree.Buy`. The Contracts page arrived at integration (`S3_vigil.md`), and those rows were not bought on it here.
+- `Reaction.Duos` and the three new branches on a person's save: `DTHubTabs::SetTreeFactory` had no factory on this branch, so the purchases ran through `DT.Tree.Buy`. The Contracts page arrived at integration (`S3_vigil.md`), and those rows were not bought on it here. `S3_earned.md` buys them there.
 - S2 Keeper balance on a person's pool: the numbers above are budget and reach, not power. T-KEE-15 and T-KEE-18 are untouched and still FAIL on them.

@@ -34,7 +34,7 @@ struct FDTOfferPool
 	TSet<FName> Unlocked;
 	/** The caps each owned weapon slot expresses now (UDTWeaponSubsystem composes them); a missing slot uses its declared caps. */
 	TArray<FDTCapList> SlotCaps;
-	/** A person's run: Tree-locked ids stay out unless in Unlocked, and a met Keeper takes no seat from another. False for a tool run unless -DTPoolGate asks, so a tool run sees the full pool (meta.md R-MET-23). */
+	/** A person's run: Tree-locked ids stay out unless in Unlocked, and a met Keeper holds no seat of its own. False for a tool run unless -DTPoolGate asks, so a tool run sees the full pool (meta.md R-MET-23). */
 	bool bMetaGate = false;
 	/** The Keeper.<Path> that leads the Patron hand, so its seats always hold it: the one the map names (vigil.md R-VIG-07), else a gated run's last Patron. Empty in every battery: only the proofs of R-VIG-02 set it. */
 	FName LeadPatron;

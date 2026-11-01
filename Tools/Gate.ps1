@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md), firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md), firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), earned (Tools/EarnedCheck.ps1, T-MET-30), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -183,6 +183,14 @@ if (-not (Skipped "win")) {
 	$Out | Set-Content (Join-Path $LogDir "Gate_win.log") -Encoding utf8
 	Report "win" (($Out | Select-String "^WIN:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "WRONG|WIN: FAIL"; Fail "win" }
+}
+if (-not (Skipped "earned")) {
+	# meta.md T-MET-30: a person's loop from an empty save: Ichor a run earned, spent by a real key, read by a new process, offered on the next run; then the doors' rows bought on the page, off-screen.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\EarnedCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_earned.log") -Encoding utf8
+	Report "earned" (($Out | Select-String "^EARNED:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "WRONG|EARNED: FAIL"; Fail "earned" }
 }
 if (-not (Skipped "contrast")) {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.
