@@ -157,11 +157,11 @@ Then triage every finding (class, layer, owner) in `findings_S3.md`.
 - **Nobody has played Shipping past its hub.** A real key from Vigil through a run, the bank by a person, Alt+F4 in full screen, `Export_Logs.bat` by double-click, the look of zh-Hans cards on a real display: all are `package.md` HUMAN rows, so the first session is the first time. A rehearsal on a spare account finds these early.
 - **`driver` `person` on Shipping.** Shipping cannot reach a run with no hands, so a launcher's arguments read `person` on the editor build only. Read the first zip the day it comes back: a wrong reading here would refuse every run, and it costs a session to find out late.
 - A real pad through `S3Exit`, and a first hand from a real fresh save through `Fresh`: both are held on fixtures only.
-- The save's real path under `%LOCALAPPDATA%` on Shipping: no check aims there, on purpose (`S3_package.md`). The Ledger-stone is what the host trusts.
+- The real path of the save and the run files under `%LOCALAPPDATA%` on Shipping: no check aims there, on purpose (`S3_package.md`). `PadCheck` last read a run there on package `53d3547` (`S3_logs.md`), before it took a `-userdir`, so the first zip is the next reading. The Ledger-stone is what the host trusts.
 - That a person reads this sheet as written: nobody has hosted from it.
 
 ## Readings of the kit
-Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, and sorting runs by a noted start time with a zip per validator. No rule of play moved and no number was tuned.
+Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, sorting runs by a noted start time with a zip per validator, and `PadCheck`'s shared folder and PID bookkeeping with a `-userdir` of its own. No rule of play moved and no number was tuned.
 
 We believe a host can read the S3 exit from three zips with no run of a bot or a designer's build counted, because `run_start` now says what made each run (`telemetry.md` R-TEL-13); measured at the first S3 session; revisited if a real run is refused or a tool's run is accepted.
 
@@ -170,6 +170,10 @@ Machine readings, none of a person. No session was simulated, and no exit row re
 | Reading | Tool | Result |
 |---|---|---|
 | Each launcher's real arguments, and a bare launch | `Tools/SeedCheck.ps1`, editor build | `driver` `person` on all 4; `tool` on all 4 named or unattended launches. `Tools\Play.bat` reads `person` too, which is why `config` has to refuse it |
+| The same on the package | `Tools/SeedCheck.ps1 -Package`, package of `d978116`, through PadCheck | `SEEDCHECK: PASS (3 human launches on fresh seeds, 2 exact, 2 rejected)`: `person` on both `Play_*.bat` and a bare launch on Development, `tool` on a named seed on both builds |
+| The machine half of the pad row | `Tools/PadCheck.ps1 -Keep`, package of `d978116`, 195 s, every launch on a `-userdir` under `Saved\PadCheck` | `PADCHECK: NOT RUN (package d978116 ok, en+zh-Hans, 0 windows; real pad needs a human, ...)`: both cultures end `bot_timeout` on the stamped build, the export reads, both goldens pass. This shows the step works; the kit's own build gets its own line |
+| That line and that check's real zip in a session folder | `S3Exit`, folder named with a trailing backslash | `REFUSED V1: 2 bot run`, `S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ` |
+| The owner's folder, across that package and that check | a listing of `%LOCALAPPDATA%\Dusktracer` before and after | 477 entries, none new, changed or gone |
 | A bot | `Tools/BotRuns.ps1`, seed 9107, editor build | `driver` `bot`, `config` `Development` |
 | A bot, zh-Hans | Shipping at `51d7249` | `config` `Shipping`, `driver` `bot`, `build` equal to the stamp, `run_end` `bot_timeout` |
 | `-unattended`, no bot, killed | Shipping at `51d7249` | `config` `Shipping`, `driver` `tool`, `run_start` alone, no CSV |
@@ -183,5 +187,6 @@ What a real run file holds, field by field on a bot's JSONL: the kinds in `telem
 Found while proving it:
 - A real zip's member names use backslashes on Windows PowerShell 5.1. The reader takes either, and a test holds it.
 - A run killed inside its first minute has no CSV, so its device is unread. `S3Exit` counts these as `no csv`.
-- `Tools/PadCheck.ps1` and `Tools/ExportLogsCheck.ps1` launch Shipping with no `-userdir`, so they write to `%LOCALAPPDATA%\Dusktracer` (`S3_package.md`). Neither was run for this kit, and the package was deleted before the gate, so the gate's `pad` step read `NOT RUN`.
+- `Tools/PadCheck.ps1` launched Shipping with no `-userdir`, so it wrote to `%LOCALAPPDATA%\Dusktracer` and the kit could not ask for it on the owner's account (`S3_package.md`). Every launch now stays under `Saved\PadCheck`. `Tools/ExportLogsCheck.ps1` and `Tools/PackageRestartCheck.ps1` still launch Shipping with no `-userdir`, so neither was run for this kit.
+- A review of the kit found three things only a host would have met. `zh-Hans` and `Packaged pad pass` read `PASS` on one run and one interval, which no doc holds: both now take the strict side of call 8. The kit never scheduled PadCheck, so that row's machine half had no way to be read after the tree moved: the step and its kept line are above. `Fresh` could read `FAIL` on a fresh save when a real first run was refused, or when the shut list had grown since the package: it now reads the build's own list, and only a run no file in the folder can predate.
 - `S1_kit.md` still offered `-IncludeLogs`, which `Export_Logs.ps1` no longer has, and its redist path held a vertical tab.
