@@ -12,6 +12,7 @@ exactly; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows
 window. One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
+  TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> intervals    (median of the CSV `swarm_ttk_s` cells against C.TTK.SWARM_STEERED_MAX)
 With --check, one verdict per arm and one overall (T-DIR-02 is HUMAN-measured, a bot reading is a bound). An arm is a run
 folder's label (<arm>_s<seed>, Tools/BotRuns.ps1); runs outside such a folder form one arm. A pooled mean hides builds that
 miss in opposite directions, so the overall verdict passes only when every arm passes on its own:
@@ -144,6 +145,33 @@ def sources_from_jsonl(path, lo, hi, owner=0):
 	return out
 
 
+def ttk_is_first_hit(jsonl_path):
+	"""False for a run from before the first-hit stamp (telemetry.md R-TEL-03): its `swarm_ttk_s` is spawn to death of every role,
+	so C.TTK.SWARM_STEERED_MAX cannot read it. Such runs are the ones whose run_start still carries `input_device`."""
+	if not jsonl_path or not os.path.exists(jsonl_path):
+		return False
+	with open(jsonl_path, encoding="utf-8") as f:
+		for line in f:
+			try:
+				rec = json.loads(line, object_pairs_hook=first_wins)
+			except ValueError:
+				return False
+			return rec.get("kind") == "run_start" and "input_device" not in rec
+	return False
+
+
+def swarm_ttk(csv_path, jsonl_path):
+	"""{owner: (median of the interval cells of `swarm_ttk_s`, intervals with a sample)}; {} for a run that cannot read the band."""
+	if not csv_path or not os.path.exists(csv_path) or not ttk_is_first_hit(jsonl_path):
+		return {}
+	cells = {}
+	with open(csv_path, encoding="utf-8", newline="") as f:
+		for row in csv.DictReader(f):
+			if row.get("swarm_ttk_s"):
+				cells.setdefault(int(row["player"]), []).append(float(row["swarm_ttk_s"]))
+	return {owner: (statistics.median(v), len(v)) for owner, v in cells.items()}
+
+
 def window_rates(jsonl_path=None, csv_path=None, consts=None):
 	"""{owner: (dmg_share_per_min, dashes_per_min, alive_min)} and the source used ("jsonl", "csv" or None)."""
 	consts = consts or dtconst.load()
@@ -203,6 +231,7 @@ def main(argv):
 	consts = dtconst.load()
 	dmg_band = consts["DMG_TAKEN.BAND_MIN10_13"]["value"]
 	dash_band = consts["DASHES.BAND_MIN10_13"]["value"]
+	ttk_max = consts["TTK.SWARM_STEERED_MAX"]["value"]
 	runs = resolve(args)
 	if not runs:
 		print("PRESSURE: no run found")
@@ -223,6 +252,8 @@ def main(argv):
 					src = sources_from_jsonl(jsonl, lo, hi, owner)
 					detail = " ".join(f"{k} {v / alive:.3f}/min" for k, v in sorted(src.items(), key=lambda kv: -kv[1]))
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
+		for owner, (ttk, n) in sorted(swarm_ttk(csv_path, jsonl).items()):
+			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} intervals")
 	if check:
 		lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
 		if not readings:

@@ -6,13 +6,15 @@ Every run, from the first validation session on, leaves a per-interval CSV and a
 ## Rules
 - **R-TEL-01** The telemetry clock is the sim step count, never wall time: `UDTTelemetrySubsystem` runs in `EDTSimPhase::Director` (end of each step, R-TEC-03), and a CSV interval closes exactly when `C.TEL.INTERVAL_S` of sim time has passed since the last one.
 - **R-TEL-02** Every counter that has an owner is kept per player (R-TEC-01); the CSV has one row per player per interval with a `player` column. Events reach telemetry through the `FDTRunState` event sink with their `OwnerId`; an event whose owner is not a player of the run lands in no row and is counted in `run_end.unowned_events`.
-- **R-TEL-03** Swarm TTK is spawn-to-death sim time per enemy, measured without touching the enemy pool: telemetry mirrors the pool's spawn step per slot (stamped when the enemy system applies spawns), matches the events of `ResolveHits` to the hit list in order (one `Hit` per live target, then one `Kill` on death, R-ENM-05/06) and compacts the mirror as the pool compacts (R-ENM-07). The CSV reports the `C.TEL.TTK_PERCENTILE` of the interval's samples (nearest rank); a mismatch is counted in `run_end.mirror_desyncs` and those events still count, without source or TTK.
+- **R-TEL-03** Swarm TTK is the sim time from a Swarm enemy's first hit to its death, the reading `C.TTK.SWARM_STEERED_MAX` bounds: a one-shot kill reads zero, an elite of the role counts, and any other role gives no sample. It is measured without touching the enemy pool: telemetry mirrors each slot's role, stamps the slot's first hit, matches the events of `ResolveHits` to the hit list in order (one `Hit` per live target, then one `Kill` on death, R-ENM-05/06) and compacts the mirror as the pool compacts (R-ENM-07). The CSV reports the `C.TEL.TTK_PERCENTILE` of the interval's samples (nearest rank); a mismatch is counted in `run_end.mirror_desyncs` and those events still count, without source or TTK. How long an enemy walked in before the first hit is not measured: no reader needs it. Runs from before this rule hold spawn-to-death of every role in the same column; `Tools/pressure.py` refuses them.
 - **R-TEL-04** Hits and kills are never logged one line per event: each step writes at most one `hit` and one `kill` record per player. The `hit` record carries the count, the damage and the damage by source; the `kill` record carries the count, the count by source and the step's TTK as sums (`ttk_n`, `ttk_sum_s`, plus `ttk_min_s`/`ttk_max_s` when `ttk_n` is above zero) so a tool recombines exact means. Every per-kill TTK sample still feeds the CSV percentile (R-TEL-03).
 - **R-TEL-05** Damage, hits and kills are kept per (owner, source). A source is a small id on `FDTHit::SourceId` resolved through the name table `FDTTelemetrySources` (`Unknown`, `Stress`, later `Weapon.<Key>`, `Keeper.<Path>`, `Modifier.<Key>`); a hit nobody tagged is `Unknown`. Strings are never stored per hit.
 - **R-TEL-06** The CSV header is pinned (column list in §Data); changing it is a RULE change to this spec and its test.
 - **R-TEL-07** A session writes `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv` and `.jsonl` under the project's (or packaged build's) Saved directory (`FPaths::ProjectSavedDir`); this is the log export of the packaged build (`package.md` R-PKG-05, R-PKG-06: location and hand-over).
-- **R-TEL-08** Telemetry is deterministic: the same seed and the same steps give a byte-identical CSV and identical JSONL except wall-clock fields. A wall-clock field is named `wall` or `wall_*` and exists only where sim time cannot measure the quantity (`run_start.wall`; time spent in hands, which pause the sim: `offer_pick.wall_decide_s`, `run_end.wall_paused_s`); tools never compare them.
+- **R-TEL-08** Telemetry is deterministic: the same seed and the same steps give a byte-identical CSV and identical JSONL except wall-clock fields. A wall-clock field is named `wall` or `wall_*` and exists only where sim time cannot measure the quantity (`run_start.wall`, UTC; time spent in hands, which pause the sim: `offer_pick.wall_decide_s`, `run_end.wall_paused_s`); tools never compare them.
 - **R-TEL-09** Output is buffered in memory and appended off the game thread on one ordered pipe: flushed at every interval end and at run end (the last partial interval is written then, its rates over the elapsed time); the game thread never waits on disk except at run end.
+- **R-TEL-10** Where the hero was: every `C.TEL.HERO_POS_INTERVAL_S` of sim time one `hero_pos` record per player, and on every `hero_damaged` the hero's position when the hit landed and the position the hit came from: the enemy, the point a round was fired from (never where it touched the hero, which is the hero's own position), the attack's origin, or the safe ring's nearest edge. A round's record adds its velocity and its time in the air (`vel_x vel_y flight_s`), so its whole line and the warning it gave read from the record. The rate is set so a run's JSONL grows less than a twentieth (`Docs/Validation/S1_run_telemetry.md`).
+- **R-TEL-11** Damage has two readings. **Raw** is the hit as its emitter wrote it: `FDTHit::Damage`, crit, load and stats in, the Tank's plate, Shock and the enemy's remaining HP not yet considered; `FDTHeroHit::Damage`, the hero's i-frames and reductions not yet considered. **Applied** is the HP the hit removed: on an enemy after plate and Shock, clamped to the HP left, in whole points with the fraction carried per owner and source; on the hero `hero_damaged.amount`, after i-frames and reductions and not clamped, so a fatal hit reads whole. A `damage` field or column is applied, everywhere; a raw reading says so in its name (`damage_raw`, `damage_raw_by_attack`). Telemetry reads both where it matches hits to events (R-TEL-03).
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -21,6 +23,7 @@ Every run, from the first validation session on, leaves a per-interval CSV and a
 | Rate unit of the `*_per_min` columns | C.TEL.RATE_UNIT_S | CORE | §Data |
 | Swarm TTK percentile | C.TEL.TTK_PERCENTILE | CORE | R-TEL-03, C.TTK.SWARM_STEERED_MAX |
 | Nearest-enemy distance percentile | C.TEL.NEAREST_PERCENTILE | CORE | `nearest_enemy_uu` |
+| Sim time between `hero_pos` records | C.TEL.HERO_POS_INTERVAL_S | CORE | R-TEL-10, T-TEL-10 |
 | Level at which the value budget is checked | C.TEL.POWER_CHECK_LEVEL | CORE | `Tools/power_split.py`, C.POWER.KEEPER_SHARE_L16 |
 | Step rate (the clock) | C.SIM.FIXED_HZ | CORE | R-TEL-01 |
 
@@ -33,7 +36,7 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `run_time_s` | float | sim time at the end of the interval |
 | `player` | int | owner index (R-TEC-01) |
 | `kills_per_min` | float | kills per `C.TEL.RATE_UNIT_S` |
-| `swarm_ttk_s` | float | `C.TEL.TTK_PERCENTILE` of spawn-to-death times (R-TEL-03) |
+| `swarm_ttk_s` | float | `C.TEL.TTK_PERCENTILE` of a Swarm enemy's first-hit-to-death times (R-TEL-03); compares with `C.TTK.SWARM_STEERED_MAX` |
 | `damage_taken_per_min` | float | applied damage as a share of max HP (each hit ÷ max HP at that hit) per `C.TEL.RATE_UNIT_S`; compares with `C.DMG_TAKEN.BAND_MIN10_13` |
 | `dashes_per_min` | float | `Dash` events (`combat_core.md`) |
 | `level` | int | `FDTPlayerRunState::Level` at the interval end |
@@ -42,15 +45,16 @@ CSV columns, in order (one row per player per interval; empty cell = no sample i
 | `threat_actions_per_min` | float | threat actions started within the threat ring of this player's hero (`director.md`, `enemies.md`) |
 | `nearest_enemy_uu` | float | `C.TEL.NEAREST_PERCENTILE` over steps of the nearest enemy to this player's hero |
 | `hits_per_min`, `damage_dealt_per_min` | float | this player's hits and damage dealt; an event holds whole points and the fraction carries per owner and source, so ticks below one point add up |
-| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` (`Dusktracer.Build.cs`: short git hash, `+dirty` with local changes) or `unknown` without git; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`) |
+| `seed`, `build`, `culture`, `input_device` | text | run seed; `DT_BUILD_HASH` (`Dusktracer.Build.cs`: short git hash, `+dirty` with local changes) or `unknown` without git; current culture; `kbm`, `pad` or `unknown`: last gameplay input device (`combat_core.md`); the column is the only device reading, since no input exists when `run_start` is written |
 
 JSONL: one object per line; every record starts with `t` (sim seconds), `step`, `kind`, `owner` (`-1` = the run). A key appears once per object: a record's own sort of thing is `hit_kind`, `hand_kind` or `card_kind`, never a second `kind`. Runs from before the renames repeat `kind` in `hero_damaged` (hit kind) and `offer_pick` (card kind); the record kind comes first, so tools read old runs through `pressure.first_wins`.
 
 | Kind | Fields | When |
 |---|---|---|
-| `run_start` | `seed players culture build input_device interval_s step_s wall` | session start (`wall` is the only wall-clock field) |
-| `kill` | `kills kills_by_source{name: kills} ttk_n ttk_sum_s`, `ttk_min_s ttk_max_s` (when `ttk_n` is above zero) | once per player per step with kills (R-TEL-04); `ttk_n` counts the kills whose TTK is known |
+| `run_start` | `seed players culture build interval_s step_s wall` | session start (`wall`, UTC, is the only wall-clock field) |
+| `kill` | `kills kills_by_source{name: kills} ttk_n ttk_sum_s`, `ttk_min_s ttk_max_s` (when `ttk_n` is above zero) | once per player per step with kills (R-TEL-04); `ttk_n` counts the Swarm kills, the only ones with a TTK (R-TEL-03) |
 | `hit` | `hits damage damage_by_source{name: damage}` | once per player per step with hits (R-TEL-04) |
+| `hero_pos` | `x y` (whole uu) | per player every `C.TEL.HERO_POS_INTERVAL_S` (R-TEL-10) |
 | `sources` | `interval damage{} kills{} hits{}` by source name | per player at each interval end |
 | `run_end` | `reason steps unowned_events mirror_desyncs` | session end; `reason` is `death`, `victory`, `quit`, `restart`, `abandoned` (`settings.md` R-SET-22, R-SET-23), `bot_timeout` or an end-play name |
 
@@ -63,13 +67,16 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 ## Acceptance
 - T-TEL-01 `Dusktracer.Telemetry.IntervalSimClock`: no row one step before the interval ends, one row on its last step, and further rows follow steps with no wall time passing.
 - T-TEL-02 `Dusktracer.Telemetry.PerPlayer`: two players' kills, damage and level land in their own rows; an event for a non-player is in no row.
-- T-TEL-03 `Dusktracer.Telemetry.SwarmTtk`: spawn-to-death times are exact through overkill, a stale index and compaction; the row reports the percentile; no desync.
+- T-TEL-03 `Dusktracer.Telemetry.SwarmTtk`: first-hit-to-death times of Swarm enemies are exact through overkill, a stale index and compaction; a one-shot reads zero, a Tank gives no sample; the row reports the percentile; no desync.
 - T-TEL-04 `Dusktracer.Telemetry.HitsPerStep`: N hits in one step give one `hit` record with the count and damage; two owners give one each; N kills by one player in one step give one `kill` record with `kills` = N, the counts by source and the TTK sums.
 - T-TEL-05 `Dusktracer.Telemetry.Sources`: the name table is stable; kills and damage are credited per (owner, source) to the hit that landed them.
 - T-TEL-06 `Dusktracer.Telemetry.CsvHeader`: the header equals the pinned column list.
 - T-TEL-07 `Dusktracer.Telemetry.Files`: files go to `Saved/Playtests/<seed>_<yyyymmdd_hhmmss>.csv|.jsonl` and exist after a write.
 - T-TEL-08 `Dusktracer.Telemetry.Determinism`: a real fight (enemy and bullet pools) twice with the same seed gives an identical CSV and JSONL except `wall` / `wall_*` fields; another seed differs.
 - T-TEL-09 `Dusktracer.Telemetry.Buffered`: mid-interval output is only buffered events; run end writes the partial row and `run_end`; appends land in order.
+- T-TEL-10 `Dusktracer.Telemetry.HeroPosition`: one `hero_pos` per player on the sim clock, in whole uu. `Dusktracer.Telemetry.RunEnd`: a fatal `hero_damaged` carries the two positions apart, `run_start` claims no device, its `wall` is UTC. `Dusktracer.Telemetry.RoundSource`: in a real world a round's `hero_damaged` reads its firing point, velocity and time in the air.
+- T-TEL-11 `Dusktracer.Telemetry.CastWindow`: a cast's window reads raw and applied apart (overkill), counts only the cast's sources, only inside the window, and enemies once; a window the run cut short is written `complete` false.
+- T-TEL-12 `Dusktracer.Telemetry.LoadoutRecords`: in a real world `UDTWeaponSubsystem` writes `weapon_acquired`, `weapon_level`, `modifier_socketed`, both `modifier_dormant` changes, and the interval's `weapon` record with its level, load rank and emissions.
 - HUMAN: after a stress-arena run, `Saved/Playtests` holds the run's pair of files and `python -I Tools/power_split.py` reads them.
 
 ## Telemetry

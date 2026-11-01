@@ -37,6 +37,16 @@ struct FDTWeaponCounters
 	int64 Impacts = 0;   // hits this weapon's emissions made, seen by the weapon system
 	int64 DuoFields = 0; // of Spawned: emissions a duo reaction's field spent on this weapon (S2_perf.md)
 	int64 DuoFieldsThrottled = 0; // of Throttled: duo fields the spawn-rate cap dropped
+	int64 ReportedSpawned = 0;   // Spawned and Throttled already handed to telemetry (TakeEmissions)
+	int64 ReportedThrottled = 0;
+};
+
+/** A socket whose dormancy changed (modifiers.md R-MOD-08), for modifier_dormant. */
+struct FDTWeaponDormancy
+{
+	int32 OwnerId = INDEX_NONE;
+	FName Weapon;
+	FDTDormancyChange Change;
 };
 
 /** One weapon visual for the renderer: cool core or a zone tinted by the leading Keeper (R-WPN-11), or a control cue (R-PRE-11). */
@@ -198,6 +208,10 @@ public:
 
 	// --- read side -----------------------------------------------------------------------------------------------
 	const FDTWeaponCounters& GetCounters(int32 OwnerId, int32 Slot) const;
+	/** Emissions of one weapon since the last call (the subsystem forwards them to telemetry, weapons.md §Telemetry). */
+	void TakeEmissions(int32 OwnerId, int32 Slot, int32& OutSpawned, int32& OutThrottled);
+	/** Dormancy changes since the last call (the subsystem forwards them to telemetry, modifiers.md §Telemetry). */
+	TArray<FDTWeaponDormancy> TakeDormancyChanges() { return MoveTemp(DormancyChanges); }
 	/** Composed spec of the last StepWeapons (empty spec when none). */
 	const FDTWeaponSpec& GetLastSpec(int32 OwnerId, int32 Slot) const;
 	int32 GetLiveMines(int32 OwnerId, int32 Slot) const;
@@ -781,6 +795,8 @@ private:
 	TSet<FName> ShutStarters;
 	const FDTBulletPool* LastBullets = nullptr;
 	uint32 NextRoundId = 0;
+	TArray<FDTDormancyChange> DormancyScratch;
+	TArray<FDTWeaponDormancy> DormancyChanges;
 	/** Enemies struck this step by a melee arc or a slam whose flag carries burning_explode_on_death_uu. */
 	TSet<uint32> StepCleaved;
 	TSet<uint32> StepSlammed;

@@ -2,13 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/DTRunSeed.h"
 #include "Engine/TimerHandle.h"
 #include "GameFramework/GameModeBase.h"
 #include "DTGameMode.generated.h"
 
 /**
  * Default pawn ADTHero (one per local player, OwnerId = local player index) at the origin, followed by the ADTCameraPawn
- * (player 0); HUD ADTHUD. On BeginPlay starts a run seeded from the map's DTSeed option, else -DTSeed=<n> (default 0), and its telemetry session
+ * (player 0); HUD ADTHUD. On BeginPlay starts a run on GetRunSeed (07_Technical R-TEC-16) and its telemetry session
  * (02_Systems/telemetry.md) and the director (UDTDirector; -DTNoDirector keeps it off); EndPlay ends the session. When every hero is down the run ends with reason Death
  * (telemetry session ended "death"; the sim keeps stepping so debug and measurement paths still run).
  *
@@ -44,14 +45,12 @@ public:
 	/** True in a hub world: no run, no hero, no telemetry session. */
 	bool IsHub() const { return bHub; }
 
-	/** The run seed from the command line (-DTSeed=<n>), 0 when absent. */
-	static int32 GetCommandLineSeed();
+	/** The seed of this world's run: the map's DTSeed option (a restart, settings.md R-SET-24), else UDTSimSubsystem::GetLaunchSeed. */
+	static FDTRunSeed GetRunSeed(const UWorld* World);
+	/** Url's DTSeed option, read by the rule -DTSeed is (07_Technical R-TEC-16); with none, Launch. */
+	static FDTRunSeed ParseSeed(const FURL& Url, const FDTRunSeed& Launch);
 
-	/** The seed of this world's run: the map's DTSeed option (a restart, settings.md R-SET-24), else the command line. */
-	static int32 GetRunSeed(const UWorld* World);
-	static int32 ParseSeed(const FURL& Url, const TCHAR* CommandLine);
-
-	/** A positive seed from the wall clock, never Current (R-SET-26). */
+	/** A fresh seed from the wall clock, never Current (R-SET-26). */
 	static int32 NextSeed(int32 Current, uint32 Entropy);
 
 	/** The player gave the run up: it now reads as over (R-SET-22); the menu closes its telemetry. */

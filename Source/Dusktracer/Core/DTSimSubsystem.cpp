@@ -22,6 +22,15 @@ TStatId UDTSimSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UDTSimSubsystem, STATGROUP_Tickables);
 }
 
+const FDTRunSeed& UDTSimSubsystem::GetLaunchSeed()
+{
+	if (!LaunchSeed.IsSet())
+	{
+		LaunchSeed = FDTRunSeed::ForThisLaunch();
+	}
+	return LaunchSeed.GetValue();
+}
+
 void UDTSimSubsystem::StartRun(int32 RunSeed, int32 NumPlayers)
 {
 	Run.Start(RunSeed, NumPlayers);

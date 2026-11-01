@@ -51,6 +51,14 @@ void UDTDirector::Deinitialize()
 	{
 		SimSystem->Unregister(this);
 	}
+	if (UDTHeroSubsystem* HeroSystem = Heroes.Get())
+	{
+		HeroSystem->OnAllHeroesDown.Remove(AllDownHandle);
+	}
+	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
+	{
+		Telemetry->OnSessionEnding.Remove(SessionEndingHandle);
+	}
 	if (MarkerRenderer)
 	{
 		MarkerRenderer->Destroy();
@@ -75,6 +83,24 @@ void UDTDirector::OnWorldBeginPlay(UWorld& InWorld)
 	{
 		UE_LOG(LogDT, Error, TEXT("UDTDirector: no UDTSimSubsystem in this world; the director will not step"));
 	}
+	if (UDTHeroSubsystem* HeroSystem = Heroes.Get())
+	{
+		AllDownHandle = HeroSystem->OnAllHeroesDown.AddUObject(this, &UDTDirector::HandleAllHeroesDown);
+	}
+	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
+	{
+		SessionEndingHandle = Telemetry->OnSessionEnding.AddUObject(this, &UDTDirector::HandleSessionEnding);
+	}
+}
+
+void UDTDirector::HandleAllHeroesDown(int64 StepIndex)
+{
+	Core.CloseRun(TEXT("death"), Sink);
+}
+
+void UDTDirector::HandleSessionEnding(const FString& Reason)
+{
+	Core.CloseRun(*Reason, Sink);
 }
 
 void UDTDirector::StartRun()

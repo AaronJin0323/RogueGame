@@ -1,5 +1,6 @@
 #include "Hub/DTHubSubsystem.h"
 #include "Combat/DTWeaponSubsystem.h"
+#include "Core/DTSimSubsystem.h"
 #include "Dusktracer.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"
@@ -66,8 +67,9 @@ bool UDTHubSubsystem::IsAcceptHeld() const
 
 void UDTHubSubsystem::BeginRun()
 {
-	const int32 CommandSeed = ADTGameMode::GetCommandLineSeed();
-	const int32 Seed = CommandSeed != 0 ? CommandSeed : ADTGameMode::NextSeed(0, FPlatformTime::Cycles());
+	UDTSimSubsystem* const Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr;
+	const FDTRunSeed Launch = Sim ? Sim->GetLaunchSeed() : FDTRunSeed::ForThisLaunch();
+	const int32 Seed = Launch.Source == EDTSeedSource::Tool ? ADTGameMode::NextSeed(Launch.Seed, FPlatformTime::Cycles()) : Launch.Seed;
 	PendingOptions = DTHubData::RunOptions(Seed, State.Selected, *Profile());
 	bBeginPending = true; // as a restart: the key that chose it comes up first, so it never reaches the run (settings.md R-SET-23)
 }

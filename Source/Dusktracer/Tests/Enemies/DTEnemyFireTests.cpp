@@ -179,6 +179,10 @@ bool FDTEnemyFireHitHero::RunTest(const FString& Parameters)
 		TestEqual(TEXT("kind Bullet"), Hit.Kind, EDTHeroHitKind::Bullet);
 		TestEqual(TEXT("round damage"), Hit.Damage, static_cast<float>(DTConst::ENEMY_FIRE_SHOT_DAMAGE));
 		TestEqual(TEXT("attack id"), Hit.AttackId, FName(TEXT("Turret.Fire")));
+		TestEqual(TEXT("it came from the firing point, not the touch"), Hit.Position, FVector2f(-200.0f, 0.0f));
+		TestEqual(TEXT("the round's velocity"), Hit.RoundVelocity, FVector2f(Speed, 0.0f));
+		const float Reach = static_cast<float>(DTConst::ENEMY_FIRE_SHOT_RADIUS_UU + DTConst::HERO_RADIUS_UU);
+		TestEqual(TEXT("its time in the air, within a step"), Hit.RoundFlightSeconds, (200.0f - Reach) / Speed, Dt);
 	}
 	TestEqual(TEXT("the hitting round is removed, the other passed through"), Pool.Num(), 1);
 	TestTrue(TEXT("the survivor flew past the intangible hero"), Pool.Num() == 1 && Pool.GetPositions()[0].Y == 1000.0f && Pool.GetPositions()[0].X > 200.0f);

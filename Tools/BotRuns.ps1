@@ -1,9 +1,9 @@
 # Bot run harness (Docs/02_Systems/bot.md; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
 #   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-ArmSet S2Keepers] [-Seeds 10] [-FirstSeed 1] [-BotVersion 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
-#                       [-Jobs <jobs.csv>] [-Stagger 1.5]
+#                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly]
 # -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
-# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
+# Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
 # R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
@@ -16,6 +16,8 @@
 # -Carry runs the measuring arm of R-BOT-18: every -Arms arm once per weapon, unlocking only that weapon, labelled <arm>-Carry-<Name>.
 # -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
+# -Policy BlessingsOnly filters the Steered arms' cards: Weapon and WeaponUpgrade are passed, as the owner's run did
+# (Docs/Validation/S1_owner_run.md). All, the default, passes nothing to the game, so the runs and their input_hash stay as they were.
 param(
 	[string[]]$Arms = @(),
 	[string]$ArmSet = "",
@@ -41,7 +43,8 @@ param(
 	# R-BOT-18: that arm's control, which takes the Path card at the Reforging hand.
 	[switch]$CarryHold,
 	# meta.md R-MET-23: reads the fresh-save pool, a person's first run, instead of the full pool (-DTPoolGate, no save).
-	[switch]$FreshPool
+	[switch]$FreshPool,
+	[ValidateSet("All", "BlessingsOnly")][string]$Policy = "All"
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
@@ -66,11 +69,19 @@ if ($ArmSet -eq "S2Keepers") {
 		"Steered:Quicksilver:Vector:Forge", "Steered:Quicksilver:Momentum:Storm", "Steered:Quicksilver:Rebound:Storm")
 }
 if ($Arms.Count -eq 0) { $Arms = @("None") }
+if ($Policy -ne "All") {
+	# Only Steered scores cards: anywhere else the filter would change nothing and the reading would claim it had.
+	if ($Jobs) { throw "-Policy $Policy reads Steered arms, not -Jobs" }
+	$NotSteered = @($Arms | Where-Object { ($_ -split ':')[0] -ne "Steered" })
+	if ($NotSteered.Count -gt 0) { throw "-Policy $Policy reads Steered arms, not $($NotSteered -join ' ')" }
+	# The filter sits in v1's card score (DTBotBrain CardScore): v2 would ignore it and the reading would claim it had run.
+	if ($BotVersion -ne 1) { throw "-Policy $Policy reads bot v1, not -BotVersion $BotVersion" }
+}
 if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant "DIR.BOT_RUNS") } else { 1 } }
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
-Write-Host ("botruns: arms {0}, seeds {1}..{2}, version {3}, skill {4}, {5} steps/frame -> {6}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $BotVersion, $Skill, $Steps, $Out)
+Write-Host ("botruns: arms {0}, seeds {1}..{2}, version {3}, skill {4}, policy {5}, {6} steps/frame -> {7}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $BotVersion, $Skill, $Policy, $Steps, $Out)
 
 $Unlock = @($Unlock | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 if ($Unlock -contains "S2") {
@@ -150,15 +161,16 @@ if ($Carry -contains "All") { $Carry = @(Import-Csv (Join-Path $Root "Docs\09_Ca
 $CarryRuns = if ($Carry.Count) { $Carry } else { @("") }
 foreach ($Arm in $Arms) {
 	$Parts = $Arm -split ':'
-	$Policy = $Parts[0]
 	foreach ($Weapon in $CarryRuns) {
 		$Label = ($Parts -join '-') + $(if ($Weapon) { "-Carry-" + ($Weapon -replace '^Weapon\.', '') } else { "" })
 		foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
-			$Extra = @("-DTBot=$Policy", "-DTBotMaxSeconds=$MaxSeconds")
+			$Extra = @("-DTBot=$($Parts[0])", "-DTBotMaxSeconds=$MaxSeconds")
 			if ($FreshPool) { $Extra += "-DTPoolGate" }
 			if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
 			if ($Parts.Count -gt 2) { $Extra += "-DTBotArchetype=$($Parts[2])" }
 			if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
+			if ($Parts.Count -gt 4) { $Extra += "-DTBotSecondArchetype=$($Parts[4])" }
+			if ($Policy -ne "All") { $Extra += "-DTBotPick=$Policy" }
 			$Unlocks = @($Parts | Select-Object -Skip 1 | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
 			if ($Weapon) {
 				$Unlocks += $Weapon

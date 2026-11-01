@@ -1,5 +1,6 @@
 #include "Game/DTGameMode.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CoreGlobals.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Boss/DTBossSubsystem.h"
@@ -10,6 +11,7 @@
 #include "Game/DTHUD.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/PlatformMisc.h"
 #include "Hub/DTHubFlow.h"
 #include "Hub/DTHubSubsystem.h"
 #include "Player/DTHero.h"
@@ -21,7 +23,6 @@
 
 #if !UE_BUILD_SHIPPING
 #include "HAL/FileManager.h"
-#include "HAL/PlatformMisc.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealClient.h"
@@ -39,35 +40,29 @@ ADTGameMode::ADTGameMode()
 	HUDClass = ADTHUD::StaticClass();
 }
 
-int32 ADTGameMode::GetCommandLineSeed()
+FDTRunSeed ADTGameMode::GetRunSeed(const UWorld* World)
 {
-	int32 Seed = 0;
-	FParse::Value(FCommandLine::Get(), TEXT("DTSeed="), Seed);
-	return Seed;
+	UDTSimSubsystem* const Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
+	return Sim ? ParseSeed(World->URL, Sim->GetLaunchSeed()) : FDTRunSeed::ForThisLaunch();
 }
 
-int32 ADTGameMode::GetRunSeed(const UWorld* World)
+FDTRunSeed ADTGameMode::ParseSeed(const FURL& Url, const FDTRunSeed& Launch)
 {
-	return World ? ParseSeed(World->URL, FCommandLine::Get()) : GetCommandLineSeed();
-}
-
-int32 ADTGameMode::ParseSeed(const FURL& Url, const TCHAR* CommandLine)
-{
-	int32 Seed = 0;
-	if (const TCHAR* Option = Url.GetOption(TEXT("DTSeed="), nullptr))
+	const TCHAR* const Option = Url.GetOption(TEXT("DTSeed="), nullptr);
+	if (!Option)
 	{
-		LexFromString(Seed, Option);
-		return Seed;
+		return Launch;
 	}
-	FParse::Value(CommandLine, TEXT("DTSeed="), Seed);
-	return Seed;
+	FDTRunSeed Result;
+	Result.Source = FDTRunSeed::ParseValue(FString(Option), Result.Seed) ? EDTSeedSource::Explicit : EDTSeedSource::Rejected;
+	return Result;
 }
 
 int32 ADTGameMode::NextSeed(int32 Current, uint32 Entropy)
 {
-	// Keeps to the positive half so the file name reads as a launcher's; a hit on the old seed or zero steps past it.
-	const int32 Mixed = static_cast<int32>(GetTypeHash(HashCombine(GetTypeHash(Current), Entropy)) & MAX_int32);
-	return Mixed == Current || Mixed == 0 ? (Current == 1 ? 2 : 1) : Mixed;
+	// One range for every fresh seed (07_Technical R-TEC-16); a hit on the old seed steps past it.
+	const int32 Fresh = FDTRunSeed::FreshFromEntropy(HashCombine(GetTypeHash(Current), Entropy));
+	return Fresh == Current ? (Current == FDTRunSeed::FreshMin ? FDTRunSeed::FreshMin + 1 : FDTRunSeed::FreshMin) : Fresh;
 }
 
 void ADTGameMode::AbandonRun()
@@ -91,21 +86,34 @@ void ADTGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	UWorld* const MyWorld = GetWorld();
-	if (bHub)
-	{
-		if (UDTHubSubsystem* const Hub = MyWorld ? MyWorld->GetSubsystem<UDTHubSubsystem>() : nullptr)
-		{
-			Hub->Enter();
-		}
-		return;
-	}
 	UDTSimSubsystem* const Sim = MyWorld ? MyWorld->GetSubsystem<UDTSimSubsystem>() : nullptr;
 	if (!Sim)
 	{
 		UE_LOG(LogDT, Error, TEXT("ADTGameMode: no UDTSimSubsystem in this world; run not started"));
 		return;
 	}
-	const int32 Seed = GetRunSeed(MyWorld);
+	// Before the hub, which would sit on a seed that can never run.
+	const FDTRunSeed RunSeed = GetRunSeed(MyWorld);
+	if (RunSeed.Source == EDTSeedSource::Rejected)
+	{
+		// 07_Technical R-TEC-16: no run on a seed nobody asked for. Only a forced exit carries the code on Windows, and with no
+		// run started there is nothing to save; Play in the editor keeps the editor, and whatever it has unsaved, open.
+		UE_LOG(LogDT, Error, TEXT("Run not started: -DTSeed must be a whole number from %d to %d"), MIN_int32, MAX_int32);
+		if (!GIsEditor)
+		{
+			FPlatformMisc::RequestExitWithStatus(true, FDTRunSeed::RejectedExitCode, TEXT("DT rejected -DTSeed"));
+		}
+		return;
+	}
+	if (bHub)
+	{
+		if (UDTHubSubsystem* const Hub = MyWorld->GetSubsystem<UDTHubSubsystem>())
+		{
+			Hub->Enter();
+		}
+		return;
+	}
+	const int32 Seed = RunSeed.Seed;
 	Sim->StartRun(Seed, 1);
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld->GetSubsystem<UDTTelemetrySubsystem>())
 	{

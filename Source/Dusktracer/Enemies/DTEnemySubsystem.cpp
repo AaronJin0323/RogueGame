@@ -292,10 +292,10 @@ void UDTEnemySubsystem::SimStep(const FDTSimContext& Context)
 {
 	const bool bCleared = bClearPending;
 	ApplyRequests(Context);
-	// Telemetry hook (read-only): stamps the spawn step of new slots for swarm TTK (02_Systems/telemetry.md R-TEL-03).
+	// Telemetry hook (read-only): mirrors the role of new slots for swarm TTK (02_Systems/telemetry.md R-TEL-03).
 	if (UDTTelemetrySubsystem* Telemetry = GetWorld() ? GetWorld()->GetSubsystem<UDTTelemetrySubsystem>() : nullptr)
 	{
-		Telemetry->OnEnemiesSpawned(Context.StepIndex, bCleared, Pool.Num());
+		Telemetry->OnEnemiesSpawned(Context.StepIndex, bCleared, Pool.Num(), Pool.GetRoles());
 	}
 	Pool.StepEnemies(Context);
 	// Threat actions started this step go to telemetry from here, on the game thread (enemies.md Telemetry).
@@ -316,7 +316,7 @@ void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 	Pool.ResolveHits(Context);
 	if (Telemetry)
 	{
-		Telemetry->EndResolve(Pool.Num());
+		Telemetry->EndResolve(Pool.Num(), Pool.GetRoles());
 		ForwardEliteDeaths(Pool, Telemetry->Records());
 	}
 }

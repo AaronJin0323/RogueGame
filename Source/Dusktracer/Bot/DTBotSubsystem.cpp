@@ -38,6 +38,10 @@ namespace DTBotSubsystemLocal
 		TEXT("Bot Steered: second Keeper Path (empty = the fixed default for the Patron)."), ECVF_Default);
 	static TAutoConsoleVariable<int32> CVarBotVersion(TEXT("dt.Bot.Version"), 1,
 		TEXT("Bot version: 1 = the S1 bot, frozen (bot.md R-BOT-01); 2 = bot v2. Read at world begin play (-DTBotVersion=)."), ECVF_Default);
+	static TAutoConsoleVariable<FString> CVarBotSecondArchetype(TEXT("dt.Bot.SecondArchetype"), TEXT(""),
+		TEXT("Bot v1 Steered: the second Keeper's archetype name, taken before the Patron's (empty = no preference)."), ECVF_Default);
+	static TAutoConsoleVariable<FString> CVarBotPick(TEXT("dt.Bot.Pick"), TEXT("All"),
+		TEXT("Bot v1 Steered card filter: All, or BlessingsOnly (passes Weapon and WeaponUpgrade cards, S1_owner_run.md)."), ECVF_Default);
 	static TAutoConsoleVariable<float> CVarBotSkill(TEXT("dt.Bot.Skill"), 1.0f,
 		TEXT("Bot skill 0..1. 1 = no reaction delay, no error. Below 1: v1 adds delay and noise, v2 is the profile of bot.md R-BOT-04..11."), ECVF_Default);
 	static TAutoConsoleVariable<int32> CVarBotFast(TEXT("dt.Bot.Fast"), 0,
@@ -96,7 +100,7 @@ TStatId UDTBotSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UDTBotSubsystem, STATGROUP_Tickables);
 }
 
-FDTBotConfig UDTBotSubsystem::ReadConfig()
+FDTBotConfig UDTBotSubsystem::ReadConfig() const
 {
 	using namespace DTBotSubsystemLocal;
 	const TCHAR* Cmd = FCommandLine::Get();
@@ -106,6 +110,8 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	if (FParse::Value(Cmd, TEXT("DTBotArchetype="), Text)) { SetCVar(TEXT("dt.Bot.Archetype"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotSecond="), Text)) { SetCVar(TEXT("dt.Bot.Second"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotVersion="), Text)) { SetCVar(TEXT("dt.Bot.Version"), Text); }
+	if (FParse::Value(Cmd, TEXT("DTBotSecondArchetype="), Text)) { SetCVar(TEXT("dt.Bot.SecondArchetype"), Text); }
+	if (FParse::Value(Cmd, TEXT("DTBotPick="), Text)) { SetCVar(TEXT("dt.Bot.Pick"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotSkill="), Text)) { SetCVar(TEXT("dt.Bot.Skill"), Text); }
 	if (FParse::Value(Cmd, TEXT("DTBotFast="), Text)) { SetCVar(TEXT("dt.Bot.Fast"), Text); }
 	else if (FParse::Param(Cmd, TEXT("DTBotFast"))) { SetCVar(TEXT("dt.Bot.Fast"), FString::FromInt(DefaultFastSteps)); }
@@ -119,6 +125,9 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	Config.Archetype = FName(*CVarBotArchetype.GetValueOnGameThread());
 	Config.SecondPath = FDTBotConfig::ParsePath(CVarBotSecond.GetValueOnGameThread());
 	Config.Version = FDTBotConfig::KnownVersion(CVarBotVersion.GetValueOnGameThread());
+	const FString SecondArchetype = CVarBotSecondArchetype.GetValueOnGameThread();
+	Config.SecondArchetype = SecondArchetype.IsEmpty() ? FName() : FName(*SecondArchetype);
+	Config.Pick = FDTBotConfig::ParsePick(CVarBotPick.GetValueOnGameThread());
 	Config.Skill = CVarBotSkill.GetValueOnGameThread();
 	Config.bPrimaryFirst = FParse::Param(FCommandLine::Get(), TEXT("DTBotPrimaryFirst"));
 	if (FParse::Value(Cmd, TEXT("DTBotCarry="), Text))
@@ -126,7 +135,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 		Config.CarryWeapon = FName(*Text);
 		Config.bCarryHold = FParse::Param(Cmd, TEXT("DTBotCarryHold"));
 	}
-	Config.Seed = ADTGameMode::GetCommandLineSeed();
+	Config.Seed = Sim.IsValid() ? Sim->GetLaunchSeed().Seed : 0;
 	return Config;
 }
 
@@ -134,7 +143,7 @@ void UDTBotSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 	FDTBotConfig Config = ReadConfig();
-	Config.Seed = ADTGameMode::GetRunSeed(&InWorld); // a restarted run's seed is the map's (settings.md R-SET-24)
+	Config.Seed = ADTGameMode::GetRunSeed(&InWorld).Seed; // a restarted run's seed is the map's (settings.md R-SET-24)
 	if (Config.Policy != EDTBotPolicy::Off)
 	{
 		StepsPerFrame = FMath::Max(0, DTBotSubsystemLocal::CVarBotFast.GetValueOnGameThread());

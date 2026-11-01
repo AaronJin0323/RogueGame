@@ -40,7 +40,7 @@ public:
 	virtual void SpawnChest(const FVector2f& Position) = 0;
 	/** R-DIR-13: once per run, at the boss row's start. */
 	virtual void BossTime(float RunSeconds) = 0;
-	/** R-DIR-15: one per ended block; the sink fills the per-player numbers (DamageTakenShare, Dashes) before writing. */
+	/** R-DIR-15: one per ended block, and one for the block open at the run's end; the sink fills the per-player numbers (DamageTakenShare, Dashes) before writing. */
 	virtual void BlockEnded(FDTTelDirBlock& Block) = 0;
 };
 
@@ -105,6 +105,11 @@ public:
 	void StartRun();
 	/** Back to Idle: no block, nothing spawns. */
 	void Stop();
+	/**
+	 * R-DIR-15: the run is over, so the open block ends now with EndedBy (the session's end reason). Writes only: the state
+	 * machine, its clock and its draws are untouched, and any step after this writes no record. Once per run.
+	 */
+	void CloseRun(const TCHAR* EndedBy, IDTDirectorSink& Sink);
 	bool IsRunning() const { return Block != EDTDirBlock::Idle; }
 
 	/** One fixed step (see the step order in DTDirectorCore.cpp). */
@@ -210,5 +215,7 @@ private:
 
 	FDTTelDirBlock Open;
 	TArray<float> KillDistances;
+	/** CloseRun wrote the run's last record. */
+	bool bRunClosed = false;
 	FDTDirectorTotals Totals;
 };

@@ -264,6 +264,12 @@ void UDTOfferSubsystem::ShowHand(int32 OwnerId, const FDTOfferHand& Hand)
 	FDTOfferPlayerStats& Stats = Flows[OwnerId].Stats;
 	Stats.CardsOffered += Hand.Cards.Num();
 	Stats.ReserveCards += Hand.Cards.FilterByPredicate([](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Reserve; }).Num();
+	TArray<TArray<FDTDormantSocket>>& Dormant = Flows[OwnerId].Dormant;
+	Dormant.Reset();
+	for (const FDTOfferCard& Card : Hand.Cards)
+	{
+		Dormant.Add(DTOffers::DormantAfterPick(GetRun()->GetPlayer(OwnerId), Card));
+	}
 }
 
 bool UDTOfferSubsystem::OpenNext(int32 OwnerId)
@@ -922,6 +928,7 @@ void UDTOfferSubsystem::DrawScreen(UCanvas* Canvas)
 	FDTOfferScreenModel Model;
 	Model.Hand = Hand;
 	Model.Player = &Run->GetPlayer(Owner);
+	Model.Dormant = &Flows[Owner].Dormant;
 	Model.Focus = Flows[Owner].Focus;
 	Model.bGuardActive = !Flows[Owner].Guard.Allows(FPlatformTime::Seconds());
 	Screen->Draw(Canvas, Model);

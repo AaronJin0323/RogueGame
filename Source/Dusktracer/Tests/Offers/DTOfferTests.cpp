@@ -850,6 +850,19 @@ bool FDTOfferAntiFrustrationTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(FString::Printf(TEXT("below the weapon floor a new weapon is offered (%d hands)"), Hands), Missing, 0);
 
+	// R-OFF-11 (b) binds level-up hands: a chest hand keeps no slot for it (R-OFF-14), so some have no new weapon.
+	int32 ChestsWithout = 0;
+	for (int32 Seed = 1; Seed <= 300; ++Seed)
+	{
+		FSimRun Sim(Seed);
+		Sim.ChoosePatron(static_cast<EDTPath>(Seed % 3));
+		Sim.Weapons.Give(Sim.Run, 0, PulseRifle, 1);
+		Sim.P().Level = DTConst::OFFER_FORCE_WEAPON_LEVEL;
+		const FDTOfferHand Hand = Sim.Hand(EDTHandKind::Chest, DTConst::OFFER_FORCE_WEAPON_LEVEL);
+		ChestsWithout += Hand.Cards.ContainsByPredicate([](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Weapon; }) ? 0 : 1;
+	}
+	TestTrue(TEXT("the weapon floor forces nothing into a chest hand"), ChestsWithout > 0);
+
 	FDTOfferInputGuard Guard;
 	Guard.Open(100.0);
 	TestFalse(TEXT("a confirm inside the guard picks nothing"), Guard.Allows(100.0 + 0.5 * DTConst::OFFER_INPUT_GUARD_S));

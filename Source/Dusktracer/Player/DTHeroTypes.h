@@ -128,6 +128,12 @@ struct FDTHeroEvent
 	EDTHeroHitKind HitKind = EDTHeroHitKind::Contact;
 	EDTEnemyRole SourceRole = EDTEnemyRole::Swarm;
 	FName AttackId;
+	/** HeroDamaged: where the hit found the hero, and where it came from (FDTHeroHit::Position). */
+	FVector2f HeroPos = FVector2f::ZeroVector;
+	FVector2f SourcePos = FVector2f::ZeroVector;
+	/** HeroDamaged, Kind Bullet: FDTHeroHit::RoundVelocity and RoundFlightSeconds. */
+	FVector2f RoundVelocity = FVector2f::ZeroVector;
+	float RoundFlightSeconds = 0.0f;
 	/** Intercession: the player's Patron Path. */
 	EDTPath Path = EDTPath::None;
 };

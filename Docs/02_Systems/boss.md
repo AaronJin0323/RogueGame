@@ -73,7 +73,7 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 
 ## Telemetry
 - JSONL records (`telemetry.md` format, `owner` `-1`): `boss_start{form, wins, players}`, `boss_phase{phase, fight_time_s, hp_frac, by_time}`, `boss_calibrated{window_dps, effective_max, clamped}`.
-- `boss_end{outcome, fight_time_s, hp_left_frac, phase, per_player{owner: {damage_taken_by_attack{}, dashes, hits_per_ring}}}`.
+- `boss_end{outcome, fight_time_s, hp_left_frac, phase, per_player{owner: {damage_raw_by_attack{}, dashes, hits_per_ring}}}`.
 - `ThreatAction{Role Boss, AttackId}` per attack started (same event as `enemies.md`).
 
 ## Text
@@ -93,6 +93,6 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 - T-BOS-08 holds because `slot 0` of every crossing ring flies at the target; "any distance" is bounded by the round range (`C.BOSS.ROUND_LIFE_S` times the ring speed), which covers the hazard arena; tested on eight bearings at three distances.
 - The behaviour numbers of the catalogue `notes` column (doc-only, D-014) became `C.BOSS.*` constants; `C.BOSS.WALK_SPEED_UU_S` and `C.BOSS.ROUND_LIFE_S` are ours and unmeasured → first S1 sessions.
 - Text: the boss name is `ST_UI` `Hud.BossName` (HUD text) until an `ST_Enemies` table exists → move it to `Enemy.Boss.Name` then.
-- `boss_end` `damage_taken_by_attack` sums `FDTHeroHit` damage before the hero's own reductions (the boss cannot see them).
+- `boss_end` `damage_raw_by_attack` sums `FDTHeroHit` damage before the hero's i-frames and reductions (the boss cannot see them), so it is raw (`telemetry.md` R-TEL-11): a hit the hero dashed through still counts. `hero_damaged` by `attack` is the applied reading. Runs from before the name wrote `damage_taken_by_attack`; no tool reads either.
 - The hazard ring is centred on the arena centre; a phase change does not cancel attacks already telegraphed, and a crossing ring completes its pair through a shift.
 - Run end on the boss's death: `UDTBossSubsystem` logs `Run end reason=victory`, broadcasts `OnBossDefeated` and ends the telemetry session; `ADTGameMode` (run over) and `ADTHUD` (`DrawBossBar`) hook it. Wins come from the meta save (S3), zero until then.

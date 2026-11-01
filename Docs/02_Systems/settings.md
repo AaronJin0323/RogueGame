@@ -70,7 +70,7 @@ Written from `reference/text_tables/ST_UI.csv` (`Pause.Abandon*`, `Controls.Acti
 - **R-SET-23** Restart run: telemetry closes an open session with `reason` `restart` (a run already closed keeps its `death` or `victory`), and a new run starts on the same map with a new seed, new files and a new `run_start`. The key that chose it must come up first, so a held Space or `A` never reaches the new run's first hand. `[invented]` the wait.
 - **R-SET-24** A restart is a clean reset because it is a map reload: every world subsystem and actor is rebuilt, and nothing of the sim survives in the process. The seed travels as the map's `DTSeed` option and overrides `-DTSeed`. The player's mapping contexts are cleared when the new hero adds its own. A restarted run with seed N plays exactly as a fresh launch with seed N: same input hash, same steps, same CSV.
 - **R-SET-25** Quit to desktop: telemetry closes an open session with `reason` `quit`, as an exit mid-run does (R-PKG-05), then the process exits.
-- **R-SET-26** The fresh seed comes from the wall clock, outside the sim, and never equals the run it replaces. It is positive, so the file name reads as a launcher's does.
+- **R-SET-26** The fresh seed comes from the wall clock, outside the sim, through `FDTRunSeed`, so it holds the fresh range of `07_Technical` R-TEC-16, and it never equals the run it replaces.
 - **R-SET-27** A dash or Intercession key held across any world pause (this menu or a hand) fires nothing when the world resumes: a press made while paused is dropped, and a held key needs a fresh press. Both actions run their triggers through the pause, so the release of the pause is no edge (R-CMB-02).
 - **R-SET-28** The whole loop is proved on a real launch with a real player controller, off-screen: `Tools/RestartCheck.ps1`, gate step `restart`.
 
@@ -119,7 +119,7 @@ Written from `reference/text_tables/ST_UI.csv` (`Pause.Abandon*`, `Controls.Acti
 - T-SET-23 `Dusktracer.Settings.Restart`: `run_end` reads `restart`; a closed run keeps its reason; a key held waits; the new seed is passed on once.
 - T-SET-24 `Dusktracer.Settings.RestartMatchesFresh`: after a played, dirty run through the restart path, seed N matches a fresh world on seed N by input hash, steps, hero state and CSV; another seed differs. The map's `DTSeed` overrides the command line.
 - T-SET-25 `Dusktracer.Settings.Quit`: from both screens `run_end` reads `quit` once and the exit is asked for.
-- T-SET-26 `Dusktracer.Settings.FreshSeed`: never the old seed, positive, and it moves with the clock.
+- T-SET-26 `Dusktracer.Settings.FreshSeed`: never the old seed, in the fresh range, and it moves with the clock.
 - T-SET-27 `Dusktracer.Settings.HeldAction`: dash and Intercession run through a pause, and a press in a paused world is dropped; `Tools/RestartCheck.ps1` proves it on real keys.
 - T-SET-28 `Tools/RestartCheck.ps1`: two launches on the map reload path match by `input_hash`, steps and CSV; the old run's file reads `restart`; on real injected keys a held Space through Resume dashes nothing, a fresh press dashes, a held Accept holds the restart until release, and the keys work after the reload.
 - HUMAN: off-screen shots cannot judge these. Keys and pad on real hands; Windowed and Fullscreen on a real desktop; volume once sound exists; a reader's view of the outlines in play, and of the largest text on the offer screen; the run-over screen and the time a reload takes, on a real package.

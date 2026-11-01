@@ -244,6 +244,13 @@ bool FDTReforgeCaps::RunTest(const FString& Parameters)
 		return false;
 	}
 	TestEqual(TEXT("socketed"), H.Weapons.Socket(H.Run, 0, 0, DTWeapons::ModifierId(Mod)), EDTWeaponResult::Ok);
+	FDTOfferCard EvolveCard;
+	EvolveCard.Kind = EDTCardKind::Reforging;
+	EvolveCard.ContentId = DTReforge::RowId(DTReforge::FindEvolve(P.Weapons[0].Def));
+	EvolveCard.TargetWeapon = P.Weapons[0].Id;
+	const TArray<FDTDormantSocket> Named = DTOffers::DormantAfterPick(P, EvolveCard);
+	TestEqual(TEXT("the card names the socket before the pick (R-MOD-08)"), Named.Num(), 1);
+	TestFalse(TEXT("and reading it silences nothing"), P.Weapons[0].Sockets[0].bDormant);
 	P.Weapons[0].Evolve = DTReforge::FindEvolve(P.Weapons[0].Def);
 	H.StepOnce();
 	const FDTWeaponSpec Spec = H.Weapons.GetLastSpec(0, 0);

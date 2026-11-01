@@ -26,3 +26,6 @@
 | D-022 | S3 starts on `dev/s3` before the S1 and S2 exit tests | GO-NOGO | applied |
 | D-023 | The Tree keeps pool and utility nodes only; the old stat ranks are cut | RULE | applied |
 | D-024 | Every pool row has a door: first-run locks and three Trunk pool nodes | RULE | applied |
+| D-025 | Every human launch draws a fresh seed; tools and named seeds stay exact | RULE | applied |
+| D-026 | Run telemetry records say what the run did; applied and raw are named | RULE | applied |
+| D-027 | A free volley stays its modifier's under a Keeper conversion; a silenced socket shows | RULE | applied |

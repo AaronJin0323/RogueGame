@@ -4,7 +4,7 @@
 # Export (T-PKG-06): the zip holds that run and power_split.py reads it. Development (T-PKG-02): drawn text, log, screenshot against the arena
 # golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no visible window of the game's process at any time.
 # -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted.
-# A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04.
+# A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04, by Tools\SeedCheck.ps1 -Package.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -51,10 +51,12 @@ foreach ($File in $ShipExe, $DevExe, $Export) {
 	if (-not (Test-Path $File)) { Stop-Check "NOT RUN (package incomplete, no $File)" 2 }
 }
 
-foreach ($Culture in $Cultures) {
-	$Bat = Join-Path $PackageRoot "Shipping\Windows\Play_$Culture.bat"
-	if (-not (Test-Path $Bat) -or -not (Select-String -Path $Bat -SimpleMatch "-culture=$Culture -DTSeed=%RANDOM%" -Quiet)) { Stop-Check "FAIL (launcher Play_$Culture.bat missing or wrong)" 1 }
-}
+# --- launchers (T-PKG-04): each one started as written, off-screen, on the Shipping build (Tools\SeedCheck.ps1, R-TEC-16) ------
+$SeedOut = @(& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "SeedCheck.ps1") -Package (Join-Path $PackageRoot "Shipping\Windows") -LoadTimeout $LoadTimeout 2>&1)
+$SeedRc = $LASTEXITCODE
+$SeedOut | ForEach-Object { "    $_" }
+if ($SeedRc -ne 0) { Stop-Check "FAIL (launchers: $(($SeedOut | Select-String '^SEEDCHECK:' | Select-Object -Last 1).Line))" 1 }
+
 # --- window helper: the check must never show one ------------------------------------------------------------------
 Add-Type -TypeDefinition @"
 using System;

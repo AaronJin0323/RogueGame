@@ -116,7 +116,11 @@ struct FDTHeroHit
 	/** Catalog attack id (enemies.csv `attack`, boss_warden.csv `attack`); NAME_None for contact. */
 	FName AttackId;
 	uint32 EnemySerial = 0;
+	/** Where the hit came from (telemetry, R-TEL-10): the enemy, a round's firing point, the attack's origin, the safe ring's edge. Never gameplay. */
 	FVector2f Position = FVector2f::ZeroVector;
+	/** Kind Bullet (telemetry, R-TEL-10): the round's velocity and seconds in the air, so Position draws its whole line. Never gameplay. */
+	FVector2f RoundVelocity = FVector2f::ZeroVector;
+	float RoundFlightSeconds = 0.0f;
 };
 
 /** One death, filled by ResolveHits; read by effects and the director (drops, beat ends). */
