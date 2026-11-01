@@ -87,6 +87,7 @@ namespace DTHubScreenLocal
 		FText Label;
 		FText Value;
 		float Alpha = 1.0f;
+		bool bHeading = false;
 	};
 
 	TArray<FRow> Rows(const FDTHubView& View)
@@ -115,7 +116,7 @@ namespace DTHubScreenLocal
 			{
 				for (int32 Row = 0; Row < View.Tree->NumRows(); ++Row)
 				{
-					Out.Add({ View.Tree->RowLabel(Row), View.Tree->RowValue(Row) });
+					Out.Add({ View.Tree->RowLabel(Row), View.Tree->RowValue(Row), View.Tree->IsDimmed(Row) ? SealedAlpha : 1.0f, View.Tree->IsHeading(Row) });
 				}
 			}
 			break;
@@ -218,13 +219,14 @@ FText DTHubText::Detail(const FDTHubView& View)
 	return FText::GetEmpty();
 }
 
-void DTHubScreen::Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSettings& Settings)
+int32 DTHubScreen::Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSettings& Settings)
 {
 	using namespace DTHubScreenLocal;
 	if (!Canvas || !GEngine || !View.State || !View.Codex || !View.Profile)
 	{
-		return;
+		return 0;
 	}
+	int32 Overflow = 0;
 	const FDTHubState& State = *View.State;
 	const FPainter P{ Canvas, GEngine->GetLargeFont(), Canvas->ClipY / RefHeight, static_cast<float>(Settings.TextPct) / DTConst::SETTINGS_TEXT_MIN_PCT };
 	const FLinearColor Text = Token(DTPal::UI_Text);
@@ -257,17 +259,20 @@ void DTHubScreen::Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSet
 	for (int32 Row = State.Scroll; Row < Last; ++Row)
 	{
 		const float TextY = Y + 0.5f * (RowH - TextH);
-		const FLinearColor Colour = Token(DTPal::UI_Text, List[Row].Alpha);
+		const FLinearColor Colour = List[Row].bHeading ? Hint : Token(DTPal::UI_Text, List[Row].Alpha);
 		if (bFocusable && Row == State.Focus)
 		{
 			P.Frame(Left, Y + Inset * P.S, Inner, RowH - 2.0f * Inset * P.S, Text);
 		}
 		P.Text(List[Row].Label, Left + 2.0f * Inset * P.S, TextY, BodyScale, Colour);
+		float Used = static_cast<float>(P.Measure(List[Row].Label.ToString(), BodyScale).X);
 		if (!List[Row].Value.IsEmpty())
 		{
 			const float ValueW = static_cast<float>(P.Measure(List[Row].Value.ToString(), BodyScale).X);
 			P.Text(List[Row].Value, Right - 2.0f * Inset * P.S - ValueW, TextY, BodyScale, Colour);
+			Used += ValueW + 2.0f * Inset * P.S;
 		}
+		Overflow += Used > Inner - 4.0f * Inset * P.S ? 1 : 0;
 		Y += RowH;
 	}
 
@@ -276,13 +281,19 @@ void DTHubScreen::Draw(UCanvas* Canvas, const FDTHubView& View, const FDTUserSet
 	const FText Detail = DTHubText::Detail(View);
 	if (!Detail.IsEmpty())
 	{
-		const float LineH = DTHubLayout::DetailHeight(P.T) * P.S / 3.0f;
-		for (const FString& Line : DTOfferText::WrapLines(Detail.ToString(), [&P](const FString& Part) { return static_cast<float>(P.Measure(Part, DetailScale).X); }, Inner))
+		const float LineH = DTHubLayout::DetailHeight(P.T) * P.S / DTHubLayout::DetailLineCount();
+		const TArray<FString> Lines = DTOfferText::WrapLines(Detail.ToString(), [&P](const FString& Part) { return static_cast<float>(P.Measure(Part, DetailScale).X); }, Inner);
+		Overflow += Lines.Num() > DTHubLayout::DetailLineCount() ? 1 : 0;
+		for (const FString& Line : Lines)
 		{
 			P.Text(FText::AsCultureInvariant(Line), Left, DetailY, DetailScale, Text);
 			DetailY += LineH;
 		}
 	}
+	const FText Footer = State.Page == EDTHubPage::Tree && View.Tree ? FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Hint"))
+		: Ui(State.Page == EDTHubPage::Codex || State.Page == EDTHubPage::Stats ? TEXT("Hub.Hint.Read") : TEXT("Menu.Hint.Pause"));
 	const float FooterY = Y0 + H - DTHubLayout::FooterHeight(P.T) * P.S;
-	P.Centered(Ui(State.Page == EDTHubPage::Codex || State.Page == EDTHubPage::Stats ? TEXT("Hub.Hint.Read") : TEXT("Menu.Hint.Pause")), CentreX, FooterY + 8.0f * P.S, DetailScale, Hint);
+	P.Centered(Footer, CentreX, FooterY + 8.0f * P.S, DetailScale, Hint);
+	Overflow += P.Measure(Footer.ToString(), DetailScale).X > Inner ? 1 : 0;
+	return Overflow;
 }

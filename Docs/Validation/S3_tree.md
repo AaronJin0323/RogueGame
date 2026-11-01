@@ -1,6 +1,6 @@
 # S3 Tree: the first-run pool and the tool-run proof
 
-Spec: `02_Systems/meta.md` R-MET-20 to R-MET-27, D-024. Every bot number here is a bound (bot v2, skill 1.0), not a human reading. No human has played the Tree, and it has no screen yet.
+Spec: `02_Systems/meta.md` R-MET-20 to R-MET-27, D-024. Every bot number here is a bound (bot v2, skill 1.0), not a human reading. No human has played the Tree. Its page and the proof of a purchase on real launches are `S3_vigil.md`.
 
 ## Tool runs are unchanged
 `Tools/BotRuns.ps1 -BotVersion 2 -FirstSeed 9107 -Seeds 1`, the same four arms on a build of `dev/s3-base` and on this branch. Reread after D-024 with Discoveries and the hub merged, every cell the same:
@@ -102,7 +102,7 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 ## Not verified
 - A person's launch was not run: every launch here is headless. The gate path was read through `-DTPoolGate`, which takes the same branch.
 - Nobody writes `Keeper.<Path>` or `Reaction.Duos` yet, so on a person's save the three S2 branches cannot be bought and S2 Keepers cannot be met. This matches today's reach but leaves nine nodes dark.
-- Until the Contracts page lands, a person on this branch has the first-run pool and no way to spend: `DTHubTabs::SetTreeFactory` has no factory, and the hub's tab reads `Hub.Tree.Empty`. So `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` wait on that page too, and every Discovery a run can earn still lands in the save. `DT.Tree.Buy` works in non-Shipping builds.
+- `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` on a person's own money: the Contracts page can buy their nodes (`S3_vigil.md`), and nobody has yet earned one of those rows that way. A bought `Trunk.ScatterCannon` reaching a hand is proved there; earning the row is the Trunk door run above.
 - The Trunk's tools in a played hand: covered by T-MET-20 and T-OFF-10's counts, no bot reads them.
 
 ## Invented zh (no source row; for a native reader)

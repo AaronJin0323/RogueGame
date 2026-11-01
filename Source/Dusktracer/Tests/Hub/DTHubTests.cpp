@@ -2,6 +2,7 @@
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Hub; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
+#include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Hub/DTHubData.h"
 #include "Hub/DTHubFlow.h"
@@ -9,10 +10,15 @@
 #include "Hub/DTHubState.h"
 #include "Hub/DTHubTab.h"
 #include "HAL/FileManager.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/StringTable.h"
 #include "Internationalization/StringTableCore.h"
 #include "Internationalization/StringTableRegistry.h"
+#include "Meta/DTMetaSession.h"
 #include "Meta/DTMetaSubsystem.h"
+#include "Meta/DTTree.h"
+#include "Meta/DTTreeTab.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Offers/DTOfferGenerator.h"
@@ -47,6 +53,44 @@ namespace DTHubTest
 	static const FDTCodexRow* Find(const TArray<FDTCodexRow>& Book, const TCHAR* Key)
 	{
 		return Book.FindByPredicate([Key](const FDTCodexRow& Row) { return Row.Key == Key; });
+	}
+
+	static FString TempSave(const TCHAR* Name)
+	{
+		const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("HubTests")));
+		IFileManager::Get().MakeDirectory(*Dir, true);
+		const FString Path = FPaths::Combine(Dir, Name);
+		IFileManager::Get().Delete(*Path, false, true, true);
+		return Path;
+	}
+
+	static int32 TreeRow(const FDTTreeTab& Tab, const TCHAR* Node)
+	{
+		int32 Left = DTTree::FindNode(FName(Node));
+		for (int32 Row = 0; Row < Tab.NumRows(); ++Row)
+		{
+			if (!Tab.IsHeading(Row) && Left-- == 0)
+			{
+				return Row;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	static FString TreeText(const TCHAR* Key)
+	{
+		return FText::FromStringTable(TEXT("ST_Tree"), Key).ToString();
+	}
+
+	static FString CostText(int32 Cost)
+	{
+		return FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Cost")), FText::AsNumber(Cost)).ToString();
+	}
+
+	/** A state beside the price. */
+	static FString StateCost(const FText& State, int32 Cost)
+	{
+		return FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Row")), State, FText::FromString(CostText(Cost))).ToString();
 	}
 }
 
@@ -245,6 +289,31 @@ bool FDTVigCodex::RunTest(const FString& Parameters)
 		TestTrue(TEXT("the book sorts by layer"), Book[Index - 1].Layer <= Book[Index].Layer);
 	}
 
+	// The first view moves the window and nothing else: the sort is the book's, a locked row stays bare, the reach stays the reach.
+	const int32 First = Book.IndexOfByPredicate([](const FDTCodexRow& Row) { return Row.bRead; });
+	TestTrue(TEXT("a fresh book's first read row is under locked ones"), First > 0);
+	FDTHubState State = Open();
+	State.CodexRows = Book.Num();
+	State.CodexFirst = First;
+	Focus(State, EDTHubRow::Codex);
+	State.Apply(EDTMenuCommand::Accept);
+	TestEqual(TEXT("the page opens on it"), State.Focus, First);
+	TestEqual(TEXT("at the top of the window"), State.Scroll, First);
+	TestTrue(TEXT("with its text in the detail pane"), Book.IsValidIndex(State.Focus) && !Book[State.Focus].Body.IsEmpty());
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("the locked rows above are still there"), State.Focus, First - 1);
+	State.Apply(EDTMenuCommand::Back);
+	State.CodexFirst = Book.Num() - 1;
+	Focus(State, EDTHubRow::Codex);
+	State.Apply(EDTMenuCommand::Accept);
+	TestEqual(TEXT("a first read row at the end leaves the window full"), State.Scroll, Book.Num() - State.Window);
+	TestEqual(TEXT("and in it"), State.Focus, Book.Num() - 1);
+	FDTCodexSource Deep;
+	Deep.Key = TEXT("Codex.Test.Deep");
+	Deep.Layer = DTConst::NARR_PREWIN_LAYER_MAX + 1;
+	Deep.Unlock = TEXT("Start");
+	TestNull(TEXT("a read row past the reach is still not listed"), Find(DTHubData::BuildCodex({ Deep }, Fresh), TEXT("Codex.Test.Deep")));
+
 	// Every row, read: a title and a body from the tables, in this culture, never a missing key.
 	FDTMetaProfile Everything;
 	Everything.Wins = DTConst::BOSS_FORM_III_WINS + 1;
@@ -378,6 +447,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigTree, "Dusktracer.Hub.TreeSlot", DTHubTes
 bool FDTVigTree::RunTest(const FString& Parameters)
 {
 	using namespace DTHubTest;
+	TestFalse(TEXT("the module's page needs a session"), DTHubTabs::MakeTree(nullptr).IsValid());
+	DTHubTabs::SetTreeFactory(nullptr);
 	TestFalse(TEXT("no factory, no tab"), DTHubTabs::MakeTree(nullptr).IsValid());
 	FDTHubState State = Open();
 	Focus(State, EDTHubRow::Tree);
@@ -388,13 +459,186 @@ bool FDTVigTree::RunTest(const FString& Parameters)
 	TSharedPtr<FFakeTab> Fake = MakeShared<FFakeTab>();
 	DTHubTabs::SetTreeFactory([Fake](UWorld*) { return Fake; });
 	const TSharedPtr<IDTHubTab> Tab = DTHubTabs::MakeTree(nullptr);
-	DTHubTabs::SetTreeFactory(nullptr);
+	DTTreeTab::Register();
 	TestTrue(TEXT("the factory builds the tab"), Tab == Fake);
 	State.TreeRows = Tab->NumRows();
 	State.Apply(EDTMenuCommand::Down);
 	const FDTHubOutcome Outcome = State.Apply(EDTMenuCommand::Accept);
 	TestEqual(TEXT("Accept reaches the page"), Outcome.Action, EDTHubAction::TreeAccept);
 	TestEqual(TEXT("with the row"), Outcome.Row, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigTreeRows, "Dusktracer.Hub.TreeRows", DTHubTest::Flags) // T-VIG-18
+bool FDTVigTreeRows::RunTest(const FString& Parameters)
+{
+	using namespace DTHubTest;
+	FDTMetaSession Session;
+	Session.Open(TempSave(TEXT("rows.sav")));
+	FDTTreeTab Tab(Session);
+	TestEqual(TEXT("every node, a heading for the Trunk and one for each branch"), Tab.NumRows(), DTCat::NumTreeNodes + 1 + DTOffers::AllKeepers().Num());
+	TestEqual(TEXT("the Trunk's heading leads"), Tab.RowLabel(0).ToString(), TreeText(TEXT("Tree.Branch.Trunk")));
+	TestTrue(TEXT("a heading is one"), Tab.IsHeading(0));
+	TestTrue(TEXT("and holds no value or detail"), Tab.RowValue(0).IsEmpty() && Tab.RowDetail(0).IsEmpty());
+	TestFalse(TEXT("nor is it grey"), Tab.IsDimmed(0));
+	const int32 Storm = TreeRow(Tab, TEXT("Branch.Storm.Blessing4"));
+	TestTrue(TEXT("a branch has its heading"), Tab.IsHeading(Storm - 1));
+	TestTrue(TEXT("naming the Keeper"), Tab.RowLabel(Storm - 1).ToString().Contains(DTHubText::KeeperName(EDTPath::Storm).ToString()));
+
+	const int32 Reroll = TreeRow(Tab, TEXT("Trunk.Reroll"));
+	const FText NotEnough = FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.State.Short"));
+	TestTrue(TEXT("the header is the balance"), Tab.Header().EqualTo(FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Balance")), FText::AsNumber(0))));
+	TestEqual(TEXT("short: the state and the price"), Tab.RowValue(Reroll).ToString(), StateCost(NotEnough, DTConst::TREE_COST_TOOL));
+	TestFalse(TEXT("and not grey: more runs open it"), Tab.IsDimmed(Reroll));
+	Session.Profile.Currency = DTConst::TREE_COST_TOOL;
+	TestEqual(TEXT("open: the price"), Tab.RowValue(Reroll).ToString(), CostText(DTConst::TREE_COST_TOOL));
+	TestEqual(TEXT("the detail is the node's line"), Tab.RowDetail(Reroll).ToString(), DTTree::NodeDesc(DTTree::FindNode(TEXT("Trunk.Reroll"))).ToString());
+
+	const int32 Next = TreeRow(Tab, TEXT("Branch.Storm.Blessing5"));
+	const FText Locked = FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.State.Locked"));
+	TestEqual(TEXT("locked: the state and the price"), Tab.RowValue(Next).ToString(), StateCost(Locked, DTConst::TREE_COST_BLESSING5));
+	TestTrue(TEXT("grey"), Tab.IsDimmed(Next));
+	TestTrue(TEXT("the detail names what it needs"), Tab.RowDetail(Next).ToString().Contains(DTTree::NodeName(DTTree::FindNode(TEXT("Branch.Storm.Blessing4"))).ToString()));
+
+	const FText Sealed = FText::FromStringTable(TEXT("ST_World"), TEXT("Hub.Shrine.Locked"));
+	const FString Hint = FText::FromStringTable(TEXT("ST_World"), TEXT("Hub.Shrine.LockedHint")).ToString();
+	for (const TCHAR* Node : { TEXT("Branch.Shade.Blessing4"), TEXT("Branch.Shade.Blessing5"), TEXT("Branch.Shade.Reforge") })
+	{
+		const int32 Row = TreeRow(Tab, Node);
+		const int32 Cost = DTCat::TreeNodes[DTTree::FindNode(Node)].Cost;
+		TestEqual(TEXT("a sealed Keeper's branch says so, all the way down"), Tab.RowValue(Row).ToString(), StateCost(Sealed, Cost));
+		TestTrue(TEXT("grey"), Tab.IsDimmed(Row));
+	}
+	TestTrue(TEXT("with the Shrine's hint"), Tab.RowDetail(TreeRow(Tab, TEXT("Branch.Shade.Blessing4"))).ToString().Contains(Hint));
+	Session.Profile.Currency = 0;
+	Session.Profile.Unlocked.Add(DTOffers::KeeperId(EDTPath::Shade));
+	TestEqual(TEXT("a met Keeper's branch is open"), Tab.RowValue(TreeRow(Tab, TEXT("Branch.Shade.Blessing4"))).ToString(), StateCost(NotEnough, DTConst::TREE_COST_BLESSING4));
+	Session.Profile.Unlocked.Remove(DTOffers::KeeperId(EDTPath::Shade));
+
+	Session.Profile.TreeRanks.Add(TEXT("Trunk.Reroll"), 1);
+	TestEqual(TEXT("bought: Complete, no price"), Tab.RowValue(Reroll).ToString(), TreeText(TEXT("Tree.State.Maxed")));
+	TestFalse(TEXT("and not grey"), Tab.IsDimmed(Reroll));
+
+	// Every row in both cultures, in every state a row can read: no key, no brace, no raw id reaches the screen.
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	for (const TCHAR* Name : { TEXT("en"), TEXT("zh-Hans") })
+	{
+		FInternationalization::Get().SetCurrentCulture(Name);
+		for (int32 Row = 0; Row < Tab.NumRows(); ++Row)
+		{
+			for (const FText& Line : { Tab.RowLabel(Row), Tab.RowValue(Row), Tab.RowDetail(Row) })
+			{
+				const FString Text = Line.ToString();
+				TestFalse(FString::Printf(TEXT("%s row %d reads clean: %s"), Name, Row, *Text), Text.Contains(TEXT("Tree.")) || Text.Contains(TEXT("Hub.")) || Text.Contains(TEXT("Keeper.")) || Text.Contains(TEXT("{")) || Text.Contains(TEXT("<MISSING")));
+			}
+		}
+		TestFalse(TEXT("the footer resolves"), TreeText(TEXT("Tree.Hint")).Contains(TEXT("<MISSING")));
+	}
+	FInternationalization::Get().SetCurrentCulture(Culture);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigTreeBuy, "Dusktracer.Hub.TreeBuy", DTHubTest::Flags) // T-VIG-19
+bool FDTVigTreeBuy::RunTest(const FString& Parameters)
+{
+	using namespace DTHubTest;
+	FDTMetaSession Session;
+	Session.Open(TempSave(TEXT("buy.sav")));
+	FDTTreeTab Tab(Session);
+	const int32 Scatter = TreeRow(Tab, TEXT("Trunk.ScatterCannon"));
+	const int32 Rail = TreeRow(Tab, TEXT("Trunk.RailLance"));
+	const int32 Next = TreeRow(Tab, TEXT("Branch.Storm.Blessing5"));
+	const int32 Sealed = TreeRow(Tab, TEXT("Branch.Shade.Blessing4"));
+
+	Tab.Accept(Scatter);
+	TestTrue(TEXT("short: nothing bought"), Session.Profile.TreeRanks.IsEmpty());
+	Session.Profile.Currency = DTConst::TREE_COST_WEAPON;
+	Tab.Accept(0);
+	Tab.Accept(Next);
+	Tab.Accept(Sealed);
+	Tab.Accept(INDEX_NONE);
+	Tab.Accept(Tab.NumRows());
+	TestTrue(TEXT("a heading, a locked row, a sealed row and a row off the page buy nothing"), Session.Profile.TreeRanks.IsEmpty());
+	TestEqual(TEXT("and spend nothing"), Session.Profile.Currency, static_cast<int64>(DTConst::TREE_COST_WEAPON));
+
+	Tab.Accept(Scatter);
+	TestEqual(TEXT("exact money buys"), Session.Profile.TreeRanks.FindRef(TEXT("Trunk.ScatterCannon")), 1);
+	TestEqual(TEXT("and leaves nothing"), Session.Profile.Currency, 0LL);
+	TestTrue(TEXT("the weapon joins Unlocked"), Session.Profile.Unlocked.Contains(TEXT("Weapon.ScatterCannon")));
+	TestTrue(TEXT("the row says it was signed"), Tab.RowDetail(Scatter).ToString().Contains(FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Purchased")), DTTree::NodeName(DTTree::FindNode(TEXT("Trunk.ScatterCannon")))).ToString()));
+	TestFalse(TEXT("only that row"), Tab.RowDetail(Rail).ToString().Contains(TEXT("\n")));
+
+	// Read back from the file Accept wrote, before anything else touches it.
+	FDTMetaSession Reader;
+	TestEqual(TEXT("a reload reads the file"), Reader.Open(Session.Path), EDTMetaOpen::Read);
+	TestEqual(TEXT("the rank is in it"), Reader.Profile.TreeRanks.FindRef(TEXT("Trunk.ScatterCannon")), 1);
+	TestEqual(TEXT("and the balance"), Reader.Profile.Currency, 0LL);
+	TestTrue(TEXT("and the unlock"), Reader.Profile.Unlocked.Contains(TEXT("Weapon.ScatterCannon")));
+	FDTTreeTab Again(Reader);
+	TestEqual(TEXT("a new page reads it Complete"), Again.RowValue(Scatter).ToString(), TreeText(TEXT("Tree.State.Maxed")));
+	TestFalse(TEXT("with no signed line"), Again.RowDetail(Scatter).ToString().Contains(TEXT("\n")));
+
+	Session.Profile.Currency = DTConst::TREE_COST_WEAPON;
+	Tab.Accept(Scatter);
+	TestEqual(TEXT("a bought row buys nothing"), Session.Profile.Currency, static_cast<int64>(DTConst::TREE_COST_WEAPON));
+
+	// With no writable file every row says so, and the page still backs out: reading it is all it does.
+	FDTMetaSession None;
+	None.Open(FString());
+	None.Profile.Currency = 1000000;
+	FDTTreeTab Page(None);
+	Page.Accept(Scatter);
+	TestTrue(TEXT("no file, no sale"), None.Profile.TreeRanks.IsEmpty());
+	TestEqual(TEXT("nothing spent"), None.Profile.Currency, 1000000LL);
+	const FString ReadOnly = TreeText(TEXT("Tree.State.ReadOnly"));
+	TestTrue(TEXT("the row says why"), Page.RowDetail(Scatter).ToString().Contains(ReadOnly));
+	FDTMetaSession Stuck;
+	Stuck.Open(TempSave(TEXT("stuck.sav")));
+	Stuck.bWritable = false;
+	FDTTreeTab Held(Stuck);
+	TestTrue(TEXT("a stuck session says the same"), Held.RowDetail(Scatter).ToString().Contains(ReadOnly));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigTreeFocus, "Dusktracer.Hub.TreeFocus", DTHubTest::Flags) // T-VIG-20
+bool FDTVigTreeFocus::RunTest(const FString& Parameters)
+{
+	using namespace DTHubTest;
+	FDTHubState State = Open();
+	State.TreeRows = 15;
+	State.TreeHeadings = { 0, 7, 11 };
+	State.Window = 4;
+	Focus(State, EDTHubRow::Tree);
+	State.Apply(EDTMenuCommand::Accept);
+	TestEqual(TEXT("the page opens past its first heading"), State.Focus, 1);
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("up wraps past it to the last row"), State.Focus, 14);
+	State.Apply(EDTMenuCommand::Down);
+	TestEqual(TEXT("down wraps past it"), State.Focus, 1);
+	TestEqual(TEXT("and the heading is back in view"), State.Scroll, 0);
+	State.Focus = 6;
+	State.Apply(EDTMenuCommand::Down);
+	TestEqual(TEXT("focus steps over a heading"), State.Focus, 8);
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("both ways"), State.Focus, 6);
+	State.Focus = 3;
+	State.Apply(EDTMenuCommand::Right);
+	TestEqual(TEXT("a page right that lands on a heading goes on past it"), State.Focus, 8);
+	State.Apply(EDTMenuCommand::Right);
+	State.Apply(EDTMenuCommand::Right);
+	TestEqual(TEXT("and stops at the end"), State.Focus, 14);
+	State.Focus = 4;
+	State.Apply(EDTMenuCommand::Left);
+	TestEqual(TEXT("a page left that lands on the first heading turns back from the end"), State.Focus, 1);
+	State.Focus = 9;
+	State.Scroll = 9;
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("up to a group's first row"), State.Focus, 8);
+	TestEqual(TEXT("brings its heading into the window"), State.Scroll, 7);
+	const FDTHubOutcome Outcome = State.Apply(EDTMenuCommand::Accept);
+	TestEqual(TEXT("Accept names the row"), Outcome.Row, 8);
+	State.Apply(EDTMenuCommand::Back);
+	TestEqual(TEXT("Back lands on the row that opened the page"), State.RootRow(), EDTHubRow::Tree);
 	return true;
 }
 
@@ -473,6 +717,15 @@ bool FDTVigLayout::RunTest(const FString& Parameters)
 	const int32 Keepers = DTOffers::AllKeepers().Num();
 	TestTrue(TEXT("every Keeper fits"), DTHubLayout::ListWindow(Largest) >= Keepers);
 	TestTrue(TEXT("the Ledger-stone fits, having no detail pane"), DTHubLayout::ListWindow(Largest, false) >= DTHubData::Stats(FDTMetaProfile()).Num());
+	TMap<EDTPath, int32> Group;
+	for (int32 Row = 0; Row < DTCat::NumTreeNodes; ++Row)
+	{
+		++Group.FindOrAdd(DTCat::TreeNodes[Row].Path);
+	}
+	for (const TPair<EDTPath, int32>& Each : Group)
+	{
+		TestTrue(TEXT("each group of Contracts fits one window with its heading"), DTHubLayout::ListWindow(Largest) >= Each.Value + 1);
+	}
 	TestTrue(TEXT("a smaller text fits more rows"), DTHubLayout::ListWindow(1.0f) > DTHubLayout::ListWindow(Largest));
 	return true;
 }

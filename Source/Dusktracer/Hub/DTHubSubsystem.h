@@ -29,11 +29,16 @@ public:
 	void Draw(UCanvas* Canvas);
 	const FDTHubState& GetState() const { return State; }
 	const TArray<FDTCodexRow>& GetCodex() const { return Codex; }
+	const IDTHubTab* GetTree() const { return Tree.Get(); }
+	/** Strings of the last frame drawn that ran past their room (R-VIG-16). */
+	int32 GetOverflow() const { return Overflow; }
 	/** Test seam: receives the map options instead of opening the map. */
 	void SetBeginOverride(TFunction<void(const FString&)> InOverride) { BeginOverride = MoveTemp(InOverride); }
 
 private:
 	void PollKeys();
+	/** The window at this text size and the Tree's rows, as the next command or frame needs them. */
+	void SyncPage();
 	void HandleOutcome(const FDTHubOutcome& Outcome);
 	void BeginRun();
 	void FinishBegin();
@@ -47,6 +52,7 @@ private:
 	TSet<FKey> Down;
 	TFunction<void(const FString&)> BeginOverride;
 	FString PendingOptions;
+	int32 Overflow = 0;
 	bool bActive = false;
 	bool bBeginPending = false;
 	bool bMenuLastFrame = false;

@@ -50,6 +50,50 @@ void FDTHubState::Enter(EDTHubPage Target)
 		const int32 Open = Patrons.IndexOfByPredicate([](const FDTHubPatron& Patron) { return Patron.bOpen; });
 		Focus = FMath::Max(Chosen != INDEX_NONE ? Chosen : Open, 0);
 	}
+	else if (Target == EDTHubPage::Tree)
+	{
+		LeaveHeading(1);
+	}
+	else if (Target == EDTHubPage::Codex)
+	{
+		// The sort stays the book's; the first read row just heads the window (R-VIG-08).
+		Focus = CodexFirst;
+		Scroll = FMath::Clamp(CodexFirst, 0, FMath::Max(0, CodexRows - Window));
+	}
+}
+
+bool FDTHubState::IsHeading(int32 Row) const
+{
+	return Page == EDTHubPage::Tree && TreeHeadings.Contains(Row);
+}
+
+void FDTHubState::StepFocus(int32 Step)
+{
+	const int32 Rows = NumRows();
+	for (int32 Tries = 0; Tries < Rows; ++Tries)
+	{
+		Focus = (Focus + Rows + Step) % Rows;
+		if (!IsHeading(Focus))
+		{
+			return;
+		}
+	}
+}
+
+void FDTHubState::LeaveHeading(int32 Step)
+{
+	const int32 Rows = NumRows();
+	for (const int32 Way : { Step, -Step })
+	{
+		for (int32 Row = Focus; Row >= 0 && Row < Rows; Row += Way)
+		{
+			if (!IsHeading(Row))
+			{
+				Focus = Row;
+				return;
+			}
+		}
+	}
 }
 
 void FDTHubState::ToRoot(EDTHubRow Row)
@@ -84,7 +128,10 @@ void FDTHubState::AcceptRoot(FDTHubOutcome& Outcome)
 
 void FDTHubState::KeepInWindow()
 {
-	Scroll = FMath::Clamp(Scroll, FMath::Max(0, Focus - Window + 1), Focus);
+	// Scrolling back to a group's first row brings its heading along.
+	const int32 Lowest = FMath::Max(0, Focus - Window + 1);
+	const int32 Highest = IsHeading(Focus - 1) ? Focus - 1 : Focus;
+	Scroll = FMath::Clamp(Scroll, Lowest, FMath::Max(Lowest, Highest));
 }
 
 FDTHubOutcome FDTHubState::Apply(EDTMenuCommand Command)
@@ -97,7 +144,7 @@ FDTHubOutcome FDTHubState::Apply(EDTMenuCommand Command)
 	case EDTMenuCommand::Down:
 		if (Rows > 0)
 		{
-			Focus = (Focus + Rows + (Command == EDTMenuCommand::Up ? -1 : 1)) % Rows;
+			StepFocus(Command == EDTMenuCommand::Up ? -1 : 1);
 			KeepInWindow();
 		}
 		break;
@@ -106,7 +153,9 @@ FDTHubOutcome FDTHubState::Apply(EDTMenuCommand Command)
 		// A long page moves a window at a time, and stops at its ends.
 		if (Rows > 0 && (Page == EDTHubPage::Codex || Page == EDTHubPage::Tree))
 		{
-			Focus = FMath::Clamp(Focus + (Command == EDTMenuCommand::Left ? -Window : Window), 0, Rows - 1);
+			const int32 Way = Command == EDTMenuCommand::Left ? -1 : 1;
+			Focus = FMath::Clamp(Focus + Way * Window, 0, Rows - 1);
+			LeaveHeading(Way);
 			KeepInWindow();
 		}
 		break;
@@ -158,6 +207,11 @@ float DTHubLayout::HeaderHeight(float TextScale)
 float DTHubLayout::DetailHeight(float TextScale)
 {
 	return DTHubStateLocal::DetailLines * DTHubStateLocal::DetailLineBase * TextScale;
+}
+
+int32 DTHubLayout::DetailLineCount()
+{
+	return DTHubStateLocal::DetailLines;
 }
 
 float DTHubLayout::FooterHeight(float TextScale)
