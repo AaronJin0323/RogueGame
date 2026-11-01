@@ -10,7 +10,7 @@ namespace DTPathCheck
 {
 	/**
 	 * Called from the menu tick, paused or not, in every world of the process.
-	 *   -DTPathCheck=Walk      fresh save: boot, every page, the Shrine, a run played out to a death, the hub, the Ledger-stone, a second run abandoned, the hub, Quit to desktop.
+	 *   -DTPathCheck=Walk      fresh save: boot, every page, the Shrine, a run played out to a death (each hand that comes taken by key; the seed decides if one does), the hub, the Ledger-stone, a second run abandoned, the hub, Quit to desktop.
 	 *   -DTPathCheck=Reboot    a later process on that save: a Patron and the Ledger-stone are still there, the language switches live, then Quit to desktop.
 	 *   -DTPathPatron=<Path>   the Keeper the walk picks at the Shrine, Forge by default.
 	 *   -DTPathShots=<dir>     a shot of each page.

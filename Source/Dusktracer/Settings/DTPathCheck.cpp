@@ -48,6 +48,7 @@ namespace DTPathCheckLocal
 		double PlayAt = 0.0;
 		double HandKeyAt = 0.0;
 		bool bHandKey = false;
+		bool bHandCame = false;
 		int32 HandsPicked = 0;
 		int32 Fails = 0;
 		EDTPath Patron = EDTPath::Forge;
@@ -133,13 +134,13 @@ namespace DTPathCheckLocal
 		});
 	}
 
-	/** Writes <-DTPathShots>/<Name>.png; passes with no directory given. */
-	static void Shot(const FString& Name)
+	/** Writes <-DTPathShots>/<Name>.png; passes with no directory given, or with bOnlyIf false when the step comes round. */
+	static void Shot(const FString& Name, const bool* bOnlyIf = nullptr)
 	{
-		Check.Steps.Add([Name](UDTMenuSubsystem*)
+		Check.Steps.Add([Name, bOnlyIf](UDTMenuSubsystem*)
 		{
 			FString Dir;
-			if (!FParse::Value(FCommandLine::Get(), TEXT("DTPathShots="), Dir) || Dir.IsEmpty())
+			if ((bOnlyIf && !*bOnlyIf) || !FParse::Value(FCommandLine::Get(), TEXT("DTPathShots="), Dir) || Dir.IsEmpty())
 			{
 				return true;
 			}
@@ -366,11 +367,24 @@ namespace DTPathCheckLocal
 		Until([](UDTMenuSubsystem* Menu)
 		{
 			Check.StepAt = FPlatformTime::Seconds() - KeyS; // waits on the sim, not on a page
-			return OnRunOver(Menu) || (Offers(Menu)->IsAnyHandOpen() && !Offers(Menu)->IsGuarded(0));
+			Check.bHandCame = !OnRunOver(Menu) && Offers(Menu)->IsAnyHandOpen() && !Offers(Menu)->IsGuarded(0);
+			return OnRunOver(Menu) || Check.bHandCame;
 		});
 		Wait(HandWaitS);
-		Is(TEXT("a hand waits for a person's key"), [](UDTMenuSubsystem* Menu) { return Offers(Menu)->IsAnyHandOpen() && !UDTOfferSubsystem::IsAutoPick(); });
-		Shot(TEXT("hand"));
+		// A hero who stands still can die before a level, and whether one comes is the seed's: no hand says nothing of the build, so the tool walks another draw (R-PKG-13).
+		Check.Steps.Add([](UDTMenuSubsystem* Menu)
+		{
+			if (Check.bHandCame)
+			{
+				Expect(TEXT("a hand waits for a person's key"), Offers(Menu)->IsAnyHandOpen() && !UDTOfferSubsystem::IsAutoPick());
+			}
+			else
+			{
+				UE_LOG(LogDT, Log, TEXT("PATHCHECK no hand before the death"));
+			}
+			return true;
+		});
+		Shot(TEXT("hand"), &Check.bHandCame);
 		PlayOut();
 		Is(TEXT("the first run ends on a death"), [](UDTMenuSubsystem* Menu) { return OnRunOver(Menu) && Menu->GetState().RunOver == EDTRunOverKind::Death; });
 		Shot(TEXT("runover_death"));

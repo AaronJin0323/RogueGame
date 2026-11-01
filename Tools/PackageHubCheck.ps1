@@ -1,4 +1,5 @@
-# A person's whole path proved in the package, off-screen, no window (package.md R-PKG-13, T-PKG-13). Needs Tools\Package.ps1 first.
+# A person's whole path proved in the package, off-screen, no window (package.md R-PKG-13, T-PKG-13). Needs Tools\Package.ps1 first, from a clean tree with
+# this HEAD's Source, Content and Config (R-PKG-08).
 #   & Tools\PackageHubCheck.ps1 [-Seed 9107] [-Timeout 300]
 # Every launch starts from the package's own Dusktracer.exe, as Play_*.bat does. A person's launch passes no tool flag (-unattended, -DTBot*, -DTHub,
 # -DTNoSave, -DTMetaFile): Start-Game refuses one. Each profile is a folder of its own under Saved\PackageHub, named by -userdir: a temporary LOCALAPPDATA
@@ -6,16 +7,18 @@
 #   A  staged: every Content\DT\Text\ST_*.csv and both Game.locres are in each config's .pak; both configs hold the same cook.
 #   B  Development, real keys, -DTPathCheck=Walk. en on -Seed, as a launcher gives one, picking Storm; zh-Hans with no seed, picking Forge. Fresh save, boot,
 #      every hub page, the Shrine, a run played out to a real death, Vigil, the bank, a second run, Abandon, Vigil, Quit to desktop. Every table reads against
-#      its CSV in that culture, the hands hold nothing a first run keeps shut, and a launch's second run takes a fresh seed.
+#      its CSV in that culture, the hands hold nothing a first run keeps shut, and a launch's second run takes a fresh seed. A hero who stands still can die
+#      before a level, and that is the draw's: a walk with no hand starts over on a new draw, en on the next seed, and only $WalkTries walks with none fail.
 #   C  Development, -DTPathCheck=Reboot: a new process on each save reads the Patron and the Ledger-stone, switches the language live and quits.
 #   D  Shipping has no log, no key and ignores a map on its command line, so it never gets past the hub with no hands. A person's boot on a bad save at the
 #      default path: the file goes aside byte for byte (only a person's launch reads it), no run file, no new save. Killed by PID.
-#   E  Shipping, -unattended -DTPoolGate -DTMetaFile: the same seed and first pool as the en walk's first run, no input. Its CSV must equal that run's, so
+#   E  Shipping, -unattended -DTPoolGate -DTMetaFile: the seed the en walk played, the first pool, no input. Its CSV must equal that run's, so
 #      Shipping played what Development was seen to play, and its bank lands in the file a person's default path names.
 #   F  Development reads E's save on a person's launch: Shipping's bank, by the balance its own run file gives.
 #   G  Shipping banks on top of the zh-Hans walk's save, and Development reads the sum.
 #   H  Seed -Seed by the bot, in both configs, each under -userdir: the input_hash. A tool run leaves a bad file at the default path alone.
-# The owner's save and settings are compared before and after. Prints "PKGHUB: PASS (...)" or "PKGHUB: FAIL (...)"; exit 0 / 1, 2 when there is no package.
+# The owner's save and settings are compared before and after. Prints "PKGHUB: PASS|FAIL|NOT RUN (...)", naming the package; exit 0 / 1 / 2. NOT RUN: a
+# missing, dirty or stale package, as for PadCheck; nothing is launched or cleared.
 # Logs: Saved\Logs\PkgHub_<tag>.log. Shots: Saved\PackageHub\<culture>\shots\<page>.png. Run by hand after Tools\Package.ps1, not by the gate.
 param(
 	[int]$Seed = 9107,
@@ -36,11 +39,20 @@ $Pages = @{
 }
 $Configs = @("Development", "Shipping")
 $BootWait = 20
+$WalkTries = 4
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 foreach ($Config in $Configs) {
 	$Stub = Join-Path $PackageRoot "$Config\Windows\Dusktracer.exe"
 	if (-not (Test-Path $Stub)) { Write-Host "PKGHUB: NOT RUN (no $Stub; Tools\Package.ps1)"; exit 2 }
 }
+# Which package (R-PKG-08): old binaries with the same text would pass. Before anything is cleared, so a refusal keeps the last pass's logs and shots.
+$StampFile = Join-Path $PackageRoot "package_stamp.json"
+if (-not (Test-Path $StampFile)) { Write-Host "PKGHUB: NOT RUN (no package stamp; Tools\Package.ps1)"; exit 2 }
+$Stamp = [IO.File]::ReadAllText($StampFile) | ConvertFrom-Json
+if ($Stamp.dirty) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit) came from a dirty tree)"; exit 2 }
+$Changed = @(& git -C $Root diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject)
+if ($LASTEXITCODE -ne 0) { Write-Host "PKGHUB: NOT RUN (package commit $($Stamp.commit) is not in this history)"; exit 2 }
+if ($Changed.Count -gt 0) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit) is stale, $($Changed.Count) file(s) changed since)"; exit 2 }
 if (Test-Path $WorkRoot) { Remove-Item $WorkRoot -Recurse -Force }
 New-Item -ItemType Directory -Force $WorkRoot | Out-Null
 
@@ -120,12 +132,13 @@ function Get-Field([string]$Text, [string]$Pattern) { if ($Text -match $Pattern)
 function Read-Log([string]$Tag, [string]$Log) {
 	$Lines = if (Test-Path $Log) { @([IO.File]::ReadAllLines($Log)) } else { @() }
 	if (-not $Lines.Count) { Note-Fail "$Tag has no log" }
-	$Result = @{ Lines = $Lines; Opens = @(); Begins = @(); Meta = ""; Gated = 0 }
+	$Result = @{ Lines = $Lines; Opens = @(); Begins = @(); Meta = ""; Gated = 0; Picked = 0 }
 	foreach ($Line in $Lines) {
 		if ($Line -match "LogDT: Hub: open, balance (\d+), runs (\d+), last patron '([^']*)'") { $Result.Opens += ,@([int64]$Matches[1], [int]$Matches[2], $Matches[3]) }
 		elseif ($Line -match "LogDT: Hub: begin (.*)$") { $Result.Begins += $Matches[1].Trim() }
 		elseif ($Line -match "LogDT: Meta: opened \(\d+\) (.*), balance \d+") { $Result.Meta = $Matches[1] }
 		elseif ($Line -match "LogDT: Offers: pool gated, 0 unlocked") { $Result.Gated++ }
+		elseif ($Line -match "LogDT: PATHCHECK: \w+ \(\d+ wrong, (\d+) hand") { $Result.Picked = [int]$Matches[1] }
 	}
 	$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
 	if ($Crash.Count) { Note-Fail "$Tag crash marker: $($Crash[0])" }
@@ -175,7 +188,8 @@ function Read-Run($File) {
 	$End = $Lines | Select-Object -Last 1
 	$Pick = @($Lines | Where-Object { $_ -match '"kind":"offer_pick"' }) | Select-Object -First 1
 	return @{ Lines = $Lines; Culture = Get-Field $Lines[0] '"culture":"([^"]*)"'; Seed = Get-Field $Lines[0] '"seed":(\d+)'; Retained = [int64](Get-Field $Award '"retained":(\d+)')
-		AwardEnd = Get-Field $Award '"end":"([^"]*)"'; Reason = Get-Field $End '"reason":"([^"]*)"'; Steps = Get-Field $End '"steps":(\d+)'; Patron = Get-Field $Pick '"id":"Keeper\.([A-Za-z]+)"' }
+		AwardEnd = Get-Field $Award '"end":"([^"]*)"'; Reason = Get-Field $End '"reason":"([^"]*)"'; Steps = Get-Field $End '"steps":(\d+)'; Patron = Get-Field $Pick '"id":"Keeper\.([A-Za-z]+)"'
+		Decisions = [int](Get-Field $End '"decisions":(\d+)') } # the picks of every hand but the Patron's, which a Shrine choice takes by itself (offers.md R-OFF-08)
 }
 
 function Read-Locked {
@@ -186,20 +200,18 @@ function Read-Locked {
 	return $Ids
 }
 
-# A first run's hands: nothing the Tree or the first-run list holds shut (meta.md R-MET-22, R-MET-25).
+# A first run's hands: nothing the Tree or the first-run list holds shut (meta.md R-MET-22, R-MET-25). Returns the hands past the Patron's, which every run has.
 function Test-Gated([string]$Tag, $Run) {
 	$Offers = @($Run.Lines | Where-Object { $_ -match '"kind":"offer"' })
 	$Seen = @($Offers | ForEach-Object { [regex]::Matches($_, '"id":"([^"]+)"') | ForEach-Object { $_.Groups[1].Value } } | Sort-Object -Unique)
 	$Shut = @($Seen | Where-Object { $Locked -contains $_ })
 	if ($Shut.Count) { Note-Fail "$Tag offered what a first run keeps shut: $($Shut -join ' ')" }
-	if (-not $Offers.Count) { Note-Fail "$Tag no hand was offered" }
-	return $Offers.Count
+	return @($Offers | Where-Object { $_ -notmatch '"hand_kind":"Patron"' }).Count
 }
 
 $Truth = Read-TextTruth
 $Locked = Read-Locked
-$Stamp = Join-Path $PackageRoot "package_stamp.json"
-Write-Host ("pkghub: {0} tables, {1} ids shut on a first run, package {2}" -f $Truth.Count, $Locked.Count, $(if (Test-Path $Stamp) { ([IO.File]::ReadAllText($Stamp) | ConvertFrom-Json).commit } else { "(no stamp)" }))
+Write-Host ("pkghub: {0} tables, {1} ids shut on a first run, package {2}" -f $Truth.Count, $Locked.Count, $Stamp.commit)
 
 # --- A: staged ------------------------------------------------------------------------------------------------------------
 $UnrealPak = Join-Path $UERoot "Engine\Binaries\Win64\UnrealPak.exe"
@@ -233,7 +245,7 @@ function Invoke-Script([string]$Tag, [string]$Script, [string]$Culture, [string]
 	$Parsed = Read-Log $Tag $Log
 	if (-not ($Parsed.Lines | Where-Object { $_ -match "Engine exit requested \(reason: Win RequestExit\)" })) { Note-Fail "$Tag did not leave through Quit to desktop" }
 	Test-Text $Tag $Culture $Parsed
-	Test-Shots $Tag $Shots $Pages[$Script]
+	Test-Shots $Tag $Shots @($Pages[$Script] | Where-Object { $_ -ne "hand" -or $Parsed.Picked -gt 0 })
 	return $Parsed
 }
 
@@ -250,15 +262,25 @@ function Expect-Language([string]$Tag, [string]$UserDir, [string]$Culture) {
 }
 
 $Walked = @{}
+$Walks = @{}
 foreach ($Culture in "en", "zh-Hans") {
 	$Dir = Join-Path $WorkRoot $Culture
 	$User = Join-Path $Dir "user"
 	$Shots = Join-Path $Dir "shots"
-	New-Item -ItemType Directory -Force $User | Out-Null
 	$Patron = if ($Culture -eq "en") { "Storm" } else { "Forge" }
-	$SeedArg = if ($Culture -eq "en") { @("-DTSeed=$Seed") } else { @() }
 	$Tag = "walk_$Culture"
-	$Log = Invoke-Script $Tag "Walk" $Culture $User $Shots ($SeedArg + @("-DTPathPatron=$Patron"))
+	# No hand says nothing of the build (S3_package.md) and proves no hand, so the walk starts over on a clean profile. Only a hand that never comes fails.
+	for ($Try = 1; $Try -le $WalkTries; $Try++) {
+		if (Test-Path $Dir) { Remove-Item $Dir -Recurse -Force }
+		New-Item -ItemType Directory -Force $User | Out-Null
+		$WalkSeed = $Seed + $Try - 1
+		$SeedArg = if ($Culture -eq "en") { @("-DTSeed=$WalkSeed") } else { @() }
+		$Log = Invoke-Script $Tag "Walk" $Culture $User $Shots ($SeedArg + @("-DTPathPatron=$Patron"))
+		$Walks[$Culture] = $Try
+		if ($Log.Picked -gt 0) { break }
+		Write-Host ("    {0} walk {1} of {2}: no hand before the death on {3}" -f $Tag, $Try, $WalkTries, (Get-RunFiles $User "jsonl" | Select-Object -First 1).BaseName)
+	}
+	if ($Log.Picked -eq 0) { Note-Fail "$Tag no hand came in $WalkTries walks" }
 	$Runs = Get-RunFiles $User "jsonl"
 	if ($Runs.Count -ne 2) { Note-Fail "$Tag wrote $($Runs.Count) run file(s), expected 2"; continue }
 	$First = Read-Run $Runs[0]
@@ -271,7 +293,8 @@ foreach ($Culture in "en", "zh-Hans") {
 		if ($Run.Patron -ne $Patron) { Note-Fail "$Tag the hand took '$($Run.Patron)'" }
 	}
 	if ($First.Seed -eq $Second.Seed) { Note-Fail "$Tag both runs of one launch played seed $($First.Seed)" }
-	if ($SeedArg.Count -and $First.Seed -ne "$Seed") { Note-Fail "$Tag first run on seed $($First.Seed), not the launch's $Seed" }
+	if ($SeedArg.Count -and $First.Seed -ne "$WalkSeed") { Note-Fail "$Tag first run on seed $($First.Seed), not the launch's $WalkSeed" }
+	if ($First.Decisions -gt $Log.Picked) { Note-Fail "$Tag $($First.Decisions) hand(s) closed in the first run, $($Log.Picked) by a key: a hand took no person" }
 	$Hands = Test-Gated $Tag $First
 	if ($Log.Gated -ne ($Log.Opens.Count + $Log.Begins.Count)) { Note-Fail "$Tag $($Log.Gated) world(s) gated of $($Log.Opens.Count + $Log.Begins.Count)" }
 	$Expected = (Get-SavePath $User) -replace "\\", "/"
@@ -342,7 +365,8 @@ function Invoke-ShippingRun([string]$Tag, [string]$Culture, [string]$UserDir, [i
 }
 
 $CsvOk = $false
-$Fresh = Invoke-ShippingRun "E" "en" $ShipUser $Seed
+$EnSeed = if ($Walked["en"]) { [int]$Walked["en"].First.Seed } else { $Seed }
+$Fresh = Invoke-ShippingRun "E" "en" $ShipUser $EnSeed
 if ($Fresh) {
 	if ($Walked["en"]) {
 		$A = [IO.File]::ReadAllText($Walked["en"].Csv.FullName)
@@ -394,7 +418,7 @@ foreach ($Dir in Get-ChildItem $WorkRoot -Recurse -Directory -Filter "Playtests"
 if ($Strays.Count) { Note-Fail "a run file of this check is in the owner's folder: $($Strays[0].Name)" }
 if ($script:ShownWindows -gt 0) { Note-Fail "a game window was visible ($($script:ShownWindows) sample(s))" }
 
-$Summary = "same cook={0}, {1} tables read in en and zh-Hans, Shipping csv same as the walk={2}, seed {3} hash {4}, owner's save unchanged={5}, windows {6}" -f $SameCook, $Truth.Count, $CsvOk, $Seed, $Hashes.Development, ($OwnerAfter -ceq $OwnerBefore), $script:ShownWindows
+$Summary = "package {0}, same cook={1}, {2} tables read in en and zh-Hans, walks {3} en on seed {4} + {5} zh-Hans, Shipping csv same as the walk={6}, seed {7} hash {8}, owner's save unchanged={9}, windows {10}" -f $Stamp.commit, $SameCook, $Truth.Count, $Walks["en"], $EnSeed, $Walks["zh-Hans"], $CsvOk, $Seed, $Hashes.Development, ($OwnerAfter -ceq $OwnerBefore), $script:ShownWindows
 if ($script:Failures.Count) {
 	Write-Host "PKGHUB: FAIL ($($script:Failures.Count) failure(s), first: $($script:Failures[0]); $Summary)"
 	exit 1
