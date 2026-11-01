@@ -1,0 +1,147 @@
+# S3 validation kit — the external test
+
+Exit test (`12_Production §2`, S3): **3 fresh validators × 3 runs**, none of them the owner, ≥ 1 on a gamepad and ≥ 1 in zh-Hans (`§1`); **pass 2 of 3**; a packaged pad pass; `findings_S3.md` written. The scheduler prepares the build; the owner hosts and watches. **Watch, don't explain.**
+
+No session has been played. "Pass 2 of 3", "fresh" and what counts as a run have no definition in the docs yet, and `Harness/H07 §4` wants the pass rule written before the session: settle calls 1 to 3 in `findings_S3.md` first.
+
+## What a validator gets
+- A folder: the package from `Tools\Package.ps1`, `Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans. Copy it to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from it once.
+- A PC or a Windows account of their own (next section), with a pad plugged in before launch if they are the pad validator.
+- The one sentence, and nothing else. Never the Development folder: it has a console (`package.md` R-PKG-02).
+
+The build must be clean: `Saved\Package\package_stamp.json` reads `"dirty": false`. Its `commit` is the kit's build. Write it in `findings_S3.md`.
+
+## A fresh save for each validator
+The save and the run files belong to the Windows account, not to the folder: `%LOCALAPPDATA%\Dusktracer\Saved\SaveGames\DTMeta.sav` and `Saved\Playtests` beside it. Copying the package again does not make a new save.
+
+So each validator plays on one of these:
+1. Their own PC, which has never run the game.
+2. A new Windows account made for them on a shared PC, one per validator.
+
+**Never on the owner's Windows account.** The owner's run files are there, and `Export_Logs.bat` would put every one of them in the validator's zip. **Never delete, rename or move `%LOCALAPPDATA%\Dusktracer` to make a save fresh:** those files are the owner's evidence, and they do not come back.
+
+A rehearsal by the host goes on a spare account of its own, and its zip stays out of the session folder: a rehearsal on the kit's build reads exactly like a validator's run, and no tool can tell them apart.
+
+## Telling a validator's save from the owner's
+The logs name no person and no save (`meta.md` R-MET-16), so a save is told by looking, before the first run:
+
+| Look at | A fresh save | Anything else |
+|---|---|---|
+| The first screen | Focus rests on Shrine 祠堂: no Patron chosen | Focus rests on Begin 启程: this save has played. Stop |
+| Ledger-stone 账碑 | Every row 0: Ichor held, Ichor earned, Runs, Wins | Any other number. Stop |
+| Shrine | Storm, Forge, Tide open, three Keepers Sealed 封存 | A fourth Keeper open. Stop |
+
+Write the Ledger-stone reading in `findings_S3.md` before the first run. A save that reads clean can still sit on the owner's account, so the account is checked first.
+
+After the session the zip checks it again:
+- It holds that validator's runs and no others. More files than runs played means the account was shared.
+- `S3Exit` refuses any run in two validators' zips (`under two validators`): they shared a folder, so they shared a save.
+- `S3Exit` reads `Fresh` as FAIL when a validator's first run showed a card no fresh save can hold. It only works one way: a clean hand proves nothing.
+
+The owner's own runs read differently too: `Tools\Play.bat` runs say `config` `Development`, and anything from before this kit has no `driver`. Both are refused.
+
+## Before each validator
+- Tell the scheduler "S3 session starting": automated runs stop (holds in `STATE.md`), so frame times are clean.
+- Do the checks above. Have the sheet and a clock. Note the run timer (HUD) at each key moment.
+
+## The one sentence (say only this)
+> "You are the bullet hell. Survive fifteen minutes and beat the boss; every level you pick one card. I won't help — think out loud if you like."
+>
+> 「弹幕即你。撑过十五分钟、击败首领；每升一级选一张卡。我不会提示——想到什么可以说出来。」
+
+Do not explain Vigil, Keepers, Contracts, Ichor, archetypes or the card kinds.
+
+## What a validator does
+1. Double-click `Play_en.bat` or `Play_zh-Hans.bat`. The game opens full screen in **Vigil 守夜镇**, the hub, not in a fight. A fresh seed is drawn for every run.
+2. The hub is a list: Shrine, Contracts, Codex, Ledger-stone, Settings, Begin, Quit to desktop. **It takes keys, not the mouse:** arrows or `W S` with `Enter` and `Esc`; on a pad the D-pad or left stick with `A` and `B`. Someone clicking and getting nothing is a finding: note it. If they are stuck, say only "arrow keys and Enter".
+3. At the Shrine they choose a Patron, then Begin starts a run.
+4. A run ends in a death or a win. The run-over screen shows what the run earned, in Ichor, and offers Return to Vigil, Restart run and Quit to desktop.
+5. Back in Vigil, Contracts spends Ichor. A purchase takes one press and cannot be undone. Three runs, in whatever way they find.
+
+Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, each with a confirmation. A run is banked once however the game ends it, so no exit loses what it earned; a crash does.
+
+**Language.** The launcher sets the language at launch: `Play_zh-Hans.bat` for the zh-Hans validator. Settings 设置 → Language 语言 switches it live, and each run records the language it started in. One validator may change it, but `S3Exit` needs ≥ 1 run ended by a death or a win in zh-Hans.
+
+**Between sittings.** The save keeps the Ichor, the Contracts and the Patron. Start the same launcher on the same account. Never a new account for the same validator: that is a second save.
+
+## Observe (one column per validator; three runs each)
+| | V1 | V2 | V3 |
+|---|---|---|---|
+| Experience (novice / genre veteran), input (KBM / pad), language | | | |
+| PC or account; Ledger-stone read 0 before the first run | | | |
+| Found Begin alone? How long in Vigil before the first run? | | | |
+| Patron chosen, and why (their words) | | | |
+| Second Keeper at L8, and why | | | |
+| First dash and first Intercession (time); did they find the input alone? | | | |
+| Moments: laughed, swore, leaned in, went quiet or bored (time → words) | | | |
+| Anything unreadable: telegraphs, enemy fire, cards, HUD, hub, text | | | |
+| Run outcome per run: death time + cause, or boss win | | | |
+| Bugs, crashes, stutters (time) | | | |
+| What they looked at in Contracts and the Codex; what they bought | | | |
+| **Asked for another run unprompted?** (Y/N) | | | |
+
+## Ask after each validator (in this order, record exact words)
+1. "When did your build click?" — do not say "archetype", "流派" or a Keeper name first.
+2. "What would you call your build?" → **can they name their archetype in their own words?** (Y/N).
+3. "Was there a card you were glad to see?"
+4. "Did your first run feel like the whole game, or a locked part of it?" (D-024)
+5. "Was there anything you wanted to buy?" (D-023)
+6. "Did anything feel tiring or unfair?"
+7. "What would make you play again?"
+
+## What they send back
+With the game closed, the validator double-clicks `Export_Logs.bat` in the package folder. It makes one file on the desktop, `Dusktracer_Logs_<date>_<time>.zip`, and prints where. Nothing leaves the PC by itself: they hand that one file to the host. A second export is fine: it holds every run so far.
+
+What the zip holds: gameplay only. Seed, build hash and build type, who drove the run (a person, a tool or a bot), culture, last input device, combat numbers, where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick, and the start time, UTC inside each file and local in its name, so the two show the time zone. No name, account, machine name, path or hardware. Shipping writes no game log, so a zip holds run files and a `MANIFEST.txt` saying this. The save and the settings file stay on the PC.
+
+Crash: note the time. The run's file has no `run_end`.
+
+## What the host reads
+Put each zip in a folder named for its validator, and never a real name: the repo is public (D-006).
+```
+<session folder>\V1\Dusktracer_Logs_....zip
+<session folder>\V2\Dusktracer_Logs_....zip
+<session folder>\V3\Dusktracer_Logs_....zip
+```
+```
+& Tools\S3Exit.ps1 -Logs <session folder> [-Build <hash>]
+```
+It starts no game and writes nothing. It prints one line per validator, the runs it refused, one `EXIT` line per row, then `S3EXIT: <p> PASS, <f> FAIL, <n> NOT READ`. With no `-Build` it takes the clean commit in `package_stamp.json`; with no build named, no run counts.
+
+**A run counts only if its `run_start` says a person played the kit's stamped Shipping build.** Every other run is refused, and the line says why:
+
+| Line | What it means |
+|---|---|
+| `bot run` | `driver` is `bot`, or the run ended `bot_timeout` |
+| `tool run` | `driver` is `tool`: `-unattended`, a named seed or any other `-DT` switch |
+| `designer's build` | `config` is not `Shipping`: `Tools\Play.bat` or the proof build |
+| `unstamped build` | `build` is `unknown` or ends `+dirty` |
+| `another build` | a clean Shipping build, not the one named |
+| `no build named to read it against` | pass `-Build` |
+| `older than driver and config` | a file from before R-TEL-13 |
+| `no run_start` | a file torn at its start, or not a run file |
+| `under two validators` | the same run in two zips: it counts for neither |
+
+Of the accepted runs, one ended by a death or a win is **counted**. `quit`, `restart`, `abandoned` and a file with no `run_end` (a crash or a killed process) are shown beside them and do not count (call 3).
+
+| `EXIT` row | Reads | PASS | FAIL | NOT READ |
+|---|---|---|---|---|
+| `Validators` | the logs | ≥ 3 folders with ≥ 3 counted runs | some accepted runs, too few | no accepted run |
+| `Fresh` | a human | never: only the host knows | a first run shows a card no fresh save can | otherwise |
+| `zh-Hans` | the logs | a counted run in zh-Hans | `Validators` passed and none | otherwise |
+| `Packaged pad pass` | the logs and `Tools\PadCheck.ps1` | a person's run reads `input_device` `pad` and PadCheck's line passes this package | `Validators` passed and no pad | otherwise |
+| `Pass rule` | a human | never here | never here | always: call 1 |
+| `findings_S3.md` | the file | every row read, each with a name | never | otherwise |
+
+**NOT READ is not a soft pass.** It means no human evidence reached this row. A row that needs a human stays NOT READ here whatever the logs say, and no number from a bot stands in for one (R-BOT-13). `S3Exit` cannot say the stage is over: a person reads the output and fills `findings_S3.md`, with their name in each row.
+
+Then triage every finding (class, layer, owner) in `findings_S3.md`.
+
+## Not proved by this kit
+- **Nobody has played Shipping past its hub.** A real key from Vigil through a run, the bank by a person, Alt+F4 in full screen, `Export_Logs.bat` by double-click, the look of zh-Hans cards on a real display: all are `package.md` HUMAN rows, so the first session is the first time. A rehearsal on a spare account finds these early.
+- `driver` `person` on Shipping itself: Shipping cannot reach a run with no hands. See below.
+
+## Reading of the kit itself
+Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, and sorting runs by a noted start time with a zip per validator. No rule of play moved and no number was tuned.
+
+We believe a host can read the S3 exit from three zips with no run of a bot or a designer's build counted, because `run_start` now says what made each run (`telemetry.md` R-TEL-13); measured at the first S3 session; revisited if a real run is refused or a tool's run is accepted.

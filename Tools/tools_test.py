@@ -29,6 +29,7 @@ import owner_read  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 import s2_exit  # noqa: E402
+import s3_exit  # noqa: E402
 
 
 class Matrix(unittest.TestCase):
@@ -503,6 +504,290 @@ class S2Exit(unittest.TestCase):
 		self.assertAlmostEqual(s["boss_kill"], 1 / 3)
 
 
+class S3Exit(unittest.TestCase):
+	"""T-PKG-14: only a person on the kit's stamped Shipping build is evidence, by the fields of run_start; no row reads PASS from anything else,
+	an empty folder reads nothing, a torn file costs only itself, and what a human must read stays NOT READ."""
+
+	BUILD = "abc1234"
+	LOCKED = {"Blessing.Storm.Tempest.Amp1"}
+	PERSON = {"culture": "en", "build": BUILD, "config": "Shipping", "driver": "person"}
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.addCleanup(self.tmp.cleanup)
+		self.root = self.tmp.name
+		self.serial = 0
+
+	@classmethod
+	def start(cls, wall="2026-11-01T10:00:00.000Z", **over):
+		rec = {"t": 0.0, "step": 0, "kind": "run_start", "owner": -1, "seed": 7, "players": 1, **cls.PERSON, "interval_s": 60.0, "step_s": 0.016667, "wall": wall, **over}
+		return {k: v for k, v in rec.items() if v is not None}
+
+	def jsonl(self, start, reason="death", cards=()):
+		lines = [json.dumps(start)]
+		if cards:
+			lines.append(json.dumps({"kind": "offer", "owner": 0, "hand_id": 1, "hand_kind": "Level", "cards": [{"id": c} for c in cards]}))
+		if reason:
+			lines.append(json.dumps({"t": 600.0, "kind": "run_end", "owner": -1, "reason": reason, "steps": 36000}))
+		return "\n".join(lines) + "\n"
+
+	@staticmethod
+	def table(device):
+		return "interval,run_time_s,player,seed,build,culture,input_device\n" + "".join(f"{i},60,0,7,abc1234,en,{device}\n" for i in range(2))
+
+	def put(self, who, name=None, text=None, device="kbm", start=None, reason="death", cards=()):
+		"""One run's pair in a validator's folder; returns its base name."""
+		self.serial += 1
+		name = name or f"{self.serial}_20261101_100000"
+		folder = os.path.join(self.root, who)
+		os.makedirs(folder, exist_ok=True)
+		with open(os.path.join(folder, name + ".jsonl"), "w", encoding="utf-8") as f:
+			f.write(text if text is not None else self.jsonl(start or self.start(), reason, cards))
+		if device is not None:
+			with open(os.path.join(folder, name + ".csv"), "w", encoding="utf-8") as f:
+				f.write(self.table(device))
+		return name
+
+	def session(self, zh=True, pad=True, runs=3):
+		"""Three validators; V2 plays zh-Hans and V3 a pad, when asked."""
+		for who in ("V1", "V2", "V3"):
+			for n in range(runs):
+				culture = "zh-Hans" if zh and who == "V2" else "en"
+				self.put(who, start=self.start(culture=culture, wall=f"2026-11-01T1{n}:00:00.000Z"), device="pad" if pad and who == "V3" else "kbm")
+
+	def rows(self, build=BUILD, pad=True, findings=None):
+		logs = s3_exit.read_logs(self.root, build)
+		return logs, {name: (verdict, detail) for name, verdict, detail in s3_exit.exit_lines(logs, build, pad, findings, self.LOCKED)}
+
+	def verdicts(self, **kw):
+		return {name: v for name, (v, _) in self.rows(**kw)[1].items()}
+
+	def test_an_empty_folder_reads_nothing(self):
+		self.assertEqual(set(self.verdicts().values()), {"NOT READ"})
+
+	def test_only_bot_runs_read_nothing(self):
+		for who in ("V1", "V2", "V3"):
+			for _ in range(3):
+				self.put(who, start=self.start(driver="bot"), reason="victory", device="pad")
+		logs, rows = self.rows()
+		self.assertEqual({v for v, _ in rows.values()}, {"NOT READ"})
+		self.assertEqual({why for p in logs["validators"].values() for why in p["refused"]}, {"bot run"})
+
+	def test_a_bot_timeout_is_refused_whatever_run_start_says(self):
+		self.put("V1", reason="bot_timeout")
+		self.assertEqual(list(self.rows()[0]["validators"]["V1"]["refused"]), ["bot run"])
+
+	def test_each_refusal_says_why(self):
+		cases = {"tool run": {"driver": "tool"}, "designer's build": {"config": "Development"}, "unstamped build": {"build": "abc1234+dirty"},
+			"another build": {"build": "fff0000"}, "older than driver and config": {"driver": None}}
+		for why, over in cases.items():
+			with self.subTest(why):
+				self.assertEqual(s3_exit.refusal(self.start(**over), None, self.BUILD), why)
+		self.assertEqual(s3_exit.refusal(self.start(config=None), None, self.BUILD), "older than driver and config")
+		self.assertEqual(s3_exit.refusal(self.start(build="unknown"), None, self.BUILD), "unstamped build")
+		self.assertEqual(s3_exit.refusal(self.start(driver="unknown"), None, self.BUILD), "tool run")
+		self.assertIsNone(s3_exit.refusal(self.start(), {"reason": "death"}, self.BUILD))
+
+	def test_the_owners_run_file_is_refused(self):
+		owner = {"seed": 2147483647, "players": 1, "culture": "zh-Hans", "build": "996cd47", "interval_s": 60.0, "step_s": 0.016667, "wall": "2026-10-31T23:13:06.000Z", "kind": "run_start"}
+		self.assertEqual(s3_exit.refusal(owner, {"reason": "death"}, "996cd47"), "older than driver and config")
+
+	def test_no_named_build_passes_nothing(self):
+		self.session()
+		self.assertEqual(set(self.verdicts(build="").values()), {"NOT READ"})
+
+	def test_no_row_passes_without_a_persons_run(self):
+		self.put("V1", start=self.start(driver="bot"), device="pad")
+		self.assertEqual(set(self.verdicts(pad=True, findings=(4, 4)).values()), {"NOT READ"})
+
+	def test_a_whole_session_passes_the_rows_logs_can_read_and_no_other(self):
+		self.session()
+		v = self.verdicts(findings=(4, 4))
+		self.assertEqual((v["Validators"], v["zh-Hans"], v["Packaged pad pass"], v["findings_S3.md"]), ("PASS", "PASS", "PASS", "PASS"))
+		self.assertEqual((v["Fresh"], v["Pass rule"]), ("NOT READ", "NOT READ"))
+
+	def test_a_run_short_fails_the_count(self):
+		self.session(runs=2)
+		v = self.verdicts()
+		self.assertEqual((v["Validators"], v["Pass rule"]), ("FAIL", "NOT READ"))
+
+	def test_a_run_the_player_left_does_not_count(self):
+		for reason in ("quit", "restart", "abandoned", "EndPlay"):
+			self.put("V1", reason=reason)
+		self.put("V1")
+		logs, rows = self.rows()
+		self.assertEqual((len(logs["validators"]["V1"]["runs"]), len(s3_exit.counted(logs["validators"]["V1"]))), (5, 1))
+		self.assertEqual(rows["Validators"][0], "FAIL")
+
+	def test_a_mix_of_cultures(self):
+		for culture in ("en", "zh-Hans", "en"):
+			self.put("V1", start=self.start(culture=culture))
+		self.assertEqual(self.verdicts()["zh-Hans"], "PASS")
+		text = s3_exit.validator_lines(self.rows()[0])[0]
+		self.assertIn("en 2 zh-Hans 1", text)
+
+	def test_no_chinese_fails_only_a_finished_session(self):
+		self.put("V1")
+		self.assertEqual(self.verdicts()["zh-Hans"], "NOT READ")
+		shutil.rmtree(os.path.join(self.root, "V1"))
+		self.session(zh=False)
+		self.assertEqual(self.verdicts()["zh-Hans"], "FAIL")
+
+	def test_a_culture_in_a_run_nobody_counts_is_no_reading(self):
+		self.put("V1", start=self.start(culture="zh-Hans"), reason="quit")
+		self.assertEqual(self.verdicts()["zh-Hans"], "NOT READ")
+
+	def test_pad_takes_a_real_run_and_the_machine_half(self):
+		self.session()
+		self.assertEqual(self.verdicts(pad="no PadCheck line")["Packaged pad pass"], "NOT READ")
+		for who in ("V1", "V2", "V3"):
+			shutil.rmtree(os.path.join(self.root, who))
+		self.session(pad=False)
+		self.assertEqual(self.verdicts(pad=True)["Packaged pad pass"], "FAIL")
+
+	def test_a_tools_pad_is_no_pad(self):
+		self.put("V1", start=self.start(driver="tool"), device="pad")
+		self.assertEqual(self.verdicts(pad=True)["Packaged pad pass"], "NOT READ")
+
+	def test_padcheck_lines(self):
+		path = os.path.join(self.root, "pad.log")
+
+		def line(text):
+			with open(path, "w", encoding="utf-8-sig") as f:
+				f.write("padcheck: Shipping en\n" + text + "\n")
+			return s3_exit.pad_machine(path, self.BUILD)
+
+		self.assertIs(line("PADCHECK: NOT RUN (package abc1234 ok, en+zh-Hans, 0 windows; real pad needs a human, no run of this build reads input_device=pad)"), True)
+		self.assertIs(line("PADCHECK: PASS (package abc1234 ok, en+zh-Hans; real pad in 1 run(s), first x.csv)"), True)
+		self.assertIn("fff0000", line("PADCHECK: NOT RUN (package fff0000 ok, en+zh-Hans, 0 windows)"))
+		self.assertIn("FAIL", line("PADCHECK: FAIL (1 failure(s), first: x)"))
+		self.assertIn("no package", line("PADCHECK: NOT RUN (no package; Tools\\Package.ps1)"))
+		self.assertEqual(s3_exit.pad_machine(os.path.join(self.root, "none.log"), self.BUILD), "no PadCheck line")
+
+	def test_a_torn_file_costs_only_itself(self):
+		whole = self.put("V1")
+		torn = self.jsonl(self.start())
+		self.put("V1", name="1_torn_tail", text=torn[:-20])
+		self.put("V1", name="2_torn_head", text=torn[9:])
+		self.put("V1", name="3_empty", text="")
+		self.put("V1", name="4_no_end", reason=None)
+		with open(os.path.join(self.root, "V1", whole + ".csv"), "a", encoding="utf-8") as f:
+			f.write("9,60,0,7,ab")
+		logs, rows = self.rows()
+		person = logs["validators"]["V1"]
+		self.assertEqual(sorted(person["refused"]), ["no run_start"])
+		self.assertEqual(len(person["refused"]["no run_start"]), 2)
+		self.assertEqual(len(s3_exit.counted(person)), 1)
+		self.assertEqual({r["end"] for r in person["runs"]}, {"death", None})
+		self.assertIn("no run_end", s3_exit.validator_lines(logs)[0])
+		self.assertEqual(rows["Validators"][0], "FAIL")
+
+	def test_binary_junk_in_a_run_file_is_no_crash(self):
+		folder = os.path.join(self.root, "V1")
+		os.makedirs(folder)
+		for ext in (".jsonl", ".csv"):
+			with open(os.path.join(folder, "1_junk" + ext), "wb") as f:
+				f.write(bytes(range(256)) * 8)
+		self.assertEqual(list(self.rows()[0]["validators"]["V1"]["refused"]), ["no run_start"])
+
+	def zip_of(self, who, names):
+		folder = os.path.join(self.root, who)
+		os.makedirs(folder, exist_ok=True)
+		path = os.path.join(folder, f"Dusktracer_Logs_{len(os.listdir(folder))}.zip")
+		with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+			for member, text in names.items():
+				z.writestr(member, text)
+		return path
+
+	def test_a_zip_reads_like_loose_files_under_either_slash(self):
+		self.zip_of("V1", {"Dusktracer_Logs_x/Playtests/5_a.jsonl": self.jsonl(self.start()), "Dusktracer_Logs_x\\Playtests\\5_a.csv": self.table("pad"), "Dusktracer_Logs_x/MANIFEST.txt": "x"})
+		runs = self.rows()[0]["validators"]["V1"]["runs"]
+		self.assertEqual([(r["name"], r["pad"], r["csv"]) for r in runs], [("5_a", True, True)])
+
+	def test_a_torn_zip_is_a_problem_and_no_crash(self):
+		path = self.zip_of("V1", {"Playtests/5_a.jsonl": self.jsonl(self.start())})
+		with open(path, "r+b") as f:
+			f.truncate(os.path.getsize(path) // 2)
+		logs, rows = self.rows()
+		self.assertIn("not a whole zip", logs["problems"][0])
+		self.assertEqual(rows["Validators"][0], "NOT READ")
+
+	def test_a_second_export_replaces_the_first_and_counts_once(self):
+		self.zip_of("V1", {"Playtests/5_a.jsonl": self.jsonl(self.start(), reason=None)})
+		self.zip_of("V1", {"Playtests/5_a.jsonl": self.jsonl(self.start()), "Playtests/6_b.jsonl": self.jsonl(self.start())})
+		person = self.rows()[0]["validators"]["V1"]
+		self.assertEqual(sorted((r["name"], r["end"]) for r in person["runs"]), [("5_a", "death"), ("6_b", "death")])
+
+	def test_a_run_under_two_validators_counts_for_neither(self):
+		self.put("V1", name="5_a")
+		self.put("V2", name="5_a")
+		self.put("V2", name="6_b")
+		logs = self.rows()[0]
+		self.assertEqual(logs["validators"]["V1"]["refused"], {"under two validators": ["5_a"]})
+		self.assertEqual([r["name"] for r in logs["validators"]["V2"]["runs"]], ["6_b"])
+
+	def test_a_file_in_no_validators_folder_counts_for_nobody(self):
+		with open(os.path.join(self.root, "Dusktracer_Logs_x.zip"), "wb") as f:
+			f.write(b"")
+		logs, rows = self.rows()
+		self.assertIn("read for nobody", logs["problems"][0])
+		self.assertEqual(rows["Validators"][0], "NOT READ")
+
+	def test_a_first_hand_can_fail_a_save_and_never_pass_one(self):
+		self.put("V1", start=self.start(wall="2026-11-01T11:00:00.000Z"), cards=["Blessing.Storm.Tempest.Amp1"])
+		self.put("V1", start=self.start(wall="2026-11-01T10:00:00.000Z"), cards=["Weapon.PulseRifle"])
+		self.assertEqual(self.verdicts()["Fresh"], "NOT READ", "a bought card in a later run is the Tree working")
+		self.put("V2", cards=["Blessing.Storm.Tempest.Amp1"])
+		self.assertEqual(self.verdicts()["Fresh"], "FAIL")
+
+	def test_the_locked_ids_are_the_catalogs(self):
+		locked = s3_exit.locked_ids()
+		self.assertIn("Mod.ScatterShell", locked)
+		self.assertIn("Transform.Storm", locked)
+		self.assertNotIn("Weapon.PulseRifle", locked)
+
+	def test_the_fields_are_the_ones_the_game_writes(self):
+		core = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Source", "Dusktracer", "Telemetry", "DTTelemetryCore.cpp")
+		with open(core, encoding="utf-8") as f:
+			self.assertIn(r'\"build\":%s,\"config\":%s,\"driver\":%s', f.read())
+
+	def test_the_committed_findings_hold_no_reading_without_a_name(self):
+		path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Docs", "Validation", "findings_S3.md")
+		with open(path, encoding="utf-8") as f:
+			text = f.read()
+		read, total = s3_exit.findings_state(path)
+		self.assertGreater(total, 0)
+		if not read:
+			self.assertEqual(text.count("| NOT READ | not filled |"), total, "no row may read anything until a session fills it")
+
+	def test_findings_rows(self):
+		path = os.path.join(self.root, "findings.md")
+
+		def state(*rows):
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("Intro\n\n| Row | Reading | Filled by |\n|---|---|---|\n" + "".join(f"| a | {r} | {w} |\n" for r, w in rows) + "\nText\n\n| Other | Cell |\n|---|---|\n| NOT READ | x |\n")
+			return s3_exit.findings_state(path)
+
+		self.assertEqual(state(("NOT READ", "not filled"), ("**NOT READ**", "not filled")), (0, 2))
+		self.assertEqual(state(("PASS", "not filled")), (0, 1))
+		self.assertEqual(state(("PASS", "owner"), ("3 of 3 asked", "owner")), (2, 2))
+		self.assertIsNone(s3_exit.findings_state(os.path.join(self.root, "none.md")))
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_the_script_reads_a_folder_and_says_so(self):
+		script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "S3Exit.ps1")
+		self.put("V1", start=self.start(driver="bot"))
+		run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Logs", self.root, "-Build", self.BUILD, "-PadLog", "none"],
+			capture_output=True, encoding="utf-8", errors="replace")
+		self.assertEqual(run.returncode, 0, run.stdout)
+		self.assertIn("REFUSED V1: 1 bot run", run.stdout)
+		self.assertIn("EXIT Validators: NOT READ", run.stdout)
+		self.assertRegex(run.stdout, r"S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ")
+		gone = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Logs", os.path.join(self.root, "none")], capture_output=True, encoding="utf-8", errors="replace")
+		self.assertEqual(gone.returncode, 1)
+		self.assertIn("S3EXIT: FAIL", gone.stdout)
+
+
 class Ablation(unittest.TestCase):
 	BUILD = ("Storm", "Tide", ["Blessing.Storm.Tempest.Key", "Blessing.Tide.Frost.Key"],
 		[("Weapon.PulseRifle", 6, ["Mod.A"]), ("Weapon.ArcBlade", 3, [])])
@@ -870,14 +1155,14 @@ class ExportLogs(unittest.TestCase):
 	SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PackageFiles", "Export_Logs.ps1")
 	RUN = '{"t":0,"step":0,"kind":"run_start","seed":7}\n'.encode("utf-8")
 
-	def export(self, user, log_text, profile=None, log_bytes=None):
+	def export(self, user, log_text, profile=None, log_bytes=None, run=None, keep=None):
 		with tempfile.TemporaryDirectory() as root:
 			saved = os.path.join(root, "Dusktracer", "Saved")
 			os.makedirs(os.path.join(saved, "Playtests"))
 			os.makedirs(os.path.join(saved, "Logs"))
 			os.makedirs(os.path.join(saved, "Crashes", "C1"))
 			with open(os.path.join(saved, "Playtests", "7_20261031_120000.jsonl"), "wb") as f:
-				f.write(self.RUN)
+				f.write(run or self.RUN)
 			with open(os.path.join(saved, "Logs", "Dusktracer.log"), "wb") as f:
 				f.write(log_bytes if log_bytes is not None else log_text.encode("utf-8"))
 			with open(os.path.join(saved, "Crashes", "C1", "Crash.log"), "w", encoding="utf-8") as f:
@@ -891,6 +1176,8 @@ class ExportLogs(unittest.TestCase):
 			self.assertEqual(run.returncode, 0, run.stdout)
 			self.assertRegex(run.stdout, r"EXPORT: .*Dusktracer_Logs_\d{4}-\d{2}-\d{2}_\d{6}\.zip \(1 runs, 2 logs")
 			name = [n for n in os.listdir(out) if n.endswith(".zip")][0]
+			if keep:
+				shutil.copy(os.path.join(out, name), keep)
 			with zipfile.ZipFile(os.path.join(out, name)) as z:
 				return {n.replace("\\", "/").split("/", 1)[1]: z.read(n) for n in z.namelist() if not n.endswith(("/", "\\"))}
 
@@ -919,6 +1206,19 @@ class ExportLogs(unittest.TestCase):
 	def test_a_profile_path_goes_when_the_log_is_not_utf8(self):
 		log = self.export("张三", "", log_bytes="C:\\Users\\张三\\x".encode("gbk"))["Logs/Dusktracer.log"]
 		self.assertEqual(log.decode("utf-8"), "C:\\Users\\<user>\\x")
+
+	def test_the_manifest_says_what_a_run_file_holds(self):
+		manifest = self.export("Storm", "x")["MANIFEST.txt"].decode("utf-8")
+		for held in ("who drove the run", "where the hero was", "where each hit on the hero came from", "how long each card took to pick", "The save and the settings file stay"):
+			self.assertIn(held, manifest)
+
+	def test_s3_exit_reads_a_real_export(self):
+		run = json.dumps(S3Exit.start()) + "\n" + json.dumps({"kind": "run_end", "reason": "death"}) + "\n"
+		with tempfile.TemporaryDirectory() as root:
+			os.makedirs(os.path.join(root, "V1"))
+			self.export("Storm", "x", run=run.encode("utf-8"), keep=os.path.join(root, "V1"))
+			person = s3_exit.read_logs(root, S3Exit.BUILD)["validators"]["V1"]
+		self.assertEqual([(r["name"], r["end"]) for r in person["runs"]], [("7_20261031_120000", "death")])
 
 
 if __name__ == "__main__":
