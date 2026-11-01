@@ -139,9 +139,33 @@ Then triage every finding (class, layer, owner) in `findings_S3.md`.
 
 ## Not proved by this kit
 - **Nobody has played Shipping past its hub.** A real key from Vigil through a run, the bank by a person, Alt+F4 in full screen, `Export_Logs.bat` by double-click, the look of zh-Hans cards on a real display: all are `package.md` HUMAN rows, so the first session is the first time. A rehearsal on a spare account finds these early.
-- `driver` `person` on Shipping itself: Shipping cannot reach a run with no hands. See below.
+- **`driver` `person` on Shipping.** Shipping cannot reach a run with no hands, so a launcher's arguments read `person` on the editor build only. Read the first zip the day it comes back: a wrong reading here would refuse every run, and it costs a session to find out late.
+- A real pad through `S3Exit`, and a first hand from a real fresh save through `Fresh`: both are held on fixtures only.
+- The save's real path under `%LOCALAPPDATA%` on Shipping: no check aims there, on purpose (`S3_package.md`). The Ledger-stone is what the host trusts.
+- That a person reads this sheet as written: nobody has hosted from it.
 
-## Reading of the kit itself
+## Readings of the kit
 Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, and sorting runs by a noted start time with a zip per validator. No rule of play moved and no number was tuned.
 
 We believe a host can read the S3 exit from three zips with no run of a bot or a designer's build counted, because `run_start` now says what made each run (`telemetry.md` R-TEL-13); measured at the first S3 session; revisited if a real run is refused or a tool's run is accepted.
+
+Machine readings, none of a person. No session was simulated, and no exit row read `PASS` from any of them. Every launch was off-screen; Shipping ran on a `-userdir` under this worktree's `Saved`.
+
+| Reading | Tool | Result |
+|---|---|---|
+| Each launcher's real arguments, and a bare launch | `Tools/SeedCheck.ps1`, editor build | `driver` `person` on all 4; `tool` on all 4 named or unattended launches. `Tools\Play.bat` reads `person` too, which is why `config` has to refuse it |
+| A bot | `Tools/BotRuns.ps1`, seed 9107, editor build | `driver` `bot`, `config` `Development` |
+| A bot, zh-Hans | Shipping at `51d7249` | `config` `Shipping`, `driver` `bot`, `build` equal to the stamp, `run_end` `bot_timeout` |
+| `-unattended`, no bot, killed | Shipping at `51d7249` | `config` `Shipping`, `driver` `tool`, `run_start` alone, no CSV |
+| Those two through the package's own `Export_Logs.ps1`, then `S3Exit` | a real zip in a `V1` folder | `REFUSED V1: 1 bot run`, `REFUSED V1: 1 tool run`, `S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ` |
+| The same bot file from the editor in a `V1` folder | `S3Exit` | refused, `S3EXIT: 0 PASS, 0 FAIL, 6 NOT READ` |
+| Seed 9107, `input_hash` and steps | `Tools/RestartCheck.ps1` | `276faf8e`, 5400 on the base `5ccf82e` rebuilt from its own `Source`, and the same on this branch: the sim did not move |
+| The owner's folder | a listing before and after the Shipping launches | 307 files, none new, changed or gone |
+
+What a real run file holds, field by field on a bot's JSONL: the kinds in `telemetry.md` §Data, no string but ids and `run_start.wall`, and no trace of the user name, the machine name or a path. `hero_damaged` did not fire in that run, so its fields are read from the code. D-026 had already made "hero positions" too narrow: a run also holds the point each hit came from and a round's line, and how long each card took. The manifest, `package.md` and `S1_kit.md` said neither, and now do.
+
+Found while proving it:
+- A real zip's member names use backslashes on Windows PowerShell 5.1. The reader takes either, and a test holds it.
+- A run killed inside its first minute has no CSV, so its device is unread. `S3Exit` counts these as `no csv`.
+- `Tools/PadCheck.ps1` and `Tools/ExportLogsCheck.ps1` launch Shipping with no `-userdir`, so they write to `%LOCALAPPDATA%\Dusktracer` (`S3_package.md`). Neither was run for this kit, and the package was deleted before the gate, so the gate's `pad` step read `NOT RUN`.
+- `S1_kit.md` still offered `-IncludeLogs`, which `Export_Logs.ps1` no longer has, and its redist path held a vertical tab.
