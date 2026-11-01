@@ -77,6 +77,11 @@ bool FDTRunSeedDefault::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and it is fresh"), Human.Source == EDTSeedSource::Fresh);
 	TestNotEqual(TEXT("another entropy, another seed"), FDTRunSeed::Resolve(Bare, false, AnyEntropy + 1).Seed, Human.Seed);
 
+	// Tools/WinCheck.ps1 names its map this way: the option is the map's, for ADTGameMode::ParseSeed, and no -DTSeed.
+	const TCHAR* const MapOption = TEXT("/Game/DT/Maps/L_Arena_Test?DTSeed=9100?DTPatron=Storm -game");
+	TestTrue(TEXT("a map's option is no -DTSeed for a tool"), FDTRunSeed::Resolve(MapOption, true, AnyEntropy).Source == EDTSeedSource::Tool);
+	TestTrue(TEXT("nor for a person"), FDTRunSeed::Resolve(MapOption, false, AnyEntropy).Source == EDTSeedSource::Fresh);
+
 	TestTrue(TEXT("this test is a tool run"), FDTRunSeed::IsToolRun());
 	return true;
 }
