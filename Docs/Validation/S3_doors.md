@@ -36,13 +36,13 @@ R-KEE-23's seat rule was written for one forced Keeper. Three met Keepers took a
 
 | Hand | Before | Now, gated | Tool run |
 |---|---|---|---|
-| Patron, chosen at the Shrine | could lose the choice | the choice leads, then Path order | no option, as it was |
+| Patron, chosen at the Shrine | could lose the choice | the choice leads, then Path order, the last seat drawn past three Keepers (`S3_earned.md`) | no option, as it was |
 | Patron, Restart | met Keepers took the seats | `LastPatron` leads, then Path order, the last seat drawn past three Keepers (`S3_earned.md`) | as it was |
 | L8 | every met Keeper seated | R-OFF-08's plain draw | as it was |
 
-Three seats cannot hold six Keepers, so someone waits for the Shrine, and the call is who. A met Keeper does: that is the widening, and R-MET-28's "takes no seat from another Keeper" holds in both hands. The first pass of this branch kept the met Keepers in the Patron hand behind the lead, and the review of it read `Shade Radiance Quicksilver` on a real Restart. With `LastPatron` on a met Keeper one S1 Keeper still drops, Tide, to the seat the person's own last run earned: `S3_earned.md` settles that hand, and the hands read below predate its drawn last seat.
+Three seats cannot hold six Keepers, so someone waits for the Shrine, and the call is who. No met Keeper holds a seat of its own: that is the widening. The first pass of this branch kept the met Keepers in the Patron hand behind the lead, and the review of it read `Shade Radiance Quicksilver` on a real Restart. With `LastPatron` on a met Keeper one S1 Keeper still dropped, Tide, to the seat the person's own last run earned. `S3_earned.md` settles that hand with a drawn last seat, so a met Keeper can now take the seat Tide held: a recorded hand reads `Storm Forge Radiance`, and a Shrine pick on Radiance read `Radiance Storm Tide`, past Forge. R-MET-28 said here that a met Keeper "takes no seat from another Keeper"; that wording went with the draw, and R-MET-28 now reads "holds no seat of its own". The hands read below predate the draw.
 
-On eight saves past the door, with nobody named, all eight L8 hands read whole and mixed (`Quicksilver Shade Forge`, `Forge Quicksilver Radiance`, `Quicksilver Tide Shade`, `Forge Shade Quicksilver`), and all eight launches started on the bot's Storm. Four of those saves were last played on Shade and read `Shade Storm Forge`, the others `Storm Forge Tide`. The save the review read, a first win with all three doors and `LastPatron` on Shade, now reads `Shade Storm Forge` on a Restart, and the bot takes Storm. `Tools/MetaCheck.ps1` step I proves the lead on real launches, on a Keeper Path order could not reach.
+On eight saves past the door, with nobody named, all eight L8 hands read whole and mixed (`Quicksilver Shade Forge`, `Forge Quicksilver Radiance`, `Quicksilver Tide Shade`, `Forge Shade Quicksilver`), and all eight launches started on the bot's Storm. Four of those saves were last played on Shade and read `Shade Storm Forge`, the others `Storm Forge Tide`. The save the review read, a first win with all three doors and `LastPatron` on Shade, read `Shade Storm Forge` on a Restart after the fix, and the bot took Storm. `Tools/MetaCheck.ps1` step I proves the lead on real launches, on a Keeper Path order could not reach.
 
 A bot in a hub world crashed on the empty run; `UDTBotSubsystem::Tick` now does nothing with no run. No person's launch reaches it.
 
@@ -94,7 +94,7 @@ On real saves, nothing planted: the file a first win leaves, with `Keeper.Radian
 The second row is the list D-024 turned down, built to see the step fail, then restored. It fails in 18 s.
 
 ## A met Keeper on the bare first pool is thin
-Nine S2 arms with `-FreshPool` read T-OFF-15 FAIL, 16 of 18: `Rebound` 0.152 and `Economy` 0.129 on one seed each, against `C.OFFER.RESERVE_SHARE_MAX` 0.1. With the Flak Mortar, which `ReachL10` opens, the same arms read PASS, 32 of 32, worst 0.023, decisions 28 to 31. The `firstrun` step plays S1 Keepers and cannot read this, so the order of the doors has to hold it, and the generator holds the order.
+Nine S2 arms with `-FreshPool` read T-OFF-15 FAIL, 16 of 18: `Rebound` 0.152 and `Economy` 0.129 on one seed each, against `C.OFFER.RESERVE_SHARE_MAX` 0.1. With the Flak Mortar, which `ReachL10` opens, the same arms read PASS, 32 of 32, worst 0.023, decisions 28 to 31. The `firstrun` step plays S1 Keepers and cannot read this, so the order of the doors has to hold it, and the generator holds the order. These arms were read on the first pass, when a met Keeper held a Patron seat, so every run played its own Keeper; a hand with no seat for it does not do that, and `S3_earned.md` has what the same arms read now.
 
 | Door | Why that pool cannot be on a save |
 |---|---|

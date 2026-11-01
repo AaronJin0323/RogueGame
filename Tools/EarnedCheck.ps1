@@ -1,17 +1,18 @@
 # A person's loop on real launches (gate step `earned`, meta.md R-MET-30, T-MET-30), off-screen, no window.
-#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-DuoSeeds 9130,9131,9132] [-HandSeconds 300] [-Timeout 300]
+#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-DuoSeeds 9130,9131,9132] [-DuoRunSeeds 9230,9231,9232] [-HandSeconds 300] [-Timeout 300]
 # Part one, nothing planted, on one save from empty. `earn`: a bot plays a gated run and banks what it earned. `Earned`: a second process opens Contracts and a
 # real key buys a node that run can afford. `EarnedRead`: a third reads the purchase. `next`: the same seed, gated: a hand now holds what the node opened, which `earn`'s hands could not.
 # Part two, on a copy of the save `earn` left, with only a balance planted, so its three Keepers are doors a run opened. `Doors`: keys buy Reaction.Duos' two prerequisites and
 # one node of each new branch, then choose Keepers 4 to 6 at the Shrine, begin a gated run on each, and take a real Restart. Then bots on that save: each new Keeper's run holds its
 # bought card, the last with nobody named, as on a Restart; a run on Storm reads an L8 hand holding a met Keeper and earns TwoPaths6; the run after it holds a duo card, which that one could not.
-# A bot stands in for the hands; the keys, the file and the pool are real. A seed that leaves a door shut goes to the next, as in Tools/WinCheck.ps1.
+# A bot stands in for the hands; the keys, the file and the pool are real. A seed that leaves a door shut, or a duo card out of its hands, goes to the next, as in Tools/WinCheck.ps1.
 # -DTHub is what lets these -unattended launches see the hub, as in Tools/VigilCheck.ps1.
 # Prints "EARNED: PASS (...)" or "EARNED: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\EarnedCheck_<tag>.log. Saves and shots: Saved\EarnedCheck.
 param(
 	[int[]]$Seeds = @(9100, 9101, 9102),
 	[int]$BranchSeed = 9120,
 	[int[]]$DuoSeeds = @(9130, 9131, 9132),
+	[int[]]$DuoRunSeeds = @(9230, 9231, 9232),
 	[int]$HandSeconds = 300,
 	[int]$Timeout = 300
 )
@@ -91,6 +92,12 @@ function Read-SeedHands([string]$Tag, [int]$Seed) {
 	return Read-Hands $Tag @(Get-ChildItem $Playtests -Filter "${Seed}_*.jsonl" -ErrorAction SilentlyContinue)
 }
 
+# A launch that draws its own seeds: its files are the ones its log names, never what the clock finds. Saved\Playtests is where a person's runs live (Tools\SeedCheck.ps1), and Read-Hands deletes what it reads.
+function Read-LogHands([string]$Tag, [string]$Log) {
+	$Files = @(Select-String -Path $Log -Pattern "Telemetry: session seed=\d+ players=\d+ -> (.+)\.csv\s*$" | ForEach-Object { Get-Item -LiteralPath ($_.Matches[0].Groups[1].Value + ".jsonl") -ErrorAction Stop })
+	return Read-Hands $Tag $Files
+}
+
 function Read-Bank([string]$Log, [int]$Runs) {
 	$Line = Select-String -Path $Log -Pattern "Meta: banked (\d+), balance (\d+), runs $Runs, wins \d+" | Select-Object -Last 1
 	if (-not $Line) { Stop-Check "no bank of run $Runs in $Log" }
@@ -107,6 +114,14 @@ function Read-Unlocked([string]$Log) {
 	$Line = Select-String -Path $Log -Pattern "Offers: pool gated, (\d+) unlocked" | Select-Object -Last 1
 	if (-not $Line) { Stop-Check "no gated pool in $Log" }
 	return [int]$Line.Matches[0].Groups[1].Value
+}
+
+# The Keepers of a run's L8 hand, in seat order.
+function Read-L8([string]$Hands) {
+	$Hand = [regex]::Match($Hands, '"kind":"offer",[^
+]*"hand_kind":"Keeper"[^
+]*').Value
+	return @([regex]::Matches($Hand, '"id":"Keeper\.([A-Za-z]+)"') | ForEach-Object { $_.Groups[1].Value }) -join " "
 }
 
 $Bound = '"id":"Blessing\.[A-Za-z]+\.[A-Za-z]+\.(Amp1|Amp2|Trait)"'
@@ -129,7 +144,7 @@ if ($null -eq $RunSeed) { Stop-Check "no seed of $($Seeds -join ' ') opened $($D
 if (-not (Select-String -Path $LogEarn -Pattern "Meta: opened \(\d+\) .*, balance 0, wins 0, discoveries 0" -Quiet)) { Stop-Check "earn did not start from an empty save" }
 $First = Read-Bank $LogEarn 1
 $HandsBefore = Read-SeedHands "earn" $RunSeed
-$UnlockedBefore = Read-Unlocked $LogEarn
+if ((Read-Unlocked $LogEarn) -ne 0) { Stop-Check "earn's pool was not a first run's" }
 $Planted = Join-Path $OutDir "Planted.sav"
 Copy-Item $Earned $Planted -Force
 
@@ -142,14 +157,14 @@ $ReadOk = Select-String -Path $LogRead -Pattern "Meta: opened \(2\) .*, balance 
 $LogNext = Wait-Launch (Start-Bot "next" $RunSeed $Earned "Storm" "Tempest" $RunSeconds -Named)
 $HandsAfter = Read-SeedHands "next" $RunSeed
 $Second = Read-Bank $LogNext 2
+$null = Read-Unlocked $LogNext # stops on a run that was not gated; the count itself proves nothing, since earn's bank alone raises it, and only a bought card in a hand needs the purchase
 $NextOk = ($HandsBefore.Length -gt 0) -and ($HandsBefore -notmatch $Bound) -and ($HandsAfter -match '"id":"Blessing\.Storm\.[A-Za-z]+\.(Amp1|Amp2|Trait)"') -and -not ($HandsAfter -match '"id":"Blessing\.(Forge|Tide)\.[A-Za-z]+\.(Amp1|Amp2|Trait)"') -and
-	((Read-Unlocked $LogNext) -gt $UnlockedBefore) -and ($Second.Balance -eq ($Spent + $Second.Award))
+	($Second.Balance -eq ($Spent + $Second.Award))
 if (-not ($PageOk -and $ReadOk -and $NextOk)) { Stop-Check "the loop on seed $RunSeed`: page=$PageOk read=$ReadOk next=$NextOk, banked $($First.Award)" }
 
 # --- part two: the page's rows the doors added, from a planted balance ------------------------------------------------------
-$KeepersFrom = Get-Date
-$null = Invoke-Hub "Doors" $Planted @("-DTPoolGate")
-$ChainHands = Read-Hands "doors" @(Get-ChildItem $Playtests -Filter "*.jsonl" -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $KeepersFrom })
+$LogDoors = Invoke-Hub "Doors" $Planted @("-DTPoolGate")
+$ChainHands = Read-LogHands "doors" $LogDoors
 $ChainOk = @("Shade", "Radiance", "Quicksilver" | Where-Object { $ChainHands -notmatch ('"hand_kind":"Patron"[^\n]*"slot":0,"kind":"Keeper","id":"Keeper\.' + $_ + '"[^\n]*"slot":1,"kind":"Keeper","id":"Keeper\.Storm"') }).Count -eq 0
 
 # Each new branch's card in a hand. Quicksilver, the Patron the chain left, is named by nobody: that run's hand is a Restart's.
@@ -190,12 +205,28 @@ while ($DuoIndex -lt $DuoSeeds.Count -and -not $DuosOpen) {
 	$DuosOpen = (Read-New $LogTwo) -contains "TwoPaths6"
 }
 if (-not $DuosOpen) { Stop-Check "no seed of $($DuoSeeds -join ' ') earned TwoPaths6 on the two bought nodes" }
-$DuoSeed = $DuoSeeds[$DuoIndex - 1] + 100
-$LogDuo = Wait-Launch (Start-Bot "duo" $DuoSeed $Planted "Storm" "Tempest" $RunSeconds -Named -Second "Forge")
-$DuoHands = Read-SeedHands "duo" $DuoSeed
-$DuoOk = (-not ($TwoHands -match '"id":"Blessing\.Duo\.')) -and ($DuoHands -match '"id":"Blessing\.Duo\.') -and ((Read-Unlocked $LogDuo) -gt 0)
 
-$Summary = "seed $RunSeed banked $($First.Award), [$($New -join ' ')], key spent it to $Spent, new process read it, next run's hands hold the bought cards; keys bought five nodes on a planted balance; Shrine chain=$ChainOk, branch cards=$($BranchBad.Count -eq 0), L8 holds a met Keeper=$L8Ok, TwoPaths6 on seed $($DuoSeeds[$DuoIndex - 1]), duo card=$DuoOk; $([int]$Clock.Elapsed.TotalSeconds) s"
+# The run after it, which TwoPaths6's run could not be. The card goes with whichever pair the run commits, so a Forge that misses the L8 hand only changes the pair, but it is one card in a drawn hand: a seed that never deals it goes to the next, on a fresh copy of the same save.
+$DuoSeed = $null
+$DuoMissed = @()
+foreach ($Seed in $DuoRunSeeds) {
+	$Copy = Join-Path $OutDir "Duo_$Seed.sav"
+	Copy-Item $Planted $Copy -Force
+	$LogDuo = Wait-Launch (Start-Bot "duo" $Seed $Copy "Storm" "Tempest" $RunSeconds -Named -Second "Forge")
+	$null = Read-Unlocked $LogDuo # stops on a run that was not gated
+	$DuoHands = Read-SeedHands "duo" $Seed
+	if ($DuoHands -match '"id":"Blessing\.Duo\.') {
+		$DuoSeed = $Seed
+		break
+	}
+	$DuoMissed += "seed $Seed L8 [$(Read-L8 $DuoHands)]"
+	Write-Host "    seed $Seed held no duo card, L8 [$(Read-L8 $DuoHands)]; next seed"
+}
+$DuoOk = (-not ($TwoHands -match '"id":"Blessing\.Duo\.')) -and ($null -ne $DuoSeed)
+$DuoRead = if ($DuoSeed) { "on seed $DuoSeed" } else { "on no seed of $($DuoRunSeeds -join ' ')" }
+if ($DuoMissed.Count) { $DuoRead += ", missed $($DuoMissed -join ', ')" }
+
+$Summary = "seed $RunSeed banked $($First.Award), [$($New -join ' ')], key spent it to $Spent, new process read it, next run's hands hold the bought cards; keys bought five nodes on a planted balance; Shrine chain=$ChainOk, branch cards=$($BranchBad.Count -eq 0), L8 holds a met Keeper=$L8Ok, TwoPaths6 on seed $($DuoSeeds[$DuoIndex - 1]), duo card=$DuoOk $DuoRead; $([int]$Clock.Elapsed.TotalSeconds) s"
 if ($ChainOk -and $BranchBad.Count -eq 0 -and $L8Ok -and $DuoOk) {
 	Write-Host "EARNED: PASS ($Summary)"
 	exit 0
