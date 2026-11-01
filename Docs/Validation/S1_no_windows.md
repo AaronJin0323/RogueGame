@@ -29,7 +29,7 @@ Two things changed for it. The helper sets `CREATE_NO_WINDOW` on every launch, s
 It also shows a limit of the hidden desktop: it stops windows, not a console handed to another process. And it may be part of what the owner saw. Whether `-WindowStyle Hidden` on `UnrealEditor-Cmd.exe`, as `BotRuns` ran, avoids the hand-over was not measured, because the test would open a window.
 
 ## Proof it holds
-Gate step `windows` (`Tools/WindowCheck.ps1`), in the full gate at `d79d8e3`: `PASS (0 shown by bot, smoke and test runs across 69 processes; probe caught; bypass caught; 4 lost; 47 s)`. The slowest of 7 runs was 85 s, with other worktrees busy.
+Gate step `windows` (`Tools/WindowCheck.ps1`), in the full gate at `d79d8e3`: `PASS (0 shown by bot, smoke and test runs across 69 processes; probe caught; bypass caught; 4 lost; 47 s)`. The slowest of 7 runs was 85 s, with other worktrees busy. Run alone with the bypass control's `-userdir`: the same reading in 41 s.
 
 | Reading | Result |
 |---|---|
@@ -42,11 +42,19 @@ Gate step `windows` (`Tools/WindowCheck.ps1`), in the full gate at `d79d8e3`: `P
 
 The probe is a process started past the helper that shows a 1 x 1 window, alpha 0, off every screen, no focus, no taskbar button, for 0.2 s. It runs on the real desktop in every gate, so the step fails if the hook goes blind. It is a window object no one can see, and it is the only thing this step puts on that desktop.
 
-The bypass control runs in every gate too. A real window cannot be tried on the owner's desktop, so `WindowCheck.ps1 -Bypass` runs on a hidden desktop as its own stand-in, where the hook and the raw launch inherit that desktop. It refuses to run on `Default`, and the refusal was read. It proves a bypass fails the step; the probe proves the hook is alive on the real desktop. No single control proves both at once, by the rule's own terms.
+The bypass control runs in every gate too. A real window cannot be tried on the owner's desktop, so `WindowCheck.ps1 -Bypass` runs on a hidden desktop as its own stand-in, where the hook and the raw launch inherit that desktop. It refuses to run on `Default`, and the refusal was read. It proves a bypass fails the step; the probe proves the hook is alive on the real desktop. No single control proves both at once, by the rule's own terms. It has a `-userdir` of its own, `Saved\WindowCheck\bypass`, emptied each step, for two reasons: the telemetry race below, and its 320x180 video mode, which `UGameEngine::PreExit` saved to `Saved\Config\WindowsEditor\GameUserSettings.ini` on every gate. A person's `-windowed` launch with no size would then open at that size; that effect is read from the engine, not run. Read after the change: the bot run's file in `Saved\Playtests`, the control's in its own folder, 320x180 only in that folder's settings file.
 
 Also watched from the real desktop with no window of the tree: `Package.ps1` end to end, 190 processes (text, cook, stage, UAT), and `PadCheck.ps1`, where the hook replaces the sampled loop for T-PKG-07.
 
 Helper behaviour read on real runs: exit codes held (a harmless `cmd /c exit 7` reads 7, and the seed step reads exit code 2 on a rejected seed); a process dead on arrival keeps its code, because it starts suspended until the handle is held; `BotRuns -Jobs` with 4 probe scenes in parallel PASS; `BotRuns -Timeout 5` killed both runs by PID, reported them and left 0 strays; `Close-DTHidden` ends what is left, read on a harmless `ping`. Commandlets, `Tools\Localize.bat` and the cook: 0 `GameWindow` lines in `Localize.log` and in `Package_Shipping.log`, which carries the cook's log, and 0 windows in the watched `Package.ps1`. They stay as they are. `Tools\CreateArena.bat` is the same `-run=` shape and was not run, because it rewrites content.
+
+Two faults found in review were read on harmless stand-ins, a scratch executable in place of the engine binary, each before and after its fix:
+
+| Stand-in | Before | After |
+|---|---|---|
+| `UnrealEditor-Cmd.exe` that logs every test complete, then hangs; `RunTests.ps1 -Timeout 3` | `! killed after 3 s`, then `TESTS: PASS`, exit 0 | `TESTS: FAIL (1 run of 1 found, ..., killed after 3 s)`, exit 1 |
+| `Dusktracer.exe` with a child, as the packaged stub has; script killed by `Stop-Process -Force` | child still running | child gone |
+| The same executable named anything else | child still running | child still running, so a shared daemon lives |
 
 ## Detection limit
 The hook is `SetWinEventHook` on `EVENT_OBJECT_SHOW`, out of context, so an event queues however short the flash is. The tree is a job with this script in it: a process joins at birth and a job message names it even after it exits.
@@ -66,7 +74,7 @@ The hook is `SetWinEventHook` on `EVENT_OBJECT_SHOW`, out of context, so an even
 | Steered:Forge:Hammer | 9385c307 | 9385c307 | 9385c307 |
 | Steered:Tide:Frost | 690cb5a3 | 690cb5a3 | 690cb5a3 |
 
-The parallel run read `BOTRUNS: FAIL` for a reason that is not this change: two arms on one seed reached `Run start` in the same second under load, shared `9107_20261101_141024.csv`, and `bot_summary.py` met a second header. The hashes come from the bot record, which is per run. `BotRuns.ps1`'s line that starts are spaced so no two telemetry names collide holds only for distinct seeds. It is left as it is here.
+The parallel run read `BOTRUNS: FAIL` for a reason that is not this change: two arms on one seed reached `Run start` in the same second under load, shared `9107_20261101_141024.csv`, and `bot_summary.py` met a second header. The hashes come from the bot record, which is per run. `BotRuns.ps1`'s line that starts are spaced so no two telemetry names collide holds only for distinct seeds. It is left as it is here. The first form of the `windows` step had the same race: the bypass control and the bot run start about 2 s apart on seed 9107, and names only reach the second, so under load they could append to one file and fail the gate with no code change. A doubled copy of a real run fails `bot_summary.py` the same way, exit 1 at `pressure.py`; the same start in one second was not forced. The control's own `-userdir` ends it.
 
 Images, from the gate at `d79d8e3`, on the hidden desktop:
 
@@ -107,15 +115,16 @@ An earlier listing, at 13:44, differs from these, and not by this branch: `77007
 
 ## Decisions
 1. `Start-DTHidden` returns a real `Process`, so `$Proc.HasExited`, `.Id`, `.WaitForExit` and `.ExitCode` work as they did after `Start-Process -PassThru`. Merging a script is a one-token swap.
-2. One job per script, on top of the desktop: a stray on a hidden desktop has no taskbar button, so nobody would find it. Only the launched process is in the job; its children leave silently, because killing a shared `zenserver` would hurt another worktree's editor.
+2. Two jobs per script, on top of the desktop: a stray on a hidden desktop has no taskbar button, so nobody would find it. For the editor only the launched process is in the job; its children leave silently, because killing a shared `zenserver` would hurt another worktree's editor. For a packaged game, `Dusktracer*.exe`, the whole tree stays: `Dusktracer.exe` is a stub whose real game is its child, which `SeedCheck -Package` starts, and the package ships no daemon (only the game and the VC redistributables are executables under `Saved\Package`). `Start-DTHidden` picks by image name, so the merge stays a one-token swap.
 3. A daemon a launch starts inherits the desktop and keeps the empty object alive until it ends. One desktop was seen after its script had gone; it was gone on the next look, after `UnrealTraceServer` and `zenserver` had restarted, which fits, though the holder was not read. Nothing is shown there, so nothing fights it.
 4. `CREATE_NO_WINDOW` on every launch, for the reason above; a GUI binary ignores it.
-5. `Tools/RunTests.ps1` takes the launch out of the gate, so the `tests` step and the `windows` step run the same launch, with a timeout it never had, and a person or agent has a safe way to run a filter.
+5. `Tools/RunTests.ps1` takes the launch out of the gate, so the `tests` step and the `windows` step run the same launch, with a timeout it never had, and a person or agent has a safe way to run a filter. A run killed on that timeout fails, whatever its log counts.
 6. `Tools/WindowWatch.ps1` is separate from the helper, because only checks need it.
 7. `ExportTelemetry.ps1 -UserDir`: the check exports its own runs and no longer reads the owner's. The package's own scripts now count in the stale check, so an older package reads `NOT RUN`, not a false FAIL.
 8. The `pad` human half still reads `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, read only: the pad run it looks for is a person's.
-9. The rule stays with the launch guard in `tools_test.py`, by text. It catches `Start-Process`, the other process APIs and a call of a variable holding a binary. A launch hidden behind a function it cannot follow, or in a `.bat` called by name, is not caught.
+9. The rule stays with the launch guard in `tools_test.py`, by text. It catches `Start-Process`, the other process APIs, `&` or `.` on a binary or on a variable holding one (`${Exe}`, `$script:Exe`, an assignment over two lines), a binary called by bare name or path, and `cmd`, `powershell`, `pwsh` or `start` given one. A launch hidden behind a function or alias it cannot follow, in a member or hashtable value, or in a `.bat` called by name, is not caught.
 10. `// Run headless:` comments in about 20 test files still name a raw `UnrealEditor-Cmd.exe` line. They are left: editing them would touch `Source`, for no behaviour, and put them all through `nonunity`. AGENTS.md is what an agent reads first, and `RunTests.ps1` is the way.
+11. The bypass control takes a `-userdir`, not a second seed: a seed alone would still leave its video mode in the checkout's settings file.
 
 ## For the merge into dev/s2 and dev/s3
 From reading both branches; none of it was run. The swap is `Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru [-WindowStyle Hidden]` to `Start-DTHidden $Exe $ArgList`, the dot-source line after `$UERoot`, and `& taskkill /PID $Proc.Id /T /F | Out-Null` to `Stop-DTHidden $Proc`. `tools_test.py` fails until each is done: run over their scripts as they stand, the guard reads 10 lines on `dev/s2` and 17 on `dev/s3`, and 8 on `main` before this change, which is the list below.
