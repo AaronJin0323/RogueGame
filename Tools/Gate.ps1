@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, seed (Tools/SeedCheck.ps1, T-TEC-16), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, seed (Tools/SeedCheck.ps1, T-TEC-16), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -145,6 +145,13 @@ if (-not (Skipped "contrast")) {
 	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name contrast -Director -Contrast -Seconds 12 -Cmds $Scene *>&1
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_contrast.log") -Encoding utf8
+	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
+	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
+	# R-MOD-08: the HUD's dormant line on its own frame. Staged in the scene above it would take the Rifle's rounds out of that frame and read as a tracer.
+	$Scene = "DT.Mod Weapon.PulseRifle Mod.ScatterShell,DT.Bless Blessing.Forge.Hammer.Key"
+	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name dormant_line -DormantLine -Seconds 4 -Cmds $Scene *>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_contrast_line.log") -Encoding utf8
 	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
 }

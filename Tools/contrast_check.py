@@ -2,6 +2,7 @@
 """T-PRE-05 contrast check (04_Presentation R-PRE-05) on off-screen captures. Stdlib only.
 
 Usage:  python -I Tools/contrast_check.py <fight.png> --hero <empty.png> [--known <debts.txt>] [--min-pixels N]
+        python -I Tools/contrast_check.py <hud.png> --dormant-line [--min-pixels N]
 
 Rule R-PRE-05 is checked on the rendered frame, not on swatches, so both references come from the frame: the lit ground (the 90th
 percentile of bare ground) and the shadow on it. Pal.Ground.Bright and Pal.Ground.Shadow are printed beside them for reference.
@@ -15,6 +16,10 @@ The HUD is masked (HUD_MASKS, 1280x720 frames). The elite light shares the optic
 Prints one line per element and  CONTRAST: PASS|FAIL (...). An element not found fails: a frame that does not show it proves
 nothing. --known names a file of element names (one per line, # comments) that fail today: they print as KNOWN and do not fail
 the check, and any other failure does. Exit 0 / 1 (2 on bad arguments).
+
+--dormant-line reads the HUD's dormant line (modifiers.md R-MOD-08) off a frame staged to show one, in place of the table: the text
+against its own panel, both as rendered. The panel is opaque, so the world behind it cannot move this number and one frame is enough.
+A frame that shows no line fails.
 """
 
 import colorsys
@@ -48,6 +53,10 @@ TELEGRAPH_BAND_MAX_V = 0.12  # the band is black; this admits the band and nothi
 TELEGRAPH_BAND_REACH_PX = 3  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: about two pixels at gameplay camera, one more of anti-aliasing
 TRACER_MIN_V = 0.70
 TRACER_MAX_S = 0.06
+LINE_PANEL_REACH = 10  # a rendered panel pixel is within this of the token, per channel
+LINE_MIN_W = 100  # wider than a dash pip
+LINE_H = (14, 60)  # taller than an HP or Intercession bar, which share the panel tone; a line of text, not the frame
+LINE_TEXT_MIN_Y = 0.2  # above this a pixel of the panel's box is text; below it is shadow, the glyphs' soft edge or the panel
 
 
 def srgb_y(r, g, b):
@@ -217,6 +226,83 @@ def judge(readings, need, min_pixels, known=()):
 	return rows, failed
 
 
+def token_rgb(name, path=PALETTE_DOC):
+	"""8-bit sRGB of a palette token, from the table of 04_Presentation §3."""
+	with open(path, encoding="utf-8") as f:
+		m = re.search(r"`" + re.escape(name) + r"` \| #([0-9A-Fa-f]{6})", f.read())
+	if not m:
+		raise ValueError(f"no token {name}")
+	h = m.group(1)
+	return int(h[:2], 16), int(h[2:4], 16), int(h[4:], 16)
+
+
+def panel_boxes(w, h, rgb, panel):
+	"""Bounding boxes (x0, y0, x1, y1, pixels) of the connected areas of panel-toned pixels, shaped like a line of text."""
+	near = set()
+	for y in range(h):
+		for x in range(w):
+			i = (y * w + x) * 3
+			if all(abs(rgb[i + c] - panel[c]) <= LINE_PANEL_REACH for c in range(3)):
+				near.add((x, y))
+	seen, boxes = set(), []
+	for start in near:
+		if start in seen:
+			continue
+		stack, x0, y0, x1, y1, count = [start], start[0], start[1], start[0], start[1], 0
+		seen.add(start)
+		while stack:
+			x, y = stack.pop()
+			count += 1
+			x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+			for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+				if n in near and n not in seen:
+					seen.add(n)
+					stack.append(n)
+		if x1 - x0 + 1 >= LINE_MIN_W and LINE_H[0] <= y1 - y0 + 1 <= LINE_H[1]:
+			boxes.append((x0, y0, x1, y1, count))
+	return boxes
+
+
+def dormant_line(w, h, rgb, panel=None):
+	"""(text tone Y, panel tone Y, text pixels, lines) of the line boxes, the tones read as every element's are, or None when no box holds text."""
+	panel = panel if panel is not None else token_rgb("Pal.UI.Panel")
+	text, ground, lines = [], [], 0
+	for x0, y0, x1, y1, _ in panel_boxes(w, h, rgb, panel):
+		found = 0
+		for y in range(y0, y1 + 1):
+			for x in range(x0, x1 + 1):
+				i = (y * w + x) * 3
+				lum = srgb_y(rgb[i], rgb[i + 1], rgb[i + 2])
+				if lum >= LINE_TEXT_MIN_Y:
+					text.append(lum)
+					found += 1
+				elif all(abs(rgb[i + c] - panel[c]) <= LINE_PANEL_REACH for c in range(3)):
+					ground.append(lum)
+		lines += 1 if found else 0
+	if not text or not ground:
+		return None
+	return percentile(text, 0.75), percentile(ground, 0.5), len(text), lines
+
+
+def main_dormant_line(argv, need, min_pixels):
+	try:
+		w, h, ch, px = image_check.decode_png(argv[0])
+		read = dormant_line(w, h, image_check.rgb_of(w, h, ch, px))
+	except (OSError, ValueError) as exc:
+		print(f"CONTRAST: FAIL ({exc})")
+		return 1
+	if read is None or read[2] < min_pixels:
+		print("CONTRAST: FAIL (dormant_line not found: the frame shows no line)")
+		return 1
+	tone, ground, pixels, lines = read
+	ratio = contrast(tone, ground)
+	ok = ratio >= need
+	print(f"{w}x{h}; panel tone Y {ground:.3f}, token Pal.UI.Panel {token_y('Pal.UI.Panel'):.3f}; text token Pal.UI.Text {token_y('Pal.UI.Text'):.3f}; need {need}")
+	print(f"  dormant_line tone {tone:.3f} ({pixels} px, {lines} line(s))  vs its panel {ratio:.2f}  {'PASS' if ok else 'FAIL'}")
+	print(f"CONTRAST: {'PASS' if ok else 'FAIL'} (dormant_line {ratio:.2f} on its panel, need {need})")
+	return 0 if ok else 1
+
+
 def read_known(path):
 	if not path or not os.path.exists(path):
 		return ()
@@ -235,6 +321,8 @@ def main(argv):
 	min_pixels = int(option(argv, "--min-pixels", 20))
 	known = read_known(option(argv, "--known"))
 	need = dtconst.load()["PRE.CONTRAST_MIN"]["value"]
+	if "--dormant-line" in argv:
+		return main_dormant_line(argv, need, min_pixels)
 	try:
 		w, h, ch, px = image_check.decode_png(argv[0])
 		readings = measure(w, h, image_check.rgb_of(w, h, ch, px))

@@ -415,6 +415,33 @@ class Contrast(unittest.TestCase):
 		self.assertTrue(contrast_check.masked(100, 650, 1280, 720))
 		self.assertFalse(contrast_check.masked(640, 400, 1280, 720))
 
+	PANEL = (21, 23, 28)
+	TEXT = (232, 228, 220)
+
+	def hud(self, rects):
+		"""A 300x120 frame of ground with panel-toned rectangles (x0, y0, w, h) and, per rectangle with text, one bright stroke."""
+		w, h = 300, 120
+		rgb = bytearray(self.GROUND * (w * h))
+		for x0, y0, rw, rh, text in rects:
+			for y in range(y0, y0 + rh):
+				for x in range(x0, x0 + rw):
+					stroke = text and y == y0 + rh // 2 and x0 + 4 <= x < x0 + rw - 4
+					rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes(self.TEXT if stroke else self.PANEL)
+		return w, h, bytes(rgb)
+
+	def test_the_dormant_line_is_read_on_its_own_panel(self):
+		tone, ground, pixels, lines = contrast_check.dormant_line(*self.hud([(10, 10, 200, 24, True), (10, 40, 180, 24, True)]), panel=self.PANEL)
+		self.assertAlmostEqual(tone, contrast_check.srgb_y(*self.TEXT))
+		self.assertAlmostEqual(ground, contrast_check.srgb_y(*self.PANEL))
+		self.assertEqual((pixels, lines), (192 + 172, 2))
+		self.assertGreater(contrast_check.contrast(tone, ground), 10.0)
+
+	def test_a_bar_or_a_pip_of_the_panel_tone_is_no_line(self):
+		self.assertIsNone(contrast_check.dormant_line(*self.hud([(10, 10, 240, 10, True), (10, 40, 18, 18, True)]), panel=self.PANEL))
+
+	def test_a_panel_with_no_text_is_no_line(self):
+		self.assertIsNone(contrast_check.dormant_line(*self.hud([(10, 10, 200, 24, False)]), panel=self.PANEL))
+
 
 if __name__ == "__main__":
 	suite = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
