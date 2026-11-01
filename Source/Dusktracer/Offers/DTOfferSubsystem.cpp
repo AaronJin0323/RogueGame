@@ -102,7 +102,7 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		}
 		UE_LOG(LogDT, Log, TEXT("Offers: pool gated, %d unlocked, tools +%d +%d +%d"), RunGrant.Unlocked.Num(), RunGrant.Rerolls, RunGrant.Banishes, RunGrant.Locks);
 	}
-	// A run started from the hub names its Patron on the map (vigil.md R-VIG-07); no tool run has the option.
+	// A run started from the hub names its Patron on the map (vigil.md R-VIG-07); no battery has the option, only the proofs of R-VIG-02.
 	if (const TCHAR* Patron = InWorld.URL.GetOption(TEXT("DTPatron="), nullptr))
 	{
 		ChosenPatron = FName(Patron);
@@ -239,6 +239,11 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 		}
 	}
 	Pool.bMetaGate = RunGrant.bGated; // meta.md R-MET-22
+	const FName Lead = ChosenPatron.IsNone() ? RunGrant.LastPatron : ChosenPatron;
+	if (!Lead.IsNone())
+	{
+		Pool.LeadPatron = FName(*(TEXT("Keeper.") + Lead.ToString())); // keepers.md R-KEE-23
+	}
 	for (const FName& Id : RunGrant.Unlocked)
 	{
 		if (DTOffers::IsTreeLocked(Id))

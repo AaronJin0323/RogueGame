@@ -633,11 +633,19 @@ def read_text_table(name):
 		return list(csv.DictReader(f))
 
 
+def pool_doors():
+	"""meta.md R-MET-25: the pool ids no weapon or modifier row holds: every Keeper a run does not seat, and the duos."""
+	with open(os.path.join(CATALOG, "expression.csv"), encoding="utf-8", newline="") as f:
+		late = {r["Path"] for r in csv.DictReader(f) if r["Stage"] != "S1"}
+	return late | {"Reaction.Duos"}
+
+
 def gen_discoveries(ctx):
 	"""meta.md R-MET-40: each row names real text, and its targets are real pool ids in their tag spelling."""
 	rows = read_csv(ctx, "discoveries.csv", ["id", "counter", "threshold", "targets", "recollection"], doc_only=["absent", "ref"])
 	unique(ctx, rows, lambda r: r["id"], "discovery")
 	pool = {r["id"] for name in ("weapons.csv", "modifiers.csv") for r in csv.DictReader(open(os.path.join(CATALOG, name), encoding="utf-8", newline=""))}
+	pool |= pool_doors()
 	text = {r["Key"] for r in read_text_table("ST_Discoveries.csv")}
 	codex = {r["Key"]: r["Unlock"] for r in read_text_table("ST_Codex.csv")}
 	named = {key.split(".")[1] for key in text if key.endswith(".Name")}
@@ -660,7 +668,7 @@ def gen_discoveries(ctx):
 			ctx.err(f"{where}:targets", f"more than {DISCOVERY_TARGETS_MAX}")
 		for target in targets:
 			if target not in pool:
-				ctx.err(f"{where}:targets", f"'{target}' is not a weapons.csv or modifiers.csv id")
+				ctx.err(f"{where}:targets", f"'{target}' is not a weapons.csv or modifiers.csv id, a late Keeper or Reaction.Duos")
 		slots = (targets + [""] * DISCOVERY_TARGETS_MAX)[:DISCOVERY_TARGETS_MAX]
 		threshold = num(ctx, r, "threshold", "int", f"Discoveries[{i}].Threshold", False)
 		out.append(
@@ -671,6 +679,18 @@ def gen_discoveries(ctx):
 
 # meta.md R-MET-25: Discovery targets a first run keeps open, because shutting them fails R-OFF-15.
 FIRST_RUN_OPEN_TARGETS = {"Weapon.ArcBlade", "Weapon.RingEmitter"}
+# meta.md R-MET-27: rows that wait on a purchase, on a Keeper, or on no run at all. A Keeper's door is none of these.
+NOT_FIRST_RUN = {"Favor9", "TwoPaths6", "ScatterKills500", "RailKills300", "Crit500", "Elites10"}
+# meta.md R-MET-27: rows stated out, because no run on arena 1 can meet them.
+STATED_OUT = {"Elites10"}
+# meta.md R-MET-28: Keepers over R-OFF-15's Reserve cap on the pool without the Flak Mortar, and the rows that land with it or after it.
+THIN_ON_THE_BARE_POOL = {"Keeper.Shade", "Keeper.Quicksilver"}
+WITH_THE_FLAK_MORTAR = {"ReachL10", "Survive10"}
+
+
+def elites_per_run(timeline):
+	"""R-MET-27: arena 1 spawns elites only on EliteWave rows, so this is the most a run can kill."""
+	return sum(int(r["event_count"]) for r in timeline if r["event"] == "EliteWave")
 
 
 def check_doors(ctx):
@@ -679,8 +699,10 @@ def check_doors(ctx):
 		with open(os.path.join(CATALOG, name), encoding="utf-8", newline="") as f:
 			return list(csv.DictReader(f))
 	starter = {r["id"]: r["starter"] == "yes" for name in ("weapons.csv", "modifiers.csv") for r in rows(name)}
-	nodes = {item for r in rows("tree.csv") for item in r["unlocks"].split(";") if item}
-	targets = {r["id"]: [t for t in r["targets"].split(";") if t] for r in rows("discoveries.csv")}
+	tree = rows("tree.csv")
+	nodes = {item for r in tree for item in r["unlocks"].split(";") if item}
+	discoveries = rows("discoveries.csv")
+	targets = {r["id"]: [t for t in r["targets"].split(";") if t] for r in discoveries}
 	opened = {t for items in targets.values() for t in items}
 	locked = {r["id"]: r["door"] for r in rows("first_run_locked.csv")}
 	for item in sorted(i for i, s in starter.items() if not s):
@@ -692,6 +714,28 @@ def check_doors(ctx):
 	for item, door in sorted(locked.items()):
 		if item not in targets.get(door, []):
 			ctx.err("first_run_locked.csv", f"'{item}': door '{door}' is not a Discovery naming it")
+	for item in sorted(pool_doors()):
+		writers = sorted(row for row, items in targets.items() if item in items) + sorted(r["id"] for r in tree if item in r["unlocks"].split(";"))
+		if len(writers) != 1:
+			ctx.err("discoveries.csv", f"'{item}' needs exactly one door, has {writers}: a Tree branch or a duo stays dark without it")
+		elif item.startswith("Keeper.") and writers[0] in NOT_FIRST_RUN:
+			ctx.err("discoveries.csv", f"'{item}': door '{writers[0]}' does not open on a first run, and Crit500 and the Keeper's branch wait on this one")
+		elif item in THIN_ON_THE_BARE_POOL and writers[0] not in WITH_THE_FLAK_MORTAR:
+			ctx.err("discoveries.csv", f"'{item}': door '{writers[0]}' can bank below level 10, and this Keeper reads over R-OFF-15 on the pool without the Flak Mortar")
+	if "Weapon.FlakMortar" not in targets.get("ReachL10", []):
+		ctx.err("discoveries.csv", "'ReachL10' must open Weapon.FlakMortar: WITH_THE_FLAK_MORTAR stands on it")
+	for r in tree:
+		for item in r["requires"].split(";"):
+			if item.startswith("Keeper.") and item not in opened and item not in nodes:
+				ctx.err(f"tree.csv:{r['id']}", f"requires '{item}', which nothing writes")
+	for item in sorted(STATED_OUT):
+		if targets.get(item):
+			ctx.err("discoveries.csv", f"'{item}' is stated out, so it can open nothing: its keys {targets[item]} would stay shut for ever")
+	elites = elites_per_run(rows("timeline_arena1.csv"))
+	for r in discoveries:
+		if r["counter"] == "Elites":
+			if (int(r["threshold"]) > elites) != (r["id"] in STATED_OUT):
+				ctx.err("discoveries.csv", f"'{r['id']}' needs {r['threshold']} elites, arena 1 spawns {elites}: STATED_OUT and meta.md R-MET-27 must say so, and only then")
 
 
 def gen_boss(ctx):

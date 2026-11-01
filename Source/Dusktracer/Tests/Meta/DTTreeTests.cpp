@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
+#include "Meta/DTDiscovery.h"
 #include "Meta/DTMetaSession.h"
 #include "Meta/DTMetaSubsystem.h"
 #include "Meta/DTTree.h"
@@ -303,6 +304,99 @@ bool FDTTreeFirstRun::RunTest(const FString& Parameters)
 	TestTrue(TEXT("a Discovery's key opens it"), DTOffers::IsModInPool(Conduit, Later));
 	TestTrue(TEXT("an ungated pool holds it"), DTOffers::IsModInPool(Conduit, FDTOfferPool()));
 	TestEqual(TEXT("three Keepers in a fresh run"), DTOffers::RunKeepers(Fresh).Num(), 3);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTreeKeeperDoors, "Dusktracer.Meta.KeeperDoors", DTTreeTest::Flags) // T-MET-28
+bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
+{
+	using namespace DTTreeTest;
+	const FName Shade(TEXT("Keeper.Shade"));
+	const FName Radiance(TEXT("Keeper.Radiance"));
+	const FName Quicksilver(TEXT("Keeper.Quicksilver"));
+	const FName Forge(TEXT("Keeper.Forge"));
+	const FName Tide(TEXT("Keeper.Tide"));
+
+	// Each door is a row a run can earn, and what it writes opens what waits on it.
+	FDTRunTally Run;
+	Run.Steps = 1;
+	Run.Kills = 1000;
+	FDTMetaProfile Saved;
+	DTDiscovery::Apply(Run, Saved);
+	TestFalse(TEXT("a thousand kills under level 10 open no Keeper: that pool reads over R-OFF-15"), Saved.Unlocked.Contains(Shade));
+	Run.Kills = 0;
+	Run.Counters.Add(TEXT("Best.Level"), 10);
+	TestEqual(TEXT("a Keeper's branch waits for it"), DTTree::GetNode(Saved, TEXT("Branch.Shade.Blessing4")).State, EDTTreeState::Locked);
+	DTDiscovery::Apply(Run, Saved);
+	TestTrue(TEXT("ReachL10 writes Keeper.Shade"), Saved.Unlocked.Contains(Shade));
+	TestTrue(TEXT("in the bank that opens the Flak Mortar"), Saved.Unlocked.Contains(TEXT("Weapon.FlakMortar")));
+	TestEqual(TEXT("and that branch is for sale"), DTTree::GetNode(Saved, TEXT("Branch.Shade.Blessing4")).Missing.Num(), 0);
+	Run.Counters.Add(TEXT("Best.WeaponLevel"), DTConst::WEAPON_LEVEL_MAX);
+	Run.Counters.Add(TEXT("Best.PathsAtTier2"), 2);
+	Run.Steps = 600 * DTConst::SIM_FIXED_HZ;
+	DTDiscovery::Apply(Run, Saved);
+	TestTrue(TEXT("WeaponL8 writes Keeper.Radiance"), Saved.Unlocked.Contains(Radiance));
+	TestTrue(TEXT("Survive10 writes Keeper.Quicksilver"), Saved.Unlocked.Contains(Quicksilver));
+	TestTrue(TEXT("TwoPaths6 writes the duos"), Saved.Unlocked.Contains(TEXT("Reaction.Duos")));
+
+	// What the run's pool holds on that save: UDTOfferSubsystem::MakePool adds these through the weapon system's Unlock.
+	FDTOfferPool Pool = GatedPool(FDTMetaProfile());
+	Pool.Unlocked.Add(Shade);
+	Pool.Unlocked.Add(Radiance);
+	Pool.Unlocked.Add(Quicksilver);
+	Pool.Unlocked.Add(TEXT("Reaction.Duos"));
+
+	// A met Keeper takes no seat from another; the Keeper a run leads with takes the first, however many the save has met (R-KEE-23).
+	FDTRunState State;
+	StartRun(State, EDTPath::None);
+	FDTPlayerRunState& Player = State.GetPlayer(0);
+	const FName Storm(TEXT("Keeper.Storm"));
+	const auto Holds = [](const FDTOfferHand& Hand, FName Id) { return Hand.Cards.ContainsByPredicate([Id](const FDTOfferCard& Card) { return Card.ContentId == Id; }); };
+	FRandomStream Rng(3);
+	const FDTOfferHand Plain = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
+	TestTrue(TEXT("three met Keepers shut no S1 Keeper out"), Holds(Plain, Storm) && Holds(Plain, Forge) && Holds(Plain, Tide));
+	Pool.LeadPatron = Shade;
+	const FDTOfferHand Led = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
+	TestEqual(TEXT("the hand keeps its size"), Led.Cards.Num(), DTConst::OFFER_KEEPER_CHOICES);
+	TestEqual(TEXT("the lead takes the first seat"), Led.Cards[0].ContentId, Shade);
+	TestTrue(TEXT("the others stay in Path order, no other met Keeper among them"), Led.Cards[1].ContentId == Storm && Led.Cards[2].ContentId == Forge);
+	Pool.LeadPatron = NAME_None;
+	FDTMetaProfile Played;
+	Played.LastPatron = TEXT("Forge");
+	TestEqual(TEXT("a gated grant carries the last Patron"), DTTree::MakeGrant(Played, true).LastPatron, FName(TEXT("Forge")));
+	TestTrue(TEXT("an ungated grant does not"), DTTree::MakeGrant(Played, false).LastPatron.IsNone());
+
+	// A save's Keepers all draw at L8, so meeting one shuts no other out; a tool run keeps the seat rule (R-KEE-23).
+	Player.Offer.PatronPath = EDTPath::Storm;
+	TSet<FName> Seen;
+	for (int32 Seed = 0; Seed < 64; ++Seed)
+	{
+		FRandomStream Draw(Seed);
+		const FDTOfferHand Hand = DTOffers::BuildHand(Player, Pool, EDTHandKind::Keeper, DTConst::OFFER_SECOND_KEEPER_LEVEL, Draw);
+		TestEqual(TEXT("the L8 hand is whole"), Hand.Cards.Num(), DTConst::OFFER_KEEPER_CHOICES);
+		for (const FDTOfferCard& Card : Hand.Cards)
+		{
+			Seen.Add(Card.ContentId);
+		}
+	}
+	TestTrue(TEXT("an S1 Keeper still draws on a full profile"), Seen.Contains(Forge) && Seen.Contains(Tide));
+	TestTrue(TEXT("and every met Keeper does"), Seen.Contains(Shade) && Seen.Contains(Radiance) && Seen.Contains(Quicksilver));
+	FDTOfferPool Tool = Pool;
+	Tool.bMetaGate = false;
+	FRandomStream ToolDraw(1);
+	const FDTOfferHand Seated = DTOffers::BuildHand(Player, Tool, EDTHandKind::Keeper, DTConst::OFFER_SECOND_KEEPER_LEVEL, ToolDraw);
+	TestTrue(TEXT("a tool run seats the unlocked Keepers"), Holds(Seated, Shade) && Holds(Seated, Radiance) && Holds(Seated, Quicksilver));
+	const FDTOfferHand ToolPatrons = DTOffers::BuildHand(Player, Tool, EDTHandKind::Patron, 1, ToolDraw);
+	TestTrue(TEXT("in its Patron hand too"), Holds(ToolPatrons, Shade) && Holds(ToolPatrons, Radiance) && Holds(ToolPatrons, Quicksilver));
+
+	// A met Keeper's Keys are in, its Amps wait for its branch (R-MET-25), and a committed pair's duo card reaches a gated pool.
+	Player.Offer.PatronPath = EDTPath::Shade;
+	TestTrue(TEXT("a met Keeper's Key is offered"), BlessingCandidates(Player, Pool).Contains(FName(TEXT("Blessing.Shade.Hound.Key"))));
+	TakeEveryKey(Player, EDTPath::Shade);
+	TestFalse(TEXT("its Amp stays shut with the Key held"), BlessingCandidates(Player, Pool).Contains(FName(TEXT("Blessing.Shade.Hound.Amp1"))));
+	Player.Offer.PatronPath = EDTPath::Storm;
+	Player.Offer.SecondPath = EDTPath::Forge;
+	TestTrue(TEXT("the door opens the duo card"), BlessingCandidates(Player, Pool).Contains(FName(TEXT("Blessing.Duo.StormForge"))));
 	return true;
 }
 

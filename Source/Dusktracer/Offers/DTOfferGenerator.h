@@ -34,8 +34,10 @@ struct FDTOfferPool
 	TSet<FName> Unlocked;
 	/** The caps each owned weapon slot expresses now (UDTWeaponSubsystem composes them); a missing slot uses its declared caps. */
 	TArray<FDTCapList> SlotCaps;
-	/** A person's run: Tree-locked ids stay out unless in Unlocked. False for every tool run, so a tool run sees the full pool (meta.md R-MET-23). */
+	/** A person's run: Tree-locked ids stay out unless in Unlocked, and a met Keeper takes no seat from another. False for a tool run unless -DTPoolGate asks, so a tool run sees the full pool (meta.md R-MET-23). */
 	bool bMetaGate = false;
+	/** The Keeper.<Path> that leads the Patron hand, so its seats always hold it: the one the map names (vigil.md R-VIG-07), else a gated run's last Patron. Empty in every battery: only the proofs of R-VIG-02 set it. */
+	FName LeadPatron;
 };
 
 /** What the save hands a run, read once per world (meta.md R-MET-22, R-MET-24). The default hands nothing and gates nothing. */
@@ -44,6 +46,8 @@ struct FDTPoolGrant
 	bool bGated = false;
 	/** The profile's Unlocked set. */
 	TSet<FName> Unlocked;
+	/** The profile's LastPatron: on a Restart, which chooses nobody, it keeps its seat in the Patron hand (keepers.md R-KEE-23). */
+	FName LastPatron;
 	/** Offer tools the Trunk adds to the C.OFFER.* starting counts. */
 	int32 Rerolls = 0;
 	int32 Banishes = 0;
@@ -97,7 +101,7 @@ namespace DTOffers
 	// --- catalog reads -------------------------------------------------------------------------------------------------
 	/** The Keepers of the run (every Path with an expression.csv row), in Path order. */
 	DUSKTRACER_API TArray<EDTPath> RunKeepers();
-	/** The Keepers of a run with this pool: the unlocked ones first (R-KEE-23), then RunKeepers(). */
+	/** The Keepers of a run with this pool: in a tool run the unlocked ones first (R-KEE-23), then RunKeepers(); in a gated run all of them in Path order. */
 	DUSKTRACER_API TArray<EDTPath> RunKeepers(const FDTOfferPool& Pool);
 	/** Every Keeper of the catalog, in Path order (S2 included). */
 	DUSKTRACER_API TArray<EDTPath> AllKeepers();

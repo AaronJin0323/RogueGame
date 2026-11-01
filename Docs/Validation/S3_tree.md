@@ -24,7 +24,7 @@ The note from Discoveries: on a fresh save `ScatterKills500` and `RailKills300` 
 | `Trunk.Workshop`, 600 | `Mod.Fork`, `Mod.Ricochet`, `Mod.Homing`, `Mod.OrbitLock`, `Mod.Boomerang`, `Mod.Spillover`, `Mod.Refit` |
 | `first_run_locked.csv`, gated pools only | `Mod.ScatterShell`, `Mod.ChainTrigger`, `Mod.Conduit`, `Mod.LingeringField` |
 
-A first run now holds four weapons and four modifiers: Split Core, Pierce, Mirror, Backwash. `Mod.Refit` draws from the same gate through `ShutStarter`, so it cannot fit a first-run lock, and `UDTWeaponSubsystem::IsInPool` reads the same. The `starter` column did not change: it stays what a tool run reads, so nothing here reaches a bot. The state of every Discovery is `meta.md` R-MET-27; `Crit500` and `Elites10` are the two it names unreachable.
+A first run now holds four weapons and four modifiers: Split Core, Pierce, Mirror, Backwash. `Mod.Refit` draws from the same gate through `ShutStarter`, so it cannot fit a first-run lock, and `UDTWeaponSubsystem::IsInPool` reads the same. The `starter` column did not change: it stays what a tool run reads, so nothing here reaches a bot. The state of every Discovery is `meta.md` R-MET-27.
 
 **Why four rows and not six.** The first cut shut all six targets. Read on the battery below, that pool ran out of cards. R-OFF-15 says a pool over `C.OFFER.RESERVE_SHARE_MAX` is too thin and is fixed in content, and T-OFF-15 reads the tool pool, so the gate would have passed it.
 
@@ -101,7 +101,7 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 
 ## Not verified
 - A person's launch was not run: every launch here is headless. The gate path was read through `-DTPoolGate`, which takes the same branch.
-- Nobody writes `Keeper.<Path>` or `Reaction.Duos` yet, so on a person's save the three S2 branches cannot be bought and S2 Keepers cannot be met. This matches today's reach but leaves nine nodes dark.
+- `Keeper.<Path>` and `Reaction.Duos` had no writer here; `S3_doors.md` closes that (`meta.md` R-MET-28).
 - `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` on a person's own money: the Contracts page can buy their nodes (`S3_vigil.md`), and nobody has yet earned one of those rows that way. A bought `Trunk.ScatterCannon` reaching a hand is proved there; earning the row is the Trunk door run above.
 - The Trunk's tools in a played hand: covered by T-MET-20 and T-OFF-10's counts, no bot reads them.
 

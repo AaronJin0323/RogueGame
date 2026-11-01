@@ -230,16 +230,18 @@ TArray<EDTPath> DTOffers::AllKeepers()
 
 TArray<EDTPath> DTOffers::RunKeepers(const FDTOfferPool& Pool)
 {
-	// R-KEE-23: an unlocked Keeper always has a seat, so it leads, in Path order; the S1 Keepers follow.
+	// R-KEE-23: in a tool run an unlocked Keeper always has a seat, so it leads, in Path order; the S1 Keepers follow.
+	// A gated run seats no met Keeper, so its Keepers stay in Path order.
+	const TArray<EDTPath> Seated = RunKeepers();
 	TArray<EDTPath> Out;
 	for (const EDTPath Path : AllKeepers())
 	{
-		if (Pool.Unlocked.Contains(KeeperId(Path)))
+		if (Pool.Unlocked.Contains(KeeperId(Path)) || (Pool.bMetaGate && Seated.Contains(Path)))
 		{
 			Out.Add(Path);
 		}
 	}
-	for (const EDTPath Path : RunKeepers())
+	for (const EDTPath Path : Seated)
 	{
 		Out.AddUnique(Path);
 	}
@@ -798,6 +800,14 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		if (Kind == EDTHandKind::Patron)
 		{
+			// The seats below hold the head of the list, and this Keeper may sit past them in Path order (R-KEE-23).
+			const int32 Lead = Keepers.IndexOfByPredicate([&Pool](const FDTOfferCard& Card) { return Card.ContentId == Pool.LeadPatron; });
+			if (Lead > 0)
+			{
+				const FDTOfferCard Card = Keepers[Lead];
+				Keepers.RemoveAt(Lead);
+				Keepers.Insert(Card, 0);
+			}
 			// Path order, unweighted: no Favor exists yet.
 			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size; ++Index)
 			{
@@ -806,8 +816,9 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 		}
 		else
 		{
-			// R-KEE-23: an unlocked Keeper keeps its seat at the commitment too.
-			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size;)
+			// R-KEE-23: an unlocked Keeper keeps its seat at the commitment too, in a tool run. A save's Keepers all draw (R-OFF-08): a seat for
+			// each would shut the S1 Keepers out of a full profile's hand, and meta only widens the pool.
+			for (int32 Index = 0; !Pool.bMetaGate && Index < Keepers.Num() && Hand.Cards.Num() < Size;)
 			{
 				if (Pool.Unlocked.Contains(Keepers[Index].ContentId))
 				{
