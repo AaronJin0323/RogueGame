@@ -3,7 +3,7 @@
 # Shipping (T-PKG-05, cultures T-PKG-03): -RenderOffScreen launch, the bot plays past the first CSV interval and quits the game; run_start and run_end are right.
 # Export (T-PKG-06): the zip holds that run and power_split.py reads it. Development (T-PKG-02): drawn text, log, screenshot against the arena
 # golden, and a game that exits mid-run closes its file with run_end quit. T-PKG-07: no visible window of the game's process at any time.
-# -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted.
+# -RenderOffScreen creates no window, so a close message has nothing to reach: Alt+F4 itself stays a human check. The check's run files are deleted, a killed check's by the next.
 # A real pad needs a human: the step passes only when a run of this build has input_device=pad (R-PKG-09); a machine never fakes that (T-PKG-09). Launchers: T-PKG-04.
 # Prints one verdict line, "PADCHECK: PASS|FAIL|NOT RUN (...)"; exit 0 pass, 1 fail, 2 not run. Log: Saved\Logs\PadCheck.log.
 param(
@@ -23,8 +23,12 @@ $Playtests = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
 $DevPlaytests = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 # A seed of its own: every package's Shipping writes to one %LOCALAPPDATA%, and two checks on one seed in one second open one file (S3_package.md).
-$MarkerSeed = 770000 + ($PID % 100000)
-New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
+function Get-MarkerSeed([int]$Owner) { return 770000 + ($Owner % 100000) }
+$MarkerSeed = Get-MarkerSeed $PID
+# A killed check runs no finally, and the next has another seed: each names itself here while it runs, by PID, so the next can clear exactly what a dead one left.
+# Not by the seed's range: a person's run can land in it, and these folders hold the owner's evidence. Shared by every worktree, as the run files are.
+$Running = Join-Path $env:LOCALAPPDATA "Dusktracer\PadCheck"
+New-Item -ItemType Directory -Force $LogDir, $WorkDir, $Running | Out-Null
 
 function Stop-Check([string]$Verdict, [int]$Code) { Write-Host "PADCHECK: $Verdict"; exit $Code }
 
@@ -81,9 +85,18 @@ function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += 
 function Watch-Windows($Proc) { if (-not $Proc.HasExited) { $script:ShownWindows += [DTWindows]::Visible($Proc.Id) } }
 function Stop-ByPid($Proc) { if (-not $Proc.HasExited) { & taskkill /PID $Proc.Id /T /F | Out-Null } }
 
-function Remove-MarkerRuns {
+function Remove-MarkerRuns([int]$Seed) {
 	foreach ($Dir in $Playtests, $DevPlaytests) {
-		if (Test-Path $Dir) { Get-ChildItem $Dir -Filter "${MarkerSeed}_*" -File | Remove-Item -Force }
+		if (Test-Path $Dir) { Get-ChildItem $Dir -Filter "${Seed}_*" -File | Remove-Item -Force }
+	}
+}
+
+function Clear-DeadChecks {
+	foreach ($Entry in Get-ChildItem $Running -File) {
+		if ($Entry.Name -notmatch '^\d+$' -or (Get-Process -Id ([int]$Entry.Name) -ErrorAction SilentlyContinue)) { continue }
+		Write-Host "padcheck: clearing what dead check $($Entry.Name) left"
+		Remove-MarkerRuns (Get-MarkerSeed ([int]$Entry.Name))
+		Remove-Item $Entry.FullName -Force -ErrorAction SilentlyContinue
 	}
 }
 
@@ -91,7 +104,9 @@ $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-Res
 $Interval = Get-Constant "TEL.INTERVAL_S"
 
 try {
-	Remove-MarkerRuns
+	Clear-DeadChecks
+	New-Item -ItemType File -Force (Join-Path $Running "$PID") | Out-Null
+	Remove-MarkerRuns $MarkerSeed
 
 	# --- Shipping: run start, telemetry, quit ---------------------------------------------------------------------------
 	foreach ($Culture in $Cultures) {
@@ -192,7 +207,8 @@ try {
 	}
 }
 finally {
-	Remove-MarkerRuns
+	Remove-MarkerRuns $MarkerSeed
+	Remove-Item (Join-Path $Running "$PID") -Force -ErrorAction SilentlyContinue
 }
 
 if ($script:ShownWindows -gt 0) { Note-Fail "a game window was visible ($($script:ShownWindows) sample(s))" }
