@@ -277,7 +277,7 @@ foreach ($Culture in "en", "zh-Hans") {
 		New-Item -ItemType Directory -Force $User | Out-Null
 		$WalkSeed = $Seed + $Try - 1
 		$SeedArg = if ($Culture -eq "en") { @("-DTSeed=$WalkSeed") } else { @() }
-		$Log = Invoke-Script $Tag "Walk" $Culture $User $Shots ($SeedArg + @("-DTPathPatron=$Patron"))
+		$Log = Invoke-Script $Tag "Walk" $Culture $User $Shots (@($SeedArg) + @("-DTPathPatron=$Patron"))
 		$Walks[$Culture] = $Try
 		if (-not $Log.NoHand) { break }
 		Write-Host ("    {0} walk {1} of {2}: no hand before the death on {3}" -f $Tag, $Try, $WalkTries, (Get-RunFiles $User "jsonl" | Select-Object -First 1).BaseName)
