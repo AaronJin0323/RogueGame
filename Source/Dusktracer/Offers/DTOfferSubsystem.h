@@ -114,6 +114,8 @@ private:
 		FDTOfferPlayerStats Stats;
 		/** Per card of the hand on show: the sockets its pick would make dormant. The build cannot change while a hand is open. */
 		TArray<TArray<FDTDormantSocket>> Dormant;
+		/** The same for the rounds its pick would leave flying. */
+		TArray<TArray<FDTRoundsLeft>> Rounds;
 	};
 
 	FDTRunState* GetRun() const;

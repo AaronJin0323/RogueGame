@@ -1,6 +1,6 @@
 # Smoke test (gate step `smoke`, 11_Quality s1): a rendered run on the stress arena, judged from its log and a screenshot.
 #   & Tools\Smoke.ps1 [-Culture en|zh-Hans] [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-Seconds <s>] [-Name arena_empty]
-#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast]
+#                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast] [-DormantLine]
 # Launches the game (UnrealEditor -game -RenderOffScreen at 1280x720, on the hidden desktop of Tools/HiddenLaunch.ps1) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
@@ -10,7 +10,8 @@
 # ST_UI.csv for the culture, screenshot present, and
 # Tools/image_check.py PASS against Docs/Validation/goldens/<Name>_<Culture>.png (-Update re-baselines the golden).
 # -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden; the hero is read from the arena_empty
-# shot of the same culture, where nothing stands on it.
+# shot of the same culture, where nothing stands on it. -DormantLine judges it with contrast_check.py --dormant-line instead:
+# the HUD's dormant line on its panel, as rendered (R-MOD-08); pass -Cmds that stage one.
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -22,7 +23,8 @@ param(
 	[int]$LoadTimeout = 900,  # the first launch after render changes compiles shaders
 	[switch]$Director,
 	[switch]$Update,
-	[switch]$Contrast
+	[switch]$Contrast,
+	[switch]$DormantLine
 )
 
 trap { Write-Host "SMOKE: FAIL (script error: $_)"; exit 1 }
@@ -117,6 +119,12 @@ if (Test-Path $Shot) {
 	if ($Contrast) {
 		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot --hero (Join-Path $ShotDir "arena_empty_$Culture.png") `
 			--known (Join-Path $Root "Docs\Validation\contrast_debts.txt") 2>&1
+		$ImageOk = ($LASTEXITCODE -eq 0)
+		$ImgOut | ForEach-Object { "    $_" }
+		$Image = (($ImgOut | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
+	}
+	elseif ($DormantLine) {
+		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot --dormant-line 2>&1
 		$ImageOk = ($LASTEXITCODE -eq 0)
 		$ImgOut | ForEach-Object { "    $_" }
 		$Image = (($ImgOut | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
