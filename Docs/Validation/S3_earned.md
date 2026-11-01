@@ -1,6 +1,6 @@
 # S3 Earned: a person's loop, end to end
 
-Branch `dev/s3-earned-path`, from `dev/s3` at `5ccf82e`. Spec: `02_Systems/meta.md` R-MET-30, T-MET-30, T-MET-31; `keepers.md` R-KEE-23. Proof: `Tools/EarnedCheck.ps1`, gate step `earned`, off-screen, en. Every played run here is a bot (bot v2, skill 1.0), so every award and hand is a bound, not a human reading. No human has played any of this. No balance number moved, and no window opened.
+Branch `dev/s3-earned-path`, from `dev/s3` at `5ccf82e`. Spec: `02_Systems/meta.md` R-MET-30, T-MET-30, T-MET-31; `keepers.md` R-KEE-23. Proof: `Tools/EarnedCheck.ps1`, gate step `earned`, off-screen, en. Every played run here is a bot (bot v2, skill 1.0), so every award and hand is a bound, not a human reading. No human has played any of this. No balance number moved. Every launch of the proof is `-RenderOffScreen`, none through `Play.bat`.
 
 **H04.** Class SYSTEM (a proof) with one RULE (the Patron hand's last seat). Layer: tools, and a seat rule in the offer system. Replaces: the planted balance as the only evidence of a purchase (`S3_vigil.md`), `DT.Tree.Buy` as the only buyer of the doors' rows (`S3_doors.md`), and the Open row on Restart's hand in `meta.md`.
 
