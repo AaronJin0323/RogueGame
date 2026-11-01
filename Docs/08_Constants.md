@@ -241,6 +241,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TEL.RATE_UNIT_S | 60.0 | s | CORE | telemetry.md (every `*_per_min` column is a count per this many seconds) |
 | C.TEL.TTK_PERCENTILE | 0.50 | ratio | CORE | telemetry.md (`swarm_ttk_s` column), C.TTK.SWARM_STEERED_MAX |
 | C.TEL.NEAREST_PERCENTILE | 0.10 | ratio | CORE | telemetry.md (`nearest_enemy_p10_uu` column) |
+| C.TEL.HERO_POS_INTERVAL_S | 2.5 | s (sim time) | CORE | telemetry.md (`hero_pos` record), Telemetry/DTTelemetryCore, T-TEL-10 |
 | C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01 |
 
 ## Keepers (02_Systems/keepers.md)

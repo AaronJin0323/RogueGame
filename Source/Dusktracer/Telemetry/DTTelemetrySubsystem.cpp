@@ -65,7 +65,10 @@ void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 		Hit.Kind = Event.HitKind;
 		Hit.SourceRole = Event.SourceRole;
 		Hit.AttackId = Event.AttackId;
-		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp);
+		Hit.Position = Event.SourcePos;
+		Hit.RoundVelocity = Event.RoundVelocity;
+		Hit.RoundFlightSeconds = Event.RoundFlightSeconds;
+		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp, Event.HeroPos);
 		break;
 	}
 	case EDTHeroEventKind::HeroDown:
@@ -134,8 +137,7 @@ void UDTTelemetrySubsystem::StartSession(int32 RunSeed, int32 NumPlayers)
 	}
 	Config.Build = GetBuildHash();
 	Config.Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
-	Config.InputDevice = TEXT("unknown"); // no input yet; the CSV column reads the hero's last device at each step end
-	Config.WallStart = Now.ToIso8601();
+	Config.WallStart = FDateTime::UtcNow().ToIso8601(); // the trailing Z says UTC; the file name keeps the local time (R-TEL-07)
 
 	Writer.Open(FDTTelemetryWriter::MakeBaseName(RunSeed, Now));
 	Core.Start(Config);
@@ -149,6 +151,7 @@ void UDTTelemetrySubsystem::EndSession(const FString& Reason)
 	{
 		return;
 	}
+	OnSessionEnding.Broadcast(Reason);
 	Core.End(Reason);
 	Flush();
 	Writer.Wait();

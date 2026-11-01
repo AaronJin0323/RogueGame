@@ -52,7 +52,7 @@ CJK = "一-鿿"
 CJK_RE = re.compile(f"[{CJK}]")
 HALF_PUNCT_RE = re.compile(f"[{CJK}][,;:!?()]|[,;:!?()][{CJK}]")
 # Arguments that hold a name, not a number: they sit against CJK with no space (`重铸{Weapon}`, zh_glossary §1 Spacing).
-NAME_ARGS = ("{Weapon}", "{Keeper}", "{Archetype}", "{Tool}", "{Name}", "{Toast}", "{A}", "{B}", "{0}", "{1}", "{Keys}")
+NAME_ARGS = ("{Weapon}", "{Modifier}", "{Keeper}", "{Archetype}", "{Tool}", "{Name}", "{Toast}", "{A}", "{B}", "{0}", "{1}", "{Keys}")
 ARG_SPACE_RE = re.compile(f"[{CJK}](\\{{\\w+\\}})|(\\{{\\w+\\}})[{CJK}]")
 CODE_KEY_RE = re.compile(r'FromStringTable\(\s*TEXT\("(ST_\w+)"\)\s*,\s*TEXT\("([^"]+)"\)\s*\)')
 NO_TRANSLATE = "do not translate"

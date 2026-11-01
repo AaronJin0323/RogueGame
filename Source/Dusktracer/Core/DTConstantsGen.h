@@ -201,6 +201,7 @@ namespace DTConst
 	inline constexpr float TEL_RATE_UNIT_S = 60.0f; // s, CORE
 	inline constexpr float TEL_TTK_PERCENTILE = 0.5f; // ratio, CORE
 	inline constexpr float TEL_NEAREST_PERCENTILE = 0.1f; // ratio, CORE
+	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
 	inline constexpr int32 GATE_TEST_FLOOR = 30; // n, CORE

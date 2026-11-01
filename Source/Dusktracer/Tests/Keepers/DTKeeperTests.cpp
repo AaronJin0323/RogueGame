@@ -685,6 +685,9 @@ bool FDTKeepersIntercessionCompose::RunTest(const FString& Parameters)
 		H.Keepers.QueueIntercession(0);
 		H.StepOnce();
 		TestTrue(TEXT("casting"), H.Keepers.IsCasting(0));
+		const TArray<FDTKeeperCastRecord> Opened = H.Keepers.TakeStartedCasts();
+		TestTrue(TEXT("the window opens with the cast, on the Keeper's source"), Opened.Num() == 1 && Opened[0].Record.BaseSource == DTKeepers::KeeperSource(EDTPath::Storm)
+			&& Opened[0].Record.LayerSource == 0 && !Opened[0].Record.Variant.IsNone());
 		const FDTFlagEntry* Split = H.Built(EDTPath::Storm, DTCat::EFlag::Split);
 		TestTrue(TEXT("variant: children 5, every round"), Split && FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Children), 5.0f) &&
 			FMath::IsNearlyEqual(Split->Params.Get(DTFlagParam::Chance), 1.0f));

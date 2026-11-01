@@ -74,6 +74,8 @@ private:
 	FDelegateHandle BlessingHandle;
 	FDelegateHandle KeeperHandle;
 	FDelegateHandle IntercessionHandle;
+	/** Casts that ended last step: what they emitted in their last Effects phase resolves this step, so telemetry closes them now. */
+	TArray<FDTKeeperCastRecord> ClosingCasts;
 	TArray<TArray<FTransform>> TrailTransforms;
 
 	/** Bucket = Path * 2 + part (0 trail body, 1 tail tip); spawned on first use. */

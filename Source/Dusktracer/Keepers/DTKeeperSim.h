@@ -31,11 +31,13 @@ struct FDTKeeperCounters
 	int32 Rebuilds = 0;
 };
 
-/** A finished cast for telemetry (intercession{owner, base, variant, layer, enemies_hit, damage}). */
+/** A cast for telemetry (keepers.md §Telemetry): handed out when its window opens, and again when it closes. */
 struct FDTKeeperCastRecord
 {
 	int32 OwnerId = INDEX_NONE;
 	FDTTelIntercession Record;
+	/** At the close: every enemy the cast reached itself (area hits, the Tide pull), hit or not. */
+	TArray<uint32> Touched;
 };
 
 class DUSKTRACER_API FDTKeeperSim
@@ -65,7 +67,9 @@ public:
 	/** EDTSimPhase::Effects: enchantment procs, frozen_vuln, Intercession. Weapons gets flag rebuilds and reads damage. */
 	void StepEffects(const FDTSimContext& Context, FDTWeaponSim* Weapons);
 
-	/** Casts that ended since the last call (the subsystem forwards them to telemetry). */
+	/** Casts that started since the last call (the subsystem opens their telemetry window). */
+	TArray<FDTKeeperCastRecord> TakeStartedCasts() { return MoveTemp(Started); }
+	/** Casts that ended since the last call (the subsystem closes their telemetry window). */
 	TArray<FDTKeeperCastRecord> TakeFinishedCasts() { return MoveTemp(Finished); }
 	/** Players whose dash cooldown resets now (Slam's dash_cooldown_reset; the subsystem calls the hero, resolved next Hero phase). */
 	TArray<int32> TakeDashResets() { return MoveTemp(DashResets); }
@@ -113,7 +117,6 @@ private:
 		int32 BeamsLeft = 0;
 		FVector2f BeamDir = FVector2f(1.0f, 0.0f);
 		TSet<uint32> EnemiesHit;
-		double Damage = 0.0;
 	};
 
 	struct FPlayer
@@ -153,6 +156,7 @@ private:
 	TArray<FPlayer> Players;
 	TArray<FCapturedHit> Captured;
 	TMap<uint32, int32> SerialToIndex;
+	TArray<FDTKeeperCastRecord> Started;
 	TArray<FDTKeeperCastRecord> Finished;
 	TArray<int32> DashResets;
 	int64 LastStep = -1;

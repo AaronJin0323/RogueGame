@@ -31,3 +31,5 @@ Spillover.Name,Spillover,溢流,Offer card name of Mod.Spillover (modifiers.md T
 Spillover.Desc,"On a kill, overkill damage jumps to the nearest enemy.",击杀时，多余的伤害会跳到最近的敌人身上。,"Offer card line of Mod.Spillover: describes the behaviour, never a catalog number.",
 Refit.Name,Refit,改装,Offer card name of Mod.Refit (modifiers.md Text).,
 Refit.Desc,"Once in a while, a kill by this full weapon fits a random modifier on a free socket.",这把武器装满模块后，每隔一段时间，击杀会把一个随机模块装到空插槽上。,"Offer card line of Mod.Refit: describes the behaviour, never a catalog number.",
+Dormant.Hud,{Modifier} dormant on {Weapon},{Weapon}的{Modifier}已休眠,"HUD, stacked above the hero block, one line per dormant modifier (modifiers.md R-MOD-08). {Modifier} and {Weapon} are names. zh invented: 休眠 has no glossary or reference term, needs a native read.",
+Dormant.Card,{Modifier} goes dormant on {Weapon},{Weapon}的{Modifier}将休眠,"Offer card, boxed above the rarity row, when picking the card would make that modifier dormant (modifiers.md R-MOD-08). {Modifier} and {Weapon} are names. zh invented: same term as Dormant.Hud, needs a native read.",

@@ -1,7 +1,8 @@
 @echo off
 setlocal
 rem Starts a play session for a human (S1 validation, owner playtests): the arena in a full-screen game window,
-rem director on, bot off, offers chosen by the player. Telemetry lands in Saved\Playtests (per run, per player).
+rem director on, bot off, offers chosen by the player, a fresh seed drawn by the game (07_Technical R-TEC-16).
+rem Telemetry lands in Saved\Playtests (per run, per player).
 rem Usage: Tools\Play.bat [en|zh-Hans]        default: the language saved in Settings (settings.md R-SET-06)
 rem Build first with Tools\Build.bat; this never builds.
 if not defined UE_ROOT set "UE_ROOT=E:\UE5\UE_5.8"

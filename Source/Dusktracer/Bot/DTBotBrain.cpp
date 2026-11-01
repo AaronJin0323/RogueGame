@@ -63,6 +63,10 @@ namespace DTBotTuning
 	constexpr float CarryRefuseScore = 1.0f;
 	constexpr int32 CarryGiftLead = 2;
 	constexpr float SecondNextScore = 65.0f;
+	/** A card the pick filter passes: under every other card, so it is taken only from a hand of nothing else. */
+	constexpr float PassedCardScore = -100.0f;
+	/** The second archetype's Key, over the Patron archetype's: the owner took Hammer's first and its later cards over Storm's. */
+	constexpr float SecondArchetypeKeyScore = 110.0f;
 	/** The probe route: stand for ProbeLegS, walk a circle of ProbeOrbitUU for ProbeLegS, a dash every ProbeDashS. */
 	constexpr int32 ProbeLegS = 1;
 	constexpr int32 ProbeDashS = 6;
@@ -177,6 +181,11 @@ EDTPath FDTBotConfig::ParsePath(const FString& Text)
 	return EDTPath::None;
 }
 
+EDTBotPick FDTBotConfig::ParsePick(const FString& Text)
+{
+	return Text.Equals(TEXT("BlessingsOnly"), ESearchCase::IgnoreCase) ? EDTBotPick::BlessingsOnly : EDTBotPick::All;
+}
+
 EDTPath FDTBotConfig::DefaultSecond(EDTPath Primary)
 {
 	switch (Primary)
@@ -193,10 +202,22 @@ FString FDTBotConfig::Describe() const
 	static const TCHAR* Names[] = { TEXT("Storm"), TEXT("Forge"), TEXT("Tide"), TEXT("Shade"), TEXT("Radiance"), TEXT("Quicksilver") };
 	const int32 P = static_cast<int32>(Path);
 	const int32 S = static_cast<int32>(SecondPath == EDTPath::None ? DefaultSecond(Path) : SecondPath);
-	return FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d%s"), PolicyName(Policy),
+	FString Text = FString::Printf(TEXT("policy=%s path=%s archetype=%s second=%s skill=%.2f seed=%d version=%d%s"), PolicyName(Policy),
 		P < UE_ARRAY_COUNT(Names) ? Names[P] : TEXT("-"), *Archetype.ToString(), S < UE_ARRAY_COUNT(Names) ? Names[S] : TEXT("-"), Skill, Seed, Version,
-		bPrimaryFirst ? TEXT(" primary_first=1") : TEXT(""))
-		+ (CarryWeapon.IsNone() ? FString() : FString::Printf(TEXT(" carry=%s%s"), *CarryWeapon.ToString(), bCarryHold ? TEXT(" carry_hold=1") : TEXT("")));
+		bPrimaryFirst ? TEXT(" primary_first=1") : TEXT(""));
+	if (!CarryWeapon.IsNone())
+	{
+		Text += FString::Printf(TEXT(" carry=%s%s"), *CarryWeapon.ToString(), bCarryHold ? TEXT(" carry_hold=1") : TEXT(""));
+	}
+	if (!SecondArchetype.IsNone())
+	{
+		Text += FString::Printf(TEXT(" second_archetype=%s"), *SecondArchetype.ToString());
+	}
+	if (Pick != EDTBotPick::All)
+	{
+		Text += TEXT(" pick=BlessingsOnly");
+	}
+	return Text;
 }
 
 int32 FDTBotConfig::KnownVersion(int32 Version)
@@ -754,6 +775,10 @@ float FDTBotBrain::CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 			return DTReactions::FindDuo(Card.ContentId) != INDEX_NONE ? DTBotTuning::DuoScore : 20.0f;
 		}
 		const FString Arch = FString(DTCat::Archetypes[Info.Archetype].Id);
+		if (Info.Path == Second && !Config.SecondArchetype.IsNone() && Arch.EndsWith(FString(TEXT(".")) + Config.SecondArchetype.ToString()))
+		{
+			return DTBotTuning::SecondArchetypeKeyScore - static_cast<float>(Info.Column) * 4.0f;
+		}
 		const bool bMine = Info.Path == Config.Path && !Config.Archetype.IsNone() && Arch.EndsWith(FString(TEXT(".")) + Config.Archetype.ToString());
 		if (bMine)
 		{
@@ -763,6 +788,10 @@ float FDTBotBrain::CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 	}
 	case EDTCardKind::Weapon:
 	{
+		if (Config.Pick == EDTBotPick::BlessingsOnly)
+		{
+			return DTBotTuning::PassedCardScore;
+		}
 		float Score = Player.Weapons.Num() < 3 ? 70.0f : 30.0f;
 		for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
 		{
@@ -774,7 +803,7 @@ float FDTBotBrain::CardScore(const FDTOfferCard& Card, const FDTOfferHand& Hand,
 		}
 		return Score;
 	}
-	case EDTCardKind::WeaponUpgrade: return 60.0f;
+	case EDTCardKind::WeaponUpgrade: return Config.Pick == EDTBotPick::BlessingsOnly ? DTBotTuning::PassedCardScore : 60.0f;
 	case EDTCardKind::Mod: return 35.0f;
 	case EDTCardKind::Reserve: return 5.0f;
 	default: return 1.0f;

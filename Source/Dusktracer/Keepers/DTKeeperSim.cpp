@@ -225,6 +225,7 @@ FDTKeeperSim::FHeroRiders FDTKeeperSim::GetHeroRiders(int32 OwnerId) const
 void FDTKeeperSim::ResetRun()
 {
 	Captured.Reset();
+	Started.Reset();
 	Finished.Reset();
 	DashResets.Reset();
 	for (FPlayer& Player : Players)
@@ -527,6 +528,14 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 	const FDTIntercessionPlan& Plan = Cast.Plan;
 	const int32 Base = static_cast<int32>(Plan.Base);
 
+	FDTKeeperCastRecord& Opened = Started.AddDefaulted_GetRef();
+	Opened.OwnerId = OwnerId;
+	Opened.Record.Base = DTKeepers::SourceTag(Plan.Base);
+	Opened.Record.Variant = Plan.Variant != INDEX_NONE ? FName(DTCat::Archetypes[Plan.Variant].Id) : NAME_None;
+	Opened.Record.Layer = Plan.Layer != INDEX_NONE ? FName(DTCat::Archetypes[Plan.Layer].Id) : NAME_None;
+	Opened.Record.BaseSource = DTKeepers::KeeperSource(Plan.Base);
+	Opened.Record.LayerSource = Plan.Layer != INDEX_NONE && IsPath(Plan.LayerPath) ? DTKeepers::KeeperSource(Plan.LayerPath) : static_cast<uint16>(0);
+
 	// Base (R-KEE-14 table), shaped by the variant.
 	switch (Plan.Base)
 	{
@@ -827,7 +836,6 @@ void FDTKeeperSim::HitBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer&
 		Out.Position = View.EnemyPositions[Enemy];
 		Out.SourceId = DTKeepers::KeeperSource(EDTPath::Radiance);
 		Out.bCrit = true;
-		Player.Cast.Damage += Damage;
 		Player.Cast.EnemiesHit.Add(View.EnemySerials[Enemy]);
 		ApplyLayerStatus(Context, OwnerId, Player, Enemy, Damage);
 		const float Hp = Weapons ? Weapons->HpOf(Enemy) : 0.0f;
@@ -967,13 +975,9 @@ void FDTKeeperSim::EndCast(const FDTSimContext& Context, int32 OwnerId, FPlayer&
 		}
 		Weapons->GrantMomentum(OwnerId, 0.0f, false); // a held Momentum fades again
 	}
-	FDTKeeperCastRecord& Record = Finished.AddDefaulted_GetRef();
-	Record.OwnerId = OwnerId;
-	Record.Record.Base = DTKeepers::SourceTag(Plan.Base);
-	Record.Record.Variant = Plan.Variant != INDEX_NONE ? FName(DTCat::Archetypes[Plan.Variant].Id) : NAME_None;
-	Record.Record.Layer = Plan.Layer != INDEX_NONE ? FName(DTCat::Archetypes[Plan.Layer].Id) : NAME_None;
-	Record.Record.EnemiesHit = Cast.EnemiesHit.Num();
-	Record.Record.Damage = static_cast<float>(Cast.Damage);
+	FDTKeeperCastRecord& Closed = Finished.AddDefaulted_GetRef();
+	Closed.OwnerId = OwnerId;
+	Closed.Touched = Cast.EnemiesHit.Array();
 	Cast = FCast();
 	for (TArray<FDTSpecClause>& Overlay : Player.Overlay)
 	{
@@ -1019,7 +1023,6 @@ int32 FDTKeeperSim::HitCircle(const FDTSimContext& Context, int32 OwnerId, FPlay
 			Out.Damage = Damage;
 			Out.Position = View.EnemyPositions[Enemy];
 			Out.SourceId = DTKeepers::KeeperSource(Path); // R-KEE-13: Intercession damage is Keeper damage
-			Player.Cast.Damage += Damage;
 		}
 		Player.Cast.EnemiesHit.Add(Serial);
 		if (KnockbackUu > 0.0f)

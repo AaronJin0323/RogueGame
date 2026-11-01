@@ -272,7 +272,7 @@ void UDTMenuSubsystem::RestartRun(TOptional<int32> ForcedSeed)
 		return;
 	}
 	CloseRun(TEXT("restart"));
-	PendingSeed = ForcedSeed.IsSet() ? ForcedSeed.GetValue() : ADTGameMode::NextSeed(ADTGameMode::GetRunSeed(GetWorld()), FPlatformTime::Cycles());
+	PendingSeed = ForcedSeed.IsSet() ? ForcedSeed.GetValue() : ADTGameMode::NextSeed(ADTGameMode::GetRunSeed(GetWorld()).Seed, FPlatformTime::Cycles());
 	bRestartPending = true;
 	bLeaving = true;
 }

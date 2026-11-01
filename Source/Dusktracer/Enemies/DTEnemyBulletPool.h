@@ -43,8 +43,8 @@ public:
 	/**
 	 * Saves PrevPos, integrates, expires (life, arena), then tests every round against every hero in
 	 * View.HeroPositions (body radius C.HERO.RADIUS_UU): a touch appends one FDTHeroHit (Kind Bullet) to View.HeroHits
-	 * and removes the round, unless View.HeroIntangible marks the hero, then the round passes through. Never touches
-	 * View.Hits or the enemy hash.
+	 * and removes the round, unless View.HeroIntangible marks the hero, then the round passes through. The hit carries the
+	 * round's firing point, velocity and flight time (R-TEL-10). Never touches View.Hits or the enemy hash.
 	 */
 	void Step(float Dt, FDTWorldView& View);
 
@@ -72,6 +72,8 @@ private:
 	int32 Capacity;
 	TArray<FVector2f> Pos;
 	TArray<FVector2f> PrevPos;
+	/** Where each round was fired from, for the hit it may land (telemetry, R-TEL-10). Nothing in the sim reads it. */
+	TArray<FVector2f> Origin;
 	TArray<FVector2f> Vel;
 	TArray<float> Radius;
 	TArray<float> Damage;

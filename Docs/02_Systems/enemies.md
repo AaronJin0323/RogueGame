@@ -105,7 +105,7 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - T-ENM-13 `Dusktracer.Enemies.TelegraphLead`: for every attack in `09_Catalog/enemies.csv` the telegraph appears at least the minimum lead before damage and its footprint equals the damage shape; an arriving Rusher and Turret start their attack on their first step, and one killed mid-telegraph still lands it.
 - T-ENM-14 `Dusktracer.Enemies.Contact`: an overlapping enemy appends one hero hit per step with role contact damage times its multiplier; a non-overlapping one appends none.
 - T-ENM-15 `Dusktracer.EnemyFire.Pool`: integration and expiry as T-BUL-01/02; at the cap a spawn is refused and counted and no live round is removed; player bullets at their cap never remove an enemy round.
-- T-ENM-16 `Dusktracer.EnemyFire.HitHero`: a round touching a hero gives one hero hit to that player and is removed; an intangible hero is passed through; rounds never append an `FDTHit`.
+- T-ENM-16 `Dusktracer.EnemyFire.HitHero`: a round touching a hero gives one hero hit to that player, carrying the round's firing point, velocity and time in the air (`telemetry.md` R-TEL-10), and is removed; an intangible hero is passed through; rounds never append an `FDTHit`.
 - T-ENM-17 `Dusktracer.EnemyFire.NoActors`: rounds at the cap add no actor and one instance each on the enemy-fire renderer; instance colours equal the enemy tokens at every density.
 - T-ENM-18 `Dusktracer.Enemies.AimTokens`: many turrets over a long window never exceed the token count (Threat count in a Threat block); every turret still fires; a unit without a token holds before its tell.
 - T-ENM-19 `Dusktracer.Enemies.NoCloseFan`: a fan pattern fires single rounds inside the close range and a fan outside it.

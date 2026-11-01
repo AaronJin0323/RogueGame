@@ -206,6 +206,14 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 	const float Experiment = DTKeeperSubsystemLocal::CVarDilationScale.GetValueOnGameThread();
 	Sim.SetDilationScale(Experiment >= 0.0f ? FMath::Min(Experiment, 1.0f) : static_cast<float>(DTConst::INTERCESSION_QUICKSILVER_TIME_SCALE));
 #endif
+	UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this);
+	if (Telemetry)
+	{
+		for (const FDTKeeperCastRecord& Cast : ClosingCasts)
+		{
+			Telemetry->Records().EndIntercession(Cast.OwnerId, Cast.Touched);
+		}
+	}
 	Sim.StepEffects(Context, Weapons ? &Weapons->GetSim() : nullptr);
 	if (UDTHeroSubsystem* Hero = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr)
 	{
@@ -241,8 +249,9 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 			}
 		}
 	}
-	TArray<FDTKeeperCastRecord> Casts = Sim.TakeFinishedCasts();
-	if (UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this))
+	ClosingCasts = Sim.TakeFinishedCasts();
+	const TArray<FDTKeeperCastRecord> Opened = Sim.TakeStartedCasts();
+	if (Telemetry)
 	{
 		if (Weapons)
 		{
@@ -251,9 +260,9 @@ void UDTKeeperSubsystem::SimStep(const FDTSimContext& Context)
 				Telemetry->Records().RecordReaction(Event.OwnerId, FName(DTCat::Reactions[Event.Row].Pair), Event.Fires, Event.Damage, Event.bFirst);
 			}
 		}
-		for (const FDTKeeperCastRecord& Cast : Casts)
+		for (const FDTKeeperCastRecord& Cast : Opened)
 		{
-			Telemetry->Records().RecordIntercession(Cast.OwnerId, Cast.Record);
+			Telemetry->Records().BeginIntercession(Cast.OwnerId, Cast.Record);
 		}
 	}
 }

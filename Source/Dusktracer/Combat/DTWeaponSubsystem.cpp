@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Telemetry/DTTelemetrySubsystem.h"
 
 int32 DTWeaponPalette::NumBuckets()
 {
@@ -291,6 +292,39 @@ void UDTWeaponSubsystem::SimStep(const FDTSimContext& Context)
 {
 	UDTBulletSubsystem* BulletSys = Bullets.Get();
 	Sim.StepWeapons(Context, BulletSys ? &BulletSys->GetPool() : nullptr);
+	UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this);
+	for (const FDTWeaponDormancy& Dormancy : Sim.TakeDormancyChanges())
+	{
+		if (Telemetry)
+		{
+			Telemetry->Records().RecordModifierDormant(Dormancy.OwnerId, Dormancy.Weapon, Dormancy.Change.ModId, Dormancy.Change.bDormant);
+		}
+	}
+}
+
+void UDTWeaponSubsystem::ReportWeapons(const FDTSimContext& Context)
+{
+	UDTTelemetrySubsystem* Telemetry = UDTTelemetrySubsystem::Find(this);
+	if (!Telemetry || !Context.Run)
+	{
+		return;
+	}
+	FDTTelemetryCore& Records = Telemetry->Records();
+	for (int32 Owner = 0; Owner < Context.Run->GetNumPlayers(); ++Owner)
+	{
+		const TArray<FDTWeaponInstance>& Weapons = Context.Run->GetPlayer(Owner).Weapons;
+		for (int32 Slot = 0; Slot < Weapons.Num(); ++Slot)
+		{
+			int32 Spawned = 0;
+			int32 Throttled = 0;
+			Sim.TakeEmissions(Owner, Slot, Spawned, Throttled);
+			Records.SetWeaponState(Owner, Weapons[Slot].SourceId, Weapons[Slot].Level, Sim.GetLastSpec(Owner, Slot).LoadRank);
+			if (Spawned > 0 || Throttled > 0)
+			{
+				Records.RecordWeaponEmissions(Owner, Weapons[Slot].SourceId, Spawned, Throttled);
+			}
+		}
+	}
 }
 
 void UDTWeaponSubsystem::StepPhase(EDTSimPhase Phase, const FDTSimContext& Context)
@@ -303,25 +337,54 @@ void UDTWeaponSubsystem::StepPhase(EDTSimPhase Phase, const FDTSimContext& Conte
 	{
 		UDTBulletSubsystem* BulletSys = Bullets.Get();
 		Sim.StepEffects(Context, BulletSys ? &BulletSys->GetPool() : nullptr);
+		ReportWeapons(Context);
 	}
 }
 
 EDTWeaponResult UDTWeaponSubsystem::Give(int32 OwnerId, FName WeaponId, int32 Level)
 {
 	FDTRunState* Run = GetRun();
-	return Run ? Sim.Give(*Run, OwnerId, WeaponId, Level) : EDTWeaponResult::BadPlayer;
+	int32 Slot = INDEX_NONE;
+	const EDTWeaponResult Result = Run ? Sim.Give(*Run, OwnerId, WeaponId, Level, &Slot) : EDTWeaponResult::BadPlayer;
+	UDTTelemetrySubsystem* Telemetry = Result == EDTWeaponResult::Ok ? UDTTelemetrySubsystem::Find(this) : nullptr;
+	if (Telemetry)
+	{
+		const FDTWeaponInstance& Instance = Run->GetPlayer(OwnerId).Weapons[Slot];
+		Telemetry->Records().RecordWeaponAcquired(OwnerId, Instance.SourceId);
+		if (Instance.Level > 1)
+		{
+			Telemetry->Records().RecordWeaponLevel(OwnerId, Instance.SourceId, Instance.Level);
+		}
+	}
+	return Result;
 }
 
 EDTWeaponResult UDTWeaponSubsystem::LevelUp(int32 OwnerId, FName WeaponId, int32 Level)
 {
 	FDTRunState* Run = GetRun();
-	return Run ? Sim.LevelUp(*Run, OwnerId, FDTWeaponSim::FindSlot(*Run, OwnerId, WeaponId), Level) : EDTWeaponResult::BadPlayer;
+	const int32 Slot = Run ? FDTWeaponSim::FindSlot(*Run, OwnerId, WeaponId) : INDEX_NONE;
+	const EDTWeaponResult Result = Run ? Sim.LevelUp(*Run, OwnerId, Slot, Level) : EDTWeaponResult::BadPlayer;
+	UDTTelemetrySubsystem* Telemetry = Result == EDTWeaponResult::Ok ? UDTTelemetrySubsystem::Find(this) : nullptr;
+	if (Telemetry)
+	{
+		const FDTWeaponInstance& Instance = Run->GetPlayer(OwnerId).Weapons[Slot];
+		Telemetry->Records().RecordWeaponLevel(OwnerId, Instance.SourceId, Instance.Level);
+	}
+	return Result;
 }
 
 EDTWeaponResult UDTWeaponSubsystem::Socket(int32 OwnerId, FName WeaponId, FName ModId)
 {
 	FDTRunState* Run = GetRun();
-	return Run ? Sim.Socket(*Run, OwnerId, FDTWeaponSim::FindSlot(*Run, OwnerId, WeaponId), ModId) : EDTWeaponResult::BadPlayer;
+	const int32 Slot = Run ? FDTWeaponSim::FindSlot(*Run, OwnerId, WeaponId) : INDEX_NONE;
+	const EDTWeaponResult Result = Run ? Sim.Socket(*Run, OwnerId, Slot, ModId) : EDTWeaponResult::BadPlayer;
+	UDTTelemetrySubsystem* Telemetry = Result == EDTWeaponResult::Ok ? UDTTelemetrySubsystem::Find(this) : nullptr;
+	if (Telemetry)
+	{
+		const FDTWeaponInstance& Instance = Run->GetPlayer(OwnerId).Weapons[Slot];
+		Telemetry->Records().RecordModifierSocketed(OwnerId, Instance.Id, Instance.Sockets.Last().ModId);
+	}
+	return Result;
 }
 
 bool UDTWeaponSubsystem::IsInPool(FName Id) const

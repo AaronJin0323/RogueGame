@@ -7,6 +7,8 @@
 //   -DTBotArchetype=<Tempest|...>       dt.Bot.Archetype   Steered: preferred archetype of that Path
 //   -DTBotSecond=<Path>                 dt.Bot.Second      Steered: second Keeper (default FDTBotConfig::DefaultSecond)
 //   -DTBotVersion=<1|2>                 dt.Bot.Version     1 = the S1 bot, frozen (the default, R-BOT-01); 2 = bot v2
+//   -DTBotSecondArchetype=<Hammer|...>  dt.Bot.SecondArchetype  Steered: the second Keeper's archetype, before the Patron's (default none)
+//   -DTBotPick=<All|BlessingsOnly>      dt.Bot.Pick        Steered: card filter (default All; Docs/Validation/S1_owner_run.md)
 //   -DTBotSkill=<0..1>                  dt.Bot.Skill       1 = no reaction delay, no error (default 1); below it, R-BOT-04..11 for v2
 //   -DTBotFast[=<steps>]                dt.Bot.Fast        steps run per frame through UDTSimSubsystem::StepNow (0 = real time)
 //   -DTBotMaxSeconds=<s>                dt.Bot.MaxSeconds  ends the telemetry session ("bot_timeout") at this sim time
@@ -71,8 +73,8 @@ public:
 	int32 GetStepsPerFrame() const { return StepsPerFrame; }
 	void SetStepsPerFrame(int32 Steps) { StepsPerFrame = FMath::Max(0, Steps); }
 
-	/** Reads -DTBot* and dt.Bot.* into a config (seed from -DTSeed). Policy Off when no bot is requested. */
-	static FDTBotConfig ReadConfig();
+	/** Reads -DTBot* and dt.Bot.* into a config, on the run's seed (UDTSimSubsystem::GetLaunchSeed). Policy Off when no bot is requested. */
+	FDTBotConfig ReadConfig() const;
 
 private:
 	void HandleStepEnd();

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "UObject/Object.h"
+#include "Combat/DTWeaponCompose.h"
 #include "Core/DTRunState.h"
 #include "DTOfferScreen.generated.h"
 
@@ -57,6 +58,8 @@ struct FDTOfferScreenModel
 {
 	const FDTOfferHand* Hand = nullptr;
 	const FDTPlayerRunState* Player = nullptr;
+	/** Per card of Hand: the sockets its pick would make dormant (modifiers.md R-MOD-08). */
+	const TArray<TArray<FDTDormantSocket>>* Dormant = nullptr;
 	int32 Focus = 0;
 	bool bGuardActive = false;
 };
@@ -77,7 +80,8 @@ public:
 	bool HasLayout() const { return CardRects.Num() > 0; }
 
 private:
-	void DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, const FBox2D& Rect, int32 Slot, bool bFocus);
+	void DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, TConstArrayView<FDTDormantSocket> Dormant,
+		const FBox2D& Rect, int32 Slot, bool bFocus);
 	/** The focused card's `<kw>` notes in a panel from Top down (offers.md R-OFF-13). */
 	void DrawNotes(UCanvas* Canvas, const FDTOfferCard& Card, const FBox2D& CardRect, float Top);
 

@@ -3,6 +3,7 @@
 #include "Keepers/DTReactions.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
+#include "Keepers/DTKeeperSpec.h"
 
 namespace DTOfferGenLocal
 {
@@ -1129,6 +1130,44 @@ FDTPickOutcome DTOffers::ApplyPickState(FDTPlayerRunState& Player, EDTHandKind H
 		}
 		break;
 	}
+	}
+	return Out;
+}
+
+TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card)
+{
+	TArray<FDTDormantSocket> Out;
+	const bool bAnySocket = Player.Weapons.ContainsByPredicate([](const FDTWeaponInstance& W) { return W.Sockets.Num() > 0; });
+	FDTKeeperRunState Picked = Player.Keepers;
+	if (Card.Kind != EDTCardKind::Blessing || !bAnySocket || !AddBlessing(Picked, Card.ContentId))
+	{
+		return Out;
+	}
+	auto FlagsOf = [](const FDTKeeperRunState& Keepers)
+	{
+		TArray<FDTFlagEntry> Flags;
+		for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+		{
+			Flags.Append(DTKeepers::BuildKeeperFlags(Keepers, static_cast<EDTPath>(Path)).Entries);
+		}
+		return Flags;
+	};
+	const TArray<FDTFlagEntry> FlagsNow = FlagsOf(Player.Keepers);
+	const TArray<FDTFlagEntry> FlagsPicked = FlagsOf(Picked);
+	const FDTWeaponHeroStats Stats; // caps read no stat
+	for (const FDTWeaponInstance& Weapon : Player.Weapons)
+	{
+		FDTWeaponInstance Now = Weapon;
+		FDTWeaponInstance After = Weapon;
+		DTWeaponCompose::Compose(Now, FlagsNow, Stats, 0);
+		DTWeaponCompose::Compose(After, FlagsPicked, Stats, 0);
+		for (int32 Index = 0; Index < Weapon.Sockets.Num(); ++Index)
+		{
+			if (After.Sockets[Index].bDormant && !Now.Sockets[Index].bDormant)
+			{
+				Out.Add(FDTDormantSocket{ Weapon.Id, Weapon.Sockets[Index].ModId });
+			}
+		}
 	}
 	return Out;
 }

@@ -1068,7 +1068,7 @@ bool FDTSetRestart::RunTest(const FString& Parameters)
 		Menu->Tick(0.0f);
 		Menu->Tick(0.0f);
 		TestEqual(TEXT("one reload after the release"), Seeds.Num(), 1);
-		TestTrue(TEXT("on a new seed"), Seeds.Num() == 1 && Seeds[0] > 0 && Seeds[0] != ADTGameMode::GetCommandLineSeed());
+		TestTrue(TEXT("on a new seed"), Seeds.Num() == 1 && Seeds[0] > 0 && Seeds[0] != ADTGameMode::GetRunSeed(Test.World).Seed);
 		Menu->Command(EDTMenuCommand::Accept);
 		Menu->Tick(0.0f);
 		TestEqual(TEXT("nothing more is taken"), Seeds.Num(), 1);
@@ -1151,8 +1151,12 @@ bool FDTSetRestartMatchesFresh::RunTest(const FString& Parameters)
 
 	FURL Url;
 	Url.AddOption(TEXT("DTSeed=77"));
-	TestEqual(TEXT("the map's seed wins"), ADTGameMode::ParseSeed(Url, TEXT("-DTSeed=5")), 77);
-	TestEqual(TEXT("else the command line"), ADTGameMode::ParseSeed(FURL(), TEXT("-DTSeed=5")), 5);
+	const FDTRunSeed Launch = FDTRunSeed::Resolve(TEXT("-DTSeed=5"), /*bToolRun*/ true, 0);
+	TestEqual(TEXT("the map's seed wins"), ADTGameMode::ParseSeed(Url, Launch).Seed, 77);
+	TestEqual(TEXT("else the command line"), ADTGameMode::ParseSeed(FURL(), Launch).Seed, 5);
+	FURL Past;
+	Past.AddOption(TEXT("DTSeed=3276732767"));
+	TestTrue(TEXT("a map's seed past int32 is rejected, not saturated"), ADTGameMode::ParseSeed(Past, Launch).Source == EDTSeedSource::Rejected);
 	return true;
 }
 
@@ -1197,7 +1201,7 @@ bool FDTSetFreshSeed::RunTest(const FString& Parameters)
 	for (uint32 Tick = 0; Tick < 20000; ++Tick)
 	{
 		const int32 Next = ADTGameMode::NextSeed(Seed, Tick);
-		if (Next == Seed || Next <= 0)
+		if (Next == Seed || Next < FDTRunSeed::FreshMin || Next > FDTRunSeed::FreshMax)
 		{
 			AddError(FString::Printf(TEXT("seed %d after %d"), Next, Seed));
 			return false;

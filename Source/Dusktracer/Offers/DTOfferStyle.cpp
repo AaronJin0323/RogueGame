@@ -482,6 +482,20 @@ FText DTOfferText::KeywordDesc(const FString& Keyword)
 	return DTOfferStyleLocal::FromTable(DTOfferStyleLocal::KeywordsTable, Keyword + TEXT(".Desc"));
 }
 
+FText DTOfferText::Dormant(const TCHAR* Key, const FDTDormantSocket& Socket)
+{
+	FDTOfferCard Weapon;
+	Weapon.Kind = EDTCardKind::Weapon;
+	Weapon.ContentId = Socket.Weapon;
+	FDTOfferCard Mod;
+	Mod.Kind = EDTCardKind::Mod;
+	Mod.ContentId = Socket.Mod;
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Weapon"), Name(Weapon));
+	Args.Add(TEXT("Modifier"), Name(Mod));
+	return FText::Format(DTOfferStyleLocal::FromTable(DTOfferStyleLocal::ModifiersTable, Key), Args);
+}
+
 TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 {
 	using namespace DTOfferStyleLocal;
@@ -558,5 +572,7 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 	{
 		Keys.AddUnique(TPair<FString, FString>(UiTable, Key));
 	}
+	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Hud")));
+	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Card")));
 	return Keys;
 }

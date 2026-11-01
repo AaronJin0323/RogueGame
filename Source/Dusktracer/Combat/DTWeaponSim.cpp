@@ -379,6 +379,20 @@ const FDTWeaponCounters& FDTWeaponSim::GetCounters(int32 OwnerId, int32 Slot) co
 	return (Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot)) ? Players[OwnerId].Weapons[Slot].Counters : DTWeaponSimLocal::EmptyCounters;
 }
 
+void FDTWeaponSim::TakeEmissions(int32 OwnerId, int32 Slot, int32& OutSpawned, int32& OutThrottled)
+{
+	OutSpawned = 0;
+	OutThrottled = 0;
+	if (FWeaponRuntime* Runtime = FindRuntime(OwnerId, Slot))
+	{
+		FDTWeaponCounters& Counters = Runtime->Counters;
+		OutSpawned = static_cast<int32>(Counters.Spawned - Counters.ReportedSpawned);
+		OutThrottled = static_cast<int32>(Counters.Throttled - Counters.ReportedThrottled);
+		Counters.ReportedSpawned = Counters.Spawned;
+		Counters.ReportedThrottled = Counters.Throttled;
+	}
+}
+
 const FDTWeaponSpec& FDTWeaponSim::GetLastSpec(int32 OwnerId, int32 Slot) const
 {
 	return (Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot)) ? Players[OwnerId].Weapons[Slot].Spec : DTWeaponSimLocal::EmptySpec;
@@ -461,6 +475,7 @@ void FDTWeaponSim::ResetTransient()
 	Impacts.Reset();
 	PendingStatuses.Reset();
 	ArcMarks.Reset();
+	DormancyChanges.Reset();
 	StepCleaved.Reset();
 	StepSlammed.Reset();
 	StepClustered.Reset();
@@ -997,9 +1012,11 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		// R-WPN-10: the converted rounds fold into ONE arc of their summed damage x the conversion ratio.
 		Converted = Spec.ConvertRounds;
 		FShot Cleave = Shot;
-		if (const FDTResolvedFlag* Conversion = Spec.FindFlag(DTCat::EFlag::ConvertMelee))
+		// A Keeper cleave is the Keeper's; a free volley stays the modifier's that fired it (R-WPN-07, R-MOD-09).
+		const FDTResolvedFlag* Conversion = bFree ? nullptr : Spec.FindFlag(DTCat::EFlag::ConvertMelee);
+		if (Conversion)
 		{
-			Cleave.SourceId = ReshapeSource(Conversion->Entry.SourceId, Cleave.SourceId); // a Keeper cleave is the Keeper's
+			Cleave.SourceId = ReshapeSource(Conversion->Entry.SourceId, Cleave.SourceId);
 		}
 		Cleave.Damage = Shot.Damage * static_cast<float>(Converted) * Spec.ConvertDamageFactor;
 		EmitArc(Context, Runtime, Cleave, Dir, Spec.ConvertArcDeg, Spec.ConvertReach, true);
@@ -2395,8 +2412,13 @@ void FDTWeaponSim::StepWeapons(const FDTSimContext& Context, FDTBulletPool* Bull
 		for (int32 Slot = 0; Slot < Player.Weapons.Num(); ++Slot)
 		{
 			FWeaponRuntime& Runtime = PlayerRt.Weapons[Slot];
-			Runtime.Spec = DTWeaponCompose::Compose(Player.Weapons[Slot], Flags, PlayerRt.Stats, Ranks[Slot]);
+			Runtime.Spec = DTWeaponCompose::Compose(Player.Weapons[Slot], Flags, PlayerRt.Stats, Ranks[Slot], &DormancyScratch);
 			Runtime.Spec.bTrackRounds = PlayerRt.GlacierRow != INDEX_NONE;
+			for (const FDTDormancyChange& Change : DormancyScratch)
+			{
+				DormancyChanges.Add(FDTWeaponDormancy{ Owner, Player.Weapons[Slot].Id, Change });
+			}
+			DormancyScratch.Reset();
 			// Slide the one-second spawn window (R-WPN-09).
 			if (Runtime.EmitRing.Num() != WindowSteps)
 			{

@@ -10,6 +10,9 @@
 #include "Telemetry/DTTelemetryWriter.h"
 #include "DTTelemetrySubsystem.generated.h"
 
+/** A session is about to end: the producers' last chance to write what the run still holds (R-DIR-15). Reason: run_end.reason. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FDTOnSessionEnding, const FString& /*Reason*/);
+
 /**
  * Game/PIE worlds only. Registers for EDTSimPhase::Director (the end of each step, R-TEL-01) and observes every run
  * event through FDTRunState's sink (R-TEL-02). A session runs from StartSession (the game mode, with the run seed) to
@@ -39,11 +42,14 @@ public:
 	void Flush();
 	bool IsSessionActive() const { return Core.IsActive(); }
 
+	/** Broadcast by EndSession while the session can still write. */
+	FDTOnSessionEnding OnSessionEnding;
+
 	// Enemy-system hooks (kill attribution and swarm TTK; see FDTTelemetryCore).
-	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum) { Core.OnEnemiesSpawned(StepIndex, bCleared, PoolNum); }
+	void OnEnemiesSpawned(int64 StepIndex, bool bCleared, int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles) { Core.OnEnemiesSpawned(StepIndex, bCleared, PoolNum, Roles); }
 	/** Also passes the published enemy serials (FDTWorldView::EnemySerials) so stale hits are skipped like the pool does. */
 	void BeginResolve(int64 StepIndex, TConstArrayView<FDTHit> Hits);
-	void EndResolve(int32 PoolNum) { Core.EndResolve(PoolNum); }
+	void EndResolve(int32 PoolNum, TConstArrayView<EDTEnemyRole> Roles) { Core.EndResolve(PoolNum, Roles); }
 
 	const FDTTelemetryCore& GetCore() const { return Core; }
 

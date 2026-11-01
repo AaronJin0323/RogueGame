@@ -15,12 +15,14 @@
 #include "Core/DTPaletteGen.h"
 #include "Engine/World.h"
 #include "Boss/DTBossSubsystem.h"
+#include "Combat/DTWeaponCompose.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
 #include "Enemies/DTElite.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Game/DTGameMode.h"
 #include "Keepers/DTKeeperSubsystem.h"
+#include "Offers/DTOfferStyle.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Progression/DTXPBar.h"
@@ -42,6 +44,7 @@ namespace DTHUDLocal
 	constexpr float PipSizePx = 18.0f;
 	constexpr float PipGapPx = 6.0f;
 	constexpr float BlockGapPx = 16.0f;
+	constexpr float PanelPadPx = 6.0f;
 	constexpr float RunOverScale = 2.0f;
 	// Exponential smoothing of the readout so it is legible; the measured numbers come from Tools/Perf.ps1.
 	constexpr double Smoothing = 0.1;
@@ -152,6 +155,26 @@ void ADTHUD::DrawHeroes()
 	}
 
 	float Y = Canvas->ClipY - MarginPx - BlockH * Hero->GetNumHeroes() - BlockGapPx * (Hero->GetNumHeroes() - 1) - MetersH;
+	// Dormant sockets stack up from the top of the hero blocks, each on the panel tone (modifiers.md R-MOD-08). Only a dormant
+	// modifier draws here, so a build without one shows the HUD it always did.
+	if (UDTSimSubsystem* Sim = GetWorld()->GetSubsystem<UDTSimSubsystem>())
+	{
+		float DormantY = Y - BlockGapPx;
+		for (int32 OwnerId = 0; OwnerId < Sim->GetRun().GetNumPlayers(); ++OwnerId)
+		{
+			for (const FDTDormantSocket& Socket : DTWeaponCompose::DormantSockets(Sim->GetRun().GetPlayer(OwnerId)))
+			{
+				const FText Line = DTOfferText::Dormant(TEXT("Dormant.Hud"), Socket);
+				float Width = 0.0f;
+				float Height = 0.0f;
+				Canvas->TextSize(Font, Line.ToString(), Width, Height, 1.0f, 1.0f);
+				DormantY -= LineH + PanelPadPx;
+				Box(MarginPx - PanelPadPx, DormantY, Width + 2.0f * PanelPadPx, LineH + PanelPadPx, BarBack);
+				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, 1.0f);
+				DormantY -= LineGapPx;
+			}
+		}
+	}
 	for (int32 OwnerId = 0; OwnerId < Hero->GetNumHeroes(); ++OwnerId)
 	{
 		const FDTHeroState& S = *Hero->GetState(OwnerId);

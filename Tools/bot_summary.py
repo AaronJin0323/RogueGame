@@ -13,9 +13,12 @@ Window metrics (damage-taken share per minute, dashes per minute) are the run's 
 (T-DIR-02): JSONL hero_damaged / dash records inside C.DIR.BAND_WINDOW_S over the time the hero was alive in it; a run
 that ended before the window has none. The bot's own per-minute record (bot.csv) is kept for debugging only.
 Per arm it also reports the pressure sources in that window (damage by hit kind and role, threat actions, the kill horizon),
-the boss reach, the Keeper share at C.TEL.POWER_CHECK_LEVEL (`sources` records up to the level-up), and damage per Intercession
-cast, each read per arm because a pooled mean hides builds that miss in opposite directions. Each batch names the bot version
-and skill its records hold and says when it mixes them (R-BOT-13), and gets the death-minute histogram per arm (R-BOT-12).
+the boss reach, the Keeper share at C.TEL.POWER_CHECK_LEVEL (`sources` records up to the level-up), damage per Intercession cast
+and the swarm TTK against C.TTK.SWARM_STEERED_MAX, each read per arm because a pooled mean hides builds that miss in opposite
+directions. A cast's damage is applied and raw over its window (keepers.md §Telemetry): passive Keeper damage in the window counts,
+so it is attribution, never the marginal R-KEE-15 reading; a run from before that window counts its casts and reads no cast damage.
+Each batch names the bot version and skill its records hold and says when it mixes them (R-BOT-13), and gets the death-minute
+histogram per arm (R-BOT-12).
 """
 
 import csv
@@ -217,16 +220,22 @@ def keeper_share_until(jsonl, t_cut):
 
 
 def read_casts(jsonl):
-	"""(casts, mean damage per cast, variant) of player 0's Intercession records."""
-	damage, variant = [], ""
+	"""(casts, mean applied damage per cast, mean raw damage per cast, variant) of player 0's Intercession records. A cast the run
+	cut short counts as a cast but not in the means. A record from before the cast window (it has no `complete`) meant something
+	else by `damage`: raw, area strikes only, 0 for a cast that reshapes shots (keepers.md §Telemetry). It counts as a cast too and
+	its damage reads nothing, so it can neither pass for the window reading nor feed the cast band."""
+	casts, damage, raw, variant = 0, [], [], ""
 	with open(jsonl, encoding="utf-8") as f:
 		for line in f:
 			if '"kind":"intercession"' in line:
 				rec = json.loads(line, object_pairs_hook=pressure.first_wins)
 				if rec.get("owner") == 0 and "damage" in rec:
-					damage.append(float(rec["damage"]))
+					casts += 1
 					variant = rec.get("variant") or variant
-	return len(damage), (statistics.mean(damage) if damage else None), variant
+					if rec.get("complete"):
+						damage.append(float(rec["damage"]))
+						raw.append(float(rec["damage_raw"]))
+	return casts, (statistics.mean(damage) if damage else None), (statistics.mean(raw) if raw else None), variant
 
 
 def summarise_run(folder, consts):
@@ -263,9 +272,10 @@ def summarise_run(folder, consts):
 	curve = curve_cumulative(consts)
 	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
 	t_check = econ["level_t"].get(check_level)
-	casts, cast_damage, _ = read_casts(jsonl) if jsonl else (0, None, "")
+	casts, cast_damage, cast_raw, _ = read_casts(jsonl) if jsonl else (0, None, None, "")
 	to_boss = consts["RUN.LENGTH_TO_BOSS"]["value"]
 	bot_version, bot_skill = read_config(kv.get("config"))
+	ttk = pressure.swarm_ttk(csv_path, jsonl).get(0)
 	return {
 		"label": label,
 		"seed": int(seed) if seed.isdigit() else seed,
@@ -289,6 +299,8 @@ def summarise_run(folder, consts):
 		"reached_boss": int(kv.get("outcome") == "victory" or end_s >= to_boss),
 		"casts": casts,
 		"cast_damage": "" if cast_damage is None else round(cast_damage),
+		"cast_damage_raw": "" if cast_raw is None else round(cast_raw),
+		"swarm_ttk_s": "" if ttk is None else round(ttk[0], 3),
 		"threat_per_min_window": "" if threat_per_min is None else round(threat_per_min, 1),
 		"kill_horizon_window": "" if horizon is None else round(horizon),
 		"dmg_contact_window": round(sum(v for k, v in sources.items() if k.startswith("Contact/")), 3) if sources else "",
@@ -386,16 +398,17 @@ def main(argv):
 			mean(r["kills_per_min"] for r in rs), mean(r["xp_pickup_of_spawned"] for r in rs), mean(r["xp_pickup_of_model"] for r in rs),
 			mean(r["level_ref_ratio_spawned"] for r in rs)))
 	lines += ["", f"Pressure sources in {fmt_band(consts['DIR.BAND_WINDOW_S']['value'])} s (share of max HP per alive minute; threat actions per minute; kill horizon uu), and boss reach:", "",
-		"| Arm | n in window | Dmg | Dashes | Contact | Rounds | Direct attacks | Swarm | Tank | Rusher | Turret | Threat/min | Horizon | Reached boss | Wins |",
-		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+		"| Arm | n in window | Dmg | Dashes | Contact | Rounds | Direct attacks | Swarm | Tank | Rusher | Turret | Threat/min | Horizon | Reached boss | Wins | Swarm TTK s |",
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
 	for label in labels:
 		rs = [r for r in runs if r["label"] == label]
-		lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+		lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} | {} |".format(
 			label, sum(r["dmg_share_per_min_window"] != "" for r in rs), mean(r["dmg_share_per_min_window"] for r in rs),
 			mean(r["dashes_per_min_window"] for r in rs), mean(r["dmg_contact_window"] for r in rs), mean(r["dmg_bullet_window"] for r in rs),
 			mean(r["dmg_hazard_window"] for r in rs), mean(r["dmg_swarm_window"] for r in rs), mean(r["dmg_tank_window"] for r in rs),
 			mean(r["dmg_rusher_window"] for r in rs), mean(r["dmg_turret_window"] for r in rs), mean(r["threat_per_min_window"] for r in rs),
-			mean(r["kill_horizon_window"] for r in rs), sum(r["reached_boss"] for r in rs), len(rs), sum(r["outcome"] == "victory" for r in rs)))
+			mean(r["kill_horizon_window"] for r in rs), sum(r["reached_boss"] for r in rs), len(rs), sum(r["outcome"] == "victory" for r in rs),
+			mean(r["swarm_ttk_s"] for r in rs)))
 	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
 	arch_band = consts["POWER.ARCHETYPE_BAND"]["value"]
 	cast_band = consts["INTERCESSION.BAND"]["value"]
@@ -412,8 +425,8 @@ def main(argv):
 		if v != "" and len(parts) > 1:
 			per_keeper.setdefault(parts[1], {})[label] = v
 	lines += ["", f"Keeper share at L{check_level} (need >= {keeper_need}; archetypes within +-{arch_band} of the arm mean {arm_mean:.3f}) and damage per Intercession cast "
-		f"(within +-{cast_band} of its Keeper's arm mean; attribution, not the marginal R-KEE-15 reading):", "",
-		"| Arm | Runs at L16 | Keeper share at L16 | Pass | Archetype band | Casts/run | Damage/cast | Cast band |", "|---|---|---|---|---|---|---|---|"]
+		f"(applied and raw over the cast's window, within +-{cast_band} of its Keeper's arm mean; attribution, not the marginal R-KEE-15 reading):", "",
+		"| Arm | Runs at L16 | Keeper share at L16 | Pass | Archetype band | Casts/run | Damage/cast | Raw/cast | Cast band |", "|---|---|---|---|---|---|---|---|---|"]
 	for label in labels:
 		rs = [r for r in runs if r["label"] == label]
 		l16 = [r["keeper_share_l16"] for r in rs if r["keeper_share_l16"] != ""]
@@ -421,9 +434,9 @@ def main(argv):
 		cast = mean(r["cast_damage"] for r in rs)
 		keeper_arms = per_keeper.get(label.split("-")[1], {}) if len(label.split("-")) > 1 else {}
 		keeper_mean = statistics.mean(keeper_arms.values()) if keeper_arms else 0.0
-		lines.append("| {} | {} | {} | {}/{} | {} | {} | {} | {} |".format(label, len(l16), share, sum(x >= keeper_need for x in l16), len(l16),
+		lines.append("| {} | {} | {} | {}/{} | {} | {} | {} | {} | {} |".format(label, len(l16), share, sum(x >= keeper_need for x in l16), len(l16),
 			"" if share == "" or label not in power else ("IN" if abs(share - arm_mean) <= arch_band else "OUT"),
-			mean(r["casts"] for r in rs), cast,
+			mean(r["casts"] for r in rs), cast, mean(r["cast_damage_raw"] for r in rs),
 			"" if cast == "" or not keeper_mean else ("IN" if abs(cast / keeper_mean - 1.0) <= cast_band else f"OUT ({cast / keeper_mean:.2f}x)")))
 	lines += ["", "Deaths by minute (Nth minute of the run counts as N-1; wins and timeouts stay out; the band is for humans, `bot.md` R-BOT-17, so nothing here is judged against it):", "",
 		"| Arm | Deaths | Median death min | Minute: runs |", "|---|---|---|---|"]

@@ -1055,7 +1055,7 @@ void FDTEnemyPool::StepElites(float Dt, float LeadDt, FDTWorldView& View)
 		Hit.SourceRole = Role[Index];
 		Hit.AttackId = AffixAttack(EDTAffix::Vampiric);
 		Hit.EnemySerial = Serial[Index];
-		Hit.Position = View.HeroPositions[Hero];
+		Hit.Position = Pos[Index];
 		const float Before = Hp[Index];
 		Hp[Index] = FMath::Min(MaxHp[Index], Hp[Index] + DTConst::AFFIX_VAMPIRIC_HEAL_RATIO * MaxHp[Index]);
 		A.Drained += Hit.Damage;
@@ -1091,7 +1091,7 @@ void FDTEnemyPool::StepBlasts(float Dt, FDTWorldView& View)
 				Hit.SourceRole = B.Role;
 				Hit.AttackId = AffixAttack(EDTAffix::Volatile);
 				Hit.EnemySerial = B.EnemySerial;
-				Hit.Position = View.HeroPositions[Hero];
+				Hit.Position = B.Origin;
 			}
 		}
 		Blasts.RemoveAt(Index, 1, EAllowShrinking::No);
@@ -1137,7 +1137,7 @@ void FDTEnemyPool::StepOrphans(float Dt, float LeadDt, FDTWorldView& View)
 						Hit.SourceRole = EDTEnemyRole::Rusher;
 						Hit.AttackId = FDTEnemyRoleDef::Get(EDTEnemyRole::Rusher).AttackId;
 						Hit.EnemySerial = O.EnemySerial;
-						Hit.Position = View.HeroPositions[Hero];
+						Hit.Position = O.Origin;
 					}
 				}
 				CountThreat(EDTEnemyRole::Rusher, O.Origin);
