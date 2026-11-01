@@ -2,7 +2,7 @@
 
 ## Where we are
 - Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number on `dev/s3`: D-029
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-032 (D-029 to D-031 sit on `integrate/w3-main`)
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
@@ -24,9 +24,11 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight
-- Read-only adversarial review of `dev/s3` against `dev/s2`
-- Branches: `fix/no-windows`, `fix/seed-switch`, `fix/card-truth`, `dev/s3-earned-path`, `dev/s3-kit`; they land through `integrate/w3-*`
+## In flight (paused 2026-11-01 at the owner's request; every branch is committed and nothing is running)
+- Adversarial review of `dev/s3` at `5ccf82e`: stopped during verification, nothing confirmed or fixed yet
+- Five tracks passed review and their gates, unpushed: `fix/no-windows` 864bd59, `fix/seed-switch` 9506c17, `fix/card-truth` bb5ebc8, `dev/s3-earned-path` 05f8a3b, `dev/s3-kit` 6aceae5
+- `integrate/w3-main` d54042a merges the three `main` tracks (D-029 to D-031); its gate was stopped, so it is unread. `integrate/w3-s2` and `integrate/w3-s3` are not started
+- `docs/s4-artbook-gaps` 5291d74: the S4 art book gap note, corrected; its verification was stopped
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
@@ -36,7 +38,7 @@
 5. S4 Presentation queues behind the exit tests; art-book fidelity starts there
 
 ## Holds
-- none; automated launches: on (bot runs) — stop them during human sessions
+- automated launches: off (the owner's pause, 2026-11-01) — stop them during human sessions
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
