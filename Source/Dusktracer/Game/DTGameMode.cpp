@@ -1,5 +1,6 @@
 #include "Game/DTGameMode.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CoreGlobals.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Boss/DTBossSubsystem.h"
@@ -10,6 +11,7 @@
 #include "Game/DTHUD.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/PlatformMisc.h"
 #include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
 #include "TimerManager.h"
@@ -19,7 +21,6 @@
 
 #if !UE_BUILD_SHIPPING
 #include "HAL/FileManager.h"
-#include "HAL/PlatformMisc.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealClient.h"
@@ -37,13 +38,6 @@ ADTGameMode::ADTGameMode()
 	HUDClass = ADTHUD::StaticClass();
 }
 
-int32 ADTGameMode::GetCommandLineSeed()
-{
-	int32 Seed = 0;
-	FParse::Value(FCommandLine::Get(), TEXT("DTSeed="), Seed);
-	return Seed;
-}
-
 void ADTGameMode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -54,7 +48,19 @@ void ADTGameMode::BeginPlay()
 		UE_LOG(LogDT, Error, TEXT("ADTGameMode: no UDTSimSubsystem in this world; run not started"));
 		return;
 	}
-	const int32 Seed = GetCommandLineSeed();
+	const FDTRunSeed RunSeed = Sim->GetLaunchSeed();
+	if (RunSeed.Source == EDTSeedSource::Rejected)
+	{
+		// 07_Technical R-TEC-16: no run on a seed nobody asked for. Only a forced exit carries the code on Windows, and with no
+		// run started there is nothing to save; Play in the editor keeps the editor, and whatever it has unsaved, open.
+		UE_LOG(LogDT, Error, TEXT("Run not started: -DTSeed must be a whole number from %d to %d"), MIN_int32, MAX_int32);
+		if (!GIsEditor)
+		{
+			FPlatformMisc::RequestExitWithStatus(true, FDTRunSeed::RejectedExitCode, TEXT("DT rejected -DTSeed"));
+		}
+		return;
+	}
+	const int32 Seed = RunSeed.Seed;
 	Sim->StartRun(Seed, 1);
 	if (UDTTelemetrySubsystem* const Telemetry = MyWorld->GetSubsystem<UDTTelemetrySubsystem>())
 	{

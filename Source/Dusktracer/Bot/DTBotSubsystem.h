@@ -68,8 +68,8 @@ public:
 	int32 GetStepsPerFrame() const { return StepsPerFrame; }
 	void SetStepsPerFrame(int32 Steps) { StepsPerFrame = FMath::Max(0, Steps); }
 
-	/** Reads -DTBot* and dt.Bot.* into a config (seed from -DTSeed). Policy Off when no bot is requested. */
-	static FDTBotConfig ReadConfig();
+	/** Reads -DTBot* and dt.Bot.* into a config, on the run's seed (UDTSimSubsystem::GetLaunchSeed). Policy Off when no bot is requested. */
+	FDTBotConfig ReadConfig() const;
 
 private:
 	void HandleStepEnd();

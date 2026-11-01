@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests, smoke, seed (Tools/SeedCheck.ps1, T-TEC-16), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -130,6 +130,14 @@ if (-not (Skipped "smoke")) {
 		Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
 		if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 	}
+}
+if (-not (Skipped "seed")) {
+	# 07_Technical R-TEC-16: every launcher started as written, off-screen, reads back a fresh seed; tools and explicit seeds stay exact.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\SeedCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_seed.log") -Encoding utf8
+	Report "seed" ((($Out | Select-String "^SEEDCHECK:" | Select-Object -Last 1).Line) -replace "^SEEDCHECK:\s*", "")
+	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "seed" }
 }
 if (-not (Skipped "contrast")) {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.

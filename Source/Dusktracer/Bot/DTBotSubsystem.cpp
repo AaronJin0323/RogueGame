@@ -6,7 +6,6 @@
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Game/DTGameMode.h"
 #include "Keepers/DTKeeperSubsystem.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/IConsoleManager.h"
@@ -88,7 +87,7 @@ TStatId UDTBotSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UDTBotSubsystem, STATGROUP_Tickables);
 }
 
-FDTBotConfig UDTBotSubsystem::ReadConfig()
+FDTBotConfig UDTBotSubsystem::ReadConfig() const
 {
 	using namespace DTBotSubsystemLocal;
 	const TCHAR* Cmd = FCommandLine::Get();
@@ -110,7 +109,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig()
 	Config.Archetype = FName(*CVarBotArchetype.GetValueOnGameThread());
 	Config.SecondPath = FDTBotConfig::ParsePath(CVarBotSecond.GetValueOnGameThread());
 	Config.Skill = CVarBotSkill.GetValueOnGameThread();
-	Config.Seed = ADTGameMode::GetCommandLineSeed();
+	Config.Seed = Sim.IsValid() ? Sim->GetLaunchSeed().Seed : 0;
 	return Config;
 }
 
