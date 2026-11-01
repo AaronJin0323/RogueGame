@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
 #include "Hub/DTHubCheck.h"
+#include "Hub/DTHubFlow.h"
 #include "Hub/DTHubScreen.h"
 #include "Hub/DTHubTab.h"
 #include "Kismet/GameplayStatics.h"
@@ -68,9 +69,11 @@ bool UDTHubSubsystem::IsAcceptHeld() const
 
 void UDTHubSubsystem::BeginRun()
 {
+	// -DTSeed names a launch's first run, and a launch holds as many runs as a person plays (R-VIG-07).
+	static bool bFirstRun = true;
 	UDTSimSubsystem* const Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr;
-	const FDTRunSeed Launch = Sim ? Sim->GetLaunchSeed() : FDTRunSeed::ForThisLaunch();
-	const int32 Seed = Launch.Source == EDTSeedSource::Tool ? ADTGameMode::NextSeed(Launch.Seed, FPlatformTime::Cycles()) : Launch.Seed;
+	const int32 Seed = DTHubFlow::BeginSeed(Sim ? Sim->GetLaunchSeed() : FDTRunSeed::ForThisLaunch(), bFirstRun, FPlatformTime::Cycles());
+	bFirstRun = false;
 	PendingOptions = DTHubData::RunOptions(Seed, State.Selected, *Profile());
 	bBeginPending = true; // as a restart: the key that chose it comes up first, so it never reaches the run (settings.md R-SET-23)
 }

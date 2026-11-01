@@ -9,7 +9,10 @@
 # is its own, and it neither reads nor deletes anything in %LOCALAPPDATA%\Dusktracer or Saved\Playtests, where a person's runs live. The last check's folders,
 # with each launch's log, stay until the next one.
 # Without -Package the game is the editor build (UnrealEditor -game), as Tools\Play.bat starts it; Play_*.bat name a packaged Dusktracer.exe, so their
-# arguments run on the editor build here and on the real Shipping build with -Package (Tools\PadCheck.ps1).
+# arguments run on the editor build here (Tools\PadCheck.ps1 passes -Package).
+# A person's launch opens the hub and a run starts only at Begin (vigil.md R-VIG-01, R-VIG-07), so a launch that must reach a run passes -DTHubCheck=Begin, the
+# keys a person presses. Shipping has no such flag and no keys, so it never gets past the hub with no hands: -Package reads the launchers, an explicit seed and
+# the rejections on Shipping, and starts the launchers' arguments on the package's Development build, where the fresh seed can be read (D-028).
 # Prints "SEEDCHECK: PASS|FAIL (...)"; exit 0 / 1. Log: Saved\Logs\SeedCheck.log.
 param(
 	[string]$Package = "",
@@ -38,6 +41,8 @@ $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-Res
 if (-not $Package) { $OffScreen += "-LiveCoding=false" }
 # Never -nullrhi here: UnrealEditor -game with it still creates a real game window (LogEngine: GameWindow did not exist). -RenderOffScreen creates none.
 $Tool = $OffScreen + @("-unattended")
+# Source/Dusktracer/Hub/DTHubCheck.cpp BuildBegin: real key events through the hub. Not a tool flag, so the launch stays a person's.
+$Begin = @("-DTHubCheck=Begin")
 # FDTRunSeed::FreshMin, FreshMax, RejectedExitCode (Source/Dusktracer/Core/DTRunSeed.h).
 $FreshMin = 1
 $FreshMax = [int]::MaxValue - 1
@@ -184,7 +189,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 function Get-NoRun($R) { if ($R.Exited) { "exited with code $($R.ExitCode), no run" } else { "no run in $LoadTimeout s" } }
 
 function Expect-Fresh([string]$Label, [string[]]$ArgList) {
-	$R = Invoke-Launch $Label ($ArgList + $OffScreen)
+	$R = Invoke-Launch $Label ($ArgList + $OffScreen + $Begin)
 	if ($null -eq $R.Seed) { Note-Fail "${Label}: $(Get-NoRun $R)" }
 	elseif ($R.Seed -lt $FreshMin -or $R.Seed -gt $FreshMax) { Note-Fail "${Label}: seed $($R.Seed) is not in $FreshMin..$FreshMax" }
 	elseif ($script:Fresh -contains $R.Seed) { Note-Fail "${Label}: seed $($R.Seed) was drawn by an earlier launch" }
@@ -219,9 +224,9 @@ $Human = [ordered]@{}
 if ($Package) {
 	foreach ($Culture in "en", "zh-Hans") {
 		$Arguments = Read-Launcher (Join-Path $Package "Play_$Culture.bat") $Culture
-		if ($null -ne $Arguments) { $Human["Play_$Culture.bat on Shipping"] = $Arguments }
+		if ($null -ne $Arguments) { $Human["Play_$Culture.bat on Development"] = $Arguments }
 	}
-	$Human["bare Dusktracer.exe"] = @()
+	$Human["bare Dusktracer.exe on Development"] = @()
 	Expect-Seed "explicit seed on Shipping" ($Tool + @("-DTSeed=9107")) 9107
 	Expect-Rejected "the old launcher's overflow on Shipping" ($Tool + @($Overflow))
 }
@@ -240,8 +245,18 @@ else {
 	Expect-Rejected "the old launcher's overflow" ($Game + @($Overflow))
 }
 if ($script:Failures.Count -eq 0) {
+	# A person's launch reaches the hub, so this reads the rejection ahead of it: with it behind, the launch would sit there until the timeout.
+	$Bad = @($Overflow) + $OffScreen
+	if (-not $Package) { $Bad = @($Project, "-game") + $Bad }
+	Expect-Rejected "the overflow on a person's launch" $Bad
+	if ($Package) {
+		$GameExe = Join-Path (Split-Path (Split-Path $Package -Parent) -Parent) "Development\Windows\Dusktracer.exe"
+		if (-not (Test-Path $GameExe)) { Note-Fail "no Development build at $GameExe" }
+	}
+}
+if ($script:Failures.Count -eq 0) {
 	foreach ($Label in $Human.Keys) { Expect-Fresh $Label $Human[$Label] }
-	$Replay = @("-DTSeed=9107") + $OffScreen
+	$Replay = @("-DTSeed=9107") + $OffScreen + $Begin
 	if (-not $Package) { $Replay = @($Project, "-game") + $Replay }
 	Expect-Seed "replay by hand, no -unattended" $Replay 9107
 }

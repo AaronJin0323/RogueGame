@@ -473,6 +473,17 @@ namespace DTHubCheckLocal
 		Walk(TEXT("the Ledger-stone"));
 	}
 
+	/** A person's way into a run on an empty profile, for Tools/SeedCheck.ps1: the Shrine, the first Keeper, Begin. */
+	static void BuildBegin()
+	{
+		Press(EKeys::Enter);
+		Is(TEXT("Accept opens the Shrine"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Patron); });
+		Press(EKeys::Enter);
+		Is(TEXT("the pick lands on Begin"), [](UDTHubSubsystem* Hub) { return OnRow(Hub, EDTHubRow::Begin); });
+		Press(EKeys::SpaceBar);
+		Until(RunReady);
+	}
+
 	static void Finish(const TCHAR* Why)
 	{
 		UE_LOG(LogDT, Log, TEXT("VIGILCHECK: %s (%d wrong%s%s)"), Check.Fails == 0 && !Why[0] ? TEXT("PASS") : TEXT("FAIL"), Check.Fails, Why[0] ? TEXT(", ") : TEXT(""), Why);
@@ -504,6 +515,10 @@ void DTHubCheck::Tick(UDTHubSubsystem* Hub)
 		else if (Script == TEXT("Large"))
 		{
 			BuildLarge();
+		}
+		else if (Script == TEXT("Begin"))
+		{
+			BuildBegin();
 		}
 		else
 		{

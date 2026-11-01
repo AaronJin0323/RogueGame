@@ -8,7 +8,7 @@ class UDTHubSubsystem;
 
 namespace DTHubCheck
 {
-	/** Runs from the hub subsystem's tick in every world; -DTHubCheck=First|Reboot|Gated|Large starts it. */
+	/** Runs from the hub subsystem's tick in every world; -DTHubCheck=First|Reboot|Gated|Large|Begin starts it. */
 	void Tick(UDTHubSubsystem* Hub);
 }
 #endif

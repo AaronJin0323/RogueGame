@@ -4,6 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
+#include "Core/DTRunSeed.h"
 #include "Hub/DTHubData.h"
 #include "Hub/DTHubFlow.h"
 #include "Hub/DTHubScreen.h"
@@ -255,6 +256,15 @@ bool FDTVigBegin::RunTest(const FString& Parameters)
 	Profile.Unlocked.Add(TEXT("Branch.Storm.Blessing4"));
 	const FString Options = DTHubData::RunOptions(7, EDTPath::Shade, Profile);
 	TestTrue(TEXT("a saved Keeper unlock travels, and no other key"), Options.EndsWith(TEXT("?DTPatron=Shade?DTUnlock=Keeper.Shade")));
+
+	const FDTRunSeed Named = FDTRunSeed::Resolve(TEXT("-DTSeed=9107"), /*bToolRun*/ false, 1);
+	TestEqual(TEXT("-DTSeed names the launch's first run"), DTHubFlow::BeginSeed(Named, true, 1), 9107);
+	TestNotEqual(TEXT("and only that one"), DTHubFlow::BeginSeed(Named, false, 1), 9107);
+	TestEqual(TEXT("0 is a seed when named"), DTHubFlow::BeginSeed(FDTRunSeed::Resolve(TEXT("-DTSeed=0"), false, 1), true, 1), 0);
+	const FDTRunSeed Person = FDTRunSeed::Resolve(TEXT(""), false, 77);
+	TestEqual(TEXT("a person's launch runs on its fresh seed"), DTHubFlow::BeginSeed(Person, true, 1), Person.Seed);
+	TestEqual(TEXT("each hub world holds its own"), DTHubFlow::BeginSeed(Person, false, 1), Person.Seed);
+	TestTrue(TEXT("a tool that forced the hub draws"), DTHubFlow::BeginSeed(FDTRunSeed::Resolve(TEXT(""), true, 1), true, 1) >= FDTRunSeed::FreshMin);
 	return true;
 }
 
