@@ -8,6 +8,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -48,6 +49,74 @@ class Matrix(unittest.TestCase):
 
 	def test_a_hand_edit_is_caught(self):
 		self.assertNotEqual(gen_matrix.render().replace("yes", "no", 1), gen_matrix.render())
+
+
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+HIDDEN_LAUNCH = "HiddenLaunch.ps1"
+ENGINE_BINARY = re.compile(r"UnrealEditor(-Cmd)?\.exe|Dusktracer(-Win64-Shipping)?\.exe", re.IGNORECASE)
+STARTS_A_PROCESS = re.compile(r"Start-Process|\bsaps\b|Diagnostics\.Process\]::Start|ProcessStartInfo|CreateProcess|ShellExecute|Win32_Process|Invoke-Item|Invoke-Expression|\biex\b", re.IGNORECASE)
+VARIABLE = r"\$\{?(?:\w+:)?(\w+)\}?"  # $Exe, ${Exe}, $script:Exe
+ASSIGNED = re.compile(r"(?:^|[;{(])\s*" + VARIABLE + r"\s*=(?!=)\s*([^;]*)")
+CALL_OPERATOR = re.compile(r"(?:^|[\s(;|{=])(?:&\s*|\.\s+)(" + VARIABLE + r"|\(|\"|'|cmd\b)")
+STATEMENT = r"(?:^|[;|{(=&])\s*"
+BARE_CALL = re.compile(STATEMENT + r"(?:[\w:.~\\/-]+[\\/])?(?:" + ENGINE_BINARY.pattern + ")", re.IGNORECASE)
+SHELL_CALL = re.compile(STATEMENT + r"(?:cmd|powershell|pwsh|start)(?:\.exe)?\s+(.*)", re.IGNORECASE)
+PYTHON_STARTS = re.compile(r"\bsubprocess\b|\bPopen\b|os\.system|os\.startfile")
+# A person's launcher is the one launch that opens a window (only Tools/Play.bat and the packaged Play_*.bat do).
+HUMAN_LAUNCHERS = ("Play.bat", "Play_en.bat", "Play_zh-Hans.bat")
+# Lines that start a process past the helper on purpose, by file. WindowCheck.ps1: the bypass control, which runs on a stand-in hidden desktop.
+LAUNCH_EXCEPTIONS = {"WindowCheck.ps1": 3}
+
+
+def ps_code(lines):
+	"""PowerShell code by line: comments gone, and a line continued by a backtick or a trailing = joined into the line that starts it, so numbers hold."""
+	code = ["" if line.lstrip().startswith("#") else line.split(" #")[0].rstrip() for line in lines]
+	for i in range(len(code) - 2, -1, -1):
+		if code[i].endswith(("`", "=")):
+			code[i] = code[i].rstrip("`") + " " + code[i + 1].lstrip()
+			code[i + 1] = ""
+	return code
+
+
+def names_binary(text, binaries):
+	"""True when text names an engine binary or a variable holding one."""
+	return bool(ENGINE_BINARY.search(text)) or any(re.search(rf"\$\{{?(?:\w+:)?{held}\b", text) for held in binaries)
+
+
+def calls_binary(line, binaries):
+	"""True when a line of PowerShell runs an engine binary: by & or ., by its bare name or path, or through a shell given it. Strings and arguments naming one do not."""
+	for call in CALL_OPERATOR.finditer(line):
+		variable = call.group(2)
+		if variable in binaries or (not variable and names_binary(line, binaries)):
+			return True
+	shell = SHELL_CALL.search(line)
+	return bool(BARE_CALL.search(line)) or (shell is not None and names_binary(shell.group(1), binaries))
+
+
+def launch_bypasses(name, text):
+	"""Lines of a tool that start an engine binary, or any process with Start-Process, past Tools/HiddenLaunch.ps1, as (line number, line)."""
+	lines = text.splitlines()
+	if name in HUMAN_LAUNCHERS:
+		return []
+	if name.endswith(".py"):
+		if not PYTHON_STARTS.search(text):
+			return []
+		return [(i, line) for i, line in enumerate(lines, 1) if ENGINE_BINARY.search(line)]
+	if name.endswith((".bat", ".cmd")):
+		# A commandlet (-run=) opens no game window: Docs/Validation/S1_no_windows.md reads its log.
+		return [(i, line) for i, line in enumerate(lines, 1)
+			if ENGINE_BINARY.search(line) and "-run=" not in line and not re.match(r"\s*(rem\b|::|echo\b)", line, re.IGNORECASE)]
+	code = ps_code(lines)
+	binaries = set()
+	while True:
+		before = len(binaries)
+		for line in code:
+			for assigned in ASSIGNED.finditer(line):
+				if names_binary(assigned.group(2), binaries):
+					binaries.add(assigned.group(1))
+		if len(binaries) == before:
+			break
+	return [(i, lines[i - 1]) for i, line in enumerate(code, 1) if STARTS_A_PROCESS.search(line) or calls_binary(line, binaries)]
 
 
 class HitKind(unittest.TestCase):
@@ -614,6 +683,122 @@ class Contrast(unittest.TestCase):
 		self.assertTrue(contrast_check.masked(640, 20, 1280, 720))
 		self.assertTrue(contrast_check.masked(100, 650, 1280, 720))
 		self.assertFalse(contrast_check.masked(640, 400, 1280, 720))
+
+	PANEL = (21, 23, 28)
+	TEXT = (232, 228, 220)
+
+	def hud(self, rects):
+		"""A 300x120 frame of ground with panel-toned rectangles (x0, y0, w, h) and, per rectangle with text, one bright stroke."""
+		w, h = 300, 120
+		rgb = bytearray(self.GROUND * (w * h))
+		for x0, y0, rw, rh, text in rects:
+			for y in range(y0, y0 + rh):
+				for x in range(x0, x0 + rw):
+					stroke = text and y == y0 + rh // 2 and x0 + 4 <= x < x0 + rw - 4
+					rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes(self.TEXT if stroke else self.PANEL)
+		return w, h, bytes(rgb)
+
+	def test_the_dormant_line_is_read_on_its_own_panel(self):
+		tone, ground, pixels, lines = contrast_check.dormant_line(*self.hud([(10, 10, 200, 24, True), (10, 40, 180, 24, True)]), panel=self.PANEL)
+		self.assertAlmostEqual(tone, contrast_check.srgb_y(*self.TEXT))
+		self.assertAlmostEqual(ground, contrast_check.srgb_y(*self.PANEL))
+		self.assertEqual((pixels, lines), (192 + 172, 2))
+		self.assertGreater(contrast_check.contrast(tone, ground), 10.0)
+
+	def test_a_bar_or_a_pip_of_the_panel_tone_is_no_line(self):
+		self.assertIsNone(contrast_check.dormant_line(*self.hud([(10, 10, 240, 10, True), (10, 40, 18, 18, True)]), panel=self.PANEL))
+
+	def test_a_panel_with_no_text_is_no_line(self):
+		self.assertIsNone(contrast_check.dormant_line(*self.hud([(10, 10, 200, 24, False)]), panel=self.PANEL))
+
+
+class HiddenLaunchGuard(unittest.TestCase):
+	"""The no-window rule (AGENTS.md): an engine binary starts through Tools/HiddenLaunch.ps1, or a new launch fails here."""
+
+	PS = "x.ps1"
+	EXE = '$Exe = Join-Path $UERoot "Engine\\Binaries\\Win64\\UnrealEditor-Cmd.exe"\n'
+
+	def test_start_process_fails_whatever_it_starts(self):
+		self.assertEqual(len(launch_bypasses(self.PS, self.EXE + "$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden\n")), 1)
+		self.assertEqual(len(launch_bypasses(self.PS, 'Start-Process -FilePath "cmd.exe" -ArgumentList $Line\n')), 1)
+
+	def test_other_ways_to_start_a_process_fail(self):
+		for line in ("[Diagnostics.Process]::Start($Info)", "$Info = New-Object Diagnostics.ProcessStartInfo $Exe", "Invoke-Item $Exe", "Invoke-Expression $Line", "Invoke-CimMethod -ClassName Win32_Process"):
+			self.assertEqual(len(launch_bypasses(self.PS, line + "\n")), 1, line)
+
+	def test_a_call_of_a_variable_holding_a_binary_fails(self):
+		self.assertEqual(len(launch_bypasses(self.PS, self.EXE + "& $Exe $Project -game\n")), 1)
+
+	def test_a_variable_copied_from_a_binary_fails(self):
+		text = '$Editor = Join-Path $UERoot "UnrealEditor.exe"\n$Game = if ($Package) { Join-Path $Package "Dusktracer.exe" } else { $Editor }\n$Copy = $Game\n& $Copy -x\n'
+		self.assertEqual(len(launch_bypasses(self.PS, text)), 1)
+
+	def test_a_direct_call_fails(self):
+		self.assertEqual(len(launch_bypasses(self.PS, '& (Join-Path $UERoot "Engine\\Binaries\\Win64\\UnrealEditor-Cmd.exe") $Project -ExecCmds="Quit" | Out-Null\n')), 1)
+		self.assertEqual(len(launch_bypasses(self.PS, '$Out = & "E:\\UE5\\UnrealEditor.exe" $Project\n')), 1)
+		self.assertEqual(len(launch_bypasses(self.PS, '& cmd /c "UnrealEditor.exe -game"\n')), 1)
+
+	def test_a_bare_call_fails(self):
+		for line in ("UnrealEditor-Cmd.exe $Project -game", "E:\\UE5\\UnrealEditor.exe $Project -game", ".\\Dusktracer.exe -windowed", "$Out = Dusktracer.exe -windowed",
+			"& E:\\UE5\\UnrealEditor.exe $Project", "if ($Go) { UnrealEditor.exe -game }"):
+			self.assertEqual(len(launch_bypasses(self.PS, line + "\n")), 1, line)
+
+	def test_a_shell_given_a_binary_fails(self):
+		for line in ('cmd /c "UnrealEditor.exe -game"', 'cmd.exe /c "$Exe -game"', "start UnrealEditor.exe", "start $Exe", 'powershell -Command "& $Exe"'):
+			self.assertEqual(len(launch_bypasses(self.PS, self.EXE + line + "\n")), 1, line)
+
+	def test_every_form_of_the_operators_fails(self):
+		for line in (". $Exe", "& ${Exe}", "& $script:Exe", "& $Script; & $Exe", "$Other = 1; . $Exe", "if ($Go) { & $Exe }", '$Out = "$(& $Exe -version)"'):
+			self.assertEqual(len(launch_bypasses(self.PS, self.EXE + line + "\n")), 1, line)
+
+	def test_a_binary_is_followed_through_scope_and_lines(self):
+		for text in ('$script:Exe = "E:\\UE5\\UnrealEditor.exe"\n& $script:Exe\n', '${Exe} = "UnrealEditor.exe"\n& $Exe\n', '$A = 1; $Exe = "UnrealEditor.exe"\n& ${Exe}\n',
+			'$Exe = `\n\t"UnrealEditor.exe"\n& $Exe\n', '$Exe =\n\t"UnrealEditor.exe"\n& $Exe\n', '$Exe = Join-Path `\n\t$UERoot `\n\t"UnrealEditor.exe"\n& $Exe\n'):
+			self.assertEqual(len(launch_bypasses(self.PS, text)), 1, text)
+
+	def test_a_string_or_an_argument_naming_a_binary_passes(self):
+		text = self.EXE + 'Write-Host "UnrealEditor.exe is $Exe"\n"UnrealEditor.exe"\nTest-Path $Exe\n& $Python $Exe\n. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")\n$Note = "start $Exe; cmd"\n'
+		self.assertEqual(launch_bypasses(self.PS, text), [])
+
+	def test_the_helper_is_the_way(self):
+		self.assertEqual(launch_bypasses(self.PS, self.EXE + "$Proc = Start-DTHidden $Exe $ArgList\n"), [])
+
+	def test_comments_and_other_calls_pass(self):
+		text = '# Start-Process UnrealEditor.exe and & $Exe\n$Out = & powershell -File $Script 2>&1\n& python -I $Path\n& taskkill /PID $Proc.Id /T /F | Out-Null\n' + self.EXE
+		self.assertEqual(launch_bypasses(self.PS, text), [])
+
+	def test_batch_files(self):
+		raw = '"%UE_ROOT%\\Engine\\Binaries\\Win64\\UnrealEditor.exe" "%ROOT%\\Dusktracer.uproject" -game\n'
+		commandlet = '"%UE_ROOT%\\Engine\\Binaries\\Win64\\UnrealEditor-Cmd.exe" "%ROOT%\\Dusktracer.uproject" -run=GatherText -nullrhi\n'
+		self.assertEqual(len(launch_bypasses("x.bat", raw)), 1)
+		self.assertEqual(launch_bypasses("x.bat", commandlet), [])
+		self.assertEqual(launch_bypasses("x.bat", "rem UnrealEditor.exe -game\n"), [])
+		self.assertEqual(launch_bypasses("Play.bat", 'start "" ' + raw), [])
+
+	def test_python_may_not_start_one(self):
+		self.assertEqual(len(launch_bypasses("x.py", 'import subprocess\nsubprocess.run(["UnrealEditor.exe", project])\n')), 1)
+		self.assertEqual(launch_bypasses("x.py", '"""Run through UnrealEditor-Cmd.exe."""\nprint(1)\n'), [])
+
+	def test_tools_keep_the_rule(self):
+		found = {}
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if name == HIDDEN_LAUNCH or name == os.path.basename(__file__) or not name.endswith((".ps1", ".bat", ".cmd", ".py")):
+					continue
+				with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+					hits = launch_bypasses(name, f.read())
+				if hits:
+					found[name] = len(hits)
+		self.assertEqual(found, LAUNCH_EXCEPTIONS)
+
+	def test_every_script_that_launches_loads_the_helper(self):
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if name.endswith(".ps1") and name != HIDDEN_LAUNCH:
+					with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+						text = f.read()
+					if "Start-DTHidden" in text:
+						self.assertIn('. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")', text, name)
 
 
 class Loc(unittest.TestCase):

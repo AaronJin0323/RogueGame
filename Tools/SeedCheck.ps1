@@ -3,8 +3,8 @@
 # Each launcher is read by running it: cmd expands a copy whose `start` line echoes instead, so the check sees what the launcher would start, not a
 # fragment of its text. The game then starts with exactly those arguments, -fullscreen swapped for an off-screen window and no -unattended, which is
 # what makes it a human launch. The seed read back is run_start.seed in the run file that launch wrote, and the file name must agree.
-# Every launch runs on a hidden Win32 desktop of its own: a launch with no -unattended is one the engine may prompt on, and nothing it opens can reach the
-# desktop anyone is looking at. Windows seen there are written to the log, by owner, class and title.
+# Every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1: a launch with no -unattended is one the engine may prompt on, and nothing it opens can
+# reach the desktop anyone is looking at. Windows seen there are written to the log, by owner, class and title.
 # Every launch also has a -userdir of its own, under Saved\SeedCheck: the only run file in there is that launch's, so the check never has to guess which file
 # is its own, and it neither reads nor deletes anything in %LOCALAPPDATA%\Dusktracer or Saved\Playtests, where a person's runs live. The last check's folders,
 # with each launch's log, stay until the next one.
@@ -20,6 +20,7 @@ trap { Write-Host "SEEDCHECK: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Editor = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = "`"$(Join-Path $Root "Dusktracer.uproject")`""
 $LogDir = Join-Path $Root "Saved\Logs"
@@ -36,7 +37,7 @@ $OffScreen = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-Res
 # With no -unattended the editor starts a Live Coding session, whose mutex is named from the editor's path: every worktree shares it, and a build in any of
 # them fails while it is held (Tools\Play.bat passes the same flag). Shipping has no Live Coding.
 if (-not $Package) { $OffScreen += "-LiveCoding=false" }
-# Never -nullrhi here: UnrealEditor -game with it still creates a real game window (LogEngine: GameWindow did not exist). -RenderOffScreen creates none.
+# -RenderOffScreen runs the null application, which creates no native window.
 $Tool = $OffScreen + @("-unattended")
 # FDTRunSeed::FreshMin, FreshMax, RejectedExitCode (Source/Dusktracer/Core/DTRunSeed.h).
 $FreshMin = 1
@@ -78,65 +79,6 @@ function Read-Launcher([string]$Bat, [string]$Culture) {
 	return , $Kept
 }
 
-Add-Type -TypeDefinition @"
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Text;
-public static class DTHiddenDesktop {
-	delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
-	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-	struct StartupInfo { public int cb; public string reserved; public string desktop; public string title; public int x, y, w, h, cx, cy, fill, flags; public short show, reserved2; public IntPtr reserved3, stdIn, stdOut, stdErr; }
-	[StructLayout(LayoutKind.Sequential)]
-	struct ProcessInformation { public IntPtr process, thread; public int pid, tid; }
-	[DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr mode, uint flags, uint access, IntPtr security);
-	[DllImport("user32.dll")] static extern bool EnumDesktopWindows(IntPtr desktop, EnumProc proc, IntPtr lParam);
-	[DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-	[DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
-	[DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowTextW(IntPtr hWnd, StringBuilder text, int max);
-	[DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(IntPtr hWnd, StringBuilder text, int max);
-	[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool CreateProcessW(string app, StringBuilder command, IntPtr pa, IntPtr ta, bool inherit, uint flags, IntPtr env, string cwd, ref StartupInfo si, out ProcessInformation pi);
-	[DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-	const uint GenericAll = 0x10000000;
-	static IntPtr Desktop;
-	static string Name;
-	public static void Open(string name) {
-		Name = name;
-		Desktop = CreateDesktopW(name, IntPtr.Zero, IntPtr.Zero, 0, GenericAll, IntPtr.Zero);
-		if (Desktop == IntPtr.Zero) { throw new Win32Exception(); }
-	}
-	public static int Start(string exe, string arguments) {
-		StartupInfo si = new StartupInfo();
-		si.cb = Marshal.SizeOf(typeof(StartupInfo));
-		si.desktop = "WinSta0\\" + Name;
-		ProcessInformation pi;
-		StringBuilder line = new StringBuilder("\"" + exe + "\" " + arguments);
-		if (!CreateProcessW(exe, line, IntPtr.Zero, IntPtr.Zero, false, 0, IntPtr.Zero, null, ref si, out pi)) { throw new Win32Exception(); }
-		CloseHandle(pi.thread);
-		CloseHandle(pi.process);
-		return pi.pid;
-	}
-	public static string[] Visible() {
-		List<string> found = new List<string>();
-		EnumDesktopWindows(Desktop, delegate(IntPtr hWnd, IntPtr lParam) {
-			if (IsWindowVisible(hWnd)) {
-				uint pid;
-				GetWindowThreadProcessId(hWnd, out pid);
-				StringBuilder title = new StringBuilder(256);
-				StringBuilder type = new StringBuilder(256);
-				GetWindowTextW(hWnd, title, 256);
-				GetClassNameW(hWnd, type, 256);
-				found.Add(pid + " " + type + " '" + title + "'");
-			}
-			return true;
-		}, IntPtr.Zero);
-		return found.ToArray();
-	}
-}
-"@
-[DTHiddenDesktop]::Open("DTSeedCheck$PID")
-
 function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	# One launch. Result: Seed ($null when no run file), Exited (by itself, with no run file) and its ExitCode.
 	# The editor takes the project only as its first argument and opens a dialog without it, so nothing starts in any other order.
@@ -147,8 +89,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	New-Item -ItemType Directory -Force $UserDir | Out-Null
 	$ArgList += "-userdir=`"$UserDir`""
 	$Started = Get-Date
-	$Proc = [Diagnostics.Process]::GetProcessById([DTHiddenDesktop]::Start($GameExe, ($ArgList -join " ")))
-	$null = $Proc.Handle # ExitCode needs the handle held from the start
+	$Proc = Start-DTHidden $GameExe $ArgList
 	Add-Content -Path $Log -Value "launch ${Label} (PID $($Proc.Id)): $($ArgList -join ' ')"
 	$Run = $null
 	$Seed = $null
@@ -157,7 +98,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	try {
 		$Deadline = (Get-Date).AddSeconds($LoadTimeout)
 		while ((Get-Date) -lt $Deadline) {
-			foreach ($Window in [DTHiddenDesktop]::Visible()) { $Windows[$Window] = $true }
+			foreach ($Window in Get-DTHiddenWindows) { $Windows[$Window] = $true }
 			$Run = Get-ChildItem $Playtests -Filter *.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
 			if ($Run) {
 				$First = Get-Content $Run.FullName -TotalCount 1 -Encoding UTF8 -ErrorAction SilentlyContinue
@@ -168,7 +109,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 		}
 	}
 	finally {
-		if (-not $Proc.HasExited) { & taskkill /PID $Proc.Id /T /F | Out-Null; $Proc.WaitForExit(30000) | Out-Null }
+		Stop-DTHidden $Proc
 	}
 	$Result = [pscustomobject]@{ Seed = $Seed; Exited = $Exited; ExitCode = $null; Seconds = [int]((Get-Date) - $Started).TotalSeconds }
 	if ($Exited) { $Result.ExitCode = $Proc.ExitCode }

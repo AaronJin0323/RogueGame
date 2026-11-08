@@ -60,9 +60,17 @@ struct FDTOfferScreenModel
 	const FDTPlayerRunState* Player = nullptr;
 	/** Per card of Hand: the sockets its pick would make dormant (modifiers.md R-MOD-08). */
 	const TArray<TArray<FDTDormantSocket>>* Dormant = nullptr;
+	/** Per card of Hand: what its pick would leave of each weapon's rounds (R-OFF-13). */
+	const TArray<TArray<FDTRoundsLeft>>* Rounds = nullptr;
 	int32 Focus = 0;
 	bool bGuardActive = false;
 };
+
+namespace DTOfferLayout
+{
+	/** The largest scale from Start down to Floor by Step whose Height(scale) is within MaxH; Floor when none is. */
+	DUSKTRACER_API float FitScale(float Start, float Floor, float Step, float MaxH, TFunctionRef<float(float)> Height);
+}
 
 UCLASS(Transient)
 class DUSKTRACER_API UDTOfferScreen : public UObject
@@ -81,7 +89,7 @@ public:
 
 private:
 	void DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, TConstArrayView<FDTDormantSocket> Dormant,
-		const FBox2D& Rect, int32 Slot, bool bFocus);
+		TConstArrayView<FDTRoundsLeft> Rounds, const FBox2D& Rect, int32 Slot, bool bFocus);
 	/** The focused card's `<kw>` notes in a panel from Top down (offers.md R-OFF-13). */
 	void DrawNotes(UCanvas* Canvas, const FDTOfferCard& Card, const FBox2D& CardRect, float Top);
 

@@ -34,13 +34,13 @@ Storm.Downpour.Trait.Name,Capacitor,蓄雷,Blessing.Storm.Downpour.Trait card na
 Storm.Downpour.Trait.Desc,Every {every_n}th sky strike hits the whole screen.,每第 {every_n} 次天雷落向全屏。,"Blessing.Storm.Downpour.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.Echo
 Forge.Hammer.Name,Hammer,铁锤,Archetype.Forge.Hammer display name (card binding line).,
 Forge.Hammer.Key.Name,Hammer Hand,锤手,Blessing.Forge.Hammer.Key card name. <= 18 chars en / 6 zh.,
-Forge.Hammer.Key.Desc,The first {rounds} rounds of each volley become a cleave around you for ×{dmg_mult} damage.,每次齐射的前 {rounds} 发化为身边的横斩，伤害 ×{dmg_mult}。,"Blessing.Forge.Hammer.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.ConvertMelee
+Forge.Hammer.Key.Desc,Each volley's first {rounds} rounds stop flying and merge into one {radius_uu_m} m cleave for ×{cleave_mult} damage.,每次齐射的前 {rounds} 发不再飞出，合成一道 {radius_uu_m} 米横斩，伤害 ×{cleave_mult}。,"Blessing.Forge.Hammer.Key card rules; args are expression.csv parameters (_pct x100, _m metres), and {cleave_mult} is dmg_mult × C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO, what the cleave deals per round it folds (R-WPN-10). <= 90 en / 40 zh. zh invented: 不再飞出 and 合成一道 need a native read.",Flag.ConvertMelee
 Forge.Hammer.Amp1.Name,Hard Blow,重击,Blessing.Forge.Hammer.Amp1 card name. <= 18 chars en / 6 zh.,
 Forge.Hammer.Amp1.Desc,Cleaves knock enemies back {knockback_uu_m} m.,横斩把敌人击退 {knockback_uu_m} 米。,"Blessing.Forge.Hammer.Amp1 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.ConvertMelee
 Forge.Hammer.Amp2.Name,Long Haft,长柄,Blessing.Forge.Hammer.Amp2 card name. <= 18 chars en / 6 zh.,
 Forge.Hammer.Amp2.Desc,Cleaves are {radius_scale_pct}% larger.,横斩范围 +{radius_scale_pct}%。,"Blessing.Forge.Hammer.Amp2 card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.ConvertMelee
 Forge.Hammer.Trait.Name,Masterwork,精工,Blessing.Forge.Hammer.Trait card name. <= 18 chars en / 6 zh.,
-Forge.Hammer.Trait.Desc,Cleaves carry the effects of your modifiers.,横斩也带上模块的效果。,"Blessing.Forge.Hammer.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Flag.ConvertMelee
+Forge.Hammer.Trait.Desc,"Cleaves carry the effects of your modifiers, dormant ones excepted.",横斩也带上武器模块的效果，休眠的模块除外。,"Blessing.Forge.Hammer.Trait card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh. zh invented: 休眠的模块除外 needs a native read.",Flag.ConvertMelee
 Forge.Furnace.Name,Furnace,熔炉,Archetype.Forge.Furnace display name (card binding line).,
 Forge.Furnace.Key.Name,Kindling,引火,Blessing.Forge.Furnace.Key card name. <= 18 chars en / 6 zh.,
 Forge.Furnace.Key.Desc,{chance_pct}% of hits Burn. Hitting a Burning enemy leaves burning ground for {duration_s} s.,命中时 {chance_pct}% 几率灼烧；命中灼烧的敌人留下燃烧地面 {duration_s} 秒。,"Blessing.Forge.Furnace.Key card rules; args are expression.csv parameters (_pct x100, _m metres). <= 90 en / 40 zh.",Status.Burn

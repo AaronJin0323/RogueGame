@@ -11,6 +11,8 @@
 #   E  a fresh bot run on -Seed: the CSV must equal the restarted Development run's, the bridge between the two builds.
 #   F  the settings file from D, no -culture: the run reads its language in Shipping.
 #   Both configs must hold the same cook: every .utoc and .ucas hash matches. The .pak holds no cooked asset and differs by Development's developer plugin descriptors.
+# Every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1 with a -userdir under Saved\PkgRestart\userdir (R-TEC-17), so nothing here writes to or
+# deletes from %LOCALAPPDATA%\Dusktracer, where a person's run files live: each config's run files land in its own userdir's Saved\Playtests.
 # Prints "PKGRESTART: PASS (...)" or "PKGRESTART: FAIL (...)"; exit 0 / 1, 2 when there is no package. Logs: Saved\Logs\PkgRestart_<tag>.log.
 param(
 	[int]$Seed = 9107,
@@ -26,14 +28,19 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $PackageRoot = Join-Path $Root "Saved\Package"
 $DevExe = Join-Path $PackageRoot "Development\Windows\Dusktracer\Binaries\Win64\Dusktracer.exe"
 $ShipExe = Join-Path $PackageRoot "Shipping\Windows\Dusktracer\Binaries\Win64\Dusktracer-Win64-Shipping.exe"
-$DevRuns = Join-Path $PackageRoot "Development\Windows\Dusktracer\Saved\Playtests"
-$ShipRuns = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
 $LogDir = Join-Path $Root "Saved\Logs"
 $WorkDir = Join-Path $Root "Saved\PkgRestart"
+$UserDirs = Join-Path $WorkDir "userdir"
+$DevUser = Join-Path $UserDirs "development"
+$ShipUser = Join-Path $UserDirs "shipping"
+$DevRuns = Join-Path $DevUser "Saved\Playtests"
+$ShipRuns = Join-Path $ShipUser "Saved\Playtests"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Map = "/Game/DT/Maps/L_Arena_Test"
 $SettingsSeed = 770101
 $MenuSeed = 770102
 New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
+if (Test-Path $UserDirs) { Remove-Item $UserDirs -Recurse -Force }
 foreach ($File in $DevExe, $ShipExe) {
 	if (-not (Test-Path $File)) { Write-Host "PKGRESTART: NOT RUN (no $File; Tools\Package.ps1)"; exit 2 }
 }
@@ -48,11 +55,13 @@ function Remove-Runs {
 }
 
 function Invoke-Game([string]$Exe, [string]$Tag, [string[]]$RunArgs) {
-	$ArgList = @($Map, "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended", "-nopause") + $RunArgs
+	$UserDir = if ($Exe -eq $ShipExe) { $ShipUser } else { $DevUser }
+	New-Item -ItemType Directory -Force $UserDir | Out-Null
+	$ArgList = @($Map, "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended", "-nopause", "-userdir=`"$UserDir`"") + $RunArgs
 	$Watch = [Diagnostics.Stopwatch]::StartNew()
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Note-Fail "launch $Tag timed out"
 	}
 	Write-Host ("pkgrestart: {0} done in {1:n0} s" -f $Tag, $Watch.Elapsed.TotalSeconds)

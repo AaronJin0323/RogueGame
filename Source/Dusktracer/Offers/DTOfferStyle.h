@@ -6,6 +6,7 @@
 #include "Core/DTRunState.h"
 
 struct FDTDormantSocket;
+struct FDTRoundsLeft;
 
 /** Border channel: tech kinds are machined (double rule, chevrons, socket notches), Keeper kinds are stone (heavy rule, crown band, inner frame), Reserve is plain stock (dashed). */
 enum class EDTCardBorder : uint8
@@ -72,7 +73,10 @@ namespace DTOfferText
 	DUSKTRACER_API bool NameKey(const FDTOfferCard& Card, FString& OutTable, FString& OutKey);
 	DUSKTRACER_API bool DescKey(const FDTOfferCard& Card, FString& OutTable, FString& OutKey);
 	DUSKTRACER_API FText Name(const FDTOfferCard& Card);
-	/** Rules text with its format arguments filled from the catalog (expression.csv parameters, C.OFFER.RESERVE_*). */
+	/**
+	 * Rules text with its format arguments filled from the catalog (expression.csv parameters, C.OFFER.RESERVE_*). {cleave_mult} is
+	 * what a cleave deals per round it folds, the ratio of R-WPN-10 included: dmg_mult alone is not the number the sim deals.
+	 */
 	DUSKTRACER_API FText Desc(const FDTOfferCard& Card);
 	/** "Level 2 -> 3", "Socket into Pulse Rifle", "Keeper · Archetype"; empty when the kind has none. */
 	DUSKTRACER_API FText Line(const FDTOfferCard& Card, const FDTPlayerRunState& Player);
@@ -82,6 +86,8 @@ namespace DTOfferText
 	DUSKTRACER_API FText KeywordDesc(const FString& Keyword);
 	/** A dormant socket in words (modifiers.md R-MOD-08): the ST_Modifiers row Key, Dormant.Hud or Dormant.Card, with its names filled. */
 	DUSKTRACER_API FText Dormant(const TCHAR* Key, const FDTDormantSocket& Socket);
+	/** What a conversion leaves of a weapon's rounds, in words: the ST_Weapons row Rounds.None when none still fly, else Rounds.Some. */
+	DUSKTRACER_API FText RoundsLeft(const FDTRoundsLeft& Rounds);
 	DUSKTRACER_API FText Ui(const TCHAR* Key);
 	/**
 	 * Greedy line wrap with kinsoku (offers.md R-OFF-13): breaks after spaces and beside wide (CJK) characters, never before

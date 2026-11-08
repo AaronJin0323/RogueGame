@@ -167,10 +167,10 @@ void ADTHUD::DrawHeroes()
 				const FText Line = DTOfferText::Dormant(TEXT("Dormant.Hud"), Socket);
 				float Width = 0.0f;
 				float Height = 0.0f;
-				Canvas->TextSize(Font, Line.ToString(), Width, Height, 1.0f, 1.0f);
+				Canvas->TextSize(Font, Line.ToString(), Width, Height, TextScale, TextScale);
 				DormantY -= LineH + PanelPadPx;
 				Box(MarginPx - PanelPadPx, DormantY, Width + 2.0f * PanelPadPx, LineH + PanelPadPx, BarBack);
-				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, 1.0f);
+				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, TextScale);
 				DormantY -= LineGapPx;
 			}
 		}

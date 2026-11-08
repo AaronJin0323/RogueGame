@@ -48,7 +48,7 @@ namespace DTOfferScreenLocal
 	constexpr float NotesMinScale = 0.8f; // the note text shrinks to here before it would leave the canvas
 	constexpr float NotesScaleStep = 0.05f;
 	constexpr float DormantPad = 8.0f;
-	constexpr float DormantGap = 10.0f;   // above the rarity row
+	constexpr float DormantGap = 10.0f;   // above the rarity row, and clear under the rules text
 
 	const TCHAR* const ToolKeys[] = { TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock") };
 	const EDTOfferAction ToolActions[] = { EDTOfferAction::Reroll, EDTOfferAction::Banish, EDTOfferAction::Lock };
@@ -344,6 +344,16 @@ TArray<FKey> DTOfferInput::KeysFor(EDTOfferAction Action)
 
 // ---- drawing ------------------------------------------------------------------------------------------------------------
 
+float DTOfferLayout::FitScale(float Start, float Floor, float Step, float MaxH, TFunctionRef<float(float)> Height)
+{
+	float Scale = Start;
+	while (Scale - Step >= Floor - KINDA_SMALL_NUMBER && Height(Scale) > MaxH)
+	{
+		Scale -= Step;
+	}
+	return Scale;
+}
+
 int32 UDTOfferScreen::CardAt(const FVector2D& Position) const
 {
 	for (int32 Slot = 0; Slot < CardRects.Num(); ++Slot)
@@ -373,7 +383,7 @@ EDTOfferAction UDTOfferScreen::ToolAt(const FVector2D& Position) const
 }
 
 void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const FDTPlayerRunState& Player, TConstArrayView<FDTDormantSocket> Dormant,
-	const FBox2D& Rect, int32 Slot, bool bFocus)
+	TConstArrayView<FDTRoundsLeft> Rounds, const FBox2D& Rect, int32 Slot, bool bFocus)
 {
 	using namespace DTOfferScreenLocal;
 	FPainter P{ Canvas, GEngine->GetLargeFont(), Canvas->ClipY / RefHeight };
@@ -428,23 +438,43 @@ void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const F
 	// Rarity marker (own channel): 1-3 pips in the rarity token plus its label, bottom left.
 	const float Pip = PipSize * P.S;
 	const float BottomY = Rect.Max.Y - Pad - Pip;
-	if (Dormant.Num() > 0)
+	if (Dormant.Num() > 0 || Rounds.Num() > 0)
 	{
-		// What this pick puts to sleep, boxed in the modifier family's token above the rarity row (modifiers.md R-MOD-08).
+		// What this pick takes, boxed in the modifier family's token above the rarity row: the rounds that stop flying, then the
+		// sockets that sleep (R-OFF-13, modifiers.md R-MOD-08). The box steps down rather than run into the rules text.
 		const float BoxPad = DormantPad * P.S;
-		TArray<FString> Lines;
+		TArray<FString> Rows;
+		for (const FDTRoundsLeft& Left : Rounds)
+		{
+			Rows.Add(DTOfferText::RoundsLeft(Left).ToString());
+		}
 		for (const FDTDormantSocket& Socket : Dormant)
 		{
-			Lines.Append(P.Wrap(DTOfferText::Dormant(TEXT("Dormant.Card"), Socket).ToString(), BodyScale, Inner - 2.0f * BoxPad));
+			Rows.Add(DTOfferText::Dormant(TEXT("Dormant.Card"), Socket).ToString());
 		}
-		const float LineH = P.Measure(TEXT("0"), BodyScale).Y;
-		const float BoxH = Lines.Num() * LineH + 2.0f * BoxPad;
+		TArray<FString> Lines;
+		float LineH = 0.0f;
+		float BoxH = 0.0f;
+		const auto LayOut = [&](float Scale)
+		{
+			Lines.Reset();
+			for (const FString& Row : Rows)
+			{
+				Lines.Append(P.Wrap(Row, Scale, Inner - 2.0f * BoxPad));
+			}
+			LineH = P.Measure(TEXT("0"), Scale).Y;
+			BoxH = Lines.Num() * LineH + 2.0f * BoxPad;
+			return BoxH;
+		};
+		const float Room = BottomY - Y - 2.0f * DormantGap * P.S;
+		const float BoxScale = DTOfferLayout::FitScale(BodyScale, NotesMinScale, NotesScaleStep, Room, LayOut);
+		LayOut(BoxScale);
 		const float BoxY = BottomY - DormantGap * P.S - BoxH;
 		P.Rect(FBox2D(FVector2D(Rect.Min.X + Pad, BoxY), FVector2D(Rect.Max.X - Pad, BoxY + BoxH)), Token(DTPal::Card_Tech), Thin);
 		float LineY = BoxY + BoxPad;
 		for (const FString& Line : Lines)
 		{
-			P.Text(FText::FromString(Line), Rect.Min.X + Pad + BoxPad, LineY, BodyScale, Text);
+			P.Text(FText::FromString(Line), Rect.Min.X + Pad + BoxPad, LineY, BoxScale, Text);
 			LineY += LineH;
 		}
 	}
@@ -577,7 +607,9 @@ void UDTOfferScreen::Draw(UCanvas* Canvas, const FDTOfferScreenModel& Model)
 		CardRects.Add(Rect);
 		const TConstArrayView<FDTDormantSocket> Dormant = Model.Dormant && Model.Dormant->IsValidIndex(Slot)
 			? TConstArrayView<FDTDormantSocket>((*Model.Dormant)[Slot]) : TConstArrayView<FDTDormantSocket>();
-		DrawCard(Canvas, Hand.Cards[Slot], *Model.Player, Dormant, Rect, Slot, bFocus);
+		const TConstArrayView<FDTRoundsLeft> Rounds = Model.Rounds && Model.Rounds->IsValidIndex(Slot)
+			? TConstArrayView<FDTRoundsLeft>((*Model.Rounds)[Slot]) : TConstArrayView<FDTRoundsLeft>();
+		DrawCard(Canvas, Hand.Cards[Slot], *Model.Player, Dormant, Rounds, Rect, Slot, bFocus);
 	}
 
 	float Y = Y0 + H + RowGap * P.S;
