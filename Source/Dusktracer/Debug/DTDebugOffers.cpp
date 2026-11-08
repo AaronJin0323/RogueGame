@@ -9,6 +9,8 @@
 // them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotRing=<Mod.*>[+...]
 // also gives the Ring Emitter with those socketed; -DTOfferShotBless=<Blessing.*> takes that blessing and opens no hand, so
 // the shot is the HUD with its dormant lines; -DTOfferShotRifle=<level> sets the Pulse Rifle's level (2 by default);
+// -DTOfferShotGive=<Weapon.*>:<level>[:<Mod.*>[+<Mod.*>...]] also gives that weapon at that level with those socketed;
+// -DTOfferShotHand=<Level|Chest|Keeper|Reforging> opens that hand instead of a level-up (an Evolve card is in Reforging);
 // -DTTextPct=<pct> sets the text size setting for the shot, unsaved (settings.md R-SET-12, as DT.UI.Set text). The log names each card of the hand shot, so a seed can be
 // picked by card. Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500). -unattended is
 // safe: a shot turns dt.Offer.AutoPick off, or slot 0 would be picked at once and no hand would be left to shoot.
@@ -272,6 +274,17 @@ namespace DTDebugOffers
 						Weapons->Give(0, FName(TEXT("Weapon.RingEmitter")), 1);
 						SocketFromValue(*Weapons, RingMods, FName(TEXT("Weapon.RingEmitter")));
 					}
+					FString Give; // <Weapon.*>:<level>[:<Mod.*>[+<Mod.*>...]]
+					TArray<FString> GiveParts;
+					if (FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotGive="), Give) && Give.ParseIntoArray(GiveParts, TEXT(":")) >= 2)
+					{
+						const FName GiveWeapon(*GiveParts[0]);
+						Weapons->Give(0, GiveWeapon, FCString::Atoi(*GiveParts[1]));
+						if (GiveParts.Num() > 2)
+						{
+							SocketFromValue(*Weapons, GiveParts[2], GiveWeapon);
+						}
+					}
 				}
 				FString Bless;
 				UDTKeeperSubsystem* Keepers = World->GetSubsystem<UDTKeeperSubsystem>();
@@ -281,7 +294,19 @@ namespace DTDebugOffers
 				}
 				else
 				{
-					Offers->BuildHand(0, EDTHandKind::Level, 3);
+					FString HandArg;
+					EDTHandKind Kind = EDTHandKind::Level;
+					if (FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotHand="), HandArg))
+					{
+						for (int32 Index = 0; Index <= static_cast<int32>(EDTHandKind::Patron); ++Index)
+						{
+							if (HandArg.Equals(HandName(static_cast<EDTHandKind>(Index)), ESearchCase::IgnoreCase))
+							{
+								Kind = static_cast<EDTHandKind>(Index);
+							}
+						}
+					}
+					Offers->BuildHand(0, Kind, 3);
 				}
 			}
 			int32 Focus = 0;

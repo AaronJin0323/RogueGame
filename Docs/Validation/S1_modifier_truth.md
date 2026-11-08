@@ -133,6 +133,19 @@ The ceiling of four sockets stands. What the first reading understated was width
 
 At 150 % the keyword notes panel sits over the hero block, more at 720p. The offer screen draws over everything by design and the notes stay legible, so it was left.
 
+### On dev/s2: an Evolve card carrying the box
+Read on `integrate/w3-s2` (this branch merged onto `dev/s2`), off-screen at 1920×1080 through `Tools/HiddenLaunch.ps1`, by eye, in the git-ignored `Saved/CardTruth`. The shot hook gained `-DTOfferShotGive=<Weapon>:<level>[:<Mod>+...]` and `-DTOfferShotHand=Reforging`, and `-DTTextPct` now sets `dev/s2`'s own text size setting (`settings.md` R-SET-12) for the shot, unsaved, so 150 % is the real setting, not the stand-in. Seed 2, the Rifle at 2 and Orbital Drones at 8, so the Drones are the primary and the hand deals Overload, Blade Halo (`Evolve.OrbitalDrones`) and Live Wire. Blade Halo's caps are `Orbit` alone, so the Drones lose `Projectile`.
+
+| Shot | Read |
+|---|---|
+| Drones with Pierce, Fork and Chain Trigger, en, 100 % | Blade Halo's box: "Pierce Rounds goes dormant on Orbital Drones", two lines above the rarity row, clear of the rules text. Fork and Chain Trigger are rightly not named. The other two cards have no box |
+| Same, zh-Hans, 100 % | 浮游炮的穿透弹将休眠, one line, clear |
+| Same, en, 150 % | Two lines at the larger size, about 190 px clear under the rules text, the box's lower edge a few px above the rarity row. Nothing clipped. The keyword notes panel covers the hero block's left edge, as at 150 % on S1 |
+| Same, zh-Hans, 150 % | One line, clear, nothing clipped |
+| Drones with Pierce, Lingering Field, Spread Wave and Spillover, en, 150 % | The box names Pierce alone, the same two lines. Whether all four were socketed at that level was not read from the log, so this is not the widest Evolve box |
+
+No Evolve card reaches the rounds rows: an evolution converts no round, so only sockets show. The widest Evolve box a run can reach is unread (D-027 on dev/s2 notes seven weapons take `ConvertMelee` natively and the four-socket ceiling no longer bounds a blessing's box either).
+
 ### Rendered contrast
 The gate's `contrast` step now reads the line itself, cheaply: `Tools/Smoke.ps1 -DormantLine` on a second staged frame, one more launch. Line against its panel, **13.62:1**, panel Y 0.009, need 3; a frame with no line fails. The token reading was 13.8. It is a separate frame because staging the Key in the existing scene would take the Rifle's rounds out of a frame with thin margins, and the line sits above `HUD_MASKS`, so its text would read as `tracer_core`. Every T-PRE-05 reading stays as it was. The panel is opaque, so the world cannot move this number; the gate reads en only.
 
@@ -173,12 +186,12 @@ Same command both sides, `Tools/BotRuns.ps1`, skill 1.0, unchanged base binaries
 ## Invented zh
 No glossary or reference term exists for dormant, so these are invented and need a native read: 休眠 (`Docs/Glossary.md`), `{Weapon}的{Modifier}已休眠` (`Dormant.Hud`), `{Weapon}的{Modifier}将休眠` (`Dormant.Card`).
 
-Card truth adds, also invented and also for a native reader: 不再飞出 and 合成一道 (`Forge.Hammer.Key.Desc`), 休眠的模块除外 (`Forge.Hammer.Trait.Desc`), `{Weapon}不再有弹体飞出` (`Rounds.None`), `{Weapon}的 {Count} 发中只剩 {Kept} 发飞出` (`Rounds.Some`). Whether 合成 reads as summing damage is the question to ask.
+Card truth adds, also invented and also for a native reader: 不再飞出 and 合成一道 (`Forge.Hammer.Key.Desc`), 休眠的模块除外 (`Forge.Hammer.Trait.Desc`), `{Weapon}不再有弹体飞出` (`Rounds.None`), `{Weapon}的 {Count} 发中只剩 {Kept} 发飞出` (`Rounds.Some`). On `dev/s2` 弹体 is a retired word (`loc_build` fails on it), so `Rounds.None` reads `{Weapon}不再有子弹飞出` there. Whether 合成 reads as summing damage is the question to ask.
 
 ## Not verified
 - No human has seen the line, the box or the new words. Whether a player notices the line in a fight, or reads the box before picking, is the open question, and the HUMAN item of `modifiers.md` asks the first of those.
 - Whether the words stop the surprise the owner met: that takes a person, not a capture.
-- The largest size on `dev/s2` itself: it was staged on `main` with `dev/s2`'s rules, not run there, and the merge has not been done.
+- The largest size on `dev/s2` itself: it was staged on `main` with `dev/s2`'s rules. On `integrate/w3-s2` only the Evolve card above was read at 150 %; the blessing's worst box was not shot again there.
 - The second weather, which does not exist yet.
 - The card box's contrast in the gate, and the line's in zh-Hans: one is a hand reading, the other unread, though the two tokens are the same.
 - The box on a canvas narrower than 16:9, where cards shrink and wrap more. Not captured.
