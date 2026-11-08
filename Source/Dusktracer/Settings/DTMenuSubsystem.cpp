@@ -259,6 +259,13 @@ void UDTMenuSubsystem::WatchRunOver()
 	const ADTGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr;
 	if (Mode && Mode->IsRunOver() && State.Screen != EDTMenuScreen::RunOver)
 	{
+		// Death and victory close the session on a next-tick world timer, and a paused world never fires one: a pause or a hand
+		// that lands in the run's last frame would hold the run open until the player leaves, which banks it as Left (meta.md R-MET-04).
+		// The step is over by now, so its records are in; a session the timer already closed ignores this.
+		if (GetWorld()->IsPaused())
+		{
+			CloseRun(Mode->IsVictory() ? TEXT("victory") : TEXT("death"));
+		}
 		OpenRunOver(Mode->IsVictory() ? EDTRunOverKind::Victory : EDTRunOverKind::Death);
 	}
 }
