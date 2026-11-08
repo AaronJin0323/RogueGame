@@ -32,7 +32,7 @@ function Skipped([string]$Step) { if ($Skip -contains $Step) { NotRun $Step "ski
 function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string[]]$ScriptArgs = @()) {
 	if (Skipped $Step) { return }
 	$Path = Join-Path $Root $Script
-	if (-not (Test-Path $Path)) { NotRun $Step "$Script missing"; return }
+	if (-not (Test-Path $Path)) { Report $Step "FAIL ($Script missing: every Python step is live)"; Fail $Step }
 	$Out = & python -I $Path @ScriptArgs 2>&1
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_$Step.log") -Encoding utf8
@@ -83,6 +83,9 @@ if (-not (Skipped "nonunity")) {
 	}
 	else {
 		Push-Location $Root
+		# A base that does not resolve would read as no changed file and pass with nothing compiled.
+		$null = & git rev-parse --verify --quiet "$Base^{commit}" 2>$null
+		if ($LASTEXITCODE -ne 0) { Pop-Location; Report "nonunity" "FAIL (base '$Base' does not resolve)"; Fail "nonunity" }
 		$Names = @(git diff --name-only "$Base...HEAD" 2>$null) + @(git diff --name-only HEAD 2>$null) + @(git ls-files --others --exclude-standard 2>$null)
 		Pop-Location
 		$Files = @($Names | Where-Object { $_ -match '^Source/.*\.(cpp|h)$' } | ForEach-Object { $_ -replace '\.h$', '.cpp' } |
@@ -160,7 +163,7 @@ if (-not (Skipped "firstrun")) {
 	$Battery = Join-Path $Root "Saved\BotRuns\gate_firstrun"
 	if (Test-Path $Battery) { Remove-Item $Battery -Recurse -Force }
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\BotRuns.ps1") -BotVersion 2 -FreshPool -Arms "Steered:Storm:Tempest,Steered:Forge:Hammer,Steered:Tide:Frost" -FirstSeed 9100 -Seeds 2 `
-		-Check T-OFF-15 -Parallel 6 -Stagger 0.5 -Out $Battery 2>&1
+		-Check T-OFF-15 -Parallel 6 -Stagger 1.5 -Out $Battery 2>&1  # two arms share each seed, and a run file is named to the second
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_firstrun.log") -Encoding utf8
 	$Verdict = ($Out | Select-String "^BOTRUNS:" | Select-Object -Last 1).Line
