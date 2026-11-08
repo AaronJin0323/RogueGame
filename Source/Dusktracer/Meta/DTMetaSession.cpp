@@ -3,6 +3,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
@@ -63,7 +64,20 @@ bool DTMeta::WriteAtomic(const FString& Path, const TArray<uint8>& Bytes)
 	TUniquePtr<IFileHandle> Handle(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*Temp));
 	const bool bWritten = Handle && Handle->Write(Bytes.GetData(), Bytes.Num()) && Handle->Flush(/*bFullFlush*/ true);
 	Handle.Reset(); // closed before the rename
-	return bWritten && DTMetaSessionLocal::ReplaceFile(Temp, Full);
+	if (!bWritten)
+	{
+		return false;
+	}
+	// A scanner or an indexer can hold the old file for a moment; a few short tries ride that out.
+	for (int32 Try = 0; Try < 3; ++Try)
+	{
+		if (DTMetaSessionLocal::ReplaceFile(Temp, Full))
+		{
+			return true;
+		}
+		FPlatformProcess::Sleep(0.05f);
+	}
+	return false;
 }
 
 EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
@@ -71,6 +85,8 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	Profile = FDTMetaProfile();
 	Path = InPath;
 	AsidePath.Reset();
+	Seen.Reset();
+	bUnsaved = false;
 	bWritable = false;
 	if (Path.IsEmpty())
 	{
@@ -96,6 +112,7 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	if (Result == EDTSaveLoadResult::Ok && DTMeta::Deserialize(Payload, Read) && DTMeta::IsValid(Read))
 	{
 		Profile = MoveTemp(Read);
+		Seen = MoveTemp(Bytes);
 		bWritable = true;
 		return EDTMetaOpen::Read;
 	}
@@ -118,11 +135,40 @@ bool FDTMetaSession::Write()
 	{
 		return false;
 	}
-	if (!DTMeta::WriteAtomic(Path, FDTSaveEnvelope::Wrap(DTMeta::Serialize(Profile), Version)))
+	TArray<uint8> Bytes = FDTSaveEnvelope::Wrap(DTMeta::Serialize(Profile), Version);
+	if (!DTMeta::WriteAtomic(Path, Bytes))
 	{
-		UE_LOG(LogDT, Warning, TEXT("Meta: could not write %s; the old file stands"), *Path);
+		bUnsaved = true;
+		UE_LOG(LogDT, Warning, TEXT("Meta: could not write %s; the old file stands and the next write carries this change"), *Path);
 		return false;
 	}
+	Seen = MoveTemp(Bytes);
+	bUnsaved = false;
+	return true;
+}
+
+bool FDTMetaSession::Refresh()
+{
+	if (!bWritable || Path.IsEmpty() || bUnsaved)
+	{
+		return false; // with a change of its own not yet on disk, this session's profile is the newer one
+	}
+	TArray<uint8> Bytes;
+	if (!IFileManager::Get().FileExists(*Path) || !FFileHelper::LoadFileToArray(Bytes, *Path, FILEREAD_Silent) || Bytes == Seen)
+	{
+		return false;
+	}
+	TArray<uint8> Payload;
+	int32 Loaded = INDEX_NONE;
+	FDTMetaProfile Read;
+	if (Envelope.Unwrap(Bytes, Payload, Loaded, Version) != EDTSaveLoadResult::Ok || !DTMeta::Deserialize(Payload, Read) || !DTMeta::IsValid(Read))
+	{
+		UE_LOG(LogDT, Warning, TEXT("Meta: %s changed under this session and does not read; this session's profile stands"), *Path);
+		return false;
+	}
+	Profile = MoveTemp(Read);
+	Seen = MoveTemp(Bytes);
+	UE_LOG(LogDT, Log, TEXT("Meta: another launch wrote %s; read again, balance %lld, runs %d"), *Path, Profile.Currency, Profile.Runs);
 	return true;
 }
 
@@ -141,6 +187,7 @@ FDTRunAward FDTMetaSession::Bank(const FDTRunTally& Tally, EDTRunEnd End)
 		Award.Balance = Profile.Currency + Award.Retained;
 		return Award;
 	}
+	Refresh(); // another window on this save may have banked or bought since; this run lands on top of that
 	Award.Retained = DTMeta::ApplyRun(Profile, Tally, End);
 	const TSet<FName> Known = Profile.Discoveries;
 	OnBank.Broadcast(Tally, Profile);

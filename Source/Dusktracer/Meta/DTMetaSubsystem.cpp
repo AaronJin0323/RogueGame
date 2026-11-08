@@ -116,6 +116,15 @@ void UDTMetaSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UE_LOG(LogDT, Log, TEXT("Meta: opened (%d) %s, balance %lld, wins %d, discoveries %d"), static_cast<int32>(Opened), Path.IsEmpty() ? TEXT("no save") : *Path, Session.Profile.Currency, Session.Profile.Wins, Session.Profile.Discoveries.Num());
 }
 
+void UDTMetaSubsystem::Deinitialize()
+{
+	if (Session.bUnsaved)
+	{
+		Session.Write();
+	}
+	Super::Deinitialize();
+}
+
 FDTMetaSession* UDTMetaSubsystem::FindSession(const UObject* WorldContext)
 {
 	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;

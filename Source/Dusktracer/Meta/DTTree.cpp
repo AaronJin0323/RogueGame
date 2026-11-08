@@ -100,6 +100,7 @@ EDTTreeBuy DTTree::CanBuy(const FDTMetaSession& Session, FName Id)
 
 EDTTreeBuy DTTree::Buy(FDTMetaSession& Session, FName Id)
 {
+	Session.Refresh(); // a second window on this save may have spent or banked since: the price is taken from the file's balance
 	const EDTTreeBuy Result = CanBuy(Session, Id);
 	if (Result != EDTTreeBuy::Ok)
 	{

@@ -679,6 +679,33 @@ bool FDTMetAutosave::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetTwoWindows, "Dusktracer.Meta.TwoWindows", DTMetaTest::Flags) // R-MET-11: two launches on one save
+bool FDTMetTwoWindows::RunTest(const FString& Parameters)
+{
+	using namespace DTMetaTest;
+	const FString Path = TempSave(TEXT("TwoWindows.sav"));
+	FDTMetaSession First;
+	FDTMetaSession Second;
+	TestEqual(TEXT("one window opens a fresh save"), First.Open(Path), EDTMetaOpen::Fresh);
+	TestEqual(TEXT("so does the other, before either banks"), Second.Open(Path), EDTMetaOpen::Fresh);
+	const FDTRunAward A = First.Bank(Tally(StepsForMinutes(3), 0, 1), EDTRunEnd::Death);
+	const FDTRunAward B = Second.Bank(Tally(StepsForMinutes(2)), EDTRunEnd::Left);
+	TestEqual(TEXT("the second bank lands on the first"), B.Balance, A.Retained + B.Retained);
+	FDTMetaSession Reader;
+	TestEqual(TEXT("the file reads"), Reader.Open(Path), EDTMetaOpen::Read);
+	TestEqual(TEXT("the file holds both runs"), Reader.Profile.Runs, 2);
+	TestEqual(TEXT("and both awards"), Reader.Profile.Currency, A.Retained + B.Retained);
+	TestEqual(TEXT("one death"), Reader.Profile.DeathsSinceWin, 1);
+
+	// The first window banks again over a file the second wrote last: nothing of the second is lost.
+	const FDTRunAward C = First.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left);
+	TestEqual(TEXT("a third bank keeps the other window's"), C.Balance, A.Retained + B.Retained + C.Retained);
+	TestEqual(TEXT("the file reads again"), Reader.Open(Path), EDTMetaOpen::Read);
+	TestEqual(TEXT("three runs"), Reader.Profile.Runs, 3);
+	TestFalse(TEXT("a session's own write is no news to it"), First.Refresh());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetToolRuns, "Dusktracer.Meta.ToolRuns", DTMetaTest::Flags) // T-MET-14
 bool FDTMetToolRuns::RunTest(const FString& Parameters)
 {

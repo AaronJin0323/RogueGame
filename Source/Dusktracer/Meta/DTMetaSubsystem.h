@@ -14,6 +14,8 @@ class DUSKTRACER_API UDTMetaSubsystem : public UGameInstanceSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	/** A change whose write failed gets one more try at exit (R-MET-11). */
+	virtual void Deinitialize() override;
 
 	/** Unattended, automation, a bot or -DTNoSave (R-MET-14). */
 	static bool IsToolRun();

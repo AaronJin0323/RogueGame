@@ -23,6 +23,10 @@ struct DUSKTRACER_API FDTMetaSession
 	bool bWritable = false;
 	/** Where the bad file went, when Open kept one aside. */
 	FString AsidePath;
+	/** The file's bytes as this session last read or wrote them; another process's write shows as a difference (R-MET-11). */
+	TArray<uint8> Seen;
+	/** A write failed and the profile in memory is newer than the file: the next Write, or the one at exit, carries it. */
+	bool bUnsaved = false;
 	FDTOnMetaBank OnBank;
 
 	/** Empty InPath: no save. Never fails a launch. */
@@ -31,6 +35,12 @@ struct DUSKTRACER_API FDTMetaSession
 	FDTRunAward Bank(const FDTRunTally& Tally, EDTRunEnd End);
 	/** Writes the profile; false leaves the old file whole. */
 	bool Write();
+	/**
+	 * Before a change: when another launch on the same file wrote it since this session last did, read its profile so the change
+	 * lands on top of it instead of over it (two windows on one save). True when the profile was replaced. A file that no longer
+	 * reads keeps this session's profile.
+	 */
+	bool Refresh();
 };
 
 namespace DTMeta
