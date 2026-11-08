@@ -209,7 +209,7 @@ keepers:
   KEEPER.PACKAGE_GAIN_BAND:    { value: [2.0, 2.4], unit: x, tag: GATED(S1), dependents: [02_Systems/keepers.md, T-KEE-18] }
   KEEPER.PULL_INTERVAL_S:      { value: 2.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/keepers.md, R-KEE-21, T-KEE-21] }
   # The sim's screen-wide scope (scope=Screen): split from ARENA.CAMERA_FRAME_RADIUS_UU by D-036 at the same value; not tied to the frame.
-  KEEPER.SCREEN_SCOPE_RADIUS_UU: { value: 2000, unit: uu,  tag: GATED(S0),  dependents: [02_Systems/keepers.md, Combat/DTWeaponSim, Keepers/DTKeeperSim] }
+  KEEPER.SCREEN_SCOPE_RADIUS_UU: { value: 2000, unit: uu,  tag: GATED(S0),  dependents: [02_Systems/keepers.md, Combat/DTWeaponSim, Combat/DTWeaponSimKeepers, Keepers/DTKeeperSim] }
   TIER.FAVOR_PER_BLESSING:     { value: 1,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T1:               { value: 3,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }
   TIER.FAVOR_T2:               { value: 6,    unit: favor, tag: CORE,       dependents: [02_Systems/keepers.md, T-KEE-07] }

@@ -596,7 +596,7 @@ void FDTKeeperSim::StartCast(const FDTSimContext& Context, int32 OwnerId, FPlaye
 	case EDTPath::Shade:
 	{
 		// R-KEE-35: the screen is Marked and every round hunts; the execute is EndCast's.
-		const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+		const float Frame = static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU);
 		if (Weapons)
 		{
 			Weapons->MarkCircle(Context, OwnerId, HeroOf(*Context.View, OwnerId), Frame, DTKeepers::KeeperSource(EDTPath::Shade));
@@ -738,7 +738,7 @@ void FDTKeeperSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, FPlayer
 		return;
 	}
 	const FVector2f Hero = HeroOf(View, OwnerId);
-	const float Length = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+	const float Length = static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU);
 	if (Cast.BeamLeft <= 0.0f)
 	{
 		if (Cast.BeamsLeft <= 0)
