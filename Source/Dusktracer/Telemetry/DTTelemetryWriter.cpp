@@ -1,5 +1,7 @@
 #include "Telemetry/DTTelemetryWriter.h"
+#include "Dusktracer.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -43,13 +45,27 @@ void FDTTelemetryWriter::Append(FString Csv, FString Jsonl)
 		IFileManager& Files = IFileManager::Get();
 		Files.MakeDirectory(*FPaths::GetPath(CsvFile), true);
 		const FFileHelper::EEncodingOptions Utf8 = FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM;
+		// A reader (Export_Logs, a tester's editor) may hold the file: share it for reading, and retry a refused open briefly
+		// rather than drop the rows, which the core has already handed over.
+		const auto AppendText = [&Files, Utf8](const FString& Text, const FString& File)
+		{
+			for (int32 Try = 0; Try < 20; ++Try)
+			{
+				if (FFileHelper::SaveStringToFile(Text, *File, Utf8, &Files, FILEWRITE_Append | FILEWRITE_AllowRead))
+				{
+					return;
+				}
+				FPlatformProcess::Sleep(0.05f);
+			}
+			UE_LOG(LogDT, Warning, TEXT("Telemetry: could not append to %s"), *File);
+		};
 		if (!CsvText.IsEmpty())
 		{
-			FFileHelper::SaveStringToFile(CsvText, *CsvFile, Utf8, &Files, FILEWRITE_Append);
+			AppendText(CsvText, CsvFile);
 		}
 		if (!JsonlText.IsEmpty())
 		{
-			FFileHelper::SaveStringToFile(JsonlText, *JsonlFile, Utf8, &Files, FILEWRITE_Append);
+			AppendText(JsonlText, JsonlFile);
 		}
 	});
 }
