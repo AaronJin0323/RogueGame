@@ -11,7 +11,7 @@
 // the shot is the HUD with its dormant lines; -DTOfferShotRifle=<level> sets the Pulse Rifle's level (2 by default);
 // -DTOfferShotGive=<Weapon.*>:<level>[:<Mod.*>[+<Mod.*>...]] also gives that weapon at that level with those socketed;
 // -DTOfferShotHand=<Level|Chest|Keeper|Reforging> opens that hand instead of a level-up (an Evolve card is in Reforging);
-// -DTTextPct=<pct> sets the text size setting for the shot, unsaved (settings.md R-SET-12, as DT.UI.Set text). The log names each card of the hand shot, so a seed can be
+// -DTTextPct=<pct> sets the text size setting for the shot, unsaved, through DT.UI.Set text (settings.md R-SET-12). The log names each card of the hand shot, so a seed can be
 // picked by card. Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500). -unattended is
 // safe: a shot turns dt.Offer.AutoPick off, or slot 0 would be picked at once and no hand would be left to shoot.
 
@@ -34,7 +34,6 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Offers/DTOfferSubsystem.h"
-#include "Settings/DTUserSettings.h"
 #include "UnrealClient.h"
 
 namespace DTDebugOffers
@@ -245,10 +244,12 @@ namespace DTDebugOffers
 		const double T = Now - Shot.Start;
 		if (Shot.Stage == 0 && T >= SetupAfterS)
 		{
-			int32 TextPct = 0; // set in the world, after the settings file has loaded, so the shot's size is the one drawn
-			if (FParse::Value(FCommandLine::Get(), TEXT("DTTextPct="), TextPct))
+			// Through the menu's own shot command, in the world, after the settings file has loaded, so the shot's size is the one
+			// drawn and the sim keeps no reader of the settings (T-SET-02).
+			int32 TextPct = 0;
+			if (FParse::Value(FCommandLine::Get(), TEXT("DTTextPct="), TextPct) && GEngine)
 			{
-				DTSettings::Live().TextPct = TextPct;
+				GEngine->Exec(World, *FString::Printf(TEXT("DT.UI.Set text %d"), TextPct));
 			}
 			int32 Patron = 0;
 			FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotPatron="), Patron);
