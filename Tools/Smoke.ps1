@@ -141,7 +141,8 @@ Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"
 
 $Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Image
-if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $ImageOk) {
+# A game killed at the timeout did not quit on its own after the shot: a hang, not a pass.
+if ($Started -and -not $Killed -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $ImageOk) {
 	Write-Host "SMOKE: PASS ($Summary)"
 	exit 0
 }

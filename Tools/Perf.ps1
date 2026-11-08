@@ -218,6 +218,7 @@ if ($Session -and (Test-Path ($Session.Matches[0].Groups[1].Value + ".jsonl"))) 
 Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   x{2} proxy = {3} ms, budget p95 <= {4} (C.BUDGET.GPU_MS_4070; GPU here: {5})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $Factor, (Fmt $Gpu95Judged), $GpuMax, $Gpu)
 
 $Why = @()
+if ($Killed) { $Why += "the game was killed at the timeout" }
 if ($N -lt $Frames * 0.9) { $Why += "captured $N of $Frames frames" }
 if ([double]::IsNaN($R.game50)) { $Why += "no GameThreadTime column" }
 elseif ($R.game50 -gt $GtP50Max -or $R.game95 -gt $GtP95Max) { $Why += "game thread over budget" }

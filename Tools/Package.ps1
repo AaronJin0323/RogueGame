@@ -39,6 +39,10 @@ Write-Host "package: text"
 $Out = & cmd /c "`"$Root\Tools\Localize.bat`" 2>&1"
 if ($LASTEXITCODE -ne 0) { $Out | Select-Object -Last 10 | ForEach-Object { "    $_" }; Stop-Package "Localize.bat" }
 
+# The old stamp goes first: from here the folders are being replaced, and a run that stops part way leaves no stamp vouching for them.
+$StampFile = Join-Path $OutRoot "package_stamp.json"
+if (Test-Path $StampFile) { Remove-Item $StampFile -Force }
+
 $First = $true
 foreach ($Config in $Configs) {
 	$Dest = Join-Path $OutRoot $Config
@@ -74,8 +78,9 @@ $Size = 0L
 foreach ($Config in $Configs) {
 	$Size += (Get-ChildItem (Join-Path $OutRoot $Config) -Recurse -File | Measure-Object Length -Sum).Sum
 }
-$Stamp = @{ commit = $Commit; dirty = $Dirty; configs = $Configs; cultures = $Cultures; size_bytes = $Size; wall = (Get-Date).ToString("s") } | ConvertTo-Json
-[IO.File]::WriteAllText((Join-Path $OutRoot "package_stamp.json"), $Stamp, $Utf8)
+# The stamp's commit names every folder only when this run built both configs from its own cook; the readers refuse anything less (R-PKG-08).
+$Stamp = @{ commit = $Commit; dirty = $Dirty; configs = $Configs; skipcook = [bool]$SkipCook; cultures = $Cultures; size_bytes = $Size; wall = (Get-Date).ToString("s") } | ConvertTo-Json
+[IO.File]::WriteAllText($StampFile, $Stamp, $Utf8)
 
 Write-Host ("PACKAGE: PASS ({0}{1}, {2}, {3:n0} MB under {4})" -f $Commit, $(if ($Dirty) { "+dirty" } else { "" }), ($Configs -join "+"), ($Size / 1MB), $OutRoot)
 exit 0

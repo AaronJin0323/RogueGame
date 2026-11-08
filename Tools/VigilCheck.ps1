@@ -65,6 +65,13 @@ function Get-Hands([string]$Tag, [string[]]$Extra = @()) {
 	$File = Get-ChildItem $Playtests -Filter "${HandSeed}_*.jsonl" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
 	$Text = if ($File) { [IO.File]::ReadAllText($File.FullName) } else { "" }
 	Get-ChildItem $Playtests -Filter "${HandSeed}_*" -ErrorAction SilentlyContinue | Remove-Item -Force
+	# A run that crashed, or ended before a level hand, proves nothing about which cards reach a hand: both arms must reach their end with hands past the Patron's.
+	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed" -ErrorAction SilentlyContinue)
+	$Hands = ([regex]::Matches($Text, '"kind":\s*"offer",')).Count
+	if ($Crash.Count -gt 0 -or $Text -notmatch '"kind":\s*"run_end"' -or $Hands -lt 2) {
+		Write-Host "VIGIL: FAIL (hands $Tag ran short: crash lines $($Crash.Count), run_end $($Text -match '"kind":\s*"run_end"'), $Hands hand(s) offered)"
+		exit 1
+	}
 	return $Text
 }
 

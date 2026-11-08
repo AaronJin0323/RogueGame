@@ -59,6 +59,8 @@ function Get-Constant([string]$Key) {
 if (-not (Test-Path $StampFile)) { Stop-Check "NOT RUN (no package; Tools\Package.ps1)" 2 }
 $Stamp = Get-Content $StampFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($Stamp.dirty) { Stop-Check "NOT RUN (package $($Stamp.commit) came from a dirty tree)" 2 }
+# One config or -SkipCook leaves folders the stamp's commit did not build.
+if (@($Stamp.configs) -notcontains "Shipping" -or @($Stamp.configs) -notcontains "Development" -or $Stamp.skipcook) { Stop-Check "NOT RUN (package $($Stamp.commit) came from a partial run: $(@($Stamp.configs) -join '+'), skipcook=$([bool]$Stamp.skipcook))" 2 }
 Push-Location $Root
 $Changed = @(& git diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject Tools/PackageFiles)
 $DiffRc = $LASTEXITCODE

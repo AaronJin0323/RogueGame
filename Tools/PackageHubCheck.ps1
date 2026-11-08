@@ -53,6 +53,8 @@ $StampFile = Join-Path $PackageRoot "package_stamp.json"
 if (-not (Test-Path $StampFile)) { Write-Host "PKGHUB: NOT RUN (no package stamp; Tools\Package.ps1)"; exit 2 }
 $Stamp = [IO.File]::ReadAllText($StampFile) | ConvertFrom-Json
 if ($Stamp.dirty) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit) came from a dirty tree)"; exit 2 }
+# One config or -SkipCook leaves folders the stamp's commit did not build (R-PKG-08).
+if (@($Stamp.configs) -notcontains "Shipping" -or @($Stamp.configs) -notcontains "Development" -or $Stamp.skipcook) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit) came from a partial run: $(@($Stamp.configs) -join '+'), skipcook=$([bool]$Stamp.skipcook))"; exit 2 }
 $Changed = @(& git -C $Root diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject)
 if ($LASTEXITCODE -ne 0) { Write-Host "PKGHUB: NOT RUN (package commit $($Stamp.commit) is not in this history)"; exit 2 }
 if ($Changed.Count -gt 0) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit) is stale, $($Changed.Count) file(s) changed since)"; exit 2 }
