@@ -33,3 +33,6 @@
 | D-029 | A tool launch runs on a hidden desktop; no flag is the no-window rule | RULE | applied |
 | D-030 | A card states what it takes, per weapon at its level, in the numbers the sim deals | RULE | applied |
 | D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied |
+| D-032 | A gated Patron hand draws its last seat over every Keeper not yet seated | RULE | applied |
+| D-033 | `run_start` says what made the run: `config` and `driver` | RULE | applied |
+| D-034 | The S3 exit's "pass 2 of 3" is two of three validators on each of the two Vision rows written that way | GO-NOGO | applied |

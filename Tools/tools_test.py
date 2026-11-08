@@ -72,7 +72,9 @@ PYTHON_STARTS = re.compile(r"\bsubprocess\b|\bPopen\b|os\.system|os\.startfile")
 # A person's launcher is the one launch that opens a window (only Tools/Play.bat and the packaged Play_*.bat do).
 HUMAN_LAUNCHERS = ("Play.bat", "Play_en.bat", "Play_zh-Hans.bat")
 # Lines that start a process past the helper on purpose, by file. WindowCheck.ps1: the bypass control, which runs on a stand-in hidden desktop.
-LAUNCH_EXCEPTIONS = {"WindowCheck.ps1": 3}
+# ExportLogsCheck.ps1: cmd.exe running Export_Logs.bat as a double-click does, with redirected input and output; it starts no engine binary, and the check
+# fails if a game process appears while it runs.
+LAUNCH_EXCEPTIONS = {"WindowCheck.ps1": 3, "ExportLogsCheck.ps1": 1}
 
 
 def ps_code(lines):
@@ -973,7 +975,8 @@ class S3Exit(unittest.TestCase):
 		os.makedirs(tools)
 		os.makedirs(os.path.dirname(stamp))
 		os.makedirs(os.path.dirname(kept))
-		shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "PadCheck.ps1"), tools)
+		for name in ("PadCheck.ps1", HIDDEN_LAUNCH, "WindowWatch.ps1"):  # PadCheck loads both helpers before it reads the stamp
+			shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), tools)
 		with open(kept, "w", encoding="utf-8") as f:
 			f.write("kept\n")
 

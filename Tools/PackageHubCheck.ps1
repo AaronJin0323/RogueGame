@@ -3,7 +3,8 @@
 #   & Tools\PackageHubCheck.ps1 [-Seed 9107] [-Timeout 300]
 # Every launch starts from the package's own Dusktracer.exe, as Play_*.bat does. A person's launch passes no tool flag (-unattended, -DTBot*, -DTHub,
 # -DTNoSave, -DTMetaFile): Start-Game refuses one. Each profile is a folder of its own under Saved\PackageHub, named by -userdir: a temporary LOCALAPPDATA
-# moves nothing, because the engine asks Windows for that folder and not the environment.
+# moves nothing, because the engine asks Windows for that folder and not the environment. Every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1
+# (R-TEC-17), and Tools/WindowWatch.ps1 fails the check on any window its process tree shows on this desktop.
 #   A  staged: every Content\DT\Text\ST_*.csv and both Game.locres are in each config's .pak; both configs hold the same cook.
 #   B  Development, real keys, -DTPathCheck=Walk. en on -Seed, a launch that names one, picking Storm; zh-Hans with no seed, picking Forge. Fresh save, boot,
 #      every hub page, the Shrine, a run played out to a real death, Vigil, the bank, a second run, Abandon, Vigil, Quit to desktop. Every table reads against
@@ -29,6 +30,8 @@ trap { Write-Host "PKGHUB: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
+. (Join-Path $PSScriptRoot "WindowWatch.ps1")
 $PackageRoot = Join-Path $Root "Saved\Package"
 $WorkRoot = Join-Path $Root "Saved\PackageHub"
 $LogDir = Join-Path $Root "Saved\Logs"
@@ -56,23 +59,6 @@ if ($Changed.Count -gt 0) { Write-Host "PKGHUB: NOT RUN (package $($Stamp.commit
 if (Test-Path $WorkRoot) { Remove-Item $WorkRoot -Recurse -Force }
 New-Item -ItemType Directory -Force $WorkRoot | Out-Null
 
-Add-Type -TypeDefinition @"
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-public static class DTHubWindows {
-	delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
-	[DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr lParam);
-	[DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
-	[DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-	public static int Visible(int target) {
-		int shown = 0;
-		EnumWindows((h, l) => { uint pid; GetWindowThreadProcessId(h, out pid); if (pid == (uint)target && IsWindowVisible(h)) shown++; return true; }, IntPtr.Zero);
-		return shown;
-	}
-}
-"@
-
 $script:Failures = @()
 $script:ShownWindows = 0
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
@@ -86,6 +72,7 @@ function Get-OwnerState {
 	return (@($Files | Sort-Object FullName | ForEach-Object { "{0} {1} {2} {3}" -f $_.Name, $_.Length, $_.LastWriteTimeUtc.Ticks, (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join "`n")
 }
 $OwnerBefore = Get-OwnerState
+Start-DTWindowWatch
 
 # --- launches --------------------------------------------------------------------------------------------------------------
 function Start-Game([string]$Config, [string]$UserDir, [string[]]$RunArgs, [switch]$Tool) {
@@ -95,18 +82,16 @@ function Start-Game([string]$Config, [string]$UserDir, [string[]]$RunArgs, [swit
 		$Flag = @($ArgList | Where-Object { $_ -match '^-(unattended|nullrhi|DTBot|DTNoSave|DTMetaFile|DTSettingsFile|DTPoolGate)' -or $_ -ceq "-DTHub" })
 		if ($Flag.Count) { throw "a person's launch was handed a tool flag: $($Flag -join ' ')" }
 	}
-	$Proc = Start-Process -FilePath $Stub -ArgumentList $ArgList -PassThru -WindowStyle Hidden
-	$null = $Proc.Handle # PowerShell 5.1 forgets the exit code without it
+	$Proc = Start-DTHidden $Stub $ArgList
 	return $Proc
 }
 
 function Get-Games { return @(Get-Process -Name "Dusktracer*" -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($PackageRoot, [StringComparison]::OrdinalIgnoreCase) }) }
 
-# Waits for the process to end, or for $Done, or for $Seconds; counts any visible window of the game on the way. True when it stopped waiting for a reason.
+# Waits for the process to end, or for $Done, or for $Seconds. True when it stopped waiting for a reason. Windows are the watch's (Tools/WindowWatch.ps1).
 function Watch-Game($Proc, [int]$Seconds, [scriptblock]$Done) {
 	$Deadline = (Get-Date).AddSeconds($Seconds)
 	while ((Get-Date) -lt $Deadline) {
-		foreach ($Game in Get-Games) { $script:ShownWindows += [DTHubWindows]::Visible($Game.Id) }
 		if ($Proc.HasExited) { return $true }
 		if ($Done -and (& $Done)) { return $true }
 		Start-Sleep -Milliseconds 250
@@ -418,7 +403,10 @@ foreach ($Dir in Get-ChildItem $WorkRoot -Recurse -Directory -Filter "Playtests"
 	foreach ($File in Get-ChildItem $Dir.FullName -File) { $Strays += @(Get-ChildItem (Join-Path $OwnerSaved "Playtests") -Filter $File.Name -ErrorAction SilentlyContinue) }
 }
 if ($Strays.Count) { Note-Fail "a run file of this check is in the owner's folder: $($Strays[0].Name)" }
-if ($script:ShownWindows -gt 0) { Note-Fail "a game window was visible ($($script:ShownWindows) sample(s))" }
+$Seen = Stop-DTWindowWatch
+Close-DTHidden
+$script:ShownWindows = $Seen.Windows.Count
+foreach ($Window in $Seen.Windows) { Note-Fail "shown on this desktop: $Window" }
 
 $Summary = "package {0}, same cook={1}, {2} tables read in en and zh-Hans, walks {3} en on seed {4} + {5} zh-Hans, Shipping csv same as the walk={6}, seed {7} hash {8}, owner's save unchanged={9}, windows {10}" -f $Stamp.commit, $SameCook, $Truth.Count, $Walks["en"], $EnSeed, $Walks["zh-Hans"], $CsvOk, $Seed, $Hashes.Development, ($OwnerAfter -ceq $OwnerBefore), $script:ShownWindows
 if ($script:Failures.Count) {

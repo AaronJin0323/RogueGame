@@ -144,7 +144,7 @@ Of the accepted runs, one ended by a death or a win is **counted**. `quit`, `res
 | `Fresh` | a human | never: only the host knows | the first run of a folder shows a card no fresh save of that build can | otherwise, and whenever a refused or torn file in that folder could be older |
 | `zh-Hans` | the logs | a validator with ≥ 3 counted runs, all started in zh-Hans | `Validators` passed and no accepted run in zh-Hans | otherwise: call 8 |
 | `Packaged pad pass` | the logs and `Tools\PadCheck.ps1` | a validator with ≥ 3 counted runs, each reading `pad` and no interval `kbm`, and PadCheck's line passes this package | `Validators` passed and no accepted run reads `pad` | otherwise: call 8, or the line is missing or names another package |
-| `Pass rule` | a human | never here | never here | always: call 1 |
+| `Pass rule` | a human, from `findings_S3.md` (D-034) | never here | never here | always: a person reads ≥ 2 of 3 on each of the two Vision rows |
 | `findings_S3.md` | the file | every row read, each with a name | never | otherwise; `NOT READ` with a reason behind it, in any case, is no reading |
 
 **A verdict on an open call** comes only where every reading of the call agrees: `PASS` on its strict side, `FAIL` where even its loosest reading misses, and `NOT READ` between.

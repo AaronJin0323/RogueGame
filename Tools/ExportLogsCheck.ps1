@@ -4,6 +4,9 @@
 # Downloads is, in a folder with a space), so the real log carries the real user name. The copy's Export_Logs.bat runs through cmd exactly as
 # a double-click does, with no game process appearing. The zip is unpacked and read: both runs equal their source files byte for byte,
 # the log came along and lost every name, power_split.py and pressure.py read the exported runs.
+# Every game launch runs on the hidden desktop of Tools/HiddenLaunch.ps1 with a -userdir (R-TEC-17): Shipping's under Saved\ExportCheck\account, laid out like an
+# account so the export finds it with %LOCALAPPDATA% pointed there, and the copy's at its own Dusktracer folder, where it writes anyway. Nothing here writes to or
+# deletes from %LOCALAPPDATA%\Dusktracer, where a person's runs live. The export's cmd.exe is no engine binary and starts no game (tools_test.py LAUNCH_EXCEPTIONS).
 # Prints "EXPORTCHECK: PASS (...)" or "EXPORTCHECK: FAIL (...)"; exit 0 / 1, 2 when there is no package. Work files: Saved\ExportCheck (the zip is kept).
 param(
 	[int]$Seed = 770088,
@@ -19,11 +22,15 @@ $PackageRoot = Join-Path $Root "Saved\Package"
 $ShipDir = Join-Path $PackageRoot "Shipping\Windows"
 $DevDir = Join-Path $PackageRoot "Development\Windows"
 $ShipExe = Join-Path $ShipDir "Dusktracer\Binaries\Win64\Dusktracer-Win64-Shipping.exe"
-$ShipRuns = Join-Path $env:LOCALAPPDATA "Dusktracer\Saved\Playtests"
 $WorkDir = Join-Path $Root "Saved\ExportCheck"
+$Account = Join-Path $WorkDir "account"
+$ShipUser = Join-Path $Account "Dusktracer"
+$ShipRuns = Join-Path $ShipUser "Saved\Playtests"
 $Copy = Join-Path $env:TEMP "DT Export Check $PID"
 $DevExe = Join-Path $Copy "Dusktracer\Binaries\Win64\Dusktracer.exe"
-$DevSaved = Join-Path $Copy "Dusktracer\Saved"
+$DevUser = Join-Path $Copy "Dusktracer"
+$DevSaved = Join-Path $DevUser "Saved"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Map = "/Game/DT/Maps/L_Arena_Test"
 foreach ($File in $ShipExe, (Join-Path $DevDir "Export_Logs.bat")) {
 	if (-not (Test-Path $File)) { Write-Host "EXPORTCHECK: NOT RUN (no $File; Tools\Package.ps1)"; exit 2 }
@@ -32,17 +39,15 @@ foreach ($File in $ShipExe, (Join-Path $DevDir "Export_Logs.bat")) {
 $script:Failures = @()
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
 
-function Invoke-Game([string]$Exe, [string]$Tag) {
-	$ArgList = @($Map, "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended", "-nopause", "-culture=en", "-DTSeed=$Seed",
+function Invoke-Game([string]$Exe, [string]$Tag, [string]$UserDir) {
+	$ArgList = @($Map, "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-unattended", "-nopause", "-userdir=`"$UserDir`"", "-culture=en", "-DTSeed=$Seed",
 		"-DTOfferAutoPick", "-DTBot=Steered", "-DTBotMaxSeconds=$BotSeconds", "-DTBotQuit")
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
-	if (-not $Proc.WaitForExit($Timeout * 1000)) { & taskkill /PID $Proc.Id /T /F | Out-Null; Note-Fail "$Tag timed out" }
+	$Proc = Start-DTHidden $Exe $ArgList
+	if (-not $Proc.WaitForExit($Timeout * 1000)) { Stop-DTHidden $Proc; Note-Fail "$Tag timed out" }
 	Write-Host "exportcheck: $Tag run done"
 }
 
 function Get-Run([string]$Dir, [string]$Extension) { return Get-ChildItem $Dir -Filter "${Seed}_*.$Extension" -ErrorAction SilentlyContinue | Select-Object -First 1 }
-
-function Remove-Runs { if (Test-Path $ShipRuns) { Get-ChildItem $ShipRuns -Filter "${Seed}_*" -File | Remove-Item -Force } }
 
 # Every way this machine's names could still read, in any file: as UTF-8 and as UTF-16.
 $Names = @($env:USERNAME; (Split-Path $env:USERPROFILE -Leaf); $env:COMPUTERNAME) | Where-Object { $_ } | Sort-Object -Unique
@@ -56,11 +61,11 @@ function Find-Names([string]$Path) {
 
 New-Item -ItemType Directory -Force $WorkDir | Out-Null
 Remove-Item (Join-Path $WorkDir "*") -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Runs
+New-Item -ItemType Directory -Force $ShipUser | Out-Null
 $Summary = ""
 try {
 	# --- the two runs ----------------------------------------------------------------------------------------------------
-	Invoke-Game $ShipExe "Shipping"
+	Invoke-Game $ShipExe "Shipping" $ShipUser
 	$ShipCsv = Get-Run $ShipRuns "csv"
 	$ShipJsonl = Get-Run $ShipRuns "jsonl"
 	if (-not $ShipCsv -or -not $ShipJsonl) { Note-Fail "Shipping left no run files" }
@@ -68,7 +73,7 @@ try {
 	& robocopy $DevDir $Copy /E /NFL /NDL /NJH /NJS /NP | Out-Null
 	if ($LASTEXITCODE -ge 8) { throw "robocopy rc $LASTEXITCODE" }
 	Remove-Item (Join-Path $DevSaved "*") -Recurse -Force -ErrorAction SilentlyContinue
-	Invoke-Game $DevExe "Development"
+	Invoke-Game $DevExe "Development" $DevUser
 	$DevRuns = Join-Path $DevSaved "Playtests"
 	$DevCsv = Get-Run $DevRuns "csv"
 	$DevJsonl = Get-Run $DevRuns "jsonl"
@@ -89,7 +94,11 @@ try {
 	$Said = Join-Path $WorkDir "said.txt"
 	[IO.File]::WriteAllText($Nul, "`r`n")
 	$Line = "/d /c `"`"$(Join-Path $Copy 'Export_Logs.bat')`" -OutDir `"$OutDir`"`""
-	$Proc = Start-Process -FilePath "cmd.exe" -ArgumentList $Line -PassThru -WindowStyle Hidden -RedirectStandardInput $Nul -RedirectStandardOutput $Said
+	# The export reads %LOCALAPPDATA%\Dusktracer\Saved: pointed at the check's account for this child alone, so it reads Shipping's run there and never a person's.
+	$OwnLocal = $env:LOCALAPPDATA
+	$env:LOCALAPPDATA = $Account
+	try { $Proc = Start-Process -FilePath "cmd.exe" -ArgumentList $Line -PassThru -WindowStyle Hidden -RedirectStandardInput $Nul -RedirectStandardOutput $Said }
+	finally { $env:LOCALAPPDATA = $OwnLocal }
 	$Games = 0
 	while (-not $Proc.HasExited) {
 		$Games += @(Get-Process -Name "Dusktracer*" -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path.StartsWith($Copy) -or $_.Path.StartsWith($PackageRoot)) }).Count
@@ -141,7 +150,7 @@ try {
 	$Summary = "zip {0:n0} KB, {1} files, {2} scanned clean, raw log named the user {3} times, 0 game processes" -f ($Zip.Length / 1KB), $All.Count, ($All.Count - $Dirty), $RawCount
 }
 finally {
-	Remove-Runs
+	Close-DTHidden
 	if (-not $Keep) {
 		Remove-Item -LiteralPath $Copy -Recurse -Force -ErrorAction SilentlyContinue
 		Remove-Item (Join-Path $WorkDir "open") -Recurse -Force -ErrorAction SilentlyContinue

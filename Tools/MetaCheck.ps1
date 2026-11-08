@@ -17,6 +17,7 @@ trap { Write-Host "META: FAIL (script error: $_)"; exit 1 }
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\MetaCheck"
@@ -34,9 +35,9 @@ function Invoke-Run([string]$Tag, [string[]]$RunArgs, [string]$Patron = "Storm",
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test$MapOptions", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false",
 		"-ABSLOG=`"$Log`"", "-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=0.6", "-DTBotPath=$Patron", "-DTBotArchetype=$Archetype", "-DTBotFast=60", "-DTBotQuit",
 		"-DTBotMaxSeconds=$Seconds", "-DTSeed=$Seed", "-DTBotOut=`"$Record`"") + $RunArgs
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Write-Host "META: FAIL (launch $Tag timed out)"
 		exit 1
 	}

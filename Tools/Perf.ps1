@@ -44,8 +44,11 @@ if ($Package) {
 	$Staged = Join-Path $Saved "Package\Development\Windows\Dusktracer"
 	$Exe = Join-Path $Staged "Binaries\Win64\Dusktracer.exe"
 	if (-not (Test-Path $Exe)) { Write-Host "PERF: FAIL (no $Exe; Tools\Package.ps1; not run)"; exit 1 }
-	$CsvDir = Join-Path $Staged "Saved\Profiling\CSV"
-	$Target = @($Map)
+	# A tool's package launch names a -userdir (R-TEC-17), and the CSV profiler writes under it.
+	$UserDir = Join-Path $Saved "Perf\userdir"
+	New-Item -ItemType Directory -Force $UserDir | Out-Null
+	$CsvDir = Join-Path $UserDir "Saved\Profiling\CSV"
+	$Target = @($Map, "-userdir=`"$UserDir`"")
 }
 New-Item -ItemType Directory -Force $LogDir, $PerfDir | Out-Null
 $Log = Join-Path $LogDir "Perf.log"

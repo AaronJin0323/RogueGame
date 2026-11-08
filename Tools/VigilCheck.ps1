@@ -21,6 +21,7 @@ trap { Write-Host "VIGIL: FAIL (script error: $_)"; exit 1 }
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $CmdExe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
@@ -36,9 +37,9 @@ function Invoke-Launch([string]$Culture, [string]$Script, [string]$Save, [string
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-LiveCoding=false",
 		"-unattended", "-nopause", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTHub", "-DTHubCheck=$Script", "-DTHubShots=`"$Shots`"", "-DTMetaFile=`"$Save`"", "-DTSeed=$Seed") + $Extra
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru
+	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Write-Host "VIGIL: FAIL ($Culture $Script timed out)"
 		exit 1
 	}
@@ -55,9 +56,9 @@ function Get-Hands([string]$Tag, [string[]]$Extra = @()) {
 	Get-ChildItem $Playtests -Filter "${HandSeed}_*" -ErrorAction SilentlyContinue | Remove-Item -Force
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false", "-ABSLOG=`"$Log`"",
 		"-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=1.0", "-DTBotPath=Storm", "-DTBotArchetype=Tempest", "-DTBotFast=60", "-DTBotQuit", "-DTBotMaxSeconds=$BotSeconds", "-DTSeed=$HandSeed", "-DTPoolGate") + $Extra
-	$Proc = Start-Process -FilePath $CmdExe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $CmdExe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Write-Host "VIGIL: FAIL (hands $Tag timed out)"
 		exit 1
 	}

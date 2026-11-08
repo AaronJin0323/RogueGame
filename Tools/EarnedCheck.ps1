@@ -22,6 +22,7 @@ trap { Write-Host "EARNED: FAIL (script error: $_)"; exit 1 }
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\EarnedCheck"
@@ -42,13 +43,13 @@ function Start-Launch([string]$Tag, [string]$MapUrl, [string[]]$Extra) {
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	$ArgList = @("`"$Project`"", $MapUrl, "-game", "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-LiveCoding=false",
 		"-unattended", "-nopause", "-nosound", "-culture=en", "-ABSLOG=`"$Log`"") + $Extra
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	return @{ Proc = $Proc; Log = $Log; Tag = $Tag }
 }
 
 function Wait-Launch($Launch) {
 	if (-not $Launch.Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Launch.Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Launch.Proc
 		Stop-Check "launch $($Launch.Tag) timed out"
 	}
 	if (Select-String -Path $Launch.Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed" -Quiet) {

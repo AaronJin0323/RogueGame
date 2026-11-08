@@ -17,6 +17,7 @@ trap { Write-Host "WIN: FAIL (script error: $_)"; exit 1 }
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\WinCheck"
@@ -29,9 +30,9 @@ function Invoke-Launch([string]$Culture, [int]$Seed, [string]$Save, [string]$Sho
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test?DTSeed=${Seed}?DTPatron=Storm", "-game", "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-LiveCoding=false",
 		"-unattended", "-nopause", "-nosound", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTHub", "-DTPoolGate", "-DTMetaFile=`"$Save`"", "-DTWinCheck=`"$Shots`"",
 		"-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=1.0", "-DTBotPath=Storm", "-DTBotArchetype=Tempest", "-DTBotFast=120")
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Write-Host "WIN: FAIL ($Culture seed $Seed timed out)"
 		exit 1
 	}

@@ -21,7 +21,7 @@ Seed 9107, base `5ccf82e` built before any edit, against this branch.
 `Tools/MetaCheck.ps1` step G holds the other direction on every gate: a gated profile at the tool pool has no met Keeper, draws nothing, and plays the tool run's seed. One kind of tool run does move: a gated battery that unlocks a Keeper, below under "Noted".
 
 ## The hand, decided
-**For a D-number.** In a gated run with more Keepers than `C.OFFER.KEEPER_CHOICES`, the last seat of the Patron hand is an unweighted draw over every Keeper not yet seated. The lead keeps the first seat, Path order the seats between. Rule text: `keepers.md` R-KEE-23, `offers.md` R-OFF-08; test: T-MET-31.
+**D-032.** In a gated run with more Keepers than `C.OFFER.KEEPER_CHOICES`, the last seat of the Patron hand is an unweighted draw over every Keeper not yet seated. The lead keeps the first seat, Path order the seats between. Rule text: `keepers.md` R-KEE-23, `offers.md` R-OFF-08; test: T-MET-31.
 
 The brief describes this hand as "LastPatron then met Keepers". That was the first pass of `dev/s3-doors`, and the review of it removed it (`S3_doors.md`): at `5ccf82e` the code and `meta.md` Open read `LastPatron`, then Path order. So S1 Keepers were no longer shut out wholesale; what was left was the other half. `Shade Storm Forge` drops Tide for every run on a met Keeper, `Storm Forge Tide` holds no met Keeper at all, and a met Keeper not played last could never reach this hand. The decision answers that hand, and keeps what the brief asked to keep: a met Keeper has no seat of its own, as R-KEE-23 says for the L8 hand, and no S1 Keeper is shut out by a save.
 
