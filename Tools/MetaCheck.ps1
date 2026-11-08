@@ -41,6 +41,12 @@ function Invoke-Run([string]$Tag, [string[]]$RunArgs, [string]$Patron = "Storm",
 		Write-Host "META: FAIL (launch $Tag timed out)"
 		exit 1
 	}
+	# A launch that crashed or hit an ensure proves none of what its records say.
+	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed" -ErrorAction SilentlyContinue)
+	if ($Crash.Count) {
+		Write-Host "META: FAIL (launch $Tag crashed or hit an ensure: $($Crash[0].Line))"
+		exit 1
+	}
 	return $Log
 }
 

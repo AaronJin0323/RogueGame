@@ -62,10 +62,10 @@ $OutA = Join-Path $OutDir "fresh.csv"
 $OutB = Join-Path $OutDir "restarted.csv"
 foreach ($Out in @($OutA, $OutB)) { foreach ($File in @($Out, "$Out.txt")) { if (Test-Path $File) { Remove-Item $File -Force } } }
 
-$null = Invoke-Run "a" ($Bot + @("-DTSeed=$Seed", "-DTBotOut=`"$OutA`""))
+$LogA = Invoke-Run "a" ($Bot + @("-DTSeed=$Seed", "-DTBotOut=`"$OutA`""))
 $CsvFresh = Get-Csv $Seed
 Get-ChildItem $Playtests -Filter "${Seed}_*" -ErrorAction SilentlyContinue | Remove-Item -Force
-$null = Invoke-Run "b" ($Bot + @("-DTSeed=$OtherSeed", "-DTRestartAtStep=$RestartStep", "-DTRestartSeed=$Seed", "-DTBotOut=`"$OutB`""))
+$LogB = Invoke-Run "b" ($Bot + @("-DTSeed=$OtherSeed", "-DTRestartAtStep=$RestartStep", "-DTRestartSeed=$Seed", "-DTBotOut=`"$OutB`""))
 $CsvRestarted = Get-Csv $Seed
 $LogC = Invoke-Run "c" @("-DTSeed=$Seed", "-DTNoDirector", "-DTInputCheck")
 
@@ -80,6 +80,10 @@ $CsvOk = ($CsvFresh.Length -gt 0) -and ($CsvFresh -ceq $CsvRestarted)
 $Input = Select-String -Path $LogC -Pattern "INPUTCHECK" | ForEach-Object { $_.Line -replace "^.*LogDT: ", "" }
 $Input | ForEach-Object { "    $_" }
 $InputOk = [bool]($Input | Where-Object { $_ -match "^INPUTCHECK: PASS" })
+# A crash or an ensure in the reload fails the step, as it does PackageRestartCheck.
+$Crash = @(Select-String -Path $LogA, $LogB, $LogC -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed" -ErrorAction SilentlyContinue)
+$InputOk = $InputOk -and $Crash.Count -eq 0
+if ($Crash.Count) { $Crash | Select-Object -First 5 | ForEach-Object { "    ! $($_.Filename): $($_.Line)" } }
 
 $Summary = "seed {0}, input_hash {1} / {2}, steps {3} / {4}, csv same={5}, old run reads restart={6}, input check={7}" -f $Seed, $Fresh["input_hash"], $Restarted["input_hash"], $Fresh["steps"], $Restarted["steps"], $CsvOk, $OldEnd, $InputOk
 if ($HashOk -and $StepsOk -and $CsvOk -and $OldEnd -and $InputOk) {
