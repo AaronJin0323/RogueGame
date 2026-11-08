@@ -410,6 +410,16 @@ bool DTOffers::IsOpen(FName Id, const FDTOfferPool& Pool)
 	return !Pool.bMetaGate || !IsTreeLocked(Id) || Pool.Unlocked.Contains(Id);
 }
 
+bool DTOffers::OpensAtRunStart(FName Id)
+{
+	return Id != DTReactions::UnlockId();
+}
+
+bool DTOffers::OpensStage(FName BlessingId)
+{
+	return DTReactions::FindDuo(BlessingId) != INDEX_NONE;
+}
+
 void DTOffers::ApplyGrant(FDTPlayerOfferState& Tools, const FDTPoolGrant& Grant)
 {
 	Tools.RerollsLeft += Grant.Rerolls;

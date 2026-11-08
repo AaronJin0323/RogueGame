@@ -90,7 +90,10 @@ void UDTOfferSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		{
 			for (const FName& Id : RunGrant.Unlocked)
 			{
-				Weapons->Unlock(Id);
+				if (DTOffers::OpensAtRunStart(Id)) // the duos' door opens their card here, and the stage with that card (D-035)
+				{
+					Weapons->Unlock(Id);
+				}
 			}
 			for (const TCHAR* Id : DTCat::FirstRunLocked)
 			{
@@ -227,7 +230,7 @@ FDTOfferPool UDTOfferSubsystem::MakePool(int32 OwnerId) const
 			Pool.Unlocked.Add(DTWeapons::ModifierId(Mod));
 		}
 	}
-	if (Weapons->IsInPool(DTReactions::UnlockId()))
+	if (Weapons->IsInPool(DTReactions::UnlockId()) || (RunGrant.bGated && RunGrant.Unlocked.Contains(DTReactions::UnlockId())))
 	{
 		Pool.Unlocked.Add(DTReactions::UnlockId()); // reactions.md R-REA-02
 	}
@@ -648,6 +651,16 @@ bool UDTOfferSubsystem::Pick(int32 OwnerId, int32 Slot)
 			Rec.Tier = Player.Keepers.Tier[static_cast<int32>(First)];
 			Rec.Leading = Player.Keepers.Leading[static_cast<int32>(First)];
 			Telemetry->Records().RecordKeeperPick(OwnerId, Rec);
+		}
+		if (DTOffers::OpensStage(Outcome.Blessing))
+		{
+			// On a save the duos' door gave the card; taking it starts the reactions (D-035). A tool run's DT.Unlock started them already.
+			UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
+			if (Weapons && !Weapons->IsInPool(DTReactions::UnlockId()))
+			{
+				Weapons->Unlock(DTReactions::UnlockId());
+				UE_LOG(LogDT, Log, TEXT("Offer p%d: %s starts the reactions"), OwnerId, *Outcome.Blessing.ToString());
+			}
 		}
 		OnBlessingTaken.Broadcast(OwnerId, Outcome.Blessing);
 	}

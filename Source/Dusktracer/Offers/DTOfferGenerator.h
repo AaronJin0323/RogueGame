@@ -119,6 +119,13 @@ namespace DTOffers
 	DUSKTRACER_API bool IsTreeLocked(FName Id);
 	/** meta.md R-MET-22: false only for a Tree-locked id a gated pool has not opened. */
 	DUSKTRACER_API bool IsOpen(FName Id, const FDTOfferPool& Pool);
+	/**
+	 * D-035: whether a save's id reaches the sim when a gated run starts. Reaction.Duos does not: on a save it opens the duo card,
+	 * and the reaction stage starts when that card is taken (OpensStage), so a door raises no number for picks that took no card.
+	 */
+	DUSKTRACER_API bool OpensAtRunStart(FName Id);
+	/** D-035: the pick of this blessing starts the reaction stage of a gated run: any Blessing.Duo.<Pair>. */
+	DUSKTRACER_API bool OpensStage(FName BlessingId);
 	/** meta.md R-MET-24: adds the Trunk's tools. It takes the offer state alone, so a grant has no way to reach a stat. */
 	DUSKTRACER_API void ApplyGrant(FDTPlayerOfferState& Tools, const FDTPoolGrant& Grant);
 

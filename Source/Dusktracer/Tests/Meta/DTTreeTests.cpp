@@ -338,6 +338,15 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	TestTrue(TEXT("WeaponL8 writes Keeper.Radiance"), Saved.Unlocked.Contains(Radiance));
 	TestTrue(TEXT("Survive10 writes Keeper.Quicksilver"), Saved.Unlocked.Contains(Quicksilver));
 	TestTrue(TEXT("TwoPaths6 writes the duos"), Saved.Unlocked.Contains(TEXT("Reaction.Duos")));
+	// D-035: the duos' door opens their card; the reactions start with that card, never with the save alone.
+	TestFalse(TEXT("the duos' id does not reach the sim at run start"), DTOffers::OpensAtRunStart(TEXT("Reaction.Duos")));
+	TestTrue(TEXT("a Keeper's door does"), DTOffers::OpensAtRunStart(Shade));
+	TestTrue(TEXT("a weapon's does"), DTOffers::OpensAtRunStart(TEXT("Weapon.FlakMortar")));
+	for (int32 Row = 0; Row < DTCat::NumReactions; ++Row)
+	{
+		TestTrue(FString::Printf(TEXT("%s starts the reactions"), DTCat::Reactions[Row].BlessingId), DTOffers::OpensStage(FName(DTCat::Reactions[Row].BlessingId)));
+	}
+	TestFalse(TEXT("a Keeper's own blessing does not"), DTOffers::OpensStage(TEXT("Blessing.Storm.Tempest.Key")));
 
 	// What the run's pool holds on that save: UDTOfferSubsystem::MakePool adds these through the weapon system's Unlock.
 	FDTOfferPool Pool = GatedPool(FDTMetaProfile());
