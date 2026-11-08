@@ -1489,7 +1489,7 @@ class ExportLogs(unittest.TestCase):
 	SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PackageFiles", "Export_Logs.ps1")
 	RUN = '{"t":0,"step":0,"kind":"run_start","seed":7}\n'.encode("utf-8")
 
-	def export(self, user, log_text, profile=None, log_bytes=None, run=None, keep=None):
+	def export(self, user, log_text, profile=None, log_bytes=None, run=None, keep=None, crash=None):
 		with tempfile.TemporaryDirectory() as root:
 			saved = os.path.join(root, "Dusktracer", "Saved")
 			os.makedirs(os.path.join(saved, "Playtests"))
@@ -1503,12 +1503,15 @@ class ExportLogs(unittest.TestCase):
 				f.write(f"C:/Users/{user}/x\n")
 			with open(os.path.join(saved, "Crashes", "C1", "UEMinidump.dmp"), "wb") as f:
 				f.write(b"\x00\x01")
+			for name, text in (crash or {}).items():
+				with open(os.path.join(saved, "Crashes", "C1", name), "w", encoding="utf-8") as f:
+					f.write(text)
 			out = os.path.join(root, "out")
 			env = dict(os.environ, USERNAME=user, USERPROFILE=profile or f"C:\\Users\\{user}", COMPUTERNAME="DESK-77", LOCALAPPDATA=root, TEMP=root, TMP=root)
 			run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", self.SCRIPT, "-OutDir", out],
 				env=env, capture_output=True, encoding="utf-8", errors="replace")
 			self.assertEqual(run.returncode, 0, run.stdout)
-			self.assertRegex(run.stdout, r"EXPORT: .*Dusktracer_Logs_\d{4}-\d{2}-\d{2}_\d{6}\.zip \(1 runs, 2 logs")
+			self.assertRegex(run.stdout, r"EXPORT: .*Dusktracer_Logs_\d{4}-\d{2}-\d{2}_\d{6}\.zip \(1 runs, %d logs" % (2 + len(crash or {})))
 			name = [n for n in os.listdir(out) if n.endswith(".zip")][0]
 			if keep:
 				shutil.copy(os.path.join(out, name), keep)
@@ -1526,6 +1529,24 @@ class ExportLogs(unittest.TestCase):
 		self.assertIn(r"C:\Users\<user>\Temp\y", log)
 		self.assertIn("Computer: <machine>", log)
 		self.assertIn("LogDT: Run start seed=7", log)
+
+	def test_a_crash_contexts_ids_go(self):
+		# The engine writes a crash context as <Key>value</Key>; its ini and any JSON carry the same ids (R-PKG-11).
+		hexid = "ca32be7640c0aaccd58d51bb26b57a0b"
+		xml = (f"<FGenericCrashContext><RuntimeProperties><MachineId>{hexid}</MachineId><LoginId>{hexid}</LoginId>"
+			f"<EpicAccountId>{hexid}</EpicAccountId><CrashGUID>UECC-Windows-0001</CrashGUID></RuntimeProperties></FGenericCrashContext>")
+		files = self.export("Storm", "x", crash={"CrashContext.runtime-xml": xml, "CrashReportClient.ini": f"[General]\nMachineId = {hexid}\n", "Meta.json": f'{{"LoginId": "{hexid}"}}'})
+		for name in ("CrashContext.runtime-xml", "CrashReportClient.ini", "Meta.json"):
+			text = files[[n for n in files if n.endswith("/" + name)][0]].decode("utf-8")
+			self.assertNotIn(hexid, text, name)
+			self.assertIn("<id>", text, name)
+		self.assertIn("UECC-Windows-0001", files[[n for n in files if n.endswith("/CrashContext.runtime-xml")][0]].decode("utf-8"))
+
+	def test_the_script_has_no_raw_control_byte(self):
+		# A NUL makes the file binary to version control and the secrets step skips it.
+		with open(self.SCRIPT, "rb") as f:
+			data = f.read()
+		self.assertFalse([b for b in data if b < 9 or b == 127], "control bytes in Export_Logs.ps1")
 
 	def test_a_run_file_is_untouched_and_a_dump_stays_behind(self):
 		files = self.export("Storm", "x")
