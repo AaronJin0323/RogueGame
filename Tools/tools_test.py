@@ -1542,6 +1542,13 @@ class ExportLogs(unittest.TestCase):
 			self.assertIn("<id>", text, name)
 		self.assertIn("UECC-Windows-0001", files[[n for n in files if n.endswith("/CrashContext.runtime-xml")][0]].decode("utf-8"))
 
+	def test_the_manifest_names_the_zips_own_paths(self):
+		files = self.export("Storm", "x", crash={"CrashContext.runtime-xml": "<MachineId>ca32be7640c0aaccd58d51bb26b57a0b</MachineId>"})
+		listed = [line.split("  ")[0] for line in files["MANIFEST.txt"].decode("utf-8").splitlines() if line.startswith(("Logs/", "Crashes/", "Playtests/"))]
+		self.assertEqual(len(listed), 4)
+		for path in listed:
+			self.assertIn(path, files)
+
 	def test_the_script_has_no_raw_control_byte(self):
 		# A NUL makes the file binary to version control and the secrets step skips it.
 		with open(self.SCRIPT, "rb") as f:

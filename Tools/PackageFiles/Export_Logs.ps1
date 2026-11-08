@@ -80,22 +80,25 @@ if (-not $OutDir) { $OutDir = Join-Path $env:USERPROFILE "Desktop" }
 
 $Stamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $Title = "Dusktracer_Logs_$Stamp"
-$Work = Join-Path ([IO.Path]::GetTempPath()) "DT$Title"
+$Work = Join-Path ([IO.Path]::GetTempPath()) "DT${Title}_$PID"  # two exports in one second each get their own
 $Bundle = Join-Path $Work $Title
 New-Item -ItemType Directory -Force (Join-Path $Bundle "Playtests") | Out-Null
 try {
 	foreach ($File in $Runs) { [IO.File]::WriteAllBytes((Join-Path $Bundle "Playtests\$($File.Name)"), (Read-Shared $File.FullName)) }
+	$Listed = @()  # what the zip holds, as the manifest names it
 	$Index = 0
 	foreach ($File in $Logs) {
 		$Index++
-		$To = Join-Path $Bundle "Logs\$($File.Name)"
-		if (Test-Path -LiteralPath $To) { $To = Join-Path $Bundle "Logs\${Index}_$($File.Name)" }  # the same name in both Saved folders
-		Copy-Text $File.FullName $To
+		$Name = $File.Name
+		if (Test-Path -LiteralPath (Join-Path $Bundle "Logs\$Name")) { $Name = "${Index}_$Name" }  # the same name in both Saved folders
+		Copy-Text $File.FullName (Join-Path $Bundle "Logs\$Name")
+		$Listed += "Logs/{0}  {1} bytes before redaction" -f $Name, $File.Length
 	}
 	$Index = 0
 	foreach ($Crash in $Crashes) {
 		$Index++
 		Copy-Text $Crash.File.FullName (Join-Path $Bundle "Crashes\$Index\$($Crash.Rel)")
+		$Listed += "Crashes/{0}/{1}" -f $Index, ((Protect-Text $Crash.Rel) -replace '\\', '/')
 	}
 
 	$Lines = @("Dusktracer run data, exported $Stamp. Nothing was sent anywhere by this tool.",
@@ -109,8 +112,7 @@ try {
 	if ($Dumps) { $Lines += @("Left behind: $Dumps crash file(s) that are not text and cannot be redacted.", "") }
 	$Lines += "Files:"
 	$Lines += $Runs | Sort-Object Name | ForEach-Object { "Playtests/{0}  {1} bytes" -f $_.Name, $_.Length }
-	$Lines += $Logs | ForEach-Object { "Logs/{0}  {1} bytes before redaction" -f $_.Name, $_.Length }
-	$Lines += $Crashes | ForEach-Object { "Crashes/{0}" -f (Protect-Text $_.Rel) }
+	$Lines += $Listed
 	[IO.File]::WriteAllLines((Join-Path $Bundle "MANIFEST.txt"), [string[]]$Lines, $Utf8)
 
 	New-Item -ItemType Directory -Force $OutDir | Out-Null
