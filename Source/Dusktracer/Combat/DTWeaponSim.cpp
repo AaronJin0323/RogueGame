@@ -2278,7 +2278,7 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 		if (Echo.bScreen)
 		{
 			HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, DTWeaponSimLocal::HeroOf(*Context.View, Echo.OwnerId),
-				static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), Echo.Damage, false, nullptr);
+				static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU), Echo.Damage, false, nullptr);
 		}
 		else
 		{
