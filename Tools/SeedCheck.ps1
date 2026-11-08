@@ -2,7 +2,8 @@
 #   & Tools\SeedCheck.ps1 [-Package <folder of Play_*.bat>] [-LoadTimeout 900]
 # Each launcher is read by running it: cmd expands a copy whose `start` line echoes instead, so the check sees what the launcher would start, not a
 # fragment of its text. The game then starts with exactly those arguments, -fullscreen swapped for an off-screen window and no -unattended, which is
-# what makes it a human launch. The seed read back is run_start.seed in the run file that launch wrote, and the file name must agree.
+# what makes it a human launch. The seed read back is run_start.seed in the run file that launch wrote, and the file name must agree. run_start.driver
+# is read from the same line (telemetry.md R-TEL-13, T-TEL-13): person on a launcher's arguments, tool on a named seed or -unattended.
 # Every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1: a launch with no -unattended is one the engine may prompt on, and nothing it opens can
 # reach the desktop anyone is looking at. Windows seen there are written to the log, by owner, class and title.
 # Every launch also has a -userdir of its own, under Saved\SeedCheck: the only run file in there is that launch's, so the check never has to guess which file
@@ -98,6 +99,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	Add-Content -Path $Log -Value "launch ${Label} (PID $($Proc.Id)): $($ArgList -join ' ')"
 	$Run = $null
 	$Seed = $null
+	$Driver = ""
 	$Exited = $false
 	$Windows = @{}
 	try {
@@ -107,7 +109,11 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 			$Run = Get-ChildItem $Playtests -Filter *.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
 			if ($Run) {
 				$First = Get-Content $Run.FullName -TotalCount 1 -Encoding UTF8 -ErrorAction SilentlyContinue
-				if ($First -match '"kind":"run_start".*"seed":(-?\d+)') { $Seed = [int64]$Matches[1]; break }
+				if ($First -match '"kind":"run_start".*"seed":(-?\d+)') {
+					$Seed = [int64]$Matches[1]
+					if ($First -match '"driver":"(\w+)"') { $Driver = $Matches[1] }
+					break
+				}
 			}
 			elseif ($Proc.HasExited) { $Exited = $true; break }
 			Start-Sleep -Milliseconds 250
@@ -116,7 +122,7 @@ function Invoke-Launch([string]$Label, [string[]]$ArgList) {
 	finally {
 		Stop-DTHidden $Proc
 	}
-	$Result = [pscustomobject]@{ Seed = $Seed; Exited = $Exited; ExitCode = $null; Seconds = [int]((Get-Date) - $Started).TotalSeconds }
+	$Result = [pscustomobject]@{ Seed = $Seed; Driver = $Driver; Exited = $Exited; ExitCode = $null; Seconds = [int]((Get-Date) - $Started).TotalSeconds }
 	if ($Exited) { $Result.ExitCode = $Proc.ExitCode }
 	if ($null -ne $Seed -and $Run.Name -notmatch "^${Seed}_") { Note-Fail "${Label}: run_start.seed $Seed is not the file name $($Run.Name)" }
 	foreach ($Window in $Windows.Keys) {
@@ -134,14 +140,16 @@ function Expect-Fresh([string]$Label, [string[]]$ArgList) {
 	if ($null -eq $R.Seed) { Note-Fail "${Label}: $(Get-NoRun $R)" }
 	elseif ($R.Seed -lt $FreshMin -or $R.Seed -gt $FreshMax) { Note-Fail "${Label}: seed $($R.Seed) is not in $FreshMin..$FreshMax" }
 	elseif ($script:Fresh -contains $R.Seed) { Note-Fail "${Label}: seed $($R.Seed) was drawn by an earlier launch" }
-	else { $script:Fresh += $R.Seed; Note "$Label fresh seed $($R.Seed) ($($R.Seconds) s)" }
+	elseif ($R.Driver -ne "person") { Note-Fail "${Label}: run_start reads driver '$($R.Driver)', a launcher's arguments are a person's (R-TEL-13)" }
+	else { $script:Fresh += $R.Seed; Note "$Label fresh seed $($R.Seed), driver person ($($R.Seconds) s)" }
 }
 
 function Expect-Seed([string]$Label, [string[]]$ArgList, [int64]$Wanted) {
 	$R = Invoke-Launch $Label $ArgList
 	if ($null -eq $R.Seed) { Note-Fail "${Label}: $(Get-NoRun $R)" }
 	elseif ($R.Seed -ne $Wanted) { Note-Fail "${Label}: seed $($R.Seed), expected $Wanted" }
-	else { $script:Exact++; Note "$Label exact seed $Wanted ($($R.Seconds) s)" }
+	elseif ($R.Driver -ne "tool") { Note-Fail "${Label}: run_start reads driver '$($R.Driver)', a named seed or -unattended is a tool's (R-TEL-13)" }
+	else { $script:Exact++; Note "$Label exact seed $Wanted, driver tool ($($R.Seconds) s)" }
 }
 
 function Expect-Rejected([string]$Label, [string[]]$ArgList) {

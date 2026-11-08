@@ -127,8 +127,8 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	bActive = true;
 
 	JsonlOut += JsonHead(TEXT("run_start"), INDEX_NONE) + FString::Printf(
-		TEXT(",\"seed\":%d,\"players\":%d,\"culture\":%s,\"build\":%s,\"interval_s\":%.3f,\"step_s\":%.6f,\"wall\":%s}\n"),
-		Config.Seed, Config.NumPlayers, *JsonText(Config.Culture), *JsonText(Config.Build),
+		TEXT(",\"seed\":%d,\"players\":%d,\"culture\":%s,\"build\":%s,\"config\":%s,\"driver\":%s,\"interval_s\":%.3f,\"step_s\":%.6f,\"wall\":%s}\n"),
+		Config.Seed, Config.NumPlayers, *JsonText(Config.Culture), *JsonText(Config.Build), *JsonText(Config.BuildConfig), *JsonText(Config.Driver),
 		Config.IntervalSeconds, Config.StepSeconds, *JsonText(Config.WallStart));
 }
 

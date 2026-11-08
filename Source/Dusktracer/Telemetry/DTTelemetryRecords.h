@@ -138,4 +138,6 @@ namespace DTTelNames
 	DUSKTRACER_API const TCHAR* EnemyRole(EDTEnemyRole Role);
 	DUSKTRACER_API const TCHAR* Status(EDTStatus Status);
 	DUSKTRACER_API const TCHAR* HeroHitKind(EDTHeroHitKind Kind);
+	/** run_start `driver`, from the launch alone (R-TEL-13): `bot`, `tool` or `person`. Plain, so tests feed it made-up lines. */
+	DUSKTRACER_API const TCHAR* Driver(const TCHAR* CommandLine, bool bUnattended, bool bAutomation);
 }

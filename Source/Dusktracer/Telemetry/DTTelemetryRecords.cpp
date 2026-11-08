@@ -5,9 +5,28 @@
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetryJson.h"
 #include "Telemetry/DTTelemetrySources.h"
+#include "Misc/Parse.h"
 
 namespace DTTelNames
 {
+	const TCHAR* Driver(const TCHAR* CommandLine, bool bUnattended, bool bAutomation)
+	{
+		bool bTool = bUnattended || bAutomation;
+		FString Token;
+		for (const TCHAR* Stream = CommandLine; FParse::Token(Stream, Token, /*bUseEscape*/ false);)
+		{
+			// FParse::Value finds a switch behind a dash, a slash or nothing, so the game obeys all three and this has to read them all.
+			const FString Name = Token.StartsWith(TEXT("-")) || Token.StartsWith(TEXT("/")) ? Token.Mid(1) : Token;
+			if (Name.StartsWith(TEXT("DTBot")))
+			{
+				return TEXT("bot");
+			}
+			// -DTHubCheck is the real keys of a person's path, compiled out of Shipping (vigil.md): Tools/SeedCheck.ps1 reads a launcher's own arguments through it.
+			bTool |= Name.StartsWith(TEXT("DT")) && !Name.StartsWith(TEXT("DTHubCheck"));
+		}
+		return bTool ? TEXT("tool") : TEXT("person");
+	}
+
 	const TCHAR* InputDevice(EDTTelInputDevice Device)
 	{
 		switch (Device)

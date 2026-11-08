@@ -17,6 +17,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
+#include "Misc/App.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
 #include "Player/DTHeroSubsystem.h"
@@ -251,6 +252,8 @@ bool FDTTelRunEnd::RunTest(const FString& Parameters)
 	if (TestEqual(TEXT("one run_start"), Start.Num(), 1))
 	{
 		TestFalse(TEXT("run_start claims no input device"), Start[0].Contains(TEXT("input_device")));
+		TestTrue(TEXT("this world names its build configuration"), Start[0].Contains(FString::Printf(TEXT("\"config\":\"%s\""), LexToString(FApp::GetBuildConfiguration()))));
+		TestTrue(TEXT("a test is never a person"), Start[0].Contains(TEXT("\"driver\":\"tool\"")));
 		const FString Field = TEXT("\"wall\":\"");
 		const int32 At = Start[0].Find(Field);
 		FDateTime Wall;

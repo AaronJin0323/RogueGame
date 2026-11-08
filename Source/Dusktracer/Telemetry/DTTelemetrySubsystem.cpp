@@ -7,7 +7,10 @@
 #include "Engine/World.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "Misc/DateTime.h"
+#include "Telemetry/DTTelemetryRecords.h"
 
 #if !UE_BUILD_SHIPPING
 #include "HAL/IConsoleManager.h"
@@ -137,6 +140,8 @@ void UDTTelemetrySubsystem::StartSession(int32 RunSeed, int32 NumPlayers)
 	}
 	Config.Build = GetBuildHash();
 	Config.Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	Config.BuildConfig = LexToString(FApp::GetBuildConfiguration());
+	Config.Driver = DTTelNames::Driver(FCommandLine::Get(), FApp::IsUnattended(), GIsAutomationTesting);
 	Config.WallStart = FDateTime::UtcNow().ToIso8601(); // the trailing Z says UTC; the file name keeps the local time (R-TEL-07)
 
 	Writer.Open(FDTTelemetryWriter::MakeBaseName(RunSeed, Now));

@@ -16,6 +16,9 @@ struct FDTTelemetryConfig
 	float IntervalSeconds = DTConst::TEL_INTERVAL_S;
 	FString Build = TEXT("unknown");
 	FString Culture = TEXT("unknown");
+	/** What made the run: the build configuration and DTTelNames::Driver; JSONL run_start only, never in the CSV (R-TEL-13). */
+	FString BuildConfig = TEXT("unknown");
+	FString Driver = TEXT("unknown");
 	/** Sim seconds between hero_pos records (R-TEL-10). */
 	float HeroPosSeconds = DTConst::TEL_HERO_POS_INTERVAL_S;
 	/** Wall-clock start in UTC (ISO 8601); JSONL run_start only, never in the CSV (R-TEL-08). */

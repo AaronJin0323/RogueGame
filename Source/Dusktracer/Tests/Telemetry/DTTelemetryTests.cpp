@@ -13,6 +13,7 @@
 #include "Core/DTSimTypes.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Telemetry/DTTelemetryCore.h"
+#include "Telemetry/DTTelemetryRecords.h"
 #include "Telemetry/DTTelemetrySources.h"
 #include "Telemetry/DTTelemetryWriter.h"
 
@@ -675,6 +676,48 @@ bool FDTTelDeterminism::RunTest(const FString& Parameters)
 		bAnyTtk |= Row != FDTTelemetryCore::GetCsvHeader() && !Cell(Row, TEXT("swarm_ttk_s")).IsEmpty();
 	}
 	TestTrue(TEXT("swarm TTK measured in some interval"), bAnyTtk);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelRunStartDriver, "Dusktracer.Telemetry.RunStartDriver", DTTelemetryTest::Flags) // T-TEL-13
+bool FDTTelRunStartDriver::RunTest(const FString& Parameters)
+{
+	using namespace DTTelemetryTest;
+	const auto Reads = [this](const TCHAR* Want, const TCHAR* Line, bool bUnattended = false, bool bAutomation = false)
+	{
+		TestEqual(Line, FString(DTTelNames::Driver(Line, bUnattended, bAutomation)), FString(Want));
+	};
+	Reads(TEXT("person"), TEXT(""));
+	Reads(TEXT("person"), TEXT("-fullscreen -culture=zh-Hans")); // what Play_zh-Hans.bat passes
+	Reads(TEXT("person"), TEXT("\"E:\\My Game\\Dusktracer.uproject\" -game -windowed -RenderOffScreen -DTHubCheck=Begin")); // Tools/SeedCheck.ps1
+	Reads(TEXT("person"), TEXT("/Game/DT/Maps/L_Arena_Test?DTSeed=7 -game")); // a map's option is no switch
+	Reads(TEXT("person"), TEXT("-ABSLOG=\"E:\\x -DTBot=Steered\\y.log\"")); // nor is the inside of a value
+	Reads(TEXT("tool"), TEXT("-fullscreen"), true, false);
+	Reads(TEXT("tool"), TEXT("-fullscreen"), false, true);
+	Reads(TEXT("tool"), TEXT("-DTSeed=9107"));
+	Reads(TEXT("tool"), TEXT("-DTNoSave"));
+	Reads(TEXT("tool"), TEXT("-dtpoolgate"));
+	Reads(TEXT("tool"), TEXT("-DTMetaFile=\"E:\\a b\\DTMeta.sav\" -culture=en"));
+	Reads(TEXT("bot"), TEXT("-DTBot=Steered -unattended"), true, false);
+	Reads(TEXT("bot"), TEXT("-DTSeed=7 -DTBotQuit"));
+	Reads(TEXT("bot"), TEXT("/DTBot=Steered")); // FParse::Value finds these, so the game obeys them
+	Reads(TEXT("bot"), TEXT("DTBot=Steered"));
+	Reads(TEXT("tool"), TEXT("/DTSeed=7"));
+	Reads(TEXT("tool"), TEXT("DTSeed=7"));
+
+	FDTTelemetryConfig Config = MakeConfig(9, 1);
+	FDTTelemetryCore Unset;
+	Unset.Start(Config);
+	Config.BuildConfig = TEXT("Shipping");
+	Config.Driver = TEXT("person");
+	FDTTelemetryCore Core;
+	Core.Start(Config);
+	FString Csv;
+	FString Jsonl;
+	Unset.TakeOutput(Csv, Jsonl);
+	TestTrue(TEXT("nothing set says so, never a person's"), Jsonl.Contains(TEXT("\"config\":\"unknown\",\"driver\":\"unknown\"")));
+	Core.TakeOutput(Csv, Jsonl);
+	TestTrue(TEXT("run_start says what made the run"), Jsonl.Contains(TEXT("\"build\":\"test\",\"config\":\"Shipping\",\"driver\":\"person\",")));
 	return true;
 }
 
