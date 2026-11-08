@@ -16,7 +16,7 @@ Sizes use RogueHero's gap-list scale, for one session: S up to 0.5 d, M 1 to 2 d
 - **The foundations are missing.** No `licenses.csv`, `catalog_lint.py`, `SourceArt/`, Blender tool, presentation spec, sound path or second weather. The Warden is a kitbash of six role models, two of which are S5 roles.
 - **The book is not a readability proof.** Its rounds lack the dark core, its telegraphs lack the dark band, and some plates hide the optics and the hero. Follow the contract, not the render (§3).
 - **S4's exit has holes no art item fills** (§7): "the reference bar" has no definition, only the 4070 class has a GPU budget key, and one golden re-baseline does not fit art landing in steps.
-- **The size.** 211 S4 rows, about 367 session-days at range midpoints, about 431 with the 15 percent reserve (§6.5), before the items in §7 that have no size. The critical path is human, and no source sizes it.
+- **The size.** 212 rows, 211 of them S4 work, about 367 session-days at range midpoints, about 431 with the 15 percent reserve (§6.5), before the items in §7 that have no size. The critical path is human, and no source sizes it.
 
 ## 1. How it was read, and what was not viewed
 
@@ -111,6 +111,7 @@ The book uses RogueHero names. Dusktracer's name is first in every table below. 
 - **reuse from RogueHero** means a port of own work, listed in §5.
 - **undecided** means a call comes first.
 - **docs** means specs and tests, no asset.
+- **CC0 or OFL** means a third-party font or asset under one of those licences, logged in `licenses.csv` (R-PRE-10).
 
 The Step column names the step of §6.2 that lands the row. Step 13 holds a row that is not S4 work, listed so it is not lost.
 
@@ -361,7 +362,7 @@ Each model row is the hull only. Breaker and Tallyman are model size; their role
 
 ### 2.8 World: camera, Keep, Vigil, weather, tiers
 
-**Framing sums.** Today's source: `Game/DTCameraPawn.cpp` (`FollowTransform`, `ComputeFramingDistance`, `FrameAspect` 16/9) with `C.ARENA.CAMERA_PITCH_DEG` 60, `C.ARENA.CAMERA_FOV_DEG` 50 (horizontal) and `C.ARENA.CAMERA_FRAME_RADIUS_UU` 2000. The book's source: PL.06's text and A4's row give pitch -62, horizontal FOV 50, distance 29 m, width about 27 m and 71 px/m; PL.06 labels the hero about 60 px and its scale bar 4 m about 285 px; RogueHero's Art §2 and TDD §13 add height about 26 m. The sums take p for pitch, v for half the vertical FOV, 1920 px across, 16:9, the hero at frame centre, and the sim plane through the hero, which is `C.SIM.PLANE_Z_UU` 50 above the floor. On the book's side the inputs are distance, pitch and FOV; each printed number comes back from these sums, and reach and footprint are computed, not printed.
+**Framing sums.** Today's source: `Game/DTCameraPawn.cpp` (`FollowTransform`, `ComputeFramingDistance`, `FrameAspect` 16/9) with `C.ARENA.CAMERA_PITCH_DEG` 60, `C.ARENA.CAMERA_FOV_DEG` 50 (horizontal) and `C.ARENA.CAMERA_FRAME_RADIUS_UU` 2000. The book's source: PL.06's text and A4's row give pitch -62, horizontal FOV 50, distance 29 m, width about 27 m and 71 px/m; PL.06 labels the hero about 60 px and its scale bar 4 m about 285 px; RogueHero's Art §2 and TDD §13 add height about 26 m. The sums take p for pitch, v for half the vertical FOV, 1920 px across, 16:9, and the hero's actor point at frame centre. That point is on the floor: `ADTHero::DrawFromSim` sets the actor at Z 0 (`Player/DTHero.cpp:317`) and the camera attaches to it at `FollowTransform` (`Game/DTGameMode.cpp:222`), so the figures are on the floor plane. The sim plane, `C.SIM.PLANE_Z_UU` 50 higher, sits about 58 uu nearer the camera along the view axis, under 1 percent of today's distance. On the book's side the inputs are distance, pitch and FOV; each printed number comes back from these sums, and reach and footprint are computed, not printed.
 
 | Quantity | Sum | Today | Book |
 |---|---|---|---|
@@ -727,7 +728,7 @@ The scheduler decides these and records a D-nnn (D-009). This note makes none of
 
 | Call | Why it matters | Settle before step |
 |---|---|---|
-| Camera framing and share of `C.BULLETS.CAP` in view; the sim constant split, with `Tools/RestartCheck.ps1` hashes to show it moved no sim | §2.8. S1 to S3 human readings are redone after a move | 1, and before O-008 |
+| Camera framing and share of `C.BULLETS.CAP` in view; the sim constant split, with `Tools/RestartCheck.ps1` hashes to show it moved no sim | §2.8. S1 to S3 human readings are redone after a move | 0 (it is step 0), and before O-008 |
 | Stage entry, and what "reference bar" means | Everything. `G03_Retrospective_EN_ZH.md:287` is the starting text, non-binding | 2 |
 | Hull: ceramic or `Pal.Enemy.Body`, and the dark-metal value | R-ENM-24, D-010; the book draws both (§3.4) | 3 |
 | Vigil as a set or a render; hub art scope; title backdrop | `vigil.md`, PL.00 | 3 |
