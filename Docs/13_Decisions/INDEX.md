@@ -37,3 +37,4 @@
 | D-033 | `run_start` says what made the run: `config` and `driver` | RULE | applied |
 | D-034 | The S3 exit's "pass 2 of 3" is two of three validators on each of the two Vision rows written that way | GO-NOGO | applied |
 | D-035 | On a save the duos' door opens the duo card; the reactions start when that card is taken | RULE | applied |
+| D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | decided; implementation pending |

@@ -1,13 +1,13 @@
-﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-01)
+﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-09)
 
 ## Where we are
 - Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-032 (D-029 to D-031 sit on `integrate/w3-main`)
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-037 (D-029 to D-031 on `main`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
-- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `fff2443`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
-- No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `-RenderOffScreen`, or the hidden desktop in `Tools/SeedCheck.ps1`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
+- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `dcf52d7`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
+- No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
 ## Built on `main` (S0 + S1)
 - S0: fixed-step SoA sim, bullets, enemies, telemetry, palette/constants generation, gates (`Validation/S0_exit.md`). One float mode, `/fp:precise` in every target (D-021)
@@ -24,25 +24,26 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight (paused 2026-11-01 at the owner's request; every branch is committed and nothing is running)
-- Adversarial review of `dev/s3` at `5ccf82e`: stopped during verification, nothing confirmed or fixed yet
-- Five tracks passed review and their gates, unpushed: `fix/no-windows` 864bd59, `fix/seed-switch` 9506c17, `fix/card-truth` bb5ebc8, `dev/s3-earned-path` 05f8a3b, `dev/s3-kit` 6aceae5
-- `integrate/w3-main` d54042a merges the three `main` tracks (D-029 to D-031); its gate was stopped, so it is unread. `integrate/w3-s2` and `integrate/w3-s3` are not started
-- `docs/s4-artbook-gaps` 5291d74: the S4 art book gap note, corrected; its verification was stopped
+## In flight
+- D-036 decided (camera, `06_UX.md` R-UX-01/02): frame radius 2000 → 1500 uu, about 53 m across at 36 px/m, fixed and not a setting. Not implemented: it waits for `fix/contrast-flake`, since it re-reads the contrast limits. D-036 lists the redo: split the Echo and Storm-net sim readers onto their own key first, goldens, contrast, perf, all human readings
+- `fix/contrast-flake` (from `main`): the `contrast` probe sometimes misses `enemy_rim` or `telegraph` (2 of 5 alone on `integrate/w3-s2`)
+- Tips, gated PASS and pushed: `main` 3b4b1b6, `dev/s2` 8c0aa83, `dev/s3` 8e5de32. Seed 9107 hashes equal across all three for the five bot arms
+- `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred. Fixed include log-export redaction of crash ids, two launches on one save, a run ending on the Pause frame, the duos' door raising in-run numbers (D-035), and the `firstrun` flake. Deferred majors: firstrun can pass on one run of six (#94), MetaCheck's 20 s runs cannot tell pools apart (#64). Not reproduced live: the pause-frame and two-process fixes
+- Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
-2. Fix what the `dev/s3` review confirms
-3. Reread the S2 batteries, T-KEE-15 and T-KEE-18 once launches are window-free
-4. S3 external test: kit first, then three fresh validators, human-only
-5. S4 Presentation queues behind the exit tests; art-book fidelity starts there
+2. Implement D-036 on `main` before O-008, then carry it to `dev/s2` and `dev/s3`; human readings taken before the move are redone after it
+3. Build a `dev/s3` package and read the package checks; then the deferred review majors #94 and #64
+4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
+5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
-- automated launches: off (the owner's pause, 2026-11-01) — stop them during human sessions
+- automated launches: on, window-free (hidden desktop); stop them during human sessions
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
-
+- O-009 (name the AI service behind the RogueHero hero model and its terms)
 ## Held for a human reading, untuned
 - Payday self-pay, Tide's early power and boss answer, Time Dilation scale, T-KEE-15's route, `leak_per_s` 0.15, the 1-second run-over guard, Pulse Wall strength, Forge colour pairs, possible layer leaks in two Keeper lines, heal source against `C.DMG_TAKEN.BAND_MIN10_13`, whether unlocks lower wins (the first-run pool bot won 69 of 90 against 47 for the full pool), all invented prices and zh rows
 

@@ -330,7 +330,7 @@ void FDTWeaponSim::StepHunters(const FDTSimContext& Context, FDTBulletPool* Bull
 {
 	using namespace DTWeaponSimKeepersLocal;
 	FDTWorldView& View = *Context.View;
-	const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+	const float Frame = static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU);
 	const float Walk = static_cast<float>(DTConst::HERO_MOVE_SPEED_UU_S) * Context.StepSeconds;
 	for (FPlayerRuntime& Player : Players)
 	{
@@ -520,7 +520,7 @@ bool FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bulle
 	FDTWorldView& View = *Context.View;
 	FWeaponRuntime* Runtime = FindRuntime(OwnerId, Slot);
 	const FVector2f Hero = HeroOf(View, OwnerId);
-	const float Frame = static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU);
+	const float Frame = static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU);
 	TArray<int32> Local;
 	EnemiesInCircle(View, Hero, Frame, Local);
 	if (!Runtime || Local.Num() == 0)
@@ -751,7 +751,7 @@ void FDTWeaponSim::StepNovas(const FDTSimContext& Context)
 		}
 		const FVector2f Hero = HeroOf(View, Owner);
 		int32 Best = INDEX_NONE;
-		float BestDist = FMath::Square(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU));
+		float BestDist = FMath::Square(static_cast<float>(DTConst::KEEPER_SCREEN_SCOPE_RADIUS_UU));
 		for (const int32 Enemy : PriorityTargets(View))
 		{
 			const float D = FVector2f::DistSquared(Hero, View.EnemyPositions[Enemy]);
