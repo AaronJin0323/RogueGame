@@ -808,10 +808,21 @@ FDTOfferHand DTOffers::BuildHand(const FDTPlayerRunState& Player, const FDTOffer
 				Keepers.RemoveAt(Lead);
 				Keepers.Insert(Card, 0);
 			}
-			// Path order, unweighted: no Favor exists yet.
-			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Size; ++Index)
+			// Path order, unweighted: no Favor exists yet. Past the seats a gated run draws the last one over the rest, so no Keeper of the run sits out of
+			// every Restart and no met Keeper holds a seat of its own (R-KEE-23); at three Keepers or fewer nothing is drawn and the stream does not move.
+			const int32 Ordered = Pool.bMetaGate && Keepers.Num() > Size ? Size - 1 : Size;
+			for (int32 Index = 0; Index < Keepers.Num() && Hand.Cards.Num() < Ordered; ++Index)
 			{
 				Hand.Cards.Add(Keepers[Index]);
+			}
+			if (Ordered < Size)
+			{
+				Keepers.RemoveAt(0, Ordered);
+				FDTOfferCard Drawn;
+				if (DrawFrom(Keepers, Rng, [](const FDTOfferCard&) { return true; }, Drawn))
+				{
+					Hand.Cards.Add(Drawn);
+				}
 			}
 		}
 		else

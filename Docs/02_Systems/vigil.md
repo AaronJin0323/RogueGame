@@ -8,7 +8,7 @@ Written from `reference/original_docs/01_GameDesign.md §8.4`, `04_Narrative.md 
 ## Rules
 ### The door
 - **R-VIG-01** A map load opens the hub when the process has one (R-VIG-02) and the map came with no `DTSeed` option. The hub world is the same map with no run: `ADTGameMode` holds the sim before begin play, so no run starts and no step runs, no hero spawns, no telemetry session opens and no file is written. The whole screen is the hub. `[invented]` the same map: a second map is a binary asset for a page that draws nothing of it.
-- **R-VIG-02** Tool runs skip the hub. A process that `meta.md` R-MET-14 calls a tool run (`-unattended`, automation, `-DTBot*`, `-DTNoSave`) starts its run as it did before the hub existed. `-DTHub` overrides this for `Tools/VigilCheck.ps1` and `Tools/WinCheck.ps1` alone; nothing else passes it. R-MET-16 holds: the hub adds no reader of the save to any sim system, and no battery has the map options of R-VIG-07, so input hash, steps and CSV of a seed do not move. Only proofs have them: `Tools/VigilCheck.ps1` by way of the hub, `Tools/WinCheck.ps1` and `Tools/MetaCheck.ps1` by passing `DTPatron`, the last two gated on an isolated save.
+- **R-VIG-02** Tool runs skip the hub. A process that `meta.md` R-MET-14 calls a tool run (`-unattended`, automation, `-DTBot*`, `-DTNoSave`) starts its run as it did before the hub existed. `-DTHub` overrides this for `Tools/VigilCheck.ps1`, `Tools/WinCheck.ps1` and `Tools/EarnedCheck.ps1` alone; nothing else passes it. R-MET-16 holds: the hub adds no reader of the save to any sim system, and no battery has the map options of R-VIG-07, so input hash, steps and CSV of a seed do not move. Only proofs have them: `Tools/VigilCheck.ps1` by way of the hub, `Tools/WinCheck.ps1` and `Tools/MetaCheck.ps1` by passing `DTPatron`, gated on an isolated save, and `Tools/EarnedCheck.ps1` both ways.
 
 ### The page
 - **R-VIG-03** Root rows, in order: Shrine, Contracts, Codex, Ledger-stone, Settings, Begin, Quit to desktop. `[invented]` the order and the Quit row: the source lists pages, and a hub with no way out is a dead end. The root opens on Begin when a Patron is chosen, else on the Shrine.
@@ -81,7 +81,7 @@ Layout sizes are reference pixels in `DTHubState.cpp`, presentation as in the me
 | `UDTHubSubsystem` | world subsystem | runs the hub: keys, pages, the start of a run |
 | `UDTSimSubsystem::HoldForHub` | call | R-VIG-01 |
 | `DTPatron`, `DTUnlock` | map options | R-VIG-07 |
-| `-DTHub`, `-DTHubCheck=<First, Reboot, Gated, Large or Begin>`, `-DTHubShots=<dir>` | command line | proofs; the last two not in Shipping |
+| `-DTHub`, `-DTHubCheck=<First, Reboot, Gated, Large, Begin, Earned, EarnedRead or Doors>`, `-DTHubShots=<dir>` | command line | proofs; the last two not in Shipping |
 
 ## Acceptance
 - T-VIG-01 `Dusktracer.Hub.Boot`: the rule's four cases; `Tools/VigilCheck.ps1` reads a world with no run, no step and no pawn on a real boot.

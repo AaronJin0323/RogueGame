@@ -19,6 +19,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Settings/DTMenuSubsystem.h"
 #include "UnrealClient.h"
@@ -36,6 +37,22 @@ namespace DTHubCheckLocal
 	const TCHAR* const StormNode = TEXT("Branch.Storm.Blessing4");
 	const TCHAR* const StormNext = TEXT("Branch.Storm.Blessing5");
 	const TCHAR* const SealedNode = TEXT("Branch.Shade.Blessing4");
+	const TCHAR* const FirstNode = TEXT("Trunk.Reroll");
+	const TCHAR* const StormCard = TEXT("Blessing.Storm.Tempest.Amp1");
+
+	/** What Tools/EarnedCheck.ps1 buys by key on the planted save, in catalog order: a Blessing4 on two Paths is TwoPaths6's door, and the last three are the new branches. */
+	struct FDoorNode
+	{
+		const TCHAR* Node;
+		const TCHAR* Card;
+	};
+	const FDoorNode DoorNodes[] = {
+		{ StormNode, StormCard },
+		{ TEXT("Branch.Forge.Blessing4"), TEXT("Blessing.Forge.Hammer.Amp1") },
+		{ SealedNode, TEXT("Blessing.Shade.Hound.Amp1") },
+		{ TEXT("Branch.Radiance.Blessing4"), TEXT("Blessing.Radiance.Lance.Amp1") },
+		{ TEXT("Branch.Quicksilver.Blessing4"), TEXT("Blessing.Quicksilver.Vector.Amp1") },
+	};
 
 	/** One step of the script: runs each tick until it says it is done. */
 	using FStep = TFunction<bool(UDTHubSubsystem*)>;
@@ -484,6 +501,148 @@ namespace DTHubCheckLocal
 		Until(RunReady);
 	}
 
+	/** From the root's Begin row, where a saved Patron opens it, onto Contracts' first node. */
+	static void OpenContracts()
+	{
+		for (int32 Row = static_cast<int32>(EDTHubRow::Tree); Row < static_cast<int32>(EDTHubRow::Begin); ++Row)
+		{
+			Press(EKeys::Up);
+		}
+		Press(EKeys::Enter);
+		Is(TEXT("Contracts opens on its first node"), [](UDTHubSubsystem* Hub) { return OnNode(Hub, FirstNode); });
+	}
+
+	/** Down passes over a heading, so a press is one node of the catalog. */
+	static void StepToNode(const TCHAR* From, const TCHAR* To)
+	{
+		for (int32 Left = DTTree::FindNode(FName(To)) - DTTree::FindNode(FName(From)); Left > 0; --Left)
+		{
+			Press(EKeys::Down);
+		}
+		Is(FString::Printf(TEXT("focus reaches %s"), To), [To](UDTHubSubsystem* Hub) { return OnNode(Hub, To); });
+	}
+
+	/** Tools/EarnedCheck.ps1 (meta.md T-MET-30), on the save a gated run left: no balance is set here, so a real key spends what that run banked. */
+	static void BuildEarned()
+	{
+		static int64 Banked = 0;
+		Is(TEXT("the save holds a banked run, its Ichor and a Discovery, and nothing bought"), [](UDTHubSubsystem* Hub)
+		{
+			const FDTMetaProfile& Read = Profile(Hub);
+			Banked = Read.Currency;
+			return Read.Runs == 1 && Banked > 0 && Read.Discoveries.Num() > 0 && Read.TreeRanks.IsEmpty();
+		});
+		Is(TEXT("the bank can afford the node"), [](UDTHubSubsystem* Hub) { return DTTree::GetNode(Profile(Hub), StormNode).State == EDTTreeState::Open; });
+		OpenContracts();
+		StepToNode(FirstNode, StormNode);
+		Shot(TEXT("earned_open"));
+		Press(EKeys::Enter);
+		Is(TEXT("a real key spends what the run banked: rank, cards and price"), [](UDTHubSubsystem* Hub)
+		{
+			return Rank(Hub, StormNode) == 1 && Profile(Hub).Unlocked.Contains(StormCard) && Profile(Hub).Currency == Banked - DTConst::TREE_COST_BLESSING4;
+		});
+		Shot(TEXT("earned_bought"));
+		Press(EKeys::Gamepad_FaceButton_Right);
+		Is(TEXT("pad B leaves Contracts"), [](UDTHubSubsystem* Hub) { return OnRow(Hub, EDTHubRow::Tree); });
+	}
+
+	/** A new process on that save: the purchase outlived the one that made it. */
+	static void BuildEarnedRead()
+	{
+		Is(TEXT("a new process holds the rank and the cards, and only those"), [](UDTHubSubsystem* Hub)
+		{
+			return Rank(Hub, StormNode) == 1 && Profile(Hub).TreeRanks.Num() == 1 && Profile(Hub).Unlocked.Contains(StormCard);
+		});
+		OpenContracts();
+		Is(TEXT("the page reads the node Complete"), [](UDTHubSubsystem* Hub)
+		{
+			return Hub->GetTree()->RowValue(TreeRow(Hub, StormNode)).EqualTo(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.State.Maxed")));
+		});
+		Shot(TEXT("earned_after"));
+	}
+
+	/** On a planted save: a real win's doors and a set balance. Every node is bought by key at exact money; the two Paths are TwoPaths6's door, the rest the new branches. */
+	static void BuildDoors()
+	{
+		Is(TEXT("the three Keepers are met, and the duos are not earned"), [](UDTHubSubsystem* Hub)
+		{
+			const TSet<FName>& Unlocked = Profile(Hub).Unlocked;
+			return Unlocked.Contains(TEXT("Keeper.Shade")) && Unlocked.Contains(TEXT("Keeper.Radiance")) && Unlocked.Contains(TEXT("Keeper.Quicksilver")) && !Unlocked.Contains(TEXT("Reaction.Duos"));
+		});
+		Fund(UE_ARRAY_COUNT(DoorNodes) * DTConst::TREE_COST_BLESSING4);
+		OpenContracts();
+		const TCHAR* From = FirstNode;
+		for (const FDoorNode& Door : DoorNodes)
+		{
+			StepToNode(From, Door.Node);
+			Press(EKeys::Enter);
+			Is(FString::Printf(TEXT("a key buys %s"), Door.Node), [Door](UDTHubSubsystem* Hub) { return Rank(Hub, Door.Node) == 1 && Profile(Hub).Unlocked.Contains(Door.Card); });
+			From = Door.Node;
+		}
+		Is(TEXT("exact money leaves nothing"), [](UDTHubSubsystem* Hub) { return Profile(Hub).Currency == 0; });
+		Shot(TEXT("doors_bought"));
+		Press(EKeys::Escape);
+	}
+
+	/** Each Keeper a door opened, straight after Contracts: chosen at the Shrine by keys, a gated run begun from the hub, abandoned, and back. */
+	static void BuildKeepers()
+	{
+		EDTPath Last = EDTPath::Storm; // the Patron of the run that earned the save
+		EDTHubRow FromRow = EDTHubRow::Tree; // where Back from Contracts lands; a run comes back to Begin
+		for (const EDTPath Path : { EDTPath::Shade, EDTPath::Radiance, EDTPath::Quicksilver })
+		{
+			const FString Name = DTOffers::PathName(Path);
+			for (int32 Row = static_cast<int32>(FromRow); Row > 0; --Row)
+			{
+				Press(EKeys::Up);
+			}
+			FromRow = EDTHubRow::Begin;
+			Press(EKeys::Enter);
+			Is(FString::Printf(TEXT("the Shrine opens on %s"), DTOffers::PathName(Last)), [Last](UDTHubSubsystem* Hub)
+			{
+				return IsPage(Hub, EDTHubPage::Patron) && Hub->GetState().Patrons[Hub->GetState().Focus].Path == Last;
+			});
+			for (int32 Row = static_cast<int32>(Last); Row < static_cast<int32>(Path); ++Row)
+			{
+				Press(EKeys::Down);
+			}
+			Press(EKeys::Enter);
+			Is(FString::Printf(TEXT("%s is open at the Shrine and the pick lands on Begin"), *Name), [Path](UDTHubSubsystem* Hub) { return Hub->GetState().Selected == Path && OnRow(Hub, EDTHubRow::Begin); });
+			Press(EKeys::SpaceBar);
+			Until(RunReady);
+			Is(FString::Printf(TEXT("a gated run plays on %s with no hand left"), *Name), [Path](UDTHubSubsystem* Hub)
+			{
+				const UDTOfferSubsystem* Offers = Hub->GetWorld()->GetSubsystem<UDTOfferSubsystem>();
+				return UDTMetaSubsystem::GatesPool() && RunPatron(Hub) == Path && Offers && !Offers->IsAnyHandOpen();
+			});
+			Press(EKeys::Escape);
+			Press(EKeys::Down);
+			Press(EKeys::Down);
+			Press(EKeys::Down);
+			Press(EKeys::Enter);
+			Press(EKeys::Up);
+			Press(EKeys::Enter);
+			Until([](UDTHubSubsystem* Hub) { return Menu(Hub)->GetState().Screen == EDTMenuScreen::RunOver; });
+			Wait(DTConst::SETTINGS_RUN_OVER_GUARD_S + KeyS);
+			Press(EKeys::Enter);
+			Until([](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Root); });
+			Is(FString::Printf(TEXT("back in the hub with %s remembered"), *Name), [Name](UDTHubSubsystem* Hub) { return Profile(Hub).LastPatron == FName(*Name) && OnRow(Hub, EDTHubRow::Begin); });
+			Last = Path;
+		}
+
+		// A real Restart names nobody: the hand this save reads there leads with the Keeper last played (keepers.md R-KEE-23), under auto-pick its first card.
+		Press(EKeys::Enter);
+		Until(RunReady);
+		Press(EKeys::Escape);
+		Press(EKeys::Down);
+		Press(EKeys::Down);
+		Press(EKeys::Enter);
+		Press(EKeys::Up);
+		Press(EKeys::Enter);
+		Until([](UDTHubSubsystem* Hub) { return RunReady(Hub) && !Hub->GetWorld()->URL.HasOption(TEXT("DTPatron")); });
+		Is(TEXT("a Restart's hand on this save leads with the Keeper last played"), [](UDTHubSubsystem* Hub) { return UDTMetaSubsystem::GatesPool() && RunPatron(Hub) == EDTPath::Quicksilver; });
+	}
+
 	static void Finish(const TCHAR* Why)
 	{
 		UE_LOG(LogDT, Log, TEXT("VIGILCHECK: %s (%d wrong%s%s)"), Check.Fails == 0 && !Why[0] ? TEXT("PASS") : TEXT("FAIL"), Check.Fails, Why[0] ? TEXT(", ") : TEXT(""), Why);
@@ -519,6 +678,19 @@ void DTHubCheck::Tick(UDTHubSubsystem* Hub)
 		else if (Script == TEXT("Begin"))
 		{
 			BuildBegin();
+		}
+		else if (Script == TEXT("Earned"))
+		{
+			BuildEarned();
+		}
+		else if (Script == TEXT("EarnedRead"))
+		{
+			BuildEarnedRead();
+		}
+		else if (Script == TEXT("Doors"))
+		{
+			BuildDoors();
+			BuildKeepers();
 		}
 		else
 		{

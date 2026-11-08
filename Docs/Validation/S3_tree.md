@@ -102,7 +102,7 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 ## Not verified
 - A person's launch was not run: every launch here is headless. The gate path was read through `-DTPoolGate`, which takes the same branch.
 - `Keeper.<Path>` and `Reaction.Duos` had no writer here; `S3_doors.md` closes that (`meta.md` R-MET-28).
-- `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` on a person's own money: the Contracts page can buy their nodes (`S3_vigil.md`), and nobody has yet earned one of those rows that way. A bought `Trunk.ScatterCannon` reaching a hand is proved there; earning the row is the Trunk door run above.
+- `Favor9`, `TwoPaths6`, `ScatterKills500` and `RailKills300` on a person's own money: the Contracts page can buy their nodes (`S3_vigil.md`), and no person has yet earned one of those rows that way. A bot earned `Favor9` and `TwoPaths6` on nodes bought by key (`S3_earned.md`). A bought `Trunk.ScatterCannon` reaching a hand is proved there; earning the row is the Trunk door run above.
 - The Trunk's tools in a played hand: covered by T-MET-20 and T-OFF-10's counts, no bot reads them.
 
 ## Invented zh (no source row; for a native reader)

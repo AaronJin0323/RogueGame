@@ -346,7 +346,7 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	Pool.Unlocked.Add(Quicksilver);
 	Pool.Unlocked.Add(TEXT("Reaction.Duos"));
 
-	// A met Keeper takes no seat from another; the Keeper a run leads with takes the first, however many the save has met (R-KEE-23).
+	// A met Keeper holds no seat of its own; the Keeper a run leads with takes the first, however many the save has met (R-KEE-23). The whole table is T-MET-31.
 	FDTRunState State;
 	StartRun(State, EDTPath::None);
 	FDTPlayerRunState& Player = State.GetPlayer(0);
@@ -354,12 +354,12 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	const auto Holds = [](const FDTOfferHand& Hand, FName Id) { return Hand.Cards.ContainsByPredicate([Id](const FDTOfferCard& Card) { return Card.ContentId == Id; }); };
 	FRandomStream Rng(3);
 	const FDTOfferHand Plain = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
-	TestTrue(TEXT("three met Keepers shut no S1 Keeper out"), Holds(Plain, Storm) && Holds(Plain, Forge) && Holds(Plain, Tide));
+	TestTrue(TEXT("three met Keepers take no S1 Keeper's seat in Path order"), Holds(Plain, Storm) && Holds(Plain, Forge));
 	Pool.LeadPatron = Shade;
 	const FDTOfferHand Led = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Rng);
 	TestEqual(TEXT("the hand keeps its size"), Led.Cards.Num(), DTConst::OFFER_KEEPER_CHOICES);
 	TestEqual(TEXT("the lead takes the first seat"), Led.Cards[0].ContentId, Shade);
-	TestTrue(TEXT("the others stay in Path order, no other met Keeper among them"), Led.Cards[1].ContentId == Storm && Led.Cards[2].ContentId == Forge);
+	TestEqual(TEXT("Path order holds the next"), Led.Cards[1].ContentId, Storm);
 	Pool.LeadPatron = NAME_None;
 	FDTMetaProfile Played;
 	Played.LastPatron = TEXT("Forge");
@@ -397,6 +397,95 @@ bool FDTTreeKeeperDoors::RunTest(const FString& Parameters)
 	Player.Offer.PatronPath = EDTPath::Storm;
 	Player.Offer.SecondPath = EDTPath::Forge;
 	TestTrue(TEXT("the door opens the duo card"), BlessingCandidates(Player, Pool).Contains(FName(TEXT("Blessing.Duo.StormForge"))));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTreePatronSeats, "Dusktracer.Meta.PatronSeats", DTTreeTest::Flags) // T-MET-31
+bool FDTTreePatronSeats::RunTest(const FString& Parameters)
+{
+	using namespace DTTreeTest;
+	constexpr int32 Draws = 256; // seeds per hand: every Keeper of the run has to show on one
+	const TArray<EDTPath> MetKeepers = { EDTPath::Shade, EDTPath::Radiance, EDTPath::Quicksilver };
+	const TArray<EDTPath> Seated = DTOffers::RunKeepers();
+	FDTRunState State;
+	StartRun(State, EDTPath::None);
+	const FDTPlayerRunState& Player = State.GetPlayer(0);
+
+	// Every set of met Keepers, under every lead a save can name: nobody, or any Keeper of the run.
+	for (int32 Mask = 0; Mask < 1 << MetKeepers.Num(); ++Mask)
+	{
+		FDTOfferPool Pool = GatedPool(FDTMetaProfile());
+		for (int32 Index = 0; Index < MetKeepers.Num(); ++Index)
+		{
+			if (Mask & (1 << Index))
+			{
+				Pool.Unlocked.Add(DTOffers::KeeperId(MetKeepers[Index]));
+			}
+		}
+		const TArray<EDTPath> Keepers = DTOffers::RunKeepers(Pool);
+		TArray<FName> Leads = { NAME_None };
+		for (const EDTPath Path : Keepers)
+		{
+			Leads.Add(DTOffers::KeeperId(Path));
+		}
+		for (const FName& Lead : Leads)
+		{
+			Pool.LeadPatron = Lead;
+			TSet<FName> Reached;
+			int32 Whole = 0;
+			int32 Led = 0;
+			int32 WithStarter = 0;
+			int32 Still = 0;
+			for (int32 Seed = 1; Seed <= Draws; ++Seed)
+			{
+				FRandomStream Draw(Seed);
+				const FDTOfferHand Hand = DTOffers::BuildHand(Player, Pool, EDTHandKind::Patron, 1, Draw);
+				TSet<FName> Ids;
+				bool bStarter = false;
+				for (const FDTOfferCard& Card : Hand.Cards)
+				{
+					Ids.Add(Card.ContentId);
+					bStarter |= Seated.Contains(DTOffers::ParseKeeper(Card.ContentId));
+				}
+				Reached.Append(Ids);
+				Whole += Hand.Cards.Num() == DTConst::OFFER_KEEPER_CHOICES && Ids.Num() == Hand.Cards.Num() ? 1 : 0;
+				Led += Lead.IsNone() || (Hand.Cards.Num() > 0 && Hand.Cards[0].ContentId == Lead) ? 1 : 0;
+				WithStarter += bStarter ? 1 : 0;
+				Still += Draw.GetCurrentSeed() == Seed ? 1 : 0;
+			}
+			const FString Case = FString::Printf(TEXT("%d met, lead '%s'"), FMath::CountBits(Mask), *Lead.ToString());
+			TestEqual(FString::Printf(TEXT("%s: every hand is whole, three different Keepers: meta adds no seat"), *Case), Whole, Draws);
+			TestEqual(FString::Printf(TEXT("%s: the lead keeps the first seat"), *Case), Led, Draws);
+			TestEqual(FString::Printf(TEXT("%s: no hand is all met Keepers, so meta shuts no S1 Keeper out"), *Case), WithStarter, Draws);
+			TestEqual(FString::Printf(TEXT("%s: every Keeper of the run reaches this hand across Restarts"), *Case), Reached.Num(), Keepers.Num());
+			TestEqual(FString::Printf(TEXT("%s: only a met Keeper makes this hand draw"), *Case), Still, Mask == 0 ? Draws : 0);
+		}
+	}
+
+	// Path order fills the seats before the last, so a Keeper met can never push Storm or Forge past the second.
+	FDTOfferPool Full = GatedPool(FDTMetaProfile());
+	for (const EDTPath Path : MetKeepers)
+	{
+		Full.Unlocked.Add(DTOffers::KeeperId(Path));
+	}
+	const FName Storm = DTOffers::KeeperId(EDTPath::Storm);
+	const FName Forge = DTOffers::KeeperId(EDTPath::Forge);
+	const FName Shade = DTOffers::KeeperId(EDTPath::Shade);
+	FRandomStream Draw(5);
+	TestEqual(TEXT("Storm's first with nobody leading"), DTOffers::BuildHand(Player, Full, EDTHandKind::Patron, 1, Draw).Cards[0].ContentId, Storm);
+	Full.LeadPatron = Shade;
+	TestEqual(TEXT("Storm's second behind a met lead"), DTOffers::BuildHand(Player, Full, EDTHandKind::Patron, 1, Draw).Cards[1].ContentId, Storm);
+	Full.LeadPatron = Storm;
+	TestEqual(TEXT("Forge's second behind Storm"), DTOffers::BuildHand(Player, Full, EDTHandKind::Patron, 1, Draw).Cards[1].ContentId, Forge);
+	Full.LeadPatron = NAME_None;
+
+	// A tool run keeps its rule and its stream: the unlocked Keepers seat first and nothing is drawn (R-KEE-23, R-MET-16).
+	FDTOfferPool Tool = Full;
+	Tool.bMetaGate = false;
+	FRandomStream ToolDraw(5);
+	const FDTOfferHand ToolHand = DTOffers::BuildHand(Player, Tool, EDTHandKind::Patron, 1, ToolDraw);
+	TestEqual(TEXT("a tool run's hand reads the unlocked Keepers"), ToolHand.Cards[0].ContentId, Shade);
+	TestEqual(TEXT("and it draws nothing"), ToolDraw.GetCurrentSeed(), 5);
 	return true;
 }
 
