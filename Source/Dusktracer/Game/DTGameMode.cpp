@@ -29,7 +29,9 @@ namespace DTGameModeLocal
 {
 	// How often the smoke hook checks that the screenshot file is complete (size stable across two polls).
 	constexpr float ShotPollSeconds = 0.5f;
-}
+	// Rendered frames between holding the sim on the shot's step and the screenshot: motion vectors and the temporal
+	// upscaler's history settle on the still frame.
+	constexpr int32 ShotSettleFrames = 30;}
 #endif
 
 ADTGameMode::ADTGameMode()
@@ -134,6 +136,15 @@ void ADTGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		}
 		Telemetry->EndSession(Reason);
 	}
+	if (UDTSimSubsystem* const Sim = MyWorld ? MyWorld->GetSubsystem<UDTSimSubsystem>() : nullptr)
+	{
+		Sim->OnStepEnd.Remove(SmokeStepHandle);
+	}
+	if (SmokePollHandle.IsValid())
+	{
+		FTSTicker::RemoveTicker(SmokePollHandle);
+		SmokePollHandle.Reset();
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -190,8 +201,15 @@ void ADTGameMode::StartMeasurementHooks()
 		IFileManager::Get().Delete(*SmokeShotPath, false, true, true);
 		float After = static_cast<float>(DTConst::SMOKE_SECONDS);
 		FParse::Value(FCommandLine::Get(), TEXT("DTShotAfter="), After);
-		Timers.SetTimer(SmokeTimer, this, &ADTGameMode::TakeSmokeShot, FMath::Max(After, UE_KINDA_SMALL_NUMBER), false);
-		UE_LOG(LogDT, Log, TEXT("Smoke: screenshot in %.1f s to %s"), After, *SmokeShotPath);
+		// Counted in sim steps, not world time: a hitch drops steps (FDTFixedStep), so a world timer fired on a sim state
+		// that depended on the machine's load, and the contrast frame could miss a round or a telegraph (gate step `contrast`).
+		UDTSimSubsystem* const Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr;
+		if (Sim)
+		{
+			SmokeShotStep = Sim->GetStepIndex() + FMath::Max<int64>(1, FMath::RoundToInt64(static_cast<double>(After) * DTConst::SIM_FIXED_HZ));
+			SmokeStepHandle = Sim->OnStepEnd.AddUObject(this, &ADTGameMode::HandleSmokeStep);
+			UE_LOG(LogDT, Log, TEXT("Smoke: screenshot of sim step %lld (%.1f s of sim time) to %s"), SmokeShotStep, After, *SmokeShotPath);
+		}
 	}
 
 	float CsvAfter = -1.0f;
@@ -206,27 +224,58 @@ void ADTGameMode::StartMeasurementHooks()
 	}
 }
 
+void ADTGameMode::HandleSmokeStep()
+{
+	UDTSimSubsystem* const Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr;
+	if (!Sim || Sim->GetStepIndex() < SmokeShotStep)
+	{
+		return;
+	}
+	Sim->OnStepEnd.Remove(SmokeStepHandle);
+	SmokeStepHandle.Reset();
+	// Hold the sim on this step (it ends this frame's loop after the step, and every later frame renders the step itself)
+	// until the file is written and the game quits. A frame in motion depends on the frame rate: at a low one the temporal
+	// upscaler smears rounds and tracers into streaks and the contrast check finds fewer of them, or none. So the shot waits
+	// until the still frame has settled. The world is not paused: a paused world keeps its last motion vectors.
+	Sim->Hold();
+	const uint64 ShootAtFrame = GFrameCounter + DTGameModeLocal::ShotSettleFrames;
+	UE_LOG(LogDT, Log, TEXT("Smoke: sim step %lld reached and held; screenshot after %d settled frames"), Sim->GetStepIndex(),
+		DTGameModeLocal::ShotSettleFrames);
+	SmokePollHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, ShootAtFrame](float)
+	{
+		if (GFrameCounter < ShootAtFrame)
+		{
+			return true;
+		}
+		TakeSmokeShot();
+		return false;
+	}));
+}
+
 void ADTGameMode::TakeSmokeShot()
 {
 	FScreenshotRequest::RequestScreenshot(SmokeShotPath, /*bInShowUI*/ true, /*bAddFilenameSuffix*/ false);
 	SmokeShotLastSize = -1;
-	GetWorldTimerManager().SetTimer(SmokeTimer, this, &ADTGameMode::PollSmokeShot, DTGameModeLocal::ShotPollSeconds, true);
+	// The core ticker, not a world timer: world timers stop while the world is held paused.
+	SmokePollHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &ADTGameMode::PollSmokeShot), DTGameModeLocal::ShotPollSeconds);
 }
 
-void ADTGameMode::PollSmokeShot()
+bool ADTGameMode::PollSmokeShot(float DeltaTime)
 {
 	const int64 Size = IFileManager::Get().FileSize(*SmokeShotPath);
 	if (Size > 0 && Size == SmokeShotLastSize)
 	{
-		GetWorldTimerManager().ClearTimer(SmokeTimer);
+		SmokePollHandle.Reset();
 		UE_LOG(LogDT, Log, TEXT("Smoke: screenshot written (%lld bytes); quitting"), Size);
 		FPlatformMisc::RequestExit(false, TEXT("DT smoke screenshot written"));
-		return;
+		return false;
 	}
 	SmokeShotLastSize = Size;
+	return true;
 }
 #else
 void ADTGameMode::StartMeasurementHooks() {}
+void ADTGameMode::HandleSmokeStep() {}
 void ADTGameMode::TakeSmokeShot() {}
-void ADTGameMode::PollSmokeShot() {}
+bool ADTGameMode::PollSmokeShot(float DeltaTime) { return false; }
 #endif

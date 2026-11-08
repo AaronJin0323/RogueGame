@@ -53,6 +53,15 @@ public:
 	void ClearPauseRequest() { bPauseRequested = false; }
 	bool IsPauseRequested() const { return bPauseRequested; }
 
+	/**
+	 * Holds the sim on its current step for good: no step runs again in this world, whatever the pause request (which the
+	 * offer flow lifts), and every system renders that step exactly (interpolation alpha 1). The -DTShot hook holds the step
+	 * it shoots, while the world keeps rendering it as a still frame.
+	 * Called from OnStepEnd it stops the frame's loop after that step, as a pause request does.
+	 */
+	void Hold() { bHeld = true; }
+	bool IsHeld() const { return bHeld; }
+
 	/** Broadcast after every step (both AdvanceFrame and StepNow), before the pause check: systems that queue a pause bind here. */
 	FSimpleMulticastDelegate OnStepEnd;
 
@@ -70,5 +79,6 @@ private:
 	TOptional<FDTRunSeed> LaunchSeed;
 	int64 StepIndex = 0;
 	bool bPauseRequested = false;
+	bool bHeld = false;
 	TArray<IDTSimSystem*> Systems[static_cast<int32>(EDTSimPhase::Count)];
 };
