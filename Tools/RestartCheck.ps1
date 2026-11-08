@@ -1,4 +1,5 @@
-# Run-loop proof on real launches (gate step `restart`, T-SET-28, settings.md R-SET-23, R-SET-24, R-SET-27), headless, no window.
+# Run-loop proof on real launches (gate step `restart`, T-SET-28, settings.md R-SET-23, R-SET-24, R-SET-27), headless, no window:
+# every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1 (the no-window rule, AGENTS.md).
 #   & Tools\RestartCheck.ps1 [-Seed 9107] [-OtherSeed 2203] [-Seconds 90] [-RestartStep 1800]
 # Launch A: a fresh bot run on -Seed. Launch B: a bot run on -OtherSeed that restarts through the menu's path, a real map
 # reload, onto -Seed at -RestartStep. The two records must match by input_hash, steps and CSV, and the old run's file must
@@ -17,7 +18,8 @@ trap { Write-Host "RESTART: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
-$Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
+$Exe =Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\RestartCheck"
@@ -29,9 +31,9 @@ function Invoke-Run([string]$Tag, [string[]]$RunArgs) {
 	$Log = Join-Path $LogDir "RestartCheck_$Tag.log"
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false", "-ABSLOG=`"$Log`"") + $RunArgs
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
-		& taskkill /PID $Proc.Id /T /F | Out-Null
+		Stop-DTHidden $Proc
 		Write-Host "RESTART: FAIL (launch $Tag timed out)"
 		exit 1
 	}

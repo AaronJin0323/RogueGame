@@ -3,7 +3,9 @@
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests, smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md), firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# shipping (T-TEC-12), tests (Tools/RunTests.ps1), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
+# firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame),
+# windows (Tools/WindowCheck.ps1), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
@@ -14,8 +16,6 @@ param(
 trap { Write-Host "GATE: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
-$Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 $Head = (& git -C $Root rev-parse --short HEAD) 2>$null
@@ -106,20 +106,10 @@ if (-not (Skipped "shipping")) {
 
 if (-not (Skipped "tests")) {
 	$Floor = [int]((Select-String -Path (Join-Path $Root "Docs\constants.yaml") -Pattern "GATE\.TEST_FLOOR:\s*\{\s*value:\s*(\d+)").Matches[0].Groups[1].Value)
-	$Log = Join-Path $LogDir "Gate_tests.log"
-	if (Test-Path $Log) { Remove-Item $Log }
-	& (Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe") $Project -ExecCmds="Automation RunTests Dusktracer;Quit" `
-		-unattended -nopause -nullrhi -nosplash -LiveCoding=false "-ABSLOG=$Log" | Out-Null
-	$All = @(Select-String -Path $Log -Pattern "Test Completed\. Result=\{")
-	$Failed = @($All | Where-Object { $_.Line -notmatch "Result=\{Success\}" })
-	$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===")
-	# A crash can stop the run early, so every test found must have completed.
-	$FoundLine = Select-String -Path $Log -Pattern "Found (\d+) automation tests" | Select-Object -First 1
-	$Found = if ($FoundLine) { [int]$FoundLine.Matches[0].Groups[1].Value } else { 0 }
-	Report "tests" ("{0} run of {1} found, {2} failed, floor {3}, {4} crash marker(s)" -f $All.Count, $Found, $Failed.Count, $Floor, $Crash.Count)
-	if ($All.Count -eq 0 -or $All.Count -ne $Found -or $All.Count -lt $Floor -or $Failed.Count -gt 0 -or $Crash.Count -gt 0) {
-		$Failed + $Crash | Select-Object -First 12 | ForEach-Object { "    " + $_.Line }; Fail "tests"
-	}
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\RunTests.ps1") -Log (Join-Path $LogDir "Gate_tests.log") -Floor $Floor 2>&1
+	$Rc = $LASTEXITCODE
+	Report "tests" ((($Out | Select-String "^TESTS:" | Select-Object -Last 1).Line) -replace "^TESTS:\s*\w+\s*\((.*)\)$", '$1')
+	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "tests" }
 }
 
 # --- not built yet -------------------------------------------------------------------------------------------------
@@ -192,6 +182,21 @@ if (-not (Skipped "contrast")) {
 	$Out | Set-Content (Join-Path $LogDir "Gate_contrast.log") -Encoding utf8
 	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
+	# R-MOD-08: the HUD's dormant line on its own frame. Staged in the scene above it would take the Rifle's rounds out of that frame and read as a tracer.
+	$Scene = "DT.Mod Weapon.PulseRifle Mod.ScatterShell,DT.Bless Blessing.Forge.Hammer.Key"
+	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name dormant_line -DormantLine -Seconds 4 -Cmds $Scene *>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_contrast_line.log") -Encoding utf8
+	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
+	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
+}
+if (-not (Skipped "windows")) {
+	# The no-window rule (AGENTS.md): a bot, a smoke and a test run show nothing on this desktop; Tools\WindowCheck.ps1 holds its controls and its detection limit.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\WindowCheck.ps1") 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_windows.log") -Encoding utf8
+	Report "windows" ((($Out | Select-String "^WINDOWS:" | Select-Object -Last 1).Line) -replace "^WINDOWS:\s*", "")
+	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "windows" }
 }
 if (-not (Skipped "pad")) {
 	# package.md R-PKG-08/09: judges a clean, current package off-screen; a real pad needs a human, so this reads NOT RUN until a run shows one.

@@ -621,6 +621,100 @@ bool FDTModifiersDormantShown::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersRoundsTable, "Dusktracer.Modifiers.RoundsTable", DTWeaponTestHarness::TestFlags) // T-OFF-13
+bool FDTModifiersRoundsTable::RunTest(const FString& Parameters)
+{
+	using namespace DTModifierTest;
+	using namespace DTWeaponTestHarness;
+	const FDTOfferCard HammerKey = BlessingCard(TEXT("Blessing.Forge.Hammer.Key"));
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Ring(TEXT("Weapon.RingEmitter"));
+	const int32 Folds = 2; // by hand from expression.csv: the Key's rounds=2
+	double CardMult = 0.0; // {cleave_mult} of the Key's rules row, from the same two numbers the text formats
+	const FDTBlessingInfo KeyInfo = DTOffers::FindBlessing(HammerKey.ContentId);
+	for (const TPair<FString, double>& Param : DTOffers::SpecParams(DTCat::Archetypes[KeyInfo.Archetype].Effects[KeyInfo.Column]))
+	{
+		if (Param.Key == TEXT("dmg_mult"))
+		{
+			CardMult = Param.Value * DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO;
+		}
+	}
+	TestTrue(TEXT("the Key names a multiplier"), CardMult > 0.0);
+
+	for (int32 Weapon = 0; Weapon < DTWeapons::NumWeapons(); ++Weapon)
+	{
+		if (!IsS1Weapon(Weapon))
+		{
+			continue;
+		}
+		const FName WeaponName = DTWeapons::WeaponId(Weapon);
+		for (int32 Level = 1; Level <= DTWeapons::GetMaxLevel(Weapon); ++Level)
+		{
+			const FString Cell = FString::Printf(TEXT("%s L%d"), DTCat::Weapons[Weapon].Id, Level);
+			FDTHarness H;
+			H.Weapons.Give(H.Run, 0, WeaponName, Level);
+			H.StepOnce();
+			FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+			const FRandomStream Stream = Player.Offer.Rng;
+			const TArray<FDTRoundsLeft> Left = DTOffers::RoundsAfterPick(Player, HammerKey);
+			TestEqual(Cell + TEXT(": reading the card takes nothing from the run"), Player.Keepers.Owned.Num(), 0);
+			TestEqual(Cell + TEXT(": reading the card draws no number"), Player.Offer.Rng.GetCurrentSeed(), Stream.GetCurrentSeed());
+
+			// Only what leads with Projectile converts: on S1 the Rifle and the Ring, with the S2 arsenal every weapon whose matrix row
+			// takes ConvertMelee natively. The others lose no round, so the card names none.
+			const bool bConverts = DTWeapons::ResolveFlag(DTWeapons::DeclaredCaps(Weapon), DTCat::EFlag::ConvertMelee).Compat == DTCat::ECompat::Native;
+			TestTrue(Cell + TEXT(": the Rifle and the Ring convert"), bConverts || (WeaponName != Rifle && WeaponName != Ring));
+			if (!TestEqual(Cell + TEXT(": the card reads the table"), Left.Num(), bConverts ? 1 : 0) || !bConverts)
+			{
+				continue;
+			}
+			const int32 Count = DTWeapons::GetLevelRow(Weapon, Level)->Count;
+			TestEqual(Cell + TEXT(": the weapon's own name"), Left[0].Weapon, WeaponName);
+			TestEqual(Cell + TEXT(": the weapon's rounds at this level"), Left[0].Count, Count);
+			TestEqual(Cell + TEXT(": what the Key leaves"), Left[0].Kept, Count - FMath::Min(Folds, Count));
+
+			// The sim fires what the card said.
+			TestTrue(Cell + TEXT(": the blessing is taken"), TakeForgeBlessing(H, HammerKey));
+			FDTWeaponInstance Held = H.Run.GetPlayer(0).Weapons[0];
+			const FDTWeaponSpec Spec = DTWeaponCompose::Compose(Held, DTKeepers::BuildKeeperFlags(H.Run.GetPlayer(0).Keepers, EDTPath::Forge).Entries, FDTWeaponHeroStats(), 0);
+			TestEqual(Cell + TEXT(": the sim leaves what the card named"), Spec.Count - Spec.ConvertRounds, Left[0].Kept);
+			if (DTWeapons::DeclaredCaps(Weapon).Has(DTCat::ECap::Projectile)) // a Lob carrier never had Projectile to lose
+			{
+				TestEqual(Cell + TEXT(": no carrier left when none fly"), Spec.EffectiveCaps.Has(DTCat::ECap::Projectile), Left[0].Kept > 0);
+			}
+			TestEqual(Cell + TEXT(": the multiplier on the card is the one the sim deals"), static_cast<double>(Spec.ConvertDamageFactor), CardMult, 1e-4);
+
+			// Taken once it says nothing more, and the rest of Hammer never names rounds.
+			TestEqual(Cell + TEXT(": held already: no warning"), DTOffers::RoundsAfterPick(H.Run.GetPlayer(0), HammerKey).Num(), 0);
+			TestEqual(Cell + TEXT(": an amplifier converts no more"), DTOffers::RoundsAfterPick(H.Run.GetPlayer(0), BlessingCard(TEXT("Blessing.Forge.Hammer.Amp2"))).Num(), 0);
+		}
+	}
+
+	// Cards that convert nothing say nothing, and the words follow the numbers: both rows carry the weapon, Some its numbers.
+	FDTHarness Plain;
+	Plain.Weapons.Give(Plain.Run, 0, Rifle, 1);
+	Plain.StepOnce();
+	TestEqual(TEXT("a blessing with no conversion"), DTOffers::RoundsAfterPick(Plain.Run.GetPlayer(0), BlessingCard(TEXT("Blessing.Forge.Furnace.Key"))).Num(), 0);
+	FDTOfferCard Upgrade = HammerKey;
+	Upgrade.Kind = EDTCardKind::WeaponUpgrade;
+	Upgrade.ContentId = Rifle;
+	Upgrade.TargetWeapon = Rifle;
+	TestEqual(TEXT("an upgrade"), DTOffers::RoundsAfterPick(Plain.Run.GetPlayer(0), Upgrade).Num(), 0);
+
+	FDTOfferCard WeaponCard;
+	WeaponCard.Kind = EDTCardKind::Weapon;
+	WeaponCard.ContentId = Rifle;
+	const FString Name = DTOfferText::Name(WeaponCard).ToString();
+	const FString None = DTOfferText::RoundsLeft(FDTRoundsLeft{ Rifle, 0, 2 }).ToString();
+	const FString Some = DTOfferText::RoundsLeft(FDTRoundsLeft{ Rifle, 1, 3 }).ToString();
+	TestTrue(TEXT("none flying names the weapon"), None.Contains(Name));
+	TestTrue(TEXT("some flying names the weapon"), Some.Contains(Name));
+	TestTrue(TEXT("some flying says how many are kept"), Some.Contains(TEXT("1")));
+	TestTrue(TEXT("some flying says of how many"), Some.Contains(TEXT("3")));
+	TestNotEqual(TEXT("the two cases are two sentences"), None, Some);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersDormantTable, "Dusktracer.Modifiers.DormantTable", DTWeaponTestHarness::TestFlags) // T-MOD-08
 bool FDTModifiersDormantTable::RunTest(const FString& Parameters)
 {

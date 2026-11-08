@@ -8,9 +8,12 @@
 // -DTOfferShotFocus=<slot> moves the focus first (keyword notes follow it); -DTOfferShotMod=<Mod.*>[+<Mod.*>...] sockets
 // them into the Pulse Rifle first (a blessing card that would make one dormant then says so); -DTOfferShotRing=<Mod.*>[+...]
 // also gives the Ring Emitter with those socketed; -DTOfferShotBless=<Blessing.*> takes that blessing and opens no hand, so
-// the shot is the HUD with its dormant lines. The log names each card of the hand shot, so a seed can be picked by card.
-// Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500), and never -unattended, which
-// auto-picks slot 0 so no hand is left to shoot.
+// the shot is the HUD with its dormant lines; -DTOfferShotRifle=<level> sets the Pulse Rifle's level (2 by default);
+// -DTOfferShotGive=<Weapon.*>:<level>[:<Mod.*>[+<Mod.*>...]] also gives that weapon at that level with those socketed;
+// -DTOfferShotHand=<Level|Chest|Keeper|Reforging> opens that hand instead of a level-up (an Evolve card is in Reforging);
+// -DTTextPct=<pct> sets the text size setting for the shot, unsaved, through DT.UI.Set text (settings.md R-SET-12). The log names each card of the hand shot, so a seed can be
+// picked by card. Pass -ForceRes for a true -ResX/-ResY (the engine otherwise shrinks 1920x1080 to 888x500). -unattended is
+// safe: a shot turns dt.Offer.AutoPick off, or slot 0 would be picked at once and no hand would be left to shoot.
 
 #include "CoreMinimal.h"
 
@@ -241,6 +244,13 @@ namespace DTDebugOffers
 		const double T = Now - Shot.Start;
 		if (Shot.Stage == 0 && T >= SetupAfterS)
 		{
+			// Through the menu's own shot command, in the world, after the settings file has loaded, so the shot's size is the one
+			// drawn and the sim keeps no reader of the settings (T-SET-02).
+			int32 TextPct = 0;
+			if (FParse::Value(FCommandLine::Get(), TEXT("DTTextPct="), TextPct) && GEngine)
+			{
+				GEngine->Exec(World, *FString::Printf(TEXT("DT.UI.Set text %d"), TextPct));
+			}
 			int32 Patron = 0;
 			FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotPatron="), Patron);
 			if (Patron >= 0)
@@ -248,7 +258,13 @@ namespace DTDebugOffers
 				Offers->Pick(0, Patron); // the run-start Patron hand
 				if (UDTWeaponSubsystem* Weapons = World->GetSubsystem<UDTWeaponSubsystem>())
 				{
-					Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), 2);
+					int32 RifleLevel = 2;
+					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotRifle="), RifleLevel);
+					// The Patron pick has already given the Rifle at level 1, so Give alone would leave it there.
+					if (Weapons->Give(0, FName(TEXT("Weapon.PulseRifle")), RifleLevel) == EDTWeaponResult::AlreadyOwned)
+					{
+						Weapons->LevelUp(0, FName(TEXT("Weapon.PulseRifle")), RifleLevel);
+					}
 					Weapons->Give(0, FName(TEXT("Weapon.ArcBlade")), 1);
 					FString Mods;
 					FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotMod="), Mods);
@@ -259,6 +275,17 @@ namespace DTDebugOffers
 						Weapons->Give(0, FName(TEXT("Weapon.RingEmitter")), 1);
 						SocketFromValue(*Weapons, RingMods, FName(TEXT("Weapon.RingEmitter")));
 					}
+					FString Give; // <Weapon.*>:<level>[:<Mod.*>[+<Mod.*>...]]
+					TArray<FString> GiveParts;
+					if (FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotGive="), Give) && Give.ParseIntoArray(GiveParts, TEXT(":")) >= 2)
+					{
+						const FName GiveWeapon(*GiveParts[0]);
+						Weapons->Give(0, GiveWeapon, FCString::Atoi(*GiveParts[1]));
+						if (GiveParts.Num() > 2)
+						{
+							SocketFromValue(*Weapons, GiveParts[2], GiveWeapon);
+						}
+					}
 				}
 				FString Bless;
 				UDTKeeperSubsystem* Keepers = World->GetSubsystem<UDTKeeperSubsystem>();
@@ -268,7 +295,19 @@ namespace DTDebugOffers
 				}
 				else
 				{
-					Offers->BuildHand(0, EDTHandKind::Level, 3);
+					FString HandArg;
+					EDTHandKind Kind = EDTHandKind::Level;
+					if (FParse::Value(FCommandLine::Get(), TEXT("DTOfferShotHand="), HandArg))
+					{
+						for (int32 Index = 0; Index <= static_cast<int32>(EDTHandKind::Patron); ++Index)
+						{
+							if (HandArg.Equals(HandName(static_cast<EDTHandKind>(Index)), ESearchCase::IgnoreCase))
+							{
+								Kind = static_cast<EDTHandKind>(Index);
+							}
+						}
+					}
+					Offers->BuildHand(0, Kind, 3);
 				}
 			}
 			int32 Focus = 0;
@@ -308,6 +347,10 @@ namespace DTDebugOffers
 		if (!FParse::Value(FCommandLine::Get(), TEXT("DTOfferShot="), Path) || Path.IsEmpty())
 		{
 			return;
+		}
+		if (IConsoleVariable* AutoPick = IConsoleManager::Get().FindConsoleVariable(TEXT("dt.Offer.AutoPick")))
+		{
+			AutoPick->Set(0, ECVF_SetByCode);
 		}
 		TSharedRef<FShot> Shot = MakeShared<FShot>();
 		Shot->Path = FPaths::ConvertRelativePathToFull(Path);

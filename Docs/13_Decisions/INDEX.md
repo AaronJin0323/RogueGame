@@ -30,3 +30,6 @@
 | D-026 | Run telemetry records say what the run did; applied and raw are named | RULE | applied |
 | D-027 | A free volley stays its modifier's under a Keeper conversion; a silenced socket shows | RULE | applied |
 | D-028 | The hub takes the one seed rule; Shipping's fresh draw is read on Development | RULE | applied |
+| D-029 | A tool launch runs on a hidden desktop; no flag is the no-window rule | RULE | applied |
+| D-030 | A card states what it takes, per weapon at its level, in the numbers the sim deals | RULE | applied |
+| D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied |

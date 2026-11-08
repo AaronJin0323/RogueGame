@@ -127,6 +127,14 @@ struct FDTDormantSocket
 	FName Mod;
 };
 
+/** What a conversion leaves of a weapon's rounds (R-WPN-10), named on the card that would convert them: Kept of Count still fly. */
+struct FDTRoundsLeft
+{
+	FName Weapon;
+	int32 Kept = 0;
+	int32 Count = 0;
+};
+
 namespace DTWeaponCompose
 {
 	/** C.LOAD.FACTOR_<Rank+1> for a zero-based rank (R-WPN-03). */

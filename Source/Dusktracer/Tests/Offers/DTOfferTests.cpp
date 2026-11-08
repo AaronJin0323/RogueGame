@@ -1049,6 +1049,49 @@ bool FDTOfferCardIdentityTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
+
+	// The Key's rules read the sim's numbers: the conversion ratio is in the multiplier, and the reach is the card's own.
+	FDTOfferCard Hammer;
+	Hammer.Kind = EDTCardKind::Blessing;
+	Hammer.ContentId = TEXT("Blessing.Forge.Hammer.Key");
+	const FDTBlessingInfo Info = DTOffers::FindBlessing(Hammer.ContentId);
+	const FString Rules = DTOfferText::Desc(Hammer).ToString();
+	FNumberFormattingOptions Digits;
+	Digits.MaximumFractionalDigits = 2;
+	Digits.UseGrouping = false;
+	for (const TPair<FString, double>& Param : DTOffers::SpecParams(DTCat::Archetypes[Info.Archetype].Effects[Info.Column]))
+	{
+		if (Param.Key == TEXT("dmg_mult"))
+		{
+			const FString Dealt = FText::AsNumber(Param.Value * DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO, &Digits).ToString();
+			TestTrue(FString::Printf(TEXT("'%s' says the multiplier the sim deals, %s"), *Rules, *Dealt), Rules.Contains(Dealt));
+		}
+		else if (Param.Key == TEXT("radius_uu"))
+		{
+			const FString Reach = FText::AsNumber(Param.Value * 0.01, &Digits).ToString();
+			TestTrue(FString::Printf(TEXT("'%s' says the reach, %s"), *Rules, *Reach), Rules.Contains(Reach));
+		}
+	}
+	return true;
+}
+
+// T-OFF-13: the box of what a pick takes steps down before it reaches the rules text, as the notes do, and stops at their floor.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferBoxFitTest, "Dusktracer.Offers.BoxFit", DTOfferTest::Flags)
+bool FDTOfferBoxFitTest::RunTest(const FString& Parameters)
+{
+	constexpr float Start = 1.1f;
+	constexpr float Floor = 0.8f;
+	constexpr float Step = 0.05f;
+	constexpr float Near = 1e-3f;
+	const auto Height = [](float Scale) { return 100.0f * Scale; };
+	TestEqual(TEXT("room to spare: full size"), DTOfferLayout::FitScale(Start, Floor, Step, 200.0f, Height), Start, Near);
+	TestEqual(TEXT("exactly the room: full size"), DTOfferLayout::FitScale(Start, Floor, Step, 110.0f, Height), Start, Near);
+	TestEqual(TEXT("the largest step that fits"), DTOfferLayout::FitScale(Start, Floor, Step, 96.0f, Height), 0.95f, Near);
+	TestEqual(TEXT("no room at all: the floor, and it ends"), DTOfferLayout::FitScale(Start, Floor, Step, 10.0f, Height), Floor, Near);
+
+	// A height that wraps: fewer lines at a smaller scale still count from the largest step that fits.
+	const auto Wrapped = [](float Scale) { return (Scale > 0.92f ? 12.0f : 8.0f) * 24.0f * Scale; };
+	TestEqual(TEXT("a smaller scale that wraps less"), DTOfferLayout::FitScale(Start, Floor, Step, 180.0f, Wrapped), 0.9f, Near);
 	return true;
 }
 
@@ -1138,6 +1181,12 @@ bool FDTOfferKinsokuTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("a hard break keeps the stop off the line start"), Hard.Num() == 2 && Hard[1] == TEXT("h."));
 		TestEqual(TEXT("an empty text has no lines"), Wrap(FString(), 8.0f).Num(), 0);
 		TestEqual(TEXT("a width below one character still ends"), Wrap(TEXT("敌人"), 0.5f).Num(), 2);
+	}
+	// A no-break space holds a number to its measure word: the wide character after it is no break opportunity.
+	{
+		const TArray<FString> Lines = Wrap(TEXT("只剩 10 发飞出"), 6.0f);
+		TestEqual(TEXT("two lines"), Lines.Num(), 2);
+		TestEqual(TEXT("the number goes down with its measure word"), Lines.Num() == 2 ? Lines[1].Left(4) : FString(), FString(TEXT("10 发")));
 	}
 	// Every en and zh-Hans string of every string table, at every width a card or the notes panel can reach.
 	const FString TextDir = FPaths::ProjectContentDir() / TEXT("DT/Text");

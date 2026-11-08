@@ -5,7 +5,8 @@
 # -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
 # R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. Each run launches the game headless
-# (UnrealEditor-Cmd -game -nullrhi -unattended) with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
+# (UnrealEditor-Cmd -game -nullrhi -unattended, on the hidden desktop of Tools/HiddenLaunch.ps1: no flag is the no-window rule, AGENTS.md)
+# with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
 # A run still alive after -Timeout wall seconds is killed by its own PID only. -Parallel runs that many processes at once
 # (the sim is deterministic per seed, so parallel runs equal serial ones); starts are spaced so no two telemetry names collide.
@@ -51,6 +52,7 @@ trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $Playtests = Join-Path $Root "Saved\Playtests"
@@ -112,7 +114,7 @@ function Reap-Runs([int]$Wanted) {
 		foreach ($Run in $script:Active) {
 			if ($Run.Proc.HasExited) { Finish-Run $Run }
 			elseif (((Get-Date) - $Run.Started).TotalSeconds -gt $Timeout) {
-				& taskkill /PID $Run.Proc.Id /T /F | Out-Null
+				Stop-DTHidden $Run.Proc
 				Write-Host ("  {0} seed {1}: killed after {2} s (PID {3})" -f $Run.Label, $Run.Seed, $Timeout, $Run.Proc.Id)
 				Finish-Run $Run
 			}
@@ -134,7 +136,7 @@ function Start-Run($Label, $Seed, $Extra) {
 		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotVersion=$BotVersion", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
 		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $UnlockArg + $Extra + $(if ($PrimaryFirst) { @("-DTBotPrimaryFirst") } else { @() })
 	Reap-Runs ([Math]::Max(1, $Parallel))
-	$Proc = Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru -WindowStyle Hidden
+	$Proc = Start-DTHidden $Exe $ArgList
 	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }
 	if ($Parallel -gt 1) { Start-Sleep -Milliseconds ([int]($Stagger * 1000)) }
 	return $RunDir

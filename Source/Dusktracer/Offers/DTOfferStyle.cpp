@@ -268,6 +268,10 @@ FText DTOfferText::Desc(const FDTOfferCard& Card)
 			Args.Add(Param.Key, Number(Param.Value));
 			Args.Add(Param.Key + TEXT("_pct"), Number(FMath::RoundToDouble(Param.Value * Percent)));
 			Args.Add(Param.Key + TEXT("_m"), Number(Param.Value * MetresPerUu));
+			if (Param.Key == TEXT("dmg_mult"))
+			{
+				Args.Add(TEXT("cleave_mult"), Number(Param.Value * DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO));
+			}
 		}
 	}
 	else if (Card.Kind == EDTCardKind::Reserve)
@@ -402,10 +406,15 @@ bool DTOfferText::IsNoLineEnd(TCHAR Ch)
 TArray<FString> DTOfferText::WrapLines(const FString& Text, TFunctionRef<float(const FString&)> Measure, float MaxWidth)
 {
 	constexpr TCHAR FirstWide = 0x2E80; // the CJK blocks start here; each wide character is a break opportunity
+	constexpr TCHAR NoBreakSpace = 0x00A0; // binds a number to its measure word in the zh rows (2 发, 3.8 米)
 	const auto CanBreakBefore = [](const FString& Line, int32 Index)
 	{
 		const TCHAR Prev = Line[Index - 1];
 		const TCHAR Next = Line[Index];
+		if (Prev == NoBreakSpace || Next == NoBreakSpace)
+		{
+			return false;
+		}
 		// Spaces at a break are dropped, so what must not start a line is the first character after them.
 		int32 First = Index;
 		while (First < Line.Len() && Line[First] == TEXT(' '))
@@ -496,6 +505,18 @@ FText DTOfferText::Dormant(const TCHAR* Key, const FDTDormantSocket& Socket)
 	return FText::Format(DTOfferStyleLocal::FromTable(DTOfferStyleLocal::ModifiersTable, Key), Args);
 }
 
+FText DTOfferText::RoundsLeft(const FDTRoundsLeft& Rounds)
+{
+	FDTOfferCard Weapon;
+	Weapon.Kind = EDTCardKind::Weapon;
+	Weapon.ContentId = Rounds.Weapon;
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Weapon"), Name(Weapon));
+	Args.Add(TEXT("Kept"), FText::AsNumber(Rounds.Kept));
+	Args.Add(TEXT("Count"), FText::AsNumber(Rounds.Count));
+	return FText::Format(DTOfferStyleLocal::FromTable(DTOfferStyleLocal::WeaponsTable, Rounds.Kept > 0 ? TEXT("Rounds.Some") : TEXT("Rounds.None")), Args);
+}
+
 TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 {
 	using namespace DTOfferStyleLocal;
@@ -574,5 +595,7 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 	}
 	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Hud")));
 	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Card")));
+	Keys.AddUnique(TPair<FString, FString>(WeaponsTable, TEXT("Rounds.None")));
+	Keys.AddUnique(TPair<FString, FString>(WeaponsTable, TEXT("Rounds.Some")));
 	return Keys;
 }

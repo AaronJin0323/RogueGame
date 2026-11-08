@@ -80,12 +80,12 @@ The two controls show it fails on the bug itself:
 ## Windows opened while building the check
 The first versions of `SeedCheck` showed windows on the owner's desktop, against the no-window rule:
 - A dialog titled `Message`, for at least 21 s (42 samples, each 0.5 s or more apart). The script put its flags before the project path, and the editor needs the project first (`LaunchEngineLoop.cpp`). A second launch with the same order may have shown it too before it was stopped.
-- A real game window for a moment on `UnrealEditor.exe -game -nullrhi`. `-nullrhi` drops the renderer, not the window: `LogEngine: GameWindow did not exist. Was created`. One was sampled visible and its log shows that line. The logs of the other nine have rotated away; they took the same path, so all ten are counted as having opened one.
+- A real game window for a moment on `UnrealEditor.exe -game -nullrhi`. The reading then was that `-nullrhi` drops the renderer, not the window, from `LogEngine: GameWindow did not exist. Was created`; `S1_no_windows.md` corrects it, see below. One was sampled visible and its log shows that line. The logs of the other nine have rotated away; they took the same path, so all ten are counted as having opened one.
 - One visible-window sample on the first launch with no `-unattended`, cause not proven. On the hidden desktop the same launches showed a blank-titled `UAC Input Indicator` window owned by a short-lived process, which is the likely match. With `-LiveCoding=false` on those launches, the 10 editor launches of the final check showed no window at all there and logged no `LogLiveCoding` line, so the Live Coding console is the likely owner. No launch with Live Coding on was repeated to prove it, because that session's mutex is shared by every worktree.
 
 The project path is now required first, launches run on the hidden desktop, and unattended launches go first, so a stale build fails before any launch that could prompt. The 11 logs kept from the final runs are all `-RenderOffScreen`, with and without `-unattended`, and none created a game window.
 
-`Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured.
+`Tools/BotRuns.ps1` was not changed. All 20 of its run logs here show the same `GameWindow` line. It starts with `-WindowStyle Hidden`; whether that window can be seen was not measured. `S1_no_windows.md` measured it: under `-nullrhi` that line comes with no native window, so the line is not evidence of one, and the reading above needs that correction.
 
 ## For the merge into dev/s2 and dev/s3
 None of this is reachable on `main`, and none of it was run: it comes from reading both branches. Their launchers carry the old line, which this replaces. `Tools\Play.bat` on both passes `%CULTUREARG%`; `SeedCheck` reads the expanded line, so that needs no change.

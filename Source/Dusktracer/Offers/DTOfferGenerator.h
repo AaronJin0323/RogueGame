@@ -182,6 +182,11 @@ namespace DTOffers
 	 * can: levels only add rounds a conversion leaves alone. An Intercession's overlay is left out, since it passes.
 	 */
 	DUSKTRACER_API TArray<FDTDormantSocket> DormantAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card);
+	/**
+	 * What a pick of Card leaves flying, per weapon it would convert more rounds of (offers.md R-OFF-13): read from the same
+	 * compositions on copies, so the numbers hold at every weapon level and run state and streams stay untouched.
+	 */
+	DUSKTRACER_API TArray<FDTRoundsLeft> RoundsAfterPick(const FDTPlayerRunState& Player, const FDTOfferCard& Card);
 	/** Headless weapon part of a pick (tests, bots): Give / LevelUp / Socket on a bare FDTWeaponSim. */
 	DUSKTRACER_API EDTWeaponResult ApplyToSim(FDTWeaponSim& Weapons, FDTRunState& Run, int32 OwnerId, const FDTPickOutcome& Outcome);
 }
