@@ -29,7 +29,9 @@ namespace DTGameModeLocal
 {
 	// How often the smoke hook checks that the screenshot file is complete (size stable across two polls).
 	constexpr float ShotPollSeconds = 0.5f;
-}
+	// Rendered frames between holding the sim on the shot's step and the screenshot: motion vectors and the temporal
+	// upscaler's history settle on the still frame.
+	constexpr int32 ShotSettleFrames = 30;}
 #endif
 
 ADTGameMode::ADTGameMode()
@@ -231,14 +233,23 @@ void ADTGameMode::HandleSmokeStep()
 	}
 	Sim->OnStepEnd.Remove(SmokeStepHandle);
 	SmokeStepHandle.Reset();
-	// Hold the frame on this step: the sim's pause request ends this frame's loop after the step (R-TEC-14), and a world
-	// pause nobody else may lift keeps the sim from ticking again (the offer flow clears the sim's request when no hand is
-	// open, but leaves another pauser's hold) until the file is written and the game quits.
-	Sim->RequestPause();
-	APlayerController* const PC = GetWorld()->GetFirstPlayerController();
-	const bool bHeld = PC && SetPause(PC, FCanUnpause::CreateLambda([]() { return false; }));
-	UE_LOG(LogDT, Log, TEXT("Smoke: sim step %lld reached; screenshot (world %s)"), Sim->GetStepIndex(), bHeld ? TEXT("held") : TEXT("NOT held"));
-	TakeSmokeShot();
+	// Hold the sim on this step (it ends this frame's loop after the step, and every later frame renders the step itself)
+	// until the file is written and the game quits. A frame in motion depends on the frame rate: at a low one the temporal
+	// upscaler smears rounds and tracers into streaks and the contrast check finds fewer of them, or none. So the shot waits
+	// until the still frame has settled. The world is not paused: a paused world keeps its last motion vectors.
+	Sim->Hold();
+	const uint64 ShootAtFrame = GFrameCounter + DTGameModeLocal::ShotSettleFrames;
+	UE_LOG(LogDT, Log, TEXT("Smoke: sim step %lld reached and held; screenshot after %d settled frames"), Sim->GetStepIndex(),
+		DTGameModeLocal::ShotSettleFrames);
+	SmokePollHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, ShootAtFrame](float)
+	{
+		if (GFrameCounter < ShootAtFrame)
+		{
+			return true;
+		}
+		TakeSmokeShot();
+		return false;
+	}));
 }
 
 void ADTGameMode::TakeSmokeShot()

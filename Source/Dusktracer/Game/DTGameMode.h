@@ -15,10 +15,10 @@
  *
  * Measurement hooks for Tools/Smoke.ps1 and Tools/Perf.ps1 (compiled out of Shipping, R-TEC-12):
  *   -DTShot=<file.png> [-DTShotAfter=<s>]  screenshot (with HUD) of the sim step <s> seconds of sim time after run start
- *                                          (default C.SMOKE.SECONDS), then quit once the file is written. The sim stops on
- *                                          that step and the world holds paused until the file is written, so a hitch
- *                                          (dropped steps) or a slow frame cannot move what the frame shows
- *                                          (the contrast step reads moving rounds and telegraphs off it)
+ *                                          (default C.SMOKE.SECONDS), then quit once the file is written. The sim is held
+ *                                          on that step (UDTSimSubsystem::Hold) and shot once the still frame has settled,
+ *                                          so neither a hitch (dropped steps) nor the frame rate (temporal smear) moves
+ *                                          what the frame shows (the contrast step reads rounds and telegraphs off it)
  *   -DTCsvAfter=<s>                        records the CSV profiler event "DTPerfStart" <s> seconds after run start
  *                                          (pair with -csvStartOnEvent=DTPerfStart -csvCaptureOnEventFrameCount=<n>)
  */

@@ -3,7 +3,7 @@
 #                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast] [-DormantLine]
 # Launches the game (UnrealEditor -game -RenderOffScreen at 1280x720, on the hidden desktop of Tools/HiddenLaunch.ps1) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds of sim time after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook: the sim
-# stops on that step and holds until the file is written, so a hitch cannot move what the frame shows), and the
+# is held on that step and shot once the still frame has settled, so neither a hitch nor the frame rate moves what it shows), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
 # The run director is off (-DTNoDirector, director.md) so the goldens stay deterministic; -Director turns it on (pair it
 # with a -Name that has no golden, e.g. -Director -Seconds 60 -Name arena_director: the image check then fails by design).

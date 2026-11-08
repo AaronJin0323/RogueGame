@@ -104,6 +104,31 @@ bool FDTSimPauseAtStep::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSimHold, "Dusktracer.Core.Sim.Hold", DTSimPauseTest::Flags)
+bool FDTSimHold::RunTest(const FString& Parameters)
+{
+	using namespace DTSimPauseTest;
+	// The -DTShot hook holds the step it shoots (ADTGameMode): a hitch or the offer flow must not move it.
+	UDTSimSubsystem* Sim = NewObject<UDTSimSubsystem>(GetTransientPackage());
+	Sim->StartRun(5, 1);
+	TestEqual(TEXT("a full frame runs every substep"), Sim->AdvanceFrame(FullFrame()), DTConst::SIM_MAX_SUBSTEPS);
+	const int64 HoldAt = Sim->GetStepIndex() + 1; // the first step of the next frame
+	Sim->OnStepEnd.AddLambda([Sim, HoldAt]()
+	{
+		if (Sim->GetStepIndex() == HoldAt)
+		{
+			Sim->Hold();
+		}
+	});
+	TestEqual(TEXT("the frame stops on the held step"), Sim->AdvanceFrame(FullFrame()), 1);
+	TestEqual(TEXT("at the held step"), Sim->GetStepIndex(), HoldAt);
+	Sim->ClearPauseRequest(); // what the offer flow does with no hand open
+	TestEqual(TEXT("no step once held, whatever the pause request"), Sim->AdvanceFrame(FullFrame() * 4.0f), 0);
+	TestEqual(TEXT("still at the held step"), Sim->GetStepIndex(), HoldAt);
+	TestTrue(TEXT("held"), Sim->IsHeld());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSimPauseOffers, "Dusktracer.Core.Sim.PauseOnPendingHand", DTSimPauseTest::Flags)
 bool FDTSimPauseOffers::RunTest(const FString& Parameters)
 {
