@@ -9,3 +9,8 @@
 - **Context:** RogueHero's Reclaimer model (the v2 glb and the inputs its import scripts read by default) came from an AI generation service. Dusktracer's repo is public. `Validation/S4_artbook_gaps.md` (on `dev/s3`) plans to port the import scripts but never the AI-sourced inputs.
 - **Ask:** name the service and whether its terms allow redistribution in a public repo and a shipped game.
 - **Default if unanswered:** no AI-sourced mesh, texture or input enters the repo; the S4 hero model is built in Blender from scratch.
+
+## O-010 — S4 Presentation started early on `dev/s4`  [GO-NOGO, non-blocking]
+- **Context:** the harness reads a stage's entry as "previous gate passed", and keeps go/no-go at gates with the owner. The S1 to S3 exit tests wait on validators (O-008) and little automated work was left, so the scheduler started a first wave of S4 on `dev/s4` (D-043, on `dev/s4`): arena ground and edge, enemy and hero silhouettes, rounds and tracers, hit and kill feedback, a HUD pass. It changes no sim number or rule, uses no AI-sourced asset, and nothing merges back; exit sessions use their own branch's package, never `dev/s4`.
+- **Ask:** say stop if S4 should wait for the exits. Art may need rework if a human reading later moves the camera frame, the palette or a readability rule.
+- **Default if unanswered:** wave 1 continues on `dev/s4`; a second wave is a new decision.

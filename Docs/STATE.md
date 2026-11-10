@@ -1,8 +1,8 @@
 ﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-10)
 
 ## Where we are
-- Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-043 (D-029 to D-031 and D-041 on `main`; D-038 to D-040 on `dev/s2`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
+- Four stages run on four branches (`dev/s4` = a first wave of S4 Presentation from `dev/s3`, D-043 on `dev/s4`, plan in `Validation/S4_wave1.md` there; nothing merges back). The first three:, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-044 (D-029 to D-031 and D-041 on `main`; D-038 to D-040 on `dev/s2`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (257, every test found must complete, floor 30 on `main`, 510 on `dev/s3`), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 531, tools 207). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
@@ -46,6 +46,7 @@
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
 - O-009 (name the AI service behind the RogueHero hero model and its terms)
+- O-010 (S4 started early on `dev/s4`; say stop if it should wait; non-blocking)
 ## Held for a human reading, untuned
 - Payday self-pay, Tide's early power and boss answer, Time Dilation scale, T-KEE-15's route, `leak_per_s` 0.15, the 1-second run-over guard, Pulse Wall strength, Forge colour pairs, possible layer leaks in two Keeper lines, heal source against `C.DMG_TAKEN.BAND_MIN10_13`, whether unlocks lower wins (the first-run pool bot won 69 of 90 against 47 for the full pool), all invented prices and zh rows
 
