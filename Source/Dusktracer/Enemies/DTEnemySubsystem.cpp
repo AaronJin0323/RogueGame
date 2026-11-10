@@ -321,6 +321,23 @@ void UDTEnemySubsystem::StepResolveHits(const FDTSimContext& Context)
 	}
 }
 
+void UDTEnemySubsystem::PlaceParts(const FVector2f& At, const FVector2f& Facing, float DrawRadius, EDTEnemyRole Role, float MeshSizeUU, FTransform& OutHull, FTransform& OutOptic)
+{
+	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
+	const float OpticScale = DTConst::ENEMIES_OPTIC_SCALE;
+	const float Yaw = Facing.IsNearlyZero() ? 0.0f : FMath::RadiansToDegrees(FMath::Atan2(Facing.Y, Facing.X));
+	const FRotator Rot(0.0f, Yaw, 0.0f);
+	OutHull = FTransform(Rot, FVector(At.X, At.Y, Z), FVector(2.0f * DrawRadius / MeshSizeUU));
+
+	// The optic cube sits on top of the hull cube where the role's model language puts it (enemies.md Model language):
+	// the nose (Swarm, Rusher) or over the plate (Tank) at the front edge; the mirror head (Turret) or the hull
+	// centre (Boss) in the middle. A role mesh carries its own optic in the hull's frame (enemy_art.md R-EAR-04) and
+	// reads only the hull's transform; this placement is the boss's and the grey box's.
+	const bool bCentred = Role == EDTEnemyRole::Turret || Role == EDTEnemyRole::Boss;
+	const FVector2f OpticAt = bCentred ? At : At + Facing * ((1.0f - OpticScale) * DrawRadius);
+	OutOptic = FTransform(Rot, FVector(OpticAt.X, OpticAt.Y, Z + DrawRadius), FVector(2.0f * DrawRadius * OpticScale / MeshSizeUU));
+}
+
 void UDTEnemySubsystem::SimRender(float Alpha)
 {
 	CSV_CUSTOM_STAT(DT, LiveEnemies, Pool.Num(), ECsvCustomStatOp::Set);
@@ -337,33 +354,26 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 		const TConstArrayView<float> Radii = Pool.GetRadii();
 		const TConstArrayView<EDTEnemyRole> Roles = Pool.GetRoles();
 		const float MeshSize = Renderer->GetMeshSizeUU();
-		const float OpticScale = DTConst::ENEMIES_OPTIC_SCALE;
 
 		const TConstArrayView<uint8> Flags = Pool.GetFlags();
 		HullTransforms.SetNum(Count, EAllowShrinking::No);
 		OpticTransforms.Reset();
+		OpticHulls.Reset();
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector2f At = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
-			const FVector2f& F = Facing[Index];
-			const float Yaw = F.IsNearlyZero() ? 0.0f : FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X));
 			const bool bElite = (Flags[Index] & DTEnemyFlags::Elite) != 0;
 			const float R = Radii[Index] * (bElite ? static_cast<float>(DTConst::ELITE_DRAW_SCALE) : 1.0f); // R-ELT-11
-			const FRotator Rot(0.0f, Yaw, 0.0f);
-			HullTransforms[Index] = FTransform(Rot, FVector(At.X, At.Y, Z), FVector(2.0f * R / MeshSize));
+			FTransform OpticAt;
+			PlaceParts(At, Facing[Index], R, Roles[Index], MeshSize, HullTransforms[Index], OpticAt);
 			if (bElite)
 			{
 				continue; // its light is an elite part (R-ELT-10)
 			}
-
-			// The optic sits on top of the hull where the role's model language puts it (enemies.md Model language):
-			// the nose (Swarm, Rusher) or over the plate (Tank) at the front edge; the mirror head (Turret) or the hull
-			// centre (Boss) in the middle.
-			const bool bCentred = Roles[Index] == EDTEnemyRole::Turret || Roles[Index] == EDTEnemyRole::Boss;
-			const FVector2f OpticAt = bCentred ? At : At + F * ((1.0f - OpticScale) * R);
-			OpticTransforms.Emplace(Rot, FVector(OpticAt.X, OpticAt.Y, Z + R), FVector(2.0f * R * OpticScale / MeshSize));
+			OpticTransforms.Add(OpticAt);
+			OpticHulls.Add(Index);
 		}
-		Renderer->UpdateInstances(HullTransforms, OpticTransforms);
+		Renderer->UpdateInstances(HullTransforms, Roles, OpticTransforms, OpticHulls);
 		const UDTSimSubsystem* SimForTime = Sim.Get();
 		const float Seconds = SimForTime ? static_cast<float>(SimForTime->GetStepIndex()) / static_cast<float>(DTConst::SIM_FIXED_HZ) : 0.0f;
 		DTElite::BuildParts(Pool, Alpha, Seconds, MeshSize, EliteParts);

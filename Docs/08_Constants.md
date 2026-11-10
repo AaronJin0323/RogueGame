@@ -89,7 +89,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 526 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 533 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -238,6 +238,21 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PERF.S4_TURRET_RING_UU | 350 | uu | CORE | Debug/DTDebugPerfScene (their ring round the origin: C.ROLE.TURRET_FIRE_RANGE_UU less C.PERF.S2_HERO_ORBIT_UU, so every point of the orbit is in range) |
 | C.PERF.S4_TELEGRAPHS_MIN | 4 | n | CORE | Tools/Perf.ps1 -Scene S4 (median live telegraphs in the window) |
 | C.PERF.S4_TRAILED_MIN_RATIO | 0.9 | ratio | CORE | Tools/Perf.ps1 -Scene S4 (median rounds the trail draw takes, of the median live rounds) |
+| C.ARN.SLAB_COURSE_UU | 320 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (width of one course of slabs on the plate) |
+| C.ARN.SLAB_LENGTH_UU | [320, 760] | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (shortest and longest slab in a course) |
+| C.ARN.JOINT_HALF_WIDTH_UU | 6 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (half the width of a joint: each slab's chamfer) |
+| C.ARN.JOINT_DEPTH_UU | 0.25 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (how far a joint falls under the plate's top: the whole relief) |
+| C.ARN.APRON_STEPS | 5 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, Tools/blender/env_arena.py (steps of the apron) |
+| C.ARN.APRON_RISE_UU | 50 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, R-ARN-04 (height of one step) |
+| C.ARN.FALL_STEPS | 3 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-04, Tools/create_arena.py (the step at whose depth the stone's base colour reaches `Pal.Ground.Shadow`) |
+| C.ARN.SHADOW_FLOOR | 0.35 | scale | GATED(S4) | 02_Systems/arena_art.md R-ARN-05, Tools/create_arena.py (emissive of the apron's stone, as a share of `Pal.Ground.Shadow`: stone in full shadow stays off the clear colour) |
+| C.ARN.APRON_TREAD_UU | 240 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (depth of one step's tread) |
+| C.ARN.APRON_SKIRT_DROP_UU | 100 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (the last fall, from the lowest step to the skirt) |
+| C.ARN.APRON_REACH_UU | 9000 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02 (how far the skirt runs past the plate on every side) |
+| C.ARN.FRAME_RADIUS_MAX_UU | 2000 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02, Debug/DTDebugArena (the widest frame the apron is sized for: the frame D-036 reverts to) |
+| C.ARN.ASPECT_MAX | 3.5556 | ratio | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02 (the widest window the apron is sized for, 32:9) |
+| C.ARN.LAYOUT_SEED | 4043 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (seed of the slab lengths: the generator's own stream, never a sim stream) |
+| C.ARN.VOID_MAX_LEVEL | 2 | level | GATED(S4) | 02_Systems/arena_art.md R-ARN-05, Tools/arena_check.py (a pixel at or under this level in every channel is the clear colour) |
 
 
 ## Telemetry (02_Systems/telemetry.md)
@@ -526,3 +541,18 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 |---|---|---|---|---|
 | C.NARR.PREWIN_LAYER_MAX | 2 | layer | CORE | 03_Narrative.md, T-NAR-03, T-NAR-06 |
 | C.NARR.LAYER_MAX | 3 | layer | CORE | 03_Narrative.md, T-NAR-03 |
+
+## Enemy art (02_Systems/enemy_art.md)
+
+Presentation only (S4 wave 1 package B, D-043): no key here has a reader in the sim.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.EAR.FLOOR_HIDE_MAX_RATIO | 1.25 | x | GATED(S4) | enemy_art R-EAR-05, T-EAR-05, Tools/enemy_art_check.py (floor a role hull and its optic may hide, against the cube and optic cube they replace: `Validation/S4_wave1.md` §5 item 6) |
+| C.EAR.SILHOUETTE_OVERLAP_MAX | 0.75 | ratio | GATED(S4) | enemy_art R-EAR-07, T-EAR-07, Tools/enemy_art_check.py (greatest intersection over union of two roles' outlines at one area; two cubes read 1) |
+| C.EAR.SILHOUETTE_PX_PER_M | [27, 36] | px_per_m | GATED(S4) | enemy_art R-EAR-07, T-EAR-07, Tools/enemy_art_check.py, Tools/EnemyArt.ps1 (the frame of D-036 at 1080 rows, and the frame it reverts to) |
+| C.EAR.ELITE_LIGHT_VISIBLE_MIN | 1.0 | x | GATED(S4) | enemy_art R-EAR-04, T-EAR-04, Tools/enemy_art_check.py (the elite light's visible area over a role hull, against over the cube) |
+| C.EAR.ROLE_TRIS_MAX | 400 | n | GATED(S4) | enemy_art R-EAR-03, T-EAR-03, Tools/enemy_art_check.py (hull plus optic of one role; C.ENEMIES.CAP of them is the scene's worst) |
+| C.EAR.LINEUP_SPACING_UU | 320 | uu | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (slot size of `DT.Enemies.LineUp`) |
+| C.EAR.LINEUP_ROWS | 3 | n | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (facings per role in the line-up) |
+| C.EAR.FRAME_MASK_TOLERANCE | 0.06 | ratio | GATED(S4) | enemy_art T-EAR-07, Tools/enemy_art_check.py (how far a pixel's channel must sit from the slot's floor to count as drawn) |

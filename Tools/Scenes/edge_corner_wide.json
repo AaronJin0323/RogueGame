@@ -1,0 +1,9 @@
+{
+	"note": "The hero walked into the +X +Y corner of the plate, staged at C.ARN.FRAME_RADIUS_MAX_UU, the frame D-036 reverts to: the frame that shows the most of the apron. The gate's own wide frame. Judged for the clear colour by Tools/arena_check.py (02_Systems/arena_art.md R-ARN-05); the golden is the record.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 11,
+	"cmds": ["DT.God 1", "DT.Arena.Frame 2000", "DT.Hero.Walk 4000 4000"]
+}

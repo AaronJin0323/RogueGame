@@ -20,12 +20,15 @@ import zipfile
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import arena_check  # noqa: E402
 import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import catalog_lint  # noqa: E402
 import contrast_check  # noqa: E402
 import dtconst  # noqa: E402
 import dtpalette  # noqa: E402
+import enemy_art_check  # noqa: E402
+import enemy_shapes  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_catalog  # noqa: E402
 import gen_constants  # noqa: E402
@@ -2519,6 +2522,77 @@ class PresentationReadsOnly(unittest.TestCase):
 		self.assertEqual(found, RENDERER_OWNERS)
 
 
+class EnemyArt(unittest.TestCase):
+	"""S4 wave 1 package B (02_Systems/enemy_art.md T-EAR-03, T-EAR-04, T-EAR-05, T-EAR-07): the Cast-off hulls as their generators state them."""
+
+	CAMERA = enemy_art_check.Camera(dtconst.load()["ARENA.CAMERA_PITCH_DEG"]["value"])
+
+	def outline(self, parts, scale, yaw, px_per_m=36):
+		return enemy_art_check.normalised(enemy_art_check.Raster([self.CAMERA.screen(enemy_art_check.placed(parts, scale, yaw))], px_per_m / 100.0).mask())
+
+	def test_the_four_roles_pass_every_rule(self):
+		errors, lines = enemy_art_check.check_geometry(dtconst.load())
+		self.assertEqual(errors, [])
+		self.assertEqual(len(lines), len(enemy_art_check.ROLES) + len(dtconst.load()["EAR.SILHOUETTE_PX_PER_M"]["value"]))
+
+	def test_two_cubes_overlap_wholly_whatever_their_size(self):
+		# What the silhouette rule is there to tell apart from: before the role meshes every role was the same outline.
+		small = self.outline(enemy_art_check.cube_parts("Cube", 0, 0, 50, 64), 1.0, 0)
+		large = self.outline(enemy_art_check.cube_parts("Cube", 0, 0, 50, 116), 1.0, 0)
+		self.assertGreater(enemy_art_check.overlap(small, large), 0.9)
+		self.assertGreater(enemy_art_check.overlap(small, large), dtconst.load()["EAR.SILHOUETTE_OVERLAP_MAX"]["value"])
+
+	def test_a_role_drawn_as_another_role_is_found(self):
+		hull, optic = enemy_art_check.load_role("Tank")
+		masks = {"Tank": {0: self.outline(hull + optic, 116, 0)}, "Impostor": {0: self.outline(hull + optic, 80, 0, 27)}}
+		(share, _, _), = enemy_art_check.worst_overlaps(masks).values()
+		self.assertGreater(share, dtconst.load()["EAR.SILHOUETTE_OVERLAP_MAX"]["value"])
+
+	def test_a_tall_hull_hides_more_floor_than_the_allowance(self):
+		constants = dtconst.load()
+		radius = float(constants["ROLE.TANK_RADIUS_UU"]["value"])
+		cube = enemy_art_check.Subject("Tank", radius, *enemy_art_check.grey_box(constants, "Tank", radius), 1.0)
+		tower = enemy_art_check.Subject("Tank", radius, [enemy_shapes.box("Tower", -0.5, 0.5, -0.5, 0.5, 0.0, 2.5)], [enemy_shapes.box("Lens", -0.1, 0.1, -0.1, 0.1, 2.5, 2.6)], 2 * radius)
+		(least, _), (least_reach, _) = enemy_art_check.floor_reading(self.CAMERA, cube)
+		(_, most), (_, most_reach) = enemy_art_check.floor_reading(self.CAMERA, tower)
+		self.assertGreater(most, constants["EAR.FLOOR_HIDE_MAX_RATIO"]["value"] * least)
+		self.assertGreater(most_reach, constants["EAR.FLOOR_HIDE_MAX_RATIO"]["value"] * least_reach)
+
+	def test_an_optic_buried_in_its_hull_shows_nothing(self):
+		buried = enemy_art_check.Subject("Swarm", 32.0, [enemy_shapes.box("Hull", -0.5, 0.5, -0.5, 0.5, 0.0, 1.0)], [enemy_shapes.box("Lens", -0.1, 0.1, -0.1, 0.1, 0.4, 0.6)], 64.0)
+		self.assertEqual(enemy_art_check.optic_reading(self.CAMERA, buried), (0.0, 0.0))
+
+	def test_a_bad_part_is_found(self):
+		good = enemy_shapes.box("Box", 0, 1, 0, 1, 0, 1)
+		self.assertEqual(enemy_art_check.part_errors("Role", [good]), [])
+		inside_out = dict(good, faces=[list(reversed(face)) for face in good["faces"]])
+		self.assertIn("Role.Box: a face is wound inward", enemy_art_check.part_errors("Role", [inside_out]))
+		self.assertIn("Role.Box: not closed", enemy_art_check.part_errors("Role", [dict(good, faces=good["faces"][1:])]))
+		dented = dict(good, verts=good["verts"] + [(0.5, 0.5, 0.5)])
+		dented["faces"] = [face for face in good["faces"][1:]] + [[4, 5, 8], [5, 6, 8], [6, 7, 8], [7, 4, 8]]
+		self.assertIn("Role.Box: not convex", enemy_art_check.part_errors("Role", [dented]))
+		self.assertFalse(enemy_art_check.symmetric([enemy_shapes.box("Lopsided", 0, 1, 0, 1, 0, 1)]))
+		self.assertTrue(enemy_art_check.symmetric([enemy_shapes.box("Even", 0, 1, -1, 1, 0, 1)]))
+
+	def test_the_line_up_keeps_its_slots_in_the_frame_and_off_the_hero(self):
+		constants = dtconst.load()
+		half = 0.5 * constants["EAR.LINEUP_SPACING_UU"]["value"]
+		slots = enemy_art_check.lineup_slots(constants)
+		self.assertEqual(len(slots), len(enemy_art_check.ROLES) * constants["EAR.LINEUP_ROWS"]["value"])
+		for (x, y) in slots.values():
+			self.assertTrue(abs(x) > half or abs(y) > half, "a slot holds the hero")
+		for density in constants["EAR.SILHOUETTE_PX_PER_M"]["value"]:
+			height = round(density * 2 * constants["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"] / 100)
+			width = round(height * 16 / 9)
+			for sx, sy, size in enemy_art_check.frame_cells(constants, width, height).values():
+				self.assertTrue(size <= sx <= width - size and size <= sy <= height - size)
+		# The debug command and the judge lay the slots out by the same rule.
+		with open(os.path.join(os.path.dirname(TOOLS), "Source", "Dusktracer", "Debug", "DTDebugEnemyArt.cpp"), encoding="utf-8") as f:
+			command = f.read()
+		self.assertIn("Row == 0 ? 2.0f * Spacing : -Spacing * static_cast<float>(Row)", command)
+		self.assertIn("EDTEnemyRole::Swarm, EDTEnemyRole::Tank, EDTEnemyRole::Rusher, EDTEnemyRole::Turret", command)
+
+
 class PerfSceneS4(unittest.TestCase):
 	"""S4_wave1.md P0: the perf scene the wave reads against proves what it drew from the capture window (11_Quality §5)."""
 
@@ -2658,6 +2732,84 @@ class HeroArt(unittest.TestCase):
 		debug = self.read("..", "Source", "Dusktracer", "Debug", "DTDebugHeroArt.cpp")
 		self.assertIn('TEXT("DT.HeroArt.LineUp")', debug)
 		self.assertNotRegex(debug, r"Subsystem|LatchInput|FDTHeroState")
+
+
+class ArenaArt(unittest.TestCase):
+	"""02_Systems/arena_art.md (S4 wave 1 package A): the frame checks of Tools/arena_check.py, T-ARN-05 and T-ARN-06, and the edge scenes they read."""
+
+	STONE = bytes((40, 34, 26))  # the apron's shadow stone as rendered: dark, and not the clear colour
+
+	def frame(self, pixel, w=100, h=100):
+		return w, h, bytearray(pixel * (w * h))
+
+	def paint(self, frame, pixel, x0, x1, y0, y1):
+		w, _, rgb = frame
+		for y in range(y0, y1):
+			for x in range(x0, x1):
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = pixel
+		return frame
+
+	def test_void_is_the_clear_colour_outside_the_hud(self):
+		level = dtconst.load()["ARN.VOID_MAX_LEVEL"]["value"]
+		self.assertEqual(arena_check.void_pixels(*self.frame(self.STONE), level), (0, 40))
+		# A hole past the plate: every pixel of it counts, and one level above the limit is stone again.
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes(3), 50, 60, 50, 60), level), (100, 0))
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes((level, level, level)), 50, 60, 50, 60), level)[0], 100)
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes((level + 1, 0, 0)), 50, 60, 50, 60), level)[0], 0)
+		# The HUD draws black of its own: under its masks nothing is judged.
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes(3), 0, 100, 0, 13), level), (0, 40))
+
+	def test_the_floor_keeps_its_window_and_the_band_its_edge(self):
+		constants = dtconst.load()
+		window, need = constants["PRE.LIT_GROUND_Y_WINDOW"]["value"], constants["PRE.CONTRAST_MIN"]["value"]
+		self.assertAlmostEqual(arena_check.band_floor(need), 0.1)
+		self.assertGreaterEqual(contrast_check.contrast(arena_check.band_floor(need), 0.0), need - 1e-9)
+		bare = arena_check.floor_tones(*self.frame(Contrast.GROUND))
+		self.assertGreater(len(bare), 5000)
+		self.assertEqual(arena_check.floor_errors(bare, window, need), [])
+		# Joints as dark as a trench: a fiftieth of the floor under the band's floor fails, though the 5th percentile never sees it.
+		trench = arena_check.floor_tones(*self.paint(self.frame(Contrast.GROUND), bytes((84, 74, 62)), 30, 100, 20, 22))
+		self.assertEqual(contrast_check.percentile(trench, 0.05), contrast_check.percentile(bare, 0.05))
+		self.assertIn("black band no longer reads", " ".join(arena_check.floor_errors(trench, window, need)))
+		# Slabs a tone darker over a tenth of the floor: the spread leaves the window.
+		self.assertIn("leaves C.PRE.LIT_GROUND_Y_WINDOW", " ".join(arena_check.floor_errors(arena_check.floor_tones(*self.paint(self.frame(Contrast.GROUND), bytes((84, 74, 62)), 30, 100, 20, 30)), window, need)))
+		self.assertEqual(arena_check.floor_errors([], window, need), ["no lit floor found in the frame"])
+
+	def test_the_edge_scenes_stage_every_side_at_both_frames(self):
+		constants = dtconst.load()
+		wide = f"DT.Arena.Frame {constants['ARN.FRAME_RADIUS_MAX_UU']['value']}"
+		self.assertGreater(constants["ARN.FRAME_RADIUS_MAX_UU"]["value"], constants["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"])
+		edge = constants["ARENA.HALF_EXTENT_UU"]["value"]
+		stands = {"corner": f"{edge} {edge}", "xp": f"{edge} 0", "xn": f"-{edge} 0", "yp": f"0 {edge}", "yn": f"0 -{edge}"}
+		for name, where in stands.items():
+			for suffix in ("", "_wide"):
+				with open(os.path.join(SCENES, f"edge_{name}{suffix}.json"), encoding="utf-8") as f:
+					data = json.load(f)
+				# The walk is latched input, so the clamp is the game's; the wide twin only moves the staged camera.
+				self.assertIn(f"DT.Hero.Walk {where}", data["cmds"], name + suffix)
+				self.assertEqual(wide in data["cmds"], suffix == "_wide", name + suffix)
+				self.assertEqual(data["judge"], "golden")
+		# The gate shoots the corner at both frames; the four sides are run by hand with Tools/arena_check.py.
+		for name in ("edge_corner", "edge_corner_wide"):
+			with open(os.path.join(SCENES, name + ".json"), encoding="utf-8") as f:
+				self.assertEqual(json.load(f)["gate"], "smoke", name)
+
+	def test_the_generators_read_keys_that_exist(self):
+		constants = dtconst.load()
+		for name in (os.path.join("blender", "env_arena.py"), "create_arena.py"):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				text = f.read()
+			keys = set(re.findall(r'C\["([A-Z_.0-9]+)"\]', text))
+			self.assertTrue(keys, name)
+			for key in keys:
+				self.assertIn(key, constants, f"{name}: {key}")
+		# The plate is cut down from the floor and never raised; the apron's stone comes from the two ground tokens and nothing else.
+		with open(os.path.join(TOOLS, "create_arena.py"), encoding="utf-8") as f:
+			arena = f.read()
+		self.assertIn('GROUND_TOKEN = "Pal.Ground.Lit"', arena)
+		self.assertIn('SHADOW_TOKEN = "Pal.Ground.Shadow"', arena)
+		self.assertIn('place_mesh(eas, "Plate", PLATE_MESH, ground_mat, cast_shadow=False)', arena)
+		self.assertIn('smc.set_collision_profile_name("NoCollision")', arena)
 
 
 if __name__ == "__main__":

@@ -91,6 +91,12 @@ public:
 	static FLinearColor GetRoundCoreColor();
 	static FLinearColor GetTelegraphColor();
 
+	/**
+	 * The grey box of one enemy as SimRender places it (R-ENM-24): the hull cube of edge 2 x DrawRadius on the sim plane, and the optic
+	 * cube on it where the role's model language puts it. ADTEnemyRenderer draws a role's own mesh from the hull transform (enemy_art.md R-EAR-02).
+	 */
+	static void PlaceParts(const FVector2f& At, const FVector2f& Facing, float DrawRadius, EDTEnemyRole Role, float MeshSizeUU, FTransform& OutHull, FTransform& OutOptic);
+
 	/** Sends every threat action Pool started in its last step to Records (ThreatAction{Role, AttackId}, threat_actions_per_min). */
 	static void ForwardThreatActions(const FDTEnemyPool& InPool, FDTTelemetryCore& Records);
 	/** Sends the elite deaths of Pool's last ResolveHits to Records (elites.md R-ELT-13). */
@@ -130,6 +136,7 @@ private:
 
 	TArray<FTransform> HullTransforms;
 	TArray<FTransform> OpticTransforms;
+	TArray<int32> OpticHulls;
 	TArray<FTransform> RoundTransforms;
 	TArray<FDTElitePart> EliteParts;
 	TArray<FDTEnemySpawn> QueuedSpawns;
