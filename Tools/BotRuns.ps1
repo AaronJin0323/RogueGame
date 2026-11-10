@@ -1,7 +1,7 @@
 # Bot run harness (Docs/02_Systems/bot.md; Docs/Validation/S1_bot_baseline.md): seeded headless runs per arm at accelerated time.
 #   & Tools\BotRuns.ps1 [-Arms None,Steered:Storm:Tempest,...] [-ArmSet S2Keepers] [-Seeds 10] [-FirstSeed 1] [-BotVersion 1] [-Skill 1] [-MaxSeconds 1100]
 #                       [-Steps 600] [-Timeout 900] [-Check T-DIR-01[,T-OFF-15]] [-Out <dir>] [-Parallel 1]
-#                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly]
+#                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly] [-ReadAll]
 # -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
 # R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. Each run launches the game headless
@@ -45,10 +45,14 @@ param(
 	[switch]$CarryHold,
 	# meta.md R-MET-23: reads the fresh-save pool, a person's first run, instead of the full pool (-DTPoolGate, no save).
 	[switch]$FreshPool,
+	# D-037: -Check T-OFF-15 has to read every launched run at the boss; a run that is lost or ends short fails the check instead of dropping out of it.
+	[switch]$ReadAll,
 	[ValidateSet("All", "BlessingsOnly")][string]$Policy = "All"
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
+# Without the check the switch would judge nothing and the line would still read PASS.
+if ($ReadAll -and ($Check -notmatch "T-OFF-15" -or $Jobs)) { throw "-ReadAll reads -Check T-OFF-15 on arms" }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
@@ -127,6 +131,7 @@ function Reap-Runs([int]$Wanted) {
 }
 
 $script:Active = @()
+$script:Launched = 0
 function Start-Run($Label, $Seed, $Extra) {
 	$RunDir = Join-Path $Out ("{0}_s{1}" -f $Label, $Seed)
 	New-Item -ItemType Directory -Force $RunDir | Out-Null
@@ -136,6 +141,7 @@ function Start-Run($Label, $Seed, $Extra) {
 		"-DTSeed=$Seed", "-DTBotFast=$Steps", "-DTBotQuit", "-DTBotVersion=$BotVersion", ("-DTBotSkill={0}" -f $Skill.ToString([Globalization.CultureInfo]::InvariantCulture)),
 		"-DTBotOut=`"$Record`"", "-ABSLOG=`"$Log`"") + $UnlockArg + $Extra + $(if ($PrimaryFirst) { @("-DTBotPrimaryFirst") } else { @() })
 	Reap-Runs ([Math]::Max(1, $Parallel))
+	$script:Launched++
 	$Proc = Start-DTHidden $Exe $ArgList
 	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }
 	if ($Parallel -gt 1) { Start-Sleep -Milliseconds ([int]($Stagger * 1000)) }
@@ -189,6 +195,7 @@ Reap-Runs 1
 $SumArgs = @((Join-Path $Root "Tools\bot_summary.py"), $Out)
 # PowerShell joins an unquoted comma list into one space-separated string.
 if ($Check) { $SumArgs += @("--check", ($Check -split '[,\s]+' -join ',')) }
+if ($ReadAll) { $SumArgs += @("--read-all", "$($script:Launched)") }
 $Summary = & python -I @SumArgs 2>&1
 $Rc = $LASTEXITCODE
 $Summary | ForEach-Object { "  $_" }

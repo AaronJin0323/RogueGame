@@ -27,6 +27,7 @@ import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
+import pool_read  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 import s2_exit  # noqa: E402
@@ -1628,6 +1629,208 @@ class ExportLogs(unittest.TestCase):
 			self.export("Storm", "x", run=run.encode("utf-8"), keep=os.path.join(root, "V1"))
 			person = s3_exit.read_logs(root, S3Exit.BUILD)["validators"]["V1"]
 		self.assertEqual([(r["name"], r["end"]) for r in person["runs"]], [("7_20261031_120000", "death")])
+
+
+class ReadAll(unittest.TestCase):
+	"""D-037 (review #94): with --read-all, T-OFF-15 reads every launched run at the boss; one lost or ended short fails it."""
+
+	ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+	CONSTS = bot_summary.dtconst.load()
+	ARMS = ("Steered-Storm-Tempest", "Steered-Forge-Hammer", "Steered-Tide-Frost")
+
+	def run_row(self, label, seed, outcome="victory", end_s=950.0, decisions=None):
+		budget = self.CONSTS["DECISIONS.PER_RUN"]["value"]
+		return {"label": label, "seed": seed, "outcome": outcome, "end_s": end_s, "decisions": budget if decisions is None else decisions, "reserve_share": 0.0}
+
+	def battery(self, **changed):
+		"""The gate's six runs, all read; `changed` maps "a<arm index>_<seed>" to a row's new fields, or to None for a run with no folder."""
+		rows = []
+		for n, arm in enumerate(self.ARMS):
+			for seed in (9100, 9101):
+				change = changed.get(f"a{n}_{seed}", {})
+				if change is not None:
+					rows.append(self.run_row(arm, seed, **change))
+		return rows
+
+	def test_six_of_six_pass(self):
+		verdict, failed = bot_summary.check_off_15(self.battery(), self.CONSTS, 6)
+		self.assertEqual(failed, 0)
+		self.assertTrue(verdict.startswith("T-OFF-15: PASS (6/6 runs at the boss"), verdict)
+
+	def test_one_of_six_was_a_pass_and_is_a_failure(self):
+		died = {"outcome": "death", "end_s": 300.0, "decisions": 9}
+		rows = self.battery(a0_9101=died, a1_9100=died, a1_9101=died, a2_9100=died, a2_9101=died)
+		self.assertEqual(bot_summary.check_off_15(rows, self.CONSTS)[1], 0)  # the reading #94 found: a whole Keeper unread, PASS (1/1)
+		verdict, failed = bot_summary.check_off_15(rows, self.CONSTS, 6)
+		self.assertEqual(failed, 1)
+		self.assertTrue(verdict.startswith("T-OFF-15: FAIL (only 1 of 6 launched runs read at the boss"), verdict)
+		self.assertIn("Steered-Tide-Frost seed 9101 is unread (death at 300.0 s)", verdict)
+
+	def test_one_run_short_of_the_boss_fails(self):
+		verdict, failed = bot_summary.check_off_15(self.battery(a2_9100={"outcome": "death", "end_s": 880.0}), self.CONSTS, 6)
+		self.assertEqual(failed, 1)
+		self.assertIn("only 5 of 6", verdict)
+
+	def test_a_run_with_no_record_fails(self):
+		verdict, failed = bot_summary.check_off_15(self.battery(a0_9100={"outcome": "missing", "end_s": 0.0, "decisions": ""}), self.CONSTS, 6)
+		self.assertEqual(failed, 1)
+		self.assertIn("Steered-Storm-Tempest seed 9100 is unread (missing at 0.0 s)", verdict)
+
+	def test_a_run_with_no_folder_fails(self):
+		verdict, failed = bot_summary.check_off_15(self.battery(a1_9101=None), self.CONSTS, 6)
+		self.assertEqual(failed, 1)
+		self.assertIn("5 run folder(s) for 6 launched", verdict)
+
+	def test_an_arm_the_check_cannot_read_fails(self):
+		rows = self.battery() + [self.run_row("None", 9100, outcome="death", end_s=590.0, decisions=0)]
+		self.assertEqual(bot_summary.check_off_15(rows, self.CONSTS, 7)[1], 1)
+		self.assertEqual(bot_summary.check_off_15(rows, self.CONSTS)[1], 0)
+
+	def test_a_run_at_the_boss_over_budget_still_fails(self):
+		verdict, failed = bot_summary.check_off_15(self.battery(a0_9100={"decisions": 99}), self.CONSTS, 6)
+		self.assertEqual(failed, 1)
+		self.assertTrue(verdict.startswith("T-OFF-15: FAIL (5/6 runs at the boss"), verdict)
+
+	def test_a_run_that_reached_the_boss_and_died_there_is_read(self):
+		at_boss = self.CONSTS["RUN.LENGTH_TO_BOSS"]["value"]
+		self.assertEqual(bot_summary.check_off_15(self.battery(a0_9100={"outcome": "death", "end_s": at_boss + 5.0}), self.CONSTS, 6)[1], 0)
+
+	def script(self, name):
+		with open(os.path.join(self.ROOT, "Tools", name), encoding="utf-8") as f:
+			return f.read()
+
+	def test_the_gate_step_asks_for_it(self):
+		step = self.script("Gate.ps1").split('if (-not (Skipped "firstrun")) {')[1].split('if (-not (Skipped "win")) {')[0]
+		self.assertRegex(step, r"-Check T-OFF-15 -ReadAll\b")
+		self.assertIn('$Verdict -notmatch "T-OFF-15: PASS"', step)
+
+	def test_botruns_hands_over_the_count_it_launched(self):
+		text = self.script("BotRuns.ps1")
+		self.assertIn('if ($ReadAll) { $SumArgs += @("--read-all", "$($script:Launched)") }', text)
+		self.assertEqual(text.count("$script:Launched++"), 1)
+		self.assertLess(text.index("$script:Launched++"), text.index("$Proc = Start-DTHidden $Exe $ArgList"))
+
+
+class PoolRead(unittest.TestCase):
+	"""D-037 (review #64): MetaCheck tells pools apart by the cards dealt, and a window that could not tell them apart fails."""
+
+	ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+	LOCKED = pool_read.tree_locked()
+	TWO = [(0, "Patron", ["Keeper.Storm", "Keeper.Forge", "Keeper.Tide"]), (1, "Level", ["Blessing.Storm.Tempest.Key", "Mod.Backwash", "Weapon.ArcBlade"])]
+	RADIANCE = [(0, "Patron", ["Keeper.Radiance", "Keeper.Storm", "Keeper.Forge"]), (1, "Level", ["Blessing.Radiance.Lance.Key", "Mod.Pierce"])]
+
+	def run_of(self, hands, picks=None):
+		"""What pool_read.read returns: the hands, and a pick of each hand's first card unless `picks` says otherwise."""
+		return list(hands), [(h, ids[0]) for h, _, ids in hands] if picks is None else picks
+
+	def tool(self):
+		return self.run_of(self.TWO + [(2, "Level", ["Mod.ScatterShell", "Mod.Pierce"]), (3, "Level", ["Blessing.Storm.Tempest.Amp1", "Mod.Mirror"]), (4, "Reforging", ["Transform.Storm", "Mod.Mirror"])])
+
+	def fresh(self, count=5):
+		return self.run_of(self.TWO + [(n, "Level", ["Mod.Pierce", "Mod.Mirror"]) for n in range(2, count)])
+
+	def test_the_locked_ids_are_the_catalogs(self):
+		for held in ("Mod.ScatterShell", "Mod.Fork", "Weapon.RailLance", "Blessing.Storm.Tempest.Amp1", "Blessing.Radiance.Solar.Trait", "Transform.Tide"):
+			self.assertIn(held, self.LOCKED)
+		for open_id in ("Blessing.Storm.Tempest.Key", "Keeper.Radiance", "Weapon.ArcBlade", "Mod.Pierce", "Weapon.FlakMortar"):
+			self.assertNotIn(open_id, self.LOCKED)
+
+	def test_read_takes_hands_and_picks_of_player_0(self):
+		def card(slot, name):
+			return {"slot": slot, "kind": "Mod", "id": name}
+		lines = [{"kind": "run_start"}, {"kind": "offer", "owner": 0, "hand_id": 0, "hand_kind": "Level", "cards": [card(1, "Mod.B"), card(0, "Mod.A")]},
+			{"kind": "offer_pick", "owner": 0, "hand_id": 0, "slot": 1, "id": "Mod.B"}, {"kind": "offer", "owner": 1, "hand_id": 0, "hand_kind": "Level", "cards": [card(0, "Mod.C")]}]
+		with tempfile.TemporaryDirectory() as root:
+			path = os.path.join(root, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("".join(json.dumps(line, separators=(",", ":")) + "\n" for line in lines))
+			self.assertEqual(pool_read.read(path), ([(0, "Level", ["Mod.A", "Mod.B"])], [(0, "Mod.B")]))
+
+	def test_same_hands_pass(self):
+		ok, text = pool_read.same(self.tool(), self.tool(), self.LOCKED, 5)
+		self.assertTrue(ok, text)
+		self.assertIn("5 hands and 5 picks the same", text)
+
+	def test_a_hand_that_differs_fails(self):
+		other = self.tool()
+		other[0][3] = (3, "Level", ["Mod.Pierce", "Mod.Mirror"])
+		ok, text = pool_read.same(self.tool(), other, self.LOCKED, 5)
+		self.assertFalse(ok)
+		self.assertIn("hand 3 differs", text)
+
+	def test_a_pick_that_differs_fails(self):
+		hands, picks = self.tool()
+		self.assertFalse(pool_read.same(self.tool(), (hands, picks[:-1] + [(4, "Mod.Mirror")]), self.LOCKED, 5)[0])
+
+	def test_the_two_hands_of_20_s_cannot_tell_the_pools_apart(self):
+		short = self.run_of(self.TWO)
+		for ok, text in (pool_read.same(short, short, self.LOCKED, 1), pool_read.first(short, short, self.LOCKED, 1)):
+			self.assertFalse(ok)
+			self.assertIn("cannot tell the pools apart", text)
+
+	def test_a_window_with_a_lock_and_no_amp_cannot_either(self):
+		tool = self.run_of(self.tool()[0][:3])  # Mod.ScatterShell shown, no blessing card
+		self.assertFalse(pool_read.same(tool, tool, self.LOCKED, 3)[0])
+		self.assertFalse(pool_read.first(tool, self.fresh(), self.LOCKED, 3)[0])
+
+	def test_too_few_hands_fail(self):
+		self.assertFalse(pool_read.same(self.tool(), self.tool(), self.LOCKED, 6)[0])
+		self.assertFalse(pool_read.first(self.tool(), self.fresh(), self.LOCKED, 6)[0])
+
+	def test_the_first_pool_shows_nothing_locked(self):
+		ok, text = pool_read.first(self.tool(), self.fresh(), self.LOCKED, 5)
+		self.assertTrue(ok, text)
+		self.assertIn("0 Tree-locked ids in 5 hands", text)
+
+	def test_a_locked_card_in_the_first_pool_fails(self):
+		ok, text = pool_read.first(self.tool(), self.tool(), self.LOCKED, 5)
+		self.assertFalse(ok)
+		self.assertIn("the first-run pool showed", text)
+		self.assertIn("Mod.ScatterShell", text)
+
+	def met_runs(self, gated_tail):
+		tool = self.run_of(self.RADIANCE + [(2, "Level", ["Blessing.Radiance.Lance.Amp1", "Mod.Pierce"]), (3, "Level", ["Mod.Mirror"])])
+		return tool, self.run_of(self.RADIANCE + gated_tail)
+
+	def test_a_met_keepers_amps_stay_shut(self):
+		tool, gated = self.met_runs([(2, "Level", ["Blessing.Radiance.Prism.Key", "Mod.Pierce"]), (3, "Level", ["Mod.Mirror"])])
+		ok, text = pool_read.met(tool, gated, "Radiance", self.LOCKED, 2)
+		self.assertTrue(ok, text)
+		self.assertIn("2 Radiance Keys taken", text)
+
+	def test_an_amp_of_the_met_keeper_fails(self):
+		tool, gated = self.met_runs([(2, "Level", ["Blessing.Radiance.Lance.Trait"]), (3, "Level", ["Mod.Mirror"])])
+		ok, text = pool_read.met(tool, gated, "Radiance", self.LOCKED, 2)
+		self.assertFalse(ok)
+		self.assertIn("the gated pool showed Blessing.Radiance.Lance.Trait", text)
+
+	def test_no_key_taken_or_too_few_hands_after_it_fail(self):
+		tool, gated = self.met_runs([(2, "Level", ["Mod.Pierce"]), (3, "Level", ["Mod.Mirror"])])
+		self.assertFalse(pool_read.met(tool, gated, "Radiance", self.LOCKED, 3)[0])
+		self.assertFalse(pool_read.met(tool, (gated[0], [(0, "Keeper.Radiance"), (1, "Mod.Pierce")]), "Radiance", self.LOCKED, 2)[0])
+
+	def test_a_control_that_saw_no_amp_or_another_keeper_fails(self):
+		tool, gated = self.met_runs([(2, "Level", ["Mod.Pierce"]), (3, "Level", ["Mod.Mirror"])])
+		self.assertFalse(pool_read.met(gated, gated, "Radiance", self.LOCKED, 2)[0])
+		self.assertIn("did not choose Keeper.Radiance", pool_read.met(self.run_of(self.TWO), gated, "Radiance", self.LOCKED, 2)[1])
+
+	def test_the_command_fails_on_a_missing_file(self):
+		out = io.StringIO()
+		with contextlib.redirect_stdout(out):
+			rc = pool_read.main(["pool_read.py", "same", os.path.join(self.ROOT, "no_such.jsonl"), os.path.join(self.ROOT, "no_such.jsonl"), "--hands", "3"])
+		self.assertEqual(rc, 1)
+		self.assertTrue(out.getvalue().startswith("POOL: FAIL (same: no telemetry at"))
+
+	def test_metacheck_reads_each_pool_step_this_way(self):
+		with open(os.path.join(self.ROOT, "Tools", "MetaCheck.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		for call in ('$SameHands = Read-Pool @("same", $JsonP, $JsonG, "--hands", $PoolHands)', '$FirstOk = (Read-Pool @("first", $JsonP, $JsonH, "--hands", $PoolHands))',
+				'Read-Pool @("met", $JsonI6, $JsonI5, "Radiance", "--hands", $KeyHands)'):
+			self.assertIn(call, text)
+		verdict = text.split('$PoolLines\nif (')[1].split("\n")[0]
+		for held in ("$TreeOk", "$FirstOk", "$AmpsShutOk"):
+			self.assertIn(held, verdict)
+		self.assertIn("-and $SameHands", text)
 
 
 if __name__ == "__main__":

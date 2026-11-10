@@ -163,7 +163,8 @@ if (-not (Skipped "firstrun")) {
 	$Battery = Join-Path $Root "Saved\BotRuns\gate_firstrun"
 	if (Test-Path $Battery) { Remove-Item $Battery -Recurse -Force }
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\BotRuns.ps1") -BotVersion 2 -FreshPool -Arms "Steered:Storm:Tempest,Steered:Forge:Hammer,Steered:Tide:Frost" -FirstSeed 9100 -Seeds 2 `
-		-Check T-OFF-15 -Parallel 6 -Stagger 1.5 -Out $Battery 2>&1  # two arms share each seed, and a run file is named to the second
+		-Check T-OFF-15 -ReadAll -Parallel 6 -Stagger 1.5 -Out $Battery 2>&1  # two arms share each seed, and a run file is named to the second
+	# -ReadAll (D-037): all six launched runs are read at the boss; one lost, or ended short of it, fails the step.
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_firstrun.log") -Encoding utf8
 	$Verdict = ($Out | Select-String "^BOTRUNS:" | Select-Object -Last 1).Line

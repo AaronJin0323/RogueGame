@@ -1,6 +1,6 @@
 """Summary of bot runs (Tools/BotRuns.ps1 writes the run folders; Docs/Validation/S1_bot_baseline.md). Stdlib only.
 
-Usage:  python -I Tools/bot_summary.py <Saved/BotRuns/<stamp>> [--check T-DIR-01[,T-OFF-15]]
+Usage:  python -I Tools/bot_summary.py <Saved/BotRuns/<stamp>> [--check T-DIR-01[,T-OFF-15]] [--read-all <launched runs>]
 
 Each run folder <label>_s<seed>/ holds bot.csv (+ bot.csv.txt), the bot's per-minute record (DTBotSubsystem.h), and the
 run's telemetry pair <seed>_<time>.csv/.jsonl copied from Saved/Playtests. Writes summary.csv and summary.md next to the
@@ -8,6 +8,8 @@ folders and prints one line per check:
   T-DIR-01: PASS|FAIL (...)   no-pick arm median death time in C.DIR.NOPICK_DEATH_BAND_S over >= C.DIR.BOT_RUNS seeds
   T-OFF-15: PASS|FAIL|n/a (...) Steered runs that reached the boss: decisions in C.DECISIONS.PER_RUN +- tolerance,
                                Reserve share <= C.OFFER.RESERVE_SHARE_MAX (bot-measured, GATED until calibrated)
+                               --read-all <n> (D-037, the gate's firstrun step): each of the n launched runs has to be one
+                               of those, so a run that left no record or ended short of the boss fails the check
 Exit 1 when a requested check fails (or cannot run), else 0.
 Window metrics (damage-taken share per minute, dashes per minute) are the run's telemetry read by Tools/pressure.py
 (T-DIR-02): JSONL hero_damaged / dash records inside C.DIR.BAND_WINDOW_S over the time the hero was alive in it; a run
@@ -338,6 +340,28 @@ def mean(xs):
 	return round(statistics.mean(xs), 3) if xs else ""
 
 
+def check_off_15(runs, consts, launched=None):
+	"""T-OFF-15 over a batch: (verdict line, 1 on a failure). A Steered run that reached the boss is read; `launched` is --read-all's count (D-037)."""
+	per_run = consts["DECISIONS.PER_RUN"]["value"]
+	tol = consts["OFFER.DECISIONS_TOLERANCE"]["value"]
+	reserve_max = consts["OFFER.RESERVE_SHARE_MAX"]["value"]
+	to_boss = consts["RUN.LENGTH_TO_BOSS"]["value"]
+	rs = [r for r in runs if r["label"].lower().startswith("steered") and (r["outcome"] == "victory" or r["end_s"] >= to_boss)]
+	if launched is not None:
+		# Every launched run is read or the check fails: a run that is lost, or ends short of the boss, is never a pass.
+		unread = [r for r in runs if not any(r is x for x in rs)]
+		if unread or len(runs) != launched:
+			notes = [f"{r['label']} seed {r['seed']} is unread ({r['outcome']} at {r['end_s']} s)" for r in unread]
+			if len(runs) != launched:
+				notes.append(f"{len(runs)} run folder(s) for {launched} launched")
+			return f"T-OFF-15: FAIL (only {len(rs)} of {launched} launched runs read at the boss, and --read-all needs each one: {'; '.join(notes)})", 1
+	if not rs:
+		return "T-OFF-15: n/a (no Steered run reached the boss)", 1
+	bad = [r for r in rs if not (per_run - tol <= (r["decisions"] or 0) <= per_run + tol) or (r["reserve_share"] or 0) > reserve_max]
+	return (f"T-OFF-15: {'FAIL' if bad else 'PASS'} ({len(rs) - len(bad)}/{len(rs)} runs at the boss with decisions "
+		f"{per_run}+-{tol} and Reserve share <= {reserve_max}; mean decisions {mean(r['decisions'] for r in rs)})"), 1 if bad else 0
+
+
 def main(argv):
 	if len(argv) < 2:
 		print(__doc__)
@@ -346,6 +370,7 @@ def main(argv):
 	checks = []
 	if "--check" in argv:
 		checks = [c for c in argv[argv.index("--check") + 1].split(",") if c]
+	launched = int(argv[argv.index("--read-all") + 1]) if "--read-all" in argv else None
 	consts = dtconst.load()
 	runs = [summarise_run(d, consts) for d in sorted(glob.glob(os.path.join(root, "*_s*"))) if os.path.isdir(d)]
 	if not runs:
@@ -462,16 +487,9 @@ def main(argv):
 				+ (f"; {alive} run(s) did not die" if alive else "") + ")")
 			rc |= 0 if ok else 1
 	if "T-OFF-15" in checks:
-		to_boss = consts["RUN.LENGTH_TO_BOSS"]["value"]
-		rs = [r for r in runs if r["label"].lower().startswith("steered") and (r["outcome"] == "victory" or r["end_s"] >= to_boss)]
-		if not rs:
-			verdicts.append("T-OFF-15: n/a (no Steered run reached the boss)")
-			rc = 1
-		else:
-			bad = [r for r in rs if not (per_run - tol <= (r["decisions"] or 0) <= per_run + tol) or (r["reserve_share"] or 0) > reserve_max]
-			verdicts.append(f"T-OFF-15: {'FAIL' if bad else 'PASS'} ({len(rs) - len(bad)}/{len(rs)} runs at the boss with decisions "
-				f"{per_run}+-{tol} and Reserve share <= {reserve_max}; mean decisions {mean(r['decisions'] for r in rs)})")
-			rc |= 1 if bad else 0
+		verdict, failed = check_off_15(runs, consts, launched)
+		verdicts.append(verdict)
+		rc |= failed
 	if verdicts:
 		lines += ["", "## Checks", ""] + [f"- {v}" for v in verdicts]
 	with open(os.path.join(root, "summary.md"), "w", encoding="utf-8") as f:
