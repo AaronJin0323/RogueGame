@@ -40,3 +40,4 @@
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
 | D-037 | A gate check reads every run it launches, and a pool check has to be able to tell the pools apart | RULE | applied |
 | D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied |
+| D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |

@@ -888,6 +888,8 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	const FVector2f Hero = HeroOf(View, Owner);
 	const bool bManual = Players.IsValidIndex(Owner) && Players[Owner].bAimManual;
 	const FVector2f AimDir = SafeDir(View.HeroAimDirs.IsValidIndex(Owner) ? View.HeroAimDirs[Owner] : FVector2f(1.0f, 0.0f), FVector2f(1.0f, 0.0f));
+	// A free volley that is not a dash volley is a kill's: Mod.ChainTrigger. It never starts a live beam or ring again (D-039).
+	const bool bKillVolley = bFree && !bVolleyForced;
 
 	if (Spec.Pattern == EDTWeaponPattern::Orbiter)
 	{
@@ -1054,6 +1056,12 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	{
 		if (Spec.Evolve == EDTEvolve::SweepBeam)
 		{
+			if (bKillVolley && Runtime.BeamLeft > 0.0f)
+			{
+				// R-RFG-08: a kill's free volley leaves the live beam its sweep. It is one tick of the beam along its own aim, as that volley's.
+				EmitArc(Context, Runtime, Shot, Dir, DTReforge::Param(Spec.EvolveRow, TEXT("width_deg")), Spec.Range, false);
+				break;
+			}
 			// R-RFG-08: the volley only starts the beam; StepBeam runs its ticks.
 			Runtime.BeamDir = Dir;
 			Runtime.BeamLeft = DTReforge::Param(Spec.EvolveRow, TEXT("beam_s"));
@@ -1166,6 +1174,12 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			const int32 Row = Spec.EvolveRow;
 			const float Grow = DTReforge::Param(Row, TEXT("grow_s"));
+			// R-RFG-12: a kill's free volley leaves the live ring where it stands, and the ring strikes its band once more, as that volley's.
+			if (bKillVolley && StrikeForceField(Context, Owner, Slot, Runtime, Shot.SourceId,
+				DTReforge::Param(Row, TEXT("dps")) * Shot.Damage * DTReforge::Param(Row, TEXT("tick_s"))))
+			{
+				break;
+			}
 			if (!OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
 				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s")),
 				bVolleyForced)) // a dash volley starts the live ring again, as its own (R-RFG-12, keepers.md R-KEE-34)
@@ -1251,16 +1265,17 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			StepBlades(Context, Player, Slot, Runtime);
 		}
-		else if (bVolleyForced && Players.IsValidIndex(Owner))
+		else if (Players.IsValidIndex(Owner))
 		{
-			// A dash volley: every blade touches once where it is, as the volley's source at its multiplier; the turn is not spent (R-RFG-07, keepers.md R-KEE-34).
+			// A free volley: every blade touches once where it is, as the volley's source; the turn is not spent (R-RFG-07).
+			// A dash volley's touch is at its multiplier (keepers.md R-KEE-34); a kill's, Mod.ChainTrigger's, at the row's damage.
 			const float Orbit = BladeOrbit(Players[Owner], Runtime);
 			const float Contact = DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu"));
 			const int32 Blades = FMath::Max(1, Spec.Count); // the blades StepBlades turns
 			for (int32 Blade = 0; Blade < Blades; ++Blade)
 			{
 				const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
-				StrikeCircle(Context, Owner, Slot, Runtime, Hero + Rotate(FVector2f(Orbit, 0.0f), Angle), Hero, Contact, Spec.Damage * VolleyMult,
+				StrikeCircle(Context, Owner, Slot, Runtime, Hero + Rotate(FVector2f(Orbit, 0.0f), Angle), Hero, Contact, Spec.Damage * (bVolleyForced ? VolleyMult : 1.0f),
 					FreeSource != 0 ? FreeSource : Instance.SourceId, false);
 			}
 		}
@@ -2029,6 +2044,44 @@ bool FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Run
 	return true;
 }
 
+void FDTWeaponSim::AddFieldHit(FDTWorldView& View, const FField& Field, FWeaponRuntime& Runtime, int32 Enemy, uint16 SourceId, float Damage)
+{
+	FDTHit& Hit = View.Hits.AddDefaulted_GetRef();
+	Hit.EnemyIndex = Enemy;
+	Hit.EnemySerial = View.EnemySerials[Enemy];
+	Hit.OwnerId = Field.OwnerId;
+	Hit.Damage = Damage;
+	Hit.Position = View.EnemyPositions[Enemy];
+	Hit.SourceId = SourceId;
+	Hit.WeaponSlot = Field.Slot;
+	AddHitImpact(View, Hit, Field.Slot, Runtime, Field.Position, Field.Position, Hit.Damage, false);
+}
+
+bool FDTWeaponSim::StrikeForceField(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, float Damage)
+{
+	FDTWorldView& View = *Context.View;
+	for (const FField& Live : Fields)
+	{
+		if (!Live.bForce || Live.OwnerId != OwnerId || Live.Slot != Slot)
+		{
+			continue;
+		}
+		const float Radius = Live.CurrentRadius();
+		TArray<int32> Inside;
+		EnemiesInCircle(View, Live.Position, Radius, Inside);
+		for (const int32 Enemy : Inside)
+		{
+			if (Live.BandUu > 0.0f && FVector2f::Distance(View.EnemyPositions[Enemy], Live.Position) < Radius - Live.BandUu)
+			{
+				continue; // a ring acts on its band only
+			}
+			AddFieldHit(View, Live, Runtime, Enemy, SourceId, Damage);
+		}
+		return true;
+	}
+	return false;
+}
+
 void FDTWeaponSim::StepForceField(const FDTSimContext& Context, FField& Field)
 {
 	FDTWorldView& View = *Context.View;
@@ -2054,15 +2107,7 @@ void FDTWeaponSim::StepForceField(const FDTSimContext& Context, FField& Field)
 		}
 		if (bTick && Field.DamagePerSecond > 0.0f && Runtime)
 		{
-			FDTHit& Hit = View.Hits.AddDefaulted_GetRef();
-			Hit.EnemyIndex = Enemy;
-			Hit.EnemySerial = View.EnemySerials[Enemy];
-			Hit.OwnerId = Field.OwnerId;
-			Hit.Damage = Field.DamagePerSecond * Field.TickS;
-			Hit.Position = View.EnemyPositions[Enemy];
-			Hit.SourceId = Field.SourceId;
-			Hit.WeaponSlot = Field.Slot;
-			AddHitImpact(View, Hit, Field.Slot, *Runtime, Field.Position, Field.Position, Hit.Damage, false);
+			AddFieldHit(View, Field, *Runtime, Enemy, Field.SourceId, Field.DamagePerSecond * Field.TickS);
 		}
 		const float Move = Field.PushUuS * Dt;
 		if (Dist > KINDA_SMALL_NUMBER && Move != 0.0f)
