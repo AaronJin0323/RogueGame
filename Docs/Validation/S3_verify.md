@@ -16,7 +16,7 @@ Every launch ran on the hidden desktop of `Tools/HiddenLaunch.ps1` with a `-user
 | PackageHubCheck's stop (#63, #107) | yes, real launches of the package beside a bystander game, then the whole check on a package of this branch | the bystander dies | the launch and its game end, the bystander lives; `PKGHUB: PASS` | `tools_test.py`, in the gate |
 | Crash redaction (#35, #46) | yes, a real crash of the packaged Development game | the three ids are in the zip | 0 leaks | `Tools/CrashExportCheck.ps1`, T-PKG-15, by hand |
 
-One gap the two-process fix does not cover is under item 1, with options. It needs a call and was not changed.
+One gap the two-process fix does not cover is under item 1, with options. It needed a call and was not changed here. The call was made since, D-042, and the gap is closed on `fix/d042-save-lock`: its reading is at the end of item 1.
 
 ## 1. Two game processes on one save (#0)
 
@@ -43,6 +43,30 @@ Options, none taken here because each is a rule about the save (`meta.md` R-MET-
 - C. One game per save: a second launch on a save that is open refuses to start, or starts with no save and says so. Closes this and the stale balance a second window shows, at the cost of a new message and a rule for a crashed first window.
 
 **Also not verified.** The hub page of a window that sat while the other one wrote: the balance it draws is the one it opened with until its own next bank or purchase. Read from the code, not looked at.
+
+**Since: option B, D-042 (`fix/d042-save-lock`, from `dev/s3` at `9fafa8f`).** Every change to the save is now reread, change and write under `DTMeta.sav.lock`, opened with no sharing for that one change (`meta.md` R-MET-11).
+
+*What was run.* `Tools/TwoWindowsCheck.ps1 -Race 40`, the same script before and after the fix. The ten trials above left the moment to each process's own timing and hit the window once. Here it is forced: two to four game processes stay open on one save, and each trial the script names one instant half a second ahead; every process holds for it and banks one run there (`DT.Meta.BankWhen`, debug only, the `FDTMetaSession::Bank` call a run's end makes). The banks finish within a median of 1 to 2 ms of each other without the lock. The script reads the run count from the file after each trial, and a last process reads the whole save with `DT.Meta.Dump`. At most four game processes at once.
+
+| Reading | Before (`7b3009d`) | After |
+|---|---|---|
+| Two launches, 40 trials | 40 trials lost a bank; the file held 40 runs of 80, balance 400 of 800 | 0 trials; 80 runs of 80, 800 of 800 |
+| Four launches, 40 trials | 40 trials lost a bank; 40 runs of 160, 400 of 1600 | 0 trials; 160 runs of 160, 1600 of 1600; no bank had to be kept in memory; the four finish within a median of 16 ms |
+| `Dusktracer.Meta.SaveWindow`, a bank and a purchase forced inside another session's window | fails: two runs of three in the file, and a purchase that said bought is not there | passes |
+
+Before, every forced trial loses all banks but one: the window is the whole of a change, and nothing orders two of them. After, the second process cannot read until the first has written, and its log shows the reread each time (`Meta: another launch wrote ...; read again`).
+
+*A lock that cannot be had,* on real launches, the script holding `DTMeta.sav.lock` with no sharing for longer than `C.SAVE.LOCK_WAIT_MS`:
+
+| Scene | Read |
+|---|---|
+| A bank, then the lock let go, then the launch's next bank | the log says the bank is kept in memory, the file is not written; after the next bank the save holds 2 runs and both awards |
+| A purchase on a planted 400 | result 6 (`Busy`), balance 400, no node |
+| A bot run that ends and quits with the lock never free | the log says kept, the run's JSONL holds `save_deferred{change: bank, waiting: 1}`, the log says `could not be written at exit; 1 change(s) of this launch are lost`, no file is written |
+
+The last row is the one path where a change still goes, and it is not silent. The script's handle, once closed, leaves a lock file nobody holds, and the launches after it go through that file: a stale lock blocks nothing.
+
+The four forced orders above still read `TWOWINDOWS: PASS (4 of 4 scenes, ...)`. Left by D-042 and still not verified: the stale balance of the idle window, above. Not verified at all: a process killed while it holds the lock (the release is the operating system's), and the non-Windows lock, never compiled.
 
 ## 2. A run that ends on the frame Pause lands (#1, #8)
 
