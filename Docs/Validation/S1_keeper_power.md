@@ -177,3 +177,55 @@ Steered: at the boss 201 → 196, wins 164 → 153. T-DIR-01 PASS 588.6 s, uncha
 - `C.INTERCESSION.RETUNE_STEP_MAX` is ×2: Tempest's variant `child_dmg` 0.45 → 0.90 sits at that limit, Arc Grid's links under it.
 - `Tide/Whirlpool:Furnace` reads 40 169 with SD 31 555, a chain of Burn deaths on three seeds. Do not read a mean into it.
 - All of this is a bound at skill 1.0 and no number here has met a human (O-008).
+
+## 8. Reread on `dev/s2`, 2026-11-10, at d827a58
+Branch `docs/s2-reread`. A reading: no game code, number, pass line or tool changed. Bot v1 at skill 1.0, headless, a bound (O-008). The reading it is set against is the last S1 one, `S1_tide_rule.md` (after D-019, `Saved/Probes/ik_rule`, `ab_rule`, `Saved/BotRuns/rule`), not §5 above, which is the tree before D-019.
+
+Read as that one was: the nine showcase arms, seeds 1 to 15, v1, nothing unlocked (the 19-arm battery's other ten arms feed no probe and were not run); T-KEE-18 on every level 16 snapshot of those runs, one seed, six configurations; T-KEE-15 on the 57 combinations, 3 seeds, cast and plain; 40x field. `-Parallel 6`. Every run left a record, every cast scene has one cast, no scene took a wrong Patron, none was rerun.
+```
+& Tools\BotRuns.ps1 -Arms <the nine showcase arms> -Seeds 15 -Parallel 6 -Stagger 0.4 -Out Saved\BotRuns\s1_reread
+python -I Tools\probe.py ablation Saved\Probes\ab_reread --builds Saved\BotRuns\s1_reread
+& Tools\BotRuns.ps1 -Jobs Saved\Probes\ab_reread\jobs.csv -Parallel 6 -Stagger 0.4 -Out Saved\Probes\ab_reread\runs
+python -I Tools\probe.py intercession Saved\Probes\ik_reread --seeds 3
+& Tools\BotRuns.ps1 -Jobs Saved\Probes\ik_reread\jobs.csv -Parallel 6 -Stagger 0.4 -Out Saved\Probes\ik_reread\runs
+```
+
+| Reading | `S1_tide_rule.md`, S1 tree at D-019 | `dev/s2` at d827a58 | Moved |
+|---|---|---|---|
+| T-KEE-15 | **FAIL**, 15/57 in band | **FAIL**, 15/57 in band | the count and the 15 rows are the same; 11 values moved |
+| T-KEE-18 share | **FAIL**, 5/9 arms, mean 0.589 | **FAIL**, 4/9 arms, mean 0.566 | Frost falls under the line |
+| T-KEE-18 gain | **FAIL**, 1/9 in band | **FAIL**, 0/9 in band | Furnace 2.05 to 1.83 |
+| T-KEE-18 archetype band | **FAIL**, 5/9 in band | **FAIL**, 4/9 in band | Stillness goes out |
+
+**T-KEE-15.** 342 scenes.
+
+| Keeper | Mean before | In band before | Mean now | In band now | Range now |
+|---|---|---|---|---|---|
+| Storm | 37 920 | 8/19 | 37 698 | 8/19 | -2 505 to 62 524 |
+| Forge | 48 762 | 7/18 | 48 385 | 7/18 | 16 448 to 77 105 |
+| Tide | 1 083 | 0/20 | -2 126 | 0/20 (no band) | -22 802 to 11 906 |
+
+- 46 of 57 combinations equal the old reading to the unit, mean and SD. The 11 that moved all hold Furnace: six with Furnace as the variant (all but its Arc Grid layer) and Furnace as the layer on Downpour, Tempest, Frost, Stillness and Whirlpool. Furnace is the one archetype here that lays a Field, and `dev/s2` holds the field-tick fix (`S2_trace.md`: a field tick is not a hit and rolls no enchantment), which the S1 tree of that reading did not. That fits, and it was not bisected. It is a real change of the game, not a change of the records.
+- Furnace with no layer 51 026 to 42 898; Furnace with Downpour 35 998 to 24 831; with Whirlpool 21 685 to 36 531; with Stillness 24 379 to 31 277.
+- Tide's mean is below zero again, so it has no band again. Most of that is one row: Whirlpool:Furnace 40 169 (SD 31 555) to -8 425 (SD 16 860), the row §7 said not to read a mean into. Stillness:Furnace -10 376 to -22 802. Casts that lose damage 13 to 14, 13 of them Tide.
+- D-026 and D-027 move nothing here: the probe sums `hit` records across sources and counts casts.
+
+**T-KEE-18.** 114 builds, 684 scenes.
+
+| Arm | Builds | Full DPS | Share before | Share now | Gain before | Gain now | Band now |
+|---|---|---|---|---|---|---|---|
+| Forge/Furnace | 15 | 11 301 | 0.601 PASS | 0.697 PASS | 2.05 PASS | 1.83 | IN |
+| Forge/Hammer | 14 | 12 903 | 0.800 PASS | 0.738 PASS | 2.88 | 2.93 | OUT |
+| Forge/Slam | 14 | 8 747 | 0.554 | 0.514 | 1.20 | 1.21 | IN |
+| Storm/ArcGrid | 15 | 4 369 | 0.389 | 0.380 | 3.30 | 3.04 | OUT |
+| Storm/Downpour | 15 | 7 007 | 0.443 | 0.450 | 4.86 | 5.29 | IN |
+| Storm/Tempest | 14 | 2 939 | 0.320 | 0.332 | 1.37 | 1.42 | OUT |
+| Tide/Frost | 9 | 7 561 | 0.653 PASS | 0.516 | 0.86 | 0.94 | IN |
+| Tide/Stillness | 10 | 7 979 | 0.632 PASS | 0.735 PASS | 1.13 | 1.07 | OUT |
+| Tide/Whirlpool | 8 | 7 176 | 0.907 PASS | 0.732 PASS | 0.95 | 1.48 | OUT |
+
+- These are other builds, so the table is not a paired comparison: 132 of the 135 bot runs have another `input_hash` than `Saved/BotRuns/rule`. `dev/s2` differs from that S1 tree by the field-tick fix and by all of S2's code, and which part moved a given arm was not traced. A real change, then, and none of it from D-026 or D-027, which do not reach the ablation.
+- The three Storm arms still miss share at 0.33 to 0.45 with gains of 3.04 and 5.29 on two of them: §6's reading of the formula stands. Tide's shares swing by 0.10 to 0.18 on 8 to 10 builds; do not read a trend into them.
+- The same nine arms on these runs: wins 78 to 72 of 135 (Frost 7 to 2, Whirlpool 3 to 0, Tempest 6 to 8, the rest within 1). A bound, not traced, and not the 19-arm battery.
+
+Pass criteria are unchanged and nothing was tuned. Both tests still wait for human readings.

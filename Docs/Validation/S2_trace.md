@@ -113,3 +113,18 @@ Forge gains 8 at skill 1.0 (Slam 9 to 13, Furnace 11 to 14), not traced; a shift
 
 ## Gate
 `& Tools\Gate.ps1 -Base dev/s2` at 243267c: GATE: PASS, 405 tests of 405, tools 41, 3 not run (pad, scope, mac). This line is the only change after it.
+
+## Reread, 2026-11-10, `dev/s2` at d827a58
+The same battery on the current `dev/s2`, full tables in `S2_exit.md`. `S2EXIT: 1 PASS, 3 FAIL, 2 NOT READ`. The "After" column above was read before D-026 and D-027; this is what stands now.
+
+| Reading | After, f2ef7ed | Reread, d827a58 | Moved |
+|---|---|---|---|
+| Keeper share | 8/18, mean 0.607 | 8/18, mean 0.607 | no, every arm equal |
+| Build bands | 9/18 | 9/18 | no |
+| Intercession | 46/282 | 46/282 | no, every mean equal to the unit |
+| Wins of 45 at skill 1.0 | Storm 24, Forge 41, Tide 5, Shade 39, Radiance 35, Quicksilver 42 | Storm 24, Forge 41, Tide 5, Shade 39, Radiance 35, Quicksilver 43 | Vector:Forge 12 to 13 |
+| Boss kills of reachers, skill 0.6 | 0.52 of 192 | 0.51 of 193 | Vector:Forge, one run |
+
+- The probe rows cannot move with D-026 or D-027: they sum `hit` records across sources. They did not.
+- 529 of 540 bot runs keep their `input_hash`. The 11 that moved are all Vector:Forge, where a dash volley under Forge's conversion now reads `Keeper.Quicksilver` (D-027) and the sim follows: a real change, one arm, read from the code and the records, not bisected.
+- The outliers above read as they did: Economy's cast (Shade mean 597933, max 3954879), Tide 5 of 45, Vector's cast near zero. The four items for a decision are still open and none was made here.
