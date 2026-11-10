@@ -43,3 +43,4 @@
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |
 | D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
+| D-043 | DRAFT: S4 Presentation starts on `dev/s4` before the S1, S2 and S3 exit tests, limited to a first wave | GO-NOGO | open (draft, not accepted) |
