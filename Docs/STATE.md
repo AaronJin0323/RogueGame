@@ -24,7 +24,7 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight (one agent: D-042, a lock around every save change, branch `fix/d042-save-lock` from `dev/s3`)
+## In flight (three agents: D-042 save lock with its two strings on `fix/d042-save-lock`; a third pass over the 51 deferred minors on `fix/s3-minors-3`; an S4 entry plan, docs only, on `plan/s4-entry`)
 - Tips, gated PASS and pushed: `main` (code at e1055c2), `dev/s2` f7e9a98, `dev/s3` 9fafa8f. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
 - Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
@@ -41,7 +41,7 @@
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
-- automated launches: OFF since 2026-11-10 evening, the owner is playtesting `main`; turn on again when they say the session is over
+- automated launches: on, window-free (hidden desktop); stop them during human sessions
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
