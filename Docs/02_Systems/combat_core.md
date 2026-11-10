@@ -104,5 +104,5 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
   - The input actions and both mapping contexts are built in C++ with `NewObject` at startup (`Player/DTInputSet`), not saved under `Content/DT/Input/`: still headless, no binary assets.
   - "Down" is not a world-view field (frozen Core): weapons ask `UDTHeroSubsystem::IsDown(OwnerId)`.
   - A press with the meter not full emits `IntercessionDenied` at once when the meter cannot fill inside `C.HERO.INPUT_BUFFER_S`; otherwise it waits in the buffer (no deny cue asset yet).
-  - Stats are `FDTHeroStats` (identity multipliers) until `FDTStatSet` exists; a dash charge gained from stats arrives charged. The aim mode is set with `DT.Hero.AimMode` until the settings save (S3). The HUD Intercession meter is a bar, not a ring, until the HUD pass.
+  - Stats are `FDTHeroStats` (identity multipliers) until `FDTStatSet` exists; a dash charge gained from stats arrives charged. The aim mode is set with `DT.Hero.AimMode` until the settings save (S3). The HUD Intercession meter is a ring since the HUD pass (`hud.md` R-HUD-06).
   - T-CMB-05 checks the mappings and that aim is published with no input; that weapons fire with no input is `weapons.md`'s tests.

@@ -5,12 +5,15 @@
 #include "GameFramework/Actor.h"
 #include "DTEnemyBulletRenderer.generated.h"
 
+class FDTEnemyBulletPool;
 class UInstancedStaticMeshComponent;
 class UMaterialInterface;
 
 /**
  * Transient actor spawned by UDTEnemySubsystem; one per world. Instance custom data: 0-2 linear RGB, 3 emissive
  * strength (read by /Game/DT/Materials/M_InstanceColor). Density LOD never dims it (R-PRE-06).
+ * tracer_art.md: the same actor draws each round's trail (R-TRC-04) and the muzzle flash of a round just fired (R-TRC-07), as two
+ * more instanced components on the engine plane and M_EnemyRound_Trail; neither takes a density either.
  */
 UCLASS(NotPlaceable, Transient)
 class DUSKTRACER_API ADTEnemyBulletRenderer : public AActor
@@ -30,6 +33,11 @@ public:
 
 	/** Makes the instance count equal Transforms.Num() (adding/removing only the tail), then batch-writes all transforms. */
 	void SetInstances(TConstArrayView<FTransform> Transforms);
+	/**
+	 * Draws the trail behind every round of Rounds and the flash of every round fired within C.TRC.MUZZLE_S, at the interpolation
+	 * Alpha and the height Z of the rounds. Reads the pool (positions, velocities, radii, firing points); writes nothing to it.
+	 */
+	void SetTrails(const FDTEnemyBulletPool& Rounds, float Alpha, double Z);
 
 	/** Half-width of the mesh in uu: a round of radius R draws at scale R / GetMeshRadius(). */
 	float GetMeshRadius() const { return MeshRadius; }
@@ -37,6 +45,10 @@ public:
 	UInstancedStaticMeshComponent* GetInstances() const { return Instances; }
 	int32 GetOutlineCount() const;
 	UInstancedStaticMeshComponent* GetOutlines() const { return Outlines; }
+	UInstancedStaticMeshComponent* GetTrails() const { return Trails; }
+	UInstancedStaticMeshComponent* GetFlashes() const { return Flashes; }
+	/** False without M_EnemyRound_Trail: rounds then draw with no trail and no flash. */
+	bool HasTrailMaterial() const { return bTrailMaterial; }
 	bool IsUsingFallbackMaterial() const { return bFallbackMaterial; }
 
 private:
@@ -51,6 +63,17 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UInstancedStaticMeshComponent> Outlines;
 
+	/** tracer_art.md R-TRC-04: one quad behind each round that flies fast enough to show one. */
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UInstancedStaticMeshComponent> Trails;
+
+	/** tracer_art.md R-TRC-07: one quad at the firing point of each round just fired. */
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UInstancedStaticMeshComponent> Flashes;
+
+	bool bTrailMaterial = false;
+	TArray<FTransform> TrailScratch;
+	TArray<FTransform> FlashScratch;
 	float MeshRadius = 1.0f;
 	float DiscMeshRadius = 1.0f;
 	float DiscMeshHeight = 1.0f;

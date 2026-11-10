@@ -21,8 +21,8 @@ namespace DTKeeperSubsystemLocal
 	/** D-015: every player starts owning this weapon at its first level, right after the Patron pick. */
 	static const FName StartingWeapon(TEXT("Weapon.PulseRifle"));
 	constexpr int32 StartingLevel = 1;
-	/** Trail parts per Path: the body (primary colour) and the tail tip (second colour, R-KEE-09). */
-	constexpr int32 TrailParts = 2;
+	/** One trail bucket per pair of body and tip colour (tracer_art.md R-TRC-03; the tip is the second Keeper's, R-KEE-09). */
+	constexpr int32 TrailBuckets = DTTracerArt::NumSlots * DTTracerArt::NumSlots;
 }
 
 void FDTKeeperPhaseAdapter::SimStep(const FDTSimContext& Context)
@@ -302,7 +302,7 @@ void UDTKeeperSubsystem::RecordStatuses(const FDTSimContext& Context)
 	}
 }
 
-// ---- trails (R-KEE-09, R-PRE-01) -------------------------------------------------------------------------------------------------
+// ---- trails (R-KEE-09, R-PRE-01, tracer_art.md) ---------------------------------------------------------------------------------
 
 int32 UDTKeeperSubsystem::GetTrailRendererCount() const
 {
@@ -314,24 +314,34 @@ int32 UDTKeeperSubsystem::GetTrailRendererCount() const
 	return Count;
 }
 
+ADTBulletRenderer* UDTKeeperSubsystem::GetTrailRenderer(int32 Body, int32 Tip) const
+{
+	const int32 Bucket = Body * DTTracerArt::NumSlots + Tip;
+	return Body >= 0 && Body < DTTracerArt::NumSlots && Tip >= 0 && Tip < DTTracerArt::NumSlots && TrailRenderers.IsValidIndex(Bucket) ? TrailRenderers[Bucket].Get() : nullptr;
+}
+
 ADTBulletRenderer* UDTKeeperSubsystem::EnsureTrailRenderer(int32 Bucket)
 {
 	if (TrailRenderers.Num() <= Bucket)
 	{
 		TrailRenderers.SetNum(Bucket + 1);
+		TrailMissing.SetNumZeroed(Bucket + 1);
 	}
-	if (!TrailRenderers[Bucket] && GetWorld())
+	if (!TrailRenderers[Bucket] && !TrailMissing[Bucket] && GetWorld())
 	{
 		FActorSpawnParameters Params;
 		Params.ObjectFlags |= RF_Transient;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		ADTBulletRenderer* Renderer = GetWorld()->SpawnActor<ADTBulletRenderer>(ADTBulletRenderer::StaticClass(), FTransform::Identity, Params);
-		if (Renderer)
+		// The tokens as authored (C.TRC.TAIL_EMISSIVE): the tail carries the hue, the core stays the brightest part of the round
+		// (R-PRE-01, R-PRE-06).
+		const FLinearColor Body = DTPal::Linear(DTTracerArt::SlotToken(Bucket / DTTracerArt::NumSlots));
+		const FLinearColor Tip = DTPal::Linear(DTTracerArt::SlotToken(Bucket % DTTracerArt::NumSlots));
+		if (Renderer && !Renderer->InitTail(Body, Tip, DTConst::TRC_TAIL_EMISSIVE))
 		{
-			const EDTPath Path = static_cast<EDTPath>(Bucket / DTKeeperSubsystemLocal::TrailParts);
-			// The token as authored (emissive x1): the trail carries the Keeper's hue, the core stays the brightest part
-			// of the round (R-PRE-01, R-PRE-06).
-			Renderer->InitRender(DTPal::Linear(DTKeepers::TrailToken(Path)), 1.0f);
+			Renderer->Destroy();
+			Renderer = nullptr;
+			TrailMissing[Bucket] = true;
 		}
 		TrailRenderers[Bucket] = Renderer;
 	}
@@ -344,29 +354,21 @@ void UDTKeeperSubsystem::SimRender(float Alpha)
 	UWorld* World = GetWorld();
 	UDTBulletSubsystem* BulletSys = World ? World->GetSubsystem<UDTBulletSubsystem>() : nullptr;
 	FDTRunState* Run = GetRun();
-	const int32 Buckets = static_cast<int32>(EDTPath::Count) * TrailParts;
-	TrailTransforms.SetNum(Buckets);
+	TrailTransforms.SetNum(TrailBuckets);
 	for (TArray<FTransform>& Bucket : TrailTransforms)
 	{
 		Bucket.Reset();
 	}
+	int32 Live = 0;
 	if (BulletSys && Run)
 	{
-		// Per player: the body colour (primary, from its first blessing) and the tip colour (second from the commitment).
-		TArray<int32> Body;
-		TArray<int32> Tip;
-		Body.Init(INDEX_NONE, Run->GetNumPlayers());
-		Tip.Init(INDEX_NONE, Run->GetNumPlayers());
+		// Per player: the bucket of its tails, from the body colour (primary, once blessed; neutral before) and the tip colour (the
+		// second from the commitment).
+		TArray<int32, TInlineAllocator<4>> BucketOf;
 		for (int32 Owner = 0; Owner < Run->GetNumPlayers(); ++Owner)
 		{
 			const FDTKeeperRunState& Keepers = Run->GetPlayer(Owner).Keepers;
-			if (Keepers.Primary == EDTPath::None || Keepers.Primary >= EDTPath::Count || DTKeepers::OwnedOfPath(Keepers, Keepers.Primary) == 0)
-			{
-				continue;
-			}
-			Body[Owner] = static_cast<int32>(Keepers.Primary) * TrailParts;
-			const bool bSecond = Keepers.bCommitDone && Keepers.Second != EDTPath::None && Keepers.Second < EDTPath::Count;
-			Tip[Owner] = static_cast<int32>(bSecond ? Keepers.Second : Keepers.Primary) * TrailParts + 1;
+			BucketOf.Add(DTTracerArt::BodySlot(Keepers) * DTTracerArt::NumSlots + DTTracerArt::TipSlot(Keepers));
 		}
 		const FDTBulletPool& Pool = BulletSys->GetPool();
 		const TConstArrayView<FVector2f> Pos = Pool.GetPositions();
@@ -374,43 +376,37 @@ void UDTKeeperSubsystem::SimRender(float Alpha)
 		const TConstArrayView<float> Radii = Pool.GetRadii();
 		const TConstArrayView<int32> Owners = Pool.GetOwners();
 		const TConstArrayView<uint16> Sources = Pool.GetSources();
-		const float InvMesh = BulletSys->GetRenderer() ? 1.0f / BulletSys->GetRenderer()->GetMeshRadius() : 0.0f;
+		Live = Pool.Num();
+		// R-TRC-06: the tail narrows with the live player-round count; its strength falls through the material's Dim below.
+		const float WidthDim = DTTracerArt::TailWidthDim(Live);
+		const float InvPlane = 1.0f / DTTracerArt::PlaneSizeUU;
 		const double Z = DTConst::SIM_PLANE_Z_UU;
-		for (int32 Index = 0; InvMesh > 0.0f && Index < Pool.Num(); ++Index)
+		FTransform Tail;
+		for (int32 Index = 0; Index < Live; ++Index)
 		{
 			const int32 Owner = Owners[Index];
-			if (!Body.IsValidIndex(Owner) || Body[Owner] == INDEX_NONE || Sources[Index] == FDTTelemetrySources::Stress)
+			if (!BucketOf.IsValidIndex(Owner) || Sources[Index] == FDTTelemetrySources::Stress)
 			{
 				continue;
 			}
-			// The trail runs behind the head along the round's flight: body first, the tip at its end.
-			const FVector2f Step = Pos[Index] - Prev[Index];
-			const float Length = Step.Size();
-			if (Length <= KINDA_SMALL_NUMBER)
-			{
-				continue;
-			}
-			const FVector2f Dir = Step / Length;
+			// The tail runs from the head back along the round's flight (read from the pool, never written); a round at rest has none.
 			const FVector2f Head = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
-			const float R = Radii[Index];
-			const FQuat Rot = FRotator(0.0f, FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)), 0.0f).Quaternion();
-			// Each part spans the step's travel, at least the round's own diameter (slow children still read as trailed).
-			const float Half = 0.5f * FMath::Max(Length, 2.0f * R);
-			const FVector Scale(Half * InvMesh, R * InvMesh, R * InvMesh);
-			const FVector2f BodyAt = Head - Dir * (R + Half);
-			const FVector2f TipAt = Head - Dir * (R + 3.0f * Half);
-			TrailTransforms[Body[Owner]].Emplace(Rot, FVector(BodyAt.X, BodyAt.Y, Z), Scale);
-			TrailTransforms[Tip[Owner]].Emplace(Rot, FVector(TipAt.X, TipAt.Y, Z), Scale);
+			if (DTTracerArt::Tail(Head, Pos[Index] - Prev[Index], Radii[Index], WidthDim, InvPlane, Z, Tail))
+			{
+				TrailTransforms[BucketOf[Owner]].Add(Tail);
+			}
 		}
 	}
-	for (int32 Bucket = 0; Bucket < Buckets; ++Bucket)
+	const float Dim = DTTracerArt::TailDim(Live);
+	for (int32 Bucket = 0; Bucket < TrailBuckets; ++Bucket)
 	{
-		// Renderers are spawned on the first trail of their colour, then kept (an empty bucket clears its instances).
+		// Renderers are spawned on the first tail of their colours, then kept (an empty bucket clears its instances).
 		ADTBulletRenderer* Renderer = TrailTransforms[Bucket].Num() > 0 ? EnsureTrailRenderer(Bucket)
 			: (TrailRenderers.IsValidIndex(Bucket) ? TrailRenderers[Bucket].Get() : nullptr);
 		if (Renderer)
 		{
 			Renderer->SetInstances(TrailTransforms[Bucket]);
+			Renderer->SetDim(Dim);
 		}
 	}
 }

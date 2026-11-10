@@ -32,7 +32,8 @@ void UDTBulletSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	if (Renderer)
 	{
 		const FLinearColor Core = DTPal::Linear(DTPal::Player_Core);
-		Renderer->InitRender(Core, DTConst::BULLETS_EMISSIVE_PLAYER);
+		// tracer_art.md R-TRC-01: the head is Pal.Player.Core at C.BULLETS.EMISSIVE_PLAYER, the undimmed level.
+		Renderer->InitTracerHead(Core, DTConst::BULLETS_EMISSIVE_PLAYER);
 	}
 }
 
@@ -72,8 +73,11 @@ void UDTBulletSubsystem::SimRender(float Alpha)
 	RenderTransforms.SetNumUninitialized(Count, EAllowShrinking::No);
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
+		// tracer_art.md R-TRC-01: drawn apart from the hit radius, stretched along the flight. Read from the pool, never written.
 		const FVector2f P = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
-		RenderTransforms[Index] = FTransform(FQuat::Identity, FVector(P.X, P.Y, Z), FVector(Radii[Index] * InvMeshRadius));
+		RenderTransforms[Index] = DTTracerArt::Head(P, Pos[Index] - Prev[Index], Radii[Index], InvMeshRadius, Z);
 	}
 	Renderer->SetInstances(RenderTransforms);
+	// R-TRC-06 (R-PRE-06): player fire dims with its own live count; one material parameter, no instance rewrite.
+	Renderer->SetDim(DTTracerArt::HeadDim(Count));
 }

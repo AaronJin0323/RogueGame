@@ -179,6 +179,30 @@ namespace DTConst
 	inline constexpr int32 BULLETS_STRESS_PIERCE = 1000; // n, GATED(S0)
 	inline constexpr float BULLETS_STRESS_DAMAGE = 1.0f; // hp, GATED(S0)
 	inline constexpr int32 BULLETS_STRESS_SPIN_DEG_S = 90; // deg_per_s, GATED(S0)
+	// tracer_art
+	inline constexpr float TRC_HEAD_WIDTH_RATIO = 0.85f; // ratio, GATED(S4)
+	inline constexpr float TRC_HEAD_STRETCH = 1.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_S = 0.08f; // s, GATED(S4)
+	inline constexpr float TRC_TAIL_MIN_RATIO = 6.0f; // ratio, GATED(S4)
+	inline constexpr int32 TRC_TAIL_MAX_UU = 150; // uu, GATED(S4)
+	inline constexpr float TRC_TAIL_WIDTH_RATIO = 0.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_EMISSIVE = 1.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_TIP_SHARE = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_Z_UU = 1.25f; // uu, GATED(S4)
+	inline constexpr int32 TRC_DIM_START_ROUNDS = 150; // n, GATED(S4)
+	inline constexpr int32 TRC_DIM_FULL_ROUNDS = 2400; // n, GATED(S4)
+	inline constexpr float TRC_DIM_EMISSIVE_MIN = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_DIM_TAIL_MIN = 0.4f; // ratio, GATED(S4)
+	inline constexpr float TRC_DIM_WIDTH_MIN = 0.7f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_S = 0.07f; // s, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_WIDTH_RATIO = 0.7f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_EMISSIVE = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_OPACITY = 0.9f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_S = 0.1f; // s, GATED(S4)
+	inline constexpr float TRC_MUZZLE_LENGTH_RATIO = 5.0f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_WIDTH_RATIO = 1.4f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_EMISSIVE = 2.0f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_OPACITY = 0.8f; // ratio, GATED(S4)
 	// arena
 	inline constexpr int32 ARENA_SUN_ELEVATION_DEG = 20; // deg, GATED(S0)
 	inline constexpr int32 ARENA_SUN_YAW_DEG = -60; // deg, GATED(S0)
@@ -208,6 +232,22 @@ namespace DTConst
 	inline constexpr int32 PERF_S4_TURRET_RING_UU = 350; // uu, CORE
 	inline constexpr int32 PERF_S4_TELEGRAPHS_MIN = 4; // n, CORE
 	inline constexpr float PERF_S4_TRAILED_MIN_RATIO = 0.9f; // ratio, CORE
+	inline constexpr int32 ARN_SLAB_COURSE_UU = 320; // uu, GATED(S4)
+	inline constexpr int32 ARN_SLAB_LENGTH_UU_MIN = 320; // uu, GATED(S4)
+	inline constexpr int32 ARN_SLAB_LENGTH_UU_MAX = 760; // uu, GATED(S4)
+	inline constexpr int32 ARN_JOINT_HALF_WIDTH_UU = 6; // uu, GATED(S4)
+	inline constexpr float ARN_JOINT_DEPTH_UU = 0.25f; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_STEPS = 5; // n, GATED(S4)
+	inline constexpr int32 ARN_APRON_RISE_UU = 50; // uu, GATED(S4)
+	inline constexpr int32 ARN_FALL_STEPS = 3; // n, GATED(S4)
+	inline constexpr float ARN_SHADOW_FLOOR = 0.35f; // scale, GATED(S4)
+	inline constexpr int32 ARN_APRON_TREAD_UU = 240; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_SKIRT_DROP_UU = 100; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_REACH_UU = 9000; // uu, GATED(S4)
+	inline constexpr int32 ARN_FRAME_RADIUS_MAX_UU = 2000; // uu, GATED(S4)
+	inline constexpr float ARN_ASPECT_MAX = 3.5556f; // ratio, GATED(S4)
+	inline constexpr int32 ARN_LAYOUT_SEED = 4043; // n, GATED(S4)
+	inline constexpr int32 ARN_VOID_MAX_LEVEL = 2; // level, GATED(S4)
 	// telemetry
 	inline constexpr float TEL_INTERVAL_S = 60.0f; // s, CORE
 	inline constexpr float TEL_RATE_UNIT_S = 60.0f; // s, CORE
@@ -216,7 +256,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 534; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 549; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -326,6 +366,26 @@ namespace DTConst
 	inline constexpr int32 DASH_DISTANCE_UU = 450; // uu, GATED(S1)
 	inline constexpr float DASH_COOLDOWN_S = 3.0f; // s, GATED(S1)
 	inline constexpr int32 DASH_CHARGES = 1; // n, GATED(S1)
+	inline constexpr float HERO_ART_DRAW_SCALE = 1.16f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_WAIST_Z_UU = 105; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_NECK_Z_UU = 156; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_SHOULDER_Z_UU = 144; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_SHOULDER_Y_UU = 33; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_HIP_Z_UU = 92; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_HIP_Y_UU = 15; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_LEAN_DEG = 10; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_STRIDE_DEG = 22; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_ARM_DEG = 18; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_LEAN_DEG = 32; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_LEG_DEG = 30; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_ARM_DEG = 40; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_DROP_UU = 10; // uu, GATED(S4)
+	inline constexpr float HERO_ART_HEAD_LEVEL_RATIO = 0.5f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_REVERT_FRAME_RADIUS_UU = 2000; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_MASK_SCREEN_HEIGHT_PX = 1080; // px, GATED(S4)
+	inline constexpr float HERO_ART_OUTLINE_OVERLAP_MAX = 0.8f; // ratio, GATED(S4)
+	inline constexpr float HERO_ART_FACING_DIFF_MIN = 0.15f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_ARMOUR_PX_MIN = 368; // px, GATED(S4)
 	inline constexpr int32 DIR_BAND_WINDOW_S_MIN = 600; // s, GATED(S1)
 	inline constexpr int32 DIR_BAND_WINDOW_S_MAX = 780; // s, GATED(S1)
 	inline constexpr int32 DIR_NOPICK_DEATH_BAND_S_MIN = 480; // s, GATED(S1)
@@ -447,4 +507,14 @@ namespace DTConst
 	inline constexpr int32 TREE_TOOL_PER_RANK = 1; // n, GATED(S3)
 	inline constexpr int32 NARR_PREWIN_LAYER_MAX = 2; // layer, CORE
 	inline constexpr int32 NARR_LAYER_MAX = 3; // layer, CORE
+	// enemy_art
+	inline constexpr float EAR_FLOOR_HIDE_MAX_RATIO = 1.25f; // x, GATED(S4)
+	inline constexpr float EAR_SILHOUETTE_OVERLAP_MAX = 0.75f; // ratio, GATED(S4)
+	inline constexpr int32 EAR_SILHOUETTE_PX_PER_M_MIN = 27; // px_per_m, GATED(S4)
+	inline constexpr int32 EAR_SILHOUETTE_PX_PER_M_MAX = 36; // px_per_m, GATED(S4)
+	inline constexpr float EAR_ELITE_LIGHT_VISIBLE_MIN = 1.0f; // x, GATED(S4)
+	inline constexpr int32 EAR_ROLE_TRIS_MAX = 400; // n, GATED(S4)
+	inline constexpr int32 EAR_LINEUP_SPACING_UU = 320; // uu, GATED(S4)
+	inline constexpr int32 EAR_LINEUP_ROWS = 3; // n, GATED(S4)
+	inline constexpr float EAR_FRAME_MASK_TOLERANCE = 0.06f; // ratio, GATED(S4)
 }

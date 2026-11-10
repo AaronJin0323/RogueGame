@@ -4,8 +4,9 @@
 //   hero    - OnIntercession: queue the cast; it is composed and run in EDTSimPhase::Effects (R-KEE-14)
 //   sim     - EDTSimPhase::Bullets (after the pool): capture the step's player hits; ::Effects: enchantment, frozen_vuln,
 //             Intercession; ::Pickups: status telemetry of the step's applications
-//   render  - Keeper trails behind player rounds through extra ADTBulletRenderer instances (public API only): the primary's
-//             Pal.Keeper.<Path> on the trail body, the second's on the tail tip; the round's core is never touched (R-PRE-01)
+//   render  - the tail behind every player round through extra ADTBulletRenderer instances (public API only; tracer_art.md
+//             R-TRC-02, R-TRC-03): Pal.Player.TrailNeutral before a Keeper is held, then the primary's Pal.Keeper.<Path> on the
+//             body and the second's toward the tip; the round's core is never touched (R-PRE-01)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -56,8 +57,10 @@ public:
 
 	FDTKeeperSim& GetSim() { return Sim; }
 	const FDTKeeperSim& GetSim() const { return Sim; }
-	/** Number of trail renderers spawned so far (lazily, one per colour and part). */
+	/** Number of trail renderers spawned so far (lazily, one per pair of body and tip colour). */
 	int32 GetTrailRendererCount() const;
+	/** The renderer of the tails whose body is slot Body and tip slot Tip (DTTracerArt slots), or null before the first such tail. */
+	ADTBulletRenderer* GetTrailRenderer(int32 Body, int32 Tip) const;
 
 private:
 	FDTRunState* GetRun() const;
@@ -77,8 +80,10 @@ private:
 	/** Casts that ended last step: what they emitted in their last Effects phase resolves this step, so telemetry closes them now. */
 	TArray<FDTKeeperCastRecord> ClosingCasts;
 	TArray<TArray<FTransform>> TrailTransforms;
+	/** Buckets whose renderer could not be built (no M_Tracer_Tail): not tried again every frame. */
+	TArray<bool> TrailMissing;
 
-	/** Bucket = Path * 2 + part (0 trail body, 1 tail tip); spawned on first use. */
+	/** Bucket = body slot * DTTracerArt::NumSlots + tip slot; spawned on first use. A bucket whose material is missing stays null. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ADTBulletRenderer>> TrailRenderers;
 };

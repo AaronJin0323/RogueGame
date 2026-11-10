@@ -2,8 +2,10 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Dusktracer.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
+#include "Presentation/DTTracerArt.h"
 
 namespace DTBulletRender
 {
@@ -13,6 +15,14 @@ namespace DTBulletRender
 	static const TCHAR* MaterialPackage = TEXT("/Game/DT/Materials/M_InstanceColor");
 	static const TCHAR* MaterialPath = TEXT("/Game/DT/Materials/M_InstanceColor.M_InstanceColor");
 	static const TCHAR* FallbackMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
+	// tracer_art.md: built by Tools/assets/tracer_materials.py.
+	static const TCHAR* HeadMaterialPackage = TEXT("/Game/DT/Materials/M_Tracer");
+	static const TCHAR* HeadMaterialPath = TEXT("/Game/DT/Materials/M_Tracer.M_Tracer");
+	static const TCHAR* TailMaterialPackage = TEXT("/Game/DT/Materials/M_Tracer_Tail");
+	static const TCHAR* TailMaterialPath = TEXT("/Game/DT/Materials/M_Tracer_Tail.M_Tracer_Tail");
+	static const TCHAR* PlanePath = TEXT("/Engine/BasicShapes/Plane.Plane");
+	static const FName DimParameter(TEXT("Dim"));
+	constexpr float DimStep = 0.004f; // a smaller change of Dim is not written, so the parameter is not rewritten every frame
 }
 
 ADTBulletRenderer::ADTBulletRenderer()
@@ -79,6 +89,55 @@ void ADTBulletRenderer::UseCueMaterial()
 	}
 }
 
+void ADTBulletRenderer::InitTracerHead(const FLinearColor& Color, float Emissive)
+{
+	InitRender(Color, Emissive);
+	UMaterialInterface* Material = FPackageName::DoesPackageExist(DTBulletRender::HeadMaterialPackage)
+		? LoadObject<UMaterialInterface>(nullptr, DTBulletRender::HeadMaterialPath) : nullptr;
+	if (!Material)
+	{
+		UE_LOG(LogDT, Log, TEXT("Tracer head: %s not found; the round draws on its InitRender material"), DTBulletRender::HeadMaterialPath);
+		return;
+	}
+	DimMaterial = Instances->CreateDynamicMaterialInstance(0, Material);
+	bFallbackMaterial = false;
+}
+
+bool ADTBulletRenderer::InitTail(const FLinearColor& Body, const FLinearColor& Tip, float Strength)
+{
+	static_assert(DTTracerArt::TailData <= MaxCustomData, "a tail's custom data fits the renderer's row");
+	const float Row[DTTracerArt::TailData] = { Body.R, Body.G, Body.B, Strength, Tip.R, Tip.G, Tip.B };
+	DataCount = DTTracerArt::TailData;
+	FMemory::Memcpy(CustomData, Row, sizeof(Row));
+	Instances->NumCustomDataFloats = DataCount;
+	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, DTBulletRender::PlanePath);
+	UMaterialInterface* Material = FPackageName::DoesPackageExist(DTBulletRender::TailMaterialPackage)
+		? LoadObject<UMaterialInterface>(nullptr, DTBulletRender::TailMaterialPath) : nullptr;
+	if (!Mesh || !Material)
+	{
+		UE_LOG(LogDT, Log, TEXT("Tracer tail: %s or %s not found; tails are not drawn"), DTBulletRender::PlanePath, DTBulletRender::TailMaterialPath);
+		return false;
+	}
+	Instances->SetStaticMesh(Mesh);
+	// For a tail this is the plane's full side: a tail of length L draws at X scale L / GetMeshRadius().
+	MeshRadius = FMath::Max(KINDA_SMALL_NUMBER, 2.0f * static_cast<float>(Mesh->GetBounds().BoxExtent.X));
+	if (!FMath::IsNearlyEqual(MeshRadius, DTTracerArt::PlaneSizeUU, 0.01f))
+	{
+		UE_LOG(LogDT, Warning, TEXT("Tracer tail: %s is %.1f uu wide, DTTracerArt::PlaneSizeUU says %.1f"), DTBulletRender::PlanePath, MeshRadius, DTTracerArt::PlaneSizeUU);
+	}
+	DimMaterial = Instances->CreateDynamicMaterialInstance(0, Material);
+	return DimMaterial != nullptr;
+}
+
+void ADTBulletRenderer::SetDim(float InDim)
+{
+	if (DimMaterial && InDim != Dim && (FMath::Abs(InDim - Dim) >= DTBulletRender::DimStep || InDim == 1.0f))
+	{
+		Dim = InDim;
+		DimMaterial->SetScalarParameterValue(DTBulletRender::DimParameter, Dim);
+	}
+}
+
 int32 ADTBulletRenderer::GetInstanceCount() const
 {
 	return Instances->GetInstanceCount();
@@ -86,31 +145,5 @@ int32 ADTBulletRenderer::GetInstanceCount() const
 
 void ADTBulletRenderer::SetInstances(TConstArrayView<FTransform> Transforms)
 {
-	const int32 Wanted = Transforms.Num();
-	const int32 Have = Instances->GetInstanceCount();
-	if (Wanted > Have)
-	{
-		const TArray<FTransform> Added(Transforms.GetData() + Have, Wanted - Have);
-		Instances->AddInstances(Added, false, false, false);
-		CustomScratch.SetNumUninitialized((Wanted - Have) * NumCustomData);
-		for (int32 Slot = 0; Slot < CustomScratch.Num(); ++Slot)
-		{
-			CustomScratch[Slot] = CustomData[Slot % NumCustomData];
-		}
-		Instances->SetCustomData(Have, Wanted - 1, CustomScratch, false);
-	}
-	else if (Wanted < Have)
-	{
-		TArray<int32> Removed;
-		Removed.Reserve(Have - Wanted);
-		for (int32 Index = Have - 1; Index >= Wanted; --Index)
-		{
-			Removed.Add(Index);
-		}
-		Instances->RemoveInstances(Removed, true);
-	}
-	if (Wanted > 0)
-	{
-		Instances->BatchUpdateInstancesTransforms(0, Transforms, false, true, true);
-	}
+	DTTracerArt::SyncInstances(Instances, Transforms, GetCustomRow());
 }

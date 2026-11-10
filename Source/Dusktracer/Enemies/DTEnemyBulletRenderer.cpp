@@ -5,7 +5,9 @@
 #include "Materials/MaterialInterface.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
+#include "Enemies/DTEnemyBulletPool.h"
 #include "Misc/PackageName.h"
+#include "Presentation/DTTracerArt.h"
 #include "Settings/DTUserSettings.h"
 
 namespace DTEnemyBulletRender
@@ -18,6 +20,10 @@ namespace DTEnemyBulletRender
 	static const TCHAR* DiscMeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	static const TCHAR* DiscMaterialPackage = TEXT("/Game/DT/Materials/M_CueColor");
 	static const TCHAR* DiscMaterialPath = TEXT("/Game/DT/Materials/M_CueColor.M_CueColor");
+	// tracer_art.md: built by Tools/assets/tracer_materials.py; the trail and the flash share it and the engine plane.
+	static const TCHAR* TrailMeshPath = TEXT("/Engine/BasicShapes/Plane.Plane");
+	static const TCHAR* TrailMaterialPackage = TEXT("/Game/DT/Materials/M_EnemyRound_Trail");
+	static const TCHAR* TrailMaterialPath = TEXT("/Game/DT/Materials/M_EnemyRound_Trail.M_EnemyRound_Trail");
 	constexpr float DiscHeightUU = 1.0f;
 	constexpr float DiscStepUU = 1.0f; // the lighter disc sits this much over the darker
 }
@@ -45,6 +51,21 @@ ADTEnemyBulletRenderer::ADTEnemyBulletRenderer()
 	Outlines->SetCanEverAffectNavigation(false);
 	Outlines->SetCastShadow(false);
 	Outlines->NumCustomDataFloats = NumOutlineData;
+
+	const auto MakePlanePart = [this](const TCHAR* PartName)
+	{
+		UInstancedStaticMeshComponent* Part = CreateDefaultSubobject<UInstancedStaticMeshComponent>(PartName);
+		Part->SetupAttachment(Instances);
+		Part->SetMobility(EComponentMobility::Movable);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetGenerateOverlapEvents(false);
+		Part->SetCanEverAffectNavigation(false);
+		Part->SetCastShadow(false);
+		Part->NumCustomDataFloats = DTTracerArt::EnemyTrailData;
+		return Part;
+	};
+	Trails = MakePlanePart(TEXT("Trails"));
+	Flashes = MakePlanePart(TEXT("Flashes"));
 }
 
 UMaterialInterface* ADTEnemyBulletRenderer::Fallback_EnemyFireMaterial()
@@ -98,6 +119,65 @@ void ADTEnemyBulletRenderer::InitRender(const FLinearColor& Rim, float Emissive,
 	{
 		Outlines->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, DTEnemyBulletRender::DiscMaterialPath));
 	}
+
+	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, DTEnemyBulletRender::TrailMeshPath);
+	UMaterialInterface* TrailMaterial = FPackageName::DoesPackageExist(DTEnemyBulletRender::TrailMaterialPackage)
+		? LoadObject<UMaterialInterface>(nullptr, DTEnemyBulletRender::TrailMaterialPath) : nullptr;
+	bTrailMaterial = Plane && TrailMaterial;
+	if (bTrailMaterial)
+	{
+		for (UInstancedStaticMeshComponent* Part : { Trails.Get(), Flashes.Get() })
+		{
+			Part->SetStaticMesh(Plane);
+			Part->SetMaterial(0, TrailMaterial);
+		}
+		const float Side = 2.0f * static_cast<float>(Plane->GetBounds().BoxExtent.X);
+		if (!FMath::IsNearlyEqual(Side, DTTracerArt::PlaneSizeUU, 0.01f))
+		{
+			UE_LOG(LogDT, Warning, TEXT("Enemy round trail: %s is %.1f uu wide, DTTracerArt::PlaneSizeUU says %.1f"), DTEnemyBulletRender::TrailMeshPath, Side, DTTracerArt::PlaneSizeUU);
+		}
+	}
+	else
+	{
+		UE_LOG(LogDT, Log, TEXT("Enemy round trail: %s not found; rounds draw with no trail and no muzzle flash"), DTEnemyBulletRender::TrailMaterialPath);
+	}
+}
+
+void ADTEnemyBulletRenderer::SetTrails(const FDTEnemyBulletPool& Rounds, float Alpha, double Z)
+{
+	if (!bTrailMaterial)
+	{
+		return;
+	}
+	const int32 Count = Rounds.Num();
+	const TConstArrayView<FVector2f> Pos = Rounds.GetPositions();
+	const TConstArrayView<FVector2f> Prev = Rounds.GetPrevPositions();
+	const TConstArrayView<FVector2f> Vel = Rounds.GetVelocities();
+	const TConstArrayView<FVector2f> Origins = Rounds.GetOrigins();
+	const TConstArrayView<float> Radii = Rounds.GetRadii();
+	const float InvPlane = 1.0f / DTTracerArt::PlaneSizeUU;
+	TrailScratch.Reset(Count);
+	FlashScratch.Reset();
+	FTransform Quad;
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const FVector2f At = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
+		if (DTTracerArt::EnemyTrail(At, Vel[Index], Radii[Index], InvPlane, Z, Quad))
+		{
+			TrailScratch.Add(Quad);
+		}
+		if (DTTracerArt::MuzzleFlash(Origins[Index], At, Vel[Index], Radii[Index], InvPlane, Z, Quad))
+		{
+			FlashScratch.Add(Quad);
+		}
+	}
+	// The tokens at fixed strengths: no density reaches the enemy side (R-PRE-06, R-TRC-04).
+	const FLinearColor Trail = DTPal::Linear(DTPal::Enemy_Bullet);
+	const float TrailRow[DTTracerArt::EnemyTrailData] = { Trail.R, Trail.G, Trail.B, DTConst::TRC_ENEMY_TRAIL_EMISSIVE, DTConst::TRC_ENEMY_TRAIL_OPACITY };
+	DTTracerArt::SyncInstances(Trails, TrailScratch, TrailRow);
+	const FLinearColor Muzzle = DTPal::Linear(DTPal::Enemy_Muzzle);
+	const float FlashRow[DTTracerArt::EnemyTrailData] = { Muzzle.R, Muzzle.G, Muzzle.B, DTConst::TRC_MUZZLE_EMISSIVE, DTConst::TRC_MUZZLE_OPACITY };
+	DTTracerArt::SyncInstances(Flashes, FlashScratch, FlashRow);
 }
 
 int32 ADTEnemyBulletRenderer::GetInstanceCount() const

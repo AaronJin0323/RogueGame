@@ -7,15 +7,15 @@
 #include "Player/DTInputSet.h"
 #include "DTHero.generated.h"
 
+class UDTHeroFigureComponent;
 class UDTHeroSubsystem;
-class UInstancedStaticMeshComponent;
 struct FInputActionValue;
 
 /**
  * Each frame, builds this player's FDTHeroInput from Enhanced Input (both mapping contexts active) and latches it into
  * UDTHeroSubsystem; the sim's Input phase hands it to the step. Drawn by the hero subsystem at the sim's interpolation
  * alpha (PrevPos -> Pos). Has no movement component, no collision and no physics: moving the actor changes nothing in
- * the sim. Grey-box look: a cylinder body in Pal.Hero.Armour and a small facing block along the aim direction.
+ * the sim. Drawn as the Reclaimer's figure (02_Systems/hero_art.md): rigid parts posed from the hero's sim state, facing the aim direction.
  */
 UCLASS()
 class DUSKTRACER_API ADTHero : public APawn
@@ -40,13 +40,16 @@ public:
 	int32 GetPlayerIndex() const { return PlayerIndex; }
 	void SetPlayerIndex(int32 InPlayerIndex) { PlayerIndex = InPlayerIndex; }
 
-	/** Places the pawn at the interpolated sim position and turns the facing block to the aim direction. */
+	/** Places the pawn at the interpolated sim position and poses the figure from the state (facing, stride, dash). Reads the state only. */
 	void DrawFromSim(const FDTHeroState& State, float Alpha);
 
 	/** IA_Move / IA_Aim report screen axes (X right, Y up); the camera looks along +X, so screen up is +X, right is +Y. */
 	static FVector2f ScreenToPlane(const FVector2D& Screen);
 
 	UDTInputSet* GetInputSet() const { return InputSet; }
+
+	/** The drawn figure (tests and staged frames read it). */
+	UDTHeroFigureComponent* GetFigure() const { return Figure; }
 
 	/** A dash or Intercession press counts only with the world running (settings.md R-SET-27). */
 	static bool TakesPress(bool bWorldPaused) { return !bWorldPaused; }
@@ -64,9 +67,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Hero")
 	TObjectPtr<USceneComponent> Root;
 
-	/** Instance 0 = body, instance 1 = facing block. */
+	/** The drawn figure (presentation; the header is named in DTHero.cpp only, so nothing that includes this file depends on it). */
 	UPROPERTY(VisibleAnywhere, Category = "Hero")
-	TObjectPtr<UInstancedStaticMeshComponent> Body;
+	TObjectPtr<UDTHeroFigureComponent> Figure;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDTInputSet> InputSet;
@@ -75,5 +78,4 @@ private:
 	FVector2D LastMousePos = FVector2D::ZeroVector;
 	int32 PlayerIndex = 0;
 	bool bMouseAim = false;
-	bool bBodyReady = false;
 };
