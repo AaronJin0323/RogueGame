@@ -138,4 +138,4 @@ Contrast, three runs on the merged tree, 7/7 and `WATCH: OK` each time:
 
 B's goldens stand on the merged tree and were not re-baselined: `combat_staged_en` 0.53, `combat_staged_zh-Hans` 0.54, `enemy_lineup_en` 0.46 of 12. `arena_empty_en` 0.31.
 
-Gate on the merge commit: its line is added by the commit after it.
+`GATE: PASS (d0301c2; 3 not run)` on the merge commit (pad: no package; scope; mac): 538 automation tests of 538 against the floor of 531, restart `276faf8e`, meta `ba2a3ac8`, contrast 7/7 with `WATCH: OK (telegraph 3.29, enemy_rim 3.20)`, ten smoke frames against their goldens. The five bot arms of §7 were not re-run on the merged tree.
