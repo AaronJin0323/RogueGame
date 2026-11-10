@@ -1,5 +1,6 @@
 # Two game processes on one save (meta.md T-MET-48, R-MET-11, review #0 of Docs/Validation/S3_review_fixes.md), headless, no window.
 #   & Tools\TwoWindowsCheck.ps1 [-Seed 9131] [-HoldSeconds 60] [-Timeout 300]
+#   & Tools\TwoWindowsCheck.ps1 -Race 40 [-RaceProcs 4]     the timed race alone, T-MET-49; see below
 # Four scenes, each two real game processes sharing one -userdir under Saved\TwoWindows, so one DTMeta.sav at its default path there.
 # The holder opens the save first and changes it last; the other process changes the file in between and exits:
 #   bank over purchase      the holder plays a run while the other buys a node; the holder's bank must keep the purchase and its price
@@ -9,12 +10,20 @@
 # The order is forced, not timed: the other process starts only after the holder's log shows the save opened, and the holder's change
 # comes after the other has exited (a run still going, or DT.Tree.BuyWhen waiting on a file this script writes). A scene whose order did
 # not hold fails as such. The save is read afterwards by a third process (DT.Meta.Dump).
-# Not covered: two writes inside each other's read-to-write window (a few milliseconds); see Docs/Validation/S3_verify.md.
 # Prints "TWOWINDOWS: PASS (...)" or "TWOWINDOWS: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\TwoWindowsCheck_<scene>_<role>.log.
+#
+# -Race <trials>: two writes inside each other's read-to-write window, which no forced order reaches (R-MET-11, D-042). -RaceProcs game
+# processes (2 to 4) stay open on one save. Each trial the script names one instant half a second ahead, every process holds for it and banks
+# one run there (DT.Meta.BankWhen, the call a run's end makes), and the script reads the run count out of the file once each has logged its bank.
+# A trial lost a change when the file's shortfall grew and no process said it kept its bank in memory. A last reading, by a process started
+# after the others have gone (DT.Meta.Dump), must hold every run and every award.
+# Prints "TWOWINDOWS RACE: PASS (...)" or "TWOWINDOWS RACE: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\TwoWindowsCheck_race_<role>.log.
 param(
 	[int]$Seed = 9131,
 	[int]$HoldSeconds = 60,
-	[int]$Timeout = 300
+	[int]$Timeout = 300,
+	[int]$Race = 0,
+	[int]$RaceProcs = 4
 )
 
 trap { Write-Host "TWOWINDOWS: FAIL (script error: $_)"; exit 1 }
@@ -106,6 +115,80 @@ $Passed = 0
 function Add-Verdict([string]$Scene, [bool]$Ok, [string]$Read) {
 	$script:Lines += "  $(if ($Ok) { ' ' } else { '!' }) ${Scene}: $Read"
 	if ($Ok) { $script:Passed++ }
+}
+
+if ($Race -gt 0) {
+	if ($RaceProcs -lt 2 -or $RaceProcs -gt 4) { Fail "-RaceProcs is 2 to 4" }
+	$S = "race"
+	$Prefix = Join-Path $OutDir "race.at"
+	$File = Join-Path $OutDir "$S\Saved\SaveGames\DTMeta.sav"
+	# Runs is the second field of the payload, after the 16-byte envelope header and the balance (meta.md Data, R-TEC-04).
+	function Read-Runs {
+		for ($Try = 0; $Try -lt 20; $Try++) {
+			try {
+				$Stream = New-Object IO.FileStream($File, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+				try {
+					$Bytes = New-Object byte[] 28
+					if ($Stream.Read($Bytes, 0, 28) -eq 28 -and [Text.Encoding]::ASCII.GetString($Bytes, 0, 4) -eq "DTSV") { return [BitConverter]::ToInt32($Bytes, 24) }
+				} finally { $Stream.Dispose() }
+			} catch { }
+			Start-Sleep -Milliseconds 50
+		}
+		Fail "race: the save was not read"
+	}
+	$Steps = 3600 # one minute of sim
+	$Games = @(1..$RaceProcs | ForEach-Object { Start-Game $S "p$_" (Get-Hub "DT.Meta.BankWhen $Prefix $Race $Steps") })
+	foreach ($Game in $Games) { Wait-Line $Game "DT\.Meta\.BankWhen: waiting" }
+	$Short = 0
+	$LostTrials = 0
+	$Deferred = 0
+	$Spreads = @()
+	$RaceLines = @()
+	for ($Trial = 1; $Trial -le $Race; $Trial++) {
+		$At = [DateTime]::UtcNow.AddMilliseconds(500).Ticks
+		[IO.File]::WriteAllText("$Prefix.tmp", "$At")
+		[IO.File]::Move("$Prefix.tmp", "$Prefix.$Trial")
+		$Times = @()
+		$Kept = 0
+		foreach ($Game in $Games) {
+			Wait-Line $Game "DT\.Meta\.BankWhen round ${Trial}:"
+			$Text = Read-Log $Game.Log
+			if ($Text -match "\[\d{4}\.\d\d\.\d\d-(\d\d)\.(\d\d)\.(\d\d):(\d{3})\]\[\s*\d+\]LogDT: DT\.Meta\.BankWhen round ${Trial}:") {
+				$Times += ((([int]$Matches[1] * 60 + [int]$Matches[2]) * 60 + [int]$Matches[3]) * 1000 + [int]$Matches[4])
+			}
+			$Kept += [regex]::Matches($Text, "Meta: [^\r\n]* is locked by another launch").Count
+		}
+		$Runs = Read-Runs
+		$Now = $RaceProcs * $Trial - $Runs
+		$NewKept = $Kept - $Deferred
+		$Deferred = $Kept
+		$Spread = if ($Times.Count -eq $RaceProcs) { ($Times | Measure-Object -Maximum).Maximum - ($Times | Measure-Object -Minimum).Minimum } else { -1 }
+		$Spreads += $Spread
+		if ($Now -gt $Short -and $NewKept -eq 0) {
+			$LostTrials++
+			$RaceLines += "  ! trial ${Trial}: the file holds $Runs run(s) of $($RaceProcs * $Trial), $($Now - $Short) lost here, spread $Spread ms"
+		}
+		elseif ($NewKept -gt 0) { $RaceLines += "    trial ${Trial}: $NewKept bank(s) kept in memory for the next save, the file holds $Runs run(s) of $($RaceProcs * $Trial)" }
+		$Short = $Now
+	}
+	$Retained = 0
+	foreach ($Game in $Games) {
+		$Text = Wait-Exit $Game
+		$Found = [regex]::Matches($Text, "DT\.Meta\.BankWhen round \d+: retained (\d+),")
+		if ($Found.Count -ne $Race) { Fail "$($Game.Tag) banked $($Found.Count) time(s), not $Race" }
+		foreach ($One in $Found) { $Retained += [long]$One.Groups[1].Value }
+	}
+	$Save = Read-Save $S
+	$All = $RaceProcs * $Race
+	$Median = ($Spreads | Sort-Object)[[int][math]::Floor($Spreads.Count / 2)]
+	$RaceLines
+	$Summary = "$Race trial(s) of $RaceProcs launches banking at one instant, $LostTrials trial(s) lost a change, $($All - $Save.Runs) of $All bank(s) lost, balance $($Save.Balance) of $Retained, $Deferred kept in memory and written later, median spread $Median ms"
+	if ($LostTrials -eq 0 -and $Save.Runs -eq $All -and $Save.Balance -eq $Retained) {
+		Write-Host "TWOWINDOWS RACE: PASS ($Summary)"
+		exit 0
+	}
+	Write-Host "TWOWINDOWS RACE: FAIL ($Summary)"
+	exit 1
 }
 
 # 1: a bank over a purchase.
