@@ -41,7 +41,7 @@
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
-- automated launches: on, window-free (hidden desktop); stop them during human sessions
+- automated launches: OFF since 2026-11-10 evening, the owner is playtesting `main`; turn on again when they say the session is over
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
