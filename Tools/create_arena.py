@@ -201,10 +201,11 @@ def build_ground():
 
 
 def build_env_stone():
-    """R-ARN-04: the apron's stone. Fall = depth under the plate over the apron's stepped depth, plus how far the face turns from
-    straight up; base colour = Pal.Ground.Lit to Pal.Ground.Shadow by Fall. A tread darkens step by step, a riser is shadow stone."""
+    """R-ARN-04: the apron's stone. Fall = depth under the plate over the depth of the first C.ARN.FALL_STEPS steps, plus how far the
+    face turns from straight up; base colour = Pal.Ground.Lit to Pal.Ground.Shadow by Fall. A tread darkens step by step, a riser is
+    shadow stone. A faint emissive, Pal.Ground.Shadow times C.ARN.SHADOW_FLOOR, keeps stone in full shadow off the clear colour (R-ARN-05)."""
     mat = fresh_material("M_Env_Stone")
-    fall_depth = float(C["ARN.APRON_STEPS"]) * float(C["ARN.APRON_RISE_UU"])
+    fall_depth = float(C["ARN.FALL_STEPS"]) * float(C["ARN.APRON_RISE_UU"])
     lit = expr(mat, unreal.MaterialExpressionConstant3Vector, -500, -300)
     lit.set_editor_property("constant", unreal.LinearColor(*dtpalette.linear(GROUND_TOKEN), 1.0))
     shadow = expr(mat, unreal.MaterialExpressionConstant3Vector, -500, -150)
@@ -242,6 +243,12 @@ def build_env_stone():
     MEL.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
     MEL.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
     MEL.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
+    floor_level = expr(mat, unreal.MaterialExpressionConstant, -500, 350)
+    floor_level.set_editor_property("r", float(C["ARN.SHADOW_FLOOR"]))
+    glow = expr(mat, unreal.MaterialExpressionMultiply, -300, 350)
+    MEL.connect_material_expressions(shadow, "", glow, "A")
+    MEL.connect_material_expressions(floor_level, "", glow, "B")
+    MEL.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     MEL.recompile_material(mat)
     EAL.save_loaded_asset(mat, only_if_is_dirty=False)
     log(f"M_Env_Stone built ({GROUND_TOKEN} to {SHADOW_TOKEN} over {fall_depth:.0f} uu of depth)")
@@ -300,16 +307,17 @@ def post_process_settings(settings):
     return settings
 
 
-def place_mesh(eas, label, mesh_path, material):
+def place_mesh(eas, label, mesh_path, material, cast_shadow):
     """A static mesh of the arena's ground, where its generator built it. It never collides (R-ARN-03): the sim clamps, no wall does."""
     mesh = EAL.load_asset(mesh_path)
     if mesh is None:
-        raise RuntimeError(f"{mesh_path} is missing: run Tools\blender\Mesh.ps1 -Source Tools\blender\env_arena.py first")
+        raise RuntimeError(f"{mesh_path} is missing: run Tools/blender/Mesh.ps1 -Source Tools/blender/env_arena.py first")
     actor = spawn(eas, unreal.StaticMeshActor, label)
     smc = actor.static_mesh_component
     smc.set_static_mesh(mesh)
     smc.set_material(0, material)
     smc.set_collision_profile_name("NoCollision")
+    smc.set_editor_property("cast_shadow", cast_shadow)
     smc.set_editor_property("can_ever_affect_navigation", False)
     actor.root_component.set_mobility(unreal.ComponentMobility.STATIC)
     return actor
@@ -321,8 +329,11 @@ def build_map(ground_mat, stone_mat):
     open_clean_map(les, eas)
 
     half = float(C["ARENA.HALF_EXTENT_UU"])
-    place_mesh(eas, "Plate", PLATE_MESH, ground_mat)
-    place_mesh(eas, "Apron", APRON_MESH, stone_mat)
+    # The plate casts no shadow (R-ARN-01): nothing lies under it but its own joints, and as a caster the low sun's shadow map dims
+    # its own flat tops by about a level (Docs/Validation/S4_a_arena.md). The apron's first riser stands at the plate's edge and casts
+    # the edge's shadow down the steps.
+    place_mesh(eas, "Plate", PLATE_MESH, ground_mat, cast_shadow=False)
+    place_mesh(eas, "Apron", APRON_MESH, stone_mat, cast_shadow=True)
 
     sun = spawn(eas, unreal.DirectionalLight, "Sun_Dusk", (0.0, 0.0, 1000.0),
                 unreal.Rotator(roll=0.0, pitch=-float(C["ARENA.SUN_ELEVATION_DEG"]), yaw=float(C["ARENA.SUN_YAW_DEG"])))

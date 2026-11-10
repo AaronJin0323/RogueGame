@@ -20,6 +20,7 @@ import zipfile
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import arena_check  # noqa: E402
 import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import catalog_lint  # noqa: E402
@@ -2539,6 +2540,84 @@ class PerfSceneS4(unittest.TestCase):
 		# The S4 filler is a player's round under a source that is not Stress: what the trail draw takes.
 		self.assertIn("Spawn.OwnerId = 0;", scene)
 		self.assertIn('FindOrAdd(TEXT("PerfFiller"))', scene)
+
+
+class ArenaArt(unittest.TestCase):
+	"""02_Systems/arena_art.md (S4 wave 1 package A): the frame checks of Tools/arena_check.py, T-ARN-05 and T-ARN-06, and the edge scenes they read."""
+
+	STONE = bytes((40, 34, 26))  # the apron's shadow stone as rendered: dark, and not the clear colour
+
+	def frame(self, pixel, w=100, h=100):
+		return w, h, bytearray(pixel * (w * h))
+
+	def paint(self, frame, pixel, x0, x1, y0, y1):
+		w, _, rgb = frame
+		for y in range(y0, y1):
+			for x in range(x0, x1):
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = pixel
+		return frame
+
+	def test_void_is_the_clear_colour_outside_the_hud(self):
+		level = dtconst.load()["ARN.VOID_MAX_LEVEL"]["value"]
+		self.assertEqual(arena_check.void_pixels(*self.frame(self.STONE), level), (0, 40))
+		# A hole past the plate: every pixel of it counts, and one level above the limit is stone again.
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes(3), 50, 60, 50, 60), level), (100, 0))
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes((level, level, level)), 50, 60, 50, 60), level)[0], 100)
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes((level + 1, 0, 0)), 50, 60, 50, 60), level)[0], 0)
+		# The HUD draws black of its own: under its masks nothing is judged.
+		self.assertEqual(arena_check.void_pixels(*self.paint(self.frame(self.STONE), bytes(3), 0, 100, 0, 13), level), (0, 40))
+
+	def test_the_floor_keeps_its_window_and_the_band_its_edge(self):
+		constants = dtconst.load()
+		window, need = constants["PRE.LIT_GROUND_Y_WINDOW"]["value"], constants["PRE.CONTRAST_MIN"]["value"]
+		self.assertAlmostEqual(arena_check.band_floor(need), 0.1)
+		self.assertGreaterEqual(contrast_check.contrast(arena_check.band_floor(need), 0.0), need - 1e-9)
+		bare = arena_check.floor_tones(*self.frame(Contrast.GROUND))
+		self.assertGreater(len(bare), 5000)
+		self.assertEqual(arena_check.floor_errors(bare, window, need), [])
+		# Joints as dark as a trench: a fiftieth of the floor under the band's floor fails, though the 5th percentile never sees it.
+		trench = arena_check.floor_tones(*self.paint(self.frame(Contrast.GROUND), bytes((84, 74, 62)), 30, 100, 20, 22))
+		self.assertEqual(contrast_check.percentile(trench, 0.05), contrast_check.percentile(bare, 0.05))
+		self.assertIn("black band no longer reads", " ".join(arena_check.floor_errors(trench, window, need)))
+		# Slabs a tone darker over a tenth of the floor: the spread leaves the window.
+		self.assertIn("leaves C.PRE.LIT_GROUND_Y_WINDOW", " ".join(arena_check.floor_errors(arena_check.floor_tones(*self.paint(self.frame(Contrast.GROUND), bytes((84, 74, 62)), 30, 100, 20, 30)), window, need)))
+		self.assertEqual(arena_check.floor_errors([], window, need), ["no lit floor found in the frame"])
+
+	def test_the_edge_scenes_stage_every_side_at_both_frames(self):
+		constants = dtconst.load()
+		wide = f"DT.Arena.Frame {constants['ARN.FRAME_RADIUS_MAX_UU']['value']}"
+		self.assertGreater(constants["ARN.FRAME_RADIUS_MAX_UU"]["value"], constants["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"])
+		edge = constants["ARENA.HALF_EXTENT_UU"]["value"]
+		stands = {"corner": f"{edge} {edge}", "xp": f"{edge} 0", "xn": f"-{edge} 0", "yp": f"0 {edge}", "yn": f"0 -{edge}"}
+		for name, where in stands.items():
+			for suffix in ("", "_wide"):
+				with open(os.path.join(SCENES, f"edge_{name}{suffix}.json"), encoding="utf-8") as f:
+					data = json.load(f)
+				# The walk is latched input, so the clamp is the game's; the wide twin only moves the staged camera.
+				self.assertIn(f"DT.Hero.Walk {where}", data["cmds"], name + suffix)
+				self.assertEqual(wide in data["cmds"], suffix == "_wide", name + suffix)
+				self.assertEqual(data["judge"], "golden")
+		# The gate shoots the corner at both frames; the four sides are run by hand with Tools/arena_check.py.
+		for name in ("edge_corner", "edge_corner_wide"):
+			with open(os.path.join(SCENES, name + ".json"), encoding="utf-8") as f:
+				self.assertEqual(json.load(f)["gate"], "smoke", name)
+
+	def test_the_generators_read_keys_that_exist(self):
+		constants = dtconst.load()
+		for name in (os.path.join("blender", "env_arena.py"), "create_arena.py"):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				text = f.read()
+			keys = set(re.findall(r'C\["([A-Z_.0-9]+)"\]', text))
+			self.assertTrue(keys, name)
+			for key in keys:
+				self.assertIn(key, constants, f"{name}: {key}")
+		# The plate is cut down from the floor and never raised; the apron's stone comes from the two ground tokens and nothing else.
+		with open(os.path.join(TOOLS, "create_arena.py"), encoding="utf-8") as f:
+			arena = f.read()
+		self.assertIn('GROUND_TOKEN = "Pal.Ground.Lit"', arena)
+		self.assertIn('SHADOW_TOKEN = "Pal.Ground.Shadow"', arena)
+		self.assertIn('place_mesh(eas, "Plate", PLATE_MESH, ground_mat, cast_shadow=False)', arena)
+		self.assertIn('smc.set_collision_profile_name("NoCollision")', arena)
 
 
 if __name__ == "__main__":

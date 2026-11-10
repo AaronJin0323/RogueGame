@@ -1,0 +1,9 @@
+{
+	"note": "The hero walked to the middle of the +X side, up-screen: the far steps and the shadow each riser casts down them, at the game's frame. Run by hand, not by the gate. Judged for the clear colour by Tools/arena_check.py (02_Systems/arena_art.md R-ARN-05); the golden is the record.",
+	"gate": "none",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 11,
+	"cmds": ["DT.God 1", "DT.Hero.Walk 4000 0"]
+}

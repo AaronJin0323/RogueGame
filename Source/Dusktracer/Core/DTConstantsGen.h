@@ -207,10 +207,12 @@ namespace DTConst
 	inline constexpr int32 ARN_SLAB_COURSE_UU = 320; // uu, GATED(S4)
 	inline constexpr int32 ARN_SLAB_LENGTH_UU_MIN = 320; // uu, GATED(S4)
 	inline constexpr int32 ARN_SLAB_LENGTH_UU_MAX = 760; // uu, GATED(S4)
-	inline constexpr int32 ARN_JOINT_HALF_WIDTH_UU = 4; // uu, GATED(S4)
-	inline constexpr float ARN_JOINT_DEPTH_UU = 0.6f; // uu, GATED(S4)
+	inline constexpr int32 ARN_JOINT_HALF_WIDTH_UU = 6; // uu, GATED(S4)
+	inline constexpr float ARN_JOINT_DEPTH_UU = 0.25f; // uu, GATED(S4)
 	inline constexpr int32 ARN_APRON_STEPS = 5; // n, GATED(S4)
 	inline constexpr int32 ARN_APRON_RISE_UU = 50; // uu, GATED(S4)
+	inline constexpr int32 ARN_FALL_STEPS = 3; // n, GATED(S4)
+	inline constexpr float ARN_SHADOW_FLOOR = 0.35f; // scale, GATED(S4)
 	inline constexpr int32 ARN_APRON_TREAD_UU = 240; // uu, GATED(S4)
 	inline constexpr int32 ARN_APRON_SKIRT_DROP_UU = 100; // uu, GATED(S4)
 	inline constexpr int32 ARN_APRON_REACH_UU = 9000; // uu, GATED(S4)
@@ -226,7 +228,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 524; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 527; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

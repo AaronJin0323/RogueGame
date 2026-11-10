@@ -89,7 +89,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 524 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 527 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -240,10 +240,12 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PERF.S4_TRAILED_MIN_RATIO | 0.9 | ratio | CORE | Tools/Perf.ps1 -Scene S4 (median rounds the trail draw takes, of the median live rounds) |
 | C.ARN.SLAB_COURSE_UU | 320 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (width of one course of slabs on the plate) |
 | C.ARN.SLAB_LENGTH_UU | [320, 760] | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (shortest and longest slab in a course) |
-| C.ARN.JOINT_HALF_WIDTH_UU | 4 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (half the width of a joint: each slab's chamfer) |
-| C.ARN.JOINT_DEPTH_UU | 0.6 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (how far a joint falls under the plate's top: the whole relief) |
-| C.ARN.APRON_STEPS | 5 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, R-ARN-04 (steps of the apron; with the rise, the depth at which the stone reaches `Pal.Ground.Shadow`) |
+| C.ARN.JOINT_HALF_WIDTH_UU | 6 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (half the width of a joint: each slab's chamfer) |
+| C.ARN.JOINT_DEPTH_UU | 0.25 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (how far a joint falls under the plate's top: the whole relief) |
+| C.ARN.APRON_STEPS | 5 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, Tools/blender/env_arena.py (steps of the apron) |
 | C.ARN.APRON_RISE_UU | 50 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, R-ARN-04 (height of one step) |
+| C.ARN.FALL_STEPS | 3 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-04, Tools/create_arena.py (the step at whose depth the stone's base colour reaches `Pal.Ground.Shadow`) |
+| C.ARN.SHADOW_FLOOR | 0.35 | scale | GATED(S4) | 02_Systems/arena_art.md R-ARN-05, Tools/create_arena.py (emissive of the apron's stone, as a share of `Pal.Ground.Shadow`: stone in full shadow stays off the clear colour) |
 | C.ARN.APRON_TREAD_UU | 240 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (depth of one step's tread) |
 | C.ARN.APRON_SKIRT_DROP_UU | 100 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (the last fall, from the lowest step to the skirt) |
 | C.ARN.APRON_REACH_UU | 9000 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02 (how far the skirt runs past the plate on every side) |
