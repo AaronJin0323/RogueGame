@@ -471,3 +471,8 @@ bool DTSettings::UsesFile(bool bUnattended, bool bPathGiven)
 {
 	return !bUnattended || bPathGiven;
 }
+
+bool DTSettings::SetsWindow(bool bUsesFile, bool bOffScreen)
+{
+	return bUsesFile && !bOffScreen;
+}

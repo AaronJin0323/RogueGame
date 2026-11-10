@@ -273,6 +273,13 @@ bool FDTMetSummaryLine::RunTest(const FString& Parameters)
 	FString Csv;
 	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
 	TestTrue(TEXT("the row carries both languages"), Csv.Contains(TEXT("Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},")));
+
+	// The whole line as en reads it, so a format that drops or swaps a number fails here. This process is an editor, which shows game
+	// text in its source language whatever the culture is set to, so zh-Hans is held by the row above and drawn by a zh-Hans launch.
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	TestEqual(TEXT("en reads the en cell, both numbers in their places"), DTMenuText::RunSummary(12, 345).ToString(), FString(TEXT("Ichor retained 12 · Balance 345")));
+	FInternationalization::Get().SetCurrentCulture(Culture);
 	return true;
 }
 
@@ -460,6 +467,40 @@ bool FDTSetDisplay::RunTest(const FString& Parameters)
 	TestEqual(TEXT("windowed"), S.Window, EDTWindow::Windowed);
 	TestTrue(TEXT("window steps back"), DTSettings::StepRow(S, EDTSettingRow::Window, -1));
 	TestEqual(TEXT("fullscreen"), S.Window, EDTWindow::Fullscreen);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetWindowRow, "Dusktracer.Settings.WindowRow", DTSettingsTest::Flags) // T-SET-08: the row decides the window, no launcher does
+bool FDTSetWindowRow::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("with nothing saved the row is Fullscreen"), FDTUserSettings().Window, EDTWindow::Fullscreen);
+	TestEqual(TEXT("and so is a file that does not say"), DTSettings::Parse(TEXT("Version=1\n")).Window, EDTWindow::Fullscreen);
+	FDTUserSettings Windowed;
+	Windowed.Window = EDTWindow::Windowed;
+	TestEqual(TEXT("a saved Windowed reads back"), DTSettings::Parse(DTSettings::Serialize(Windowed)).Window, EDTWindow::Windowed);
+	TestTrue(TEXT("a person's launch sets its window mode, saved or default"), DTSettings::SetsWindow(DTSettings::UsesFile(false, false), false));
+	TestFalse(TEXT("a tool run with no file leaves the engine's"), DTSettings::SetsWindow(DTSettings::UsesFile(true, false), false));
+	TestFalse(TEXT("an off-screen run has no window to set"), DTSettings::SetsWindow(DTSettings::UsesFile(false, false), true));
+	TestFalse(TEXT("even when it names a file"), DTSettings::SetsWindow(DTSettings::UsesFile(true, true), true));
+
+	// What would beat the row: a window mode on a launcher's own start line. None names one (review #43).
+	for (const TCHAR* Launcher : { TEXT("Tools/Play.bat"), TEXT("Tools/PackageFiles/Play_en.bat"), TEXT("Tools/PackageFiles/Play_zh-Hans.bat") })
+	{
+		FString Text;
+		TestTrue(FString::Printf(TEXT("%s is read"), Launcher), FFileHelper::LoadFileToString(Text, *FPaths::Combine(FPaths::ProjectDir(), Launcher)));
+		TArray<FString> Lines;
+		Text.ParseIntoArrayLines(Lines);
+		int32 Starts = 0;
+		for (const FString& Line : Lines)
+		{
+			if (Line.TrimStart().StartsWith(TEXT("start "), ESearchCase::IgnoreCase))
+			{
+				++Starts;
+				TestFalse(FString::Printf(TEXT("%s names no window mode"), Launcher), Line.Contains(TEXT("-fullscreen"), ESearchCase::IgnoreCase) || Line.Contains(TEXT("-windowed"), ESearchCase::IgnoreCase));
+			}
+		}
+		TestEqual(FString::Printf(TEXT("%s has one start line"), Launcher), Starts, 1);
+	}
 	return true;
 }
 
