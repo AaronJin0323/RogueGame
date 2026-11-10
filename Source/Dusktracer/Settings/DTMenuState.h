@@ -78,6 +78,12 @@ namespace DTMenuInput
 	DUSKTRACER_API EDTMenuCommand ForKey(const FKey& Key);
 	/** Esc and pad Menu end a capture. */
 	DUSKTRACER_API bool CancelsCapture(const FKey& Key);
+	/**
+	 * A left stick pushed up or down a little off its axis crosses the sideways threshold too, and sideways pages a hub list by a
+	 * whole window. So a stick's direction key counts only while the other axis is not the larger one; X and Y are the stick's two
+	 * axes now. Any other key counts, and so does a stick key with no axis reading (a simulated press).
+	 */
+	DUSKTRACER_API bool StickKeyCounts(const FKey& Key, float X, float Y);
 }
 
 /** Layout of the screens in reference pixels at a 1080-line canvas (R-SET-12). */

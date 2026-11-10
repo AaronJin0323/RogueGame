@@ -32,6 +32,10 @@ public:
 	const IDTHubTab* GetTree() const { return Tree.Get(); }
 	/** Strings of the last frame drawn that ran past their room (R-VIG-16). */
 	int32 GetOverflow() const { return Overflow; }
+#if !UE_BUILD_SHIPPING
+	/** Proof seam (Tools/VigilCheck.ps1 launch Large, T-VIG-16): every Codex row read and every Keeper open, on this hub's pages only. */
+	void ShowEverythingForCheck();
+#endif
 	/** Test seam: receives the map options instead of opening the map. */
 	void SetBeginOverride(TFunction<void(const FString&)> InOverride) { BeginOverride = MoveTemp(InOverride); }
 

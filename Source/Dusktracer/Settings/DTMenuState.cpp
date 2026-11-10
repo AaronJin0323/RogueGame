@@ -294,6 +294,19 @@ bool DTMenuInput::CancelsCapture(const FKey& Key)
 	return Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right;
 }
 
+bool DTMenuInput::StickKeyCounts(const FKey& Key, float X, float Y)
+{
+	if (Key == EKeys::Gamepad_LeftStick_Left || Key == EKeys::Gamepad_LeftStick_Right)
+	{
+		return FMath::Abs(Y) <= FMath::Abs(X);
+	}
+	if (Key == EKeys::Gamepad_LeftStick_Up || Key == EKeys::Gamepad_LeftStick_Down)
+	{
+		return FMath::Abs(X) <= FMath::Abs(Y);
+	}
+	return true;
+}
+
 float DTMenuLayout::RowHeight(float TextScale)
 {
 	return DTMenuStateLocal::RowBase * TextScale;

@@ -121,6 +121,27 @@ TArray<FDTCodexRow> DTHubData::BuildCodex(const TArray<FDTCodexSource>& Sources,
 	return Book;
 }
 
+FDTMetaProfile DTHubData::EverythingRead(const TArray<FDTCodexSource>& Sources)
+{
+	FDTMetaProfile Profile;
+	Profile.Wins = DTConst::BOSS_FORM_III_WINS + 1;
+	Profile.Runs = Profile.Wins;
+	Profile.LifetimeStats.Add(TEXT("BossKills"), 1);
+	for (const FDTCodexSource& Source : Sources)
+	{
+		FString Tail;
+		if (Source.Unlock.Split(TEXT("Discovery."), nullptr, &Tail))
+		{
+			Profile.Discoveries.Add(FName(*Tail));
+		}
+		else if (Source.Unlock.Split(TEXT("Kill."), nullptr, &Tail))
+		{
+			Profile.LifetimeStats.Add(FName(*(TEXT("Kills.Role.") + Tail)), 1);
+		}
+	}
+	return Profile;
+}
+
 TArray<FDTHubPatron> DTHubData::Patrons(const FDTMetaProfile& Profile, TFunctionRef<bool(FName)> InPool)
 {
 	const TArray<EDTPath> Seated = DTOffers::RunKeepers();

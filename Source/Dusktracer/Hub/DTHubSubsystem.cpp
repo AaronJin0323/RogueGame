@@ -52,6 +52,21 @@ void UDTHubSubsystem::Enter()
 	UE_LOG(LogDT, Log, TEXT("Hub: open, balance %lld, runs %d, last patron '%s'"), Read.Currency, Read.Runs, *Read.LastPatron.ToString());
 }
 
+#if !UE_BUILD_SHIPPING
+void UDTHubSubsystem::ShowEverythingForCheck()
+{
+	// The hub as a profile that has earned every row sees it: no save is read or written, only what this hub draws changes.
+	const TArray<FDTCodexSource> Sources = DTHubData::ReadCodexTable();
+	Codex = DTHubData::BuildCodex(Sources, DTHubData::EverythingRead(Sources));
+	State.CodexRows = Codex.Num();
+	State.CodexFirst = 0;
+	for (FDTHubPatron& Patron : State.Patrons)
+	{
+		Patron.bOpen = true;
+	}
+}
+#endif
+
 bool UDTHubSubsystem::IsAcceptHeld() const
 {
 	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
@@ -163,7 +178,10 @@ void UDTHubSubsystem::PollKeys()
 	const bool bMenuNow = Menu && Menu->IsOpen();
 	const bool bAbsorb = bMenuNow || bMenuLastFrame;
 	bMenuLastFrame = bMenuNow;
-	const EDTMenuCommand Pressed = Keys.Poll([PC](const FKey& Key) { return PC->IsInputKeyDown(Key); }, bAbsorb);
+	// A stick a little off its axis holds two direction keys down: only the larger axis is a press (review #114).
+	const float StickX = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+	const float StickY = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+	const EDTMenuCommand Pressed = Keys.Poll([PC, StickX, StickY](const FKey& Key) { return PC->IsInputKeyDown(Key) && DTMenuInput::StickKeyCounts(Key, StickX, StickY); }, bAbsorb);
 	if (Pressed != EDTMenuCommand::None)
 	{
 		Command(Pressed);

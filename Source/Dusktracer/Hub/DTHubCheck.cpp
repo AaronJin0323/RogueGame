@@ -31,6 +31,8 @@ namespace DTHubCheckLocal
 	constexpr double ShotSettleS = 0.5;
 	constexpr double ShotPollS = 0.25;
 	constexpr double GiveUpS = 60.0;
+	// Begin's key is held this long before the proof reads that no run started: many frames, and a map reload would have landed.
+	constexpr double BeginHeldS = 1.0;
 	// Sim steps a run plays before the proof presses anything in it.
 	constexpr int64 ReadyStep = 60;
 	const TCHAR* const ScatterNode = TEXT("Trunk.ScatterCannon");
@@ -323,7 +325,14 @@ namespace DTHubCheckLocal
 		Press(EKeys::Enter);
 		Is(TEXT("the pick lands on Begin"), [](UDTHubSubsystem* Hub) { return Hub->GetState().Selected == EDTPath::Forge && OnRow(Hub, EDTHubRow::Begin); });
 		Shot(TEXT("root_chosen"));
-		Press(EKeys::SpaceBar);
+		// R-VIG-07: the key that chose Begin comes up first, so it never reaches the run (review #80).
+		Check.Steps.Add([](UDTHubSubsystem* Hub) { Send(Hub, EKeys::SpaceBar, true); return true; });
+		Wait(BeginHeldS);
+		Is(TEXT("Begin waits while its key is held: the hub stands and no run has started"), [](UDTHubSubsystem* Hub)
+		{
+			return Hub->IsActive() && OnRow(Hub, EDTHubRow::Begin) && !Hub->GetWorld()->URL.HasOption(TEXT("DTSeed"));
+		});
+		Check.Steps.Add([](UDTHubSubsystem* Hub) { Send(Hub, EKeys::SpaceBar, false); return true; });
 		Until(RunReady);
 		Is(TEXT("the run plays on the chosen Patron with no hand left"), [](UDTHubSubsystem* Hub)
 		{
@@ -488,6 +497,29 @@ namespace DTHubCheckLocal
 		Press(EKeys::Enter);
 		Shot(TEXT("ledger_large"));
 		Walk(TEXT("the Ledger-stone"));
+		// The save above has read little: a Recollection's text, a bestiary line and a sealed Keeper's terms were never drawn, so
+		// never measured (review #71, #81). The same pages again as a profile that has earned every row sees them.
+		Press(EKeys::Escape);
+		Check.Steps.Add([](UDTHubSubsystem* Hub) { Hub->ShowEverythingForCheck(); return true; });
+		Is(TEXT("every row of the book is read, with its text, and every Keeper open"), [](UDTHubSubsystem* Hub)
+		{
+			const TArray<FDTCodexRow>& Book = Hub->GetCodex();
+			const int32 Bodies = Book.FilterByPredicate([](const FDTCodexRow& Row) { return Row.bRead && !Row.Body.IsEmpty(); }).Num();
+			return Book.Num() > 0 && !Book.ContainsByPredicate([](const FDTCodexRow& Row) { return !Row.bRead; }) && Bodies == Book.Num() - 1
+				&& !Hub->GetState().Patrons.ContainsByPredicate([](const FDTHubPatron& Patron) { return !Patron.bOpen; });
+		});
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Up);
+		Press(EKeys::Enter);
+		Is(TEXT("the Shrine again"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Patron); });
+		Walk(TEXT("the Shrine, every Keeper's terms"));
+		Press(EKeys::Escape);
+		Press(EKeys::Down);
+		Press(EKeys::Down);
+		Press(EKeys::Enter);
+		Is(TEXT("the Codex again, from its first row"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Codex) && Hub->GetState().Focus == 0; });
+		Walk(TEXT("the Codex, every row read"));
 	}
 
 	/** A person's way into a run on an empty profile, for Tools/SeedCheck.ps1: the Shrine, the first Keeper, Begin. */
