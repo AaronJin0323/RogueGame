@@ -2,9 +2,9 @@
 
 ## Where we are
 - Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-037 (D-029 to D-031 on `main`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-038 (D-029 to D-031 on `main`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 510, tools 200). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
 - Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `34d1d8e` (the 1500 frame). Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
 - No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
@@ -25,17 +25,17 @@
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
 ## In flight (nothing running)
-- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` d827a58, `dev/s3` 00c270c. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
+- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` d827a58, `dev/s3` 589b203. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
 - Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
-- `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
+- `dev/s3` review done (`Validation/S3_review_fixes.md`): 28 fixed, 27 refuted, 82 deferred, no major left. D-037: a gate check reads every run it launches (firstrun needs six of six at the boss), and MetaCheck's pool steps play 600 s and read the dealt cards against a tool-run control. Not reproduced live: the pause-frame and two-process fixes
 - PadCheck and PackageHubCheck list and compare the owner's folder read-only to prove it unchanged; nothing writes there
 - This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
 2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
-3. Deferred review majors #94 (firstrun can pass on one run of six) and #64 (MetaCheck runs too short to tell pools apart)
+3. S2 batteries reread (`docs/s2-reread`, running): fold the readings into Numbers at risk
 4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
