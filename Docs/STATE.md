@@ -17,7 +17,7 @@
 
 ## Built on `dev/s2`
 - Bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade, Radiance, Quicksilver, L16 Reforging, duo reactions, Time Dilation (scale reverted to 1.0), settings and accessibility, restart, abandon and quit, zh audit, 10 evolutions (D-020)
-- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`), reread 2026-11-10 at d827a58: 1 PASS, 3 FAIL, 2 NOT READ, the same verdicts (Keeper share 8/18, build bands 9/18, Intercession 46/282; humans and the death histogram are human-only). D-026 and D-027 did not move the exit rows. 529 of 540 runs are identical; the 11 that differ are all Vector:Forge, where a Quicksilver dash volley now counts as a free volley (D-027's rule): a sim change, under trace
+- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`), reread 2026-11-10 at d827a58: 1 PASS, 3 FAIL, 2 NOT READ, the same verdicts (Keeper share 8/18, build bands 9/18, Intercession 46/282; humans and the death histogram are human-only). D-026 and D-027 did not move the exit rows. 529 of 540 runs are identical; the 11 that differ are all Vector:Forge, where the dash volley's cleave is now Quicksilver's and its kills refund the dash, as R-KEE-34 requires (`S2_dash_volley.md`; D-027's note is corrected). After that reread a BUG fix made Orbital Drones and Sweep Beam dash volleys Quicksilver's at the Key's 1.5 multiplier, so the three Quicksilver arms and every probe row with a Vector card are stale again (8 of 540 exit runs hold Vector with Drones)
 
 ## Built on `dev/s3`
 - Narrative v0.1, saves, Ichor (神血, code `Currency`), Discoveries, the Contracts page, Vigil hub, Codex, log export, doors for all content (D-023, D-024), first-run locks of four modifiers, the hub's seed rule and its package proof (D-028)
@@ -25,7 +25,7 @@
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
 ## In flight (nothing running)
-- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` 4fd1971, `dev/s3` 8cec09a. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
+- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` e40943c, `dev/s3` 5d64918. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
 - Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
 - `dev/s3` review done (`Validation/S3_review_fixes.md`): 28 fixed, 27 refuted, 82 deferred, no major left. D-037: a gate check reads every run it launches (firstrun needs six of six at the boss), and MetaCheck's pool steps play 600 s and read the dealt cards against a tool-run control. Not reproduced live: the pause-frame and two-process fixes
@@ -35,7 +35,7 @@
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
 2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
-3. Trace the Vector:Forge sim change from D-027 on `dev/s2` and class it (BUG or intended), in flight
+3. Reread the Quicksilver exit arms and the Vector probe rows after the Drones dash-volley fix; decide whether R-KEE-34's "every weapon once" overrides Blade Halo, Cyclone, Pulse Wall and Singularity, whose dash volleys do nothing or fold in
 4. Remaining `dev/s3` review minors by risk; the win-screen dark wedge at the left edge
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
