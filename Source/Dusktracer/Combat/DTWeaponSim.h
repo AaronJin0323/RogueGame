@@ -631,13 +631,13 @@ private:
 	float BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const;
 	/** Sweep Beam (R-RFG-08): the arc of this tick. */
 	void StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
-	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. With bRestart the live one starts again as this one (a dash volley's ring, R-RFG-12). */
+	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. */
 	bool OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
-		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS, bool bRestart = false);
+		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS);
 	void StepForceField(const FDTSimContext& Context, FField& Field);
 	/** One strike of a force field on one enemy, as an impact. */
 	void AddFieldHit(FDTWorldView& View, const FField& Field, FWeaponRuntime& Runtime, int32 Enemy, uint16 SourceId, float Damage);
-	/** Pulse Wall under a kill's free volley (R-RFG-12): the weapon's live ring strikes its band once, as SourceId. False when none lives. */
+	/** Pulse Wall under a free volley, a kill's or a dash's (R-RFG-12): the weapon's live ring strikes its band once, as SourceId. False when none lives. */
 	bool StrikeForceField(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, float Damage);
 	void AddShockStack(const FDTSimContext& Context, int32 OwnerId, uint32 Serial);
 	void Discharge(const FDTSimContext& Context, int32 OwnerId, const FVector2f& From, uint32 Serial);

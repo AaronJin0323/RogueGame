@@ -30,5 +30,6 @@
 | D-030 | A card states what it takes, per weapon at its level, in the numbers the sim deals | RULE | applied |
 | D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied |
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
-| D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied |
+| D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied; clause 3 replaced by D-040 |
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |
+| D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |

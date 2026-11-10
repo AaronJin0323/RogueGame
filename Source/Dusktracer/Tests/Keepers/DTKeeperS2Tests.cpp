@@ -1239,49 +1239,183 @@ DT_S2_TEST(FDTKeeperS2VectorCyclone, "Card.Quicksilver.Vector.Cyclone") // T-KEE
 	return true;
 }
 
-DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T-KEE-34, D-038
+namespace DTDashRingTest
 {
-	// One ring lives per weapon (R-RFG-12): a dash volley starts it again at the hero, and that ring is the volley's.
 	using namespace DTKeeperS2Test;
+
+	/** Steps with every push dropped, so a ring's band keeps what stands in it. */
+	static void Hold(FDTKeeperHarness& H, int32 Steps)
+	{
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			H.StepOnce();
+			H.View.Displacements.Reset();
+		}
+	}
+
+	/** One dash step and its landing, pushes dropped. */
+	static void HoldDash(FDTKeeperHarness& H, const FVector2f& Delta)
+	{
+		H.View.HeroPositions[0] += Delta;
+		H.View.HeroIntangible[0] = true;
+		Hold(H, 1);
+		H.View.HeroIntangible[0] = false;
+		Hold(H, 1);
+	}
+
+	/** The evolved weapon at level 8, alone, with the Vector Key. Returns its evolution row. */
+	static int32 ArmEvolved(FDTKeeperHarness& H, const TCHAR* Weapon, bool bKey = true)
+	{
+		H.Patron(EDTPath::Storm, 0, false);
+		H.Weapons.Give(H.Run, 0, FName(Weapon), 8);
+		FDTWeaponInstance& Owned = H.P().Weapons[0];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		if (bKey)
+		{
+			H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+		}
+		return Owned.Evolve;
+	}
+
+	static float MostOn(const FDTKeeperHarness& H, uint32 Serial, uint16 Source)
+	{
+		float Most = 0.0f;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Most = Hit.EnemySerial == Serial && Hit.SourceId == Source ? FMath::Max(Most, Hit.Damage) : Most;
+		}
+		return Most;
+	}
+}
+
+DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T-KEE-34, D-040
+{
+	// One ring lives per weapon (R-RFG-12). A dash volley opens no second ring and does not start the live one again (D-040):
+	// the ring strikes its band once more where it stands, at the Key's multiplier, as the volley's.
+	using namespace DTDashRingTest;
 	const uint16 Quick = Src(EDTPath::Quicksilver);
-	FDTKeeperHarness H;
-	H.Patron(EDTPath::Storm, 0, false);
-	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8);
-	FDTWeaponInstance& Owned = H.P().Weapons[0];
-	Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
-	const int32 Row = DTReforge::FindEvolve(Owned.Def);
-	H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
-	// Where a growing ring's band stands at its second tick: an enemy here is struck once as the ring passes it.
-	const float Passed = DTReforge::Param(Row, TEXT("radius_uu")) * DTReforge::Param(Row, TEXT("tick_s")) / DTReforge::Param(Row, TEXT("grow_s")) - 20.0f;
-	const uint32 First = SerialOf(H, AddScaled(H, FVector2f(0.0f, Passed)));
-	H.StepMany(Second);
-	const uint16 Own = H.P().Weapons[0].SourceId;
-	TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
-	TestTrue(TEXT("and strikes as the weapon"), HitsOn(H, First, Own) > 0);
-	float OwnTick = 0.0f;
-	for (const FDTHit& Hit : H.HitLog)
+	int32 OwnRim[2] = { 0, 0 };
+	for (int32 Dashed = 0; Dashed < 2; ++Dashed)
 	{
-		OwnTick = Hit.SourceId == Own ? FMath::Max(OwnTick, Hit.Damage) : OwnTick;
+		FDTKeeperHarness H;
+		const int32 Row = ArmEvolved(H, TEXT("Weapon.RingEmitter"));
+		const float Radius = DTReforge::Param(Row, TEXT("radius_uu"));
+		const uint32 Rim = SerialOf(H, H.AddEnemy(FVector2f(Radius - 40.0f, 0.0f)));
+		const uint32 Inner = SerialOf(H, H.AddEnemy(FVector2f(0.0f, 0.4f * Radius)));
+		Hold(H, Second + 7); // the ring has grown and holds; the dash falls between two of its ticks
+		const uint16 Own = H.P().Weapons[0].SourceId;
+		TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
+		const float OwnTick = MostOn(H, Rim, Own);
+		TestTrue(TEXT("and strikes its band as the weapon"), OwnTick > 0.0f);
+		H.HitLog.Reset();
+		if (Dashed == 1)
+		{
+			H.AddEnemy(FVector2f(-(Radius - 40.0f), 0.0f), 1.0f); // weak enough to die of the strike
+			HoldDash(H, FVector2f::ZeroVector);
+			TestEqual(TEXT("the band is struck once more, as Keeper.Quicksilver"), HitsOn(H, Rim, Quick), 1);
+			TestNearlyEqual(TEXT("for one tick of the row at the Key's multiplier"), MostOn(H, Rim, Quick), 1.5f * OwnTick, 0.01f);
+		}
+		else
+		{
+			Hold(H, 2);
+		}
+		Hold(H, Second);
+		TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
+		TestEqual(TEXT("one ring was ever opened"), H.Weapons.GetFieldsOpened(), 1);
+		TestEqual(TEXT("one dash is one strike"), HitsOn(H, Rim, Quick), Dashed);
+		TestEqual(TEXT("the ring did not start again: what it had passed is left alone"), HitsOn(H, Inner, Own) + HitsOn(H, Inner, Quick), 0);
+		OwnRim[Dashed] = HitsOn(H, Rim, Own);
+		if (Dashed == 1)
+		{
+			TestEqual(TEXT("its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+		}
 	}
-	H.HitLog.Reset();
-	Dash(H, FVector2f::ZeroVector);
-	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
-	// The ring that passes these two now is the dash volley's; the second is weak enough to die of it.
-	const uint32 Rim = SerialOf(H, AddScaled(H, FVector2f(Passed, 0.0f)));
-	H.AddEnemy(FVector2f(-Passed, 0.0f), 1.0f);
-	H.StepMany(Second);
-	TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
-	TestTrue(TEXT("the dash volley's ring strikes as Keeper.Quicksilver"), HitsOn(H, Rim, Quick) > 0);
-	int32 OwnAfter = 0;
-	float QuickTick = 0.0f;
-	for (const FDTHit& Hit : H.HitLog)
+	TestTrue(TEXT("the wall holds and ticks on"), OwnRim[0] > 0);
+	TestEqual(TEXT("the ring's own ticks are not spent"), OwnRim[1], OwnRim[0]);
 	{
-		OwnAfter += Hit.SourceId == Own ? 1 : 0;
-		QuickTick = Hit.SourceId == Quick && Hit.EnemySerial == Rim ? FMath::Max(QuickTick, Hit.Damage) : QuickTick;
+		// With no ring live the dash volley opens one, and that ring is the volley's, at the Key's multiplier.
+		FDTKeeperHarness H;
+		const int32 Row = ArmEvolved(H, TEXT("Weapon.RingEmitter"));
+		const uint32 Rim = SerialOf(H, H.AddEnemy(FVector2f(DTReforge::Param(Row, TEXT("radius_uu")) - 40.0f, 0.0f)));
+		H.P().Weapons[0].Cooldown = 60.0f;
+		Hold(H, 1);
+		TestEqual(TEXT("no ring yet"), H.Weapons.GetLiveFields(), 0);
+		HoldDash(H, FVector2f::ZeroVector);
+		H.P().Weapons[0].Cooldown = 60.0f;
+		TestEqual(TEXT("with none live, the dash volley opens one"), H.Weapons.GetLiveFields(), 1);
+		Hold(H, 2 * Second);
+		const float Tick = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
+		TestTrue(TEXT("and it strikes as Keeper.Quicksilver"), HitsOn(H, Rim, Quick) > 0);
+		TestNearlyEqual(TEXT("at the Key's multiplier"), MostOn(H, Rim, Quick), 1.5f * Tick, 0.01f);
+		TestEqual(TEXT("the weapon has none of it"), HitsOn(H, Rim, H.P().Weapons[0].SourceId), 0);
 	}
-	TestEqual(TEXT("the ring it replaced strikes no more"), OwnAfter, 0);
-	TestNearlyEqual(TEXT("at the Key's multiplier"), QuickTick, 1.5f * OwnTick, 0.01f);
-	TestEqual(TEXT("its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorSweepBeam, "Card.Quicksilver.Vector.SweepBeam") // T-KEE-34, D-040
+{
+	// One beam lives per weapon (R-RFG-08). A dash volley does not start it again (D-040): it is one tick of the beam along the dash line,
+	// at the Key's multiplier, as the volley's, and the weapon's own sweep runs on.
+	using namespace DTDashRingTest;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	const FVector2f Along(20.0f, 0.0f);
+	struct FSweep { int32 Own = 0; int32 Quick = 0; float MostQuick = 0.0f; int32 FirstOwn = INDEX_NONE; float Tick = 0.0f; };
+	/** One beam of the weapon's own over an enemy on its line. At MoveStep the hero takes one step, as a dash if bDash; none if MoveStep is INDEX_NONE. */
+	const auto Sweep = [&](int32 MoveStep, const FVector2f& Delta, bool bDash)
+	{
+		FSweep Out;
+		FDTKeeperHarness H;
+		const int32 Row = ArmEvolved(H, TEXT("Weapon.RailLance"));
+		const uint32 Centre = SerialOf(H, H.AddEnemy(FVector2f(500.0f, 0.0f)));
+		const uint16 Own = H.P().Weapons[0].SourceId;
+		const int32 Steps = FMath::RoundToInt(DTReforge::Param(Row, TEXT("beam_s")) / Dt) + 30;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			H.View.HeroPositions[0] += Step == MoveStep ? Delta : FVector2f::ZeroVector;
+			H.View.HeroIntangible[0] = Step == MoveStep && bDash;
+			H.StepOnce();
+			H.P().Weapons[0].Cooldown = 60.0f; // one beam of the weapon's own
+			Out.FirstOwn = Out.FirstOwn == INDEX_NONE && HitsOn(H, Centre, Own) > 0 ? Step : Out.FirstOwn;
+		}
+		Out.Own = HitsOn(H, Centre, Own);
+		Out.Quick = HitsOn(H, Centre, Quick);
+		Out.MostQuick = MostOn(H, Centre, Quick);
+		Out.Tick = H.Weapons.GetLastSpec(0, 0).Damage;
+		return Out;
+	};
+	const FSweep Probe = Sweep(INDEX_NONE, FVector2f::ZeroVector, false);
+	TestTrue(TEXT("the weapon's beam crosses the enemy"), Probe.FirstOwn > 0 && Probe.Own > 0);
+	const int32 Early = FMath::Max(1, Probe.FirstOwn / 2); // while the live beam is still short of the enemy
+	const FSweep Stepped = Sweep(Early, Along, false);
+	const FSweep Dashed = Sweep(Early, Along, true);
+	const FSweep Across = Sweep(Early, FVector2f(0.0f, Along.X), true);
+	TestEqual(TEXT("without a dash nothing is Keeper.Quicksilver"), Stepped.Quick, 0);
+	TestEqual(TEXT("one tick along the dash line, as Keeper.Quicksilver"), Dashed.Quick, 1);
+	TestEqual(TEXT("for one tick of the beam at the Key's multiplier"), Dashed.MostQuick, 1.5f * Dashed.Tick);
+	TestEqual(TEXT("the beam did not start again: the weapon's sweep runs on to its end"), Dashed.Own, Stepped.Own);
+	TestTrue(TEXT("and that sweep crosses the enemy"), Stepped.Own > 0);
+	TestEqual(TEXT("a dash across the line strikes nothing on it"), Across.Quick, 0);
+	TestTrue(TEXT("and the weapon's sweep still crosses the enemy"), Across.Own > 0);
+	{
+		// With no beam live the dash volley starts one along the dash, and that beam is the volley's (R-RFG-08).
+		FDTKeeperHarness H;
+		const int32 Row = ArmEvolved(H, TEXT("Weapon.RailLance"));
+		const uint32 Centre = SerialOf(H, H.AddEnemy(FVector2f(500.0f, 0.0f)));
+		H.P().Weapons[0].Cooldown = 60.0f;
+		H.StepOnce();
+		TestEqual(TEXT("no beam yet"), H.HitLog.Num(), 0);
+		const int32 Steps = FMath::RoundToInt(DTReforge::Param(Row, TEXT("beam_s")) / Dt) + 30;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			H.View.HeroPositions[0] += Step == 0 ? Along : FVector2f::ZeroVector;
+			H.View.HeroIntangible[0] = Step == 0;
+			H.P().Weapons[0].Cooldown = 60.0f;
+			H.StepOnce();
+		}
+		TestTrue(TEXT("with none live, the dash volley starts a beam as Keeper.Quicksilver"), HitsOn(H, Centre, Quick) > 0);
+		TestEqual(TEXT("at the Key's multiplier"), MostOn(H, Centre, Quick), 1.5f * H.Weapons.GetLastSpec(0, 0).Damage);
+		TestEqual(TEXT("the weapon has none of it"), HitsOn(H, Centre, H.P().Weapons[0].SourceId), 0);
+	}
 	return true;
 }
 
@@ -1367,6 +1501,139 @@ DT_S2_TEST(FDTKeeperS2VectorSingularity, "Card.Quicksilver.Vector.Singularity") 
 		TestTrue(TEXT("a mine the dash volley laid is Keeper.Quicksilver"), QuickHits > 0);
 		TestEqual(TEXT("whatever joined it"), OwnHits, 0);
 		TestEqual(TEXT("and its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+	}
+	return true;
+}
+
+namespace DTDashRingTest
+{
+	/** Where a dash takes the hero: nowhere, a new way each time, away from a crowd that comes from one side, or into it. */
+	enum class EDashScene : uint8 { Stand, Roam, Flee, Charge };
+
+	struct FDashReading
+	{
+		int64 Kills = 0;
+		int64 Breaches = 0;
+		double Total = 0.0;
+		double Quick = 0.0;
+		int32 QuickHits = 0;
+		float Refund = 0.0f;
+		int32 Dashes = 0;
+	};
+
+	/**
+	 * DTChainTriggerTest::March with a hero who dashes, added to Out: two minutes of six enemies a second walking in at 100 uu/s, kills resolved,
+	 * pushes applied, the evolved weapon alone at level 8. A dash is C.DASH.DURATION_S intangible, one every EveryS from FirstS; in every scene but
+	 * Stand it carries the hero C.DASH.DISTANCE_UU. A standing crowd starts at March's 750 uu; around a hero who moves it starts on the spawn ring,
+	 * which no ring a dash leaves behind can reach. Breaches are enemy-steps within 150 uu of the hero.
+	 */
+	static void DashMarch(FDashReading& Out, const TCHAR* Weapon, bool bKey, EDashScene Scene, float EveryS, float Hp, float FirstS)
+	{
+		FDTKeeperHarness H;
+		ArmEvolved(H, Weapon, bKey);
+		const uint16 Quick = Src(EDTPath::Quicksilver);
+		const int32 DashSteps = FMath::RoundToInt(DTConst::DASH_DURATION_S * static_cast<float>(Second));
+		const float StepUu = static_cast<float>(DTConst::DASH_DISTANCE_UU) / static_cast<float>(DashSteps);
+		const float SpawnUu = Scene == EDashScene::Stand ? 750.0f : static_cast<float>(DTConst::ENM_SPAWN_RING_RADIUS_UU);
+		const bool bOneSide = Scene == EDashScene::Flee || Scene == EDashScene::Charge;
+		float NextAt = FirstS;
+		int32 DashLeft = 0;
+		int32 Dashes = 0;
+		int32 Spawned = 0;
+		FVector2f DashDir(1.0f, 0.0f);
+		for (int32 Step = 0; Step < 120 * Second; ++Step)
+		{
+			const float Now = static_cast<float>(Step) * Dt;
+			FVector2f& Hero = H.View.HeroPositions[0];
+			if (Step % (Second / 6) == 0)
+			{
+				const float Turn = 137.5f * static_cast<float>(Spawned++);
+				H.AddEnemy(Hero + FVector2f(SpawnUu, 0.0f).GetRotated(bOneSide ? FMath::Fmod(Turn, 120.0f) - 60.0f : Turn), Hp);
+			}
+			if (DashLeft == 0 && Now >= NextAt)
+			{
+				DashLeft = DashSteps;
+				NextAt = Now + EveryS;
+				++Dashes;
+				DashDir = Scene == EDashScene::Roam ? FVector2f(1.0f, 0.0f).GetRotated(137.5f * static_cast<float>(Dashes))
+					: FVector2f(Scene == EDashScene::Flee ? -1.0f : 1.0f, 0.0f);
+			}
+			H.View.HeroIntangible[0] = DashLeft > 0;
+			if (DashLeft > 0)
+			{
+				Hero += Scene == EDashScene::Stand ? FVector2f::ZeroVector : DashDir * StepUu;
+				--DashLeft;
+			}
+			H.StepOnce();
+			Out.Refund += H.Weapons.TakeDashRefund(0);
+			for (const FDTHit& Hit : H.HitLog)
+			{
+				Out.Total += Hit.Damage;
+				Out.Quick += Hit.SourceId == Quick ? Hit.Damage : 0.0f;
+				Out.QuickHits += Hit.SourceId == Quick ? 1 : 0;
+			}
+			H.HitLog.Reset();
+			H.StatusLog.Reset();
+			H.MoveLog.Reset();
+			const FVector2f To = H.View.HeroPositions[0];
+			for (int32 Enemy = 0; Enemy < H.Enemies.Num(); ++Enemy)
+			{
+				const FVector2f At = H.Enemies.GetPositions()[Enemy];
+				const float Dist = FVector2f::Distance(At, To);
+				Out.Breaches += Dist < 150.0f ? 1 : 0;
+				if (Dist > 40.0f)
+				{
+					H.Enemies.SetPosition(Enemy, At + (To - At) / Dist * 100.0f * Dt);
+				}
+			}
+		}
+		Out.Kills += H.Enemies.GetTotalKills();
+		Out.Dashes += Dashes;
+	}
+}
+
+DT_S2_TEST(FDTKeeperS2VectorDashMarch, "Card.Quicksilver.Vector.DashMarch") // T-KEE-34, D-040
+{
+	// Against a crowd that walks in and dies, a dash volley never costs Pulse Wall its wall or Sweep Beam its sweep, however often the hero dashes.
+	// 33 s is the owner's rate (1.81 a minute), 9 s the bot's, 0.9 s the least the Vector column allows (the cooldown less its scale and a full refund).
+	using namespace DTDashRingTest;
+	static const TCHAR* const SceneNames[] = { TEXT("Stand"), TEXT("Roam"), TEXT("Flee"), TEXT("Charge") };
+	for (const TCHAR* Name : { TEXT("Weapon.RingEmitter"), TEXT("Weapon.RailLance") })
+	{
+		const bool bRing = FCString::Strcmp(Name, TEXT("Weapon.RingEmitter")) == 0;
+		for (int32 Scene = 0; Scene < 4; ++Scene)
+		{
+			for (const float Every : { 33.0f, 9.0f, 0.9f })
+			{
+				if (Scene != 0 && Every < 1.0f)
+				{
+					continue; // a hero who moves 450 uu every 0.9 s outruns the crowd: nothing to read
+				}
+				for (const float Hp : { 60.0f, 240.0f })
+				{
+					FDashReading Without;
+					FDashReading With;
+					for (int32 Phase = 0; Phase < 4; ++Phase)
+					{
+						// Four starts across one ring's life, summed.
+						DashMarch(Without, Name, false, static_cast<EDashScene>(Scene), Every, Hp, 20.0f + 0.9f * static_cast<float>(Phase));
+						DashMarch(With, Name, true, static_cast<EDashScene>(Scene), Every, Hp, 20.0f + 0.9f * static_cast<float>(Phase));
+					}
+					const FString What = FString::Printf(TEXT("%s evolved, %s, a dash every %.1f s, hp %.0f"), Name, SceneNames[Scene], Every, Hp);
+					UE_LOG(LogTemp, Display, TEXT("READ dash march | %s | kills %lld -> %lld | breaches %lld -> %lld | damage %.0f -> %.0f | quick damage %.0f | quick hits %d | refund %.2f s | dashes %d"),
+						*What, Without.Kills, With.Kills, Without.Breaches, With.Breaches, Without.Total, With.Total, With.Quick, With.QuickHits, With.Refund, With.Dashes);
+					if (Scene == 0)
+					{
+						// The fault this guards is a fifth of the kills or more; the scene's own scatter is under one in fifty.
+						TestTrue(*FString::Printf(TEXT("%s: the dash volley costs no more than one kill in twenty"), *What), With.Kills * 20 >= Without.Kills * 19);
+						if (bRing)
+						{
+							TestEqual(*FString::Printf(TEXT("%s: the wall holds"), *What), With.Breaches, static_cast<int64>(0));
+						}
+					}
+				}
+			}
+		}
 	}
 	return true;
 }
