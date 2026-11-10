@@ -24,10 +24,10 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight (paused 2026-11-09 at the owner's request; nothing is running)
+## In flight (resumed 2026-11-10)
 - Tips, gated PASS and pushed: `main` a1299a8, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
-- `integrate/w4-main` bf8c8c8, unpushed: `main` plus `fix/contrast-flake` ef4b181 (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results). GATE: PASS. Main fast-forwards to it on resume; `dev/s2` and `dev/s3` take it after
-- `fix/d036-camera` from bf8c8c8: started, nothing committed. To do: key 2000 → 1500, T-UX-01/02, goldens, contrast framing limits, perf, seed 9107 hashes, D-036 implemented
+- `main` now holds `fix/contrast-flake` (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results), gated at bf8c8c8. `integrate/w5-s2` and `integrate/w5-s3` carry it to `dev/s2` and `dev/s3`
+- `fix/d036-camera` from `main`: key 2000 → 1500, T-UX-01/02, goldens, contrast framing limits, perf, seed 9107 hashes, D-036 implemented. `dev/s2` and `dev/s3` take it after
 - `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
 - Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
 - This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
@@ -40,7 +40,7 @@
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
-- automated launches: off (the owner's pause, 2026-11-09) — stop them during human sessions
+- automated launches: on, window-free (hidden desktop); stop them during human sessions
 
 ## Waiting on the owner (mirror of OPEN.md IDs only)
 - O-008 (book S1 validation sessions)
