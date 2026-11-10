@@ -2,7 +2,8 @@
 #   & Tools\Smoke.ps1 [-Culture en|zh-Hans] [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-Seconds <s>] [-Name arena_empty]
 #                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast] [-DormantLine]
 # Launches the game (UnrealEditor -game -RenderOffScreen at 1280x720, on the hidden desktop of Tools/HiddenLaunch.ps1) in the given culture, waits for "Run start", runs -Cmds as
-# -ExecCmds, takes a screenshot -Seconds after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook), and the
+# -ExecCmds, takes a screenshot -Seconds of sim time after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook: the sim
+# is held on that step and shot once the still frame has settled, so neither a hitch nor the frame rate moves what it shows), and the
 # game quits itself once the file is written; a game still alive after the timeout is killed by its own PID only.
 # The run director is off (-DTNoDirector, director.md) so the goldens stay deterministic; -Director turns it on (pair it
 # with a -Name that has no golden, e.g. -Director -Seconds 60 -Name arena_director: the image check then fails by design).
@@ -113,29 +114,49 @@ if ($Drawn) {
 	$Loc = if ($LocOk) { "loc ok ($Culture)" } else { "loc MISMATCH (culture '$DrawnCulture', drew '$DrawnText', expected '$Expected')" }
 }
 
+# A judge's verdict counts once two runs on the same frame print the same lines and exit code. This host's CPU has been seen
+# to fault inside the checker under load (a Python TypeError or access violation in pure code, and now and then a reading off
+# by a few pixels with exit 0): a verdict one run gives alone is not trusted. Nothing about the frame or the rule changes.
+function Invoke-Judge([string[]]$JudgeArgs, [int]$MaxRuns = 6) {
+	$Seen = @{}
+	$Last = $null
+	for ($Run = 1; $Run -le $MaxRuns; $Run++) {
+		$Lines = @(& python -I @JudgeArgs 2>&1 | ForEach-Object { "$_" })
+		$Rc = $LASTEXITCODE
+		$Key = "$Rc`n" + ($Lines -join "`n")
+		$Last = @{ Out = $Lines; Rc = $Rc; Runs = $Run }
+		if ($Seen.ContainsKey($Key)) { return $Last }
+		$Seen[$Key] = $true
+	}
+	Write-Host "    ! judge gave no two equal verdicts in $MaxRuns runs; the last is reported, as a failure"
+	$Last.Rc = 1
+	return $Last
+}
+
 $Image = "no screenshot"
 $ImageOk = $false
 if (Test-Path $Shot) {
 	if ($Contrast) {
-		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot --hero (Join-Path $ShotDir "arena_empty_$Culture.png") `
-			--known (Join-Path $Root "Docs\Validation\contrast_debts.txt") 2>&1
-		$ImageOk = ($LASTEXITCODE -eq 0)
-		$ImgOut | ForEach-Object { "    $_" }
-		$Image = (($ImgOut | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
+		$Judged = Invoke-Judge @((Join-Path $Root "Tools\contrast_check.py"), $Shot, "--hero", (Join-Path $ShotDir "arena_empty_$Culture.png"),
+			"--known", (Join-Path $Root "Docs\Validation\contrast_debts.txt"))
+		$ImageOk = ($Judged.Rc -eq 0)
+		$Judged.Out | ForEach-Object { "    $_" }
+		$Image = (($Judged.Out | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
 	}
 	elseif ($DormantLine) {
-		$ImgOut = & python -I (Join-Path $Root "Tools\contrast_check.py") $Shot --dormant-line 2>&1
-		$ImageOk = ($LASTEXITCODE -eq 0)
-		$ImgOut | ForEach-Object { "    $_" }
-		$Image = (($ImgOut | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
+		$Judged = Invoke-Judge @((Join-Path $Root "Tools\contrast_check.py"), $Shot, "--dormant-line")
+		$ImageOk = ($Judged.Rc -eq 0)
+		$Judged.Out | ForEach-Object { "    $_" }
+		$Image = (($Judged.Out | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
 	}
 	else {
 		$CheckArgs = @((Join-Path $Root "Tools\image_check.py"), $Shot, "--golden", $Golden)
 		if ($Update) { $CheckArgs += "--update" }
-		$ImgOut = & python -I @CheckArgs 2>&1
-		$ImageOk = ($LASTEXITCODE -eq 0)
-		$Image = (($ImgOut | Select-String "^IMAGE:" | Select-Object -Last 1).Line) -replace "^IMAGE:\s*", "image "
+		$Judged = Invoke-Judge $CheckArgs
+		$ImageOk = ($Judged.Rc -eq 0)
+		$Image = (($Judged.Out | Select-String "^IMAGE:" | Select-Object -Last 1).Line) -replace "^IMAGE:\s*", "image "
 	}
+	if ($Judged.Runs -gt 2) { Write-Host "    judge: $($Judged.Runs) runs for two equal verdicts" }
 }
 Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"

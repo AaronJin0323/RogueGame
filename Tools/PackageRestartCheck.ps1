@@ -204,7 +204,7 @@ $SettingsFile = Join-Path $WorkDir "DTSettings.ini"
 $Shot = Join-Path $WorkDir "after_reload.png"
 foreach ($File in $SettingsFile, $Shot) { if (Test-Path $File) { Remove-Item $File -Force } }
 $Menu = "DT.UI.Pause,DT.UI.Key Down,DT.UI.Key Accept,DT.UI.Key Right,DT.UI.Key Down,DT.UI.Key Left,DT.UI.Key Back,DT.UI.Key Back"
-# Real time, not -DTBotFast: the shot's timer runs on world time and starts over with each world, so a first run shorter than the wait puts the frame in the restarted run.
+# Real time, not -DTBotFast: the shot counts sim steps from run start and starts over with each world, so a first run shorter than the wait puts the frame in the restarted run.
 $ShotAfter = 12
 $BotReal = @("-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=0.6", "-DTBotPath=Storm", "-DTBotArchetype=Tempest", "-DTBotMaxSeconds=$Seconds")
 $LogD = Invoke-Dev "d" ($BotReal + @("-DTSeed=$SettingsSeed", "-DTRestartAtStep=300", "-DTRestartSeed=$OtherSeed", "-DTSettingsFile=`"$SettingsFile`"", "-ExecCmds=`"$Menu`"", "-DTShot=`"$Shot`"", "-DTShotAfter=$ShotAfter"))

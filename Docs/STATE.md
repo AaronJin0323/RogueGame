@@ -24,12 +24,13 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight
-- D-036 decided (camera, `06_UX.md` R-UX-01/02): frame radius 2000 → 1500 uu, about 53 m across at 36 px/m, fixed and not a setting. Not implemented: it waits for `fix/contrast-flake`, since it re-reads the contrast limits. D-036 lists the redo: split the Echo and Storm-net sim readers onto their own key first, goldens, contrast, perf, all human readings
-- `fix/contrast-flake` (from `main`): the `contrast` probe sometimes misses `enemy_rim` or `telegraph` (2 of 5 alone on `integrate/w3-s2`)
-- Tips, gated PASS and pushed: `main` 3b4b1b6, `dev/s2` 8c0aa83, `dev/s3` 8e5de32. Seed 9107 hashes equal across all three for the five bot arms
-- `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred. Fixed include log-export redaction of crash ids, two launches on one save, a run ending on the Pause frame, the duos' door raising in-run numbers (D-035), and the `firstrun` flake. Deferred majors: firstrun can pass on one run of six (#94), MetaCheck's 20 s runs cannot tell pools apart (#64). Not reproduced live: the pause-frame and two-process fixes
+## In flight (resumed 2026-11-10)
+- Tips, gated PASS and pushed: `main` a1299a8, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
+- `main` now holds `fix/contrast-flake` (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results), gated at bf8c8c8. `integrate/w5-s2` and `integrate/w5-s3` carry it to `dev/s2` and `dev/s3`
+- `fix/d036-camera` from `main`: key 2000 → 1500, T-UX-01/02, goldens, contrast framing limits, perf, seed 9107 hashes, D-036 implemented. `dev/s2` and `dev/s3` take it after
+- `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
 - Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
+- This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session

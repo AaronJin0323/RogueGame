@@ -85,7 +85,7 @@ void UDTSimSubsystem::StepNow(int32 Steps)
 
 int32 UDTSimSubsystem::AdvanceFrame(float DeltaTime)
 {
-	if (bPauseRequested)
+	if (bPauseRequested || bHeld)
 	{
 		return 0; // paused at a step boundary: the accumulator holds, no phase runs (R-TEC-14)
 	}
@@ -96,7 +96,7 @@ int32 UDTSimSubsystem::AdvanceFrame(float DeltaTime)
 		RunOneStep();
 		OnStepEnd.Broadcast();
 		++Ran;
-		if (bPauseRequested)
+		if (bPauseRequested || bHeld)
 		{
 			break; // the steps still due are dropped: sim time does not pass while paused
 		}
@@ -110,7 +110,8 @@ void UDTSimSubsystem::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	AdvanceFrame(DeltaTime);
 	CSV_SCOPED_TIMING_STAT(DT, SimRender);
-	const float Alpha = Clock.GetAlpha();
+	// Held, the frame shows the held step itself, not a blend toward it by whatever fraction of a step the frame times left.
+	const float Alpha = bHeld ? 1.0f : Clock.GetAlpha();
 	for (const TArray<IDTSimSystem*>& PhaseSystems : Systems)
 	{
 		for (IDTSimSystem* System : PhaseSystems)
