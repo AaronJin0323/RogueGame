@@ -2,10 +2,12 @@
 #   & Tools\Gate.ps1 [-AllFiles] [-Base origin/main] [-Skip build,shipping,...]     (from PowerShell)
 # Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
 # never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
-# Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests (Tools/RunTests.ps1), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
+# Steps: secrets, docs, constants, catalog, matrix, loc, licence (Tools/catalog_lint.py, T-PRE-10, T-TEC-06), palette (Tools/palette_lint.py, T-PRE-02),
+# tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
+# shipping (T-TEC-12), tests (Tools/RunTests.ps1), smoke (every scene of Tools/Scenes with "gate": "smoke", in each of its cultures), restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
 # firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), earned (Tools/EarnedCheck.ps1, T-MET-30),
-# contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame),
+# contrast (every scene of Tools/Scenes with "gate": "contrast": T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame),
+# settings (Tools/palette_lint.py --settings, T-PRE-07: the render settings, and no exposure change between the empty arena and the contrast frame),
 # windows (Tools/WindowCheck.ps1), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
@@ -40,6 +42,15 @@ function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string
 	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX|  ST_|  Source/)"; Fail $Step }
 }
 
+# A scene is data (Tools\Scenes\<name>.json, read by Tools\Smoke.ps1 -Scene): a package adds a file, and its "gate" key puts it in a step here.
+# arena_empty runs first: the contrast judge reads the hero and the bare floor from its shot.
+function Get-Scenes([string]$Gate) {
+	return @(Get-ChildItem (Join-Path $Root "Tools\Scenes") -Filter *.json | Sort-Object { if ($_.BaseName -eq "arena_empty") { "" } else { $_.BaseName } } | ForEach-Object {
+		$Data = Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+		if ($Data.gate -eq $Gate) { [pscustomobject]@{ Name = $_.BaseName; Cultures = @($Data.cultures) } }
+	})
+}
+
 function Ubt([string]$Step, [string]$Target, [string]$Config, [string]$Extra = "") {
 	$Log = Join-Path $LogDir "Gate_$Step.log"
 	$env:DT_UBT_ARGS = $Extra
@@ -57,6 +68,8 @@ Invoke-PyStep "constants" "Tools\gen_constants.py" "CONSTANTS" @("--check")
 Invoke-PyStep "catalog" "Tools\gen_catalog.py" "CATALOG" @("--check")
 Invoke-PyStep "matrix" "Tools\gen_matrix.py" "MATRIX" @("--check")
 Invoke-PyStep "loc" "Tools\loc_build.py" "LOC" @("--check")
+Invoke-PyStep "licence" "Tools\catalog_lint.py" "LICENCE"
+Invoke-PyStep "palette" "Tools\palette_lint.py" "PALETTE"
 Invoke-PyStep "tools" "Tools\tools_test.py" "TOOLS"
 
 # --- C++ ---------------------------------------------------------------------------------------------------------
@@ -118,12 +131,16 @@ if (-not (Skipped "tests")) {
 
 # --- not built yet -------------------------------------------------------------------------------------------------
 if (-not (Skipped "smoke")) {
-	foreach ($Culture in @("en", "zh-Hans")) {
-		$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Culture $Culture 2>&1
-		$Rc = $LASTEXITCODE
-		$Out | Set-Content (Join-Path $LogDir "Gate_smoke_$Culture.log") -Encoding utf8
-		Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
-		if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
+	$Scenes = Get-Scenes "smoke"
+	if ($Scenes.Count -eq 0 -or $Scenes[0].Name -ne "arena_empty") { Report "smoke" "FAIL (Tools\Scenes holds no arena_empty scene for this step)"; Fail "smoke" }
+	foreach ($S in $Scenes) {
+		foreach ($Culture in $S.Cultures) {
+			$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Scene $S.Name -Culture $Culture 2>&1
+			$Rc = $LASTEXITCODE
+			$Out | Set-Content (Join-Path $LogDir "Gate_smoke_$($S.Name)_$Culture.log") -Encoding utf8
+			Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
+			if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
+		}
 	}
 }
 if (-not (Skipped "restart")) {
@@ -188,20 +205,27 @@ if (-not (Skipped "earned")) {
 	if ($Rc -ne 0) { Show $Out "WRONG|EARNED: FAIL"; Fail "earned" }
 }
 if (-not (Skipped "contrast")) {
-	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.
-	$Scene = "DT.God 1,DT.Dir.Time 700,DT.Gems.Drop 30 4 700,DT.Spawn.Role Swarm 6 elite,DT.Spawn.Role Turret 18,DT.Spawn.Role Rusher 8,DT.Bullets 800"
-	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name contrast -Director -Contrast -Seconds 12 -Cmds $Scene *>&1
-	$Rc = $LASTEXITCODE
-	$Out | Set-Content (Join-Path $LogDir "Gate_contrast.log") -Encoding utf8
-	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
-	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
-	# R-MOD-08: the HUD's dormant line on its own frame. Staged in the scene above it would take the Rifle's rounds out of that frame and read as a tracer.
-	$Scene = "DT.Mod Weapon.PulseRifle Mod.ScatterShell,DT.Bless Blessing.Forge.Hammer.Key"
-	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name dormant_line -DormantLine -Seconds 4 -Cmds $Scene *>&1
-	$Rc = $LASTEXITCODE
-	$Out | Set-Content (Join-Path $LogDir "Gate_contrast_line.log") -Encoding utf8
-	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
-	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
+	# T-PRE-05: a staged late frame (one weather exists), then R-MOD-08's dormant line on its own frame, then any frame a package staged.
+	# Each needs the arena_empty shot the smoke step left, for the hero and the bare floor.
+	$Scenes = Get-Scenes "contrast"
+	if (@($Scenes | Where-Object { $_.Name -eq "contrast" }).Count -eq 0) { Report "contrast" "FAIL (Tools\Scenes holds no contrast scene)"; Fail "contrast" }
+	foreach ($S in $Scenes) {
+		foreach ($Culture in $S.Cultures) {
+			$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Scene $S.Name -Culture $Culture *>&1
+			$Rc = $LASTEXITCODE
+			$Out | Set-Content (Join-Path $LogDir "Gate_contrast_$($S.Name)_$Culture.log") -Encoding utf8
+			Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
+			($Out | Select-String "^\s+WATCH:" | Select-Object -Last 1) | ForEach-Object { "    " + $_.Line.Trim() }
+			if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
+		}
+	}
+}
+if (-not (Skipped "settings")) {
+	# T-PRE-07 (R-PRE-07): the render settings of 04_Presentation §4 in the config and in the arena volume's generator, and no exposure
+	# change between the empty arena and the contrast frame the two steps above left. Without those frames the settings alone are held.
+	$Frames = @((Join-Path $Root "Saved\Smoke\arena_empty_en.png"), (Join-Path $Root "Saved\Smoke\contrast_en.png"))
+	$Fresh = (@($Frames | Where-Object { Test-Path $_ }).Count -eq 2) -and -not ($Skip -contains "smoke") -and -not ($Skip -contains "contrast")
+	Invoke-PyStep "settings" "Tools\palette_lint.py" "SETTINGS" $(if ($Fresh) { @("--settings") + $Frames } else { @("--settings") })
 }
 if (-not (Skipped "windows")) {
 	# The no-window rule (AGENTS.md): a bot, a smoke and a test run show nothing on this desktop; Tools\WindowCheck.ps1 holds its controls and its detection limit.

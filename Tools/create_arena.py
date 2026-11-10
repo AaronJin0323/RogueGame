@@ -30,6 +30,7 @@ import unreal
 ROOT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 sys.path.insert(0, os.path.join(ROOT, "Tools"))
 import dtconst  # noqa: E402
+import dtpalette  # noqa: E402
 
 C = {k: v["value"] for k, v in dtconst.load(os.path.join(ROOT, "Docs", "constants.yaml")).items()}
 
@@ -38,8 +39,8 @@ MAP_PATH = "/Game/DT/Maps/L_Arena_Test"
 PLANE_MESH = "/Engine/BasicShapes/Plane.Plane"
 PLANE_SIZE_UU = 100.0  # the engine plane is 100 x 100 uu at scale 1
 
-# Palette token (04_Presentation §3). The token table is the source; this mirrors one row until a token source exists.
-PAL_GROUND_LIT = "#66625B"
+# Palette token (04_Presentation §3), read by name from the token table (R-PRE-09; Tools/palette_lint.py fails a literal here).
+GROUND_TOKEN = "Pal.Ground.Lit"
 GROUND_ROUGHNESS = 0.9
 ROUND_EDGE_SHARPNESS = 40.0  # width of the core/rim edge in the material; not a tunable, it only anti-aliases
 
@@ -50,15 +51,6 @@ MEL = unreal.MaterialEditingLibrary
 
 def log(msg):
     unreal.log(f"create_arena: {msg}")
-
-
-def srgb_to_linear(hex_colour):
-    h = hex_colour.lstrip("#")
-    out = []
-    for i in range(0, 6, 2):
-        c = int(h[i:i + 2], 16) / 255.0
-        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    return out
 
 
 # ---- materials ------------------------------------------------------------------------------------------------------
@@ -188,7 +180,7 @@ def build_cue_color():
 
 def build_ground():
     mat = fresh_material("M_Ground")
-    r, g, b = srgb_to_linear(PAL_GROUND_LIT)
+    r, g, b = dtpalette.linear(GROUND_TOKEN)
     colour = expr(mat, unreal.MaterialExpressionConstant3Vector, -500, -100)
     colour.set_editor_property("constant", unreal.LinearColor(r, g, b, 1.0))
     rough = expr(mat, unreal.MaterialExpressionConstant, -500, 100)
@@ -200,7 +192,7 @@ def build_ground():
     MEL.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
     MEL.recompile_material(mat)
     EAL.save_loaded_asset(mat, only_if_is_dirty=False)
-    log(f"M_Ground built (Pal.Ground.Lit {PAL_GROUND_LIT} -> linear {r:.4f} {g:.4f} {b:.4f})")
+    log(f"M_Ground built ({GROUND_TOKEN} {dtpalette.hex_of(GROUND_TOKEN)} -> linear {r:.4f} {g:.4f} {b:.4f})")
     return mat
 
 

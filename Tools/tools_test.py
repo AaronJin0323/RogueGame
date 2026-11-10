@@ -4,6 +4,7 @@ Usage:  python -I Tools/tools_test.py
 Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 """
 
+import ast
 import contextlib
 import csv
 import io
@@ -21,12 +22,17 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
+import catalog_lint  # noqa: E402
 import contrast_check  # noqa: E402
+import dtconst  # noqa: E402
+import dtpalette  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_catalog  # noqa: E402
+import gen_constants  # noqa: E402
 import gen_matrix  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
+import palette_lint  # noqa: E402
 import pool_read  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
@@ -1992,6 +1998,547 @@ class PoolRead(unittest.TestCase):
 		for held in ("$TreeOk", "$FirstOk", "$AmpsShutOk"):
 			self.assertIn(held, verdict)
 		self.assertIn("-and $SameHands", text)
+
+
+class Licence(unittest.TestCase):
+	"""T-PRE-10 and T-TEC-06 (Tools/catalog_lint.py, gate step `licence`): the committed log, and planted faults."""
+
+	def row(self, asset_path, **over):
+		row = {"asset_path": asset_path, "kind": "mesh", "origin": "procedural", "source": "Tools/blender/enemy_*.py", "author": "Dusktracer", "licence": "own",
+			"licence_file": "", "date_added": "2026-11-10", "used_for": "a hull", "added_by": "test", "line": 2}
+		row.update(over)
+		return row
+
+	FILES = ["Tools/blender/enemy_swarm.py", "Source/Dusktracer/Dusktracer.cpp", "Docs/00_Vision.md"]
+
+	def errors(self, rows, files):
+		return catalog_lint.lint(rows, self.FILES + files)[0]
+
+	def test_the_committed_log_passes(self):
+		rows, errors = catalog_lint.read_rows()
+		self.assertEqual(errors, [])
+		found, checked = catalog_lint.lint(rows, catalog_lint.repo_files())
+		self.assertEqual(found, [])
+		self.assertGreaterEqual(checked, 20)  # the map, four materials, thirteen string tables, the goldens
+
+	def test_a_binary_with_no_row_fails(self):
+		rows = [self.row("Content/DT/Meshes/SM_Enemy_*")]
+		self.assertEqual(self.errors(rows, ["Content/DT/Meshes/SM_Enemy_Swarm.uasset"]), [])
+		for stray in ("Content/DT/Meshes/SM_Stray.uasset", "SourceArt/Enemies/SM_Enemy_Swarm.fbx", "Docs/Validation/shot.png", "Handoff/ref.jpg", "Content/DT/notes.txt"):
+			found = self.errors(rows, [stray])
+			self.assertEqual(len(found), 1, stray)
+			self.assertIn("no licenses.csv row", found[0])
+
+	def test_text_and_code_outside_the_asset_roots_need_no_row(self):
+		self.assertEqual(catalog_lint.lint([], self.FILES)[0], [])
+		self.assertEqual(catalog_lint.lint([], self.FILES)[1], 0)
+
+	def test_a_row_may_come_before_its_files_and_its_generator(self):
+		self.assertEqual(self.errors([self.row("Content/DT/Meshes/SM_Hero_*", source="Tools/blender/hero_*.py")], []), [])
+
+	def test_a_matched_row_names_a_generator_in_the_repo(self):
+		rows = [self.row("Content/DT/Meshes/SM_Hero_*", source="Tools/blender/hero_*.py")]
+		found = self.errors(rows, ["Content/DT/Meshes/SM_Hero_Body.uasset"])
+		self.assertEqual(len(found), 1)
+		self.assertIn("no file matches its source", found[0])
+		rows = [self.row("Content/DT/Meshes/SM_Hero_*", source="https://example.com/hero")]
+		self.assertIn("names its generator in this repo", self.errors(rows, ["Content/DT/Meshes/SM_Hero_Body.uasset"])[0])
+
+	def test_nothing_external_enters_but_an_ofl_font(self):
+		mesh = self.row("Content/DT/Meshes/SM_Enemy_*", origin="external", licence="CC0-1.0", source="https://example.com/pack", licence_file="Docs/Licences/CC0.txt")
+		found = self.errors([mesh], ["Docs/Licences/CC0.txt"])
+		self.assertEqual(len(found), 1)
+		self.assertIn("D-043 point 8", found[0])
+		font = self.row("Content/DT/Fonts/*", kind="font", origin="external", licence="OFL-1.1", source="https://example.com/font", licence_file="Content/DT/Fonts/OFL.txt")
+		self.assertEqual(self.errors([font], ["Content/DT/Fonts/OFL.txt", "Content/DT/Fonts/Barlow.ttf"]), [])
+		self.assertIn("ships its licence text", " ".join(self.errors([dict(font, licence_file="")], [])))
+		self.assertIn("is not in the repo", " ".join(self.errors([font], [])))
+
+	def test_a_licence_outside_the_allowed_set_fails(self):
+		self.assertIn("does not fit origin", self.errors([self.row("Content/DT/Meshes/SM_Enemy_*", licence="CC-BY-4.0")], [])[0])
+		found = self.errors([self.row("Content/DT/Fonts/*", kind="font", origin="external", licence="Proprietary", source="https://x", licence_file="Docs/00_Vision.md")], [])
+		self.assertIn("is not allowed for an external asset", " ".join(found))
+		self.assertIn("never a file of this repo", self.errors([self.row("Content/DT/Meshes/SM_Enemy_*", licence="UE-EULA-engine")], [])[0])
+		self.assertEqual(self.errors([self.row("/Engine/BasicShapes/Plane", licence="UE-EULA-engine", source="/Engine/BasicShapes/Plane")], []), [])
+
+	def test_an_ai_sourced_row_fails(self):
+		for source in ("Tools/blender/enemy_*.py from a Midjourney sheet", "SDXL", "meshy.ai export", "AI-generated"):
+			found = self.errors([self.row("Content/DT/Meshes/SM_Enemy_*", used_for=source)], [])
+			self.assertEqual(len(found), 1, source)
+			self.assertIn("O-009", found[0])
+
+	def test_an_asset_kind_nobody_owns_fails(self):
+		rows = [self.row("Content/DT/*", kind="vfx")]
+		for name in ("Content/DT/UI/WBP_Card.uasset", "Content/DT/Fx/NS_Bullet_Trail.uasset", "Content/DT/Hero/SK_Hero.uasset"):
+			self.assertIn("has no owner (R-TEC-06)", " ".join(self.errors(rows, [name])), name)
+
+	def test_an_asset_carries_the_prefix_of_its_kind(self):
+		rows = [self.row("Content/DT/Meshes/*")]
+		self.assertIn("is named SM_*", self.errors(rows, ["Content/DT/Meshes/Hull.uasset"])[0])
+		self.assertEqual(self.errors(rows, ["Content/DT/Meshes/SM_Hull.uasset"]), [])
+
+	def test_a_bad_row_fails_whatever_it_matches(self):
+		self.assertIn("kind 'model'", " ".join(self.errors([self.row("SourceArt/Enemies/*", kind="model")], [])))
+		self.assertIn("origin 'found'", " ".join(self.errors([self.row("SourceArt/Enemies/*", origin="found")], [])))
+		self.assertIn("not an ISO date", " ".join(self.errors([self.row("SourceArt/Enemies/*", date_added="10/11/2026")], [])))
+		self.assertIn("author is empty", " ".join(self.errors([self.row("SourceArt/Enemies/*", author="")], [])))
+		twice = [self.row("SourceArt/Enemies/*"), self.row("SourceArt/Enemies/*", line=3)]
+		self.assertIn("is already on line 2", " ".join(self.errors(twice, [])))
+
+	def test_the_header_is_the_one_of_04_presentation(self):
+		with open(os.path.join(TOOLS, "..", "Docs", "04_Presentation.md"), encoding="utf-8") as f:
+			text = f.read()
+		for column in catalog_lint.COLUMNS:
+			self.assertIn(f"| `{column}` |", text)
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "licenses.csv")
+			with open(path, "w", encoding="utf-8", newline="") as f:
+				f.write("path,licence\nContent/DT/x.uasset,own\n")
+			rows, errors = catalog_lint.read_rows(path)
+			self.assertEqual(rows, [])
+			self.assertEqual(len(errors), 1)
+
+	def test_every_wave_1_family_has_its_row(self):
+		# S4_wave1.md §2 rule 8: one glob row per wave 1 asset family, so no package edits the log.
+		rows, _ = catalog_lint.read_rows()
+		for path in ("SourceArt/Env/SM_Env_Apron.fbx", "Content/DT/Meshes/SM_Env_Apron.uasset", "Content/DT/Materials/M_Env_Stone.uasset",
+			"SourceArt/Enemies/SM_Enemy_Swarm.fbx", "Content/DT/Meshes/SM_Enemy_Swarm.uasset", "SourceArt/Hero/SM_Hero_Torso.fbx",
+			"Content/DT/Meshes/SM_Hero_Torso.uasset", "Content/DT/Materials/M_Tracer.uasset", "Content/DT/Materials/M_EnemyRound_Trail.uasset",
+			"SourceArt/Fx/SM_Fx_Debris.fbx", "Content/DT/Meshes/SM_Fx_Debris.uasset", "Docs/Validation/goldens/hero_idle_en.png"):
+			self.assertTrue(any(catalog_lint.matches(row, path) for row in rows), path)
+		self.assertFalse(any(catalog_lint.matches(row, "Content/DT/Meshes/SM_Test_Triangle.uasset") for row in rows))
+
+
+class Palette(unittest.TestCase):
+	"""T-PRE-02's hue check, R-PRE-09 for asset generators and T-PRE-07's settings (Tools/palette_lint.py, gate steps `palette` and `settings`)."""
+
+	def test_the_committed_palette_passes(self):
+		with contextlib.redirect_stdout(io.StringIO()) as out:
+			self.assertEqual(palette_lint.main([]), 0, out.getvalue())
+		self.assertIn("PALETTE: PASS", out.getvalue())
+
+	def test_a_player_side_token_in_the_enemy_band_fails(self):
+		tokens = dict(gen_constants.load_palette())
+		self.assertEqual(palette_lint.hue_errors(tokens), [])
+		for value in ("FF2060", "FF30C0", "E0203A"):
+			found = palette_lint.hue_errors(dict(tokens, **{"Player.Flare": value}))
+			self.assertEqual(len(found), 1, value)
+			self.assertIn("Pal.Player.Flare", found[0])
+		# Amber, a neutral and a dark red-brown with no saturation to speak of stay legal.
+		for value in ("FF9F3A", "D9DDE2", "3A3636"):
+			self.assertEqual(palette_lint.hue_errors(dict(tokens, **{"Hero.Metal": value})), [], value)
+
+	def test_an_enemy_token_that_leaves_the_band_fails(self):
+		tokens = dict(gen_constants.load_palette(), **{"Enemy.Optic": "3BFF9E"})
+		self.assertIn("Pal.Enemy.Optic", palette_lint.hue_errors(tokens)[0])
+		tokens = dict(gen_constants.load_palette())
+		del tokens["Telegraph"]
+		self.assertIn("Pal.Telegraph is missing", palette_lint.hue_errors(tokens)[0])
+
+	def test_the_band_is_the_one_the_weapon_test_draws(self):
+		with open(os.path.join(TOOLS, "..", "Source", "Dusktracer", "Tests", "Combat", "DTWeaponTests.cpp"), encoding="utf-8", errors="replace") as f:
+			self.assertIn("Hsv.G > 0.25f && (Hsv.R >= 290.0f || Hsv.R < 20.0f)", f.read())
+		self.assertEqual((palette_lint.BAND_MIN_SAT, palette_lint.BAND_FROM_DEG, palette_lint.BAND_TO_DEG), (0.25, 290.0, 20.0))
+
+	def test_the_table_parses_whole(self):
+		good = "## 3. Palette tokens (binding)\n| `Pal.A.B` | #102030 | 0.1 | use |\n## 4. Other\n| `Pal.A.B` renders pale | note |\n"
+		self.assertEqual(palette_lint.table_errors(good), [])
+		twice = good.replace("## 4.", "| `Pal.A.B` | #405060 | 0.2 | use |\n## 4.")
+		self.assertIn("already on line 2", palette_lint.table_errors(twice)[0])
+		broken = good.replace("#102030", "102030")
+		self.assertIn("not a token row", palette_lint.table_errors(broken)[0])
+
+	def test_a_generator_that_spells_a_colour_fails(self):
+		quote = '"'
+		for line in ("GROUND = " + quote + "#66625B" + quote, "colour = '" + "1C1E24" + "'", "# base " + "#" + "FF2A2A" + " for now"):
+			self.assertEqual(len(palette_lint.literal_errors("blender/x.py", line + "\n")), 1, line)
+		for line in ('GROUND_TOKEN = "Pal.Ground.Lit"', "r, g, b = dtpalette.linear(GROUND_TOKEN)", "# the seed 123456 and step 0xABCDEF12", 'name = "SM_Enemy_Swarm"'):
+			self.assertEqual(palette_lint.literal_errors("blender/x.py", line + "\n"), [], line)
+
+	def test_every_generator_is_scanned(self):
+		names = {name for name, _ in palette_lint.generator_files()}
+		for name in ("create_arena.py", "blender/test_triangle.py", "blender/build_mesh.py", "Scenes/contrast.json"):
+			self.assertIn(name, names)
+
+	def test_create_arena_reads_its_token(self):
+		with open(os.path.join(TOOLS, "create_arena.py"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertIn('dtpalette.linear(GROUND_TOKEN)', text)
+		self.assertEqual(palette_lint.literal_errors("create_arena.py", text), [])
+		# The token gives the linear colour the literal gave: M_Ground is the same material, to the last digit the generator printed.
+		self.assertEqual(dtpalette.hex_of("Pal.Ground.Lit"), "#" + "66625B")
+		self.assertEqual(["%.4f" % c for c in dtpalette.linear("Pal.Ground.Lit")], ["0.1329", "0.1221", "0.1046"])
+		with self.assertRaises(KeyError):
+			dtpalette.hex_of("Pal.Ground.Mossy")
+
+	def test_the_committed_settings_pass(self):
+		with contextlib.redirect_stdout(io.StringIO()) as out:
+			self.assertEqual(palette_lint.main(["--settings"]), 0, out.getvalue())
+		self.assertIn("SETTINGS: PASS", out.getvalue())
+
+	def test_a_missing_or_moved_config_setting_fails(self):
+		with open(os.path.join(TOOLS, "..", "Config", "DefaultEngine.ini"), encoding="utf-8", errors="replace") as f:
+			text = f.read()
+		self.assertEqual(palette_lint.ini_errors(text), [])
+		self.assertIn("r.DefaultFeature.MotionBlur=True", palette_lint.ini_errors(text.replace("r.DefaultFeature.MotionBlur=False", "r.DefaultFeature.MotionBlur=True"))[0])
+		self.assertIn("r.SceneColorFringeQuality is not set", palette_lint.ini_errors(text.replace("r.SceneColorFringeQuality=0", ""))[0])
+		self.assertIn("r.MotionBlurQuality is not set", palette_lint.ini_errors(text.replace("r.MotionBlurQuality=0", "; r.MotionBlurQuality=0"))[0])
+
+	def test_a_moved_volume_setting_fails(self):
+		with open(os.path.join(TOOLS, "create_arena.py"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertEqual(palette_lint.volume_errors(text), [])
+		self.assertIn("motion_blur_amount to 0.5", palette_lint.volume_errors(text.replace('"motion_blur_amount": 0.0', '"motion_blur_amount": 0.5'))[0])
+		self.assertIn("no longer sets lens_flare_intensity", palette_lint.volume_errors(text.replace('"lens_flare_intensity": 0.0,', ""))[0])
+		adaptive = text.replace('"auto_exposure_max_brightness": ev100', '"auto_exposure_max_brightness": ev100 + 2.0')
+		self.assertIn("exposure min and max differ", palette_lint.volume_errors(adaptive)[0])
+		self.assertIn("are gone", palette_lint.volume_errors("def other():\n    return {}\n")[0])
+
+	def test_exposure_drift_is_a_share_of_the_empty_floor(self):
+		self.assertEqual(palette_lint.drift(0.112, 0.112), 0.0)
+		self.assertAlmostEqual(palette_lint.drift(0.100, 0.110), 0.1)
+		self.assertAlmostEqual(palette_lint.drift(0.100, 0.090), 0.1)
+
+
+class ContrastBlocks(unittest.TestCase):
+	"""S4_wave1.md P0: one block of limits per element, the lit floor's spread, the margin watch and a staged frame's own elements."""
+
+	def test_one_block_per_element_and_the_views_follow(self):
+		self.assertEqual(list(contrast_check.LIMITS), ["telegraph", "enemy_rim", "optic", "tracer_core", "hero", "gem", "chest"])
+		for name, block in contrast_check.LIMITS.items():
+			for key in ("hues", "sat", "val", "tone"):
+				self.assertIn(key, block, name)
+			self.assertEqual(contrast_check.ELEMENTS[name], (block["hues"], block["sat"], block["val"]))
+		self.assertEqual(contrast_check.DUAL_TONE, {"telegraph": "telegraph_band", "enemy_rim": "enemy_core"})
+		self.assertEqual(contrast_check.ROUND_BLOB_PX, contrast_check.LIMITS["enemy_rim"]["blob_px"])
+		self.assertEqual(contrast_check.GROUND_LIMITS["ground"]["tone"], 0.9)  # today's single reading: the 90th percentile of bare ground
+
+	def frame(self, dark_rows=0):
+		"""A 100x100 frame of lit ground whose first rows, under the HUD mask's lower edge, are a darker slab that is still lit ground."""
+		w = h = 100
+		rgb = bytearray(Contrast.GROUND * (w * h))
+		for y in range(20, 20 + dark_rows):
+			for x in range(30, 100):
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes((84, 74, 62))
+		return w, h, bytes(rgb)
+
+	def test_the_spread_reads_the_lit_floor(self):
+		(p5, p50, p95), count = contrast_check.ground_spread(*self.frame())
+		self.assertEqual((p5, p50), (p50, p95))
+		self.assertGreater(count, 5000)
+		(low, mid, high), _ = contrast_check.ground_spread(*self.frame(dark_rows=10))
+		self.assertLess(low, mid)
+		self.assertEqual((mid, high), (p50, p95))
+		self.assertEqual(contrast_check.measure(*self.frame(dark_rows=10))["ground_spread"][0], (low, mid, high))
+		self.assertEqual(contrast_check.ground_spread(2, 2, bytes(12)), ((None, None, None), 0))
+
+	def rows(self, telegraph, rim):
+		return [("telegraph", 0.2, 100, telegraph, 4.0, "PASS"), ("enemy_rim", 0.4, 100, rim, 7.0, "PASS"), ("optic", 0.8, 100, 2.0, 9.0, "FAIL")]
+
+	def test_the_watch_stops_under_its_floor_or_outside_the_window(self):
+		spread = {"ground_spread": ((0.111, 0.112, 0.116), 1000)}
+		self.assertTrue(contrast_check.watch(self.rows(3.27, 3.17), spread, 3.1, [0.106, 0.16])[0])
+		self.assertFalse(contrast_check.watch(self.rows(3.27, 3.09), spread, 3.1, [0.106, 0.16])[0])
+		self.assertFalse(contrast_check.watch(self.rows(3.05, 3.17), spread, 3.1, [0.106, 0.16])[0])
+		self.assertFalse(contrast_check.watch(self.rows(3.27, 3.17)[:1], spread, 3.1, [0.106, 0.16])[0])  # a round that was not read is no pass
+		self.assertFalse(contrast_check.watch(self.rows(3.27, 3.17), {"ground_spread": ((0.09, 0.112, 0.116), 1000)}, 3.1, [0.106, 0.16])[0])
+		self.assertFalse(contrast_check.watch(self.rows(3.27, 3.17), {"ground_spread": ((0.111, 0.14, 0.17), 1000)}, 3.1, [0.106, 0.16])[0])
+		# An optic under the gate's limit is the gate's business, not the watch's.
+		self.assertIn("telegraph 3.27, enemy_rim 3.17", contrast_check.watch(self.rows(3.27, 3.17), spread, 3.1, [0.106, 0.16])[1])
+
+	def test_the_watch_reads_the_floor_where_nothing_stands_on_it(self):
+		both = {"ground_spread": ((0.1057, 0.112, 0.116), 1000), "floor_spread": ((0.1113, 0.112, 0.1156), 1000)}
+		held, text = contrast_check.watch(self.rows(3.27, 3.17), both, 3.1, [0.106, 0.16])
+		self.assertTrue(held)
+		self.assertIn("0.1113 to 0.1156", text)
+
+	def test_a_staged_frame_is_judged_on_its_own_elements(self):
+		read = Contrast().readings([Contrast.OPTIC, Contrast.TELEGRAPH])
+		rows, failed = contrast_check.judge(read, 3.0, 20)
+		self.assertIn("gem", failed)  # the gate's frame: an element not found fails
+		rows, failed = contrast_check.judge(read, 3.0, 20, only=("optic",))
+		self.assertEqual(([r[0] for r in rows], failed), (["optic"], []))
+		rows, failed = contrast_check.judge(read, 3.0, 20, only=("optic", "chest"))
+		self.assertEqual(failed, ["chest"])
+		with contextlib.redirect_stdout(io.StringIO()) as out:
+			self.assertEqual(contrast_check.main(["frame.png", "--only", "optic,tracer"]), 2)
+		self.assertIn("--only names no element: tracer", out.getvalue())
+
+	def test_the_new_constants_are_readings_not_gate_limits(self):
+		constants = dtconst.load()
+		self.assertGreater(constants["PRE.CONTRAST_WATCH_MIN"]["value"], constants["PRE.CONTRAST_MIN"]["value"])
+		low, high = constants["PRE.LIT_GROUND_Y_WINDOW"]["value"]
+		self.assertLess(low, high)
+		with open(os.path.join(TOOLS, "contrast_check.py"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertIn('return 1 if failed else 0', text)  # the exit code is the seven elements' and nothing else's
+
+
+SCENES = os.path.join(TOOLS, "Scenes")
+GOLDENS = os.path.join(TOOLS, "..", "Docs", "Validation", "goldens")
+
+
+def scene_errors(name, data, weathers, commands, goldens):
+	"""What is wrong with one scene file (Tools/Scenes/<name>.json), as Tools/Smoke.ps1 -Scene and Tools/Gate.ps1 read it."""
+	errors = []
+	allowed = {"note", "cmds", "seconds", "director", "map", "seed", "judge", "elements", "cultures", "gate", "weather"}
+	if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+		errors.append("the name is lower case, digits and underscores")
+	if set(data) - allowed:
+		errors.append(f"unknown key(s) {sorted(set(data) - allowed)}")
+	for key in ("note", "cmds", "judge", "cultures", "gate", "weather"):
+		if key not in data:
+			errors.append(f"no '{key}'")
+	if data.get("weather") not in weathers:
+		errors.append(f"weather '{data.get('weather')}' is not pinned to one of {weathers}")
+	if data.get("judge") not in ("golden", "contrast", "dormant_line"):
+		errors.append(f"judge '{data.get('judge')}'")
+	if data.get("gate") not in ("smoke", "contrast", "none"):
+		errors.append(f"gate '{data.get('gate')}'")
+	cultures = data.get("cultures") or []
+	if not cultures or any(culture not in ("en", "zh-Hans") for culture in cultures):
+		errors.append(f"cultures {cultures}")
+	if data.get("gate") == "smoke" and data.get("judge") != "golden":
+		errors.append("the smoke step judges goldens; a contrast or dormant_line judge goes in the contrast step")
+	if data.get("gate") == "contrast" and data.get("judge") == "golden":
+		errors.append("the contrast step judges contrast; a golden goes in the smoke step")
+	if "elements" in data and (data.get("judge") != "contrast" or not data["elements"] or any(e not in contrast_check.ELEMENTS for e in data["elements"])):
+		errors.append(f"elements {data['elements']} (a contrast judge's, from {list(contrast_check.ELEMENTS)})")
+	for command in data.get("cmds") or []:
+		if "," in command or '"' in command:
+			errors.append(f"'{command}': a command holds no comma and no quote (it is joined into -ExecCmds)")
+		elif command.split(" ")[0] not in commands:
+			errors.append(f"'{command}': no console command {command.split(' ')[0]} in Source/")
+	if data.get("judge") == "golden" and data.get("gate") == "smoke":
+		for culture in cultures:
+			if f"{name}_{culture}.png" not in goldens:
+				errors.append(f"no golden {name}_{culture}.png (Tools\\Smoke.ps1 -Scene {name} -Culture {culture} -Update)")
+	return errors
+
+
+class Scenes(unittest.TestCase):
+	"""S4_wave1.md P0: smoke scenes are data files with a weather pin; a package adds a file and edits no script."""
+
+	WEATHERS = ["Dusk"]
+	COMMANDS = {"DT.God", "DT.Bullets", "DT.Spawn.Role", "DT.Hero.Walk"}
+	GOOD = {"note": "n", "cmds": ["DT.God 1", "DT.Spawn.Role Swarm 6 elite"], "judge": "golden", "cultures": ["en"], "gate": "smoke", "weather": "Dusk"}
+
+	def errors(self, name="lineup", goldens=("lineup_en.png",), **over):
+		data = dict(self.GOOD, **over)
+		return scene_errors(name, {k: v for k, v in data.items() if v is not None}, self.WEATHERS, self.COMMANDS, set(goldens))
+
+	def test_a_good_scene_passes(self):
+		self.assertEqual(self.errors(), [])
+		self.assertEqual(self.errors(judge="contrast", gate="contrast", elements=["telegraph", "enemy_rim"], seconds=12, director=True, seed=9107), [])
+		self.assertEqual(self.errors(gate="none", goldens=()), [])
+
+	def test_planted_faults_fail(self):
+		for over, text in (({"weather": "Storm"}, "weather 'Storm'"), ({"weather": None}, "no 'weather'"), ({"judge": "eyes"}, "judge 'eyes'"), ({"gate": "nightly"}, "gate 'nightly'"),
+			({"cultures": ["fr"]}, "cultures"), ({"cultures": []}, "cultures"), ({"colour": "x"}, "unknown key"), ({"cmds": ["DT.Spawn.Role Swarm 6,DT.God 1"]}, "no comma"),
+			({"cmds": ["DT.Teleport 1 2"]}, "no console command DT.Teleport"), ({"judge": "contrast"}, "the smoke step judges goldens"),
+			({"gate": "contrast"}, "the contrast step judges contrast"), ({"elements": ["telegraph"]}, "elements"),
+			({"judge": "contrast", "gate": "contrast", "elements": ["tracer"]}, "elements")):
+			self.assertIn(text, " ".join(self.errors(**over)), over)
+		self.assertIn("no golden lineup_en.png", " ".join(self.errors(goldens=())))
+		self.assertIn("the name is lower case", " ".join(self.errors(name="Line Up")))
+
+	def test_every_committed_scene_is_sound(self):
+		with open(os.path.join(TOOLS, "Smoke.ps1"), encoding="utf-8", errors="replace") as f:
+			smoke = f.read()
+		weathers = re.findall(r'"(\w+)"', re.search(r"^\$Weathers = @\(([^)]*)\)", smoke, re.M).group(1))
+		self.assertEqual(weathers, self.WEATHERS)
+		commands = set()
+		for folder, _, names in os.walk(os.path.join(TOOLS, "..", "Source")):
+			for name in names:
+				if name.endswith(".cpp"):
+					with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+						commands |= set(re.findall(r'TEXT\("(DT\.[A-Za-z.]+)"\)', f.read()))
+		goldens = set(os.listdir(GOLDENS))
+		found = {}
+		for name in sorted(os.listdir(SCENES)):
+			self.assertTrue(name.endswith(".json"), name)
+			with open(os.path.join(SCENES, name), encoding="utf-8") as f:
+				data = json.load(f)
+			found[name[:-5]] = data
+			self.assertEqual(scene_errors(name[:-5], data, weathers, commands, goldens), [], name)
+			# Smoke.ps1 refuses a key it does not read: its list is the one checked here.
+			for key in data:
+				self.assertIn(f'"{key}"', re.search(r"\$Unknown = .*", smoke).group(0), key)
+		# The gate's own frames: the empty arena first in the smoke step, and a contrast frame that requires all seven elements.
+		self.assertEqual((found["arena_empty"]["gate"], found["arena_empty"]["cultures"], found["arena_empty"]["cmds"]), ("smoke", ["en", "zh-Hans"], []))
+		self.assertEqual((found["contrast"]["gate"], found["contrast"]["judge"]), ("contrast", "contrast"))
+		self.assertNotIn("elements", found["contrast"])
+		self.assertEqual(found["dormant_line"]["judge"], "dormant_line")
+		for name in ("combat_staged", "edge_corner"):
+			self.assertEqual((found[name]["gate"], found[name]["cultures"]), ("smoke", ["en", "zh-Hans"]), name)
+		# Every golden belongs to a scene: a frame nobody stages any more is a stale record.
+		staged = {f"{name}_{culture}.png" for name, data in found.items() if data["judge"] == "golden" for culture in data["cultures"]}
+		self.assertEqual(goldens - staged, set())
+
+	def test_the_gate_reads_scenes_and_stages_none_itself(self):
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8", errors="replace") as f:
+			gate = f.read()
+		self.assertNotRegex(gate, r"DT\.(Spawn|Bullets|God|Dir|Gems|Mod|Bless)\b")
+		self.assertIn('Get-Scenes "smoke"', gate)
+		self.assertIn('Get-Scenes "contrast"', gate)
+		self.assertIn("-Scene $S.Name -Culture $Culture", gate)
+		for step in ('Invoke-PyStep "licence" "Tools\\catalog_lint.py" "LICENCE"', 'Invoke-PyStep "palette" "Tools\\palette_lint.py" "PALETTE"', 'Invoke-PyStep "settings" "Tools\\palette_lint.py" "SETTINGS"'):
+			self.assertIn(step, gate)
+
+
+BLENDER_TOOLS = os.path.join(TOOLS, "blender")
+MESH_PIPELINE_FILES = ("build_mesh.py", "import_mesh.py")
+
+
+def mesh_source(text):
+	"""(FAMILY, [asset names]) a mesh source states at module level, read without Blender; None where it states neither."""
+	family, names = None, None
+	for node in ast.parse(text).body:
+		if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+			if node.targets[0].id == "FAMILY" and isinstance(node.value, ast.Constant):
+				family = node.value.value
+			if node.targets[0].id == "MESHES" and isinstance(node.value, ast.Dict):
+				names = [key.value for key in node.value.keys if isinstance(key, ast.Constant)]
+	return family, names
+
+
+class MeshPipeline(unittest.TestCase):
+	"""S4_wave1.md P0, R-TEC-06: the headless Blender-to-import pipeline (Tools/blender/Mesh.ps1); its end-to-end proof is -SelfTest."""
+
+	def read(self, *parts):
+		with open(os.path.join(TOOLS, *parts), encoding="utf-8", errors="replace") as f:
+			return f.read()
+
+	def test_blender_only_ever_runs_in_the_background(self):
+		callers = {}
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if name.endswith((".ps1", ".bat", ".cmd", ".py", ".sh")) and name != os.path.basename(__file__):
+					text = self.read(folder, name)
+					if re.search(r"blender\.exe", text, re.IGNORECASE):
+						callers[name] = text
+		self.assertEqual(sorted(callers), ["Mesh.ps1"])
+		calls = [line for line in ps_code(callers["Mesh.ps1"].splitlines()) if re.search(r"&\s*\$Blender\b", line)]
+		self.assertEqual(len(calls), 1)
+		for flag in ("--background", "--factory-startup", "--python-exit-code 1"):
+			self.assertIn(flag, calls[0])
+
+	def test_the_pipeline_pins_blender_and_asks_for_the_licence_row_first(self):
+		text = self.read("blender", "Mesh.ps1")
+		self.assertIn('$BlenderVersion = "5.2.2"', text)
+		self.assertIn("not Blender $BlenderVersion", text)
+		self.assertLess(text.index("no licenses.csv row covers"), text.index("function Invoke-Blender"))
+		self.assertIn('. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")', self.read("Smoke.ps1"))
+		# The editor steps are commandlets, each in a batch file the launch guard reads (HiddenLaunchGuard.test_tools_keep_the_rule).
+		for name in (("EditorPython.bat",), ("blender", "CookMesh.bat")):
+			self.assertEqual(len(re.findall(r"UnrealEditor-Cmd\.exe.* -run=\w+ .*-nullrhi", self.read(*name))), 1, name)
+		self.assertNotIn("UnrealEditor", text)
+
+	def test_the_export_is_made_reproducible(self):
+		text = self.read("blender", "build_mesh.py")
+		self.assertIn("export_fbx_bin.datetime = FixedClock", text)
+		self.assertIn("fbx_utils.hash = stable_hash", text)
+
+	def test_a_mesh_source_is_read(self):
+		self.assertEqual(mesh_source('FAMILY = "Enemies"\nMESHES = {"SM_Enemy_Swarm": a, "SM_Enemy_Swarm_Optic": b}\n'), ("Enemies", ["SM_Enemy_Swarm", "SM_Enemy_Swarm_Optic"]))
+		self.assertEqual(mesh_source("import bpy\n"), (None, None))
+
+	def test_every_mesh_source_states_its_family_and_meshes(self):
+		rows, _ = catalog_lint.read_rows()
+		sources = [name for name in sorted(os.listdir(BLENDER_TOOLS)) if name.endswith(".py") and name not in MESH_PIPELINE_FILES]
+		self.assertIn("test_triangle.py", sources)
+		for name in sources:
+			family, names = mesh_source(self.read("blender", name))
+			self.assertTrue(family and family.isidentifier(), name)
+			self.assertTrue(names, name)
+			for asset in names:
+				self.assertRegex(asset, r"^SM_[A-Za-z0-9_]+$", name)
+				covered = any(catalog_lint.matches(row, f"SourceArt/{family}/{asset}.fbx") for row in rows) and any(
+					catalog_lint.matches(row, f"Content/DT/Meshes/{asset}.uasset") for row in rows)
+				# The self-test's mesh is never committed, so it alone has no row; every other family's row comes before its binary.
+				self.assertEqual(covered, family != "Test", f"{name}: {asset}")
+
+	def test_the_import_brings_in_the_mesh_and_nothing_else(self):
+		text = self.read("blender", "import_mesh.py")
+		for line in ('"import_materials", False', '"import_textures", False', '"build_nanite", False', '"auto_generate_collision", False', '"replace_existing", True'):
+			self.assertIn(line, text)
+
+
+SOURCE = os.path.join(TOOLS, "..", "Source", "Dusktracer")
+# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/, and every renderer. A package's
+# new presentation header is one or the other.
+PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?Presentation/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
+# The world subsystems that spawn a renderer and hand it the step's state: the only code outside presentation that names one today.
+# DTDirector.cpp reads a telegraph's instance count for its own tell. A new name here is a sim file reaching into presentation: do not add one.
+RENDERER_OWNERS = {
+	"Combat/DTBulletSubsystem.h": ["Combat/DTBulletRenderer.h"],
+	"Combat/DTWeaponSubsystem.h": ["Combat/DTBulletRenderer.h", "Enemies/DTTelegraphRenderer.h"],
+	"Director/DTDirector.cpp": ["Enemies/DTTelegraphRenderer.h"],
+	"Enemies/DTEnemySubsystem.h": ["Enemies/DTEnemyBulletRenderer.h", "Enemies/DTEnemyRenderer.h", "Enemies/DTTelegraphRenderer.h"],
+	"Keepers/DTKeeperSubsystem.h": ["Combat/DTBulletRenderer.h"],
+	"Progression/DTGemSubsystem.h": ["Progression/DTPickupRenderer.h"],
+}
+
+
+def is_presentation_file(relative):
+	return relative.startswith("Presentation/") or bool(re.search(r"Renderer\.(h|cpp)$", relative))
+
+
+def presentation_includes(relative, text):
+	"""The presentation headers a file outside presentation, tests and debug commands includes."""
+	if is_presentation_file(relative) or relative.startswith(("Tests/", "Debug/")):
+		return []
+	return sorted(set(PRESENTATION_HEADER.findall(text)))
+
+
+class PresentationReadsOnly(unittest.TestCase):
+	"""S4_wave1.md §2 rule 2 (R-PRE-11): presentation reads sim state and never writes it, so no sim file includes a presentation header."""
+
+	def test_a_sim_file_that_includes_presentation_is_found(self):
+		self.assertEqual(presentation_includes("Enemies/DTEnemyPool.cpp", '#include "Enemies/DTEnemyPool.h"\n#include "Presentation/DTImpactSubsystem.h"\n'), ["Presentation/DTImpactSubsystem.h"])
+		self.assertEqual(presentation_includes("Combat/DTWeaponSim.cpp", '#include "Combat/DTBulletRenderer.h"\n'), ["Combat/DTBulletRenderer.h"])
+		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimTypes.h"\n// #include of Presentation/ would fail\n'), [])
+
+	def test_presentation_tests_and_debug_may(self):
+		for relative in ("Presentation/DTImpactRenderer.cpp", "Enemies/DTEnemyRenderer.cpp", "Tests/Enemies/DTEnemyTests.cpp", "Debug/DTDebugPerfScene.cpp"):
+			self.assertEqual(presentation_includes(relative, '#include "Presentation/DTImpactSubsystem.h"\n#include "Enemies/DTEnemyRenderer.h"\n'), [], relative)
+
+	def test_no_sim_file_includes_a_presentation_header(self):
+		found = {}
+		for folder, _, names in os.walk(SOURCE):
+			for name in names:
+				if name.endswith((".h", ".cpp")):
+					path = os.path.join(folder, name)
+					relative = os.path.relpath(path, SOURCE).replace("\\", "/")
+					with open(path, encoding="utf-8", errors="replace") as f:
+						hits = presentation_includes(relative, f.read())
+					if hits:
+						found[relative] = hits
+		self.assertEqual(found, RENDERER_OWNERS)
+
+
+class PerfSceneS4(unittest.TestCase):
+	"""S4_wave1.md P0: the perf scene the wave reads against proves what it drew from the capture window (11_Quality §5)."""
+
+	def test_the_script_judges_what_the_scene_writes(self):
+		with open(os.path.join(TOOLS, "Perf.ps1"), encoding="utf-8", errors="replace") as f:
+			perf = f.read()
+		with open(os.path.join(SOURCE, "Debug", "DTDebugPerfScene.cpp"), encoding="utf-8", errors="replace") as f:
+			scene = f.read()
+		self.assertIn('[ValidateSet("Caps", "S2", "S4")]', perf)
+		self.assertIn('"DT.PerfScene $Scene"', perf)
+		for stat in ("Telegraphs", "TrailedRounds"):
+			self.assertIn(f'LiveS4(TEXT("{stat}")', scene)
+			self.assertIn(f'$Looks["{stat}"]', perf)
+		constants = dtconst.load()
+		for key in ("PERF.S4_TELEGRAPHS_MIN", "PERF.S4_TRAILED_MIN_RATIO"):
+			self.assertIn(f'Get-Constant "{key}"', perf)
+			self.assertIn(key, constants)
+		# The Turrets' ring keeps every point of the hero's orbit in range, or no tell is held.
+		self.assertLessEqual(constants["PERF.S4_TURRET_RING_UU"]["value"] + constants["PERF.S2_HERO_ORBIT_UU"]["value"], constants["ROLE.TURRET_FIRE_RANGE_UU"]["value"])
+		# The S4 filler is a player's round under a source that is not Stress: what the trail draw takes.
+		self.assertIn("Spawn.OwnerId = 0;", scene)
+		self.assertIn('FindOrAdd(TEXT("PerfFiller"))', scene)
 
 
 if __name__ == "__main__":

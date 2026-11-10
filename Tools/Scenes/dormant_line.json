@@ -1,0 +1,9 @@
+{
+	"note": "R-MOD-08: the HUD's dormant line on its own frame. Staged in the contrast scene it would take the Rifle's rounds out of that frame and read as a tracer.",
+	"gate": "contrast",
+	"judge": "dormant_line",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 4,
+	"cmds": ["DT.Mod Weapon.PulseRifle Mod.ScatterShell", "DT.Bless Blessing.Forge.Hammer.Key"]
+}

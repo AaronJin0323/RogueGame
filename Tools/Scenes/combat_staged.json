@@ -1,0 +1,10 @@
+{
+	"note": "A staged combat frame, the contrast scene's staging kept as a golden: a late minute of the director with elites, Turrets and Rushers telling, enemy rounds, gems, a chest, player fire and the HUD in play. The golden a package re-baselines when its art changes what a fight looks like (S4_wave1.md §5 item 3).",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en", "zh-Hans"],
+	"weather": "Dusk",
+	"director": true,
+	"seconds": 12,
+	"cmds": ["DT.God 1", "DT.Dir.Time 700", "DT.Gems.Drop 30 4 700", "DT.Spawn.Role Swarm 6 elite", "DT.Spawn.Role Turret 18", "DT.Spawn.Role Rusher 8", "DT.Bullets 800"]
+}

@@ -4,6 +4,10 @@
 // the capture reads last minus first) and DT/S2Live_* (the capture reads the median); Tools/Perf.ps1 -Scene S2 judges them.
 // NoDuoFields drops the two duo cards that open fields (the control of the emit-cap reading); NoReactions leaves Reaction.Duos out of
 // the pool, so the proof must fail. Hp= replaces C.PERF.S2_CROWD_HP_SCALE (the sweep of S2_perf.md).
+// DT.PerfScene S4 [...]: the scene S4 wave 1 reads against (Docs/Validation/S4_p0.md, S4_wave1.md P0). The S2 scene, and what its window
+// did not hold for a look: every filler round belongs to player 0 under its own source, so the trail draw takes it as it takes a played
+// round (the Stress source is skipped), and C.PERF.S4_TURRETS Turrets stand in range of the hero's orbit, so telegraphs are live for the
+// whole capture. It writes DT/S4Live_Telegraphs and DT/S4Live_TrailedRounds beside the S2 stats; Tools/Perf.ps1 -Scene S4 judges both.
 
 #include "CoreMinimal.h"
 
@@ -47,6 +51,15 @@ FDTBulletSpawn DTPerfScene::FillerRound(float Angle)
 
 namespace DTDebugPerfScene
 {
+	/** The S4 scene's filler: FillerRound owned by player 0 under a source of its own, so it is drawn as a played round is. It still deals nothing. */
+	static FDTBulletSpawn TrailedFillerRound(float Angle)
+	{
+		FDTBulletSpawn Spawn = DTPerfScene::FillerRound(Angle);
+		Spawn.OwnerId = 0;
+		Spawn.SourceId = FDTTelemetrySources::FindOrAdd(TEXT("PerfFiller"));
+		return Spawn;
+	}
+
 	/** One weapon of the build, at the top level: at most C.WEAPON.SLOTS, the Rifle first as the Patron gives it. */
 	struct FWeaponLine
 	{
@@ -83,12 +96,18 @@ namespace DTDebugPerfScene
 		FCsvProfiler::RecordCustomStat(FName(*(TEXT("S2Live_") + Name)), CSV_CATEGORY_INDEX(DT), Value, ECsvCustomStatOp::Set);
 	}
 
+	static void LiveS4(const FString& Name, int32 Value)
+	{
+		FCsvProfiler::RecordCustomStat(FName(*(TEXT("S4Live_") + Name)), CSV_CATEGORY_INDEX(DT), Value, ECsvCustomStatOp::Set);
+	}
+
 	class FScene : public IDTSimSystem
 	{
 	public:
 		TWeakObjectPtr<UWorld> World;
 		bool bNoDuoFields = false;
 		bool bNoReactions = false;
+		bool bS4 = false;
 		float HpScale = static_cast<float>(DTConst::PERF_S2_CROWD_HP_SCALE);
 
 		void LatchInput()
@@ -224,6 +243,34 @@ namespace DTDebugPerfScene
 			}
 		}
 
+		/** S4: Turrets held on a ring every point of the hero's orbit has in range, as tough as the crowd, so a tell is always on the floor. */
+		void HoldTurrets(const FDTSimContext& Context)
+		{
+			UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+			if (Context.StepIndex % DTConst::SIM_FIXED_HZ != 0)
+			{
+				return;
+			}
+			const FDTEnemyPool& Pool = Enemies->GetPool();
+			const TConstArrayView<EDTEnemyRole> Roles = Pool.GetRoles();
+			const TConstArrayView<uint8> Flags = Pool.GetFlags();
+			int32 Turrets = 0;
+			for (int32 Index = 0; Index < Roles.Num(); ++Index)
+			{
+				Turrets += Roles[Index] == EDTEnemyRole::Turret && (Flags[Index] & DTEnemyFlags::Elite) == 0 ? 1 : 0;
+			}
+			for (int32 Missing = DTConst::PERF_S4_TURRETS - Turrets; Missing > 0; --Missing)
+			{
+				const float Angle = NextTurret * static_cast<float>(UE_GOLDEN_RATIO) * static_cast<float>(UE_TWO_PI);
+				FDTEnemySpawn Turret;
+				Turret.Role = EDTEnemyRole::Turret;
+				Turret.HpScale = HpScale;
+				Turret.Position = FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * static_cast<float>(DTConst::PERF_S4_TURRET_RING_UU);
+				Enemies->QueueSpawn(Turret);
+				++NextTurret;
+			}
+		}
+
 		void Fill(const FDTSimContext& Context)
 		{
 			UWorld* W = World.Get();
@@ -239,7 +286,8 @@ namespace DTDebugPerfScene
 			const float TwoPi = static_cast<float>(UE_TWO_PI);
 			for (int32 Shot = 0; Shot < Count; ++Shot)
 			{
-				Pool.Spawn(DTPerfScene::FillerRound(Phase + TwoPi * static_cast<float>(Shot) / static_cast<float>(Count)));
+				const float Angle = Phase + TwoPi * static_cast<float>(Shot) / static_cast<float>(Count);
+				Pool.Spawn(bS4 ? TrailedFillerRound(Angle) : DTPerfScene::FillerRound(Angle));
 			}
 			Phase = FMath::Fmod(Phase + FMath::DegreesToRadians(static_cast<float>(DTConst::BULLETS_STRESS_SPIN_DEG_S)) * Context.StepSeconds, TwoPi);
 		}
@@ -262,6 +310,10 @@ namespace DTDebugPerfScene
 				bStanding = true;
 			}
 			HoldElites(Context);
+			if (bS4)
+			{
+				HoldTurrets(Context);
+			}
 			Fill(Context);
 		}
 
@@ -326,11 +378,31 @@ namespace DTDebugPerfScene
 			{
 				Live(FString::Printf(TEXT("Affix%d"), Affix), Affixes[Affix]);
 			}
+			if (bS4)
+			{
+				// What the look costs, read where it is drawn from: the telegraphs published this step, and the rounds the trail draw takes
+				// (UDTKeeperSubsystem::SimRender: a player's round whose source is not Stress).
+				LiveS4(TEXT("Telegraphs"), Sim->GetView().Telegraphs.Num());
+				const UDTBulletSubsystem* Bullets = W->GetSubsystem<UDTBulletSubsystem>();
+				const UDTKeeperSubsystem* Keepers = W->GetSubsystem<UDTKeeperSubsystem>();
+				int32 Trailed = 0;
+				if (Bullets && Keepers && Keepers->GetTrailRendererCount() > 0)
+				{
+					const TConstArrayView<int32> Owners = Bullets->GetPool().GetOwners();
+					const TConstArrayView<uint16> Sources = Bullets->GetPool().GetSources();
+					for (int32 Index = 0; Index < Owners.Num(); ++Index)
+					{
+						Trailed += Owners[Index] == 0 && Sources[Index] != FDTTelemetrySources::Stress ? 1 : 0;
+					}
+				}
+				LiveS4(TEXT("TrailedRounds"), Trailed);
+			}
 		}
 
 	private:
 		bool bStanding = false;
 		int32 NextElite = 0;
+		int32 NextTurret = 0;
 		float Carry = 0.0f;
 		float Phase = 0.0f;
 	};
@@ -357,9 +429,10 @@ namespace DTDebugPerfScene
 	static void Start(const TArray<FString>& Args, UWorld* World)
 	{
 		UDTSimSubsystem* Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
-		if (!Sim || Args.Num() < 1 || !Args[0].Equals(TEXT("S2"), ESearchCase::IgnoreCase) || Scenes().Contains(World))
+		const bool bS4 = Args.Num() > 0 && Args[0].Equals(TEXT("S4"), ESearchCase::IgnoreCase);
+		if (!Sim || Args.Num() < 1 || (!bS4 && !Args[0].Equals(TEXT("S2"), ESearchCase::IgnoreCase)) || Scenes().Contains(World))
 		{
-			UE_LOG(LogDT, Warning, TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Hp=<x>]: game worlds only, once"));
+			UE_LOG(LogDT, Warning, TEXT("DT.PerfScene S2|S4 [NoDuoFields|NoReactions] [Hp=<x>]: game worlds only, once"));
 			return;
 		}
 		static bool bCleanupBound = false;
@@ -370,6 +443,7 @@ namespace DTDebugPerfScene
 		}
 		TUniquePtr<FScene>& Scene = Scenes().Add(World, MakeUnique<FScene>());
 		Scene->World = World;
+		Scene->bS4 = bS4;
 		Scene->bNoDuoFields = Args.Contains(TEXT("NoDuoFields"));
 		Scene->bNoReactions = Args.Contains(TEXT("NoReactions"));
 		for (const FString& Arg : Args)
@@ -381,11 +455,11 @@ namespace DTDebugPerfScene
 		}
 		Sim->Register(EDTSimPhase::Weapons, Scene.Get());
 		Sim->OnStepEnd.AddRaw(Scene.Get(), &FScene::LatchInput);
-		UE_LOG(LogDT, Log, TEXT("DT.PerfScene S2 started"));
+		UE_LOG(LogDT, Log, TEXT("DT.PerfScene %s started"), bS4 ? TEXT("S4") : TEXT("S2"));
 	}
 
 	static FAutoConsoleCommandWithWorldAndArgs StartCmd(TEXT("DT.PerfScene"),
-		TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Hp=<x>]: the S2 perf proof scene (Tools/Perf.ps1 -Scene S2)"),
+		TEXT("DT.PerfScene S2|S4 [NoDuoFields|NoReactions] [Hp=<x>]: the S2 perf proof scene, or the S4 one with trailed rounds and held telegraphs (Tools/Perf.ps1 -Scene S2|S4)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Start));
 }
 

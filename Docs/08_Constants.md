@@ -42,6 +42,9 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.PRE.CONTRAST_MIN | 3.0 | ratio | CORE | 04_Presentation §2, T-PRE-05 |
+| C.PRE.CONTRAST_WATCH_MIN | 3.1 | ratio | GATED(S4) | Tools/contrast_check.py (the margin watch of `Validation/S4_wave1.md` §5 item 4: telegraph and round on lit ground; a package stops under it, the gate does not) |
+| C.PRE.LIT_GROUND_Y_WINDOW | [0.106, 0.16] | Y | GATED(S4) | Tools/contrast_check.py (the lit floor's usable window, `Validation/S4_artbook_gaps.md` §4.3: the spread's 5th and 95th percentile are read against it; a reading, not a gate limit) |
+| C.PRE.EXPOSURE_DRIFT_MAX | 0.05 | ratio | GATED(S4) | Tools/palette_lint.py, T-PRE-07 (the lit ground's median Y in a frame full of fire against the empty arena's: fixed exposure, R-PRE-07) |
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
 | C.PRE.CUE_EMISSIVE | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CUE_Z_UU | 1 | uu | GATED(S1) | 04_Presentation R-PRE-11, Combat/DTWeaponSubsystem |
@@ -231,6 +234,10 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PERF.S2_STEAM_MIN_PER_S | 6 | per_s | CORE | Tools/Perf.ps1 -Scene S2 (the heaviest arm of `S2_duos.md`) |
 | C.PERF.S2_PAIRS_MIN | 12 | n | CORE | Tools/Perf.ps1 -Scene S2 (pairs that fired in the window, of 15) |
 | C.PERF.S2_ELITES_MIN | 12 | n | CORE | Tools/Perf.ps1 -Scene S2 (median live elites) |
+| C.PERF.S4_TURRETS | 24 | n | CORE | Debug/DTDebugPerfScene (Turrets held so a tell is always live: `Docs/Validation/S4_p0.md`) |
+| C.PERF.S4_TURRET_RING_UU | 350 | uu | CORE | Debug/DTDebugPerfScene (their ring round the origin: C.ROLE.TURRET_FIRE_RANGE_UU less C.PERF.S2_HERO_ORBIT_UU, so every point of the orbit is in range) |
+| C.PERF.S4_TELEGRAPHS_MIN | 4 | n | CORE | Tools/Perf.ps1 -Scene S4 (median live telegraphs in the window) |
+| C.PERF.S4_TRAILED_MIN_RATIO | 0.9 | ratio | CORE | Tools/Perf.ps1 -Scene S4 (median rounds the trail draw takes, of the median live rounds) |
 
 
 ## Telemetry (02_Systems/telemetry.md)

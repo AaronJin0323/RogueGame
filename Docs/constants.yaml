@@ -52,6 +52,10 @@ presentation:
   PRE.TELEGRAPH_RIM_UU:        { value: 16,   unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
   PRE.TELEGRAPH_FILL_MIN:      { value: 0.5,  unit: ratio, tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
   PRE.TELEGRAPH_LAYER_UU:      { value: 0.5,  unit: uu,    tag: GATED(S1),  dependents: [04_Presentation.md, R-PRE-05, T-ENM-25] }
+  # S4 wave 1 readings of the contrast tool (D-043, S4_wave1.md §5 item 4): a watch, not a gate limit. The gate still fails at PRE.CONTRAST_MIN.
+  PRE.CONTRAST_WATCH_MIN:      { value: 3.1,  unit: ratio, tag: GATED(S4),  dependents: [Tools/contrast_check.py, Validation/S4_wave1.md, Validation/S4_p0.md] }
+  PRE.LIT_GROUND_Y_WINDOW:     { value: [0.106, 0.16], unit: Y, tag: GATED(S4), dependents: [Tools/contrast_check.py, Validation/S4_artbook_gaps.md, Validation/S4_p0.md] }
+  PRE.EXPOSURE_DRIFT_MAX:      { value: 0.05, unit: ratio, tag: GATED(S4),  dependents: [Tools/palette_lint.py, 04_Presentation.md, T-PRE-07] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
@@ -190,6 +194,11 @@ arena:
   PERF.S2_STEAM_MIN_PER_S:      { value: 6, unit: per_s, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
   PERF.S2_PAIRS_MIN:            { value: 12, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
   PERF.S2_ELITES_MIN:           { value: 12, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S2_perf.md] }
+  # The S4 wave 1 perf scene (DT.PerfScene S4, D-043): scene settings and proof floors, no game number.
+  PERF.S4_TURRETS:              { value: 24, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, Debug/DTDebugPerfScene, S4_p0.md] }
+  PERF.S4_TURRET_RING_UU:       { value: 350, unit: uu, tag: CORE, dependents: [Debug/DTDebugPerfScene, S4_p0.md] }
+  PERF.S4_TELEGRAPHS_MIN:       { value: 4, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, S4_p0.md] }
+  PERF.S4_TRAILED_MIN_RATIO:    { value: 0.9, unit: ratio, tag: CORE, dependents: [Tools/Perf.ps1, S4_p0.md] }
 telemetry:
   TEL.INTERVAL_S:              { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-01] }
   TEL.RATE_UNIT_S:             { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }

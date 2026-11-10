@@ -1,0 +1,21 @@
+asset_path,kind,origin,source,author,licence,licence_file,date_added,used_for,added_by
+Content/DT/Maps/L_Arena_Test.umap,map,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,the arena map: ground and apron; sun; sky; post-process volume,P0 (D-043); built in S0
+Content/DT/Materials/M_InstanceColor.uasset,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,flat colour and emissive from instance data: hulls; rounds; pickups,P0 (D-043); built in S0
+Content/DT/Materials/M_EnemyRound.uasset,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,two-tone enemy round (R-PRE-02),P0 (D-043); built in S1
+Content/DT/Materials/M_CueColor.uasset,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,unlit flat colour of telegraphs and control cues (R-PRE-11),P0 (D-043); built in S1
+Content/DT/Materials/M_Ground.uasset,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,the play plate's ground (Pal.Ground.Lit),P0 (D-043); built in S0
+Content/DT/Text/ST_*.csv,text,in_engine,Tools/loc_build.py,Dusktracer,own,,2026-11-10,string tables: the source of every player-facing text (R-TEC-08),P0 (D-043); written since S0
+Docs/Validation/goldens/*.png,capture,procedural,Tools/Smoke.ps1;Tools/Scenes/*.json,Dusktracer,own,,2026-11-10,golden frames of the smoke scenes: captured from the game off-screen,P0 (D-043)
+SourceArt/Env/*,mesh,procedural,Tools/blender/env_*.py,Dusktracer,own,,2026-11-10,wave 1 package A: arena apron and slab meshes as exported from Blender,P0 (D-043)
+Content/DT/Meshes/SM_Env_*,mesh,procedural,Tools/blender/env_*.py,Dusktracer,own,,2026-11-10,wave 1 package A: arena apron and slab meshes,P0 (D-043)
+Content/DT/Materials/M_Env_*,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,wave 1 package A: the stone master,P0 (D-043)
+Content/DT/Materials/MI_Env_*,material,procedural,Tools/create_arena.py,Dusktracer,own,,2026-11-10,wave 1 package A: instances of the stone master,P0 (D-043)
+SourceArt/Enemies/*,mesh,procedural,Tools/blender/enemy_*.py,Dusktracer,own,,2026-11-10,wave 1 package B: Cast-off silhouettes as exported from Blender,P0 (D-043)
+Content/DT/Meshes/SM_Enemy_*,mesh,procedural,Tools/blender/enemy_*.py,Dusktracer,own,,2026-11-10,wave 1 package B: one hull and one optic mesh per role,P0 (D-043)
+SourceArt/Hero/*,mesh,procedural,Tools/blender/hero_*.py,Dusktracer,own,,2026-11-10,wave 1 package C: the Reclaimer's parts as exported from Blender,P0 (D-043)
+Content/DT/Meshes/SM_Hero_*,mesh,procedural,Tools/blender/hero_*.py,Dusktracer,own,,2026-11-10,wave 1 package C: the Reclaimer's rigid parts,P0 (D-043)
+Content/DT/Materials/M_Tracer*,material,procedural,Tools/assets/tracer_*.py,Dusktracer,own,,2026-11-10,wave 1 package D: player round head and trail,P0 (D-043)
+Content/DT/Materials/M_EnemyRound_*,material,procedural,Tools/assets/tracer_*.py,Dusktracer,own,,2026-11-10,wave 1 package D: enemy round trail and muzzle flash,P0 (D-043)
+SourceArt/Fx/*,mesh,procedural,Tools/blender/debris*.py,Dusktracer,own,,2026-11-10,wave 1 package E: debris as exported from Blender,P0 (D-043)
+Content/DT/Meshes/SM_Fx_*,mesh,procedural,Tools/blender/debris*.py,Dusktracer,own,,2026-11-10,wave 1 package E: debris meshes,P0 (D-043)
+Content/DT/Materials/M_Fx_*,material,procedural,Tools/assets/fx_*.py,Dusktracer,own,,2026-11-10,wave 1 package E: sparks and kill flash,P0 (D-043)

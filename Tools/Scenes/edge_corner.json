@@ -1,0 +1,9 @@
+{
+	"note": "The hero walked into the +X +Y corner of the plate, where the frame shows the most of what lies past it: void today, the apron after package A. The walk is latched input (DT.Hero.Walk), so the arena clamp and the camera are the game's.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en", "zh-Hans"],
+	"weather": "Dusk",
+	"seconds": 11,
+	"cmds": ["DT.God 1", "DT.Hero.Walk 4000 4000"]
+}

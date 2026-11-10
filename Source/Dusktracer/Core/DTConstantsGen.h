@@ -57,6 +57,10 @@ namespace DTConst
 	inline constexpr int32 PRE_TELEGRAPH_RIM_UU = 16; // uu, GATED(S1)
 	inline constexpr float PRE_TELEGRAPH_FILL_MIN = 0.5f; // ratio, GATED(S1)
 	inline constexpr float PRE_TELEGRAPH_LAYER_UU = 0.5f; // uu, GATED(S1)
+	inline constexpr float PRE_CONTRAST_WATCH_MIN = 3.1f; // ratio, GATED(S4)
+	inline constexpr float PRE_LIT_GROUND_Y_WINDOW_MIN = 0.106f; // Y, GATED(S4)
+	inline constexpr float PRE_LIT_GROUND_Y_WINDOW_MAX = 0.16f; // Y, GATED(S4)
+	inline constexpr float PRE_EXPOSURE_DRIFT_MAX = 0.05f; // ratio, GATED(S4)
 	// budget
 	// BUDGET_RES = '1080p60' (res_fps, CORE) - not a number; no constant generated
 	inline constexpr int32 BUDGET_GAME_THREAD_P50_MS = 8; // ms, CORE
@@ -196,6 +200,10 @@ namespace DTConst
 	inline constexpr int32 PERF_S2_STEAM_MIN_PER_S = 6; // per_s, CORE
 	inline constexpr int32 PERF_S2_PAIRS_MIN = 12; // n, CORE
 	inline constexpr int32 PERF_S2_ELITES_MIN = 12; // n, CORE
+	inline constexpr int32 PERF_S4_TURRETS = 24; // n, CORE
+	inline constexpr int32 PERF_S4_TURRET_RING_UU = 350; // uu, CORE
+	inline constexpr int32 PERF_S4_TELEGRAPHS_MIN = 4; // n, CORE
+	inline constexpr float PERF_S4_TRAILED_MIN_RATIO = 0.9f; // ratio, CORE
 	// telemetry
 	inline constexpr float TEL_INTERVAL_S = 60.0f; // s, CORE
 	inline constexpr float TEL_RATE_UNIT_S = 60.0f; // s, CORE

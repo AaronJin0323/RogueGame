@@ -1,0 +1,10 @@
+{
+	"note": "T-PRE-05: a staged late frame that shows all seven elements. The hero and the bare floor are read from the arena_empty shot of the same culture.",
+	"gate": "contrast",
+	"judge": "contrast",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"director": true,
+	"seconds": 12,
+	"cmds": ["DT.God 1", "DT.Dir.Time 700", "DT.Gems.Drop 30 4 700", "DT.Spawn.Role Swarm 6 elite", "DT.Spawn.Role Turret 18", "DT.Spawn.Role Rusher 8", "DT.Bullets 800"]
+}

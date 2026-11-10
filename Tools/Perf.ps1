@@ -1,11 +1,14 @@
 # T-TEC-10 performance measurement (07_Technical R-TEC-10, 11_Quality s5) on the stress arena.
 #   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX 1920 -ResY 1080] [-Warmup <s>] [-Frames <n>]
-#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2] [-Package]
+#                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en] [-Scene Caps|S2|S4] [-Package]
 # -Package (T-PKG-12) measures the Development package of Tools\Package.ps1 instead of the editor (R-TEC-15: the frame cost a player's float mode pays;
 # Shipping has no CSV profiler, so Development stands in). The same scene, budgets and proof; perf.csv marks the row "[package]".
 # -Scene S2 is the S2 proof scene (DT.PerfScene S2, Docs/Validation/S2_perf.md): it adds to the same budgets and load floors a proof
 # from the capture window itself (the CSV's DT/S2Sum_* last minus first, DT/S2Live_* median, and the DT/ phase timers as a profile),
 # and fails when the window did not hold the load. -Cmds picks a variant of the scene and keeps the proof. Off, the run is as before.
+# -Scene S4 is the scene S4 wave 1 reads against (DT.PerfScene S4, Docs/Validation/S4_p0.md): the S2 scene and its proof, with every filler
+# round drawn as a played round is (trailed) and Turrets held so telegraphs are live; it adds the median of DT/S4Live_Telegraphs against
+# C.PERF.S4_TELEGRAPHS_MIN and of DT/S4Live_TrailedRounds against C.PERF.S4_TRAILED_MIN_RATIO of the median live rounds.
 # Holds the GPU semaphore Saved\gpu.lock (an exclusively opened file) for the whole run and refuses to start while
 # another process holds it: readings taken under contention are discarded, so none are taken.
 # Launches the game like Tools\Smoke.ps1, on the hidden desktop of Tools\HiddenLaunch.ps1, with the stress commands (default: C.ENEMIES.CAP enemies, C.BULLETS.CAP
@@ -23,7 +26,7 @@ param(
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[string]$Culture = "en",
 	[int]$LoadTimeout = 900,
-	[ValidateSet("Caps", "S2")]
+	[ValidateSet("Caps", "S2", "S4")]
 	[string]$Scene = "Caps",
 	[switch]$Package
 )
@@ -66,11 +69,12 @@ $GpuProxy = Get-Constant "PERF.GPU_PROXY_4080_TO_4070"
 $LoadMin = Get-Constant "PERF.LOAD_MIN_RATIO"
 $BulletCap = Get-Constant "BULLETS.CAP"
 $EnemyCap = Get-Constant "ENEMIES.CAP"
-$IsS2 = $Scene -eq "S2"
+$IsS4 = $Scene -eq "S4"
+$IsS2 = $Scene -eq "S2" -or $IsS4  # S4 is the S2 scene with more drawn: the S2 proof holds for both
 if ($Warmup -lt 0) { $Warmup = Get-Constant $(if ($IsS2) { "PERF.S2_WARMUP_S" } else { "PERF.WARMUP_S" }) }
 if ($Frames -lt 0) { $Frames = [int](Get-Constant "PERF.CAPTURE_FRAMES") }
 if (-not $PSBoundParameters.ContainsKey("Cmds")) {
-	$Cmds = if ($IsS2) { "DT.PerfScene S2" } else { "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
+	$Cmds = if ($IsS2) { "DT.PerfScene $Scene" } else { "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
 }
 
 # --- GPU semaphore --------------------------------------------------------------------------------------------------
@@ -175,6 +179,7 @@ $Factor = if ($Gpu -match "4080") { $GpuProxy } else { 1.0 }
 # --- the S2 scene's proof, from the capture window ------------------------------------------------------------------------
 $Sums = @{}
 $Lives = @{}
+$Looks = @{}
 if ($IsS2) {
 	$Rows = New-Object System.Collections.Generic.List[string]
 	foreach ($L in $Lines[1..($Lines.Count - 1)]) {
@@ -203,6 +208,11 @@ if ($IsS2) {
 			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
 			$Lives[$Name.Substring(10)] = Pct $List 0.50
 		}
+		elseif ($Name -like "DT/S4Live_*") {
+			$List = New-Object System.Collections.Generic.List[double]
+			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
+			$Looks[$Name.Substring(10)] = Pct $List 0.50
+		}
 		elseif ($Name -like "DT/*" -and $Name -notlike "DT/Live*") {
 			$List = New-Object System.Collections.Generic.List[double]
 			foreach ($Row in $Rows) { $List.Add((Cell $Row.Split(",") $I)) }
@@ -214,6 +224,7 @@ if ($IsS2) {
 	foreach ($K in $Fires) { Write-Host ("    fired       {0,-26} {1,7}  {2,7:0.0}/s" -f $K.Substring(5), $Sums[$K], ($Sums[$K] / $Seconds)) }
 	foreach ($K in ($Sums.Keys | Where-Object { $_ -notlike "Fire_*" } | Sort-Object)) { Write-Host ("    counted     {0,-26} {1,7}  {2,7:0.0}/s" -f $K, $Sums[$K], ($Sums[$K] / $Seconds)) }
 	foreach ($K in ($Lives.Keys | Sort-Object)) { Write-Host ("    live p50    {0,-26} {1,7}" -f $K, $Lives[$K]) }
+	foreach ($K in ($Looks.Keys | Sort-Object)) { Write-Host ("    drawn p50   {0,-26} {1,7}" -f $K, $Looks[$K]) }
 }
 $Gpu95Judged = $R.gpu95 * $Factor
 # A scene with Reaction.Duos proves its reactions from the run's telemetry (reactions.md).
@@ -247,6 +258,13 @@ if ($IsS2) {
 	}
 	if ($Lives["Shades"] -lt 1) { $Why += "no Shade alive" }
 	if ($Sums["Decisions"] -ne 0) { $Why += "the build changed in the window" }
+}
+# The S4 scene proves what it drew the same way: telegraphs live and rounds trailed, as medians of the window.
+if ($IsS4) {
+	$TelegraphsMin = Get-Constant "PERF.S4_TELEGRAPHS_MIN"
+	$TrailedMin = (Get-Constant "PERF.S4_TRAILED_MIN_RATIO") * $R.bul50
+	if (-not ($Looks["Telegraphs"] -ge $TelegraphsMin)) { $Why += ("{0} telegraphs live, under {1}" -f $Looks["Telegraphs"], $TelegraphsMin) }
+	if (-not ($Looks["TrailedRounds"] -ge $TrailedMin)) { $Why += ("{0} rounds trailed, under {1:0}" -f $Looks["TrailedRounds"], $TrailedMin) }
 }
 $Verdict = if ($Why.Count -eq 0) { "PASS" } else { "FAIL" }
 

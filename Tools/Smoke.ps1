@@ -1,6 +1,13 @@
 # Smoke test (gate step `smoke`, 11_Quality s1): a rendered run on the stress arena, judged from its log and a screenshot.
 #   & Tools\Smoke.ps1 [-Culture en|zh-Hans] [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-Seconds <s>] [-Name arena_empty]
 #                     [-Map /Game/DT/Maps/L_Arena_Test] [-Director] [-Update] [-Contrast] [-DormantLine]
+#   & Tools\Smoke.ps1 -Scene <name> [-Culture en|zh-Hans] [-Update]
+# -Scene reads Tools\Scenes\<name>.json, a scene as data (S4_wave1.md P0, Docs/Validation/S4_p0.md), in place of the switches: a package adds
+# a file there and edits no script. Keys: "cmds" (a list of console commands), "seconds", "director", "map", "seed" (an explicit -DTSeed; a
+# tool run without one is on seed 0), "judge" ("golden", "contrast" or "dormant_line"), "elements" (for a contrast judge, the elements this
+# frame is staged to show; left out, all seven are required), "cultures" and "gate" (read by Tools\Gate.ps1: "smoke", "contrast" or "none"),
+# and "weather", the pin: every scene names the weather its frame shows, so a golden shows one state. Only the weathers of $Weathers
+# exist; a scene that names another fails here, and when a second one is built this script hands the pin to the game.
 # Launches the game (UnrealEditor -game -RenderOffScreen at 1280x720, on the hidden desktop of Tools/HiddenLaunch.ps1) in the given culture, waits for "Run start", runs -Cmds as
 # -ExecCmds, takes a screenshot -Seconds of sim time after run start (default C.SMOKE.SECONDS; ADTGameMode -DTShot hook: the sim
 # is held on that step and shot once the still frame has settled, so neither a hitch nor the frame rate moves what it shows), and the
@@ -17,6 +24,7 @@
 param(
 	[ValidateSet("en", "zh-Hans")]
 	[string]$Culture = "en",
+	[string]$Scene = "",
 	[string]$Cmds = "",
 	[double]$Seconds = -1,
 	[string]$Name = "arena_empty",
@@ -38,6 +46,31 @@ $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $ShotDir = Join-Path $Root "Saved\Smoke"
 New-Item -ItemType Directory -Force $LogDir, $ShotDir | Out-Null
+# --- a scene as data --------------------------------------------------------------------------------------------------------
+$Weathers = @("Dusk")  # the weathers that exist (04_Presentation: the second is not built)
+$Seed = $null
+$Only = @()
+$Weather = $Weathers[0]
+if ($Scene) {
+	$SceneFile = Join-Path $PSScriptRoot "Scenes\$Scene.json"
+	if (-not (Test-Path $SceneFile)) { Write-Host "SMOKE: FAIL (no scene Tools\Scenes\$Scene.json)"; exit 1 }
+	$Data = Get-Content $SceneFile -Raw -Encoding UTF8 | ConvertFrom-Json
+	$Keys = @($Data.PSObject.Properties.Name)
+	$Unknown = @($Keys | Where-Object { @("note", "cmds", "seconds", "director", "map", "seed", "judge", "elements", "cultures", "gate", "weather") -notcontains $_ })
+	if ($Unknown.Count) { Write-Host "SMOKE: FAIL (scene ${Scene}: unknown key(s) $($Unknown -join ', '))"; exit 1 }
+	if ($Weathers -notcontains $Data.weather) { Write-Host "SMOKE: FAIL (scene ${Scene}: weather '$($Data.weather)' is not pinned to one of: $($Weathers -join ', '))"; exit 1 }
+	if (@("golden", "contrast", "dormant_line") -notcontains $Data.judge) { Write-Host "SMOKE: FAIL (scene ${Scene}: judge '$($Data.judge)')"; exit 1 }
+	$Weather = $Data.weather
+	if (-not $PSBoundParameters.ContainsKey("Name")) { $Name = $Scene }
+	$Cmds = @($Data.cmds) -join ","
+	if ($Keys -contains "seconds") { $Seconds = [double]$Data.seconds }
+	if ($Keys -contains "map") { $Map = $Data.map }
+	if ($Keys -contains "seed") { $Seed = [int]$Data.seed }
+	if ($Keys -contains "elements") { $Only = @($Data.elements) }
+	$Director = [bool]$Data.director
+	$Contrast = $Data.judge -eq "contrast"
+	$DormantLine = $Data.judge -eq "dormant_line"
+}
 $Tag = "${Name}_${Culture}"
 $Log = Join-Path $LogDir "Smoke_$Tag.log"
 $Shot = Join-Path $ShotDir "$Tag.png"
@@ -67,9 +100,10 @@ if (Test-Path $Shot) { Remove-Item $Shot -Force }
 $ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=1280", "-ResY=720", "-LiveCoding=false", "-nosplash",
 	"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))
 if (-not $Director) { $ArgList += "-DTNoDirector" }
+if ($null -ne $Seed) { $ArgList += "-DTSeed=$Seed" }
 if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
 $Proc = Start-DTHidden $Exe $ArgList
-Write-Host ("smoke: {0} culture={1} cmds='{2}' shot after {3} s (PID {4})" -f $Map, $Culture, $Cmds, $Seconds, $Proc.Id)
+Write-Host ("smoke: {0} culture={1} weather={5} cmds='{2}' shot after {3} s (PID {4})" -f $Map, $Culture, $Cmds, $Seconds, $Proc.Id, $Weather)
 
 function Read-Log { if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { "" } }
 
@@ -137,8 +171,10 @@ $Image = "no screenshot"
 $ImageOk = $false
 if (Test-Path $Shot) {
 	if ($Contrast) {
-		$Judged = Invoke-Judge @((Join-Path $Root "Tools\contrast_check.py"), $Shot, "--hero", (Join-Path $ShotDir "arena_empty_$Culture.png"),
+		$JudgeArgs = @((Join-Path $Root "Tools\contrast_check.py"), $Shot, "--hero", (Join-Path $ShotDir "arena_empty_$Culture.png"),
 			"--known", (Join-Path $Root "Docs\Validation\contrast_debts.txt"))
+		if ($Only.Count) { $JudgeArgs += @("--only", ($Only -join ",")) }
+		$Judged = Invoke-Judge $JudgeArgs
 		$ImageOk = ($Judged.Rc -eq 0)
 		$Judged.Out | ForEach-Object { "    $_" }
 		$Image = (($Judged.Out | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
