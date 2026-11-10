@@ -63,6 +63,10 @@ All marked `[invented]` in Context (R-NAR-08 asks it of the story tables; the sa
 | ST_UI | `Hub.Balance` | Ichor {0} | 神血 {0} |
 | ST_UI | `Summary.Waiting` (D-042, awaiting a reading) | Save in use by another game. This run is saved at the next save or on quit. | 尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。 |
 | ST_Tree | `Tree.State.Busy` (D-042, awaiting a reading) | The save is in use by another game. Press again. | 存档正被另一个游戏使用，请再按一次。 |
+| ST_UI | `Hub.Notice.SaveAside` (review #87, awaiting a reading) | The save could not be read. It is kept as {0}, and a new one starts empty. | 存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。 |
+| ST_UI | `Hub.Notice.RunLost` (D-042 point 7, awaiting a reading) | The last run could not be saved. Nothing from it is in this save. | 上一局没能保存。这份存档里没有那一局的记录。 |
+| `Export_Logs.ps1` | the failed export's next step (review #90, awaiting a reading; no table, the script holds it escaped) | There is nothing to export yet. Play one run, then export again. | 还没有可导出的内容。请先玩一局，再导出一次。 |
+| `Export_Logs.ps1` | the manifest's line on the time in hands (review #41, awaiting a reading; the manifest's one zh line) | how long each card took to pick and their total per run | 对局文件还记有每张牌的选择用时，以及每局的合计用时。 |
 | ST_UI | `Hub.Begin.NeedPatron` | Choose a Patron at the Shrine first. | 先去祠堂选一位主司。 |
 | ST_UI | `Hub.Tree.Empty` | No terms are open yet. | 暂时没有可签的条款。 |
 | ST_UI | `Hub.Hint.Read` | Move: up and down    Page: left and right    Back: Esc or B | 移动：上下键    翻页：左右键    返回：Esc 或 B |
