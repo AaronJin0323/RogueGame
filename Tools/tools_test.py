@@ -1732,6 +1732,27 @@ class ReadAll(unittest.TestCase):
 		self.assertEqual(text.count("$script:Launched++"), 1)
 		self.assertLess(text.index("$script:Launched++"), text.index("$Proc = Start-DTHidden $Exe $ArgList"))
 
+	def test_botruns_fails_a_run_under_another_patron(self):
+		# Review #5: the line a mislabelled run prints, and the verdict that reads it. The run itself is checked on a real launch (S3_review_fixes.md).
+		text = self.script("BotRuns.ps1")
+		self.assertIn('if ($Played -ne $Run.Path) {', text)
+		self.assertIn("$Rc -ne 0 -or $Missing -gt 0 -or $script:Mislabelled.Count -gt 0", text)
+
+	def test_wincheck_reads_a_crash_before_a_lost_seed_moves_on(self):
+		# Review #52: the crash scan sat after the lost-seed `continue`, and the next seed's launch deletes the log.
+		text = self.script("WinCheck.ps1")
+		self.assertLess(text.index('$Crash = @(Select-String -Path $Log'), text.index('lost; next seed'))
+		self.assertLess(text.index('if ($Crash.Count -gt 0) {'), text.index('lost; next seed'))
+
+	def test_padcheck_accepts_every_file_the_export_carries(self):
+		# Review #25, #38: a crash folder's text files are in the export by design, and the pad step called them stray.
+		export = re.search(r'\$TextCrash = @\(([^)]*)\)', self.script(os.path.join("PackageFiles", "Export_Logs.ps1"))).group(1)
+		carried = re.search(r'\$Carried = @\(([^)]*)\)', self.script("PadCheck.ps1")).group(1)
+		crash, pad = set(re.findall(r'"(\.[\w-]+)"', export)), set(re.findall(r'"(\.[\w-]+)"', carried))
+		self.assertTrue(crash)
+		self.assertEqual(crash - pad, set())
+		self.assertEqual({".csv", ".jsonl", ".log", ".txt"} - pad, set())
+
 
 class PoolRead(unittest.TestCase):
 	"""D-037 (review #64): MetaCheck tells pools apart by the cards dealt, and a window that could not tell them apart fails."""

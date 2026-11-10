@@ -49,13 +49,21 @@ foreach ($Culture in $Cultures) {
 		New-Item -ItemType Directory -Force $Shots | Out-Null
 		$Log = Invoke-Launch $Culture $Seed (Join-Path $Shots "DTMeta.sav") $Shots
 		$Lines = @(Select-String -Path $Log -Pattern "WINCHECK" | ForEach-Object { $_.Line -replace "^.*LogDT: ", "" })
+		# Read before a lost seed moves on: the next launch deletes this log, and a crash on the way to a loss is still a crash.
+		$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed")
+		if ($Crash.Count -gt 0) {
+			$Kept = Join-Path $LogDir "WinCheck_${Culture}_crash_$Seed.log"
+			Copy-Item $Log $Kept -Force
+			Write-Host "    $Culture seed $Seed $($Crash[0].Line.Trim())"
+			Write-Host "WIN: FAIL ($Culture seed $Seed, $($Crash.Count) crash or ensure line(s); $Kept)"
+			exit 1
+		}
 		if (@($Lines | Where-Object { $_ -match "^WINCHECK the run is a win: WRONG" }).Count -gt 0) {
 			Write-Host "    $Culture seed $Seed lost; next seed"
 			continue
 		}
 		$Lines | Where-Object { $_ -match "WRONG|^WINCHECK(:| toast| unlocked)" } | ForEach-Object { "    $Culture seed $Seed $_" }
-		$Crash = @(Select-String -Path $Log -Pattern "Fatal error|Unhandled Exception|=== Critical error:? ===|Ensure condition failed")
-		$Verdict = [bool]($Lines | Where-Object { $_ -match "^WINCHECK: PASS" }) -and $Crash.Count -eq 0
+		$Verdict = [bool]($Lines | Where-Object { $_ -match "^WINCHECK: PASS" })
 		$Missing = @(@("runover", "codex") | Where-Object { -not (Test-Path (Join-Path $Shots "$_.png")) })
 		if (-not $Verdict -or $Missing.Count -gt 0) {
 			Write-Host "WIN: FAIL ($Culture seed $Seed, no shot of: $($Missing -join ' '))"

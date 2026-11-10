@@ -14,6 +14,8 @@
 # copied from Saved/Playtests and the log. Then Tools/bot_summary.py writes summary.csv + summary.md and runs -Check.
 # -Check T-DIR-01 alone defaults to the no-pick arm with C.DIR.BOT_RUNS seeds.
 # Prints "BOTRUNS: PASS|FAIL (...)"; exit 0 / 1 (a failed check or a run with no record fails).
+# A Steered run that played another Patron than its arm names fails the battery too: its numbers would stand under the wrong label. -FreshPool on an
+# S2 arm does this on some seeds, because a gated hand seats no met Keeper and no battery names a Patron on the map (vigil.md R-VIG-02).
 # -Carry runs the measuring arm of R-BOT-18: every -Arms arm once per weapon, unlocking only that weapon, labelled <arm>-Carry-<Name>.
 # -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
@@ -98,6 +100,7 @@ if ($Unlock -contains "S2") {
 $UnlockArg = if ($Unlock.Count) { @("-ExecCmds=`"" + (($Unlock | ForEach-Object { "DT.Unlock $_" }) -join ',') + "`"") } else { @() }
 
 $Missing = 0
+$script:Mislabelled = @()
 function Finish-Run($Run) {
 	# The telemetry pair named in the log ("Telemetry: session seed=<n> players=1 -> <path>.csv").
 	$Session = Select-String -Path $Run.Log -Pattern "Telemetry: session seed=\S+ players=\d+ -> (.+)\.csv" -ErrorAction SilentlyContinue | Select-Object -Last 1
@@ -109,6 +112,15 @@ function Finish-Run($Run) {
 	if (Test-Path "$($Run.Record).txt") { Get-Content "$($Run.Record).txt" | ForEach-Object { $k, $v = $_ -split '=', 2; $Kv[$k] = $v } }
 	else { $script:Missing++ }
 	Write-Host ("  {0} seed {1}: {2} at {3} s, level@630 {4}, wall {5:N0} s" -f $Run.Label, $Run.Seed, $Kv["outcome"], $Kv["end_s"], $Kv["level_630"], ((Get-Date) - $Run.Started).TotalSeconds)
+	if ($Run.Path) {
+		# The Patron the run took ("Keepers p0: Patron <Path>; ...", UDTKeeperSubsystem), against the one its arm names.
+		$Took = Select-String -Path $Run.Log -Pattern "LogDT: Keepers p0: Patron (\w+)" -ErrorAction SilentlyContinue | Select-Object -First 1
+		$Played = if ($Took) { $Took.Matches[0].Groups[1].Value } else { "no Patron" }
+		if ($Played -ne $Run.Path) {
+			$script:Mislabelled += "$($Run.Label) seed $($Run.Seed) played $Played"
+			Write-Host ("  ! {0} seed {1}: the arm names {2}, the run played {3}" -f $Run.Label, $Run.Seed, $Run.Path, $Played)
+		}
+	}
 }
 
 function Reap-Runs([int]$Wanted) {
@@ -143,7 +155,9 @@ function Start-Run($Label, $Seed, $Extra) {
 	Reap-Runs ([Math]::Max(1, $Parallel))
 	$script:Launched++
 	$Proc = Start-DTHidden $Exe $ArgList
-	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date) }
+	$Path = ""
+	foreach ($Arg in $Extra) { if ($Arg -match '^-DTBotPath=(.+)$') { $Path = $Matches[1] } }
+	$script:Active += [pscustomobject]@{ Proc = $Proc; Label = $Label; Seed = $Seed; Dir = $RunDir; Log = $Log; Record = $Record; Started = (Get-Date); Path = $Path }
 	if ($Parallel -gt 1) { Start-Sleep -Milliseconds ([int]($Stagger * 1000)) }
 	return $RunDir
 }
@@ -204,8 +218,9 @@ if ($Check -and $Verdicts.Count -eq 0) {
 	Write-Host "BOTRUNS: FAIL (-Check $Check produced no verdict; $Out)"
 	exit 1
 }
-if ($Rc -ne 0 -or $Missing -gt 0) {
-	Write-Host ("BOTRUNS: FAIL ({0}{1}; {2})" -f ($Verdicts -join '; '), $(if ($Missing) { "; $Missing run(s) without a bot record" } else { "" }), $Out)
+if ($Rc -ne 0 -or $Missing -gt 0 -or $script:Mislabelled.Count -gt 0) {
+	$Wrong = if ($script:Mislabelled.Count) { "; $($script:Mislabelled.Count) run(s) under another Patron than the arm names: $($script:Mislabelled -join ', ')" } else { "" }
+	Write-Host ("BOTRUNS: FAIL ({0}{1}{2}; {3})" -f ($Verdicts -join '; '), $(if ($Missing) { "; $Missing run(s) without a bot record" } else { "" }), $Wrong, $Out)
 	exit 1
 }
 Write-Host ("BOTRUNS: PASS ({0}; {1})" -f $(if ($Verdicts) { $Verdicts -join '; ' } else { "no check requested" }), $Out)

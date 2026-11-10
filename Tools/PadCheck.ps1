@@ -145,7 +145,9 @@ else {
 	$Manifest = @(Get-ChildItem $Open -Recurse -Filter MANIFEST.txt)
 	if ($Inside.Count -ne $Cultures.Count) { Note-Fail "export holds $($Inside.Count) check run(s), expected $($Cultures.Count)" }
 	if ($Manifest.Count -ne 1) { Note-Fail "export has no MANIFEST.txt" }
-	$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin ".csv", ".jsonl", ".log", ".txt" })
+	# What the export is meant to carry: run files, logs, the manifest and a crash folder's text files (Export_Logs.ps1 $TextCrash).
+	$Carried = @(".csv", ".jsonl", ".log", ".txt", ".xml", ".json", ".runtime-xml", ".ini")
+	$Stray = @(Get-ChildItem $Open -Recurse -File | Where-Object { $_.Extension -notin $Carried })
 	if ($Stray.Count) { Note-Fail "export carries other files: $($Stray[0].Name)" }
 	if ($Inside.Count) {
 		$Split = & python -I (Join-Path $Root "Tools\power_split.py") $Inside[0].FullName 2>&1
