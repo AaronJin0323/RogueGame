@@ -19,7 +19,7 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 | Decisions in a run | C.DECISIONS.PER_RUN with C.OFFER.DECISIONS_TOLERANCE | `Tools/BotRuns.ps1 -Check T-OFF-15` | bot bound, then people | fails by one run in about two hundred |
 | No-pick overwhelm | C.DIR.NOPICK_DEATH_BAND_S | `Tools/BotRuns.ps1 -Check T-DIR-01` | bot only (§4) | passes |
 | Level anchors | C.LEVEL.L8_MIN, C.LEVEL.L16_MIN | level times in the session logs | people, session A | the automated check reads the previous game's income (`progression.md` Open) |
-| Threat actions floor | C.DIR.THREAT_ACTIONS_MIN | the director's kill-horizon automation test | the test | passes; it counts an arrival that cannot reach (D-045) |
+| Threat actions floor | C.DIR.THREAT_ACTIONS_MIN | the director's kill-horizon automation test | the test | passes; a Rusher arrival it counts now charges through its hero (D-045 applied) |
 
 ## 2. Pressure: the two bands, kill time and pause
 

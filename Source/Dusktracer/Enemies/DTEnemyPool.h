@@ -56,7 +56,7 @@ struct FDTEnemyAux
 	int32 TargetPlayer = INDEX_NONE;
 	bool bToken = false;
 	bool bFacingSet = false;   // false until the first step (or a test) sets the facing
-	bool bArrivalAttack = false; // a drop-in Rusher starts its wind-up on its first step
+	bool bArrivalAttack = false; // a drop-in Rusher starts its wind-up on its first step and charges through its hero (D-045)
 	int64 LastFireStep = -1;   // aim-token order (R-ENM-18); never fired = -1, arrivals first
 
 	// Statuses (R-ENM-21, R-ENM-22).
@@ -263,7 +263,8 @@ private:
 	void CountThreat(EDTEnemyRole InRole, const FVector2f& Origin);
 	void AppendContacts(FDTWorldView& View) const;
 	int32 NearestHero(const FVector2f& At, TConstArrayView<FVector2f> Heroes, FVector2f* OutDelta = nullptr) const;
-	float ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius) const;
+	/** A charge of Reach uu from From along Dir, clipped where the arena wall stops the Rusher (R-ENM-11, R-ENM-13). */
+	float ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius, float Reach) const;
 
 	int32 Capacity = 0;
 	TArray<FVector2f> Pos;

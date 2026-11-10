@@ -102,6 +102,7 @@ namespace DTConst
 	inline constexpr float ROLE_RUSHER_CHARGE_S = 0.65f; // s, GATED(S1)
 	inline constexpr float ROLE_RUSHER_RECOVER_S = 0.8f; // s, GATED(S1)
 	inline constexpr float ROLE_RUSHER_COOLDOWN_S = 2.0f; // s, GATED(S1)
+	inline constexpr int32 ROLE_RUSHER_ARRIVAL_OVERSHOOT_UU = 200; // uu, GATED(S1)
 	inline constexpr int32 ROLE_TURRET_HP = 40; // hp, GATED(S1)
 	inline constexpr int32 ROLE_TURRET_RADIUS_UU = 48; // uu, GATED(S1)
 	inline constexpr int32 ROLE_TURRET_CONTACT_DAMAGE = 6; // hp, GATED(S1)

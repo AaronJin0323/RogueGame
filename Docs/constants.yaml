@@ -97,6 +97,7 @@ enemies:
   ROLE.RUSHER_CHARGE_S:        { value: 0.65, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_RECOVER_S:       { value: 0.8, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_COOLDOWN_S:      { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
+  ROLE.RUSHER_ARRIVAL_OVERSHOOT_UU: { value: 200, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, T-ENM-13] }
   ROLE.TURRET_HP:              { value: 40, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-09] }
   ROLE.TURRET_RADIUS_UU:       { value: 48, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-12] }
   ROLE.TURRET_CONTACT_DAMAGE:  { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }

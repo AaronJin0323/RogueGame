@@ -346,10 +346,10 @@ int32 FDTEnemyPool::NearestHero(const FVector2f& At, TConstArrayView<FVector2f> 
 	return Best;
 }
 
-float FDTEnemyPool::ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius) const
+float FDTEnemyPool::ChargeLengthFrom(const FVector2f& From, const FVector2f& Dir, float EnemyRadius, float Reach) const
 {
 	// The band is the charge: full length, clipped where the arena wall would stop the Rusher.
-	float Length = static_cast<float>(DTConst::ROLE_RUSHER_CHARGE_SPEED_UU_S) * DTConst::ROLE_RUSHER_CHARGE_S;
+	float Length = Reach;
 	const float Limit = FMath::Max(0.0f, DTConst::ARENA_HALF_EXTENT_UU - EnemyRadius);
 	for (int32 Axis = 0; Axis < 2; ++Axis)
 	{
@@ -828,6 +828,11 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 				A.Cooldown = FMath::Max(0.0f, A.Cooldown - Dt);
 				if (Nearest != INDEX_NONE && (A.bArrivalAttack || (ToHero.SizeSquared() <= TriggerSq && A.Cooldown <= TimerEps)))
 				{
+					// A drop-in charges through where its hero stands now and a little beyond; a Rusher that walked
+					// into trigger range charges the role's fixed length (R-ENM-13 arrival clause, D-045; R-ENM-11).
+					const float Reach = A.bArrivalAttack
+						? ToHero.Size() + static_cast<float>(DTConst::ROLE_RUSHER_ARRIVAL_OVERSHOOT_UU)
+						: static_cast<float>(DTConst::ROLE_RUSHER_CHARGE_SPEED_UU_S) * DTConst::ROLE_RUSHER_CHARGE_S;
 					A.bArrivalAttack = false;
 					if (ShowsFullLead(DTConst::ROLE_RUSHER_WINDUP_S))
 					{
@@ -835,7 +840,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 						A.StateLeft = DTConst::ROLE_RUSHER_WINDUP_S;
 						A.AimDir = Seek.IsNearlyZero() ? Facing[Index] : Seek;
 						A.ChargeOrigin = Pos[Index];
-						A.ChargeLength = ChargeLengthFrom(Pos[Index], A.AimDir, Radius[Index]);
+						A.ChargeLength = ChargeLengthFrom(Pos[Index], A.AimDir, Radius[Index], Reach);
 						Facing[Index] = A.AimDir;
 						break;
 					}
