@@ -2476,6 +2476,8 @@ RENDERER_OWNERS = {
 	"Director/DTDirector.cpp": ["Enemies/DTTelegraphRenderer.h"],
 	"Enemies/DTEnemySubsystem.h": ["Enemies/DTEnemyBulletRenderer.h", "Enemies/DTEnemyRenderer.h", "Enemies/DTTelegraphRenderer.h"],
 	"Keepers/DTKeeperSubsystem.h": ["Combat/DTBulletRenderer.h"],
+	# The hero's pawn draws its own figure (hero_art.md R-HAR-05). Its .cpp alone names the figure; DTHero.h, which the sim side includes, does not.
+	"Player/DTHero.cpp": ["Presentation/DTHeroFigure.h"],
 	"Progression/DTGemSubsystem.h": ["Progression/DTPickupRenderer.h"],
 }
 
@@ -2539,6 +2541,123 @@ class PerfSceneS4(unittest.TestCase):
 		# The S4 filler is a player's round under a source that is not Stress: what the trail draw takes.
 		self.assertIn("Spawn.OwnerId = 0;", scene)
 		self.assertIn('FindOrAdd(TEXT("PerfFiller"))', scene)
+
+
+import hero_outline  # noqa: E402
+
+
+class HeroArt(unittest.TestCase):
+	"""S4_wave1.md package C, 02_Systems/hero_art.md: the Reclaimer's silhouette read from its mesh source (T-HAR-01, T-HAR-03, T-HAR-06, T-HAR-07)."""
+
+	@classmethod
+	def setUpClass(cls):
+		sys.path.insert(0, BLENDER_TOOLS)
+		import hero_reclaimer
+		cls.source = hero_reclaimer
+		cls.constants = hero_outline.constants()
+
+	def read(self, *parts):
+		with open(os.path.join(TOOLS, *parts), encoding="utf-8", errors="replace") as f:
+			return f.read()
+
+	def test_the_figure_passes_its_silhouette_checks(self):
+		# T-HAR-03, T-HAR-06: outline apart from every enemy hull, facings told apart, build, footprint; at 36 and at 27 px per metre.
+		errors, notes, _ = hero_outline.run()
+		self.assertEqual(errors, [])
+		for word in ("outline at 36 px/m", "outline at 27 px/m", "facing at 36 px/m", "facing at 27 px/m", "build:"):
+			self.assertTrue(any(note.startswith(word) for note in notes), word)
+
+	def test_a_hull_shaped_hero_fails_the_outline_and_the_facing(self):
+		# The checks can fail: a hero drawn as the enemy's own cube is the enemy's outline, and looks the same from behind.
+		errors, _, _ = hero_outline.run(parts=hero_outline.cube())
+		self.assertTrue(any(error.startswith("outline at") for error in errors), errors)
+		self.assertTrue(any(error.startswith("facing at") for error in errors), errors)
+		self.assertTrue(any(error.startswith("build") for error in errors), errors)
+
+	def test_a_figure_off_its_point_fails_the_footprint(self):
+		moved = [(cls, [(x + 400.0, y, z) for x, y, z in verts], faces) for cls, verts, faces in hero_outline.hero_parts()]
+		errors, _, _ = hero_outline.run(parts=moved)
+		self.assertTrue(any(error.startswith("footprint at") for error in errors), errors)
+
+	def test_an_enemy_hull_is_read_from_its_exported_mesh(self):
+		# Package B's hulls land as SourceArt/Enemies/SM_Enemy_*.fbx; until then every role draws the engine cube. Optics are not hulls.
+		with tempfile.TemporaryDirectory() as folder:
+			self.assertEqual(hero_outline.enemy_hulls(folder)[1], "the engine cube")
+			shutil.copy(os.path.join(dtconst.ROOT, "SourceArt", "Hero", "SM_Hero_Torso.fbx"), os.path.join(folder, "SM_Enemy_Swarm.fbx"))
+			shutil.copy(os.path.join(dtconst.ROOT, "SourceArt", "Hero", "SM_Hero_Visor.fbx"), os.path.join(folder, "SM_Enemy_Swarm_Optic.fbx"))
+			hulls, source = hero_outline.enemy_hulls(folder)
+			self.assertEqual((sorted(hulls), source), (["SM_Enemy_Swarm"], "SourceArt/Enemies"))
+			self.assertEqual(len(hulls["SM_Enemy_Swarm"][0][1]), len(self.source.PARTS["Torso"][1][0]))
+
+	def test_every_exported_part_is_what_the_source_builds(self):
+		# T-HAR-01: the committed SourceArt file holds the corners of the Python table and nothing else; Mesh.ps1 -Check compares the bytes.
+		self.assertEqual(sorted(self.source.MESHES), sorted("SM_Hero_" + name for name in self.source.PARTS))
+		for name, (token, (verts, faces)) in self.source.PARTS.items():
+			self.assertIn(token, dtpalette.tokens(), name)
+			path = os.path.join(dtconst.ROOT, "SourceArt", "Hero", f"SM_Hero_{name}.fbx")
+			self.assertTrue(os.path.isfile(path), path)
+			meshes = hero_outline.fbx_mesh(path)
+			self.assertEqual(len(meshes), 1, name)
+			built = sorted(tuple(round(v, 4) for v in corner) for corner in verts)
+			stored = sorted(tuple(round(v, 4) for v in corner) for corner in meshes[0][1])
+			self.assertEqual(len(built), len(stored), name)
+			for a, b in zip(built, stored):
+				for i in range(3):
+					self.assertAlmostEqual(a[i], b[i], places=3, msg=name)
+			self.assertEqual(len(meshes[0][2]), len(faces), name)
+
+	def test_the_source_reads_nothing_from_outside(self):
+		# R-HAR-01 (OPEN.md O-009): the generator opens no file and imports only the standard library and this repo's two readers.
+		text = self.read("blender", "hero_reclaimer.py")
+		tree = ast.parse(text)
+		imported = sorted({alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names})
+		self.assertEqual(imported, ["bpy", "dtconst", "dtpalette", "math", "os", "sys"])
+		self.assertEqual([node for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)], [])
+		called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+		self.assertEqual(called & {"open", "exec", "eval", "__import__"}, set())
+		# Blender's ways in for a file: an import operator, a linked library, a loaded image.
+		for way_in in ("bpy.ops", "bpy.data.libraries", "bpy.data.images", "bpy.data.textures"):
+			self.assertNotIn(way_in, text)
+
+	def test_the_parts_the_game_draws_are_the_parts_the_source_builds(self):
+		# R-HAR-02: the pose's part table and the mesh source name the same parts in the same order; no skeletal asset is named anywhere.
+		pose = self.read("..", "Source", "Dusktracer", "Presentation", "DTHeroPose.cpp")
+		drawn = re.findall(r'\{ TEXT\("(\w+)"\), TEXT\("/Game/DT/Meshes/SM_Hero_(\w+)\.SM_Hero_(\w+)"\) \}', pose)
+		self.assertEqual([name for name, _, _ in drawn], list(self.source.PARTS))
+		for name, a, b in drawn:
+			self.assertEqual((a, b), (name, name))
+		header = self.read("..", "Source", "Dusktracer", "Presentation", "DTHeroPose.h")
+		enum = re.search(r"enum class EDTHeroPart : uint8\s*\{([^}]*)\}", header).group(1)
+		self.assertEqual([word.strip() for word in enum.split(",") if word.strip()], list(self.source.PARTS) + ["Num"])
+		for folder, _, names in os.walk(os.path.join(SOURCE, "Presentation")):
+			for name in names:
+				self.assertNotRegex(self.read(folder, name), r"SK_|USkeletalMesh|SkeletalMeshComponent", name)
+
+	def test_the_joints_are_the_constants_the_pose_reads(self):
+		# R-HAR-05: the mesh source and the pose turn about the same points.
+		source = self.read("blender", "hero_reclaimer.py")
+		pose = self.read("..", "Source", "Dusktracer", "Presentation", "DTHeroPose.cpp")
+		for key in ("WAIST_Z_UU", "NECK_Z_UU", "SHOULDER_Z_UU", "SHOULDER_Y_UU", "HIP_Z_UU", "HIP_Y_UU"):
+			self.assertIn(f'C["HERO_ART.{key}"]', source)
+			self.assertIn(f"DTConst::HERO_ART_{key}", pose)
+			self.assertIn(f"HERO_ART.{key}", self.constants)
+
+	def test_the_golden_holds_the_armour_the_gate_frame_needs(self):
+		# T-HAR-06: the empty arena's golden, as shot, shows at least C.HERO_ART.ARMOUR_PX_MIN armour-tone pixels (the grey box showed 368).
+		golden = os.path.join(dtconst.ROOT, "Docs", "Validation", "goldens", "arena_empty_en.png")
+		errors, notes, _ = hero_outline.run(frame=golden)
+		self.assertEqual(errors, [])
+		self.assertTrue(any(note.startswith("frame arena_empty_en.png") for note in notes))
+
+	def test_the_line_up_scene_stages_the_figure_and_no_sim_state(self):
+		# T-HAR-07: the scene's one command draws figures; the debug file names no sim subsystem.
+		with open(os.path.join(TOOLS, "Scenes", "hero_lineup.json"), encoding="utf-8") as f:
+			scene = json.load(f)
+		self.assertEqual(scene["cmds"], ["DT.HeroArt.LineUp"])
+		self.assertEqual((scene["gate"], scene["judge"], scene["weather"]), ("smoke", "golden", "Dusk"))
+		debug = self.read("..", "Source", "Dusktracer", "Debug", "DTDebugHeroArt.cpp")
+		self.assertIn('TEXT("DT.HeroArt.LineUp")', debug)
+		self.assertNotRegex(debug, r"Subsystem|LatchInput|FDTHeroState")
 
 
 if __name__ == "__main__":

@@ -212,7 +212,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 524; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 526; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -322,6 +322,26 @@ namespace DTConst
 	inline constexpr int32 DASH_DISTANCE_UU = 450; // uu, GATED(S1)
 	inline constexpr float DASH_COOLDOWN_S = 3.0f; // s, GATED(S1)
 	inline constexpr int32 DASH_CHARGES = 1; // n, GATED(S1)
+	inline constexpr float HERO_ART_DRAW_SCALE = 1.16f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_WAIST_Z_UU = 105; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_NECK_Z_UU = 156; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_SHOULDER_Z_UU = 144; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_SHOULDER_Y_UU = 33; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_HIP_Z_UU = 92; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_HIP_Y_UU = 15; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_LEAN_DEG = 10; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_STRIDE_DEG = 22; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_MOVE_ARM_DEG = 18; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_LEAN_DEG = 32; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_LEG_DEG = 30; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_ARM_DEG = 40; // deg, GATED(S4)
+	inline constexpr int32 HERO_ART_DASH_DROP_UU = 10; // uu, GATED(S4)
+	inline constexpr float HERO_ART_HEAD_LEVEL_RATIO = 0.5f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_REVERT_FRAME_RADIUS_UU = 2000; // uu, GATED(S4)
+	inline constexpr int32 HERO_ART_MASK_SCREEN_HEIGHT_PX = 1080; // px, GATED(S4)
+	inline constexpr float HERO_ART_OUTLINE_OVERLAP_MAX = 0.8f; // ratio, GATED(S4)
+	inline constexpr float HERO_ART_FACING_DIFF_MIN = 0.15f; // ratio, GATED(S4)
+	inline constexpr int32 HERO_ART_ARMOUR_PX_MIN = 368; // px, GATED(S4)
 	inline constexpr int32 DIR_BAND_WINDOW_S_MIN = 600; // s, GATED(S1)
 	inline constexpr int32 DIR_BAND_WINDOW_S_MAX = 780; // s, GATED(S1)
 	inline constexpr int32 DIR_NOPICK_DEATH_BAND_S_MIN = 480; // s, GATED(S1)

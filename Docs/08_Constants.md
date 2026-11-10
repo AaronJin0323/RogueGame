@@ -89,7 +89,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 524 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 526 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -370,6 +370,26 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DASH.DISTANCE_UU | 450 | uu | GATED(S1) | combat_core.md, T-CMB-06 |
 | C.DASH.COOLDOWN_S | 3.0 | s | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
 | C.DASH.CHARGES | 1 | n | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
+| C.HERO_ART.DRAW_SCALE | 1.16 | ratio | GATED(S4) | hero_art.md R-HAR-03, Presentation/DTHeroPose, Tools/hero_outline.py (the figure is drawn at this scale: the smallest read that holds C.HERO_ART.ARMOUR_PX_MIN in the gate frame) |
+| C.HERO_ART.WAIST_Z_UU | 105 | uu | GATED(S4) | hero_art.md R-HAR-05, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py (joint: the upper body leans about it; before the draw scale) |
+| C.HERO_ART.NECK_Z_UU | 156 | uu | GATED(S4) | hero_art.md R-HAR-05, as WAIST_Z_UU (joint: the head levels about it) |
+| C.HERO_ART.SHOULDER_Z_UU | 144 | uu | GATED(S4) | hero_art.md R-HAR-05, as WAIST_Z_UU (joint: an arm swings about it) |
+| C.HERO_ART.SHOULDER_Y_UU | 33 | uu | GATED(S4) | hero_art.md R-HAR-05, as WAIST_Z_UU (the shoulder, and the pauldron over it, to either side) |
+| C.HERO_ART.HIP_Z_UU | 92 | uu | GATED(S4) | hero_art.md R-HAR-05, as WAIST_Z_UU (joint: a leg swings about it) |
+| C.HERO_ART.HIP_Y_UU | 15 | uu | GATED(S4) | hero_art.md R-HAR-05, as WAIST_Z_UU (a hip to either side) |
+| C.HERO_ART.MOVE_LEAN_DEG | 10 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (upper body lean at full speed) |
+| C.HERO_ART.MOVE_STRIDE_DEG | 22 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (each leg off vertical at full speed: one held stride) |
+| C.HERO_ART.MOVE_ARM_DEG | 18 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (each arm against its leg at full speed) |
+| C.HERO_ART.DASH_LEAN_DEG | 32 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (upper body lean along the dash) |
+| C.HERO_ART.DASH_LEG_DEG | 30 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (both legs trailing) |
+| C.HERO_ART.DASH_ARM_DEG | 40 | deg | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (both arms trailing) |
+| C.HERO_ART.DASH_DROP_UU | 10 | uu | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (hips lowered while dashing; before the draw scale) |
+| C.HERO_ART.HEAD_LEVEL_RATIO | 0.5 | ratio | GATED(S4) | hero_art.md R-HAR-05, T-HAR-05 (the share of the lean the head takes back) |
+| C.HERO_ART.REVERT_FRAME_RADIUS_UU | 2000 | uu | GATED(S4) | hero_art.md R-HAR-03, Tools/hero_outline.py (the frame D-036 reverts to: the second scale the silhouette is read at) |
+| C.HERO_ART.MASK_SCREEN_HEIGHT_PX | 1080 | px | GATED(S4) | hero_art.md R-HAR-03, Tools/hero_outline.py (the screen the mask is drawn for) |
+| C.HERO_ART.OUTLINE_OVERLAP_MAX | 0.8 | ratio | GATED(S4) | hero_art.md R-HAR-03, T-HAR-03 (most a hero mask may share with an enemy hull mask of the same area; a disc and a square share 0.83) |
+| C.HERO_ART.FACING_DIFF_MIN | 0.15 | ratio | GATED(S4) | hero_art.md R-HAR-03, T-HAR-03 (least two facings must differ, as a share of the pixels either covers) |
+| C.HERO_ART.ARMOUR_PX_MIN | 368 | px | GATED(S4) | hero_art.md R-HAR-06, T-HAR-06 (armour-tone pixels of the hero in the 1280x720 gate frame: what the cylinder showed, D-036) |
 | C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09 |
 | C.DIR.NOPICK_DEATH_BAND_S | 480–720 | s | GATED(S1) | director.md, T-DIR-01 |
 | C.DIR.BOT_RUNS | 10 | n | GATED(S1) | director.md, T-DIR-01 |

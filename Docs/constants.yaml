@@ -207,7 +207,7 @@ telemetry:
   TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
   TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
 caps:
-  GATE.TEST_FLOOR:             { value: 524,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 526,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
@@ -319,6 +319,27 @@ combat:
   DASH.DISTANCE_UU:            { value: 450,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06] }
   DASH.COOLDOWN_S:             { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
   DASH.CHARGES:                { value: 1,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
+  # The Reclaimer as drawn (02_Systems/hero_art.md, S4 wave 1 package C, D-043): presentation only, read by no sim file. Joints are shared by the mesh source and the pose.
+  HERO_ART.DRAW_SCALE:         { value: 1.16,  unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroFigure, Tools/hero_outline.py] }
+  HERO_ART.WAIST_Z_UU:         { value: 105,  unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.NECK_Z_UU:          { value: 156,  unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.SHOULDER_Z_UU:      { value: 144,  unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.SHOULDER_Y_UU:      { value: 33,   unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.HIP_Z_UU:           { value: 92,   unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.HIP_Y_UU:           { value: 15,   unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, Tools/blender/hero_reclaimer.py] }
+  HERO_ART.MOVE_LEAN_DEG:      { value: 10,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.MOVE_STRIDE_DEG:    { value: 22,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.MOVE_ARM_DEG:       { value: 18,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.DASH_LEAN_DEG:      { value: 32,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.DASH_LEG_DEG:       { value: 30,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.DASH_ARM_DEG:       { value: 40,   unit: deg,   tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.DASH_DROP_UU:       { value: 10,   unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.HEAD_LEVEL_RATIO:   { value: 0.5,  unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Presentation/DTHeroPose, T-HAR-05] }
+  HERO_ART.REVERT_FRAME_RADIUS_UU: { value: 2000, unit: uu, tag: GATED(S4), dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
+  HERO_ART.MASK_SCREEN_HEIGHT_PX: { value: 1080, unit: px, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
+  HERO_ART.OUTLINE_OVERLAP_MAX: { value: 0.8, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
+  HERO_ART.FACING_DIFF_MIN:    { value: 0.15, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
+  HERO_ART.ARMOUR_PX_MIN:      { value: 368,  unit: px,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
   DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09] }
   DIR.NOPICK_DEATH_BAND_S:     { value: [480, 720], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-01] }
   DIR.BOT_RUNS:                { value: 10,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-01] }
