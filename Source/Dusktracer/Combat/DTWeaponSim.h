@@ -135,6 +135,11 @@ public:
 	/** A starter row this run has not opened (meta.md R-MET-25): Mod.Refit does not draw it. */
 	void ShutStarter(FName Id) { ShutStarters.Add(Id); }
 	bool IsStarterShut(FName Id) const { return ShutStarters.Contains(Id); }
+	/**
+	 * A modifier that applies the Patron's status, for a player whose Patron has none (keepers.md R-KEE-34): it would do nothing,
+	 * so it is neither offered nor drawn (modifiers.md Intent). False with no Patron yet.
+	 */
+	static bool IsModDeadForPatron(int32 Mod, const FDTPlayerRunState& Player);
 
 	// --- S2 Keeper state the weapons read (keepers.md §9) ----------------------------------------------------------
 	/** Marks an enemy for OwnerId for C.STATUS.MARK_S plus the owner's mark_s, from StepIndex on (R-KEE-24). */

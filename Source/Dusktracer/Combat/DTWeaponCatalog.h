@@ -95,6 +95,10 @@ namespace DTWeapons
 
 	/** The flag a modifier grants (EFlag::None for none). */
 	DUSKTRACER_API DTCat::EFlag ModifierFlag(int32 Mod);
+	/** The modifier applies its owner's Patron's status (the word Patron): under a Patron with no status it does nothing. */
+	DUSKTRACER_API bool ModifierUsesPatronStatus(int32 Mod);
+	/** The modifier applies its owner's Patron's status (the word Patron): under a Patron with no status it does nothing. */
+	DUSKTRACER_API bool ModifierUsesPatronStatus(int32 Mod);
 	/** A modifier row's parameter by its modifiers.csv name (0 when absent). */
 	DUSKTRACER_API float ModifierParam(int32 Mod, const TCHAR* Name);
 	/**

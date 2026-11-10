@@ -2769,6 +2769,14 @@ void FDTWeaponSim::SpillOverkill(const FDTSimContext& Context)
 	Overkills.Reset();
 }
 
+bool FDTWeaponSim::IsModDeadForPatron(int32 Mod, const FDTPlayerRunState& Player)
+{
+	// The Patron as ApplyStatus reads it.
+	const EDTPath Patron = Player.Keepers.Primary != EDTPath::None ? Player.Keepers.Primary : Player.Offer.PatronPath;
+	EDTStatus Status;
+	return Patron != EDTPath::None && DTWeapons::ModifierUsesPatronStatus(Mod) && !DTWeaponSimLocal::PatronStatus(Patron, Status);
+}
+
 bool FDTWeaponSim::TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Player, FWeaponRuntime& Source)
 {
 	FRandomStream& Rng = Context.Run->GetRng().Get(EDTRngStream::Combat);
@@ -2786,7 +2794,9 @@ bool FDTWeaponSim::TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Pla
 			const FName Id = DTWeapons::ModifierId(Mod);
 			const bool bInPool = (DTCat::Modifiers[Mod].bStarter && !IsStarterShut(Id)) || Unlocked.Contains(Id);
 			const bool bFitted = Weapon.Sockets.ContainsByPredicate([Id](const FDTWeaponInstance::FSocket& S) { return S.ModId == Id; });
-			if (bInPool && !bFitted && DTModCompat::IsCompatible(Runtimes[Slot].Spec.EffectiveCaps, Mod))
+			// As the offer's list: no id the player banished (offers.md R-OFF-10), no modifier that does nothing under their Patron.
+			const bool bRefused = Player.Offer.Banished.Contains(Id) || IsModDeadForPatron(Mod, Player);
+			if (bInPool && !bFitted && !bRefused && DTModCompat::IsCompatible(Runtimes[Slot].Spec.EffectiveCaps, Mod))
 			{
 				Pool.Add(Mod);
 			}

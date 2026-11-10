@@ -270,6 +270,22 @@ bool DTWeapons::ModifierFlagEntry(int32 Mod, uint16 SourceId, FDTFlagEntry& OutE
 	return true;
 }
 
+bool DTWeapons::ModifierUsesPatronStatus(int32 Mod)
+{
+	if (Mod < 0 || Mod >= NumModifiers())
+	{
+		return false;
+	}
+	for (const DTWeaponCatalogLocal::FModWords& Words : DTWeaponCatalogLocal::ModWords)
+	{
+		if (Words.Status && FCString::Strcmp(Words.Mod, DTCat::Modifiers[Mod].Id) == 0 && FCString::Strcmp(Words.Status, TEXT("Patron")) == 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 uint16 DTWeapons::WeaponSource(int32 Weapon)
 {
 	return (Weapon >= 0 && Weapon < NumWeapons()) ? FDTTelemetrySources::FindOrAdd(DTCat::Weapons[Weapon].Id) : FDTTelemetrySources::Unknown;
