@@ -1013,6 +1013,21 @@ DT_S2_TEST(FDTKeeperS2VectorKey, "Card.Quicksilver.Vector.Key") // T-KEE-34
 		TestEqual(TEXT("once"), H.Weapons.TakeDashRefund(0), 0.0f);
 	}
 	{
+		// Under a second Keeper's conversion the dash volley folds into a cleave and stays Quicksilver's, kill refund included (R-KEE-13).
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Quicksilver, TEXT("Quicksilver.Vector"), { TEXT("Key") });
+		H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Key")));
+		H.StepOnce();
+		H.P().Weapons[0].Cooldown = 10.0f;
+		const uint32 Serial = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f));
+		Dash(H, FVector2f(50.0f, 0.0f));
+		H.StepMany(Second);
+		TestEqual(TEXT("the rounds fold into Hammer's cleave"), H.Weapons.GetLastSpec(0, 0).Conversion, EFlag::ConvertMelee);
+		TestTrue(TEXT("a converted dash volley is Keeper.Quicksilver"), HitsOn(H, Serial, Quick) > 0);
+		TestEqual(TEXT("Forge takes none of it"), HitsOn(H, Serial, Src(EDTPath::Forge)), 0);
+		TestEqual(TEXT("its kill refunds cooldown as any dash volley's"), H.Weapons.TakeDashRefund(0), 0.15f);
+	}
+	{
 		// Melee sweeps at the landing.
 		FDTKeeperHarness H;
 		H.Patron(EDTPath::Storm, 0, false);
