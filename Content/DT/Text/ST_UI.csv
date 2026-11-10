@@ -62,6 +62,7 @@ Hud.Payday,Payday ready,清账就绪,HUD Keeper meter (keepers.md R-KEE-38): Deb
 Hud.Momentum,Momentum {Value} / {Max},动量 {Value} / {Max},"HUD Keeper meter (keepers.md R-KEE-38), over its bar. {Value} stacks, {Max} the cap.",
 Hud.MomentumOpen,Momentum {Value},动量 {Value},"HUD Keeper meter (keepers.md R-KEE-38) under Slipstream, which has no cap, so no bar. {Value} stacks.",
 Hud.Shades,Shades {Value} / {Max},亡影 {Value} / {Max},HUD Keeper meter (keepers.md R-KEE-38): hunters and Collection Shades alive; the player word for both is Shade. {Value} and {Max} are whole numbers.,
+Hud.Tool,{Tool} ×{Count},{Tool} ×{Count},"HUD tool counter (hud.md R-HUD-07), one line per tool at the bottom left. {Tool} is Offer.Tool.Reroll, .Banish or .Lock; {Count} the uses left this run, a whole number. No word of its own, the same in every culture. [invented] the line's form; the × is Offer.Tool.Button's.",
 Hud.Dilation,Time Dilation {Value} s,急递 {Value} 秒,HUD Keeper meter (keepers.md R-KEE-38) during Quicksilver Intercession: seconds left. The name is Quicksilver.Ult.Name.,
 Pause.Title,Paused,暂停中,Pause screen title. [invented] settings.md Text.,
 Pause.Resume,Resume,继续,Pause screen button.,

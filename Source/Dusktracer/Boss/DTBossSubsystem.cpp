@@ -11,6 +11,8 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/World.h"
+#include "Game/DTHudLayout.h"
+#include "Game/DTUIStyle.h"
 #include "Meta/DTMetaSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Telemetry/DTTelemetryCore.h"
@@ -19,12 +21,8 @@
 
 namespace DTBossSubsystemLocal
 {
-	// Bar layout (pixels at the drawn canvas size): bottom centre, clear of the hero block (bottom left) and the XP bar (top).
-	constexpr float BarWidthRatio = 0.5f;
-	constexpr float BarHeightPx = 14.0f;
-	constexpr float BottomPx = 48.0f;
-	constexpr float NameGapPx = 6.0f;
-	constexpr float NameScale = 1.25f;
+	// The name's step of the type table; where the row sits is the HUD layout's (hud.md R-HUD-04, R-HUD-08).
+	constexpr float NameScale = DTUI::TypeStep(EDTType::Body);
 }
 
 bool UDTBossSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -245,22 +243,21 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas, float TextScale) const
 	float NameH = 0.0f;
 	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale * TextScale, NameScale * TextScale);
 
-	const float BarW = Canvas->ClipX * BarWidthRatio;
-	const float BarX = (Canvas->ClipX - BarW) * 0.5f;
-	const float BarY = Canvas->ClipY - BottomPx - BarHeightPx;
+	// One row at the top centre, the name and then its bar, where the HUD's layout puts it (hud.md R-HUD-04): the floor
+	// under the hero stays clear (R-HUD-02). TextScale is the canvas scale times the player's text size.
+	FBox2f NameBox(ForceInit);
+	FBox2f BarBox(ForceInit);
+	DTHud::BossRow(FVector2f(Canvas->ClipX, Canvas->ClipY), FVector2f(NameW, NameH), NameBox, BarBox);
 
-	FCanvasTextItem Label(FVector2D((Canvas->ClipX - NameW) * 0.5f, BarY - NameGapPx - NameH), Name, Font, DTPal::Linear(DTPal::UI_Text));
+	FCanvasTextItem Label(FVector2D(NameBox.Min), Name, Font, DTHudStyle::Duty(EDTHudDuty::Text));
 	Label.Scale = FVector2D(NameScale * TextScale, NameScale * TextScale);
 	Label.EnableShadow(FLinearColor::Black);
 	Canvas->DrawItem(Label);
 
-	FCanvasTileItem Back(FVector2D(BarX, BarY), FVector2D(BarW, BarHeightPx), DTPal::Linear(DTPal::UI_Panel));
-	Back.BlendMode = SE_BLEND_Translucent;
-	Canvas->DrawItem(Back);
-	// The bar reads the effective HP fraction (R-BOS-09), in the enemy's warm magenta (04_Presentation §3).
-	FCanvasTileItem Fill(FVector2D(BarX, BarY), FVector2D(BarW * FMath::Clamp(Core.GetHpFrac(), 0.0f, 1.0f), BarHeightPx), DTPal::Linear(DTPal::Enemy_Optic));
-	Fill.BlendMode = SE_BLEND_Translucent;
-	Canvas->DrawItem(Fill);
+	// The bar reads the effective HP fraction (R-BOS-09) in the UI's own boss token: no enemy or telegraph token is drawn
+	// in UI (04_Presentation R-PRE-08, hud.md R-HUD-10).
+	const FDTUIPainter Painter{ Canvas, Font, DTUI::CanvasScale(Canvas->ClipY), 1.0f };
+	Painter.Bar(BarBox, Core.GetHpFrac(), DTHudStyle::Duty(EDTHudDuty::Boss));
 }
 
 // ---- sink -------------------------------------------------------------------------------------------------------------

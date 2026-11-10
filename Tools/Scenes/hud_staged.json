@@ -1,0 +1,9 @@
+{
+	"note": "hud.md T-HUD-07: every in-run readout with a staged value on a quiet floor: XP part way with a level gained, a Keeper meter (Debt), a dormant socket line, the clock, HP, dash, the Intercession ring and the three tool counters. The golden package F re-baselines when the HUD moves.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en", "zh-Hans"],
+	"weather": "Dusk",
+	"seconds": 6,
+	"cmds": ["DT.God 1", "DT.Mod Weapon.PulseRifle Mod.ScatterShell", "DT.Bless Blessing.Forge.Hammer.Key", "DT.Bless Blessing.Shade.Economy.Key", "DT.Xp 7"]
+}

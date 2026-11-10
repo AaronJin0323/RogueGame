@@ -2517,6 +2517,22 @@ class PresentationReadsOnly(unittest.TestCase):
 		self.assertEqual(found, RENDERER_OWNERS)
 
 
+class HudMasks(unittest.TestCase):
+	"""hud.md T-HUD-03: the HUD's layout test holds its readouts under the masks the contrast tool does not read, so the two lists must be one."""
+
+	def test_the_layout_and_the_contrast_tool_name_the_same_masks(self):
+		with open(os.path.join(SOURCE, "Game", "DTHudLayout.cpp"), encoding="utf-8", errors="replace") as f:
+			layout = f.read()
+		block = re.search(r"const FVector4f Masks\[\] = \{(.*?)\};", layout, re.S)
+		self.assertIsNotNone(block, "Game/DTHudLayout.cpp no longer lists its masks as FVector4f Masks[]")
+		found = tuple(tuple(float(v) for v in re.findall(r"([0-9.]+)f", mask)) for mask in re.findall(r"FVector4f\(([^)]*)\)", block.group(1)))
+		self.assertEqual(found, tuple(tuple(float(v) for v in mask) for mask in contrast_check.HUD_MASKS))
+
+	def test_a_mask_is_a_part_of_the_frame(self):
+		for x0, y0, x1, y1 in contrast_check.HUD_MASKS:
+			self.assertTrue(0.0 <= x0 < x1 <= 1.0 and 0.0 <= y0 < y1 <= 1.0)
+
+
 class PerfSceneS4(unittest.TestCase):
 	"""S4_wave1.md P0: the perf scene the wave reads against proves what it drew from the capture window (11_Quality §5)."""
 

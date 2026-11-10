@@ -56,6 +56,11 @@ presentation:
   PRE.CONTRAST_WATCH_MIN:      { value: 3.1,  unit: ratio, tag: GATED(S4),  dependents: [Tools/contrast_check.py, Validation/S4_wave1.md, Validation/S4_p0.md] }
   PRE.LIT_GROUND_Y_WINDOW:     { value: [0.106, 0.16], unit: Y, tag: GATED(S4), dependents: [Tools/contrast_check.py, Validation/S4_artbook_gaps.md, Validation/S4_p0.md] }
   PRE.EXPOSURE_DRIFT_MAX:      { value: 0.05, unit: ratio, tag: GATED(S4),  dependents: [Tools/palette_lint.py, 04_Presentation.md, T-PRE-07] }
+  # S4 wave 1 package F, the HUD pass (D-043, 02_Systems/hud.md): presentation only, no reader in the sim.
+  HUD.LOW_HP_FRAC:             { value: 0.3,  unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-05, T-HUD-05] }
+  HUD.LOW_HP_PULSE_S:          { value: 0.8,  unit: s,     tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-05, T-HUD-05] }
+  HUD.LOW_HP_PULSE_MIN:        { value: 0.45, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-05, T-HUD-05] }
+  HUD.TEXT_MIN_PX:             { value: 12,   unit: px,    tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-08, T-HUD-08] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }
@@ -207,7 +212,7 @@ telemetry:
   TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
   TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
 caps:
-  GATE.TEST_FLOOR:             { value: 524,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 534,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }

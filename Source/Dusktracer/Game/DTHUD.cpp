@@ -16,12 +16,16 @@
 #include "Engine/World.h"
 #include "Boss/DTBossSubsystem.h"
 #include "Combat/DTWeaponCompose.h"
+#include "Core/DTRunState.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
 #include "Enemies/DTElite.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Game/DTGameMode.h"
+#include "Game/DTHudLayout.h"
+#include "Game/DTUIStyle.h"
 #include "Hub/DTHubSubsystem.h"
+#include "Keepers/DTKeeperSpec.h"
 #include "Keepers/DTKeeperSubsystem.h"
 #include "Offers/DTOfferStyle.h"
 #include "Offers/DTOfferSubsystem.h"
@@ -32,24 +36,49 @@
 
 namespace DTHUDLocal
 {
-	const FLinearColor UIText = DTPal::Linear(DTPal::UI_Text);
-	constexpr float MarginPx = 24.0f;
-	constexpr float LineGapPx = 6.0f;
-	constexpr float TitleScale = 1.5f;
-	const FLinearColor BarBack = DTPal::Linear(DTPal::UI_Panel);
-	const FLinearColor BarFill = DTPal::Linear(DTPal::Player_TrailNeutral);
-	const FLinearColor BarReady = DTPal::Linear(DTPal::Player_Core);
-	// Hero block layout (pixels at the drawn canvas size).
-	constexpr float BarWidthPx = 240.0f;
-	constexpr float BarHeightPx = 10.0f;
-	constexpr float PipSizePx = 18.0f;
-	constexpr float PipGapPx = 6.0f;
-	constexpr float BlockGapPx = 16.0f;
-	constexpr float PanelPadPx = 6.0f;
-	constexpr float RunOverScale = 2.0f;
+	// Marks drawn inside the layout's rects, in reference pixels (hud.md Numbers); presentation, not tuning.
+	constexpr float RingStroke = 6.0f;
+	constexpr float ReadyStroke = 2.0f;
+	constexpr float ReadyInset = 10.0f;
+	constexpr float LowHpFrame = 2.0f;
+	constexpr float LowHpFrameGap = 3.0f;
 	// Exponential smoothing of the readout so it is legible; the measured numbers come from Tools/Perf.ps1.
 	constexpr double Smoothing = 0.1;
 	constexpr float EliteLabelGapPx = 26.0f; // under the hull at gameplay camera (elites.md R-ELT-12)
+
+	const TCHAR* const ToolKeys[] = { TEXT("Offer.Tool.Reroll"), TEXT("Offer.Tool.Banish"), TEXT("Offer.Tool.Lock") };
+
+	/** What the marks of one player's readouts show, beside the text the layout holds. */
+	struct FPlayerMarks
+	{
+		float Hp = 0.0f;
+		float MaxHp = 0.0f;
+		int32 DashCharges = 0;
+		float DashRefill01 = 0.0f;
+		float Intercession01 = 0.0f;
+		FColor RingToken = DTPal::Player_TrailNeutral;
+		TArray<FDTHudMeter> Meters;
+	};
+}
+
+void DTHudText::Tools(const FDTPlayerOfferState& Offer, TArray<FText>& Out)
+{
+	Out.Reset();
+	const int32 Left[] = { Offer.RerollsLeft, Offer.BanishLeft, Offer.LockLeft };
+	const FText Format = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Tool"));
+	for (int32 Tool = 0; Tool < UE_ARRAY_COUNT(DTHUDLocal::ToolKeys); ++Tool)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Tool"), FText::FromStringTable(TEXT("ST_UI"), DTHUDLocal::ToolKeys[Tool]));
+		Args.Add(TEXT("Count"), FText::AsNumber(FMath::Max(0, Left[Tool])));
+		Out.Add(FText::Format(Format, Args));
+	}
+}
+
+FText DTHudText::Clock(int64 StepIndex)
+{
+	const int32 Seconds = static_cast<int32>(StepIndex / DTConst::SIM_FIXED_HZ);
+	return FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d"), Seconds / 60, Seconds % 60));
 }
 
 /** Smoothed frame and game-thread time from the engine's performance tracking (same source as stat unit). */
@@ -91,159 +120,262 @@ void ADTHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ADTHUD::DrawHeroes()
+void ADTHUD::DrawRun()
 {
-	const UDTHeroSubsystem* Hero = GetWorld() ? GetWorld()->GetSubsystem<UDTHeroSubsystem>() : nullptr;
-	if (!Hero || !Canvas || !GEngine)
+	UWorld* const World = GetWorld();
+	if (!World || !Canvas || !GEngine)
 	{
 		return;
 	}
 	using namespace DTHUDLocal;
 	UFont* const Font = GEngine->GetLargeFont();
-	auto TextHeight = [this, Font](const FText& Line, float Scale)
-	{
-		float Width = 0.0f;
-		float Height = 0.0f;
-		Canvas->TextSize(Font, Line.ToString(), Width, Height, Scale, Scale);
-		return Height;
-	};
-	auto Text = [this, Font](const FText& Line, float X, float Y, float Scale)
-	{
-		FCanvasTextItem Item(FVector2D(X, Y), Line, Font, UIText);
-		Item.Scale = FVector2D(Scale, Scale);
-		Item.EnableShadow(FLinearColor::Black);
-		Canvas->DrawItem(Item);
-	};
-	auto Box = [this](float X, float Y, float W, float H, const FLinearColor& Color)
-	{
-		FCanvasTileItem Tile(FVector2D(X, Y), FVector2D(W, H), Color);
-		Tile.BlendMode = SE_BLEND_Translucent;
-		Canvas->DrawItem(Tile);
-	};
-	auto Bar = [&](float X, float Y, float W, float Fill01, const FLinearColor& Color)
-	{
-		Box(X, Y, W, BarHeightPx, BarBack);
-		Box(X, Y, W * FMath::Clamp(Fill01, 0.0f, 1.0f), BarHeightPx, Color);
-	};
+	const FDTUIPainter Painter{ Canvas, Font, DTUI::CanvasScale(Canvas->ClipY), DTSettings::TextScale() };
+	const UDTHeroSubsystem* const Hero = World->GetSubsystem<UDTHeroSubsystem>();
+	UDTSimSubsystem* const Sim = World->GetSubsystem<UDTSimSubsystem>();
+	const UDTWeaponSubsystem* const Weapons = World->GetSubsystem<UDTWeaponSubsystem>();
+	const UDTKeeperSubsystem* const Keepers = World->GetSubsystem<UDTKeeperSubsystem>();
+	const UDTBossSubsystem* const Boss = World->GetSubsystem<UDTBossSubsystem>();
+	const ADTGameMode* const Mode = World->GetAuthGameMode<ADTGameMode>();
 
-	const FText HpFormat = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Hp"));
-	const FText DashLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));
-	const FText MeterLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Intercession"));
-	const FText MeterReady = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.IntercessionReady"));
-	const FText AimLabel = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));
-	const float TextScale = DTSettings::TextScale();
-	const float LineH = TextHeight(DashLabel, TextScale);
-	const float BlockH = 3.0f * (LineH + LineGapPx) + 2.0f * (BarHeightPx + LineGapPx) + PipSizePx + LineGapPx;
-	const float MeterH = LineH + LineGapPx + BarHeightPx + LineGapPx;
-
-	// Keeper meters of each player (keepers.md R-KEE-38): the block grows upward by what the player holds.
-	const UDTWeaponSubsystem* Weapons = GetWorld()->GetSubsystem<UDTWeaponSubsystem>();
-	const UDTKeeperSubsystem* Keepers = GetWorld()->GetSubsystem<UDTKeeperSubsystem>();
-	auto ReadMeters = [&](int32 OwnerId)
+	// ---- what the readouts say now: presentation reads sim state and never writes it (04_Presentation R-PRE-11) ----------
+	FDTHudContent Content;
+	TArray<FPlayerMarks> Marks;
+	TArray<FDTXPBarRow> XpRows;
+	TArray<FDTXPBarText> XpText;
+	FDTXPBar::ReadRows(World, XpRows);
+	const int32 NumHeroes = Hero ? Hero->GetNumHeroes() : 0;
+	const int32 NumPlayers = FMath::Max(NumHeroes, XpRows.Num());
+	Content.Players.SetNum(NumPlayers);
+	Marks.SetNum(NumPlayers);
+	XpText.SetNum(XpRows.Num());
+	for (int32 OwnerId = 0; OwnerId < NumHeroes; ++OwnerId)
 	{
-		MeterScratch.Reset();
-		if (Weapons && Keepers)
-		{
-			const FDTKeeperSim& Sim = Keepers->GetSim();
-			DTKeeperMeters::Build(Weapons->GetSim().GetKeeperMeters(OwnerId), Sim.GetDilationLeft(OwnerId), Sim.GetDilationTotal(OwnerId), MeterScratch);
-		}
-	};
-	float MetersH = 0.0f;
-	for (int32 OwnerId = 0; OwnerId < Hero->GetNumHeroes(); ++OwnerId)
-	{
-		ReadMeters(OwnerId);
-		MetersH += MeterH * MeterScratch.Num();
-	}
-
-	float Y = Canvas->ClipY - MarginPx - BlockH * Hero->GetNumHeroes() - BlockGapPx * (Hero->GetNumHeroes() - 1) - MetersH;
-	// Dormant sockets stack up from the top of the hero blocks, each on the panel tone (modifiers.md R-MOD-08). Only a dormant
-	// modifier draws here, so a build without one shows the HUD it always did.
-	if (UDTSimSubsystem* Sim = GetWorld()->GetSubsystem<UDTSimSubsystem>())
-	{
-		float DormantY = Y - BlockGapPx;
-		for (int32 OwnerId = 0; OwnerId < Sim->GetRun().GetNumPlayers(); ++OwnerId)
-		{
-			for (const FDTDormantSocket& Socket : DTWeaponCompose::DormantSockets(Sim->GetRun().GetPlayer(OwnerId)))
-			{
-				const FText Line = DTOfferText::Dormant(TEXT("Dormant.Hud"), Socket);
-				float Width = 0.0f;
-				float Height = 0.0f;
-				Canvas->TextSize(Font, Line.ToString(), Width, Height, TextScale, TextScale);
-				DormantY -= LineH + PanelPadPx;
-				Box(MarginPx - PanelPadPx, DormantY, Width + 2.0f * PanelPadPx, LineH + PanelPadPx, BarBack);
-				Text(Line, MarginPx, DormantY + 0.5f * PanelPadPx, TextScale);
-				DormantY -= LineGapPx;
-			}
-		}
-	}
-	for (int32 OwnerId = 0; OwnerId < Hero->GetNumHeroes(); ++OwnerId)
-	{
-		const FDTHeroState& S = *Hero->GetState(OwnerId);
-		const float X = MarginPx;
+		const FDTHeroState& State = *Hero->GetState(OwnerId);
+		FDTHudPlayerContent& P = Content.Players[OwnerId];
+		FPlayerMarks& M = Marks[OwnerId];
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("Hp"), FText::AsNumber(FMath::CeilToInt(FMath::Max(0.0f, S.Hp))));
-		Args.Add(TEXT("MaxHp"), FText::AsNumber(FMath::CeilToInt(S.MaxHp)));
-		Text(FText::Format(HpFormat, Args), X, Y, TextScale);
-		Y += LineH + LineGapPx;
-		Bar(X, Y, BarWidthPx, S.MaxHp > 0.0f ? S.Hp / S.MaxHp : 0.0f, BarFill);
-		Y += BarHeightPx + LineGapPx;
-
-		Text(DashLabel, X, Y, TextScale);
-		Y += LineH + LineGapPx;
-		const int32 MaxCharges = FDTHeroSim::ComputeMaxCharges(S.Stats);
-		const float Cooldown = DTConst::DASH_COOLDOWN_S * S.Stats.DashCooldownMul;
-		for (int32 Pip = 0; Pip < MaxCharges; ++Pip)
-		{
-			const float PipX = X + Pip * (PipSizePx + PipGapPx);
-			Box(PipX, Y, PipSizePx, PipSizePx, BarBack);
-			if (Pip < S.DashCharges)
-			{
-				Box(PipX, Y, PipSizePx, PipSizePx, BarReady);
-			}
-			else if (Pip == S.DashCharges && Cooldown > 0.0f)
-			{
-				// The refilling pip fills from the bottom as its charge returns.
-				const float Refill01 = FMath::Clamp(1.0f - S.DashRefillLeft / Cooldown, 0.0f, 1.0f);
-				Box(PipX, Y + PipSizePx * (1.0f - Refill01), PipSizePx, PipSizePx * Refill01, BarFill);
-			}
-		}
-		Y += PipSizePx + LineGapPx;
-
-		const bool bReady = S.Intercession01 >= 1.0f;
-		Text(bReady ? MeterReady : MeterLabel, X, Y, TextScale);
-		Y += LineH + LineGapPx;
-		Bar(X, Y, BarWidthPx, S.Intercession01, bReady ? BarReady : BarFill);
-		Y += BarHeightPx + LineGapPx;
-		ReadMeters(OwnerId);
-		for (const FDTHudMeter& Meter : MeterScratch)
-		{
-			FFormatNamedArguments MeterArgs;
-			MeterArgs.Add(TEXT("Value"), FText::AsNumber(FMath::CeilToInt(Meter.Value)));
-			MeterArgs.Add(TEXT("Max"), FText::AsNumber(FMath::CeilToInt(Meter.Max)));
-			Text(FText::Format(FText::FromStringTable(TEXT("ST_UI"), Meter.Key.ToString()), MeterArgs), X, Y, TextScale);
-			Y += LineH + LineGapPx;
-			if (Meter.Fill01 >= 0.0f)
-			{
-				Bar(X, Y, BarWidthPx, Meter.Fill01, DTPal::Linear(Meter.Color));
-			}
-			Y += BarHeightPx + LineGapPx;
-		}
+		Args.Add(TEXT("Hp"), FText::AsNumber(FMath::CeilToInt(FMath::Max(0.0f, State.Hp))));
+		Args.Add(TEXT("MaxHp"), FText::AsNumber(FMath::CeilToInt(State.MaxHp)));
+		P.Hp = FText::Format(FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Hp")), Args);
+		M.Hp = State.Hp;
+		M.MaxHp = State.MaxHp;
+		P.Dash = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));
+		P.DashPips = FDTHeroSim::ComputeMaxCharges(State.Stats);
+		M.DashCharges = State.DashCharges;
+		const float Cooldown = DTConst::DASH_COOLDOWN_S * State.Stats.DashCooldownMul;
+		M.DashRefill01 = Cooldown > 0.0f ? FMath::Clamp(1.0f - State.DashRefillLeft / Cooldown, 0.0f, 1.0f) : 0.0f;
+		M.Intercession01 = FMath::Clamp(State.Intercession01, 0.0f, 1.0f);
+		P.Intercession = FText::FromStringTable(TEXT("ST_UI"), M.Intercession01 >= 1.0f ? TEXT("Hud.IntercessionReady") : TEXT("Hud.Intercession"));
 		if (Hero->GetAimMode(OwnerId) == EDTAimMode::Manual)
 		{
-			Text(AimLabel, X, Y, TextScale);
+			P.AimMode = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));
 		}
-		Y += LineH + LineGapPx + BlockGapPx;
+		// Keeper meters of the player (keepers.md R-KEE-38).
+		if (Weapons && Keepers)
+		{
+			const FDTKeeperSim& KeeperSim = Keepers->GetSim();
+			DTKeeperMeters::Build(Weapons->GetSim().GetKeeperMeters(OwnerId), KeeperSim.GetDilationLeft(OwnerId), KeeperSim.GetDilationTotal(OwnerId), MeterScratch);
+			M.Meters = MeterScratch;
+			for (const FDTHudMeter& Meter : M.Meters)
+			{
+				FFormatNamedArguments MeterArgs;
+				MeterArgs.Add(TEXT("Value"), FText::AsNumber(FMath::CeilToInt(Meter.Value)));
+				MeterArgs.Add(TEXT("Max"), FText::AsNumber(FMath::CeilToInt(Meter.Max)));
+				P.Meters.Add({ FText::Format(FText::FromStringTable(TEXT("ST_UI"), Meter.Key.ToString()), MeterArgs), Meter.Fill01 >= 0.0f });
+			}
+		}
+		if (Sim && OwnerId < Sim->GetRun().GetNumPlayers())
+		{
+			const FDTPlayerRunState& Run = Sim->GetRun().GetPlayer(OwnerId);
+			DTHudText::Tools(Run.Offer, P.Tools);
+			// The ring takes the Patron's colour, and the neutral trail tone before one is chosen (R-HUD-06).
+			M.RingToken = DTKeepers::TrailToken(Run.Offer.PatronPath);
+			// Only a dormant modifier draws here, so a build without one shows the HUD it always did (modifiers.md R-MOD-08).
+			for (const FDTDormantSocket& Socket : DTWeaponCompose::DormantSockets(Run))
+			{
+				P.Dormant.Add(DTOfferText::Dormant(TEXT("Dormant.Hud"), Socket));
+			}
+		}
+	}
+	for (int32 Row = 0; Row < XpRows.Num(); ++Row)
+	{
+		XpText[Row] = FDTXPBar::Text(XpRows[Row]);
+		if (Content.Players.IsValidIndex(XpRows[Row].OwnerId))
+		{
+			FDTHudPlayerContent& P = Content.Players[XpRows[Row].OwnerId];
+			P.Level = XpText[Row].Level;
+			P.Xp = XpText[Row].Xp;
+			P.Pending = XpText[Row].Pending;
+			P.LevelUp = XpText[Row].LevelUp;
+		}
+	}
+	// Developer lines, not player text: the Shipping build validators play draws neither (package.md R-PKG-02).
+#if !UE_BUILD_SHIPPING
+	const FText RoundTrip = FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip"));
+	Content.DevLines.Add(RoundTrip);
+	if (!bLoggedRoundTrip)
+	{
+		bLoggedRoundTrip = true;
+		UE_LOG(LogDT, Log, TEXT("LocRoundTrip culture=%s text=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(), *RoundTrip.ToString());
+	}
+	if (FrameTimes.IsValid() && FrameTimes->bHasSample)
+	{
+		const double Fps = FrameTimes->FrameMs > 0.0 ? 1000.0 / FrameTimes->FrameMs : 0.0;
+		Content.DevLines.Add(FText::AsCultureInvariant(FString::Printf(TEXT("%.0f fps  %.2f ms frame  %.2f ms game"),
+			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)));
+	}
+#endif // !UE_BUILD_SHIPPING
+	// Run timer: sim time since run start (validators note moments against it; S1_kit.md).
+	if (Sim)
+	{
+		Content.Clock = DTHudText::Clock(Sim->GetStepIndex());
+	}
+	// The boss row's name is read by the boss subsystem alone (boss.md Text), which places it with DTHud::BossRow. Here the
+	// layout needs only the row's height, to set the banner under it: a line of the same step in the same culture stands in.
+	const bool bBossBar = Boss && Boss->GetCore().HasHull();
+	if (bBossBar)
+	{
+		Content.BossName = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));
+	}
+	// Director banners (director.md R-DIR-17).
+	if (const UDTDirector* Director = World->GetSubsystem<UDTDirector>())
+	{
+		const EDTDirBanner Banner = Director->GetCore().GetBanner();
+		if (Banner != EDTDirBanner::None)
+		{
+			Content.Banner = FText::FromStringTable(TEXT("ST_UI"), Banner == EDTDirBanner::Threat ? TEXT("Hud.Threat") : TEXT("Hud.BossIncoming"));
+		}
+	}
+	// A reaction's first fire, under the banner (reactions.md R-REA-12).
+	if (Weapons && Sim)
+	{
+		const int32 Row = Weapons->GetSim().GetToast(0, Sim->GetStepIndex());
+		if (Row != INDEX_NONE)
+		{
+			const FString Pair(DTCat::Reactions[Row].Pair);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Name"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Name")));
+			Args.Add(TEXT("Toast"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Toast")));
+			Content.Toast = FText::Format(FText::FromStringTable(TEXT("ST_Reactions"), TEXT("Toast.Format")), Args);
+		}
 	}
 
-	// Never over a win: a hero that fell on the step the Warden fell is in a won run (boss.md R-BOS-13).
-	const ADTGameMode* const Mode = GetWorld()->GetAuthGameMode<ADTGameMode>();
-	if (Hero->IsRunOver() && !(Mode && Mode->IsVictory()))
+	// ---- where they sit (hud.md R-HUD-01) ------------------------------------------------------------------------------------
+	const FVector2f View(Canvas->ClipX, Canvas->ClipY);
+	const FDTHudLayout Layout = DTHud::Layout(View, Painter.T, Content, [this, Font](const FString& Line, float Scale)
 	{
-		const FText RunOver = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.RunOver"));
 		float Width = 0.0f;
 		float Height = 0.0f;
-		Canvas->TextSize(Font, RunOver.ToString(), Width, Height, RunOverScale * TextScale, RunOverScale * TextScale);
-		Text(RunOver, (Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f, RunOverScale * TextScale);
+		Canvas->TextSize(Font, Line, Width, Height, Scale, Scale);
+		return FVector2f(Width, Height);
+	});
+
+	// ---- draw ----------------------------------------------------------------------------------------------------------------
+	const FLinearColor Ink = DTHudStyle::Duty(EDTHudDuty::Text);
+	const auto Line = [&](EDTHudElem Kind, int32 Player, int32 Index, const FText& Words, EDTType Type)
+	{
+		if (const FDTHudRect* Rect = Words.IsEmpty() ? nullptr : Layout.Find(Kind, Player, Index))
+		{
+			Painter.Text(Words, Rect->Box.Min, Type, Ink, Rect->TextMul);
+		}
+	};
+	const double SimSeconds = Sim ? static_cast<double>(Sim->GetStepIndex()) / DTConst::SIM_FIXED_HZ : 0.0;
+	for (int32 Player = 0; Player < NumPlayers; ++Player)
+	{
+		const FDTHudPlayerContent& P = Content.Players[Player];
+		const FPlayerMarks& M = Marks[Player];
+		Line(EDTHudElem::HpText, Player, 0, P.Hp, EDTType::Body);
+		if (const FDTHudRect* Bar = Layout.Find(EDTHudElem::HpBar, Player))
+		{
+			// R-HUD-05: bone, never red. Low HP pulses the fill and frames the bar, so the state does not rest on motion.
+			const FDTHudLowHp Low = DTHud::LowHp(M.Hp, M.MaxHp, SimSeconds, DTSettings::AllowFlash());
+			FLinearColor Fill = DTHudStyle::Duty(EDTHudDuty::Hp);
+			Fill.A *= Low.FillAlpha;
+			Painter.Bar(Bar->Box, M.MaxHp > 0.0f ? M.Hp / M.MaxHp : 0.0f, Fill);
+			if (Low.bLow)
+			{
+				Painter.Frame(Bar->Box.ExpandBy((LowHpFrameGap + LowHpFrame) * Painter.S), Ink, LowHpFrame);
+			}
+		}
+
+		if (const FDTHudRect* Ring = Layout.Find(EDTHudElem::Ring, Player))
+		{
+			// R-HUD-06: clockwise from the top; full, it gains an inner ring and its label says so.
+			Painter.Arc(Ring->Box, 0.0f, 1.0f, DTHudStyle::Duty(EDTHudDuty::Track), RingStroke);
+			Painter.Arc(Ring->Box, 0.0f, M.Intercession01, DTUI::Token(M.RingToken), RingStroke);
+			if (M.Intercession01 >= 1.0f)
+			{
+				Painter.Arc(Ring->Box, 0.0f, 1.0f, DTHudStyle::Duty(EDTHudDuty::RingReady), ReadyStroke, ReadyInset);
+			}
+		}
+		Line(EDTHudElem::IntercessionLabel, Player, 0, P.Intercession, EDTType::Body);
+		Line(EDTHudElem::DashLabel, Player, 0, P.Dash, EDTType::Body);
+		for (int32 Pip = 0; Pip < P.DashPips; ++Pip)
+		{
+			if (const FDTHudRect* Rect = Layout.Find(EDTHudElem::DashPip, Player, Pip))
+			{
+				// A ready pip is full; the one coming back fills from the left, dimmer.
+				const bool bReady = Pip < M.DashCharges;
+				Painter.Bar(Rect->Box, bReady ? 1.0f : (Pip == M.DashCharges ? M.DashRefill01 : 0.0f),
+					DTHudStyle::Duty(bReady ? EDTHudDuty::DashReady : EDTHudDuty::DashRefill));
+			}
+		}
+
+		if (const FDTHudRect* Panel = Layout.Find(EDTHudElem::ToolPanel, Player))
+		{
+			Painter.Panel(Panel->Box, EDTPanel::Default);
+		}
+		for (int32 Tool = 0; Tool < P.Tools.Num(); ++Tool)
+		{
+			Line(EDTHudElem::ToolLine, Player, Tool, P.Tools[Tool], EDTType::Body);
+		}
+
+		for (int32 Meter = 0; Meter < P.Meters.Num(); ++Meter)
+		{
+			Line(EDTHudElem::MeterLabel, Player, Meter, P.Meters[Meter].Label, EDTType::Body);
+			if (const FDTHudRect* Bar = Layout.Find(EDTHudElem::MeterBar, Player, Meter))
+			{
+				Painter.Bar(Bar->Box, M.Meters[Meter].Fill01, DTUI::Token(M.Meters[Meter].Color));
+			}
+		}
+		Line(EDTHudElem::AimMode, Player, 0, P.AimMode, EDTType::Body);
+		for (int32 Socket = 0; Socket < P.Dormant.Num(); ++Socket)
+		{
+			if (const FDTHudRect* Panel = Layout.Find(EDTHudElem::DormantPanel, Player, Socket))
+			{
+				Painter.Panel(Panel->Box, EDTPanel::Solid);
+			}
+			for (int32 Wrapped = 0; const FDTHudRect* Rect = Layout.Find(EDTHudElem::DormantLine, Player, Socket, Wrapped); ++Wrapped)
+			{
+				Painter.Text(FText::AsCultureInvariant(Rect->Wrapped), Rect->Box.Min, EDTType::Body, Ink);
+			}
+		}
+	}
+	for (int32 Index = 0; Index < Content.DevLines.Num(); ++Index)
+	{
+		Line(EDTHudElem::DevLine, 0, Index, Content.DevLines[Index], EDTType::Note);
+	}
+	// The XP rows; only the offer screen draws over them (progression.md R-PRG-11).
+	for (int32 Row = 0; Row < XpRows.Num(); ++Row)
+	{
+		FDTXPBar::Draw(Painter, XpRows[Row], XpText[Row], Layout);
+	}
+	Line(EDTHudElem::Clock, 0, 0, Content.Clock, EDTType::Display);
+	if (bBossBar)
+	{
+		Boss->DrawBossBar(Canvas, Painter.S * Painter.T);
+	}
+	Line(EDTHudElem::Banner, 0, 0, Content.Banner, EDTType::Title);
+	Line(EDTHudElem::Toast, 0, 0, Content.Toast, EDTType::Body);
+
+	// The run's last line, in the middle of the screen: the run is over and nothing is left to hide (R-HUD-02). Never
+	// Hud.RunOver over a win: a hero that fell on the step the Warden fell is in a won run (boss.md R-BOS-13).
+	const bool bVictory = Mode && Mode->IsVictory();
+	if (bVictory || (Hero && Hero->IsRunOver()))
+	{
+		const FText Last = FText::FromStringTable(TEXT("ST_UI"), bVictory ? TEXT("Hud.Victory") : TEXT("Hud.RunOver"));
+		const FVector2f Size = Painter.Measure(Last.ToString(), EDTType::Title);
+		Painter.Text(Last, 0.5f * (View - Size), EDTType::Title, Ink);
 	}
 }
 
@@ -273,7 +405,7 @@ void ADTHUD::DrawEliteLabels()
 		float Height = 0.0f;
 		const float TextScale = DTSettings::TextScale();
 		Canvas->TextSize(Font, Label.ToString(), Width, Height, TextScale, TextScale);
-		FCanvasTextItem Item(FVector2D(Screen.X - 0.5f * Width, Screen.Y + DTHUDLocal::EliteLabelGapPx), Label, Font, DTHUDLocal::UIText);
+		FCanvasTextItem Item(FVector2D(Screen.X - 0.5f * Width, Screen.Y + DTHUDLocal::EliteLabelGapPx), Label, Font, DTHudStyle::Duty(EDTHudDuty::Text));
 		Item.Scale = FVector2D(TextScale, TextScale);
 		Item.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(Item);
@@ -301,115 +433,8 @@ void ADTHUD::DrawHUD()
 		return;
 	}
 
-	UFont* const Font = GEngine->GetLargeFont();
-	const float TextScale = DTSettings::TextScale();
-	const float TitleScale = DTHUDLocal::TitleScale * TextScale;
-	float Y = DTHUDLocal::MarginPx;
-	auto DrawLine = [this, Font, &Y](const FText& Line, float Scale)
-	{
-		FCanvasTextItem Item(FVector2D(DTHUDLocal::MarginPx, Y), Line, Font, DTHUDLocal::UIText);
-		Item.Scale = FVector2D(Scale, Scale);
-		Item.EnableShadow(FLinearColor::Black);
-		Canvas->DrawItem(Item);
-		float Width = 0.0f;
-		float Height = 0.0f;
-		Canvas->TextSize(Font, Line.ToString(), Width, Height, Scale, Scale);
-		Y += Height + DTHUDLocal::LineGapPx;
-	};
-
-	DrawLine(FText::FromStringTable(TEXT("ST_UI"), TEXT("Product.Name")), TitleScale);
-	// Developer lines, not player text: the Shipping build validators play draws neither (package.md R-PKG-02).
-#if !UE_BUILD_SHIPPING
-	const FText RoundTrip = FText::FromStringTable(TEXT("ST_UI"), TEXT("Test.LocRoundTrip"));
-	DrawLine(RoundTrip, TextScale);
-	if (!bLoggedRoundTrip)
-	{
-		bLoggedRoundTrip = true;
-		UE_LOG(LogDT, Log, TEXT("LocRoundTrip culture=%s text=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(), *RoundTrip.ToString());
-	}
-
-	if (FrameTimes.IsValid() && FrameTimes->bHasSample)
-	{
-		const double Fps = FrameTimes->FrameMs > 0.0 ? 1000.0 / FrameTimes->FrameMs : 0.0;
-		DrawLine(FText::AsCultureInvariant(FString::Printf(TEXT("%.0f fps  %.2f ms frame  %.2f ms game"),
-			Fps, FrameTimes->FrameMs, FrameTimes->GameThreadMs)), TextScale);
-	}
-#endif // !UE_BUILD_SHIPPING
-
 	DrawEliteLabels();
-	DrawHeroes();
-	// Above the world HUD; only the offer screen draws over it (progression.md R-PRG-11).
-	FDTXPBar::Draw(Canvas, GetWorld(), Font, TextScale);
-	if (const UDTBossSubsystem* Boss = GetWorld() ? GetWorld()->GetSubsystem<UDTBossSubsystem>() : nullptr)
-	{
-		Boss->DrawBossBar(Canvas, TextScale);
-	}
-
-	// Run timer, top right: sim time since run start (validators note moments against it; S1_kit.md).
-	if (const UDTSimSubsystem* Sim = GetWorld() ? GetWorld()->GetSubsystem<UDTSimSubsystem>() : nullptr)
-	{
-		const int32 Seconds = static_cast<int32>(Sim->GetStepIndex() / DTConst::SIM_FIXED_HZ);
-		const FText Clock = FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d"), Seconds / 60, Seconds % 60));
-		float Width = 0.0f;
-		float Height = 0.0f;
-		Canvas->TextSize(Font, Clock.ToString(), Width, Height, TitleScale, TitleScale);
-		FCanvasTextItem Item(FVector2D(Canvas->ClipX - Width - DTHUDLocal::MarginPx, DTHUDLocal::MarginPx), Clock, Font, DTHUDLocal::UIText);
-		Item.Scale = FVector2D(TitleScale, TitleScale);
-		Item.EnableShadow(FLinearColor::Black);
-		Canvas->DrawItem(Item);
-	}
-
-	// Director banners, top centre (director.md R-DIR-17).
-	if (const UDTDirector* Director = GetWorld() ? GetWorld()->GetSubsystem<UDTDirector>() : nullptr)
-	{
-		const EDTDirBanner Banner = Director->GetCore().GetBanner();
-		if (Banner != EDTDirBanner::None)
-		{
-			const FText Line = FText::FromStringTable(TEXT("ST_UI"), Banner == EDTDirBanner::Threat ? TEXT("Hud.Threat") : TEXT("Hud.BossIncoming"));
-			float Width = 0.0f;
-			float Height = 0.0f;
-			Canvas->TextSize(Font, Line.ToString(), Width, Height, TitleScale, TitleScale);
-			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx), Line, Font, DTHUDLocal::UIText);
-			Item.Scale = FVector2D(TitleScale, TitleScale);
-			Item.EnableShadow(FLinearColor::Black);
-			Canvas->DrawItem(Item);
-		}
-	}
-
-	// A reaction's first fire, under the banner (reactions.md R-REA-12).
-	if (const UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr)
-	{
-		const UDTSimSubsystem* SimSys = GetWorld()->GetSubsystem<UDTSimSubsystem>();
-		const int32 Row = SimSys ? Weapons->GetSim().GetToast(0, SimSys->GetStepIndex()) : INDEX_NONE;
-		if (Row != INDEX_NONE)
-		{
-			const FString Pair(DTCat::Reactions[Row].Pair);
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Name"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Name")));
-			Args.Add(TEXT("Toast"), FText::FromStringTable(TEXT("ST_Reactions"), Pair + TEXT(".Toast")));
-			const FText Line = FText::Format(FText::FromStringTable(TEXT("ST_Reactions"), TEXT("Toast.Format")), Args);
-			float Width = 0.0f;
-			float Height = 0.0f;
-			Canvas->TextSize(Font, Line.ToString(), Width, Height, TextScale, TextScale);
-			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx + 2.0f * Height), Line, Font, DTHUDLocal::UIText);
-			Item.Scale = FVector2D(TextScale, TextScale);
-			Item.EnableShadow(FLinearColor::Black);
-			Canvas->DrawItem(Item);
-		}
-	}
-
-	// Victory banner once the boss falls (the death banner is drawn with the hero block).
-	if (const ADTGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ADTGameMode>() : nullptr; Mode && Mode->IsVictory())
-	{
-		const FText Victory = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Victory"));
-		float Width = 0.0f;
-		float Height = 0.0f;
-		Canvas->TextSize(Font, Victory.ToString(), Width, Height, TitleScale, TitleScale);
-		FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, (Canvas->ClipY - Height) * 0.5f), Victory, Font, DTHUDLocal::UIText);
-		Item.Scale = FVector2D(TitleScale, TitleScale);
-		Item.EnableShadow(FLinearColor::Black);
-		Canvas->DrawItem(Item);
-	}
+	DrawRun();
 
 	// The offer screen draws over everything while a hand is open (offers.md R-OFF-13).
 	if (UDTOfferSubsystem* Offers = GetWorld() ? GetWorld()->GetSubsystem<UDTOfferSubsystem>() : nullptr)

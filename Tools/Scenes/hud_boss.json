@@ -1,0 +1,9 @@
+{
+	"note": "hud.md T-HUD-07: the Warden fight with its bar drawn, so the boss bar's place and fill token are on a golden. One culture: the bar's only text is the name.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 14,
+	"cmds": ["DT.God 1", "DT.Boss"]
+}

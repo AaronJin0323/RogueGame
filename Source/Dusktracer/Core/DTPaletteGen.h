@@ -35,6 +35,7 @@ namespace DTPal
 	inline constexpr FColor Card_Plain = FColor(142, 138, 130); // #8E8A82
 	inline constexpr FColor UI_Panel = FColor(21, 23, 28); // #15171C
 	inline constexpr FColor UI_Text = FColor(232, 228, 220); // #E8E4DC
+	inline constexpr FColor UI_Boss = FColor(217, 179, 106); // #D9B36A
 	inline constexpr FColor Assist_Light = FColor(255, 255, 255); // #FFFFFF
 	inline constexpr FColor Assist_Dark = FColor(0, 0, 0); // #000000
 

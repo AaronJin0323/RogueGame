@@ -45,6 +45,10 @@
 | C.PRE.CONTRAST_WATCH_MIN | 3.1 | ratio | GATED(S4) | Tools/contrast_check.py (the margin watch of `Validation/S4_wave1.md` §5 item 4: telegraph and round on lit ground; a package stops under it, the gate does not) |
 | C.PRE.LIT_GROUND_Y_WINDOW | [0.106, 0.16] | Y | GATED(S4) | Tools/contrast_check.py (the lit floor's usable window, `Validation/S4_artbook_gaps.md` §4.3: the spread's 5th and 95th percentile are read against it; a reading, not a gate limit) |
 | C.PRE.EXPOSURE_DRIFT_MAX | 0.05 | ratio | GATED(S4) | Tools/palette_lint.py, T-PRE-07 (the lit ground's median Y in a frame full of fire against the empty arena's: fixed exposure, R-PRE-07) |
+| C.HUD.LOW_HP_FRAC | 0.3 | ratio | GATED(S4) | hud.md R-HUD-05, T-HUD-05 (at or under this share of maximum HP the HP block shows low HP; presentation only) |
+| C.HUD.LOW_HP_PULSE_S | 0.8 | s | GATED(S4) | hud.md R-HUD-05, T-HUD-05 (one pulse of the HP bar's fill, on sim time) |
+| C.HUD.LOW_HP_PULSE_MIN | 0.45 | ratio | GATED(S4) | hud.md R-HUD-05, T-HUD-05 (the fill's opacity at the bottom of a pulse) |
+| C.HUD.TEXT_MIN_PX | 12 | px | GATED(S4) | hud.md R-HUD-08, T-HUD-08 (the shortest line of player text at the smoke window, default text size) |
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
 | C.PRE.CUE_EMISSIVE | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CUE_Z_UU | 1 | uu | GATED(S1) | 04_Presentation R-PRE-11, Combat/DTWeaponSubsystem |
@@ -89,7 +93,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 524 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 534 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
