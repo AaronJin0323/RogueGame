@@ -12,7 +12,10 @@
 #include "Misc/Parse.h"
 
 #if !UE_BUILD_SHIPPING
+#include "Containers/Ticker.h"
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformMisc.h"
 #endif
 
 namespace DTMetaSubsystemLocal
@@ -78,6 +81,48 @@ namespace DTMetaSubsystemLocal
 				Session->Write();
 			}
 			UE_LOG(LogDT, Log, TEXT("DT.Tree.Buy %s: %d bought"), *Args[0], Bought);
+		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdBuyWhen(TEXT("DT.Tree.BuyWhen"), TEXT("DT.Tree.BuyWhen <node> <file>: wait until <file> exists, then buy one rank through DTTree::Buy, as Accept on a node of the hub does, log the result and quit (Tools/TwoWindowsCheck.ps1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (Args.Num() != 2)
+			{
+				return;
+			}
+			UE_LOG(LogDT, Log, TEXT("DT.Tree.BuyWhen %s: waiting for %s"), *Args[0], *Args[1]);
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Node = Args[0], File = Args[1], Weak = TWeakObjectPtr<UWorld>(World)](float)
+			{
+				if (!IFileManager::Get().FileExists(*File))
+				{
+					return true;
+				}
+				FDTMetaSession* Session = UDTMetaSubsystem::FindSession(Weak.Get());
+				const int32 Result = Session ? static_cast<int32>(DTTree::Buy(*Session, FName(*Node))) : INDEX_NONE;
+				UE_LOG(LogDT, Log, TEXT("DT.Tree.BuyWhen %s: result %d"), *Node, Result);
+				FPlatformMisc::RequestExit(false, TEXT("DT.Tree.BuyWhen"));
+				return false;
+			}), 0.1f);
+		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdDump(TEXT("DT.Meta.Dump"), TEXT("Log this session's profile as it stands: balance, runs, wins, Tree ranks and unlocks (Tools/TwoWindowsCheck.ps1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			if (const FDTMetaSession* Session = UDTMetaSubsystem::FindSession(World))
+			{
+				TArray<FString> Ranks;
+				for (const TPair<FName, int32>& Rank : Session->Profile.TreeRanks)
+				{
+					Ranks.Add(FString::Printf(TEXT("%s=%d"), *Rank.Key.ToString(), Rank.Value));
+				}
+				Ranks.Sort();
+				TArray<FString> Unlocked;
+				for (const FName& Id : Session->Profile.Unlocked)
+				{
+					Unlocked.Add(Id.ToString());
+				}
+				Unlocked.Sort();
+				UE_LOG(LogDT, Log, TEXT("Meta: profile balance %lld, runs %d, wins %d, ranks [%s], unlocked [%s]"), Session->Profile.Currency, Session->Profile.Runs, Session->Profile.Wins,
+					*FString::Join(Ranks, TEXT(" ")), *FString::Join(Unlocked, TEXT(" ")));
+			}
 		}));
 	static FAutoConsoleCommandWithWorldAndArgs CmdPlant(TEXT("DT.Meta.Plant"), TEXT("Add to a counter of this run's tally (Tools/MetaCheck.ps1): DT.Meta.Plant <key> <amount>."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)

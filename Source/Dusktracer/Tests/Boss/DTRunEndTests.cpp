@@ -229,4 +229,243 @@ bool FDTBossRunEnd::RunTest(const FString& Parameters)
 	return true;
 }
 
+namespace DTRunEndTwoTest
+{
+	/** Two heroes. The game mode starts one (ADTGameMode::BeginPlay), so these runs are started by the test and read where the game mode reads: the two delegates it binds. */
+	enum class EScene : uint8
+	{
+		SameStepLast,  // one hero down earlier; the other falls in the step whose kills take the hull
+		SameStepBoth,  // both fall in the step whose kills take the hull
+		SameStepOne,   // one falls in that step, the other stands
+		Trade,         // the hull's last hit and both heroes' last hits are dealt on one step
+		DeathInTurn,   // one down, then the other, the hull standing
+		HeroesFirst    // both down; the hull dies a step later
+	};
+
+	struct FResult
+	{
+		bool bRan = false;
+		bool bVictory = false;
+		int32 AllDownCalls = 0;
+		bool bOverAfterFirst = false;
+		bool bFightOnAfterFirst = false;
+		bool bDown[2] = { false, false };
+		float Hp[2] = { 0.0f, 0.0f };
+		FString BossOutcome;
+		FString Jsonl;
+	};
+
+	static FResult Play(FAutomationTestBase& Test, EScene Scene)
+	{
+		FResult Out;
+		constexpr int32 Seed = 4242;
+		FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+		UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), TEXT("DTRunEndTwoWorld")));
+		Context.SetCurrentWorld(World);
+		UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+		if (Sim)
+		{
+			Sim->StartRun(Seed, 2); // before play begins: the hero system takes its count there
+		}
+		World->InitializeActorsForPlay(FURL());
+		World->BeginPlay();
+		UDTBossSubsystem* Boss = World->GetSubsystem<UDTBossSubsystem>();
+		UDTEnemySubsystem* Enemies = World->GetSubsystem<UDTEnemySubsystem>();
+		UDTHeroSubsystem* Heroes = World->GetSubsystem<UDTHeroSubsystem>();
+		UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+		if (Test.TestNotNull(TEXT("sim"), Sim) && Test.TestNotNull(TEXT("boss"), Boss) && Test.TestNotNull(TEXT("enemies"), Enemies) && Test.TestNotNull(TEXT("heroes"), Heroes)
+			&& Test.TestNotNull(TEXT("telemetry"), Telemetry) && Test.TestEqual(TEXT("two heroes"), Heroes->GetNumHeroes(), 2))
+		{
+			Telemetry->StartSession(Seed, 2);
+			// What ADTGameMode binds: a death closes the session on the next tick, a win is the boss system's own close.
+			Heroes->OnAllHeroesDown.AddLambda([&Out, World, Telemetry](int64)
+			{
+				++Out.AllDownCalls;
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(Telemetry, [Telemetry]() { Telemetry->EndSession(TEXT("death")); }));
+			});
+			Boss->OnBossDefeated.AddLambda([&Out](int64) { Out.bVictory = true; });
+			Boss->StartFight();
+			Sim->StepNow(3);
+			Test.TestTrue(TEXT("the hull stands"), Boss->GetCore().HasHull());
+
+			const auto KillHull = [Sim, Enemies, &Test]()
+			{
+				const FDTEnemyPool& Pool = Enemies->GetPool();
+				int32 Index = INDEX_NONE;
+				for (int32 At = 0; At < Pool.Num(); ++At)
+				{
+					Index = Pool.GetRoles()[At] == EDTEnemyRole::Boss ? At : Index;
+				}
+				if (Test.TestTrue(TEXT("a hull to kill"), Index != INDEX_NONE))
+				{
+					FDTHit Hit;
+					Hit.EnemyIndex = Index;
+					Hit.EnemySerial = Pool.GetSerials()[Index];
+					Hit.OwnerId = 0;
+					Hit.Damage = Pool.GetHp()[Index] * 2.0f;
+					Sim->GetView().Hits.Add(Hit);
+				}
+			};
+			const auto HitHero = [Sim](int32 Player)
+			{
+				FDTHeroHit Hit;
+				Hit.PlayerId = Player;
+				Hit.Damage = static_cast<float>(DTConst::HERO_MAX_HP) * 10.0f;
+				Sim->GetView().HeroHits.Add(Hit);
+			};
+			const auto FirstFalls = [&Out, Sim, Heroes, Boss, &HitHero]()
+			{
+				HitHero(0);
+				Sim->StepNow(2);
+				Out.bOverAfterFirst = Heroes->IsRunOver() || Out.AllDownCalls > 0 || Out.bVictory;
+				Out.bFightOnAfterFirst = Heroes->IsDown(0) && !Heroes->IsDown(1) && Boss->GetCore().HasHull() && Boss->GetCore().GetOutcome().IsEmpty();
+			};
+			switch (Scene)
+			{
+			case EScene::SameStepLast:
+				FirstFalls();
+				KillHull();
+				HitHero(1);
+				Sim->StepNow(1);
+				break;
+			case EScene::SameStepBoth:
+				KillHull();
+				HitHero(0);
+				HitHero(1);
+				Sim->StepNow(1);
+				break;
+			case EScene::SameStepOne:
+				KillHull();
+				HitHero(1);
+				Sim->StepNow(1);
+				break;
+			case EScene::Trade:
+				KillHull();
+				Sim->StepNow(1);
+				HitHero(0);
+				HitHero(1);
+				Sim->StepNow(1);
+				break;
+			case EScene::DeathInTurn:
+				FirstFalls();
+				HitHero(1);
+				Sim->StepNow(1);
+				break;
+			case EScene::HeroesFirst:
+				HitHero(0);
+				HitHero(1);
+				Sim->StepNow(1);
+				KillHull();
+				Sim->StepNow(1);
+				break;
+			}
+			Sim->StepNow(2);
+			World->GetTimerManager().Tick(1.0f / static_cast<float>(DTConst::SIM_FIXED_HZ));
+			Test.TestFalse(TEXT("the run's end closed the session"), Telemetry->IsSessionActive());
+			Telemetry->EndSession(TEXT("test_left_open"));
+
+			Out.bRan = true;
+			for (int32 Player = 0; Player < 2; ++Player)
+			{
+				Out.bDown[Player] = Heroes->IsDown(Player);
+				Out.Hp[Player] = Heroes->GetState(Player) ? Heroes->GetState(Player)->Hp : 0.0f;
+			}
+			Out.BossOutcome = Boss->GetCore().GetOutcome();
+			const FString CsvPath = Telemetry->GetWriter().GetCsvPath();
+			const FString JsonlPath = Telemetry->GetWriter().GetJsonlPath();
+			FFileHelper::LoadFileToString(Out.Jsonl, *JsonlPath);
+			IFileManager::Get().Delete(*CsvPath, false, true, true);
+			IFileManager::Get().Delete(*JsonlPath, false, true, true);
+		}
+		for (AActor* Actor : FActorRange(World))
+		{
+			if (Actor)
+			{
+				Actor->RouteEndPlay(EEndPlayReason::LevelTransition);
+			}
+		}
+		World->DestroyWorld(true);
+		GEngine->DestroyWorldContext(World);
+		return Out;
+	}
+
+	static void ExpectWin(FAutomationTestBase& Test, const FResult& R, const TCHAR* What, int32 HeroesDown)
+	{
+		using DTRunEndTest::Count;
+		const FString Tag = FString(What) + TEXT(": ");
+		Test.TestTrue(Tag + TEXT("the win is announced"), R.bVictory);
+		Test.TestEqual(Tag + TEXT("no death is announced"), R.AllDownCalls, 0);
+		Test.TestEqual(Tag + TEXT("the fight's outcome"), R.BossOutcome, FString(TEXT("win")));
+		Test.TestEqual(Tag + TEXT("one run_end"), Count(R.Jsonl, TEXT("\"kind\":\"run_end\"")), 1);
+		Test.TestTrue(Tag + TEXT("run_end says victory"), R.Jsonl.Contains(TEXT("\"kind\":\"run_end\",\"owner\":-1,\"reason\":\"victory\"")));
+		Test.TestEqual(Tag + TEXT("one boss_end"), Count(R.Jsonl, TEXT("\"kind\":\"boss_end\"")), 1);
+		Test.TestTrue(Tag + TEXT("boss_end says win"), R.Jsonl.Contains(TEXT("\"kind\":\"boss_end\",\"owner\":-1,\"outcome\":\"win\"")));
+		Test.TestEqual(Tag + TEXT("no record says death"), Count(R.Jsonl, TEXT("\"death\"")), 0);
+		Test.TestEqual(Tag + TEXT("heroes down"), (R.bDown[0] ? 1 : 0) + (R.bDown[1] ? 1 : 0), HeroesDown);
+		Test.TestEqual(Tag + TEXT("hero_down records"), Count(R.Jsonl, TEXT("\"kind\":\"hero_down\"")), HeroesDown);
+	}
+
+	static void ExpectDeath(FAutomationTestBase& Test, const FResult& R, const TCHAR* What)
+	{
+		using DTRunEndTest::Count;
+		const FString Tag = FString(What) + TEXT(": ");
+		Test.TestFalse(Tag + TEXT("no win is announced"), R.bVictory);
+		Test.TestEqual(Tag + TEXT("the death is announced once"), R.AllDownCalls, 1);
+		Test.TestTrue(Tag + TEXT("both heroes are down"), R.bDown[0] && R.bDown[1]);
+		Test.TestEqual(Tag + TEXT("the fight's outcome"), R.BossOutcome, FString(TEXT("death")));
+		Test.TestTrue(Tag + TEXT("run_end says death"), R.Jsonl.Contains(TEXT("\"kind\":\"run_end\",\"owner\":-1,\"reason\":\"death\"")));
+		Test.TestEqual(Tag + TEXT("one boss_end"), Count(R.Jsonl, TEXT("\"kind\":\"boss_end\"")), 1);
+		Test.TestTrue(Tag + TEXT("boss_end says death"), R.Jsonl.Contains(TEXT("\"kind\":\"boss_end\",\"owner\":-1,\"outcome\":\"death\"")));
+		Test.TestEqual(Tag + TEXT("two hero_down"), Count(R.Jsonl, TEXT("\"kind\":\"hero_down\"")), 2);
+		Test.TestEqual(Tag + TEXT("no record says victory or win"), Count(R.Jsonl, TEXT("\"victory\"")) + Count(R.Jsonl, TEXT("\"win\"")), 0);
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBossRunEndTwoHeroes, "Dusktracer.Boss.RunEndTwoHeroes", DTRunEndTest::Flags) // T-BOS-15
+bool FDTBossRunEndTwoHeroes::RunTest(const FString& Parameters)
+{
+	using namespace DTRunEndTwoTest;
+
+	// "Every hero down" with two (R-BOS-13): the last hero standing falls in the step whose kills take the Warden.
+	const FResult Last = Play(*this, EScene::SameStepLast);
+	if (Last.bRan)
+	{
+		TestFalse(TEXT("last hero: one hero down ends nothing"), Last.bOverAfterFirst);
+		TestTrue(TEXT("last hero: the fight goes on with one standing"), Last.bFightOnAfterFirst);
+		ExpectWin(*this, Last, TEXT("last hero, same step"), 2);
+	}
+	const FResult Both = Play(*this, EScene::SameStepBoth);
+	if (Both.bRan)
+	{
+		ExpectWin(*this, Both, TEXT("both heroes, same step"), 2);
+	}
+	const FResult One = Play(*this, EScene::SameStepOne);
+	if (One.bRan)
+	{
+		ExpectWin(*this, One, TEXT("one hero, same step"), 1);
+		TestTrue(TEXT("one hero, same step: the other stands"), !One.bDown[0] && One.bDown[1]);
+	}
+	// The hull's last hit and both heroes' last hits dealt on one step: a won run takes no hit, for either hero.
+	const FResult Trade = Play(*this, EScene::Trade);
+	if (Trade.bRan)
+	{
+		ExpectWin(*this, Trade, TEXT("trade"), 0);
+		TestTrue(TEXT("trade: neither hit took HP"), Trade.Hp[0] >= static_cast<float>(DTConst::HERO_MAX_HP) && Trade.Hp[1] >= static_cast<float>(DTConst::HERO_MAX_HP));
+	}
+	// The controls: both down in turn with the hull standing, and a hull that falls a step after the second hero.
+	const FResult Turn = Play(*this, EScene::DeathInTurn);
+	if (Turn.bRan)
+	{
+		TestFalse(TEXT("in turn: one hero down ends nothing"), Turn.bOverAfterFirst);
+		TestTrue(TEXT("in turn: the fight goes on with one standing"), Turn.bFightOnAfterFirst);
+		ExpectDeath(*this, Turn, TEXT("in turn, hull standing"));
+	}
+	const FResult Late = Play(*this, EScene::HeroesFirst);
+	if (Late.bRan)
+	{
+		ExpectDeath(*this, Late, TEXT("hull falls a step late"));
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
