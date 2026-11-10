@@ -1,0 +1,8 @@
+{
+	"note": "S4 wave 1 package C (hero_art.md T-HAR-07): the Reclaimer's figure as the game camera sees it. The hero stands idle at the centre; round it twelve drawn figures, four facings (up, right, down, left on the screen) in three rows: idle at the top, moving below it, dashing at the bottom. The figures are drawn only: no sim state is staged.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"cmds": ["DT.HeroArt.LineUp"]
+}

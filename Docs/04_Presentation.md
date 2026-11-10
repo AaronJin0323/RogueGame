@@ -54,6 +54,8 @@ Y = relative luminance of the sRGB value (WCAG, linear). Swatches are base colou
 | `Pal.Player.Core` | #EEF7FF | 0.92 | core of every player round | vs both ground refs, both weathers | from art book (A3 near-white core) |
 | `Pal.Player.TrailNeutral` | #9CD2FF | 0.58 | player trail while no Keeper is held; plain Frozen cue (R-PRE-11) | trail is not a carrier; core carries | owner (D-008) |
 | `Pal.Hero.Armour` | #D9DDE2 | 0.72 | hero armour; brightest neutral object | vs both ground refs, both weathers | owner (D-008) |
+| `Pal.Hero.DarkMetal` | #2A292E | 0.02 | the hero's mechanisms and frame: helm peak, face plate, rebreather, belt (`02_Systems/hero_art.md` R-HAR-04) | none: an accent that marks the facing; `Pal.Hero.Armour` carries R-PRE-05 | art book PL.05 (S4 wave 1, D-043) |
+| `Pal.Hero.Undersuit` | #2B2A2E | 0.02 | the hero's undersuit where it shows between plates: waist and neck (`02_Systems/hero_art.md` R-HAR-04) | none: as `Pal.Hero.DarkMetal` | art book PL.05 (S4 wave 1, D-043) |
 | `Pal.Keeper.Storm` | #7FB4FF | 0.44 | trail, rig light, conduits, HUD, cards | rendered emissive vs `Pal.Ground.Bright` | art book A1 |
 | `Pal.Keeper.Forge` | #FF9F3A | 0.46 | as Storm; trail only, never the head | as Storm; hue stays clear of the enemy band | art book A1 |
 | `Pal.Keeper.Tide` | #6FE0E8 | 0.63 | as Storm | as Storm | art book A1 |

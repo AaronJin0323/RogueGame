@@ -8,6 +8,8 @@ namespace DTPal
 	inline constexpr FColor Player_Core = FColor(238, 247, 255); // #EEF7FF
 	inline constexpr FColor Player_TrailNeutral = FColor(156, 210, 255); // #9CD2FF
 	inline constexpr FColor Hero_Armour = FColor(217, 221, 226); // #D9DDE2
+	inline constexpr FColor Hero_DarkMetal = FColor(42, 41, 46); // #2A292E
+	inline constexpr FColor Hero_Undersuit = FColor(43, 42, 46); // #2B2A2E
 	inline constexpr FColor Keeper_Storm = FColor(127, 180, 255); // #7FB4FF
 	inline constexpr FColor Keeper_Forge = FColor(255, 159, 58); // #FF9F3A
 	inline constexpr FColor Keeper_Tide = FColor(111, 224, 232); // #6FE0E8
