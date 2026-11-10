@@ -4,6 +4,8 @@ An audit of every plan in the repository, software and game, asked for by the ow
 
 Class: none (a reading). Layer: the plans themselves. Replaces: nothing.
 
+Decisions taken on it, 2026-11-11: D-045 to D-051. Where a finding below has been decided or fixed since, the decision or the spec is the present truth and this note is the record of what was read.
+
 ## 1. Verdict
 
 The plans are well made as documents and out of order as a schedule.

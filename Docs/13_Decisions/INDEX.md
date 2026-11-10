@@ -10,7 +10,7 @@
 | D-006 | GitHub (public) as origin and LFS host | GO-NOGO | applied |
 | D-007 | macOS deferred; Windows only for now | VALVE | applied |
 | D-008 | Palette confirmed, with darker ground references | RULE | applied |
-| D-009 | Owner delegates decisions to the scheduler | GO-NOGO | applied |
+| D-009 | Owner delegates decisions to the scheduler | GO-NOGO | applied; amended by D-051 |
 | D-010 | Palette generated into code; enemy hull token; fallback registry | RULE | applied |
 | D-011 | RTX 4080 as the measurement proxy for the 4070 budget | RULE | applied |
 | D-012 | S0 gate passed; S1 core slice starts | GO-NOGO | applied |
@@ -30,3 +30,10 @@
 | D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied |
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
+| D-045 | An arriving Rusher charges through where the hero stood | RULE | open (decided; a change job applies it) |
+| D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | open (decided; a change job applies the restore) |
+| D-047 | Keeper share is the power a build loses without its blessings | RULE | open (decided; a change job applies it) |
+| D-048 | The S1 exit is read in two sessions | GO-NOGO | applied |
+| D-049 | The S3 exit passes on the designer's two of three; fresh means a fresh save | GO-NOGO | applied; replaces D-034 (on `dev/s3`) |
+| D-050 | Until people have played: the S1 build first, S4 wave 1 continues, nothing further starts early | GO-NOGO | applied |
+| D-051 | The owner sees what was decided for them; decisions live on `main`; the number log's tags are named | RULE | applied; amends D-009 |
