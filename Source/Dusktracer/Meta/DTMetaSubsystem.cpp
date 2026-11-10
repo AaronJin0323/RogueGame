@@ -199,9 +199,10 @@ void UDTMetaSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UDTMetaSubsystem::Deinitialize()
 {
-	if (Session.bUnsaved)
+	if (Session.bUnsaved && !Session.Flush())
 	{
-		Session.Write();
+		// The last save point there is. What is said here is all that is left of the change: no screen tells the player yet (D-042).
+		UE_LOG(LogDT, Error, TEXT("Meta: %s could not be written at exit; %d change(s) of this launch are lost"), *Session.Path, FMath::Max(1, Session.Pending.Num()));
 	}
 	Super::Deinitialize();
 }

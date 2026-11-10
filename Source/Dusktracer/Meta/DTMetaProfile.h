@@ -54,6 +54,10 @@ struct FDTRunAward
 	int64 Balance = 0;
 	/** The Discoveries this bank added, sorted by key (R-MET-44). */
 	TArray<FName> Discovered;
+	/** The save was locked by another launch past the wait: the run is in memory and the next save point writes it (R-MET-11). */
+	bool bDeferred = false;
+	/** Changes this session still owes the file after this bank. */
+	int32 Waiting = 0;
 };
 
 namespace DTMeta

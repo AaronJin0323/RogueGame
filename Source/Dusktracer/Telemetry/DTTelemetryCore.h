@@ -187,6 +187,8 @@ public:
 	// meta.md
 	/** One per banked run, before run_end; run-derived only (R-MET-16). */
 	void RecordRunAward(const TCHAR* End, int64 Retained, int64 Steps, int64 Kills, int64 Elites, bool bBoss, int32 Heat);
+	/** meta.md R-MET-11: the save's lock was busy past its wait and a change is kept in memory. Never written by a launch alone on its save. */
+	void RecordSaveDeferred(const TCHAR* Change, int32 Waiting);
 
 	// progression.md
 	/** Aggregated: one xp{gems, xp} record per player per step with pickups. */

@@ -440,6 +440,14 @@ void FDTTelemetryCore::RecordRunAward(const TCHAR* End, int64 Retained, int64 St
 	}
 }
 
+void FDTTelemetryCore::RecordSaveDeferred(const TCHAR* Change, int32 Waiting)
+{
+	if (bActive)
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("save_deferred"), INDEX_NONE)).Str(TEXT("change"), Change).Int(TEXT("waiting"), Waiting).Line();
+	}
+}
+
 void FDTTelemetryCore::RecordBossStart(FName Form, int32 Wins, int32 NumPlayers)
 {
 	if (bActive)
