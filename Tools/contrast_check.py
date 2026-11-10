@@ -37,7 +37,9 @@ HUD_MASKS = ((0.0, 0.0, 1.0, 0.13), (0.0, 0.77, 0.23, 1.0))
 # name: (hue ranges in degrees, saturation range, value range). Display colours, after tone mapping and bloom.
 ELEMENTS = {
 	"telegraph": (((350, 360), (0, 22)), (0.40, 1.01), (0.70, 1.01)),
-	"enemy_rim": (((318, 346),), (0.30, 1.01), (0.70, 1.01)),  # hot rim pixels pale to s 0.3; only round blobs are read (enemy_round_tones)
+	# Hot rim pixels pale to s 0.3; only round blobs are read (enemy_round_tones). The rim's stroke is three pixels wide at the D-036
+	# frame, so its middle shows the rim's own display colour, hue 316 to 317; a thinner stroke only ever showed its blend, 318 and up.
+	"enemy_rim": (((312, 346),), (0.30, 1.01), (0.70, 1.01)),
 	"optic": (((295, 350),), (0.06, 0.30), (0.86, 1.01)),
 	"tracer_core": (((185, 240),), (0.0, 0.25), (0.80, 1.01)),
 	"hero": (((0, 360),), (0.0, 0.10), (0.45, 1.01)),

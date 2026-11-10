@@ -428,6 +428,14 @@ class Contrast(unittest.TestCase):
 			(self.GEM, "gem"), (self.CHEST, "chest"), (self.GROUND, "ground"), (self.SHADOW, "shadow")):
 			self.assertEqual(contrast_check.classify(*colour), name, colour)
 
+	def test_the_rim_is_read_at_its_own_display_colour(self):
+		# The middle of a rim stroke as the D-036 frame draws it (hue 317), and its blended edge (hue 319): both are the rim.
+		for colour in ((255, 134, 220), (255, 136, 221), (255, 130, 216)):
+			self.assertEqual(contrast_check.classify(*colour), "enemy_rim", colour)
+		# The band did not reach the optic's pale halo, nor a violet (Pal.Keeper.Shade's side of the wheel).
+		self.assertEqual(contrast_check.classify(*self.OPTIC), "optic")
+		self.assertNotEqual(contrast_check.classify(230, 120, 255), "enemy_rim")
+
 	def test_wcag_ratio(self):
 		self.assertAlmostEqual(contrast_check.contrast(1.0, 0.0), 21.0)
 		self.assertAlmostEqual(contrast_check.contrast(0.0, 1.0), 21.0)
