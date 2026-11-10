@@ -609,7 +609,7 @@ private:
 	/** Fires one volley of any pattern but Orbiter. Returns false when it found no target. */
 	bool FireVolley(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, uint16 SourceOverride, bool bFree);
-	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. A free volley fires every drone once as FreeSource, its creator's (R-WPN-07). */
+	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. A free volley fires every drone once as FreeSource, its creator's (R-WPN-07). Blade Halo's dash volley is every blade's touch once (R-RFG-07). */
 	void StepDrones(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, bool bFreeVolley, uint16 FreeSource = 0);
 	void PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
@@ -631,9 +631,9 @@ private:
 	float BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const;
 	/** Sweep Beam (R-RFG-08): the arc of this tick. */
 	void StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
-	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. */
+	/** Pulse Wall and Vortex: opens a force field unless this weapon has one live. With bRestart the live one starts again as this one (a dash volley's ring, R-RFG-12). */
 	bool OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
-		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS);
+		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS, bool bRestart = false);
 	void StepForceField(const FDTSimContext& Context, FField& Field);
 	void AddShockStack(const FDTSimContext& Context, int32 OwnerId, uint32 Serial);
 	void Discharge(const FDTSimContext& Context, int32 OwnerId, const FVector2f& From, uint32 Serial);

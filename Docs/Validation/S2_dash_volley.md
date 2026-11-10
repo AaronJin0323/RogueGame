@@ -95,7 +95,7 @@ Every record before step 8733 is equal. Each side ran once; the before side equa
 - Emitted by `FireVolley` from the one shot: Pulse Rifle, Scatter Cannon, Rail Lance, Seeker Swarm, Ring Emitter, Spiral Projector, Arc Blade, and the evolutions that only change the spec or the round (Railstorm, Flechette, Murmuration, Vortex, Cyclone).
 - Handed on with the shot's source kept: Flak Mortar's shells and Carpet's strikes, Gravity Mine's mines, Pulse Wall's ring.
 - Handed on with the source dropped: Orbital Drones and Sweep Beam, the two fixed here.
-- Not a fault of source, left as they are: Blade Halo fires no bolts, so its dash volley is nothing (R-RFG-07); Cyclone sweeps only while the hero moves (R-RFG-10); Pulse Wall opens no second ring while one lives (R-RFG-12); Singularity adds a mine's damage to the live mine, whose source it then is (R-RFG-14). Under these a dash volley can do nothing or lose its label by the weapon's own rule. Not decided here whether R-KEE-34's "every weapon once" should win over them.
+- Not a fault of source, left as they are: Blade Halo fires no bolts, so its dash volley is nothing (R-RFG-07); Cyclone sweeps only while the hero moves (R-RFG-10); Pulse Wall opens no second ring while one lives (R-RFG-12); Singularity adds a mine's damage to the live mine, whose source it then is (R-RFG-14). Under these a dash volley could do nothing or lose its label by the weapon's own rule. Decided since by D-038 (the section below): the first three now act, Singularity's merge stands.
 
 **What moved.** Only a run that holds a Vector card with Orbital Drones, or with Sweep Beam: its drones' dash bolts gain ×1.5 and the refund, so its dashes and inputs change. Sweep Beam under Chain Trigger moves in attribution only.
 - Seed 9107, on the fixed build, all unchanged: None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446` (`Tools\BotRuns.ps1`, defaults); RestartCheck `276faf8e` on the gate. None of these arms holds a Vector card.
@@ -103,7 +103,36 @@ Every record before step 8733 is equal. Each side ran once; the before side equa
 - **Stale probe readings**: the probe loadout holds Orbital Drones at level 3 and the route dashes every 6 s (`Tools/probe.py`, `FDTBotBrain::ProbeInput`), so every T-KEE-15 combination with a Vector card moves, and every T-KEE-18 scene whose build has a Vector card and Drones. Not rerun here.
 - `main` has no dash volley and no Sweep Beam, so nothing moves there. `dev/s3` takes this fix by merge.
 
+## The four weapon rules: decided by D-038 on `fix/dash-volley-rule`
+Class RULE, rule layer, then sim. It replaces the three early returns under which a dash volley did nothing on Blade Halo, Cyclone and Pulse Wall; R-RFG-14 keeps Singularity. No catalog number was added or moved, and no card text: with the call, the Vector Key is true of every weapon in en and zh-Hans.
+
+**Read before any change.** Four tests written first, run on e40943c with nothing else touched:
+```
+& Tools\RunTests.ps1 -Filter Dusktracer.Keepers.S2.Card.Quicksilver.Vector
+```
+| Test line | Expected | Read at e40943c |
+|---|---|---|
+| `Vector.BladeHalo`: every blade strikes once as `Keeper.Quicksilver` | at least 4 hits | 0 |
+| at the Key's multiplier | 40.5 (1.5 × 27) | no such hit |
+| its kills refund cooldown | at least 0.15 s | 0 |
+| `Vector.Cyclone`: the landing sweep on a hero who stops | 1 hit | 0 |
+| at the Key's multiplier | 50.4 (1.5 × 33.6) | no such hit |
+| `Vector.PulseWall`: the dash volley's ring strikes as `Keeper.Quicksilver` | at least 1 hit | 0 |
+| its kill refunds cooldown | 0.15 s | 0 |
+| `Vector.Singularity`: all 11 lines | pass | pass (it pins the rule that stands) |
+
+Two lines of that first run failed for the tests' own reasons and were rewritten, not the game. Cyclone's own turn does sweep once inside the dash step, because the dash moves the hero, so "no own hit" became "no own hit after the landing". Pulse Wall's first target stood on the rim, where the ring pushes an enemy out before a tick lands; it now stands where the growing band is at the second tick. With the change all ten `Vector.*` tests pass.
+
+**The call, per weapon** (`13_Decisions/D-038.md` has the reasons):
+- **Blade Halo**: every blade strikes once where it is, at ×`dmg_mult`, as `Keeper.Quicksilver`, with the refund. Still no bolts; no blade's turn is spent.
+- **Cyclone**: the landing sweep no longer asks the hero's speed in that step. The weapon's own turning keeps its gate.
+- **Pulse Wall**: the live ring starts again at the hero as the dash volley's, ×`dmg_mult`, with the refund. Never two rings, as Sweep Beam's one beam (R-RFG-08).
+- **Singularity**: unchanged. The dash mine's damage joins the live mine at ×`dmg_mult`; the mine keeps the source of the volley that laid it, so a mine the weapon laid earns no refund and a mine the dash laid is Quicksilver's whatever joins it.
+
+**What moves.** Only a run that holds `Flag.VolleyOnDash` with Blade Halo, Cyclone or Pulse Wall. Chain Trigger's free volley is not a dash volley and goes through none of the new branches.
+
 ## Not verified
+- D-038: no human has seen the three weapons under a dash volley. The Blade Halo strike lands on the orbit the dash has widened (R-RFG-07's speed term), read from the code only. Whether a player reads the restarted Pulse Wall as a loss of the wall is the hypothesis D-038 leaves open.
 - One seed at one skill was run. The other ten runs that moved were not paired here; the mechanism is the only one the code offers.
 - `dev/s3` and `main` were read, not run.
 - Whether one more win in 15 is a balance change was not read; the reread calls it inside noise.

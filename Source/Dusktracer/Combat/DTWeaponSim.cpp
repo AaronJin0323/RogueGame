@@ -895,7 +895,8 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		return true;
 	}
 
-	if (Spec.Evolve == EDTEvolve::MoveSpin && (!Players.IsValidIndex(Owner) ||
+	// A dash is movement: a dash volley's landing sweep does not ask the hero's speed in that step (R-RFG-10, keepers.md R-KEE-34).
+	if (Spec.Evolve == EDTEvolve::MoveSpin && !bVolleyForced && (!Players.IsValidIndex(Owner) ||
 		Players[Owner].HeroSpeed < DTReforge::Param(Spec.EvolveRow, TEXT("move_min_uu_s"))))
 	{
 		return false; // R-RFG-10: standing still, it keeps its cooldown ready
@@ -1166,7 +1167,8 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 			const int32 Row = Spec.EvolveRow;
 			const float Grow = DTReforge::Param(Row, TEXT("grow_s"));
 			if (!OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
-				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s"))))
+				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s")),
+				bVolleyForced)) // a dash volley starts the live ring again, as its own (R-RFG-12, keepers.md R-KEE-34)
 			{
 				return false; // the last ring still lives: the cooldown stays ready, or a volley is lost for a whole cooldown
 			}
@@ -1248,6 +1250,19 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		if (!bFreeVolley)
 		{
 			StepBlades(Context, Player, Slot, Runtime);
+		}
+		else if (bVolleyForced && Players.IsValidIndex(Owner))
+		{
+			// A dash volley: every blade touches once where it is, as the volley's source at its multiplier; the turn is not spent (R-RFG-07, keepers.md R-KEE-34).
+			const float Orbit = BladeOrbit(Players[Owner], Runtime);
+			const float Contact = DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu"));
+			const int32 Blades = FMath::Max(1, Spec.Count); // the blades StepBlades turns
+			for (int32 Blade = 0; Blade < Blades; ++Blade)
+			{
+				const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
+				StrikeCircle(Context, Owner, Slot, Runtime, Hero + Rotate(FVector2f(Orbit, 0.0f), Angle), Hero, Contact, Spec.Damage * VolleyMult,
+					FreeSource != 0 ? FreeSource : Instance.SourceId, false);
+			}
 		}
 		return; // R-RFG-07: no bolts
 	}
@@ -1975,32 +1990,41 @@ void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 S
 }
 
 bool FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
-	float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS)
+	float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS, bool bRestart)
 {
-	for (const FField& Live : Fields)
+	const auto Start = [&](FField& Field)
+	{
+		Field = FField();
+		Field.OwnerId = OwnerId;
+		Field.Slot = static_cast<int8>(Slot);
+		Field.SourceId = SourceId;
+		Field.Position = At;
+		Field.Radius = Radius;
+		Field.TimeLeft = Seconds;
+		Field.DamagePerSecond = DamagePerSecond;
+		Field.bForce = true;
+		Field.GrowS = GrowS;
+		Field.BandUu = BandUu;
+		Field.PushUuS = PushUuS;
+		Field.TickS = TickS;
+	};
+	for (FField& Live : Fields)
 	{
 		if (Live.bForce && Live.OwnerId == OwnerId && Live.Slot == Slot)
 		{
-			return false; // one per weapon (R-RFG-12, R-RFG-13)
+			if (!bRestart)
+			{
+				return false; // one per weapon (R-RFG-12, R-RFG-13)
+			}
+			Start(Live); // still one: the live field starts again as this one (a dash volley's ring, R-RFG-12, D-038)
+			return true;
 		}
 	}
 	if (!TryEmit(Runtime))
 	{
 		return false;
 	}
-	FField& Field = Fields.AddDefaulted_GetRef();
-	Field.OwnerId = OwnerId;
-	Field.Slot = static_cast<int8>(Slot);
-	Field.SourceId = SourceId;
-	Field.Position = At;
-	Field.Radius = Radius;
-	Field.TimeLeft = Seconds;
-	Field.DamagePerSecond = DamagePerSecond;
-	Field.bForce = true;
-	Field.GrowS = GrowS;
-	Field.BandUu = BandUu;
-	Field.PushUuS = PushUuS;
-	Field.TickS = TickS;
+	Start(Fields.AddDefaulted_GetRef());
 	++FieldsOpened;
 	return true;
 }

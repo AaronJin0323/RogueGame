@@ -1150,6 +1150,227 @@ DT_S2_TEST(FDTKeeperS2VectorEveryWeapon, "Card.Quicksilver.Vector.EveryWeapon") 
 	return true;
 }
 
+DT_S2_TEST(FDTKeeperS2VectorBladeHalo, "Card.Quicksilver.Vector.BladeHalo") // T-KEE-34, D-038
+{
+	// Blade Halo fires no bolts (R-RFG-07): its dash volley is every blade striking once where it is, as the volley's.
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
+	const auto Scene = [&](FDTKeeperHarness& H, bool bCard, float Hp)
+	{
+		H.Patron(EDTPath::Storm, 0, false);
+		H.Weapons.Give(H.Run, 0, OrbitalDrones, 8);
+		FDTWeaponInstance& Owned = H.P().Weapons[0];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		if (bCard)
+		{
+			H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+		}
+		H.StepOnce();
+		// A full ring on the orbit, so every blade touches one wherever the turn has carried it.
+		for (int32 Index = 0; Index < 36; ++Index)
+		{
+			H.AddEnemy(FVector2f(Orbit, 0.0f).GetRotated(10.0f * static_cast<float>(Index)), Hp);
+		}
+		H.HitLog.Reset();
+		Dash(H, FVector2f::ZeroVector); // the hero does not move, so the orbit keeps its radius
+	};
+	{
+		FDTKeeperHarness H;
+		Scene(H, true, 0.0f);
+		const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+		int32 QuickHits = 0;
+		float Most = 0.0f;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			QuickHits += Hit.SourceId == Quick ? 1 : 0;
+			Most = Hit.SourceId == Quick ? FMath::Max(Most, Hit.Damage) : Most;
+		}
+		TestTrue(TEXT("every blade strikes once as Keeper.Quicksilver"), QuickHits >= Spec.Count);
+		TestEqual(TEXT("at the Key's multiplier"), Most, 1.5f * Spec.Damage);
+		TestEqual(TEXT("and still no bolts"), H.Bullets.Num(), 0);
+	}
+	{
+		FDTKeeperHarness H;
+		Scene(H, true, 1.0f);
+		H.StepOnce();
+		TestTrue(TEXT("its kills refund cooldown"), H.Weapons.TakeDashRefund(0) >= 0.15f);
+	}
+	{
+		FDTKeeperHarness H;
+		Scene(H, false, 0.0f);
+		int32 QuickHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			QuickHits += Hit.SourceId == Quick ? 1 : 0;
+		}
+		TestEqual(TEXT("without the card a dash strikes nothing more"), QuickHits, 0);
+	}
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorCyclone, "Card.Quicksilver.Vector.Cyclone") // T-KEE-34, D-038
+{
+	// Cyclone turns only while the hero moves (R-RFG-10). A dash is movement: its landing sweep lands even on a hero who stops there.
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	FDTKeeperHarness H;
+	H.Patron(EDTPath::Storm, 0, false);
+	H.Weapons.Give(H.Run, 0, ArcBlade, 8);
+	FDTWeaponInstance& Owned = H.P().Weapons[0];
+	Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+	H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+	const uint32 Serial = SerialOf(H, H.AddEnemy(FVector2f(100.0f, 0.0f)));
+	H.StepMany(Second);
+	const uint16 Own = H.P().Weapons[0].SourceId;
+	TestEqual(TEXT("standing still it does not turn"), HitsOn(H, Serial, Own), 0);
+	Dash(H, FVector2f(20.0f, 0.0f)); // the landing step holds no movement
+	TestEqual(TEXT("the landing sweep of a dash volley, on a hero who stops"), HitsOn(H, Serial, Quick), 1);
+	float Most = 0.0f;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		Most = Hit.SourceId == Quick ? FMath::Max(Most, Hit.Damage) : Most;
+	}
+	TestEqual(TEXT("at the Key's multiplier"), Most, 1.5f * H.Weapons.GetLastSpec(0, 0).Damage);
+	const int32 OwnInDash = HitsOn(H, Serial, Own); // the weapon's own turn while the dash moved the hero
+	H.StepMany(Second);
+	TestEqual(TEXT("standing still after it, the weapon still does not turn"), HitsOn(H, Serial, Own), OwnInDash);
+	TestEqual(TEXT("and one dash is one sweep"), HitsOn(H, Serial, Quick), 1);
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T-KEE-34, D-038
+{
+	// One ring lives per weapon (R-RFG-12): a dash volley starts it again at the hero, and that ring is the volley's.
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	FDTKeeperHarness H;
+	H.Patron(EDTPath::Storm, 0, false);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8);
+	FDTWeaponInstance& Owned = H.P().Weapons[0];
+	Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+	const int32 Row = DTReforge::FindEvolve(Owned.Def);
+	H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+	// Where a growing ring's band stands at its second tick: an enemy here is struck once as the ring passes it.
+	const float Passed = DTReforge::Param(Row, TEXT("radius_uu")) * DTReforge::Param(Row, TEXT("tick_s")) / DTReforge::Param(Row, TEXT("grow_s")) - 20.0f;
+	const uint32 First = SerialOf(H, AddScaled(H, FVector2f(0.0f, Passed)));
+	H.StepMany(Second);
+	const uint16 Own = H.P().Weapons[0].SourceId;
+	TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
+	TestTrue(TEXT("and strikes as the weapon"), HitsOn(H, First, Own) > 0);
+	float OwnTick = 0.0f;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		OwnTick = Hit.SourceId == Own ? FMath::Max(OwnTick, Hit.Damage) : OwnTick;
+	}
+	H.HitLog.Reset();
+	Dash(H, FVector2f::ZeroVector);
+	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
+	// The ring that passes these two now is the dash volley's; the second is weak enough to die of it.
+	const uint32 Rim = SerialOf(H, AddScaled(H, FVector2f(Passed, 0.0f)));
+	H.AddEnemy(FVector2f(-Passed, 0.0f), 1.0f);
+	H.StepMany(Second);
+	TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
+	TestTrue(TEXT("the dash volley's ring strikes as Keeper.Quicksilver"), HitsOn(H, Rim, Quick) > 0);
+	int32 OwnAfter = 0;
+	float QuickTick = 0.0f;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		OwnAfter += Hit.SourceId == Own ? 1 : 0;
+		QuickTick = Hit.SourceId == Quick && Hit.EnemySerial == Rim ? FMath::Max(QuickTick, Hit.Damage) : QuickTick;
+	}
+	TestEqual(TEXT("the ring it replaced strikes no more"), OwnAfter, 0);
+	TestNearlyEqual(TEXT("at the Key's multiplier"), QuickTick, 1.5f * OwnTick, 0.01f);
+	TestEqual(TEXT("its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorSingularity, "Card.Quicksilver.Vector.Singularity") // T-KEE-34, D-038
+{
+	// Singularity keeps its rule (R-RFG-14): a dash volley's mine joins the live one, damage and multiplier kept, and the mine stays its creator's.
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	/** The weapon lays the mine; with bDash a dash volley then adds to it. Returns the strongest hit of the run. */
+	const auto WeaponFirst = [&](bool bDash, int32& OutQuick, int32& OutMostLive)
+	{
+		FDTKeeperHarness H;
+		H.Patron(EDTPath::Storm, 0, false);
+		H.Weapons.Give(H.Run, 0, GravityMine, 8);
+		FDTWeaponInstance& Owned = H.P().Weapons[0];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+		AddScaled(H, FVector2f(300.0f, 0.0f));
+		H.StepOnce();
+		H.P().Weapons[0].Cooldown = 60.0f;
+		OutMostLive = H.Weapons.GetLiveMines(0, 0);
+		if (bDash)
+		{
+			Dash(H, FVector2f::ZeroVector);
+		}
+		float Most = 0.0f;
+		for (int32 Step = 0; Step < 6 * Second; ++Step)
+		{
+			H.P().Weapons[0].Cooldown = 60.0f;
+			H.StepOnce();
+			OutMostLive = FMath::Max(OutMostLive, H.Weapons.GetLiveMines(0, 0));
+		}
+		OutQuick = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			OutQuick += Hit.SourceId == Quick ? 1 : 0;
+			Most = FMath::Max(Most, Hit.Damage);
+		}
+		return Most;
+	};
+	int32 QuickPlain = 0;
+	int32 QuickDash = 0;
+	int32 LivePlain = 0;
+	int32 LiveDash = 0;
+	const float Plain = WeaponFirst(false, QuickPlain, LivePlain);
+	const float Dashed = WeaponFirst(true, QuickDash, LiveDash);
+	TestEqual(TEXT("the weapon laid one mine"), LivePlain, 1);
+	TestEqual(TEXT("a dash volley lays no second mine"), LiveDash, 1);
+	TestTrue(TEXT("the mine blasts"), Plain > 0.0f);
+	TestNearlyEqual(TEXT("the dash volley's damage joins the live mine at the Key's multiplier"), Dashed, 2.5f * Plain, 0.01f * Plain);
+	TestEqual(TEXT("the merged mine stays the weapon's"), QuickDash, 0);
+	{
+		// The other order: the dash volley lays the mine, the weapon's own volleys join it, and it is Quicksilver's.
+		FDTKeeperHarness H;
+		H.Patron(EDTPath::Storm, 0, false);
+		H.Weapons.Give(H.Run, 0, GravityMine, 8);
+		FDTWeaponInstance& Owned = H.P().Weapons[0];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		Owned.Cooldown = 60.0f;
+		H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+		H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f);
+		H.StepOnce();
+		TestEqual(TEXT("no mine before the dash"), H.Weapons.GetLiveMines(0, 0), 0);
+		Dash(H, FVector2f::ZeroVector);
+		TestEqual(TEXT("the dash volley lays the mine"), H.Weapons.GetLiveMines(0, 0), 1);
+		H.P().Weapons[0].Cooldown = 0.0f;
+		H.StepOnce();
+		H.P().Weapons[0].Cooldown = 60.0f;
+		TestEqual(TEXT("the weapon's volley joins it"), H.Weapons.GetLiveMines(0, 0), 1);
+		for (int32 Step = 0; Step < 6 * Second; ++Step)
+		{
+			H.P().Weapons[0].Cooldown = 60.0f;
+			H.StepOnce();
+		}
+		const uint16 Own = H.P().Weapons[0].SourceId;
+		int32 OwnHits = 0;
+		int32 QuickHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			OwnHits += Hit.SourceId == Own ? 1 : 0;
+			QuickHits += Hit.SourceId == Quick ? 1 : 0;
+		}
+		TestTrue(TEXT("a mine the dash volley laid is Keeper.Quicksilver"), QuickHits > 0);
+		TestEqual(TEXT("whatever joined it"), OwnHits, 0);
+		TestEqual(TEXT("and its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+	}
+	return true;
+}
+
 DT_S2_TEST(FDTKeeperS2VectorAmp1, "Card.Quicksilver.Vector.Amp1") // T-KEE-34
 {
 	using namespace DTKeeperS2Test;
