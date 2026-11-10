@@ -9,7 +9,83 @@ Branch `dev/s2-exit`, from `dev/s2` at 0747e3c. Class: SYSTEM (a tool) plus one 
 ```
 By hand, about an hour: the S2 row says nightly, nothing schedules it. 18 arms (nine S1 showcase with no second, the nine of `-ArmSet S2Keepers`), 15 seeds, bot v2 at skill 1.0 and 0.6, `-Unlock S2` so the full arsenal is in the pool, 540 runs. T-KEE-18 is builds 1 to 5 of the skill 1.0 batch, one seed, 480 scenes. T-KEE-15 is all 282 combinations of six Keepers, 2 seeds, 1128 scenes. Probes are v1, skill 1.0 (R-BOT-01), on the 40x field. The build stamp reads 0747e3c+dirty: the tree was these tools and constants over 0747e3c, no game source.
 
-## Exit readings
+## Reread, 2026-11-10, `dev/s2` at d827a58: the current reading
+Branch `docs/s2-reread`. Class: none, a reading. No game code, number, pass line or tool changed. Every run's build stamp reads `d827a58`, clean. **A bot reading is never a human reading**: these are bounds, and S2 has not passed.
+
+```
+& Tools\S2Exit.ps1 -Out Saved\BotRuns\s2_exit -Parallel 6
+```
+The battery as designed: the same 18 arms, seeds 1 to 15, bot v2 at skill 1.0 and 0.6, `-Unlock S2`, 540 runs; T-KEE-18 on builds 1 to 5 of the skill 1.0 batch, 462 scenes; T-KEE-15 on all 282 combinations, 2 seeds, 1128 scenes. Only `-Parallel` differs, 6 against 12, because this PC faults under heavy parallel load; a run is deterministic per seed, so that changes no reading. Launches went through `Tools/BotRuns.ps1` on the hidden desktop. Every run left a record, every cast scene has one cast, no scene took a wrong Patron, and no run was rerun.
+
+`S2EXIT: 1 PASS, 3 FAIL, 2 NOT READ`, the same verdicts. "Before" is the 2026-10-31 reading at f2ef7ed (`S2_trace.md`), the last one taken before D-026 and D-027.
+
+| Reading | Verdict | 0747e3c (below) | f2ef7ed (`S2_trace.md`) | d827a58, this reread | Moved |
+|---|---|---|---|---|---|
+| Keeper share | **FAIL** | 10/18, mean 0.598 | 8/18, mean 0.607 | 8/18 arms pass, mean 0.607 | no: all 18 rows equal f2ef7ed to the printed digit |
+| Build bands | **FAIL** | 11/18 | 9/18 | 9/18 arms in band | no |
+| Intercession | **FAIL** | 50/282 | 46/282 | 46/282 in band | no: all 282 means equal f2ef7ed to the unit |
+| Bots win a full run | PASS, a bound | Storm 24, Forge 33, Tide 8, Shade 41, Radiance 34, Quicksilver 44 | Storm 24, Forge 41, Tide 5, Shade 39, Radiance 35, Quicksilver 42 | wins of 45: Storm 24, Forge 41, Tide 5, Shade 39, Radiance 35, Quicksilver 43 | Quicksilver +1, a real change of the sim (below) |
+| Humans win a full run | NOT READ | human only | human only | human only (O-008) | no |
+| Death histogram | NOT READ | human only | human only | human only; the bot's is below | no |
+
+### What moved and why
+- **D-026 and D-027 did not make these rows stale.** The three probe rows sum `hit` records whatever their source and count `intercession` records (`Tools/probe.py`); neither decision changed those. The reread proves it: the T-KEE-18 table and all 282 T-KEE-15 means equal the f2ef7ed reading (one SD differs by 2, Hammer with a Vector layer). What D-026 and D-027 made stale are two columns of `bot_summary.py` that no exit row reads, below.
+- **One arm really moved: Quicksilver/Vector with Forge.** Paired by arm and seed against the f2ef7ed batch, 263 of 270 runs at skill 1.0 and 266 of 270 at 0.6 have the same `input_hash`; the 11 that differ are all Vector:Forge. Wins there 12 to 13 of 15 at skill 1.0 and 4 to 5 at 0.6, one outcome flipped at each skill. The first record that differs (seed 13, skill 1.0, 371.13 s) is a dash volley whose source reads `Keeper.Quicksilver` where it read `Keeper.Forge`: D-027's rule, a free volley no longer takes a Keeper conversion's source (`FDTWeaponSim`, `bFree`), and on `dev/s2` a Quicksilver dash volley is a free volley. The next hit then deals 6 for 7 and the run diverges. So D-027 is not attribution-only on this arm; D-027's own note confirmed "the input stream is unchanged" on Forge/Hammer only. Read from the code and the records, not bisected. A shift of 1 on an arm is inside noise as a balance reading.
+- **Attribution share at L16** (`summary.csv` `keeper_share_l16`, not an exit row): 10 of 270 runs moved at skill 1.0, 3 at 0.6. Arm means move by at most 0.006 (Hammer 0.789 to 0.785, Vector:Forge 0.418 to 0.424, Hunters:Forge, Frost and Whirlpool by 0.001). This is the Chain Trigger bias of D-027 at its size in these builds.
+- **Cast damage** (`summary.csv` `cast_damage`, not an exit row) changed meaning with D-026 and the old column must not be compared: arm means at skill 1.0 read 0 to 2467 before and 365 to 1307 now. The four arms that read 0 (Momentum, Rebound, Economy, Hound) now read 365 to 862, and ArcGrid falls from 2467 to 1307.
+
+### T-KEE-18 at d827a58: FAIL
+Share below on 10 arms, gain outside on 16, outside the archetype band on 9. Equal to the f2ef7ed reading, which this note never held as a table.
+
+| Arm | Builds | Full DPS | Share | Package gain | Share | Gain | Band |
+|---|---|---|---|---|---|---|---|
+| Forge/Furnace | 5 | 11288 | 0.559 | 1.59 | FAIL | FAIL | IN |
+| Forge/Hammer | 5 | 13801 | 0.636 | 2.59 | PASS | FAIL | IN |
+| Forge/Slam | 5 | 7807 | 0.541 | 1.06 | FAIL | FAIL | IN |
+| Quicksilver/Momentum | 5 | 13754 | 0.527 | 2.15 | FAIL | PASS | IN |
+| Quicksilver/Rebound | 5 | 10931 | 0.551 | 1.95 | FAIL | FAIL | IN |
+| Quicksilver/Vector | 5 | 12306 | 0.795 | 0.97 | PASS | FAIL | OUT |
+| Radiance/Lance | 5 | 13312 | 0.688 | 2.22 | PASS | PASS | IN |
+| Radiance/Prism | 5 | 11567 | 0.587 | 1.54 | FAIL | FAIL | IN |
+| Radiance/Solar | 3 | 7188 | 0.601 | 2.47 | PASS | FAIL | IN |
+| Shade/Economy | 5 | 19297 | 0.380 | 2.59 | FAIL | FAIL | OUT |
+| Shade/Hound | 5 | 5995 | 0.499 | 1.62 | FAIL | FAIL | IN |
+| Shade/Hunters | 5 | 12388 | 0.795 | 0.96 | PASS | FAIL | OUT |
+| Storm/ArcGrid | 2 | 5804 | 0.386 | 2.98 | FAIL | FAIL | OUT |
+| Storm/Downpour | 4 | 7444 | 0.455 | 3.71 | FAIL | FAIL | OUT |
+| Storm/Tempest | 3 | 4127 | 0.360 | 1.19 | FAIL | FAIL | OUT |
+| Tide/Frost | 3 | 8968 | 0.829 | 0.97 | PASS | FAIL | OUT |
+| Tide/Stillness | 4 | 10317 | 0.896 | 1.08 | PASS | FAIL | OUT |
+| Tide/Whirlpool | 3 | 9510 | 0.835 | 1.03 | PASS | FAIL | OUT |
+
+### T-KEE-15 at d827a58: FAIL
+
+| Keeper | In band | Min | Max | Mean | Casts that lose damage |
+|---|---|---|---|---|---|
+| Storm | 9/46 | -400 | 725822 | 57469 | 1 |
+| Forge | 16/45 | 21736 | 80552 | 51434 | 0 |
+| Tide | 1/47 | -25083 | 28688 | 632 | 27 |
+| Shade | 0/48 | -24630 | 3954879 | 597933 | 2 |
+| Radiance | 19/48 | -15640 | 109839 | 27036 | 2 |
+| Quicksilver | 1/48 | -21122 | 113504 | 8052 | 10 |
+
+Shade's mean is still Economy's payday on a refilled field, and Tide's cast still deals no damage of its own (`S2_trace.md` items 1 and 3): nothing here was decided or tuned.
+
+### Bot histogram at d827a58, printed, not judged
+
+| Bot skill | Runs | Deaths | Dead before 600 s | Wins | Boss kills of reachers | Deaths by minute |
+|---|---|---|---|---|---|---|
+| 1.0 | 270 | 83 | 0.14 | 0.69 | 0.07 of 201 | 2:1 3:4 4:1 5:3 6:3 7:12 8:6 9:9 10:9 11:7 12:5 13:3 14:6 15:7 16:6 17:1 |
+| 0.6 | 270 | 176 | 0.13 | 0.35 | 0.51 of 193 | 4:5 5:4 6:5 7:6 8:9 9:7 10:13 11:8 12:6 13:6 14:8 15:74 16:23 17:2 |
+
+Against f2ef7ed: deaths 84 to 83 and 177 to 176, the two Vector:Forge flips. Skill 0.6 still loses 0.51 of its boss reachers against the stated third.
+
+### Not read, and not checked
+- Humans win a full run, and the three clauses of R-BOT-17: human only (O-008).
+- The gate was not run for this note: it changes no code and no tool. `python Tools/docs_lint.py` passes.
+- Which commit moved Vector:Forge was read from the code, not bisected.
+
+## Exit readings of 2026-10-31 at 0747e3c, replaced by the reread above
 
 | Reading | Verdict | Value | Pass line |
 |---|---|---|---|
