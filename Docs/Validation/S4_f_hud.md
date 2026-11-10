@@ -111,7 +111,57 @@ They are to be re-baselined once, at the merge that brings packages A to D under
 - After the `dev/s3` merge: `Hud.BossName` leaves `ST_UI`. No code of this package reads it; T-HUD tests look the name up in `ST_Enemies` first.
 - Stale lines outside this package's files, left alone: `combat_core.md` Open still says the Intercession meter is a bar until the HUD pass; `boss.md` and the `Hud.BossName` context still say bottom centre; the `Hud.Hp` and `Level.*` context columns describe the old places.
 
-## 6. Not verified
+## 6. On the merged tree
+
+`dev/s4` at f0d9d17 (packages A, B, C and D) merged into `s4/f-hud` as 6edbf76. Conflicts were the five files of §5 and nothing else: both sides' rows kept, `DTConstantsGen.h` regenerated, every test class kept, `C.GATE.TEST_FLOOR` 539 to 549. §5's stale lines were brought up to date where they are plain description: the `Level.*` context column of `ST_UI` and `combat_core.md`'s note on the Intercession meter. `boss.md` names no place for the bar, so it is unchanged; the `Hud.BossName` context is left alone, because the `dev/s3` merge removes that row and an edit here would conflict with it.
+
+**Gate.** `GATE: PASS (6edbf76; 4 not run)`: pad, scope, mac, and `tools`, skipped with `-Skip tools`. Run whole, the gate stopped at `tools` with no verdict line 15 times of 15: `Tools/tools_test.py` dies of an access violation inside `Tools/enemy_art_check.py` (the rasteriser's inner loop, lines 107 and 115) or `Tools/hero_outline.py` (line 186, `draw`), packages B's and C's pure-Python readers, on Python 3.14.4 with the machine idle (CPU 3 %). Run alone, the `EnemyArt` class finished 1 time in 3 and `HeroArt` 6 times in 34; every other class, 262 tests, passed in one process. The whole suite was then rerun until one process finished: the sixth gave `TOOLS: PASS (279 tests)`, on the re-shot goldens, and that run is the verdict. Of the six `HeroArt` runs that finished alone, two were read and passed, one printed FAILED without its lines being kept, and three were counted and not read. The fault is at the same source lines each time and does not follow machine load here, so it reads as the interpreter and not as this package; it was not looked into further.
+
+Other gate lines: 556 automation tests of 556 against the floor of 549; `RESTART: PASS` `276faf8e`; `META: PASS` `ba2a3ac8`; `Dusktracer.Hud` 10 of 10 (the overlap and keep-out walks of §3, unchanged); dormant line 9.16 on its panel; `tracer_crossing` 2 of 2.
+
+**Contrast, three readings** (1280x720, en, need 3.0, watch floor 3.1), all 7/7 and `WATCH: OK`:
+
+| Element vs lit ground | Read 1 | Read 2 | Read 3 | The gate's own |
+|---|---|---|---|---|
+| telegraph | 3.29 | 3.29 | 3.29 | 3.29 |
+| enemy round | 3.21 | 3.20 | 3.21 | 3.21 |
+| optic | 5.45 | 5.45 | 5.45 | |
+| tracer core | 5.73 | 5.73 | 5.73 | |
+| hero (pixels) | 4.95 (390) | 4.95 (390) | 4.95 (390) | |
+| gem | 4.01 | 3.99 | 4.00 | |
+| chest | 4.59 | 4.50 | 4.59 | |
+
+Bare lit ground Y p5 to p95 0.1113 to 0.1163 each time (window 0.106 to 0.16).
+
+**The wave's one re-baseline.** Every golden was re-shot with `Tools\Smoke.ps1 -Scene <name> -Culture <c> -Update` on the merged tree. "Moved" is the new golden against the frame `dev/s4` held at f0d9d17 (for the three `hud_` frames, against this package's own golden of f942341), by `Tools/image_check.py`; "second run" is the gate's shot against the new golden. Limit 12.0.
+
+| Golden | Moved | Second run |
+|---|---|---|
+| `arena_empty_en` | 2.20 | 0.31 |
+| `arena_empty_zh-Hans` | 2.41 | 0.29 |
+| `combat_staged_en` | 2.52 | 0.38 |
+| `combat_staged_zh-Hans` | 2.39 | 0.27 |
+| `edge_corner_en` | 2.07 | 0.24 |
+| `edge_corner_zh-Hans` | 2.10 | 0.20 |
+| `edge_corner_wide_en` | 2.13 | 0.25 |
+| `enemy_lineup_en` | 2.68 | 0.26 |
+| `hero_lineup_en` | 2.37 | 0.28 |
+| `tracer_weapons_en` | 2.41 | 0.32 |
+| `hud_staged_en` | 0.61 | 0.24 |
+| `hud_staged_zh-Hans` | 0.64 | 0.11 |
+| `hud_boss_en` | 0.61 | 0.25 |
+| `edge_xn_en`, `edge_xn_wide_en` | 2.45, 2.44 | not in the gate |
+| `edge_xp_en`, `edge_xp_wide_en` | 2.29, 2.07 | not in the gate |
+| `edge_yn_en`, `edge_yn_wide_en` | 2.43, 2.38 | not in the gate |
+| `edge_yp_en`, `edge_yp_wide_en` | 2.35, 2.23 | not in the gate |
+
+The eight edge frames of package A are read by no gate step; they were re-shot too, so that no committed golden shows the old HUD. The first shot of `edge_yn_en` died at engine start (an access violation in `CoreUObject` before the run began); the second shot is the golden.
+
+**The hero's armour in the new `arena_empty_en`** (package C's T-HAR-06, floor `C.HERO_ART.ARMOUR_PX_MIN` 368): 392 px at tone Y 0.772. The reader skips the HUD masks, and every readout of that frame lies under a mask (T-HUD-03), so the HUD neither covers a hero pixel nor adds one. The count on the frame `dev/s4` held was not read: the tool faulted on each of six tries.
+
+Not done on the merged tree: perf, and the five bot arms (the gate's `restart` and `meta` hashes were read; the arms were not rerun).
+
+## 7. Not verified
 
 - No person looked at the HUD in play. The agent viewed `hud_staged` in both cultures, `hud_boss`, the contrast frame, and one probe frame in zh-Hans at 150 % text with the boss bar, a Keeper meter, the aim line and a dormant line up.
 - The low-HP pulse and its frame were never drawn in a frame: no debug command lowers HP, and the staging commands hold HP full. T-HUD-05 reads the function, not pixels.
