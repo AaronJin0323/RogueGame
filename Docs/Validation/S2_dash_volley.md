@@ -53,10 +53,59 @@ The new one. R-WPN-07 gives an emission its creator's source and lets a Keeper c
 - **Echo, Hunters, Ricochet's free round, Momentum's wave**: none goes through `FireVolley`, so the line does not reach them. Hunter and Ricochet read their own Keeper's source on a kill, which a Forge cleave never carried.
 - **Stillness and charge** skip a free volley by the same `bFree`, older than D-027; not changed by it.
 
-## Open, not fixed here
-An Orbital Drones dash volley does not carry `Keeper.Quicksilver`. `FireVolley` hands an Orbiter to `StepDrones`, whose free branch was written for Chain Trigger: it takes the Chain Trigger source if that modifier is socketed and the weapon's source otherwise, and never the source the dash passed. So those bolts are not Keeper damage and their kills refund nothing, against R-KEE-34. Read from the code only, older than D-027, class BUG. Fixing it moves every run that holds Drones with Vector, so it wants its own brief.
+## Drones and Sweep Beam: closed on `fix/drones-dash-volley`
+The item left open here was real, and a second weapon had it. Class BUG, sim layer. It replaces the two places where a free volley's emission took the weapon's source instead of its creator's. No number moved and no rule was written: R-KEE-34 and R-WPN-07 already said it.
+
+**The fault.** `FireVolley` builds one shot from the source and the multiplier it was called with, and every pattern it emits itself uses that shot. Two weapons leave it for a step of their own, and both dropped what the caller passed:
+- **Orbital Drones.** `StepDrones`' free branch took Chain Trigger's source if socketed and the weapon's otherwise, and never scaled the bolt. A dash volley's bolts were `Weapon.OrbitalDrones` at ×1.0: not Keeper damage, not at `dmg_mult` (1.5), no refund per kill.
+- **Sweep Beam** (evolved Rail Lance). The volley only starts the beam; `StepBeam` made every tick from the weapon's source at ×1.0. A dash volley's beam, and Chain Trigger's, read as `Weapon.RailLance`.
+
+**Reproduced before any fix.** Two tests written first, run on the tree at 342f90e, 6 failures:
+```
+& Tools\RunTests.ps1 -Filter Dusktracer.Keepers.S2.Card.Quicksilver.Vector
+```
+| Test line | Expected | Read at 342f90e |
+|---|---|---|
+| `Vector.Drones`: a drone's dash bolt is `Keeper.Quicksilver` | at least 1 hit | 0 |
+| the weapon takes none of the dash volley | 0 | 2 |
+| at the Key's multiplier | 12 (1.5 × 8) | no such hit |
+| its kill refunds cooldown | 0.15 s | 0 |
+| `Vector.EveryWeapon`, Rail Lance evolved: hits as `Keeper.Quicksilver` | at least 1 | 0 |
+| Rail Lance evolved: none of it is the weapon's | 0 | 10 |
+
+With the fix all six pass. A paired bot run shows it in telemetry, on the exit battery's arm at a seed that holds Drones from 15 s and the Vector Key from 117 s:
+```
+& Tools\BotRuns.ps1 -Arms Steered:Quicksilver:Vector:Forge -FirstSeed 9 -Seeds 1 -BotVersion 2 -Skill 1.0 -Unlock S2 -Out Saved\BotRuns\drones_after
+```
+| | Before (342f90e as built) | After |
+|---|---|---|
+| `input_hash` | `23469e3f`, the reread batch's | `5c1d6704` |
+| Outcome, end | victory, 937.0667 s | victory, 963.9834 s |
+| Dash presses | 156 | 154 |
+| Step 8733, the hit after the first dash with the Key (step 8731) | `Weapon.OrbitalDrones` 4 | `Keeper.Quicksilver` 7 |
+| Step 8751 | `Weapon.OrbitalDrones` 2 | `Keeper.Quicksilver` 3 |
+
+Every record before step 8733 is equal. Each side ran once; the before side equals the reread's record for record.
+
+**The fix.** `StepDrones` takes the source `FireVolley` was called with, so a Chain Trigger volley keeps Chain Trigger's (the same value as before) and a dash volley Quicksilver's; a dash volley's bolt is scaled by `dmg_mult` where `FireVolley` scales its rounds. The beam remembers the source and scale of the free volley that started it, and its ticks use them; the weapon's own beam is as it was. `reforging.md` R-RFG-08 now says one beam lives per weapon and a free volley's beam is that volley's.
+
+**Tests.** T-KEE-34 gains `Dusktracer.Keepers.S2.Card.Quicksilver.Vector.Drones` (source, multiplier, refund) and `Vector.EveryWeapon` (the other nine weapons, plain and evolved: a dash volley hits as `Keeper.Quicksilver` and no hit of it is the weapon's).
+
+**Every weapon's path, read and run.** `Vector.EveryWeapon` passed for all but Sweep Beam before the fix:
+- Emitted by `FireVolley` from the one shot: Pulse Rifle, Scatter Cannon, Rail Lance, Seeker Swarm, Ring Emitter, Spiral Projector, Arc Blade, and the evolutions that only change the spec or the round (Railstorm, Flechette, Murmuration, Vortex, Cyclone).
+- Handed on with the shot's source kept: Flak Mortar's shells and Carpet's strikes, Gravity Mine's mines, Pulse Wall's ring.
+- Handed on with the source dropped: Orbital Drones and Sweep Beam, the two fixed here.
+- Not a fault of source, left as they are: Blade Halo fires no bolts, so its dash volley is nothing (R-RFG-07); Cyclone sweeps only while the hero moves (R-RFG-10); Pulse Wall opens no second ring while one lives (R-RFG-12); Singularity adds a mine's damage to the live mine, whose source it then is (R-RFG-14). Under these a dash volley can do nothing or lose its label by the weapon's own rule. Not decided here whether R-KEE-34's "every weapon once" should win over them.
+
+**What moved.** Only a run that holds a Vector card with Orbital Drones, or with Sweep Beam: its drones' dash bolts gain ×1.5 and the refund, so its dashes and inputs change. Sweep Beam under Chain Trigger moves in attribution only.
+- Seed 9107, on the fixed build, all unchanged: None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446` (`Tools\BotRuns.ps1`, defaults); RestartCheck `276faf8e` on the gate. None of these arms holds a Vector card.
+- **Stale S2 exit readings** (`S2_exit.md`, read at d827a58): the three Quicksilver arms, at both skills: Vector:Forge, Momentum:Storm, Rebound:Storm. Counted from that batch's picks, 8 of 540 runs hold a Vector card with Drones: at skill 1.0 Vector:Forge seeds 2, 6 and 9 and one Momentum run; at 0.6 two Vector:Forge runs, one Momentum, one Rebound. No run there holds Sweep Beam with Vector. The other 15 arms cannot be offered a Quicksilver card and none took one.
+- **Stale probe readings**: the probe loadout holds Orbital Drones at level 3 and the route dashes every 6 s (`Tools/probe.py`, `FDTBotBrain::ProbeInput`), so every T-KEE-15 combination with a Vector card moves, and every T-KEE-18 scene whose build has a Vector card and Drones. Not rerun here.
+- `main` has no dash volley and no Sweep Beam, so nothing moves there. `dev/s3` takes this fix by merge.
 
 ## Not verified
 - One seed at one skill was run. The other ten runs that moved were not paired here; the mechanism is the only one the code offers.
 - `dev/s3` and `main` were read, not run.
 - Whether one more win in 15 is a balance change was not read; the reread calls it inside noise.
+- The drones fix: the paired run is one seed at one skill, once per side. The S2 exit battery and the probes were not rerun, so the size of the change on the three Quicksilver arms is unread.
+- Sweep Beam's dash multiplier is read from the code; the test pins its source only. Sweep Beam with Vector was not run in a bot.
