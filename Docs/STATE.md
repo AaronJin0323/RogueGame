@@ -6,7 +6,7 @@
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (257, every test found must complete, floor 30 on `main`, 510 on `dev/s3`), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 528, tools 207). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
-- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `34d1d8e` (the 1500 frame). Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
+- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `ffc8fe2` (the 1500 frame, D-041). Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
 - No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
 ## Built on `main` (S0 + S1)
@@ -35,7 +35,7 @@
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
 2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
-3. D-041 (R-BOS-13, all three branches): a Warden killed on the step the hero falls is a win, one outcome on the screen, in telemetry and in the bank. Read by built scenes only; co-op and a pause on that step are untested. Rebuild the package when the owner next wants one: `Saved\Package` predates D-041
+3. D-041 (R-BOS-13, all three branches): a Warden killed on the step the hero falls is a win, one outcome on the screen, in telemetry and in the bank. Read by built scenes only; co-op and a pause on that step are untested
 4. `dev/s3` minors that need a window or a package: #43 (Settings' Window row does nothing from `Play_*.bat`), #63/#107 (PackageHubCheck kills by path). The win-screen dark wedge is the arena plane's edge at ±4000 uu with the camera unclamped: S4 scope, in `S4_artbook_gaps.md`
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
