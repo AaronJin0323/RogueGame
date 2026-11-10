@@ -111,6 +111,7 @@ Prices are invented, marked in `number_change_log.csv`. A human earns less per r
 | `Tree.Branch.Trunk` | 你自己的条款 |
 | `Tree.Cost` | {0} 神血 |
 | `Tree.State.Short` | 神血不足 |
+| `Tree.State.Busy` | 存档正被另一个游戏使用，请再按一次。 (en invented too, D-042; awaiting a reading) |
 | `Tree.Trunk.Reroll.Name` | 重议条款 |
 | `Tree.Trunk.Banish.Name` | 拒约条款 |
 | `Tree.Trunk.Lock.Name` | 保留条款 |

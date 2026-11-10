@@ -273,6 +273,20 @@ bool FDTMetSummaryLine::RunTest(const FString& Parameters)
 	FString Csv;
 	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
 	TestTrue(TEXT("the row carries both languages"), Csv.Contains(TEXT("Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},")));
+
+	// The line for a bank the save's lock kept in memory (R-MET-11): it resolves in both cultures, and differs between them.
+	TestTrue(TEXT("the waiting line is listed with the menu's keys"), DTMenuText::AllKeys().Contains(TEXT("Summary.Waiting")));
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	TArray<FString> Waiting;
+	for (const TCHAR* Name : { TEXT("en"), TEXT("zh-Hans") })
+	{
+		FInternationalization::Get().SetCurrentCulture(Name);
+		Waiting.Add(DTMenuText::SaveWaiting().ToString());
+		TestFalse(FString::Printf(TEXT("%s: the waiting line resolves"), Name), Waiting.Last().IsEmpty() || Waiting.Last().Contains(TEXT("MISSING")) || Waiting.Last().Contains(TEXT("Summary.")));
+	}
+	FInternationalization::Get().SetCurrentCulture(Culture);
+	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+	TestTrue(TEXT("the waiting row carries both languages"), Csv.Contains(TEXT("Summary.Waiting,Save in use by another game. This run is saved at the next save or on quit.,尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。,")));
 	return true;
 }
 

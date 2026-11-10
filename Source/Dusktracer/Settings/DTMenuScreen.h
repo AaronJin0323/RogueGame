@@ -17,6 +17,8 @@ namespace DTMenuText
 	DUSKTRACER_API FText StatusLine(const FDTMenuState& State);
 	/** The one run-summary line (meta.md R-MET-06). */
 	DUSKTRACER_API FText RunSummary(int64 Retained, int64 Balance);
+	/** Summary.Waiting: the run's bank is in memory, not in the file yet (meta.md R-MET-11). */
+	DUSKTRACER_API FText SaveWaiting();
 	/** The one toast of a run's Discoveries (meta.md R-MET-44); empty with none. */
 	DUSKTRACER_API FText DiscoveryToast(TConstArrayView<FName> Ids);
 	/** The ST_UI key of the screen's title (run-over screens carry the HUD's end line, R-SET-21). */

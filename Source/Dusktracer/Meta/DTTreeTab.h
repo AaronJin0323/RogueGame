@@ -20,7 +20,7 @@ public:
 	virtual FText RowDetail(int32 Row) const override;
 	virtual FText Header() const override;
 	virtual void Accept(int32 Row) override;
-	virtual void Opened() override { Signed = INDEX_NONE; }
+	virtual void Opened() override { Signed = INDEX_NONE; Busy = INDEX_NONE; }
 	virtual bool IsHeading(int32 Row) const override;
 	virtual bool IsDimmed(int32 Row) const override;
 
@@ -43,6 +43,8 @@ private:
 	TArray<FRow> Rows;
 	/** The row bought last on this visit of the page, for its line. */
 	int32 Signed = INDEX_NONE;
+	/** The row whose last press was refused because another launch held the save's lock (meta.md R-MET-11), for its line. */
+	int32 Busy = INDEX_NONE;
 };
 
 namespace DTTreeTab
