@@ -48,8 +48,9 @@
 | D-044 | The doors of R-MET-28 are decided, and `Crit500` is reachable through them | RULE | applied | `dev/s3` |
 | D-045 | An arriving Rusher charges through where the hero stood | RULE | applied (the nineteen-arm reading and session A are open) | `main` |
 | D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | the restore applied, its hypothesis pending session A; the bands open until the S1 gate | `main` |
-| D-047 | Keeper share is the power a build loses without its blessings | RULE | applied on `main`; the reread that measures it is open | `main` |
+| D-047 | Keeper share is the power a build loses without its blessings | RULE | applied on `main`; read 2026-11-11 (`Validation/S1_d047_reread.md`), it stands | `main` |
 | D-048 | The S1 exit is read in two sessions | GO-NOGO | applied | `main` |
 | D-049 | The S3 exit passes on the designer's two of three; fresh means a fresh save | GO-NOGO | applied; replaces D-034 (on `dev/s3`) | `main` |
 | D-050 | Until people have played: the S1 build first, S4 wave 1 continues, nothing further starts early | GO-NOGO | applied | `main` |
 | D-051 | The owner sees what was decided for them; decisions live on `main`; the number log's tags are named | RULE | applied; amends D-009 | `main` |
+| D-052 | Tool runs keep off logical processors 0 and 10 of this PC, and the gate proves the rest on every run | RULE | decided; the mask is in place, the tool half is the job `s1/gate-main` | `main` |

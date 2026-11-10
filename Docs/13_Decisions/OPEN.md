@@ -14,9 +14,9 @@ Nothing here blocks the agents. The first four items are things only a person ca
 - **Default if unanswered:** session A goes ahead without it.
 
 ## O-012 — The PC  [human-only]
-- **Context:** every build, gate, measurement and package comes from one PC whose CPU (i9-13900KF) threw random faults under heavy parallel load. A wrong PASS cannot be told from a real one. Separately, the S4 exit reads performance per tier and only one GPU has ever been measured.
-- **Ask:** update the BIOS and its CPU microcode and run a stress test, or say the faults are understood. When S4 nears its exit: a reading on a real 4070, a 3060-class card and a Steam Deck.
-- **Default if unanswered:** packages for people, exit batteries and perf readings run with nothing else alive on the PC (D-050); performance stays proxied and is reported as proxied.
+- **Context:** every build, gate, measurement and package comes from one PC (i9-13900KF, ASUS PRIME Z790-A, BIOS 1820, microcode 0x12F). On 2026-11-11 its random faults were traced to two logical processors, 0 and 10: a ten-line Python loop dies there on most runs, on three different Python builds, and on no other processor in 351 runs (`Validation/S4_py_fault.md`). The sibling threads on the same two cores never fault, so it may be the firmware or a driver and not the silicon; nothing the agents can run tells them apart. D-052 keeps every tool run off those two processors and adds a check to the gate. That hides the fault from the tools. It does not fix the PC: the game you launch yourself, and anything else you run, still uses all 32. Separately, the S4 exit reads performance per tier and only one GPU has ever been measured.
+- **Ask:** (1) run Intel Processor Diagnostic Tool; (2) load the BIOS's Intel default power profile, or update the BIOS, and tell the scheduler, so processors 0 and 10 are read again; (3) if they still fault, see which devices interrupt on those two processors (LatencyMon, Device Manager), and if the diagnostic fails, ask Intel about a warranty exchange for this CPU. When S4 nears its exit: a reading on a real 4070, a 3060-class card and a Steam Deck.
+- **Default if unanswered:** the mask stays (D-052); packages for people, exit batteries and perf readings run with nothing else alive on the PC (D-050); performance stays proxied and is reported as proxied.
 
 ## O-009 — Name the AI service behind the RogueHero hero model  [human-only]
 - **Context:** RogueHero's Reclaimer model came from an AI generation service, and this repository is public.

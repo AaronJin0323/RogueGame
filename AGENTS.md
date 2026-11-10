@@ -51,6 +51,7 @@ A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the p
 - Kill stray processes by PID, never by image name.
 - In a fresh git worktree run `git lfs checkout` before the gate: `.uasset`/`.umap` files start as LFS pointer text and tests fail on missing materials.
 - Never union-merge generated files (`.po`, `.locres`, matrices, constants headers): regenerate them.
+- This PC's logical processors 0 and 10 fault in plain code (D-052, `Docs/Validation/S4_py_fault.md`). Until every Tools script applies the mask itself, each build, gate, test, bot or Python run starts from a shell that set it, as the first statement of the same command: `(Get-Process -Id $PID).ProcessorAffinity = [IntPtr]0xFFFFFBFEL` in PowerShell (the trailing `L` matters: without it the literal is negative and the call fails). The mask of record is the one line of `<git common dir>\dt-locks\affinity.txt`; a machine without that file runs unmasked.
 
 ## Brief tolerances (`Docs/Harness/H06 §5`)
 - Missing wiring inside allowed files → build it and say so.
