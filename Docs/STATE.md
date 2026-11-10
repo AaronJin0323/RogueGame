@@ -6,7 +6,7 @@
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
-- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `dcf52d7`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
+- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `34d1d8e` (the 1500 frame). Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
 - No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
 ## Built on `main` (S0 + S1)
