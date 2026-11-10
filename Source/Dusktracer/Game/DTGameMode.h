@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Core/DTRunSeed.h"
 #include "Engine/TimerHandle.h"
 #include "GameFramework/GameModeBase.h"
@@ -14,8 +15,11 @@
  * (telemetry session ended "death"; the sim keeps stepping so debug and measurement paths still run).
  *
  * Measurement hooks for Tools/Smoke.ps1 and Tools/Perf.ps1 (compiled out of Shipping, R-TEC-12):
- *   -DTShot=<file.png> [-DTShotAfter=<s>]  screenshot (with HUD) <s> seconds after run start (default C.SMOKE.SECONDS),
- *                                          then quit once the file is written
+ *   -DTShot=<file.png> [-DTShotAfter=<s>]  screenshot (with HUD) of the sim step <s> seconds of sim time after run start
+ *                                          (default C.SMOKE.SECONDS), then quit once the file is written. The sim is held
+ *                                          on that step (UDTSimSubsystem::Hold) and shot once the still frame has settled,
+ *                                          so neither a hitch (dropped steps) nor the frame rate (temporal smear) moves
+ *                                          what the frame shows (the contrast step reads rounds and telegraphs off it)
  *   -DTCsvAfter=<s>                        records the CSV profiler event "DTPerfStart" <s> seconds after run start
  *                                          (pair with -csvStartOnEvent=DTPerfStart -csvCaptureOnEventFrameCount=<n>)
  */
@@ -62,12 +66,15 @@ private:
 
 	/** Smoke / perf hooks; empty in Shipping. */
 	void StartMeasurementHooks();
+	void HandleSmokeStep();
 	void TakeSmokeShot();
-	void PollSmokeShot();
+	bool PollSmokeShot(float DeltaTime);
 
 	FString SmokeShotPath;
 	int64 SmokeShotLastSize = -1;
-	FTimerHandle SmokeTimer;
+	int64 SmokeShotStep = -1;
+	FDelegateHandle SmokeStepHandle;
+	FTSTicker::FDelegateHandle SmokePollHandle;
 	FTimerHandle CsvTimer;
 
 	UPROPERTY(Transient)
