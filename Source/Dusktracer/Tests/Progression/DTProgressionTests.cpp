@@ -15,6 +15,7 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTRunState.h"
 #include "Core/DTSimSubsystem.h"
+#include "Player/DTHeroSubsystem.h"
 #include "Progression/DTGemPool.h"
 #include "Progression/DTGemSubsystem.h"
 #include "Progression/DTProgression.h"
@@ -626,6 +627,115 @@ bool FDTPrgDropsSurvive::RunTest(const FString& Parameters)
 		Sim->StepNow(1);
 		TestEqual(TEXT("a restart empties the floor"), Gems->GetPool().Num(), 0);
 		TestEqual(TEXT("and the chests"), Gems->GetPool().NumChests(), 0);
+	}
+	World->DestroyWorld(true);
+	GEngine->DestroyWorldContext(World);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPrgChestRestore, "Dusktracer.Progression.ChestRestore", DTPrgTest::Flags) // T-PRG-09 (the restore, D-046)
+bool FDTPrgChestRestore::RunTest(const FString& Parameters)
+{
+	using namespace DTPrgTest;
+	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), TEXT("DTPrgChestRestoreWorld")));
+	Context.SetCurrentWorld(World);
+	World->InitializeActorsForPlay(FURL());
+	World->BeginPlay();
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTGemSubsystem* Gems = World->GetSubsystem<UDTGemSubsystem>();
+	UDTHeroSubsystem* Heroes = World->GetSubsystem<UDTHeroSubsystem>();
+	UDTTelemetrySubsystem* Telemetry = World->GetSubsystem<UDTTelemetrySubsystem>();
+	if (TestNotNull(TEXT("sim"), Sim) && TestNotNull(TEXT("gems"), Gems) && TestNotNull(TEXT("heroes"), Heroes) && TestNotNull(TEXT("telemetry"), Telemetry))
+	{
+		Sim->StartRun(46, 1);
+		Telemetry->StartSession(46, 1);
+		Sim->StepNow(1);
+		const FDTHeroState* State = Heroes->GetState(0);
+		if (TestNotNull(TEXT("hero state"), State))
+		{
+			const float Max = State->MaxHp;
+			const float Restore = DTConst::PICKUP_CHEST_RESTORE_HP_RATIO * Max;
+			// One hit to the hero, read in the next step's Hero phase.
+			auto Hurt = [&](float Damage)
+			{
+				FDTHeroHit Hit;
+				Hit.PlayerId = 0;
+				Hit.Damage = Damage;
+				Sim->GetView().HeroHits.Add(Hit);
+				Sim->StepNow(1);
+			};
+			// A chest under the hero, collected in the next step's Pickups phase. Returns the HP gained.
+			auto OpenChest = [&]()
+			{
+				const float Before = State->Hp;
+				Gems->SpawnChest(Sim->GetView().HeroPositions[0]);
+				Sim->StepNow(1);
+				TestEqual(TEXT("the chest is collected"), Gems->GetPool().NumChests(), 0);
+				return State->Hp - Before;
+			};
+
+			TestEqual(TEXT("a chest at full health restores nothing"), OpenChest(), 0.0f);
+			TestEqual(TEXT("and leaves HP at max"), State->Hp, Max);
+
+			Hurt(0.5f * Max);
+			const float Missing = Max - State->Hp;
+			TestTrue(TEXT("the hit lands and costs more than three restores"), Missing > 3.0f * Restore && Missing < 4.0f * Restore);
+			TestEqual(TEXT("a chest restores its share of max HP"), OpenChest(), Restore, 1.0e-3f);
+			TestEqual(TEXT("a second chest restores as much"), OpenChest(), Restore, 1.0e-3f);
+			TestEqual(TEXT("and a third"), OpenChest(), Restore, 1.0e-3f);
+			TestEqual(TEXT("the fourth restores only what is missing"), OpenChest(), Missing - 3.0f * Restore, 1.0e-3f);
+			TestEqual(TEXT("never above max HP"), State->Hp, Max);
+
+			// A hero who is down stays down: a chest on the body is not collected and restores nothing.
+			Sim->StepNow(FMath::CeilToInt32(DTConst::HERO_HURT_IFRAMES_S * DTConst::SIM_FIXED_HZ) + 1); // past the first hit's hurt window
+			Hurt(10.0f * Max);
+			TestTrue(TEXT("the hero is down"), Heroes->IsDown(0));
+			const float DownHp = State->Hp;
+			Gems->SpawnChest(Sim->GetView().HeroPositions[0]);
+			Sim->StepNow(DTConst::SIM_FIXED_HZ);
+			TestTrue(TEXT("a down hero stays down"), Heroes->IsDown(0));
+			TestEqual(TEXT("with the HP it fell at"), State->Hp, DownHp);
+			TestEqual(TEXT("the chest still lies there"), Gems->GetPool().NumChests(), 1);
+
+			Telemetry->EndSession(TEXT("test"));
+			const FString JsonlPath = Telemetry->GetWriter().GetJsonlPath();
+			FString Jsonl;
+			FFileHelper::LoadFileToString(Jsonl, *JsonlPath);
+			IFileManager::Get().Delete(*JsonlPath, false, true, true);
+			IFileManager::Get().Delete(*Telemetry->GetWriter().GetCsvPath(), false, true, true);
+			TArray<FString> Lines;
+			Jsonl.ParseIntoArrayLines(Lines);
+			const TArray<FString> Healed = Lines.FilterByPredicate([](const FString& Line) { return Line.Contains(TEXT("\"kind\":\"hero_healed\"")); });
+			auto Field = [](const FString& Line, const TCHAR* Name)
+			{
+				const FString Needle = FString::Printf(TEXT("\"%s\":"), Name);
+				const int32 At = Line.Find(Needle);
+				return At != INDEX_NONE ? FCString::Atod(*Line + At + Needle.Len()) : -1.0;
+			};
+			if (TestEqual(TEXT("one hero_healed record per chest collected alive"), Healed.Num(), 5))
+			{
+				double Sum = 0.0;
+				for (const FString& Line : Healed)
+				{
+					TestTrue(TEXT("hero_healed names its owner"), Line.Contains(TEXT("\"owner\":0,")));
+					TestTrue(TEXT("hero_healed names the chest as its source"), Line.Contains(TEXT("\"source\":\"Pickup.Chest\"")));
+					TestEqual(TEXT("hero_healed max_hp"), Field(Line, TEXT("max_hp")), static_cast<double>(Max), 1.0e-3);
+					Sum += Field(Line, TEXT("amount"));
+				}
+				TestEqual(TEXT("the first record restored nothing"), Field(Healed[0], TEXT("amount")), 0.0, 1.0e-6);
+				TestEqual(TEXT("a record holds the HP really restored"), Field(Healed[1], TEXT("amount")), static_cast<double>(Restore), 1.0e-3);
+				TestEqual(TEXT("and the HP after it"), Field(Healed[1], TEXT("hp_after")), static_cast<double>(Max - Missing + Restore), 1.0e-3);
+				TestEqual(TEXT("the records sum to the HP that was missing"), Sum, static_cast<double>(Missing), 1.0e-2);
+			}
+		}
+	}
+	for (AActor* Actor : FActorRange(World))
+	{
+		if (Actor)
+		{
+			Actor->RouteEndPlay(EEndPlayReason::LevelTransition);
+		}
 	}
 	World->DestroyWorld(true);
 	GEngine->DestroyWorldContext(World);

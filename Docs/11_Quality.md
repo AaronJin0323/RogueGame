@@ -41,9 +41,10 @@ Written today:
 - per source: damage, hits and kills; per weapon: emissions; status applications; Intercession casts
 - offers shown (every card with its weight, again after a reroll or a banish refill) / taken / rerolled / banished / locked
 - outcome (`run_end.reason`), run seed, build hash, culture, input device. A death's cause has no field of its own: it reads from the last `hero_damaged` record before `hero_down`
+- healing: each restore that reaches a living hero is a `hero_healed` record with the HP really restored and its source (D-046)
+- what the machine did to the run: `run_end.wall_dropped_steps` and `run_end.wall_duration_s`, so a run played in slow motion on a slow PC reads apart from a normal one (`telemetry.md` R-TEL-08)
 
 Not written yet, each PLANNED with its stage:
-- PLANNED(S1): healing, as a `hero_healed` record (D-046)
 - PLANNED(S2): enemy bullets aimed at the player
 - PLANNED(S2): a hand closed with no pick. Players cannot skip a hand; the bot's no-pick arm declines hands and counts them only in its own bot record
 - PLANNED(S4): per visible effect, trigger / VFX / audio counts (so "I didn't see it" is checkable)

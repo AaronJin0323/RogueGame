@@ -14,12 +14,14 @@ or a hero that went down inside the window is printed, with its rates over the t
 death in the window inflates a rate over time alive (Docs/Validation/S1_pull_rule.md). A run that ended before it reads nothing.
 
 Source: the JSONL `hero_damaged` (amount / max_hp), `dash`, `hero_down` and `run_end` records, clipped to the window
-exactly; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows weighted by their overlap with the
+exactly, and `hero_healed` for the RESTORES line; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows weighted by their overlap with the
 window. Kill time needs both files: the CSV holds the cells, the JSONL says the run stamps the first hit (R-TEL-03).
 One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
+  RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
+                                                     back, never taken off the damage reading; printed only when one exists)
 
 With --check, the statistic: the median of the per-run values over the runs that count, per group. A group is a bot arm (a
 run folder's label, <arm>_s<seed>, Tools/BotRuns.ps1), judged on its own because a pooled figure hides builds that miss in
@@ -161,6 +163,27 @@ def sources_from_jsonl(path, lo, hi, owner=0):
 				continue
 			key = f"{hit_kind}/{fields.get('role')}"
 			out[key] = out.get(key, 0.0) + max(0.0, float(fields.get("amount", 0.0))) / max_hp
+	return out
+
+
+def restores_from_jsonl(path, lo, hi, owner=0):
+	"""{source: (restores, HP restored as a share of max HP)} of `owner` with lo <= t < hi, from `hero_healed` (D-046).
+	A restore at full health counts with a share of zero. {} for a run from before the record."""
+	out = {}
+	with open(path, encoding="utf-8") as f:
+		for line in f:
+			if '"hero_healed"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=first_wins)
+			except ValueError:
+				continue
+			t = float(rec.get("t", 0.0))
+			max_hp = float(rec.get("max_hp") or 0.0)
+			if rec.get("kind") != "hero_healed" or rec.get("owner", -1) != owner or not lo <= t < hi or max_hp <= 0:
+				continue
+			count, share = out.get(rec.get("source"), (0, 0.0))
+			out[rec.get("source")] = (count + 1, share + max(0.0, float(rec.get("amount", 0.0))) / max_hp)
 	return out
 
 
@@ -385,6 +408,14 @@ def main(argv):
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
 		for owner, (ttk, n) in sorted(ttks.items()):
 			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
+		if jsonl:
+			for owner in sorted(rates):
+				whole = restores_from_jsonl(jsonl, 0.0, float("inf"), owner)
+				inside = restores_from_jsonl(jsonl, lo, hi, owner)
+				if whole:
+					detail = " ".join(f"{source} {n} for {share:.3f} of max HP (in window {inside.get(source, (0, 0.0))[0]}, {inside.get(source, (0, 0.0))[1]:.3f})"
+						for source, (n, share) in sorted(whole.items()))
+					print(f"RESTORES: {name} p{owner} {detail}")
 	if checks:
 		lines, verdicts = judge(readings, validators, dmg_band, dash_band, ttk_max, (lo, hi), checks)
 		print("\n".join(lines))

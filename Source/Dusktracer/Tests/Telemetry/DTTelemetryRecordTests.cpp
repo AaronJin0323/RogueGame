@@ -258,6 +258,9 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	FDTHeroHit Contact;
 	Core.RecordHeroDamaged(0, Contact, 5.0f, 85.0f, 100.0f, FVector2f::ZeroVector);
 	Core.RecordHeroDown(0);
+	Core.RecordHeroHealed(1, 15.0f, 75.0f, 100.0f, TEXT("Pickup.Chest"));
+	Core.RecordHeroHealed(7, 15.0f, 75.0f, 100.0f, TEXT("Pickup.Chest")); // not a player
+	Core.SetRunWall(28, 12.5);
 	Core.RecordIntercessionDenied(1);
 	Core.RecordIntercessionDenied(1);
 	// Threat actions: two within P0's ring, one within P1's (at the edge), one in nobody's.
@@ -277,9 +280,13 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 			TEXT("\"hero_x\":100,\"hero_y\":%d,\"src_x\":120,\"src_y\":-31,\"vel_x\":600,\"vel_y\":-801,\"flight_s\":0.7500}\n"), FMath::RoundToInt32(-50.5f))));
 	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null,\"hero_x\":0,\"hero_y\":0,\"src_x\":0,\"src_y\":0}\n")));
 	TestTrue(TEXT("hero_down line"), Jsonl.Contains(Head(TEXT("hero_down"), 0) + TEXT("}\n")));
+	TestTrue(TEXT("hero_healed line"), Jsonl.Contains(Head(TEXT("hero_healed"), 1)
+		+ TEXT(",\"amount\":15.0000,\"hp_after\":75.0000,\"max_hp\":100.0000,\"source\":\"Pickup.Chest\"}\n")));
+	TestEqual(TEXT("one hero_healed record: a non-player's is unowned"), OfKind(Jsonl, TEXT("hero_healed")).Num(), 1);
+	TestTrue(TEXT("run_end ends with the wall fields"), Jsonl.Contains(TEXT(",\"wall_dropped_steps\":28,\"wall_duration_s\":12.5000}\n")));
 	TestTrue(TEXT("intercession_denied per interval"), Jsonl.Contains(Head(TEXT("intercession_denied"), 1, StepsPerInterval())
 		+ TEXT(",\"interval\":0,\"count\":2}\n")));
-	TestEqual(TEXT("a dash for a non-player is unowned"), Core.GetUnownedEvents(), static_cast<int64>(1));
+	TestEqual(TEXT("a dash and a heal for a non-player are unowned"), Core.GetUnownedEvents(), static_cast<int64>(2));
 	TestEqual(TEXT("run totals for per-block producers"), Core.GetRunDashes(1), 2);
 	TestEqual(TEXT("run damage share"), Core.GetRunDamageTakenShare(0), 0.15, 1e-6);
 
@@ -332,7 +339,7 @@ bool FDTTelRecProgression::RunTest(const FString& Parameters)
 	const TArray<FString> Merged = OfKind(Jsonl, TEXT("gems_merged"));
 	TestTrue(TEXT("one gems_merged record (owner -1) per step"), Merged.Num() == 1 && Merged[0] == Head(TEXT("gems_merged"), -1) + TEXT(",\"count\":5}"));
 	TestTrue(TEXT("run_end progression per player"), Jsonl.Contains(TEXT("\"wall_paused_s\":0.0000,\"level\":2,\"xp_total\":6},\"1\":{")));
-	TestTrue(TEXT("run_end gems of the run"), Jsonl.Contains(TEXT(",\"gems_spawned\":10,\"gems_collected\":5,\"gems_left\":4}\n")));
+	TestTrue(TEXT("run_end gems of the run"), Jsonl.Contains(TEXT(",\"gems_spawned\":10,\"gems_collected\":5,\"gems_left\":4,\"wall_dropped_steps\":0,\"wall_duration_s\":0.0000}\n")));
 	return true;
 }
 

@@ -128,6 +128,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.RUSHER_CHARGE_S | 0.65 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_RECOVER_S | 0.8 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_COOLDOWN_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_ARRIVAL_OVERSHOOT_UU | 200 | uu | GATED(S1) | enemies.md, R-ENM-13, T-ENM-13 |
 | C.ROLE.TURRET_HP | 40 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
 | C.ROLE.TURRET_RADIUS_UU | 48 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-12 |
 | C.ROLE.TURRET_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
@@ -292,6 +293,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PICKUP.GEM_SIZE_UU | 24 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.CHEST_SIZE_UU | 70 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.EMISSIVE | 3.0 | ratio | GATED(S1) | 02_Systems/progression.md, 04_Presentation.md |
+| C.PICKUP.CHEST_RESTORE_HP_RATIO | 0.15 | ratio | GATED(S1) | 02_Systems/progression.md, R-PRG-09, T-PRG-09 |
 
 ## Combat and director (02_Systems/combat_core.md, director.md)
 

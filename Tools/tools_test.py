@@ -188,6 +188,46 @@ class Casts(unittest.TestCase):
 		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, None, None, "V"))
 
 
+class PressureRestores(unittest.TestCase):
+	"""pressure.py reads `hero_healed` (D-046): what each run got back, by source, whole run and band window."""
+
+	RUN = [
+		'{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}',
+		'{"t":100.0,"step":1,"kind":"hero_damaged","owner":0,"amount":40,"hp_after":60,"max_hp":100,"hit_kind":"Contact","role":"Tank"}',
+		'{"t":200.0,"step":2,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}',
+		'{"t":650.0,"step":3,"kind":"hero_healed","owner":0,"amount":0,"hp_after":100,"max_hp":100,"source":"Pickup.Chest"}',
+		'{"t":700.0,"step":4,"kind":"hero_healed","owner":0,"amount":10,"hp_after":85,"max_hp":100,"source":"Reserve.Restore"}',
+		'{"t":900.0,"step":5,"kind":"run_end","owner":-1,"reason":"death","steps":5}',
+	]
+
+	def test_restores_by_source(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(self.RUN) + "\n")
+			whole = pressure.restores_from_jsonl(path, 0.0, float("inf"))
+			window = pressure.restores_from_jsonl(path, 600.0, 780.0)
+			old = os.path.join(tmp, "old.jsonl")
+			with open(old, "w", encoding="utf-8") as f:
+				f.write(self.RUN[0] + "\n" + self.RUN[1] + "\n")
+			none = pressure.restores_from_jsonl(old, 0.0, float("inf"))
+		self.assertEqual(whole["Pickup.Chest"][0], 2)
+		self.assertAlmostEqual(whole["Pickup.Chest"][1], 0.15)
+		self.assertEqual(whole["Reserve.Restore"][0], 1)
+		self.assertAlmostEqual(whole["Reserve.Restore"][1], 0.10)
+		self.assertEqual(window["Pickup.Chest"][0], 1)
+		self.assertAlmostEqual(window["Pickup.Chest"][1], 0.0)
+		self.assertEqual(none, {})
+
+	def test_damage_reading_is_unchanged_by_a_restore(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(self.RUN) + "\n")
+			rates = pressure.window_from_jsonl(path, 0.0, 300.0)
+		self.assertAlmostEqual(rates[0][0], 0.40 / 5.0)
+
+
 class OwnerRead(unittest.TestCase):
 	KEY = "Blessing.Forge.Hammer.Key"
 	LINES = [
@@ -487,6 +527,31 @@ class PressureStatistic(unittest.TestCase):
 		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), contextlib.redirect_stdout(out):
 			rc = pressure.main(["pressure.py", *args])
 		return rc, out.getvalue()
+
+	def test_a_restore_is_printed_and_moves_no_verdict(self):
+		"""D-046: `hero_healed` inside the window prints a RESTORES line; the statistic reads the same damage with and without it."""
+		heal = '{"t":700.0,"step":1,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}'
+		outs = []
+		for healed in (False, True):
+			with tempfile.TemporaryDirectory() as tmp:
+				for seed in (1, 2, 3):
+					folder = os.path.join(tmp, f"Arm_s{seed}")
+					self.write(folder, f"{seed}_run", 0.4)
+					if healed:
+						path = os.path.join(folder, f"{seed}_run.jsonl")
+						with open(path, encoding="utf-8") as f:
+							lines = f.read().splitlines()
+						with open(path, "w", encoding="utf-8") as f:
+							f.write("\n".join(lines[:-1] + [heal, lines[-1]]) + "\n")
+				outs.append(self.check(tmp, "--check", "T-DIR-02"))
+		(rc_plain, plain), (rc_healed, healed_out) = outs
+		self.assertEqual(rc_plain, rc_healed)
+		self.assertEqual([line for line in plain.splitlines() if line.startswith("T-DIR-02")],
+			[line for line in healed_out.splitlines() if line.startswith("T-DIR-02")])
+		self.assertIn("T-DIR-02 Arm: PASS", plain)
+		self.assertNotIn("RESTORES:", plain)
+		self.assertEqual(healed_out.count("RESTORES:"), 3)
+		self.assertIn("Pickup.Chest 1 for 0.150 of max HP (in window 1, 0.150)", healed_out)
 
 	def test_a_run_that_ends_in_the_window_is_printed_and_never_judged(self):
 		with tempfile.TemporaryDirectory() as root:

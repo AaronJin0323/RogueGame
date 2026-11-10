@@ -73,6 +73,9 @@ namespace DTTelHeroTest
 		return At != INDEX_NONE ? FCString::Atod(*Line + At + Needle.Len()) : 0.0;
 	}
 
+	/** One frame of this length is a hitch: thirty steps come due at once (Dusktracer.Telemetry.RunEnd). */
+	constexpr float DTTelRunEndHitchSeconds = 0.5f;
+
 	/** A game world for one test; Close tears it down. */
 	struct FWorld
 	{
@@ -209,9 +212,14 @@ bool FDTTelRunEnd::RunTest(const FString& Parameters)
 		&& TestNotNull(TEXT("enemies"), Enemies) && TestNotNull(TEXT("director"), Director))
 	{
 		Sim->StartRun(41, 1);
+		// A hitch before the session: steps dropped then are not this run's.
+		Sim->AdvanceFrame(DTTelRunEndHitchSeconds);
 		Telemetry->StartSession(41, 1);
 		Director->StartRun();
 		Sim->StepNow(DTConst::SIM_FIXED_HZ); // inside the first Harvest block
+		// Two hitches in the run: each frame runs C.SIM.MAX_SUBSTEPS steps and drops the rest (R-TEC-03).
+		Sim->AdvanceFrame(DTTelRunEndHitchSeconds);
+		Sim->AdvanceFrame(DTTelRunEndHitchSeconds);
 
 		// A lethal touch off to one side of the hero: the record must tell the two positions apart.
 		const FVector2f Hero = Sim->GetView().HeroPositions[0];
@@ -245,6 +253,19 @@ bool FDTTelRunEnd::RunTest(const FString& Parameters)
 		TestTrue(TEXT("dmg_taken holds the fatal hit"), At != INDEX_NONE && FMath::IsNearlyEqual(FCString::Atod(*Blocks[0] + At + Taken.Len()), Share, 1e-3));
 		TestEqual(TEXT("src_x is the enemy's"), Number(Damaged[0], TEXT("src_x")), static_cast<double>(FMath::RoundToInt32(EnemyAt.X)), 200.0);
 		TestTrue(TEXT("the source is not the hero"), Number(Damaged[0], TEXT("src_x")) != Number(Damaged[0], TEXT("hero_x")));
+	}
+
+	// A slow PC's run can be told from a normal one: run_end counts the steps the clock dropped and the wall time (R-TEL-08).
+	const TArray<FString> End = OfKind(Jsonl, TEXT("run_end"));
+	if (TestEqual(TEXT("one run_end"), End.Num(), 1))
+	{
+		const int32 HitchSteps = FMath::RoundToInt32(DTTelRunEndHitchSeconds * DTConst::SIM_FIXED_HZ);
+		TestTrue(TEXT("run_end has wall_dropped_steps"), End[0].Contains(TEXT("\"wall_dropped_steps\":")));
+		TestEqual(TEXT("wall_dropped_steps counts the run's dropped steps, not the ones before it"),
+			Number(End[0], TEXT("wall_dropped_steps")), static_cast<double>(2 * (HitchSteps - DTConst::SIM_MAX_SUBSTEPS)));
+		TestTrue(TEXT("run_end has wall_duration_s"), End[0].Contains(TEXT("\"wall_duration_s\":")));
+		TestTrue(TEXT("wall_duration_s is the wall time of this session"),
+			Number(End[0], TEXT("wall_duration_s")) >= 0.0 && Number(End[0], TEXT("wall_duration_s")) < 300.0);
 	}
 
 	const TArray<FString> Start = OfKind(Jsonl, TEXT("run_start"));
