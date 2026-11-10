@@ -85,6 +85,117 @@ Against f2ef7ed: deaths 84 to 83 and 177 to 176, the two Vector:Forge flips. Ski
 - The gate was not run for this note: it changes no code and no tool. `python Tools/docs_lint.py` passes.
 - Which commit moved Vector:Forge was read from the code, not bisected.
 
+### Addendum, 2026-11-10, at 8231171: the Quicksilver arms and the Vector probe rows, after the drones fix and D-038
+Branch `fix/dash-volley-rule`, from `dev/s2` e40943c. A reading: nothing tuned, pass lines unchanged. **A bot reading is never a human reading**; these are bounds. Two things came after the reread above: the BUG fix that made an Orbital Drones or Sweep Beam dash volley Quicksilver's at `dmg_mult` (a4d14ad), and D-038, under which a dash volley acts on Blade Halo, Cyclone and Pulse Wall (`S2_dash_volley.md`).
+
+```
+& Tools\S2Exit.ps1 -Out Saved\BotRuns\s2_exit -Parallel 6
+```
+The whole battery again, the options of the reread above, because the reader takes all 18 arms and the probes take their builds from the skill 1.0 batch: three arms alone give no verdict line. 540 runs, 462 ablation scenes, 1128 cast scenes. Every run's build stamp reads `8231171`, clean; every run left a record; none was rerun. "Old" is the batch of the reread above, d827a58, paired run by run on `input_hash`.
+
+`S2EXIT: 1 PASS, 3 FAIL, 2 NOT READ`, the same verdicts.
+
+| Reading | Verdict | Old, d827a58 | New, 8231171 | Moved |
+|---|---|---|---|---|
+| Keeper share | **FAIL** | 8/18, mean 0.607 | 8/18, mean 0.606 | the Vector row alone, 0.795 to 0.781 |
+| Build bands | **FAIL** | 9/18 | 9/18 | no |
+| Intercession | **FAIL** | 46/282 | 46/282 | no row changes side; 30 of the 31 rows with Vector move in value |
+| Bots win a full run | PASS, a bound | Quicksilver 43/45 | Quicksilver 43/45; the other five Keepers equal | no |
+
+**Runs.** 533 of 540 keep their `input_hash`: 266 of 270 at skill 1.0, 267 of 270 at 0.6. All 15 arms without Quicksilver are equal run for run. The seven that differ:
+
+| Skill | Arm, seed | Old | New |
+|---|---|---|---|
+| 1.0 | Vector:Forge 2 | `ebdf06d1` victory 1011.98 s, 117 dashes | `1089a40b` victory 1023.53 s, 144 dashes |
+| 1.0 | Vector:Forge 6 | `63ddad25` victory 967.65 s, 138 | `a082f394` victory 983.23 s, 161 |
+| 1.0 | Vector:Forge 9 | `23469e3f` victory 937.03 s, 156 | `5c1d6704` victory 963.95 s, 154 |
+| 1.0 | Momentum:Storm 9 | `a33b0f06` victory 939.93 s, 62 | `d3bdfad3` victory 993.22 s, 62 |
+| 0.6 | Vector:Forge 6 | `c959f287` death 881.18 s, 76 | `f1f728fd` death 461.38 s, 30 |
+| 0.6 | Vector:Forge 9 | `1b9d746e` death 871.65 s, 84 | `382dc9f6` death 678.87 s, 56 |
+| 0.6 | Momentum:Storm 9 | `2d8966cc` victory 962.38 s, 22 | `a7feb58e` victory 962.00 s, 23 |
+
+- Each of the seven holds a dash volley (a Vector card or Slipstream Drive) with Orbital Drones: the drones fix. `S2_dash_volley.md` counted eight such runs; the eighth, Rebound:Storm seed 13 at 0.6, keeps its hash. Why it does was not traced.
+- Seed 9 of Vector:Forge at 1.0 is the paired run of `S2_dash_volley.md`, the same two hashes.
+- No outcome flips. Two losing runs at 0.6 die earlier, by 420 s and 193 s; two runs is no trend.
+- **D-038 is not read by this battery.** No run of the 540 evolves Orbital Drones, Arc Blade or Ring Emitter (Reforging picks: one `Evolve.GravityMine`, on an arm without Quicksilver), the ablation builds are level 16 snapshots taken before the Reforging hand, and the cast scenes' loadout is Pulse Rifle, Arc Blade and Orbital Drones, none evolved (no scene file names an evolution). So no bot run here holds a dash volley with Blade Halo, Cyclone or Pulse Wall, and D-038's size in play is unread. Its tests are its only reading.
+
+**The three Quicksilver arms**, 15 seeds each.
+
+| Arm | Skill | Runs that differ | Wins old | Wins new | Reach the boss old / new | Median end old / new, s | Mean dash presses old / new | Keeper share old / new |
+|---|---|---|---|---|---|---|---|---|
+| Vector:Forge | 1.0 | 3 | 13 | 13 | 13 / 13 | 967.6 / 970.0 | 101.3 / 104.5 | 0.688 / 0.699 |
+| Vector:Forge | 0.6 | 2 | 5 | 5 | 10 / 10 | 918.8 / 918.8 | 47.8 / 42.9 | 0.543 / 0.510 |
+| Momentum:Storm | 1.0 | 1 | 15 | 15 | 15 / 15 | 952.8 / 952.9 | 49.3 / 49.3 | 0.587 / 0.587 |
+| Momentum:Storm | 0.6 | 1 | 9 | 9 | 15 / 15 | 952.5 / 952.5 | 19.7 / 19.7 | 0.535 / 0.534 |
+| Rebound:Storm | 1.0 | 0 | 15 | 15 | 15 / 15 | 958.6 / 958.6 | 37.5 / 37.5 | 0.705 / 0.705 |
+| Rebound:Storm | 0.6 | 0 | 14 | 14 | 14 / 14 | 949.4 / 949.4 | 19.2 / 19.2 | 0.649 / 0.649 |
+
+Keeper share here is `summary.csv` `keeper_share`, the attribution column, not the exit row. Deaths stay 83 and 176; at 0.6 the histogram moves two deaths (minute 14 to minutes 7 and 11), which lifts "dead before 600 s" from 0.13 to 0.14 as printed.
+
+**T-KEE-18, the row that holds a Vector card.** The other 17 rows equal the table above to the printed digit.
+
+| Arm | Builds | Full DPS old | new | Share old | new | Loss without blessings old | new | Gain old | new | Verdicts |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Quicksilver/Vector | 5 | 12306 | 12914 | 0.795 | 0.781 | 0.879 | 0.880 | 0.97 | 0.97 | share PASS, gain FAIL, band OUT, as before |
+
+The mean share over 18 arms goes 0.607 to 0.606, so the archetype band's centre moves with it; no arm changes side.
+
+**T-KEE-15, every row that holds Vector**, mean marginal damage of one cast, 2 seeds. The probe loadout holds Orbital Drones at level 3 and the route dashes every 6 s, so each of these was stale. No row changes its IN or OUT.
+
+| Keeper | Variant | Layer | Old | New |
+|---|---|---|---|---|
+| Quicksilver | Vector | none | 75 | 104 |
+| Quicksilver | Vector | Radiance_Lance | 23642 | 23668 |
+| Quicksilver | Vector | Forge_Slam | 8404 | 8433 |
+| Quicksilver | Vector | Shade_Economy | 3794 | 3824 |
+| Quicksilver | Vector | Tide_Stillness | 1796 | 1826 |
+| Quicksilver | Vector | Tide_Frost | 783 | 822 |
+| Quicksilver | Vector | Forge_Hammer | 739 | 870 |
+| Quicksilver | Vector | Shade_Hunters | 690 | 719 |
+| Quicksilver | Vector | Shade_Hound | -176 | -146 |
+| Quicksilver | Vector | Radiance_Solar | -310 | -281 |
+| Quicksilver | Vector | Storm_Downpour | -606 | -538 |
+| Quicksilver | Vector | Storm_Tempest | -739 | -710 |
+| Quicksilver | Vector | Storm_ArcGrid | -908 | -830 |
+| Quicksilver | Vector | Tide_Whirlpool | -1082 | -1042 |
+| Quicksilver | Vector | Radiance_Prism | -1518 | -1463 |
+| Quicksilver | Vector | Forge_Furnace | -21122 | -21288 |
+| Forge | Slam | Quicksilver_Vector | 80217 | 80206 |
+| Forge | Hammer | Quicksilver_Vector | 44105 | 44138 |
+| Forge | Furnace | Quicksilver_Vector | 42390 | 42642 |
+| Radiance | Prism | Quicksilver_Vector | 61234 | 60902 |
+| Radiance | Lance | Quicksilver_Vector | 24373 | 24365 |
+| Radiance | Solar | Quicksilver_Vector | 16302 | 16302 |
+| Shade | Economy | Quicksilver_Vector | 1991394 | 1991364 |
+| Shade | Hunters | Quicksilver_Vector | 5998 | 5986 |
+| Shade | Hound | Quicksilver_Vector | 2482 | 2470 |
+| Storm | Downpour | Quicksilver_Vector | 58374 | 58118 |
+| Storm | ArcGrid | Quicksilver_Vector | 31949 | 33351 |
+| Storm | Tempest | Quicksilver_Vector | 28688 | 28676 |
+| Tide | Stillness | Quicksilver_Vector | 678 | 668 |
+| Tide | Frost | Quicksilver_Vector | -706 | -718 |
+| Tide | Whirlpool | Quicksilver_Vector | -1357 | -1366 |
+
+- 15 of the 16 rows with Vector as the variant rise by 26 to 131; Vector with a Furnace layer falls by 166. The rise is small because the cast changes little for Vector: the drones' dash bolts gain ×1.5 with and without the cast.
+- With Vector as the layer the dash volley exists only during the cast, at ×1.0, so the fix moves its label and little else: 11 of 15 rows move by 33 or less, Solar by nothing. The four larger moves are ArcGrid +1402, Prism −332, Downpour −256 and Furnace +252, on SDs of 881, 8596, 6802 and 509 over 2 seeds. Not traced.
+- The other 32 Quicksilver rows (Momentum and Rebound as the variant) move by 2 or less. A Quicksilver cast fires a dash volley for every variant (R-KEE-35), and its drones' bolts changed source at ×1.0, which moves the per-source rounding carry (R-TEL-05). Read from the code, not traced.
+- The 219 rows with neither Quicksilver as the Keeper nor Vector as the layer equal the old means and SDs to the unit. Their printed ratios move in the second decimal where the Keeper's mean moved.
+
+| Keeper | In band old | new | Mean old | new |
+|---|---|---|---|---|
+| Storm | 9/46 | 9/46 | 57469 | 57494 |
+| Forge | 16/45 | 16/45 | 51434 | 51440 |
+| Tide | 1/47 | 1/47 | 632 | 632 |
+| Shade | 0/48 | 0/48 | 597933 | 597932 |
+| Radiance | 19/48 | 19/48 | 27036 | 27029 |
+| Quicksilver | 1/48 | 1/48 | 8052 | 8062 |
+
+**`S1_keeper_power.md` §8 is not stale.** Its T-KEE-15 and T-KEE-18 probes ran the nine S1 showcase arms with nothing unlocked: Storm, Forge and Tide, 57 combinations, no Quicksilver card in any scene. They were not rerun. The probe rows that hold a Vector card are the S2 ones above.
+
+**Seed 9107** on 8231171, unchanged: None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446` (`Tools\BotRuns.ps1`, defaults, one process); RestartCheck `276faf8e` on the gate.
+
+**Not read.** D-038 in any bot run (above). Humans, and the three clauses of R-BOT-17 (O-008). Why Rebound:Storm seed 13 at 0.6 keeps its hash. Which hits moved the four larger layer rows.
+
 ## Exit readings of 2026-10-31 at 0747e3c, replaced by the reread above
 
 | Reading | Verdict | Value | Pass line |
