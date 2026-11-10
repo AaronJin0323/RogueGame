@@ -1744,6 +1744,15 @@ class ReadAll(unittest.TestCase):
 		self.assertLess(text.index('$Crash = @(Select-String -Path $Log'), text.index('lost; next seed'))
 		self.assertLess(text.index('if ($Crash.Count -gt 0) {'), text.index('lost; next seed'))
 
+	def test_perf_names_the_package_it_measured(self):
+		# Review #40, #59: a [package] row was recorded under HEAD, whatever commit the package was built from.
+		text = self.script("Perf.ps1")
+		head = text.index("$Head = (& git -C $Root rev-parse --short HEAD)")
+		stamp = text.index('$Head = if ($Built -and $Built.commit)')
+		self.assertLess(head, stamp)
+		self.assertLess(stamp, text.index("-f $Stamp, $Head, $Gpu"))
+		self.assertIn('Join-Path $Saved "Package\\package_stamp.json"', text)
+
 	def test_padcheck_accepts_every_file_the_export_carries(self):
 		# Review #25, #38: a crash folder's text files are in the export by design, and the pad step called them stray.
 		export = re.search(r'\$TextCrash = @\(([^)]*)\)', self.script(os.path.join("PackageFiles", "Export_Logs.ps1"))).group(1)

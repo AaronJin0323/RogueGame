@@ -93,6 +93,12 @@ try {
 
 	$Gpu = ((Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join " + ")
 	$Head = (& git -C $Root rev-parse --short HEAD) 2>$null
+	if ($Package) {
+		# The row names the build that was measured: the package's own commit (Tools\Package.ps1's stamp), not the tree's HEAD, which may have moved since.
+		$BuiltFile = Join-Path $Saved "Package\package_stamp.json"
+		$Built = if (Test-Path $BuiltFile) { Get-Content $BuiltFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+		$Head = if ($Built -and $Built.commit) { "$($Built.commit)" + $(if ($Built.dirty) { "+dirty" } else { "" }) } else { "unstamped" }
+	}
 	$Before = @(if (Test-Path $CsvDir) { Get-ChildItem $CsvDir -Filter *.csv | ForEach-Object { $_.FullName } })
 
 	if (Test-Path $Log) { Remove-Item $Log -Force }
