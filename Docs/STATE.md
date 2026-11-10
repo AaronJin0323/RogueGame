@@ -5,7 +5,7 @@
 - Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-037 (D-029 to D-031 on `main`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
 - Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
-- Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 5.0 ms (D-011); the perf scene grants no Keeper blessings
+- Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
 - Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `dcf52d7`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
 - No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
@@ -25,16 +25,17 @@
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
 ## In flight (resumed 2026-11-10)
-- Tips, gated PASS and pushed: `main` a1299a8, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
+- Tips before `integrate/w5`, gated PASS and pushed: `main` cf7db4f, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
 - `main` now holds `fix/contrast-flake` (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results), gated at bf8c8c8. `integrate/w5-s2` and `integrate/w5-s3` carry it to `dev/s2` and `dev/s3`
-- `fix/d036-camera` from `main`: key 2000 → 1500, T-UX-01/02, goldens, contrast framing limits, perf, seed 9107 hashes, D-036 implemented. `dev/s2` and `dev/s3` take it after
+- D-036 is applied on `main` (cf7db4f, GATE: PASS): the frame radius is 1500 uu, about 53 m across at 36 px/m, fixed and not a setting; T-UX-01 and T-UX-02 are live; the camera keeps its height in wide windows. Seed 9107 hashes unchanged. Contrast pixel limits scaled with the frame and the rim hue band widened to 312–346 so the whole rim stroke is read; thresholds untouched. `dev/s2` and `dev/s3` still frame 2000 until they take it
+- Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
 - `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
 - Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
 - This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
-2. Implement D-036 on `main` before O-008, then carry it to `dev/s2` and `dev/s3`; human readings taken before the move are redone after it
+2. Carry D-036 to `dev/s2` and `dev/s3` after `integrate/w5`; settle its three held items (screen-wide effects against the frame, spawns in view, a Warden edge marker) at human readings
 3. Build a `dev/s3` package and read the package checks; then the deferred review majors #94 and #64
 4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
@@ -53,7 +54,7 @@
 - Probes (`S1_keeper_power.md`, bounds, 40× field): after D-019: T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.589, 5/9 arms). The share formula cannot pass Storm. Pass criteria stay until human readings
 - Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 192 steered runs reach the boss, 151 win. T-DIR-01 PASS (588.6 s). T-OFF-15 FAIL 197/198 (no bug). T-DIR-02 per arm FAIL (0/19 arms in band). Two Forge/Tide arms fell past noise, cause unmeasured
 - Primary Whirlpool and Stillness are the weakest Keeper arms. With no heal in S1 the band and boss reach cannot both hold
-- Contrast gate 7/7 on the rendered lit ground and shadow; telegraph (3.22) and round (3.14) pass with thin margins. The second weather does not exist
+- Contrast gate 7/7 on the rendered lit ground and shadow; telegraph (3.27) and round (3.18) pass with thin margins. The second weather does not exist
 - Carried: real 4070/3060 readings due before S4
 
 ## Pointers (do not inline)

@@ -206,8 +206,8 @@ void ADTGameMode::RestartPlayer(AController* NewPlayer)
 	}
 	if (FollowCamera)
 	{
-		// Keep the spawn transform as the offset from the hero: the actor itself is the view (ADTCameraPawn::FollowTransform).
-		FollowCamera->AttachToActor(Hero, FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, false));
+		// The offset from the hero is FollowTransform: the actor itself is the view (ADTCameraPawn::FollowTransform).
+		FollowCamera->Follow(Hero);
 		PC->SetViewTarget(FollowCamera);
 		// The run-start Patron hand pauses the world before the first frame, and a paused world never updates the camera
 		// manager: fill its cache now so the hand is drawn with the camera's field of view (the view point itself is the

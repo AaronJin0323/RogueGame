@@ -3,12 +3,6 @@
 #include "Components/SceneComponent.h"
 #include "Core/DTConstantsGen.h"
 
-namespace DTCameraPawnLocal
-{
-	// The framing is solved for the target resolution C.BUDGET.RES (1080p, 16:9); wider windows only show more ground.
-	constexpr float FrameAspect = 16.0f / 9.0f;
-}
-
 ADTCameraPawn::ADTCameraPawn()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -22,15 +16,29 @@ ADTCameraPawn::ADTCameraPawn()
 	Camera->bConstrainAspectRatio = false;
 	Camera->bUsePawnControlRotation = false;
 	Camera->SetFieldOfView(static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG));
+	// R-UX-01: a wider window shows more ground at the sides, never less height. The engine's default keeps the horizontal
+	// field of view and so cuts height from a wide window; keep the vertical one the target aspect gives instead.
+	Camera->SetAspectRatio(TargetAspect);
+	Camera->SetAspectRatioAxisConstraint(AspectRatio_MaintainYFOV);
+	Camera->bOverrideAspectRatioAxisConstraint = true;
 }
 
 FTransform ADTCameraPawn::FollowTransform()
 {
 	const float PitchRad = FMath::DegreesToRadians(static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG));
 	const float Distance = ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU),
-		static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), DTCameraPawnLocal::FrameAspect);
+		static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), TargetAspect);
 	return FTransform(FRotator(-static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG), 0.0f, 0.0f),
 		FVector(-Distance * FMath::Cos(PitchRad), 0.0, Distance * FMath::Sin(PitchRad)));
+}
+
+void ADTCameraPawn::Follow(AActor* Target)
+{
+	if (Target)
+	{
+		SetActorRelativeTransform(FollowTransform());
+		AttachToActor(Target, FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, false));
+	}
 }
 
 float ADTCameraPawn::ComputeFramingDistance(float FrameRadius, float HorizontalFovDeg, float Aspect)

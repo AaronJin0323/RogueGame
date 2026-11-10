@@ -37,7 +37,9 @@ HUD_MASKS = ((0.0, 0.0, 1.0, 0.13), (0.0, 0.77, 0.23, 1.0))
 # name: (hue ranges in degrees, saturation range, value range). Display colours, after tone mapping and bloom.
 ELEMENTS = {
 	"telegraph": (((350, 360), (0, 22)), (0.40, 1.01), (0.70, 1.01)),
-	"enemy_rim": (((318, 346),), (0.30, 1.01), (0.70, 1.01)),  # hot rim pixels pale to s 0.3; only round blobs are read (enemy_round_tones)
+	# Hot rim pixels pale to s 0.3; only round blobs are read (enemy_round_tones). The rim's stroke is three pixels wide at the D-036
+	# frame, so its middle shows the rim's own display colour, hue 316 to 317; a thinner stroke only ever showed its blend, 318 and up.
+	"enemy_rim": (((312, 346),), (0.30, 1.01), (0.70, 1.01)),
 	"optic": (((295, 350),), (0.06, 0.30), (0.86, 1.01)),
 	"tracer_core": (((185, 240),), (0.0, 0.25), (0.80, 1.01)),
 	"hero": (((0, 360),), (0.0, 0.10), (0.45, 1.01)),
@@ -50,7 +52,10 @@ SHADOW = (0.08, 0.29)  # value range of the shadow on it
 GROUND_SAT = 0.50
 ENEMY_CORE_MAX_V = 0.32
 TELEGRAPH_BAND_MAX_V = 0.12  # the band is black; this admits the band and nothing lit
-TELEGRAPH_BAND_REACH_PX = 3  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: about two pixels at gameplay camera, one more of anti-aliasing
+# Pixel sizes below are bound to the frame: 1280x720 at C.ARENA.CAMERA_FRAME_RADIUS_UU 1500 (D-036), 0.24 px per uu at the hero.
+# A frame radius move scales lengths by old / new and areas by its square; re-read them then (they were 3 and 4 to 200 at 2000).
+TELEGRAPH_BAND_REACH_PX = 4  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: three to four pixels as drawn, its soft edge included
+ROUND_BLOB_PX = (7, 360)  # rim pixels of one enemy round: 94 to 137 as drawn. Under it a fleck, over it rounds run together or a glow
 TRACER_MIN_V = 0.70
 TRACER_MAX_S = 0.06
 LINE_PANEL_REACH = 10  # a rendered panel pixel is within this of the token, per channel
@@ -123,7 +128,7 @@ def enemy_round_tones(rim, rgb, w):
 					seen.add((nx, ny))
 					stack.append((nx, ny))
 		xs, ys = [p[0] for p in blob], [p[1] for p in blob]
-		if not 4 <= len(blob) <= 200:
+		if not ROUND_BLOB_PX[0] <= len(blob) <= ROUND_BLOB_PX[1]:
 			continue
 		cx, cy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
 		i = (cy * w + cx) * 3
