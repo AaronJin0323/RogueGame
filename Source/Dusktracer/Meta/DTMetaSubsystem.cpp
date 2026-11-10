@@ -200,11 +200,10 @@ void UDTMetaSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UDTMetaSubsystem::Deinitialize()
 {
-	const int32 Owed = FMath::Max(1, Session.Pending.Num());
 	if (!Session.Close())
 	{
 		// The last save point there is. A kept run leaves a marker beside the save, and the next launch's hub says so (R-MET-11).
-		UE_LOG(LogDT, Error, TEXT("Meta: %s could not be written at exit; %d change(s) of this launch are lost"), *Session.Path, Owed);
+		UE_LOG(LogDT, Error, TEXT("Meta: %s could not be written at exit; %d change(s) of this launch are lost"), *Session.Path, FMath::Max(1, Session.Pending.Num()));
 	}
 	Super::Deinitialize();
 }
