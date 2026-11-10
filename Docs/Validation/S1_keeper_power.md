@@ -229,3 +229,5 @@ python -I Tools\probe.py intercession Saved\Probes\ik_reread --seeds 3
 - The same nine arms on these runs: wins 78 to 72 of 135 (Frost 7 to 2, Whirlpool 3 to 0, Tempest 6 to 8, the rest within 1). A bound, not traced, and not the 19-arm battery.
 
 Pass criteria are unchanged and nothing was tuned. Both tests still wait for human readings.
+
+**Addendum, 2026-11-10, at 8231171 (`fix/dash-volley-rule`).** The drones dash-volley fix and D-038 (`S2_dash_volley.md`) do not reach this section, and it was not rerun: its probes are the nine S1 showcase arms with nothing unlocked, 57 combinations of Storm, Forge and Tide, and no scene holds a Quicksilver card, so none has a dash volley. The T-KEE-15 and T-KEE-18 rows that hold a Vector card are the S2 probes; their old and new values are in `S2_exit.md`, the addendum of the same date. There T-KEE-18's Vector row goes 0.795 to 0.781 in share (full DPS 12306 to 12914) and 30 of the 31 T-KEE-15 rows with Vector move in value; no row changes side and both tests read FAIL as before.

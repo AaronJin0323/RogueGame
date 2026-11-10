@@ -131,10 +131,13 @@ Two lines of that first run failed for the tests' own reasons and were rewritten
 
 **What moves.** Only a run that holds `Flag.VolleyOnDash` with Blade Halo, Cyclone or Pulse Wall. Chain Trigger's free volley is not a dash volley and goes through none of the new branches.
 
+## Reread after both, 2026-11-10, at 8231171
+The stale readings named above were reread with the whole S2 exit battery (`S2_exit.md`, the addendum of this date, old against new). The verdicts are the same, 1 PASS, 3 FAIL, 2 NOT READ. 533 of 540 runs keep their `input_hash`; the seven that differ all hold a dash volley with Orbital Drones, on Vector:Forge and Momentum:Storm, and no outcome flips. T-KEE-18's Vector row moves 0.795 to 0.781; 30 of the 31 T-KEE-15 rows with Vector move, none across its band. No run or scene of that battery holds a dash volley with Blade Halo, Cyclone or Pulse Wall, so D-038 is read by its tests only.
+
 ## Not verified
 - D-038: no human has seen the three weapons under a dash volley. The Blade Halo strike lands on the orbit the dash has widened (R-RFG-07's speed term), read from the code only. Whether a player reads the restarted Pulse Wall as a loss of the wall is the hypothesis D-038 leaves open.
 - One seed at one skill was run. The other ten runs that moved were not paired here; the mechanism is the only one the code offers.
 - `dev/s3` and `main` were read, not run.
 - Whether one more win in 15 is a balance change was not read; the reread calls it inside noise.
-- The drones fix: the paired run is one seed at one skill, once per side. The S2 exit battery and the probes were not rerun, so the size of the change on the three Quicksilver arms is unread.
+- The drones fix: the paired run is one seed at one skill, once per side. The S2 exit battery and the probes have since been rerun (the section above).
 - Sweep Beam's dash multiplier is read from the code; the test pins its source only. Sweep Beam with Vector was not run in a bot.
