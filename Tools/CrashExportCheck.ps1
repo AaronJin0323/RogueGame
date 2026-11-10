@@ -1,4 +1,4 @@
-# The export's redaction on a real crash (package.md R-PKG-11, T-PKG-14; review #35, #46). Needs Tools\Package.ps1 first. Opens no window.
+# The export's redaction on a real crash (package.md R-PKG-11, T-PKG-15; review #35, #46). Needs Tools\Package.ps1 first. Opens no window.
 #   & Tools\CrashExportCheck.ps1 [-Timeout 180] [-Export <path to an Export_Logs.ps1>]
 # The Development package's game is crashed on purpose by the engine's own `debug crash` (a console command the Shipping build does not
 # have; nothing was added to the game for this), under -unattended, so no dialog is asked for, and under a -userdir laid out like an
