@@ -11,15 +11,21 @@ One command runs them all on the merged tree: `& Tools\Gate.ps1` from PowerShell
 | `secrets` | keys/tokens in tracked files (public repo, D-006) | `Tools/secret_scan.py` | live |
 | `docs` | docs lint (`Harness/H02 §4`) | `Tools/docs_lint.py` | live |
 | `constants` | generated header out of date (R-TEC-07) | `Tools/gen_constants.py --check` | live |
+| `catalog` | generated catalog header out of date against `Docs/09_Catalog/*.csv` | `Tools/gen_catalog.py --check` | live |
+| `matrix` | `matrix.csv` out of date against the caps of weapons and modifiers | `Tools/gen_matrix.py --check` | live |
 | `loc` | missing en/zh, forbidden words, round-trip string, argument match, glossary drift, zh style and budgets, missing rows (R-TEC-08) | `Tools/loc_build.py --check` | live |
 | `build` | editor build, 0 compiler warnings | `Tools/Build.bat` | live |
+| `locbuild` | the git-ignored generated text and `.locres`, rebuilt so tests and smoke never read stale or missing tables (R-TEC-08) | `Tools/Localize.bat` | live |
 | `nonunity` | each `.cpp` compiles alone (R-TEC-09) | UBT `-SingleFile` per changed file (`-AllFiles` for all) | live |
 | `shipping` | test/debug code leaking into Shipping (R-TEC-12) | `Tools/Build.bat Shipping` (game target) | live |
 | `tools` | `Tools/tools_test.py`: the logic of the Python tools (hit kinds, probes, contrast) | Python, stdlib | live |
 | `contrast` | T-PRE-05 on an off-screen late frame (`Tools/contrast_check.py`, `Tools/Smoke.ps1 -Contrast`); an element below `C.PRE.CONTRAST_MIN` or not found fails, unless `Docs/Validation/contrast_debts.txt` names it; then the HUD's dormant line (`modifiers.md` R-MOD-08) against its own panel, on a second staged frame (`Tools/Smoke.ps1 -DormantLine`), where a frame that shows no line fails | game `-RenderOffScreen` | live |
 | `tests` | automation suite `Dusktracer`, headless on the hidden desktop; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `Tools/RunTests.ps1` | live |
 | `smoke` | rendered run on the arena, goldens, contrast | `Tools/Smoke.ps1` | NOT RUN until the S0 arena exists |
+| `restart` | a real map reload against a fresh launch by input hash, and real keys through a pause and a reload (`settings.md` T-SET-28); a crash or ensure line in any of its logs fails | `Tools/RestartCheck.ps1` | live |
 | `seed` | every human launch gets a fresh seed, tools and explicit seeds stay exact, an out-of-range seed is rejected (R-TEC-16): each launcher's real arguments started off-screen, through the hub, and `run_start.seed` read back, with `driver` `person` on a launcher and `tool` on a named seed (R-TEL-13) | `Tools/SeedCheck.ps1` | live |
+| `meta` | the save on real launches, headless: no tool run touches it, a run banks it, a bad file goes aside, a win reaches a fight; the gated pools are read from the cards dealt (`meta.md` T-MET-16, T-MET-17, D-037) | `Tools/MetaCheck.ps1` | live |
+| `vigil` | the hub on real launches, off-screen, en and zh-Hans: boot to a run and back on real keys, purchases read by a new process, every page at the largest text (`vigil.md` T-VIG-17) | `Tools/VigilCheck.ps1` | live |
 | `firstrun` | R-OFF-15 on a person's first pool, which the `tests` step's T-OFF-15 cannot see (`meta.md` R-MET-25) | `Tools/BotRuns.ps1 -FreshPool -Check T-OFF-15 -ReadAll`, six runs, each one read at the boss or the step fails (D-037) | live |
 | `win` | a win on a real gated save, on one launch: toast, file, Shrine, bestiary, Recollections (`meta.md` T-MET-29) | `Tools/WinCheck.ps1` | live |
 | `earned` | a person's loop from an empty save: Ichor a run earned, spent by a real key, read by a new process, offered on the next run; then the doors' rows bought on the page and reached on gated runs (`meta.md` T-MET-30) | `Tools/EarnedCheck.ps1` | live |

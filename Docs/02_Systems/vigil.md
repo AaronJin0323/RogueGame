@@ -87,14 +87,14 @@ Layout sizes are reference pixels in `DTHubState.cpp`, presentation as in the me
 - T-VIG-01 `Dusktracer.Hub.Boot`: the rule's four cases; `Tools/VigilCheck.ps1` reads a world with no run, no step and no pawn on a real boot.
 - T-VIG-02 `Dusktracer.Hub.ToolRuns`: a tool run skips the hub; this very run has none; the run-over rows are as they were. The gate's `restart` step reads the seed's `input_hash` and steps, and `S3_vigil.md` holds them against `dev/s3-base`.
 - T-VIG-03 `Dusktracer.Hub.RootRows`: the rows in order, and what each opens or asks for.
-- T-VIG-04 `Dusktracer.Hub.Navigation`: focus wraps; Back lands on the opening row from every page and moves to Quit at the root; a long page scrolls and pages.
+- T-VIG-04 `Dusktracer.Hub.Navigation`: focus wraps; Back lands on the opening row from every page, Begin for a Shrine that Begin opened, and moves to Quit at the root; a long page scrolls and pages; a key held as the hub opens is no press until it comes up, and two keys landing in one poll give one command.
 - T-VIG-05 `Dusktracer.Hub.Shrine`: open and sealed rows by rule, Accept on a sealed row, the hint, both ways a sealed Keeper opens.
 - T-VIG-06 `Dusktracer.Hub.LastPatron`: names read back, the root opens on it, the Shrine on it, a sealed one is not chosen. `Tools/VigilCheck.ps1` proves it across two processes.
 - T-VIG-07 `Dusktracer.Hub.Begin`: no Patron opens the Shrine; the pick lands on Begin; the options, with only Keeper keys travelling. `Tools/VigilCheck.ps1` plays a run on a Patron that is not the first card, under auto-pick. `Tools/PackageHubCheck.ps1` reads two seeds from one launch. `DTHubFlow::BeginSeed` holds the seed rule: a named seed for the first run, `0` included, a person's fresh seed, a draw for the rest.
 - T-VIG-08 `Dusktracer.Hub.CodexRows`: sort, reach, a locked row shows nothing of itself, the page opens on the first read row at the top of the window with the locked rows still above it, a read row past the reach stays unlisted, every row of the table reads with a title and text in the running culture.
 - T-VIG-09 `Dusktracer.Hub.Unlock`: every cell of the table, each side of its line, and an unknown cell.
 - T-VIG-10 `Dusktracer.Hub.Stats`: each row's value and label.
-- T-VIG-11 `Dusktracer.Hub.Settings`: Back from Settings and from the Quit confirmation closes; Controls still backs to Settings; the confirm row quits.
+- T-VIG-11 `Dusktracer.Hub.Settings`: Back from Settings and from the Quit confirmation closes; Controls still backs to Settings; the confirm row quits; the hub's confirmation carries no `Pause.ConfirmBody`, the line about a run ending, and a pause's keeps it.
 - T-VIG-12 `Dusktracer.Hub.TreeSlot`: no factory, an empty page; with one, the tab is built and Accept reaches it with the row; the module's page needs a session.
 - T-VIG-13 `Dusktracer.Hub.RunEnd`: the rows, the way back first; Restart and Quit answer as before; Back still does nothing.
 - T-VIG-14 `Dusktracer.Hub.ReadOnly`: no Hub file names a session or a write.
@@ -102,7 +102,7 @@ Layout sizes are reference pixels in `DTHubState.cpp`, presentation as in the me
 - T-VIG-16 `Dusktracer.Hub.Layout`: the rows fit at the largest text and each Contracts group fits one window with its heading. `Tools/VigilCheck.ps1` launch `Large` walks every row of every page there on the real font, en and zh-Hans, and fails on any string past its room.
 - T-VIG-17 `Tools/VigilCheck.ps1`: en and zh-Hans, boot through every page, the Shrine, a run, Abandon and back, a purchase on each device, then a second process on the same save, a run begun from the hub under `-DTPoolGate` that holds what was bought and nothing else, a gated bot whose hands hold the bought cards and one with no save whose hands do not, with shots of every page.
 - T-VIG-18 `Dusktracer.Hub.TreeRows`: every node and heading, the balance, each row of the table in R-VIG-18, and in en and zh-Hans no key, brace or raw id in any row.
-- T-VIG-19 `Dusktracer.Hub.TreeBuy`: exact money buys and a reload reads the rank, the unlock and the balance; a heading, a short, locked, sealed or bought row and a row off the page spend nothing; no file and a stuck session sell nothing and say so.
+- T-VIG-19 `Dusktracer.Hub.TreeBuy`: exact money buys and a reload reads the rank, the unlock and the balance; a heading, a short, locked, sealed or bought row and a row off the page spend nothing; no file and a stuck session sell nothing and say so; the signed line is gone once the page is left and opened again.
 - T-VIG-20 `Dusktracer.Hub.TreeFocus`: focus opens past the first heading, passes over headings both ways and when it wraps, pages past one and stops at the ends; a heading comes back with its first row.
 - HUMAN: a pad in the hand; the largest text on real screens; whether a sealed Keeper's hint and a book of locked lines read as promise or as a wall; whether Begin feels like leaving town; whether a person finds the rows below the fold of Contracts; whether one press to buy feels safe.
 

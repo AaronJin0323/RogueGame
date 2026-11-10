@@ -87,7 +87,8 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - T-MOD-12 `Dusktracer.Arsenal.Boomerang`: a piercing lance strikes on the way out and home; a struck plain round turns home unspent; a round home is gone.
 - T-MOD-13 `Dusktracer.Arsenal.SpreadWave`: the wave strikes past the round's reach, for its share.
 - T-MOD-14 `Dusktracer.Arsenal.Spillover`: one jump of the hit's overkill, from its own source.
-- T-MOD-15 `Dusktracer.Arsenal.Refit`: nothing below the fitted count; a kill fits a compatible pool modifier into the first free socket; again after the interval.
+- T-MOD-15 `Dusktracer.Arsenal.Refit`: nothing below the fitted count; a kill fits a compatible pool modifier into the first free socket; again after the interval; a modifier the player banished (`offers.md` R-OFF-10) and one that is dead under their Patron are never the draw.
+- `Dusktracer.Offers.DeadCard`: under R-MOD-01's intent, `Mod.Conduit` is in no hand of a player whose Patron has no status (Quicksilver, `keepers.md` R-KEE-34), and in the list under every other Patron and before one is chosen.
 - HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does. A validator who takes a card that puts a modifier to sleep can say so, and which one, without being told.
 
 ## Telemetry
