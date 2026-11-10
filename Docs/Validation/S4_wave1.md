@@ -1,6 +1,6 @@
 # S4 wave 1: what can start on `dev/s4` before the exits
 
-For the scheduler. A plan, written on `plan/s4-entry` from `dev/s3` at 9fafa8f. It starts nothing: it is the scope D-043 (a draft) points at, and it stands only if that record is accepted. Nothing was built, launched or measured for it.
+For the scheduler. A plan, written on `plan/s4-entry` from `dev/s3` at 9fafa8f. It starts nothing: it is the scope D-043 points at; D-043 was accepted on 2026-11-10, with the calls of §5 taken as recommended, and it stands as that record is accepted. Nothing was built, launched or measured for it.
 
 Rows are cited from `Validation/S4_artbook_gaps.md` as section and position: "§2.6 r8" is the eighth row of the table in that note's §2.6, at 9fafa8f. Sizes are that note's (S up to 0.5 d, M 1 to 2 d, L 3 to 5 d, XL over a week, per session). The note was written at the 2000 uu frame; D-036 has since moved the frame to 1500 uu (36 px/m), and the note's pixel figures were not recomputed.
 
