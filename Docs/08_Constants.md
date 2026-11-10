@@ -293,6 +293,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PICKUP.GEM_SIZE_UU | 24 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.CHEST_SIZE_UU | 70 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.EMISSIVE | 3.0 | ratio | GATED(S1) | 02_Systems/progression.md, 04_Presentation.md |
+| C.PICKUP.CHEST_RESTORE_HP_RATIO | 0.15 | ratio | GATED(S1) | 02_Systems/progression.md, R-PRG-09, T-PRG-09 |
 
 ## Combat and director (02_Systems/combat_core.md, director.md)
 

@@ -251,6 +251,7 @@ namespace DTConst
 	inline constexpr int32 PICKUP_GEM_SIZE_UU = 24; // uu, GATED(S1)
 	inline constexpr int32 PICKUP_CHEST_SIZE_UU = 70; // uu, GATED(S1)
 	inline constexpr float PICKUP_EMISSIVE = 3.0f; // ratio, GATED(S1)
+	inline constexpr float PICKUP_CHEST_RESTORE_HP_RATIO = 0.15f; // ratio, GATED(S1)
 	// combat
 	inline constexpr int32 HERO_MAX_HP = 100; // hp, GATED(S1)
 	inline constexpr int32 HERO_RADIUS_UU = 40; // uu, GATED(S1)

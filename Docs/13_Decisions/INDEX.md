@@ -31,7 +31,7 @@
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
 | D-045 | An arriving Rusher charges through where the hero stood | RULE | applied (the nineteen-arm reading and session A are open) |
-| D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | open (decided; a change job applies the restore) |
+| D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | the restore applied, its hypothesis pending session A; the bands open until the S1 gate |
 | D-047 | Keeper share is the power a build loses without its blessings | RULE | open (decided; a change job applies it) |
 | D-048 | The S1 exit is read in two sessions | GO-NOGO | applied |
 | D-049 | The S3 exit passes on the designer's two of three; fresh means a fresh save | GO-NOGO | applied; replaces D-034 (on `dev/s3`) |

@@ -12,7 +12,7 @@ Kills drop XP gems; walking into the crowd you just cleared pulls them in, and e
 - **R-PRG-06** What a level grants: one level-up hand of `C.OFFER.CARDS` cards; at `C.OFFER.SECOND_KEEPER_LEVEL` the Keeper hand instead (`offers.md` R-OFF-08); at `C.OFFER.REFORGING_LEVEL` the Reforging hand instead (`offers.md` R-OFF-09). A level by itself grants no stat, no Favor and no heal.
 - **R-PRG-07** XP gems are data, never Actors (R-TEC-11): a struct-of-arrays pool stepped once per fixed step in `EDTSimPhase::Pickups` (after Effects, before Director; R-TEC-03, `07_Technical §4`) and drawn as instances; level-ups and their hands are raised there. The director decides where gems spawn and their value (`director.md`); this system owns them from spawn to collection. Gems never expire. At `C.PICKUP.GEM_CAP` live gems a new gem's value is added to the oldest live gem instead, so XP is never dropped.
 - **R-PRG-08** Magnet: a free gem within a player's pickup radius (`C.PICKUP.RADIUS_UU` × that player's pickup-radius stat) is magnetised toward the nearest such player and stays bound to that player; it accelerates at `C.PICKUP.MAGNET_ACCEL_UU_S2` up to `C.PICKUP.MAGNET_SPEED_MAX_UU_S` along the line to the player's current position, and is collected the step its distance falls within `C.PICKUP.COLLECT_RADIUS_UU`. A bound gem whose player leaves the run is freed. Radius queries go through the spatial hash (R-TEC-13).
-- **R-PRG-09** `MagnetAll(OwnerId)` binds every live free gem to that player under R-PRG-08 motion; chests and Keeper effects call it, and they never move gems directly. A chest (placed by the director, R-DIR-16) lies in the same pool, never moves, and is collected by the first hero within `C.PICKUP.COLLECT_RADIUS_UU` plus the hero radius: it queues one chest hand for the collector (`offers.md` R-OFF-14) and calls `MagnetAll` for them.
+- **R-PRG-09** `MagnetAll(OwnerId)` binds every live free gem to that player under R-PRG-08 motion; chests and Keeper effects call it, and they never move gems directly. A chest (placed by the director, R-DIR-16) lies in the same pool, never moves, and is collected by the first hero within `C.PICKUP.COLLECT_RADIUS_UU` plus the hero radius: it queues one chest hand for the collector (`offers.md` R-OFF-14) and calls `MagnetAll` for them. Collecting a chest also restores `C.PICKUP.CHEST_RESTORE_HP_RATIO` of max HP to the collector through `UDTHeroSubsystem::Heal`, never above max; a hero who is down collects nothing and stays down (D-046). Nothing else in a run restores HP but `Reserve.Restore` (`offers.md` R-OFF-12).
 - **R-PRG-10** Progression is deterministic: the same seed and steps give the same gem positions, collections, XP and level timeline; nothing here draws randomness.
 - **R-PRG-11** The XP bar is always visible during play for each player: a cool-coloured bar with the level number and progress to the next level, a level-up flash, and a pending-hand count when hands are queued; it never hides behind the hand UI or at high density.
 
@@ -29,6 +29,7 @@ Kills drop XP gems; walking into the crowd you just cleared pulls them in, and e
 | Base pickup radius | C.PICKUP.RADIUS_UU | GATED(S1) | R-PRG-08, T-PRG-08 |
 | Collection distance | C.PICKUP.COLLECT_RADIUS_UU | GATED(S1) | R-PRG-08, T-PRG-08 |
 | Magnet acceleration / top speed | C.PICKUP.MAGNET_ACCEL_UU_S2, C.PICKUP.MAGNET_SPEED_MAX_UU_S | GATED(S1) | R-PRG-08, T-PRG-08 |
+| Chest restore, share of max HP | C.PICKUP.CHEST_RESTORE_HP_RATIO | GATED(S1) | R-PRG-09, T-PRG-09 |
 | Live gem cap | C.PICKUP.GEM_CAP | GATED(S1) | R-PRG-07, T-PRG-07 |
 | Gem and chest draw size, pickup emissive | C.PICKUP.GEM_SIZE_UU, C.PICKUP.CHEST_SIZE_UU, C.PICKUP.EMISSIVE | GATED(S1) | R-PRG-07, R-PRE-05 |
 
@@ -55,7 +56,7 @@ API: `UDTGemSubsystem::Spawn(const FDTGemSpawn&)` and `SpawnChest(Position)` (ca
 - T-PRG-06 `Dusktracer.Progression.LevelGrants`: levels queue a level-up hand except the milestone levels, which queue the Keeper and the Reforging hand; no stat changes on level-up.
 - T-PRG-07 `Dusktracer.Progression.GemPool`: gems add no Actor; a spawn at the cap adds its value to the oldest gem and the total XP on the floor is unchanged.
 - T-PRG-08 `Dusktracer.Progression.Magnet`: a gem inside the radius binds to the nearest player, accelerates to the cap speed, is collected inside the collection distance; a gem outside every radius stays put.
-- T-PRG-09 `Dusktracer.Progression.MagnetAll`: every free gem is collected by that player within a bounded number of steps; already-bound gems keep their player; a touched chest queues one chest hand for its collector and magnetises their gems.
+- T-PRG-09 `Dusktracer.Progression.MagnetAll`: every free gem is collected by that player within a bounded number of steps; already-bound gems keep their player; a touched chest queues one chest hand for its collector and magnetises their gems. `Dusktracer.Progression.ChestRestore`: a chest restores its share of max HP to a hurt collector, only what is missing near max and nothing at full health; a chest on a down hero is not collected and the hero stays down; each restore writes one `hero_healed` record with the HP really restored and the chest as its source.
 - T-PRG-10 `Dusktracer.Progression.Determinism`: two identical runs give identical gem positions, collection steps and level timelines.
 - T-PRG-11 `Dusktracer.Progression.XPBar`: the HUD bar widget exists for each player during play, shows level and progress, and stays visible while a hand is open.
 - HUMAN: a validator says gems "come to me" without having to stop and hunt them; they notice the second-Keeper choice near the five-minute mark and the Reforging hand near ten and a half minutes; nobody loses track of their level.
@@ -66,6 +67,7 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 - `level_up{level, xp_total, pending_hands}` — once per level gained.
 - `gems_merged{count}` — once per step in which the cap merged gems (owner `-1`).
 - `run_end` adds per player: `level`, `xp_total`, and the run's `gems_spawned`, `gems_collected`, `gems_left`.
+- A chest's restore is a `hero_healed` record with `source` `Pickup.Chest` (`combat_core.md` §Telemetry).
 
 ## Text
 - Prefix `ST_UI.Level.*`: level label, level-up flash, pending-hand count, XP bar tooltip. Rows only for those items, en + zh-Hans.

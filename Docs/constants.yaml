@@ -246,6 +246,7 @@ offers:
   PICKUP.GEM_SIZE_UU:                { value: 24, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
   PICKUP.CHEST_SIZE_UU:              { value: 70, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
   PICKUP.EMISSIVE:                   { value: 3.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/progression.md, 04_Presentation.md] }
+  PICKUP.CHEST_RESTORE_HP_RATIO:     { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/progression.md, R-PRG-09, T-PRG-09] }
 
 combat:
   HERO.MAX_HP:                 { value: 100,  unit: hp,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-10, T-DIR-02] }

@@ -23,7 +23,7 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 
 ## 2. Pressure: the two bands, kill time and pause
 
-**Records.** JSONL `hero_damaged` (amount over max HP at that hit), `dash`, `hero_down`, `run_end`; `hero_healed` once D-046's job lands. Without a JSONL, the CSV columns `damage_taken_per_min`, `dashes_per_min` and `swarm_ttk_s`, weighted by their overlap with the window. Tool: `Tools/pressure.py`.
+**Records.** JSONL `hero_damaged` (amount over max HP at that hit), `dash`, `hero_down`, `run_end`, and `hero_healed` (amount restored over max HP, by source; D-046). A restore is never taken off the damage reading: `Tools/pressure.py` prints it on a `RESTORES` line. `run_end.wall_dropped_steps` says whether the run was played in slow motion (`telemetry.md` R-TEL-08); how many dropped steps set a run aside is not decided, so a session note prints the count beside each run. Without a JSONL, the CSV columns `damage_taken_per_min`, `dashes_per_min` and `swarm_ttk_s`, weighted by their overlap with the window. Tool: `Tools/pressure.py`.
 
 **Per run.** Damage taken per minute is the sum of applied damage, each hit as a share of max HP, inside `C.DIR.BAND_WINDOW_S`, over the minutes of the window. Dashes per minute is the count over the same minutes. Kill time is the median of the run's `swarm_ttk_s` cells inside the window.
 

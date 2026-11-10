@@ -207,7 +207,7 @@ void UDTGemSubsystem::SimStep(const FDTSimContext& Context)
 	SyncPlayers(NumPlayers);
 
 	// A hero that is down or no longer in the run neither binds nor keeps gems (R-PRG-08).
-	const UDTHeroSubsystem* Hero = GetWorld() ? GetWorld()->GetSubsystem<UDTHeroSubsystem>() : nullptr;
+	UDTHeroSubsystem* Hero = GetWorld() ? GetWorld()->GetSubsystem<UDTHeroSubsystem>() : nullptr;
 	const int32 NumHeroes = FMath::Min(NumPlayers, Context.View->HeroPositions.Num());
 	PresentScratch.SetNum(NumHeroes);
 	RadiusScratch.SetNum(NumHeroes);
@@ -230,10 +230,15 @@ void UDTGemSubsystem::SimStep(const FDTSimContext& Context)
 	Pool.Step(Context.StepSeconds, Heroes, StepResult);
 
 	// Chest hands (offers.md R-OFF-14) queue behind the level hands; the pool already magnetised the collector's gems.
+	// The chest also restores a share of the collector's max HP (R-PRG-09, D-046); only a living hero collects.
 	for (const int32 Collector : StepResult.ChestCollectors)
 	{
 		FDTPlayerRunState& Player = Run.GetPlayer(Collector);
 		FDTProgression::QueueHand(Player.Offer, EDTHandKind::Chest, Player.Level);
+		if (const FDTHeroState* State = Hero ? Hero->GetState(Collector) : nullptr)
+		{
+			Hero->Heal(Collector, DTConst::PICKUP_CHEST_RESTORE_HP_RATIO * State->MaxHp, DTHealSource::Chest);
+		}
 	}
 
 	// R-PRG-01: each gem credits every player; telemetry aggregates per player per step.
