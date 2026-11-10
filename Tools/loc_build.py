@@ -128,6 +128,8 @@ STORY_HEADER = HEADER + ["Layer", "Unlock"]
 KEEPER_LINE_WORDS_MAX = 12  # 03_Narrative R-NAR-05; the same caps as R-KEE-08.
 KEEPER_LINE_ZH_MAX = 20
 NARRATIVE_TABLES = ("ST_Codex", "ST_KeeperLines", "ST_World", "ST_Discoveries")
+# Every row of these carries Layer and Unlock (03_Narrative R-NAR-03).
+LAYERED_TABLES = ("ST_Codex", "ST_KeeperLines", "ST_World")
 # Retired by G01_Name and 04_Narrative: the old project name and code prefix, the Greek enemies, the old Path.
 RETIRED_RE = re.compile(r"\b(RogueHero|RH\.\w+|URH\w+|God\.\w+|Harpy|Hoplite|Centaur|Gorgon|Cyclops|Siren|Asterion|Underworld)\b")
 # The exact count of each row family (03_Narrative R-NAR-02).
@@ -271,9 +273,12 @@ def check_code_keys(root, tables):
                 text = f.read()
             for m in CODE_KEY_RE.finditer(text):
                 table, key = m.group(1), m.group(2)
-                if table in known and key not in known[table]:
-                    rel = os.path.relpath(path, root).replace(os.sep, "/")
-                    v.append(f"{rel}:{text.count(chr(10), 0, m.start()) + 1} {table} {key}: no such row")
+                if table in known and key in known[table]:
+                    continue
+                rel = os.path.relpath(path, root).replace(os.sep, "/")
+                # A table nobody wrote shows the key to the player just as a missing row does.
+                what = "no such row" if table in known else "no such table"
+                v.append(f"{rel}:{text.count(chr(10), 0, m.start()) + 1} {table} {key}: {what}")
     return v
 
 
@@ -297,6 +302,11 @@ def unlock_wins(unlock, discoveries):
     return None
 
 
+def truth_word_in(word, en):
+    """The word as en text says it: any case, singular or plural, whole words only (a sentence may start with it)."""
+    return re.search(rf"(?<![A-Za-z]){re.escape(word)}s?(?![A-Za-z])", en, re.IGNORECASE) is not None
+
+
 def check_row_layer(where, row, discoveries, prewin_max, layer_max):
     """Layer, unlock and truth-word rules of one story row (T-NAR-03, T-NAR-04)."""
     v = []
@@ -311,7 +321,7 @@ def check_row_layer(where, row, discoveries, prewin_max, layer_max):
     elif layer > prewin_max and wins == 0:
         v.append(f"{where}: Layer {layer} is reachable before the first win by {unlock}")
     for word, first in TRUTH_WORDS:
-        if layer < first and (word in row["en"] or word in row["zh-Hans"]):
+        if layer < first and (truth_word_in(word, row["en"]) or word in row["zh-Hans"]):
             v.append(f"{where}: {word!r} needs Layer {first}, the row is Layer {layer}")
     return v
 
@@ -334,7 +344,7 @@ def check_story(tables, prewin_max=None, layer_max=None):
             if "Layer" in row:
                 story.append(row)
                 v.extend(check_row_layer(where, row, discoveries, prewin_max, layer_max))
-            elif table in ("ST_Codex", "ST_KeeperLines"):
+            elif table in LAYERED_TABLES:
                 v.append(f"{where}: this table needs the Layer and Unlock columns")
             if KEEPER_LINE_RE.match(row["Key"]):
                 words = len(row["en"].split())

@@ -1338,6 +1338,20 @@ class Story(unittest.TestCase):
 		self.assertIn("'Yard'", self.layer_faults(self.row(layer="1", en="The Yard."))[0])
 		self.assertEqual(self.layer_faults(self.row(layer="2", en="The Yard.")), [])
 
+	def test_a_truth_word_is_read_in_any_case_and_number(self):
+		# A sentence may start with the word, and a line may say it in lower case or in the plural.
+		for en in ("Forks remain.", "the yard is quiet.", "An original, not a copy.", "Two facets.", "Root is here."):
+			self.assertTrue(self.layer_faults(self.row(en=en)), en)
+		# Part of another word is not the word.
+		for en in ("The courtyard.", "Uprooted.", "Originally so.", "A pitchfork."):
+			self.assertEqual(self.layer_faults(self.row(en=en)), [], en)
+
+	def test_world_rows_need_their_layer_columns(self):
+		bare = {"Key": "World.Test", "en": "Plain.", "zh-Hans": "平实。", "Context": "", "Kw": "", "_line": 2}
+		for table in ("ST_World", "ST_Codex", "ST_KeeperLines"):
+			self.assertIn("needs the Layer and Unlock columns", " ".join(loc_build.check_story([(table, [dict(bare)])])), table)
+		self.assertNotIn("needs the Layer", " ".join(loc_build.check_story([("ST_UI", [dict(bare)])])))
+
 	def test_moved_row_in_real_tables_fails(self):
 		tables = self.real()
 		for name, rows in tables:
@@ -1442,6 +1456,14 @@ class Loc(unittest.TestCase):
 				f.write('FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));\nFText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Gone"));\n')
 			tables = [("ST_UI", [{"Key": "Hud.Dash"}])]
 			self.assertEqual(loc_build.check_code_keys(root, tables), ["Source/A/B.cpp:2 ST_UI Hud.Gone: no such row"])
+
+	def test_a_table_the_code_asks_for_must_exist(self):
+		with tempfile.TemporaryDirectory() as root:
+			os.makedirs(os.path.join(root, "Source", "A"))
+			with open(os.path.join(root, "Source", "A", "B.cpp"), "w", encoding="utf-8") as f:
+				f.write('FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));\nFText::FromStringTable(TEXT("ST_Gone"), TEXT("Hud.Dash"));\n')
+			tables = [("ST_UI", [{"Key": "Hud.Dash"}])]
+			self.assertEqual(loc_build.check_code_keys(root, tables), ["Source/A/B.cpp:2 ST_Gone Hud.Dash: no such table"])
 
 
 class Doors(unittest.TestCase):
