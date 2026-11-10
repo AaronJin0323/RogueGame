@@ -50,7 +50,7 @@ else {
 }
 
 $Contexts = @(Get-ChildItem $Crashes -Recurse -File -Filter "CrashContext.runtime-xml" -ErrorAction SilentlyContinue)
-if ($Contexts.Count -eq 0) { Write-Host "CRASHEXPORT: FAIL (no CrashContext.runtime-xml under $Crashes: the launch did not crash, or the crash went elsewhere)"; exit 1 }
+if ($Contexts.Count -eq 0) { Write-Host "CRASHEXPORT: FAIL (no CrashContext.runtime-xml under ${Crashes}: the launch did not crash, or the crash went elsewhere)"; exit 1 }
 $Raw = [IO.File]::ReadAllText($Contexts[0].FullName)
 if ($Raw -notmatch "<CrashType>Crash</CrashType>|<IsAssert>|<ErrorMessage>") { Note-Fail "the context does not read as a crash" }
 # The ids as the engine wrote them. Their values stay in this process: no line of this check prints one.
