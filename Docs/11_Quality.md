@@ -20,7 +20,7 @@ One command runs them all on the merged tree: `& Tools\Gate.ps1` from PowerShell
 | `tests` | automation suite `Dusktracer`, headless on the hidden desktop; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `Tools/RunTests.ps1` | live |
 | `smoke` | rendered run on the arena, goldens, contrast | `Tools/Smoke.ps1` | NOT RUN until the S0 arena exists |
 | `seed` | every human launch gets a fresh seed, tools and explicit seeds stay exact, an out-of-range seed is rejected (R-TEC-16): each launcher's real arguments started off-screen, through the hub, and `run_start.seed` read back, with `driver` `person` on a launcher and `tool` on a named seed (R-TEL-13) | `Tools/SeedCheck.ps1` | live |
-| `firstrun` | R-OFF-15 on a person's first pool, which the `tests` step's T-OFF-15 cannot see (`meta.md` R-MET-25) | `Tools/BotRuns.ps1 -FreshPool -Check T-OFF-15`, six runs | live |
+| `firstrun` | R-OFF-15 on a person's first pool, which the `tests` step's T-OFF-15 cannot see (`meta.md` R-MET-25) | `Tools/BotRuns.ps1 -FreshPool -Check T-OFF-15 -ReadAll`, six runs, each one read at the boss or the step fails (D-037) | live |
 | `win` | a win on a real gated save, on one launch: toast, file, Shrine, bestiary, Recollections (`meta.md` T-MET-29) | `Tools/WinCheck.ps1` | live |
 | `earned` | a person's loop from an empty save: Ichor a run earned, spent by a real key, read by a new process, offered on the next run; then the doors' rows bought on the page and reached on gated runs (`meta.md` T-MET-30) | `Tools/EarnedCheck.ps1` | live |
 | `windows` | a bot, a smoke and a test run show no window on the desktop, with a probe and a bypass control (R-TEC-17); no game outlives them | `Tools/WindowCheck.ps1` | live |

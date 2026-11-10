@@ -17,7 +17,7 @@ Spec: `02_Systems/meta.md` R-MET-25, R-MET-27, R-MET-28, T-MET-27 to T-MET-29; `
 | Steered:Shade:Hound:Storm | bdba5258 | bdba5258 | 58084 | 58084 |
 | Steered:Storm:Tempest, skill 0.6 | db7d94d6 | db7d94d6 | 34734 | 34733 |
 
-The last row's step is the death tail `S2_package.md` and `S3_discoveries.md` already note: this branch read 34734 and 34733 on two launches, with an equal hash and an equal `bot.csv`. The other direction is `Tools/MetaCheck.ps1` step G, on every gate.
+The last row's step is the death tail `S2_package.md` and `S3_discoveries.md` already note: this branch read 34734 and 34733 on two launches, with an equal hash and an equal `bot.csv`. The other direction is `Tools/MetaCheck.ps1` step G, on every gate: over 600 s since D-037 (`S3_tree.md`), over 20 s and two hands before it.
 
 ## Decided here
 - **The doors are Discovery targets, not Tree rows.** Existing rows need no new text and no invented price, and they land with no Contracts page. `Keeper.Shade` on `ReachL10`, `Keeper.Radiance` on `WeaponL8`, `Keeper.Quicksilver` on `Survive10`, `Reaction.Duos` on `TwoPaths6`, each marked `[invented]` in the catalog's `ref`.
@@ -29,7 +29,7 @@ The last row's step is the death tail `S2_package.md` and `S3_discoveries.md` al
 - **`Crit500` needed no change.** 285 was the best crit of arms that carried nothing heavy. See below.
 - **`Elites10` is stated out, no row changed.** Both the text ("Destroy 10 elites in a single run.") and the source (`ST_Codex` context, "Destroy 10 elites in one run") say per run, and R-MET-40 says all rows are, so a lifetime count would make the text false: the brief's condition fails. Rejected with it: the Warden as a tenth elite (a boss is no `bElite`, R-ELT-01, and R-MET-02 counts it apart), a threshold of 9 (the text says 10), and more spawns (held). The row opens only `Codex.Recollection.Burst`, so one Recollection stays locked. The generator now reads the timeline: a row stated out that a timeline can reach fails until R-MET-27 changes, and it cannot gain a target.
 - **A gated run drops the seat rule in both hands, and the lead Patron holds the one seat left.** Found by opening the doors, see below. Tool runs keep R-KEE-23 as it was.
-- **`firstrun` and `win` are gate steps,** because they are cheap: 18 to 37 s and 42 s for both cultures.
+- **`firstrun` and `win` are gate steps,** because they are cheap: 18 to 37 s and 42 s for both cultures. Since D-037 `firstrun` needs all six of its runs read at the boss; before it, one was enough.
 
 ## What the doors broke, and the fix
 R-KEE-23's seat rule was written for one forced Keeper. Three met Keepers took all three seats of the Patron hand, so at the Shrine a person who chose Tide with one Keeper met, or any S1 Keeper with three, got a hand without it and no run on that Patron. On a Restart the same save read no S1 Keeper at all. The L8 hand had the same shape: no S1 Keeper could be a second Keeper on a full profile, which is meta narrowing a pool.
@@ -53,7 +53,7 @@ A bot in a hub world crashed on the empty run; `UDTBotSubsystem::Tick` now does 
 | `Survive10`, `ReachL10`, `WeaponL8` rates | the fresh battery of `S3_tree.md`, no pool change since | 86, 90 and 86 of 90 |
 | `TwoPaths6` | two `Blessing4` purchases on a real save, then one played run, seeds 9100 to 9107 | 8 of 8 earned it, and `Reaction.Duos` is in the file |
 | Duo cards | one more launch on each of those eight saves | a `Blessing.Duo.*` card reached a hand and was taken in 8 of 8, on the pair each run held |
-| Keys of a met Keeper, Amps shut | `Tools/MetaCheck.ps1` step I, every gate | pass |
+| Keys of a met Keeper, Amps shut | `Tools/MetaCheck.ps1` step I, every gate. Until D-037 its 20 s dealt two hands, where no pool deals an Amp, so only the Keys were shown. Now 600 s on a copy of the door's save: 3 Radiance Keys taken, 21 hands, 17 after the first Key, no Amp, Trait or Path row of Radiance; the tool run that chose Radiance was dealt 6 of those cards and its Path row | pass |
 
 With no purchase, `Best.Tier` stayed 1, as `S3_tree.md` read, so nothing in a first run reaches a duo.
 
@@ -84,7 +84,7 @@ On real saves, nothing planted: the file a first win leaves, with `Keeper.Radian
 `Kill.Bruiser` and `Kill.Support` stay stated out in R-MET-28, and `Tools/tools_test.py` fails a bestiary row that names neither a role nor a stated-out cell.
 
 ## first_run_locked.csv is in the gate
-`firstrun`: three S1 Keepers, seeds 9100 and 9101, `-FreshPool -Check T-OFF-15`, 37 s under load and 18 s idle.
+`firstrun`: three S1 Keepers, seeds 9100 and 9101, `-FreshPool -Check T-OFF-15`, 37 s under load and 18 s idle. With `-ReadAll` (D-037) it reads 6/6 at the boss, mean 29.5 decisions, in 21 s.
 
 | List | T-OFF-15 | Reserve share, per run |
 |---|---|---|
