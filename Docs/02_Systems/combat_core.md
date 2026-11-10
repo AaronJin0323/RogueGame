@@ -92,7 +92,7 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 ## Out of scope
 - What each Intercession does, its variants and strength band (`keepers.md`, `C.INTERCESSION.BAND`).
 - Weapons, targeting rules and modifiers (`weapons.md`, `modifiers.md`); stats and effects that change HP, armour, regen, speed or dash charges (`keepers.md`, `modifiers.md`).
-- Enemy contact damage values, enemy bullets and hazards (`enemies.md`); revive and shared camera (`coop.md`); the Reclaimer's own passive (Muscle Memory, `progression.md` later).
+- Enemy contact damage values, enemy bullets and hazards (`enemies.md`); revive and shared camera (`coop.md`, not written); the Reclaimer's own passive (Muscle Memory, `progression.md` later).
 - Pad glyph art, rebinding UI and the settings screen (S3).
 
 ## Open
@@ -103,5 +103,5 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
   - The input actions and both mapping contexts are built in C++ with `NewObject` at startup (`Player/DTInputSet`), not saved under `Content/DT/Input/`: still headless, no binary assets.
   - "Down" is not a world-view field (frozen Core): weapons ask `UDTHeroSubsystem::IsDown(OwnerId)`.
   - A press with the meter not full emits `IntercessionDenied` at once when the meter cannot fill inside `C.HERO.INPUT_BUFFER_S`; otherwise it waits in the buffer (no deny cue asset yet).
-  - Stats are `FDTHeroStats` (identity multipliers) until `FDTStatSet` exists; a dash charge gained from stats arrives charged. The aim mode is set with `DT.Hero.AimMode` until the settings save (S3). The HUD Intercession meter is a bar, not a ring, until the HUD pass.
+  - Stats are `FDTHeroStats` (identity multipliers) until `FDTStatSet` exists; a dash charge gained from stats arrives charged. The aim mode is set with `DT.Hero.AimMode` until the settings save (S3). The HUD draws the Intercession meter as a bar and a refilling dash pip as a box filling from the bottom (`Game/DTHUD.cpp`); the ring and the refill arc of Text are not built (HUD pass, S4).
   - T-CMB-05 checks the mappings and that aim is published with no input; that weapons fire with no input is `weapons.md`'s tests.

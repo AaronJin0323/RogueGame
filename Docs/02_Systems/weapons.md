@@ -115,7 +115,7 @@ S2: `Weapon.ScatterCannon`, `Weapon.RailLance` (Beam), `Weapon.FlakMortar` (Lob)
 - Per-weapon trails and VFX assets (`04_Presentation`).
 
 ## Open
-- Source credit for conversions keeps the weapon's source, which may understate the Keeper share at L16 → checked against `Tools/power_split.py` on the first steered bot runs.
+- Defect, for a change job: where `Flag.ConvertMelee` resolves to a fallback, Hammer's Key (`Blessing.Forge.Hammer.Key`) does nothing or only adds size, and its `dmg_mult` is never applied (`Combat/DTWeaponCompose.cpp`). Orbital Drones: the fallback is a larger drone contact area, drones deal no contact damage (R-WPN-06), and the size reads only `radius_scale`, which the Key does not carry, so the Key changes nothing. Gravity Mine: the blast grows only by `radius_scale`, so the Key changes nothing. Arc Blade: the Key widens the arc to its `arc_deg` and changes nothing else.
 - The MEASURED reference shows Gravity Mine an order of magnitude over every other weapon in a dense crowd, and Ring Emitter and Drones never one-shot a late swarm → tuned in the S1 catalog pass against `C.TTK.SWARM_STEERED_MAX`.
 - Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass.
 - Implementation notes (S1 build): the flag seam is `UDTWeaponSubsystem::AddFlagSource(OwnerId, SourceTag, FDTWeaponFlags)`; entries stack per (flag, telemetry source, `on` word), so Keeper lines with another trigger need their own `on` (`Volley`, `Pulled`, `ChainHit`, `Cleave`). Split children of a carrier with no round speed (arcs, mines) use `C.WEAPON.CHILD_*`. Field ticks every fixed step. Hit-taken and dash-landing slams fire once per player, from the highest-load weapon carrying Slam.

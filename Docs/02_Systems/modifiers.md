@@ -22,7 +22,7 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 
 ## Rules
 - **R-MOD-01** A modifier never appears on a weapon that cannot express it. It is compatible with a weapon only when the weapon's effective caps (`weapons.md` R-WPN-02) contain at least one of its `required_caps` (empty means any) and none of its `blocked_caps`, **and**, when it carries a `flag`, that flag resolves `native` on the weapon (`weapons.md` R-WPN-08). The offer system never builds an incompatible modifier→weapon card, the socket refuses one, and the composition never applies one.
-- **R-MOD-02** Compatibility is one function of the catalogs (`weapons.csv`, `modifiers.csv`, `flag_compat.csv`) used by offers, sockets, composition and tools alike. Its full table is **generated**: `Tools/gen_matrix.py` (planned) writes `09_Catalog/matrix.csv`, one row per modifier, one column per weapon, cell `yes` / `no`. The matrix is never hand-edited and never union-merged; on a conflict it is regenerated. In S1, until the tool lands, the rule and the test (T-MOD-02) are the source; no matrix is committed by hand.
+- **R-MOD-02** Compatibility is one function of the catalogs (`weapons.csv`, `modifiers.csv`, `flag_compat.csv`) used by offers, sockets, composition and tools alike. Its full table is **generated**: `Tools/gen_matrix.py` (not on `main`; it arrives with `dev/s2`) writes `09_Catalog/matrix.csv`, one row per modifier, one column per weapon, cell `yes` / `no`. The matrix is never hand-edited and never union-merged; on a conflict it is regenerated. In S1, until the tool lands, the rule and the test (T-MOD-02) are the source; no matrix is committed by hand.
 - **R-MOD-03** Every modifier is a specialiser: its effect is a behaviour (a flag kind, a pattern change, a trigger) with its own parameters in `modifiers.csv`. No modifier's effect is a flat damage, fire-rate, size or crit multiplier, and no modifier changes another weapon.
 - **R-MOD-04** A modifier is socketed into exactly one weapon (the offer card is pre-bound: modifier → weapon), at most once per weapon (no ranks), and a weapon holds at most `C.MOD.SOCKETS_PER_WEAPON` modifiers. Stacking comes from combining different modifiers with each other and with flags.
 - **R-MOD-05** Modifiers and flags feed one accumulator per weapon (`weapons.md` R-WPN-09): counts and magnitudes add, ranges and times take the largest, factors multiply. Two caps hold after every source is summed: a round is at most `C.MOD.SPLIT_GENERATIONS_MAX` split generations away from the weapon's original round (counting `Mod.SplitCore`, `Mod.ScatterShell` and `Flag.Split` together; a child at the limit never splits), and a weapon's composed crit chance is clamped to `C.MOD.CRIT_CHANCE_CAP`.
@@ -77,12 +77,12 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 
 ## Out of scope
 - How the `starter` column becomes the run pool and how offers weight modifiers (`offers.md` R-OFF-02, R-OFF-07).
-- Reforge refunds and the S2 modifiers; `Tools/gen_matrix.py` itself (planned, S1 tooling brief).
+- Reforge refunds and the S2 modifiers; `Tools/gen_matrix.py` itself (not on `main`; it arrives with `dev/s2`).
 - Flag meanings and Keeper archetypes (`keepers.md`); status behaviour (`enemies.md`).
 
 ## Open
 - `Mod.ChainTrigger` snowball in dense crowds is bounded only by its interval and the spawn rate cap → measured in the first steered bot runs.
 - Dormant modifiers may need a refund (a reroll) to avoid feeling like a lost pick → decided with `offers.md` after the S1 validation sessions.
 - Crit has no S1 modifier source; the cap guards hero base crit and S2 Radiance → revisit when Radiance lands.
-- T-MOD-01 checks the full catalog cross product (declared and converted caps), the socket and the composition; its offer-generator leg is added when `offers.md` lands (offers call `DTModCompat::IsCompatible`, `Combat/DTWeaponCatalog.h`).
+- `Dusktracer.Modifiers.NeverIncompatible` checks the full catalog cross product (declared and converted caps), the socket and the composition. The offer-generator leg of T-MOD-01 is `Dusktracer.Offers.Legality` (`offers.md` T-OFF-03): seeded runs, one seed in four with Gravity Mine, Fork and Ricochet unlocked, show no modifier card `DTModCompat::IsCompatible` refuses (offers call it, `Combat/DTWeaponCatalog.h`).
 - Flag-carrying modifiers feed the weapon's flag accumulator as their own entries (source `Modifier.<Name>`, tier below every Keeper source); Pierce, Mirror, Fork and ChainTrigger compose into the spec directly.

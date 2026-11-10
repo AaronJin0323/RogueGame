@@ -72,11 +72,12 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 
 ## Out of scope
 - Where gems and chests drop and how much each kill is worth (`director.md`); chest hands (`offers.md`).
-- XP-gain and pickup-radius upgrades from meta (S3); Muscle Memory and Heat (S3+).
+- XP-gain and pickup-radius upgrades from meta: cut, not deferred. Both are XP rate, and no Tree node raises a number in a run (D-023, `meta.md` R-MET-20). Muscle Memory and Heat (S3+).
 - Minor hands at XP midpoints: folded into the decision budget (`offers.md` R-OFF-15), not built.
 
 ## Open
 - The reference income is from a twenty-minute timeline with different content. Measured on S1 (`Docs/Validation/S1_balance_pass1.md`): at `C.XP.REFERENCE_PICKUP_RATIO` the S1 timeline's full-pickup model reaches L8 inside `C.XP.ANCHOR_TOLERANCE_S` of `C.LEVEL.L8_MIN` but L16 well after `C.LEVEL.L16_MIN`, while Bot v1 collects well above that ratio and reaches L16 before it; a drop-value TUNE toward the anchors was not met and reverted. The curve stays (the gap is income, not the curve) → decide between the drops and a re-measured reference ratio from the first human pickup readings (O-008).
+- First human reading (`Docs/Validation/S1_owner_run.md`, one designer run): the owner's run and the control bots both collect about three quarters of the model's XP by `300 s` (`0.733` and `0.756`) against `C.XP.REFERENCE_PICKUP_RATIO`, a value measured on the previous game. The level anchors therefore pass a test that reads the previous game's income (T-PRG-03 reads `ref_reached_s`).
 - Magnet acceleration, top speed, collection distance and the gem cap have no measured reference → set by feel in the first S1 human session.
 - Until `FDTStatSet` exists the XP-gain and pickup-radius stats are `FDTProgressionStats` on the gem subsystem (`SetStats`); a downed hero neither binds nor keeps gems (treated as absent) → revisit with co-op revive.
 - Pickup draw sizes and emissive are first guesses → judged in the first S1 capture against R-PRE-05.

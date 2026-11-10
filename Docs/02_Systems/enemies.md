@@ -45,7 +45,7 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 |---|---|---|---|
 | Live cap | C.ENEMIES.CAP | CORE | R-ENM-01, T-ENM-01 |
 | Swarm radius, speed, HP | C.ENM.SWARM_RADIUS_UU, C.ENM.SWARM_SPEED_UU_S, C.ENM.SWARM_HP | GATED(S1) | T-ENM-02, C.TTK.SWARM_STEERED_MAX |
-| Steering, separation, neighbours | C.ENM.STEER_ACCEL_UU_S2, C.ENM.SEPARATION_RADIUS_UU, C.ENM.SEPARATION_STRENGTH, C.ENM.MAX_NEIGHBOURS | GATED(S0/S1) | R-ENM-02, T-ENM-03, T-PERF-01 |
+| Steering, separation, neighbours | C.ENM.STEER_ACCEL_UU_S2, C.ENM.SEPARATION_RADIUS_UU, C.ENM.SEPARATION_STRENGTH, C.ENM.MAX_NEIGHBOURS | GATED(S0/S1) | R-ENM-02, T-ENM-03, T-TEC-10 |
 | Debug spawn ring | C.ENM.SPAWN_RING_RADIUS_UU | GATED(S1) | `DT.Spawn` |
 | Kill-rate window | C.ENM.KILL_RATE_WINDOW_S | GATED(S0) | C.PRE.DENSITY_LOD_KILLS_PER_S |
 | Optic and telegraph emissive, telegraph height | C.ENEMIES.OPTIC_EMISSIVE, C.ENEMIES.TELEGRAPH_EMISSIVE, C.ENEMIES.TELEGRAPH_Z_UU | GATED(S1) | R-ENM-24, R-ENM-13 |
@@ -72,7 +72,7 @@ Render (S0, kept): one instanced mesh per part on a transient renderer actor, in
 | `FDTEnemyBulletPool` | SoA | `Pos PrevPos Vel Radius Damage LifeLeft TargetPlayer SourceRole AttackId` |
 | `FDTHeroHit`, `FDTHit`, `FDTKill`, `FDTDisplacement` | structs | `07_Technical §4` |
 | `FDTStatusApply` | struct | `Handle Status Magnitude OwnerId SourceId StackBonus FreezeAt FreezeScale`; `Magnitude` = Burn damage per second or Chill stacks; appended to `FDTWorldView::StatusApplies` (owned here) |
-| `FDTTelegraph` | struct | `Shape(Band Ring Arc AimLine) Origin Dir Length Width Progress`; published per step, drawn in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE` in the layers of `04_Presentation` R-PRE-05 |
+| `FDTTelegraph` | struct | `Shape(Band Ring Arc AimLine RingGap SpiralLane HazardRing) Origin Dir Length Width Progress`, the last three shapes the boss's (`boss.md`); published per step, drawn in `Pal.Telegraph` at `C.ENEMIES.TELEGRAPH_EMISSIVE` in the layers of `04_Presentation` R-PRE-05 |
 | view fields | `FDTWorldView` | writers and readers: `07_Technical §4` |
 | instance custom data | `float[4]` | `0-2` linear RGB, `3` emissive strength (`M_InstanceColor`, telegraphs the unlit `M_CueColor`; fallback `Fallback_EnemyMaterial`); enemy rounds add `4-6` core linear RGB (`M_EnemyRound`, R-ENM-17) |
 
@@ -125,6 +125,7 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 
 ## Text
 - Prefix `ST_Enemies.Enemy.<Role>.Name` (one row per role: Scrapwing, Bulwark, Courser, Flare Pylon), en + zh-Hans; fiction never becomes a key. Status names live in the keyword table owned by `keepers.md`.
+- The `ST_Enemies` table is not on `main`: `Content/DT/Text/` holds no `ST_Enemies.csv` there (it is built on `dev/s2`), the `name_key` column of `enemies.csv` names rows that do not exist, and nothing reads the generated `NameKey`. The boss name is `ST_UI` `Hud.BossName` (`boss.md` Open).
 
 ## Out of scope
 - Elite affixes, Bruiser and Support roles: S2.
@@ -136,6 +137,6 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 - Kill horizon: strong builds kill Rushers before `C.ROLE.RUSHER_TRIGGER_UU` → `director.md` (drop-ins, threat ring); a longer trigger is a TUNE after the first S1 session.
 - Turret radius has no measured source → first S1 capture of the Turret grey box.
 - S1 implementation deviations (non-behavioural):
-  - Telegraphs draw as flat quads of one instanced plane (`ADTTelegraphRenderer`). Ring and Arc have no producer: the renderer reads Ring as outer radius `Length`, thickness `Width` (none = filled disc) and Arc as a filled sector of radius `Length` around `Dir` whose full angle in degrees is `Width` → confirm or change with `boss.md`.
+  - Telegraphs draw as flat quads of one instanced plane (`ADTTelegraphRenderer`). The renderer reads Ring as outer radius `Length`, thickness `Width` (none = filled disc) and Arc as a filled sector of radius `Length` around `Dir` whose full angle in degrees is `Width`. No enemy role produces either: Ring is the director's drop-in marker and the Stillness cues (`04_Presentation` R-PRE-11), Arc is the Warden's sweep. RingGap, SpiralLane and HazardRing are the Warden's rings, spiral and hazard ring (`boss.md`, the `telegraph` column of `boss_warden.csv`).
   - `HeroHits` is reset at the start of the Enemies phase (the hero has read it in the Hero phase), so the list stays bounded while no hero system is registered.
   - The optic part's size is `C.ENEMIES.OPTIC_SCALE`.

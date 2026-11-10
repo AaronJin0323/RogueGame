@@ -71,7 +71,5 @@ API: `UDTBulletSubsystem::Spawn(const FDTBulletSpawn&)`, `GetPool()`, `GetRender
 - Niagara A/B and measured performance at the cap (`07_Technical` R-TEC-10, T-TEC-10).
 
 ## Open
-- Hit memory moves from enemy slot index to enemy `Serial` (`enemies.md` S1) → resolved by the S1 enemy work; until it lands a reused slot may be skipped.
 - The boss hull (`boss.md`, radius `C.BOSS.RADIUS_UU`) widens every bullet query while it lives (R-BUL-05 adds the largest radius) → test it as a separate circle if `T-TEC-10` shows the cost.
 - Recycling scans for the oldest live bullet (linear in the cap) → keep while recycling is rare; revisit if `Recycled` climbs in play telemetry.
-- `M_InstanceColor` must be cooked for packaged builds (no hard reference yet) → resolved when the arena map or a data asset references it.

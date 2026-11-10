@@ -6,7 +6,7 @@
 
 - An **eroded white megastructure at dusk**: fitted white stone slabs worn grey at the joints, moss, standing water, half-buried Founder machines; the Keepers' infrastructure glows dimly in the seams in the six Path colours.
 - **Realistic hard-surface rendering**: PBR stone and ceramic, Lumen GI, soft overcast or low-sun light; enemies are machines, so no skin, hair or cloth.
-- Two dusk weathers, both built and both held to this contract: **overcast** (soft, short shadows) and **low sun** (volumetric cloud, light shafts, long shadows).
+- Two dusk weathers, both held to this contract: **overcast** (soft, short shadows) and **low sun** (volumetric cloud, light shafts, long shadows). One is built: the low sun of the grey-box arena (`Tools/create_arena.py`, `C.ARENA.SUN_*`), with no cloud and no light shafts. Overcast is not built; the S4 exit reads both (`12_Production §2`).
 - **Readability beats realism.** The hero, every bullet, every telegraph and every enemy must be found in one glance at `C.BULLETS.CAP` live bullets.
 
 ## 2. Readability contract (binding)
@@ -103,7 +103,7 @@ Already set in `Config/DefaultEngine.ini`:
 | `r.DefaultFeature.AutoExposure` | False | fixed exposure |
 | `r.DefaultFeature.LensFlare` | False | no lens flare |
 
-Binding but not yet set (owned by the arena post-process volume, S0): depth of field off in play; exposure fixed per weather; bloom threshold so that only emissives bloom. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
+Set by the arena post-process volume (unbound, built by `Tools/create_arena.py`): depth of field off in play; exposure fixed at `C.ARENA.EXPOSURE_EV100` (minimum = maximum) for the one weather built; bloom threshold `C.ARENA.BLOOM_THRESHOLD`. Both keys are GATED(S0); that only emissives bloom at that threshold is not measured, and T-PRE-07 is not built. The second weather has no exposure value. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
 
 ## 5. Asset sources and the licence log (binding)
 
@@ -136,6 +136,6 @@ Binding but not yet set (owned by the arena post-process volume, S0): depth of f
 | Question | Data that resolves it |
 |---|---|
 | Enemy optic `#FF3B9E` and enemy round `#FF2D8A` are two near-identical hues; unify into one danger hue? | side-by-side capture at gameplay camera |
-| Exposure value per weather, bloom threshold | first S0 stress-arena captures; become `C.PRE.*` keys when measured |
+| Exposure of the second weather; whether `C.ARENA.EXPOSURE_EV100` and `C.ARENA.BLOOM_THRESHOLD`, set for the one weather built and GATED(S0), are right | captures of both weathers once the second is built |
 | Per-weapon hue variation inside the cool range, or one core for all weapons | S1 playtest: can players tell weapons apart by shape alone |
 | `Pal.Keeper.Tide` renders at its hue (182, token 183) but paler (saturation 0.34, token 0.52): the tonemapper desaturates, and a lower emissive darkens it below the cue contrast of T-PRE-11. Accept, or grade the tonemapper for all colours? | T-PRE-05 and a human reading; a grade changes every token |
