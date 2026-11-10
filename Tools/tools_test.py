@@ -26,6 +26,8 @@ import catalog_lint  # noqa: E402
 import contrast_check  # noqa: E402
 import dtconst  # noqa: E402
 import dtpalette  # noqa: E402
+import enemy_art_check  # noqa: E402
+import enemy_shapes  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_catalog  # noqa: E402
 import gen_constants  # noqa: E402
@@ -2515,6 +2517,77 @@ class PresentationReadsOnly(unittest.TestCase):
 					if hits:
 						found[relative] = hits
 		self.assertEqual(found, RENDERER_OWNERS)
+
+
+class EnemyArt(unittest.TestCase):
+	"""S4 wave 1 package B (02_Systems/enemy_art.md T-EAR-03, T-EAR-04, T-EAR-05, T-EAR-07): the Cast-off hulls as their generators state them."""
+
+	CAMERA = enemy_art_check.Camera(dtconst.load()["ARENA.CAMERA_PITCH_DEG"]["value"])
+
+	def outline(self, parts, scale, yaw, px_per_m=36):
+		return enemy_art_check.normalised(enemy_art_check.Raster([self.CAMERA.screen(enemy_art_check.placed(parts, scale, yaw))], px_per_m / 100.0).mask())
+
+	def test_the_four_roles_pass_every_rule(self):
+		errors, lines = enemy_art_check.check_geometry(dtconst.load())
+		self.assertEqual(errors, [])
+		self.assertEqual(len(lines), len(enemy_art_check.ROLES) + len(dtconst.load()["EAR.SILHOUETTE_PX_PER_M"]["value"]))
+
+	def test_two_cubes_overlap_wholly_whatever_their_size(self):
+		# What the silhouette rule is there to tell apart from: before the role meshes every role was the same outline.
+		small = self.outline(enemy_art_check.cube_parts("Cube", 0, 0, 50, 64), 1.0, 0)
+		large = self.outline(enemy_art_check.cube_parts("Cube", 0, 0, 50, 116), 1.0, 0)
+		self.assertGreater(enemy_art_check.overlap(small, large), 0.9)
+		self.assertGreater(enemy_art_check.overlap(small, large), dtconst.load()["EAR.SILHOUETTE_OVERLAP_MAX"]["value"])
+
+	def test_a_role_drawn_as_another_role_is_found(self):
+		hull, optic = enemy_art_check.load_role("Tank")
+		masks = {"Tank": {0: self.outline(hull + optic, 116, 0)}, "Impostor": {0: self.outline(hull + optic, 80, 0, 27)}}
+		(share, _, _), = enemy_art_check.worst_overlaps(masks).values()
+		self.assertGreater(share, dtconst.load()["EAR.SILHOUETTE_OVERLAP_MAX"]["value"])
+
+	def test_a_tall_hull_hides_more_floor_than_the_allowance(self):
+		constants = dtconst.load()
+		radius = float(constants["ROLE.TANK_RADIUS_UU"]["value"])
+		cube = enemy_art_check.Subject("Tank", radius, *enemy_art_check.grey_box(constants, "Tank", radius), 1.0)
+		tower = enemy_art_check.Subject("Tank", radius, [enemy_shapes.box("Tower", -0.5, 0.5, -0.5, 0.5, 0.0, 2.5)], [enemy_shapes.box("Lens", -0.1, 0.1, -0.1, 0.1, 2.5, 2.6)], 2 * radius)
+		(least, _), (least_reach, _) = enemy_art_check.floor_reading(self.CAMERA, cube)
+		(_, most), (_, most_reach) = enemy_art_check.floor_reading(self.CAMERA, tower)
+		self.assertGreater(most, constants["EAR.FLOOR_HIDE_MAX_RATIO"]["value"] * least)
+		self.assertGreater(most_reach, constants["EAR.FLOOR_HIDE_MAX_RATIO"]["value"] * least_reach)
+
+	def test_an_optic_buried_in_its_hull_shows_nothing(self):
+		buried = enemy_art_check.Subject("Swarm", 32.0, [enemy_shapes.box("Hull", -0.5, 0.5, -0.5, 0.5, 0.0, 1.0)], [enemy_shapes.box("Lens", -0.1, 0.1, -0.1, 0.1, 0.4, 0.6)], 64.0)
+		self.assertEqual(enemy_art_check.optic_reading(self.CAMERA, buried), (0.0, 0.0))
+
+	def test_a_bad_part_is_found(self):
+		good = enemy_shapes.box("Box", 0, 1, 0, 1, 0, 1)
+		self.assertEqual(enemy_art_check.part_errors("Role", [good]), [])
+		inside_out = dict(good, faces=[list(reversed(face)) for face in good["faces"]])
+		self.assertIn("Role.Box: a face is wound inward", enemy_art_check.part_errors("Role", [inside_out]))
+		self.assertIn("Role.Box: not closed", enemy_art_check.part_errors("Role", [dict(good, faces=good["faces"][1:])]))
+		dented = dict(good, verts=good["verts"] + [(0.5, 0.5, 0.5)])
+		dented["faces"] = [face for face in good["faces"][1:]] + [[4, 5, 8], [5, 6, 8], [6, 7, 8], [7, 4, 8]]
+		self.assertIn("Role.Box: not convex", enemy_art_check.part_errors("Role", [dented]))
+		self.assertFalse(enemy_art_check.symmetric([enemy_shapes.box("Lopsided", 0, 1, 0, 1, 0, 1)]))
+		self.assertTrue(enemy_art_check.symmetric([enemy_shapes.box("Even", 0, 1, -1, 1, 0, 1)]))
+
+	def test_the_line_up_keeps_its_slots_in_the_frame_and_off_the_hero(self):
+		constants = dtconst.load()
+		half = 0.5 * constants["EAR.LINEUP_SPACING_UU"]["value"]
+		slots = enemy_art_check.lineup_slots(constants)
+		self.assertEqual(len(slots), len(enemy_art_check.ROLES) * constants["EAR.LINEUP_ROWS"]["value"])
+		for (x, y) in slots.values():
+			self.assertTrue(abs(x) > half or abs(y) > half, "a slot holds the hero")
+		for density in constants["EAR.SILHOUETTE_PX_PER_M"]["value"]:
+			height = round(density * 2 * constants["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"] / 100)
+			width = round(height * 16 / 9)
+			for sx, sy, size in enemy_art_check.frame_cells(constants, width, height).values():
+				self.assertTrue(size <= sx <= width - size and size <= sy <= height - size)
+		# The debug command and the judge lay the slots out by the same rule.
+		with open(os.path.join(os.path.dirname(TOOLS), "Source", "Dusktracer", "Debug", "DTDebugEnemyArt.cpp"), encoding="utf-8") as f:
+			command = f.read()
+		self.assertIn("Row == 0 ? 2.0f * Spacing : -Spacing * static_cast<float>(Row)", command)
+		self.assertIn("EDTEnemyRole::Swarm, EDTEnemyRole::Tank, EDTEnemyRole::Rusher, EDTEnemyRole::Turret", command)
 
 
 class PerfSceneS4(unittest.TestCase):

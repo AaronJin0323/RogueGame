@@ -3,3 +3,4 @@ Fallback_BulletMaterial,Combat/DTBulletRenderer,/Engine/BasicShapes/BasicShapeMa
 Fallback_EnemyMaterial,Enemies/DTEnemyRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
 Fallback_EnemyFireMaterial,Enemies/DTEnemyBulletRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
 Fallback_TelegraphMaterial,Enemies/DTTelegraphRenderer,/Engine/BasicShapes/BasicShapeMaterial,/Game/DT/Materials/M_InstanceColor,the material asset exists in the build (S0 arena)
+Fallback_EnemyRoleMesh,Enemies/DTEnemyRenderer,/Engine/BasicShapes/Cube,/Game/DT/Meshes/SM_Enemy_<Role> and SM_Enemy_<Role>_Optic,never: it is kept as the guard for a build that lost a role mesh (enemy_art.md R-EAR-06)

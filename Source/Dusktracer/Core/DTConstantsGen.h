@@ -443,4 +443,14 @@ namespace DTConst
 	inline constexpr int32 TREE_TOOL_PER_RANK = 1; // n, GATED(S3)
 	inline constexpr int32 NARR_PREWIN_LAYER_MAX = 2; // layer, CORE
 	inline constexpr int32 NARR_LAYER_MAX = 3; // layer, CORE
+	// enemy_art
+	inline constexpr float EAR_FLOOR_HIDE_MAX_RATIO = 1.25f; // x, GATED(S4)
+	inline constexpr float EAR_SILHOUETTE_OVERLAP_MAX = 0.75f; // ratio, GATED(S4)
+	inline constexpr int32 EAR_SILHOUETTE_PX_PER_M_MIN = 27; // px_per_m, GATED(S4)
+	inline constexpr int32 EAR_SILHOUETTE_PX_PER_M_MAX = 36; // px_per_m, GATED(S4)
+	inline constexpr float EAR_ELITE_LIGHT_VISIBLE_MIN = 1.0f; // x, GATED(S4)
+	inline constexpr int32 EAR_ROLE_TRIS_MAX = 400; // n, GATED(S4)
+	inline constexpr int32 EAR_LINEUP_SPACING_UU = 320; // uu, GATED(S4)
+	inline constexpr int32 EAR_LINEUP_ROWS = 3; // n, GATED(S4)
+	inline constexpr float EAR_FRAME_MASK_TOLERANCE = 0.06f; // ratio, GATED(S4)
 }
