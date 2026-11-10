@@ -453,6 +453,28 @@ void FDTBossCore::TallyHeroHits(const FDTWorldView& View, int32 From)
 	}
 }
 
+bool FDTBossCore::ReadDefeat(const FDTBossStepIn& In, IDTBossSink& Sink)
+{
+	if (!bAdopted || bEnded || !In.View || !In.Pool || In.Pool->IsHandleValid(Hull) || FindHull(*In.Pool))
+	{
+		return false;
+	}
+	// R-BOS-03: the hull's death is one Kill (the last ResolveHits) to the killing hit's owner.
+	for (const FDTKill& Kill : In.View->Kills)
+	{
+		if (Kill.EnemySerial == Hull.Serial)
+		{
+			Dealt = EffectiveMax;
+			HpFrac = 0.0f;
+			In.View->bRunWon = true; // R-BOS-13: one outcome, and no hero falls after it
+			Finish(TEXT("win"), In.StepIndex, Sink);
+			Sink.BossDefeated(In.StepIndex, Kill.OwnerId);
+			return true;
+		}
+	}
+	return false;
+}
+
 void FDTBossCore::Step(const FDTBossStepIn& In, IDTBossSink& Sink)
 {
 	if (!bStarted || bEnded || !In.View || !In.Pool)
@@ -471,19 +493,10 @@ void FDTBossCore::Step(const FDTBossStepIn& In, IDTBossSink& Sink)
 	}
 	else if (!Pool.IsHandleValid(Hull) && !FindHull(Pool))
 	{
-		// R-BOS-03: the hull's death is one Kill (ResolveHits, last step) to the killing hit's owner.
-		for (const FDTKill& Kill : View.Kills)
+		if (!ReadDefeat(In, Sink))
 		{
-			if (Kill.EnemySerial == Hull.Serial)
-			{
-				Dealt = EffectiveMax;
-				HpFrac = 0.0f;
-				Finish(TEXT("win"), In.StepIndex, Sink);
-				Sink.BossDefeated(In.StepIndex, Kill.OwnerId);
-				return;
-			}
+			Finish(TEXT("removed"), In.StepIndex, Sink);
 		}
-		Finish(TEXT("removed"), In.StepIndex, Sink);
 		return;
 	}
 

@@ -1,12 +1,12 @@
-﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-09)
+﻿# CURRENT STATE — read first (≤ 100 lines; REWRITTEN, never appended; last rewrite: 2026-11-10)
 
 ## Where we are
 - Three stages run on three branches, and no exit test is waived or passed. `main` = **S1 Core slice** (entry 2026-10-30, D-012), feature-complete, exit test not booked (O-008). `dev/s2` = S2 All Keepers. `dev/s3` = S3 Loop closure (D-022, on `dev/s3`). Each branch holds the one before it. Nothing that raises in-run power merges back from `dev/s3`
-- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-037 (D-029 to D-031 on `main`; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
+- Platform: Win64 only (D-007). Decisions: the scheduler decides and records them (D-009); `13_Decisions/OPEN.md` holds human-only items. Next free decision number: D-041 (D-029 to D-031 on `main`; D-038 and D-039 on `dev/s2`; D-040 is reserved for the dash-volley ring recheck in flight; D-032 to D-035 on `dev/s3`). D-034 reads "pass 2 of 3" in the S3 exit as at least 2 of 3 validators on each such row; the owner may want to review it
 - Origin: `https://github.com/AaronJin0323/RogueGame` — **public** (D-006)
-- Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 502, tools 106). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
+- Gate: `& Tools\Gate.ps1 -Base <branch>`, read the `GATE:` line. Live on `main`: secrets, docs, constants (+ palette), catalog, loc, tools (43), build, locbuild, nonunity, shipping, tests (251, every test found must complete, floor 30 on `main`, 510 on `dev/s3`), smoke en + zh-Hans, seed, contrast. `dev/s3` adds matrix, restart, meta, vigil, firstrun, win (tests 524, tools 207). Not run anywhere: pad (needs a real pad and a human), scope (no brief), mac (D-007)
 - Perf: `& Tools\Perf.ps1` — at caps: game thread p95 ≈ 2.5 ms, proxied GPU p95 ≈ 3.7 ms at the 1500 frame, read on a busy machine (D-011); the perf scene grants no Keeper blessings
-- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `dcf52d7`. Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
+- Package: `& Tools\Package.ps1` (`package.md`, `S1_kit.md`). `Saved\Package` holds `main` at `34d1d8e` (the 1500 frame). Play: `Tools\Play.bat [en|zh-Hans]` · Bots: `& Tools\BotRuns.ps1` (`Validation/S1_bot_baseline.md`)
 - No windows, the owner's standing rule. `UnrealEditor -game -nullrhi` still creates a real game window and flags before the project path open a dialog: use `Tools/HiddenLaunch.ps1` (a hidden desktop) or `-RenderOffScreen`; the `windows` gate step catches any window shown. Package checks launch with a `-userdir` under `Saved`. Tool runs never touch `%LOCALAPPDATA%\Dusktracer`, which holds the owner's run files
 
 ## Built on `main` (S0 + S1)
@@ -17,27 +17,26 @@
 
 ## Built on `dev/s2`
 - Bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade, Radiance, Quicksilver, L16 Reforging, duo reactions, Time Dilation (scale reverted to 1.0), settings and accessibility, restart, abandon and quit, zh audit, 10 evolutions (D-020)
-- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`): 1 PASS, 3 FAIL, 2 NOT READ when last read. Those readings predate D-026 and D-027: attribution carries the Chain Trigger bias and older cast means are raw, so they are stale until reread
+- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`), reread 2026-11-10 at d827a58: 1 PASS, 3 FAIL, 2 NOT READ, the same verdicts (Keeper share 8/18, build bands 9/18, Intercession 46/282; humans and the death histogram are human-only). D-026 and D-027 did not move the exit rows. 529 of 540 runs are identical; the 11 that differ are all Vector:Forge, where the dash volley's cleave is now Quicksilver's and its kills refund the dash, as R-KEE-34 requires (`S2_dash_volley.md`; D-027's note is corrected). Then a BUG fix made Orbital Drones and Sweep Beam dash volleys Quicksilver's at the Key's 1.5 multiplier, and D-038 (RULE) made a dash volley act once on every weapon in that weapon's own shape: Blade Halo's blades each strike once, Cyclone's landing sweep skips the speed gate, Pulse Wall's live ring starts again as the volley's, Singularity's merge stands. Reread again at 8231171: the same verdicts and counts (share mean 0.606), 533 of 540 runs identical, the 7 that differ all hold a dash volley with Orbital Drones, and no outcome flips (`S2_exit.md` addendum). No bot run holds a dash volley with Blade Halo, Cyclone or Pulse Wall, so D-038 is read by its four tests only. D-039 (RULE, 846ceb1): Chain Trigger's free volley acts on Blade Halo (every blade once), Pulse Wall (the live ring strikes once more) and Sweep Beam (one tick on the densest line), and never starts a live ring or beam again; before it, the modifier cost Sweep Beam kills (164 to 116 in a test scene) and did nothing on the other two. 0 of 540 exit runs hold those pairs, so no reading is stale; the card's "one free volley" is one tick on those two, noted in `modifiers.md` Open (`S2_chain_trigger.md`)
 
 ## Built on `dev/s3`
 - Narrative v0.1, saves, Ichor (神血, code `Currency`), Discoveries, the Contracts page, Vigil hub, Codex, log export, doors for all content (D-023, D-024), first-run locks of four modifiers, the hub's seed rule and its package proof (D-028)
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight (resumed 2026-11-10)
-- Tips before `integrate/w5`, gated PASS and pushed: `main` cf7db4f, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
-- `main` now holds `fix/contrast-flake` (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results), gated at bf8c8c8. `integrate/w5-s2` and `integrate/w5-s3` carry it to `dev/s2` and `dev/s3`
-- D-036 is applied on `main` (cf7db4f, GATE: PASS): the frame radius is 1500 uu, about 53 m across at 36 px/m, fixed and not a setting; T-UX-01 and T-UX-02 are live; the camera keeps its height in wide windows. Seed 9107 hashes unchanged. Contrast pixel limits scaled with the frame and the rim hue band widened to 312–346 so the whole rim stroke is read; thresholds untouched. `dev/s2` and `dev/s3` still frame 2000 until they take it
+## In flight (one agent: whether D-038's ring and beam restart on a dash volley should take D-039's shape, branch `fix/dash-ring-shape` from `dev/s2`)
+- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` 846ceb1, `dev/s3` eb88c22. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
+- Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
-- `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
-- Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
+- `dev/s3` review done (`Validation/S3_review_fixes.md`): 53 fixed, 30 refuted, 54 deferred after the second pass, no major left. D-037: a gate check reads every run it launches (firstrun needs six of six at the boss), and MetaCheck's pool steps play 600 s and read the dealt cards against a tool-run control. Not reproduced live: the pause-frame and two-process fixes
+- PadCheck and PackageHubCheck list and compare the owner's folder read-only to prove it unchanged; nothing writes there
 - This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
-2. Carry D-036 to `dev/s2` and `dev/s3` after `integrate/w5`; settle its three held items (screen-wide effects against the frame, spawns in view, a Warden edge marker) at human readings
-3. Build a `dev/s3` package and read the package checks; then the deferred review majors #94 and #64
-4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
+2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
+3. Land the dash-volley ring recheck; then decide #20 (a boss killed on the step the hero dies pays a win)
+4. `dev/s3` minors that need a window or a package: #43 (Settings' Window row does nothing from `Play_*.bat`), #63/#107 (PackageHubCheck kills by path). The win-screen dark wedge is the arena plane's edge at ±4000 uu with the camera unclamped: S4 scope, in `S4_artbook_gaps.md`
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
@@ -51,7 +50,7 @@
 
 ## Numbers at risk
 - The owner's run (n = 1): 104.2 % HP lost by 563.3 s against bot medians near 7 %; 1.81 dashes per minute; paused 20.6 s per sim minute against the limit of 15; XP 0.733 of the model at 300 s against reference 0.51. Passing weapons alone does not make that pressure in bots, and no skill dashes at that rate. T-DIR-02, L16 Keeper share, boss and Reforging stay unread
-- Probes (`S1_keeper_power.md`, bounds, 40× field): after D-019: T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.589, 5/9 arms). The share formula cannot pass Storm. Pass criteria stay until human readings
+- Probes (`S1_keeper_power.md` §8, bounds, 40× field, reread on `dev/s2` d827a58): T-KEE-15 FAIL 15/57 in band, Tide has no band (mean below zero; Whirlpool:Furnace −8425); T-KEE-18 FAIL (share mean 0.566, 4/9 arms; gain 0/9). The 11 moved T-KEE-15 rows all hold Furnace, which fits the field-tick fix. The share formula cannot pass Storm. Pass criteria stay until human readings
 - Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 192 steered runs reach the boss, 151 win. T-DIR-01 PASS (588.6 s). T-OFF-15 FAIL 197/198 (no bug). T-DIR-02 per arm FAIL (0/19 arms in band). Two Forge/Tide arms fell past noise, cause unmeasured
 - Primary Whirlpool and Stillness are the weakest Keeper arms. With no heal in S1 the band and boss reach cannot both hold
 - Contrast gate 7/7 on the rendered lit ground and shadow; telegraph (3.27) and round (3.18) pass with thin margins. The second weather does not exist

@@ -33,3 +33,4 @@
 | D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied; clause 3 replaced by D-040 |
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |
 | D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |
+| D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |

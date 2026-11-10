@@ -21,7 +21,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FDTOnAllHeroesDown, int64 /*StepIndex*/);
 /**
  * Registers an input adapter for EDTSimPhase::Input (latched FDTHeroInput -> step) and itself for EDTSimPhase::Hero.
  * Pawns, the bot and tests feed input only through LatchInput (R-CMB-12). After each Hero phase the step's events are
- * broadcast (OnHeroEvent, OnIntercession, OnAllHeroesDown); in SimRender every registered ADTHero is drawn at the
+ * broadcast (OnHeroEvent, OnIntercession, OnAllHeroesDown; in a boss fight the last waits for the step's kills, R-BOS-13); in SimRender every registered ADTHero is drawn at the
  * interpolation alpha.
  */
 UCLASS()
@@ -51,6 +51,15 @@ public:
 	const FDTHeroState* GetState(int32 OwnerId) const { return Hero.IsValidPlayer(OwnerId) ? &Hero.GetState(OwnerId) : nullptr; }
 	bool IsDown(int32 OwnerId) const { return Hero.IsValidPlayer(OwnerId) && Hero.GetState(OwnerId).bDown; }
 	bool IsRunOver() const { return Hero.IsRunOver(); }
+	/**
+	 * boss.md R-BOS-13 (D-041): while held, every hero down does not end the run from the Hero phase. The holder (the boss
+	 * system, while the Warden's hull stands) ends it with AnnounceAllDown once the step's kills are read, or wins it.
+	 */
+	void HoldRunEnd(bool bHold) { bHoldRunEnd = bHold; }
+	/** Every hero is down and the run's end waits for the holder. */
+	bool IsRunEndHeld() const { return bHoldRunEnd && Hero.IsRunOver() && !bRunOverBroadcast; }
+	/** Ends the run with Death: logs and broadcasts OnAllHeroesDown, once, and only when every hero is down. */
+	void AnnounceAllDown();
 	/** The device that produced this player's last stepped input (telemetry `input_device`). */
 	EDTInputDevice GetLastInputDevice(int32 OwnerId) const
 	{
@@ -81,4 +90,5 @@ private:
 	TArray<TWeakObjectPtr<ADTHero>> Pawns;
 	float RenderAlpha = 0.0f;
 	bool bRunOverBroadcast = false;
+	bool bHoldRunEnd = false;
 };
