@@ -1,7 +1,7 @@
 # Telemetry — day-1 instrumentation (S0)
 
 ## Intent
-Every run, from the first validation session on, leaves a per-interval CSV and a JSONL event log that a tool can read, so a complaint ("too slow", "I didn't see it", "the Keeper did nothing") is checked against numbers instead of memory (`11_Quality §3`, `Harness/H07 §3`). Damage and kills are attributed per player and per source, so the value budget (`C.POWER.KEEPER_SHARE_L16`) can be measured from real runs.
+Every run, from the first validation session on, leaves a per-interval CSV and a JSONL event log that a tool can read, so a complaint ("too slow", "I didn't see it", "the Keeper did nothing") is checked against numbers instead of memory (`11_Quality §3`, `Harness/H07 §3`). Damage and kills are attributed per player and per source, so who landed the damage of a real run can be read beside the value budget's own reading (`C.POWER.KEEPER_SHARE_L16`, by loss, `10_Tuning.md §3`).
 
 ## Rules
 - **R-TEL-01** The telemetry clock is the sim step count, never wall time: `UDTTelemetrySubsystem` runs in `EDTSimPhase::Director` (end of each step, R-TEC-03), and a CSV interval closes exactly when `C.TEL.INTERVAL_S` of sim time has passed since the last one.
@@ -24,7 +24,7 @@ Every run, from the first validation session on, leaves a per-interval CSV and a
 | Swarm TTK percentile | C.TEL.TTK_PERCENTILE | CORE | R-TEL-03, C.TTK.SWARM_STEERED_MAX |
 | Nearest-enemy distance percentile | C.TEL.NEAREST_PERCENTILE | CORE | `nearest_enemy_uu` |
 | Sim time between `hero_pos` records | C.TEL.HERO_POS_INTERVAL_S | CORE | R-TEL-10, T-TEL-10 |
-| Level at which the value budget is checked | C.TEL.POWER_CHECK_LEVEL | CORE | `Tools/power_split.py`, C.POWER.KEEPER_SHARE_L16 |
+| Level at which the value budget is checked | C.TEL.POWER_CHECK_LEVEL | CORE | `Tools/probe.py`, `Tools/power_split.py`, C.POWER.KEEPER_SHARE_L16 |
 | Step rate (the clock) | C.SIM.FIXED_HZ | CORE | R-TEL-01 |
 
 ## Data
@@ -62,7 +62,7 @@ S1 kinds are defined in the owning spec's §Telemetry, in this record format, ag
 
 Code: `FDTTelemetryCore` (plain C++), `FDTTelemetryWriter` (pipe), `FDTTelemetrySources`, `UDTTelemetrySubsystem`; `ADTGameMode` starts the session with the run seed and ends it in `EndPlay`; the enemy subsystem reports spawns and brackets `ResolveHits`. Debug (not in Shipping, R-TEC-12): `DT.Stats` prints the interval in progress per player; `DT.Stats.Flush` queues the buffer now.
 
-Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Playtests`) prints per player the damage and kill share by source family (Keeper, Weapon, Modifier, Other) and `POWER: n/a|PASS|FAIL`; the Keeper damage share is checked against `C.POWER.KEEPER_SHARE_L16` only when the player reached `C.TEL.POWER_CHECK_LEVEL`. It becomes the gate T-BAL-01 in S2.
+Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Playtests`) prints per player the damage and kill share by source family (Keeper, Weapon, Modifier, Other) and one `POWER:` line: the Keeper damage share of a player who reached `C.TEL.POWER_CHECK_LEVEL`, or `n/a`. It is the attribution view of one session log, printed beside the probe's reading and never judged (D-047): `C.POWER.KEEPER_SHARE_L16` is read by loss in `Tools/probe.py` (`keepers.md` R-KEE-18).
 
 ## Acceptance
 - T-TEL-01 `Dusktracer.Telemetry.IntervalSimClock`: no row one step before the interval ends, one row on its last step, and further rows follow steps with no wall time passing.
@@ -87,7 +87,7 @@ Tool: `Tools/power_split.py [run.csv|run.jsonl]` (default: newest in `Saved/Play
 
 ## Out of scope
 - The S1 record kinds listed in §Data (their specs own them); healing, per-effect trigger / VFX / audio counts, outcome cause beyond the end-play reason.
-- Ablation-based value budget (`model.md`): the S2 gate may replace attribution by ablation.
+- The value budget's verdict: `keepers.md` R-KEE-18 reads it by loss in a probe scene (`Tools/probe.py`, D-047). Attribution from a run's records is a view.
 
 ## Open
 - S1 writer API (non-behavioural choices, `Telemetry/DTTelemetryCore.h` `Record*`/`Set*`, types in `DTTelemetryRecords.h`; producers call `UDTTelemetrySubsystem::Find(this)->Records()`): `run_end` puts the per-player fields of `offers.md`/`progression.md` under `per_player{owner: {...}}` and the run's `gems_*` at top level; `cards_offered`/`reserve_cards` count every shown card (rerolls and refills included), `hands_by_kind` counts a hand once, `decisions` excludes the Patron hand, `wall_paused_s` sums `offer_pick.wall_decide_s`; the per-interval count of `intercession_denied` is a record `intercession_denied{interval count}`; `weapon` is written for every owned weapon each interval; "within the threat ring" = within `C.DIR.THREAT_RING_MAX_UU` of the hero at the step end; source maps are ordered by name; the slot mirror (R-TEL-03, kept; `FDTWorldView::Kills` is not needed) skips stale-serial hits like the pool (R-ENM-23) → revisit with the S1 producers.

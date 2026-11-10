@@ -8,7 +8,7 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 
 | Target | Key | Instrument | Verdict by | Standing |
 |---|---|---|---|---|
-| Swarm kill time | C.TTK.SWARM_STEERED_MAX | §2 | people, session B | reads high on three winning bot arms (`Validation/S1_run_telemetry.md`); no rule or test line owns it yet |
+| Swarm kill time | C.TTK.SWARM_STEERED_MAX | §2 | people, session B | reads high on three winning bot arms (`Validation/S1_run_telemetry.md`); `director.md` R-DIR-18 and T-DIR-18 own it |
 | Damage taken, late window | C.DMG_TAKEN.BAND_MIN10_13 | §2 | people, session B | a draft; set at the S1 gate (D-046) |
 | Dashes, late window | C.DASHES.BAND_MIN10_13 | §2 | people, session B | a draft; set at the S1 gate (D-046) |
 | Pause in hands | C.OFFER.PAUSED_S_PER_MIN_MAX | §2 | people, session B | the owner's run read over it (`Validation/S1_owner_run.md`); bots read zero |
@@ -29,11 +29,11 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 
 **Which runs count.** Only a run alive through the whole window is judged. A run that ends inside it is printed and never enters a verdict: a death in the window inflates a rate over time alive (`Validation/S1_pull_rule.md`).
 
-**Session statistic.** The median of the per-run values over the runs that count. Fewer than three such runs, or runs from fewer than two validators, read NOT READ. Human runs are never pooled into one rate.
+**Session statistic.** The median of the per-run values over the runs that count. Fewer than three such runs, or runs from fewer than two validators, read NOT READ. Human runs are never pooled into one rate. Telemetry holds no name, so the session sheet says who played each run: `Tools/pressure.py --check --validators <sheet.csv>`, one `run,validator` row per run; without the sheet a session reads NOT READ.
 
-**Bots.** Each arm is judged on its own, as today, and the reading is a bound.
+**Bots.** Each arm is judged on its own, as today, and the reading is a bound. The tool applies the same statistic inside an arm, the three-run floor included.
 
-**Pause.** Wall seconds with a hand open over sim minutes, per run, over the whole run, the Patron hand left out as it is left out of the decision count (D-013). Tool: `Tools/owner_read.py run`, which today prints the figure with the Patron hand in; the job that applies D-047 makes it print both.
+**Pause.** Wall seconds with a hand open over sim minutes, per run, over the whole run, the Patron hand left out as it is left out of the decision count (D-013). Tool: `Tools/owner_read.py run`, which prints the figure with the Patron hand in and without it.
 
 **Setting the two bands (D-046).** After session A one decision writes both bands from A's per-run values.
 - Input: the table of every minute of every run, and the restores each run collected.

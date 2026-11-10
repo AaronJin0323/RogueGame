@@ -17,11 +17,11 @@ shape:
   OFFER.REROLLS:               { value: 2,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   OFFER.BANISH:                { value: 1,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   OFFER.LOCK:                  { value: 1,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
-  TTK.SWARM_STEERED_MAX:       { value: 0.3,  unit: s,     tag: CORE, dependents: [10_Tuning.md] }
+  TTK.SWARM_STEERED_MAX:       { value: 0.3,  unit: s,     tag: CORE, dependents: [10_Tuning.md, 02_Systems/director.md, T-DIR-18] }
   DMG_TAKEN.BAND_MIN10_13:     { value: [0.30, 0.50], unit: ratio_per_min, tag: CORE, dependents: [02_Systems/director.md, T-DIR-02] }
   DASHES.BAND_MIN10_13:        { value: [6, 10], unit: per_min, tag: CORE, dependents: [02_Systems/combat_core.md] }
   POWER.KEEPER_SHARE_L16:      { value: 0.60, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-KEE-18] }
-  POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md] }
+  POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-KEE-18] }
   INTERCESSION.BAND:           { value: 0.20, unit: ratio, tag: CORE, dependents: [02_Systems/keepers.md] }
 sim:
   ARENA.HALF_EXTENT_UU:        { value: 4000, unit: uu,    tag: GATED(S1),  dependents: [07_Technical.md, Core/DTSpatialHash] }
@@ -258,7 +258,7 @@ combat:
   DASH.DISTANCE_UU:            { value: 450,  unit: uu,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06] }
   DASH.COOLDOWN_S:             { value: 3.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
   DASH.CHARGES:                { value: 1,    unit: n,     tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-06, T-CMB-07] }
-  DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09] }
+  DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09, T-DIR-18] }
   DIR.NOPICK_DEATH_BAND_S:     { value: [480, 720], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-01] }
   DIR.BOT_RUNS:                { value: 10,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-01] }
   DIR.BREATH_S:                { value: 6.0,  unit: s,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-04] }

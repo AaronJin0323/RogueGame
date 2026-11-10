@@ -22,7 +22,7 @@
 | C.OFFER.REROLLS | 2 | n | CORE | offers.md §6 |
 | C.OFFER.BANISH | 1 | n | CORE | offers.md §6 |
 | C.OFFER.LOCK | 1 | n | CORE | offers.md §6 |
-| C.TTK.SWARM_STEERED_MAX | 0.3 | s | CORE | 10_Tuning §1 and §2, S1_kit row 5 |
+| C.TTK.SWARM_STEERED_MAX | 0.3 | s | CORE | 10_Tuning §1 and §2, director.md R-DIR-18, T-DIR-18, S1_kit row 5 |
 | C.DMG_TAKEN.BAND_MIN10_13 | 30–50 | %/min | CORE (a draft; set at the S1 gate, D-046) | director.md, T-DIR-02, 10_Tuning §2 |
 | C.DASHES.BAND_MIN10_13 | 6–10 | /min | CORE (a draft; set at the S1 gate, D-046) | combat_core.md, director.md, 10_Tuning §2 |
 | C.POWER.KEEPER_SHARE_L16 | ≥ 0.60 | ratio | CORE | 10_Tuning §3, T-KEE-18 (loss, D-047) |
@@ -311,7 +311,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DASH.DISTANCE_UU | 450 | uu | GATED(S1) | combat_core.md, T-CMB-06 |
 | C.DASH.COOLDOWN_S | 3.0 | s | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
 | C.DASH.CHARGES | 1 | n | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
-| C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09 |
+| C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09, T-DIR-18 |
 | C.DIR.NOPICK_DEATH_BAND_S | 480–720 | s | GATED(S1) | director.md, T-DIR-01 |
 | C.DIR.BOT_RUNS | 10 | n | GATED(S1) | director.md, T-DIR-01 |
 | C.DIR.BREATH_S | 6.0 | s | GATED(S1) | director.md, T-DIR-04 |
