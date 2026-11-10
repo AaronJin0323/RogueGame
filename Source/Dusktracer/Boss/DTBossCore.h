@@ -157,6 +157,11 @@ public:
 	void Start(int32 Wins, TConstArrayView<FVector2f> Heroes, IDTBossSink& Sink);
 	/** One fixed step (EDTSimPhase::Enemies, after the enemy pool): adopts the hull, then runs the fight. */
 	void Step(const FDTBossStepIn& In, IDTBossSink& Sink);
+	/**
+	 * R-BOS-13 (D-041): reads the hull's death from View.Kills. On a kill the fight ends as a win, View.bRunWon is set and
+	 * Sink.BossDefeated is called; true then. Callable from any phase: the kills of the last ResolveHits are what it reads.
+	 */
+	bool ReadDefeat(const FDTBossStepIn& In, IDTBossSink& Sink);
 	/** Ends the fight from outside (every hero down, a new run): writes boss_end with Outcome. */
 	void End(const FString& Outcome, IDTBossSink& Sink);
 	/** Debug (DT.Boss.Phase): advances to Phase (1-based), entering each phase on the way in order; never goes back. */

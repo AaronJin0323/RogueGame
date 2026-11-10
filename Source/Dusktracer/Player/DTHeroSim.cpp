@@ -298,7 +298,8 @@ void FDTHeroSim::StepPlayer(int32 OwnerId, const FDTSimContext& Context, const F
 
 	// --- damage intake (R-CMB-08, R-CMB-09) ---
 	S.HurtIFramesLeft = CountDown(S.HurtIFramesLeft, Dt);
-	const bool bProtected = bNoDamage || S.bIntangible || S.DashLeft > 0.0f || S.HurtIFramesLeft > 0.0f;
+	// R-BOS-13 (D-041): a won run takes no hit, so a hit dealt on the step the Warden fell never downs the hero.
+	const bool bProtected = bNoDamage || Context.View->bRunWon || S.bIntangible || S.DashLeft > 0.0f || S.HurtIFramesLeft > 0.0f;
 	if (Hit && !bProtected)
 	{
 		const float Amount = Hit->Damage * S.Stats.DamageTakenMul;

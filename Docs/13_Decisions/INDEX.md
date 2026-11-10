@@ -29,3 +29,4 @@
 | D-030 | A card states what it takes, per weapon at its level, in the numbers the sim deals | RULE | applied |
 | D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied |
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
+| D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |

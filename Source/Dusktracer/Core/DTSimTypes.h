@@ -205,6 +205,8 @@ struct FDTWorldView
 	// Director -> render; enemies next step (aim tokens); overwritten.
 	TArray<FDTDropInMarker> DropInMarkers;
 	bool bThreatBlock = false;
+	/** Boss -> hero: the Warden's hull was killed, so the run is won; no hero takes a hit from here on (boss.md R-BOS-13, D-041). */
+	bool bRunWon = false;
 };
 
 /** Everything a system gets when it steps. */
