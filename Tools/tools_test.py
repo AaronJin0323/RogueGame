@@ -12,11 +12,13 @@ import re
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import owner_read  # noqa: E402
+import power_split  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 
@@ -433,6 +435,242 @@ class Ablation(unittest.TestCase):
 	def test_a_drop_below_zero_is_noise(self):
 		dps = {"full": 100.0, "no_keepers": 50.0, "no_package": 50.0, "no_mods": 120.0, "no_levels": 100.0, "no_extra": 100.0}
 		self.assertAlmostEqual(probe.share_of(dps)["share"], 1.0)
+
+	def test_loss_is_one_minus_the_ratio_even_below_zero(self):
+		dps = {"full": 100.0, "no_keepers": 120.0, "no_package": 50.0, "no_mods": 100.0, "no_levels": 100.0, "no_extra": 100.0}
+		self.assertAlmostEqual(probe.share_of(dps)["loss"], -0.2)
+
+	def test_the_control_takes_the_second_keeper_off_both_sides(self):
+		ab = lambda c: probe.ablate(self.BUILD, c, "Storm", "Tempest")
+		self.assertEqual(ab("no_second"), (None, ["Blessing.Storm.Tempest.Key"], self.BUILD[3]))
+		self.assertEqual(ab("no_second_no_package"), (None, [], self.BUILD[3]))
+		dps = {"full": 100.0, "no_keepers": 40.0, "no_package": 90.0, "no_mods": 100.0, "no_levels": 80.0, "no_extra": 80.0}
+		self.assertIsNone(probe.share_of(dps)["control"], "a folder from before the control still reads")
+		self.assertAlmostEqual(probe.share_of(dps | {"no_second": 60.0, "no_second_no_package": 30.0})["control"], 2.0)
+
+
+class KeeperLoss(unittest.TestCase):
+	"""T-KEE-18 judges loss (D-047). The fixture is a multiplying Keeper: its weapon groups drop with it, so its share reads
+	0.37 while removing its blessings costs 0.70 of the build's DPS."""
+	CONSTS = {"POWER.KEEPER_SHARE_L16": {"value": 0.6}, "POWER.ARCHETYPE_BAND": {"value": 0.15}, "KEEPER.PACKAGE_GAIN_BAND": {"value": [2.0, 2.4]}}
+	MULTIPLIER = {"full": 1000, "no_keepers": 300, "no_package": 450, "no_mods": 900, "no_levels": 400, "no_extra": 500}
+
+	def read(self, arms):
+		"""The printed reading of {"Path-Name": {config: window damage}}; the window is ten seconds, so DPS is a tenth."""
+		with tempfile.TemporaryDirectory() as folder:
+			for index, (arm, configs) in enumerate(arms.items()):
+				for config, damage in configs.items():
+					run = os.path.join(folder, f"AB-{arm}-b1-{config}_s{index + 1}01")
+					os.makedirs(run)
+					with open(os.path.join(run, "scene.txt"), "w", encoding="utf-8") as f:
+						f.write("warmup_s 8\nwindow_s 10\n")
+					with open(os.path.join(run, "1.jsonl"), "w", encoding="utf-8") as f:
+						f.write('{"t":2.0,"step":1,"kind":"hit","owner":0,"hits":1,"damage":999}\n')  # warm-up: outside the window
+						f.write('{"t":9.0,"step":2,"kind":"hit","owner":0,"hits":1,"damage":%d}\n' % damage)
+						f.write('{"t":18.0,"step":3,"kind":"run_end","owner":-1}\n')
+			lines = []
+			with mock.patch.object(probe.dtconst, "load", return_value=self.CONSTS):
+				ok = probe.read_ablation(folder, lines)
+		return ok, "\n".join(lines)
+
+	def test_a_multiplying_keeper_passes_on_loss_with_its_share_printed(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER, "Forge-Hammer": self.MULTIPLIER | {"no_keepers": 250}})
+		self.assertTrue(ok, text)
+		self.assertIn("| Storm/Downpour | 1 | 100 | 0.700 | 2.22 | - | 0.368 | PASS | PASS | IN |", text)
+		self.assertIn("T-KEE-18: PASS (2 arms: loss below 0.6 on 0, gain outside the band on 0, outside the archetype band on 0; mean loss 0.725; share, printed and never judged, mean 0.377)", text)
+
+	def test_an_arm_below_the_floor_fails_on_loss(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER, "Storm-Tempest": self.MULTIPLIER | {"no_keepers": 430}})
+		self.assertFalse(ok, text)
+		self.assertIn("| Storm/Tempest | 1 | 100 | 0.570 | 2.22 | - | 0.322 | FAIL | PASS | IN |", text)
+		self.assertIn("loss below 0.6 on 1", text)
+
+	def test_the_archetype_band_is_around_the_mean_loss(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER | {"no_keepers": 390}, "Forge-Slam": self.MULTIPLIER | {"no_keepers": 50}})
+		self.assertFalse(ok, text)  # losses 0.61 and 0.95: the mean is 0.78 and both sit 0.17 from it
+		self.assertIn("loss below 0.6 on 0, gain outside the band on 0, outside the archetype band on 2; mean loss 0.780", text)
+
+	def test_the_control_is_printed_beside_the_gain_and_never_judged(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER | {"no_second": 800, "no_second_no_package": 800}})
+		self.assertTrue(ok, "a control of 1.00 is outside the gain band and fails nothing: " + text)
+		self.assertIn("| Storm/Downpour | 1 | 100 | 0.700 | 2.22 | 1.00 (1) | 0.368 | PASS | PASS | IN |", text)
+
+
+class PressureStatistic(unittest.TestCase):
+	"""10_Tuning.md section 2: per run over the minutes of the window, only runs alive through it, the median over those runs."""
+	CONSTS = {"DMG_TAKEN.BAND_MIN10_13": {"value": [0.3, 0.5]}, "DASHES.BAND_MIN10_13": {"value": [6, 10]}, "TTK.SWARM_STEERED_MAX": {"value": 0.3},
+		"DIR.BAND_WINDOW_S": {"value": [600, 780]}, "TEL.INTERVAL_S": {"value": 60.0}}
+
+	@staticmethod
+	def write(folder, name, dmg_per_min, dashes_per_min=8, end=900.0, cells=None):
+		"""One run pair: damage as a share of max HP per window minute, dashes per window minute, the run's end, and
+		{interval end: swarm_ttk_s}. A run that ends inside the window takes one hit of the whole bar."""
+		os.makedirs(folder, exist_ok=True)
+		lines = ['{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}']
+		if end < 780.0:
+			lines.append('{"t":%.1f,"step":1,"kind":"hero_damaged","owner":0,"amount":100,"max_hp":100,"hit_kind":"Contact","role":"Swarm"}' % (end - 1.0))
+			lines.append('{"t":%.1f,"step":1,"kind":"hero_down","owner":0}' % end)
+		else:
+			for minute in range(3):
+				lines.append('{"t":%.1f,"step":1,"kind":"hero_damaged","owner":0,"amount":%s,"max_hp":100,"hit_kind":"Contact","role":"Swarm"}' % (630.0 + 60 * minute, dmg_per_min * 100))
+				lines += ['{"t":%.1f,"step":1,"kind":"dash","owner":0}' % (601.0 + 60 * minute + i) for i in range(dashes_per_min)]
+		lines.append('{"t":%.1f,"step":2,"kind":"run_end","owner":-1}' % end)
+		with open(os.path.join(folder, name + ".jsonl"), "w", encoding="utf-8") as f:
+			f.write("\n".join(lines) + "\n")
+		if cells:
+			with open(os.path.join(folder, name + ".csv"), "w", encoding="utf-8") as f:
+				f.write("interval,run_time_s,player,swarm_ttk_s\n" + "".join(f"{i},{t},0,{v}\n" for i, (t, v) in enumerate(sorted(cells.items()))))
+
+	def check(self, *args):
+		out = io.StringIO()
+		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), contextlib.redirect_stdout(out):
+			rc = pressure.main(["pressure.py", *args])
+		return rc, out.getvalue()
+
+	def test_a_restore_is_printed_and_moves_no_verdict(self):
+		"""D-046: `hero_healed` inside the window prints a RESTORES line; the statistic reads the same damage with and without it."""
+		heal = '{"t":700.0,"step":1,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}'
+		outs = []
+		for healed in (False, True):
+			with tempfile.TemporaryDirectory() as tmp:
+				for seed in (1, 2, 3):
+					folder = os.path.join(tmp, f"Arm_s{seed}")
+					self.write(folder, f"{seed}_run", 0.4)
+					if healed:
+						path = os.path.join(folder, f"{seed}_run.jsonl")
+						with open(path, encoding="utf-8") as f:
+							lines = f.read().splitlines()
+						with open(path, "w", encoding="utf-8") as f:
+							f.write("\n".join(lines[:-1] + [heal, lines[-1]]) + "\n")
+				outs.append(self.check(tmp, "--check", "T-DIR-02"))
+		(rc_plain, plain), (rc_healed, healed_out) = outs
+		self.assertEqual(rc_plain, rc_healed)
+		self.assertEqual([line for line in plain.splitlines() if line.startswith("T-DIR-02")],
+			[line for line in healed_out.splitlines() if line.startswith("T-DIR-02")])
+		self.assertIn("T-DIR-02 Arm: PASS", plain)
+		self.assertNotIn("RESTORES:", plain)
+		self.assertEqual(healed_out.count("RESTORES:"), 3)
+		self.assertIn("Pickup.Chest 1 for 0.150 of max HP (in window 1, 0.150)", healed_out)
+
+	def test_a_run_that_ends_in_the_window_is_printed_and_never_judged(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=610.0)  # the bar in ten seconds: 6.0 per minute alive
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("4_x p0 dmg 6.000/min [HIGH] dashes 0.00/min [LOW] alive 0.17 min (jsonl); ended in the window, not judged", text)
+		self.assertIn("T-DIR-02 Steered-A: PASS (median over 3 run(s) alive through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: "
+			"damage taken 0.400/min [IN] band 0.3-0.5, dashes 8.00/min [IN] band 6-10)", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_the_statistic_is_the_median_over_runs_not_the_mean(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed, dmg in ((1, 0.35), (2, 0.4), (3, 1.5)):  # the mean is 0.75, out of the band
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", dmg)
+			for seed, dmg in ((1, 0.1), (2, 0.2), (3, 0.9)):
+				self.write(os.path.join(root, f"Steered-B_s{seed}"), f"{seed}_x", dmg)
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("T-DIR-02 Steered-A: PASS", text)
+		self.assertIn("T-DIR-02 Steered-B: FAIL (median over 3 run(s) alive through 600-780 s; a bot reading is a bound: damage taken 0.200/min [LOW]", text)
+		self.assertIn("T-DIR-02: FAIL (1/2 group(s) pass; fail: Steered-B)", text)
+		self.assertEqual(rc, 1)
+
+	def test_fewer_than_three_runs_that_count_read_not_read(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s3"), "3_x", 0.0, end=700.0)
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("T-DIR-02 Steered-A: NOT READ (2 run(s) alive through 600-780 s, need 3)", text)
+		self.assertIn("T-DIR-02: NOT READ (0/1 group(s) pass; not read: Steered-A)", text)
+		self.assertEqual(rc, 1)
+
+	def test_a_session_needs_two_validators_named_on_a_sheet(self):
+		with tempfile.TemporaryDirectory() as root:
+			session, sheet = os.path.join(root, "sessionB"), os.path.join(root, "sheet.csv")
+			for seed in (1, 2, 3):
+				self.write(session, f"{seed}_x", 0.4)
+			rc, text = self.check(session, "--check", "T-DIR-02")
+			self.assertIn("T-DIR-02 session: NOT READ (3 runs count, but no --validators sheet says who played them", text)
+			self.assertEqual(rc, 1)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V1\n3_x,V1\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+			self.assertIn("T-DIR-02 session: NOT READ (the 3 runs that count come from 1 validator(s), need 2)", text)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V2\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+			self.assertIn("T-DIR-02 session: NOT READ (not on the validators sheet: 3_x)", text)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V2\n3_x,V2\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+		self.assertIn("T-DIR-02 session: PASS (median over 3 run(s) alive through 600-780 s: damage taken 0.400/min [IN]", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_kill_time_is_the_median_of_the_cells_inside_the_window(self):
+		early = {540: 5.0, 600: 5.0, 840: 9.0}  # the cell that ends at 600 s covers 540-600 s: outside
+		with tempfile.TemporaryDirectory() as root:
+			for seed, cells in ((1, {660: 0.1, 720: 0.2, 780: 0.3}), (2, {660: 0.3, 720: 0.3, 780: 0.2}), (3, {660: 0.9, 720: 0.25})):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells=early | cells)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=700.0, cells={660: 0.01, 700: 0.01})
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-B_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.2, 720: 0.5, 780: 0.6})
+			rc, text = self.check(root, "--check", "T-DIR-18")
+		self.assertIn("1_x p0 swarm 0.200 s [IN] over 3 cells in the window", text)
+		self.assertIn("T-DIR-18 Steered-A: PASS (median over 3 run(s) alive through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: "
+			"swarm kill time 0.300 s [IN] max 0.3)", text)  # per run 0.2, 0.3 and 0.575; the run that died reads 0.01 and is left out
+		self.assertIn("T-DIR-18 Steered-B: FAIL (median over 3 run(s) alive through 600-780 s; a bot reading is a bound: swarm kill time 0.500 s [HIGH] max 0.3)", text)
+		self.assertNotIn("T-DIR-02", text)
+		self.assertEqual(rc, 1)
+
+	def test_a_run_with_no_cell_in_the_window_is_no_kill_time_run(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.1})
+			self.write(os.path.join(root, "Steered-A_s3"), "3_x", 0.4, cells={540: 0.1})
+			rc, text = self.check(root, "--check")
+		self.assertIn("T-DIR-02 Steered-A: PASS", text)
+		self.assertIn("T-DIR-18 Steered-A: NOT READ (2 run(s) alive through 600-780 s with a kill-time cell in it, need 3)", text)
+		self.assertEqual(rc, 1)
+
+
+class Attribution(unittest.TestCase):
+	"""Tools/power_split.py is a view of one session log (D-047): it prints a share and judges nothing."""
+	LINES = ['{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}',
+		'{"t":60.0,"step":1,"kind":"sources","owner":0,"interval":0,"damage":{"Weapon.PulseRifle":90,"Keeper.Storm":10},"kills":{"Keeper.Storm":1}}',
+		'{"t":60.0,"step":1,"kind":"run_end","owner":-1,"reason":"death"}']
+
+	def run_tool(self, level):
+		with tempfile.TemporaryDirectory() as folder:
+			with open(os.path.join(folder, "1_x.jsonl"), "w", encoding="utf-8") as f:
+				f.write("\n".join(self.LINES) + "\n")
+			with open(os.path.join(folder, "1_x.csv"), "w", encoding="utf-8") as f:
+				f.write(f"interval,run_time_s,player,level\n0,60,0,{level}\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = power_split.main(["power_split.py", os.path.join(folder, "1_x.jsonl")])
+			missing = io.StringIO()
+			with contextlib.redirect_stdout(missing):
+				rc_missing = power_split.main(["power_split.py", os.path.join(folder, "none.jsonl")])
+		return rc, out.getvalue(), rc_missing
+
+	def test_a_low_keeper_share_is_printed_and_never_judged(self):
+		level = power_split.dtconst.load()["TEL.POWER_CHECK_LEVEL"]["value"]
+		rc, text, rc_missing = self.run_tool(level)
+		last = text.strip().splitlines()[-1]
+		self.assertTrue(last.startswith("POWER: attribution (P0 Keeper 10.0 % of the damage landed"), last)
+		for word in ("PASS", "FAIL", "stub", "need"):
+			self.assertNotIn(word, text)
+		self.assertEqual((rc, rc_missing), (0, 1), "a run that was read exits 0, a run that was not found exits 1")
+
+	def test_below_the_check_level_reads_nothing(self):
+		rc, text, _ = self.run_tool(2)
+		self.assertTrue(text.strip().splitlines()[-1].startswith("POWER: n/a (no player reached L"), text)
+		self.assertEqual(rc, 0)
+
+	def test_the_tool_holds_no_stub(self):
+		with open(os.path.join(TOOLS, "power_split.py"), encoding="utf-8") as f:
+			self.assertNotIn("stub", f.read())
 
 
 class Contrast(unittest.TestCase):

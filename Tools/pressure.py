@@ -1,25 +1,39 @@
-"""T-DIR-02 pressure reading from a run's telemetry (02_Systems/director.md R-DIR-02, telemetry.md). Stdlib only.
+"""Pressure reading from a run's telemetry: T-DIR-02 (the two bands) and T-DIR-18 (swarm kill time). Stdlib only.
+Rules: 02_Systems/director.md R-DIR-02 and R-DIR-18. Method: Docs/10_Tuning.md section 2 (D-048).
 
-Usage:  python -I Tools/pressure.py [run.jsonl | run.csv | <seed>_<time> | <folder>] ... [--check]
+Usage:  python -I Tools/pressure.py [run.jsonl | run.csv | <seed>_<time> | <folder>] ... [--check [T-DIR-02][,T-DIR-18]]
+                                    [--validators <sheet.csv>]
         no argument: the newest run in Saved/Playtests; a folder: every run pair under it (recursively)
 
-Per run and player: damage taken as a share of max HP per minute and dashes per minute inside C.DIR.BAND_WINDOW_S,
-compared with C.DMG_TAKEN.BAND_MIN10_13 and C.DASHES.BAND_MIN10_13. Rates are over the time the hero was alive in the
-window (a run that ended or a hero that went down before the window has no reading).
+Per run and player, inside C.DIR.BAND_WINDOW_S: damage taken per minute (applied damage, each hit as a share of max HP at that
+hit), dashes per minute, and the swarm kill time (the median of the run's CSV `swarm_ttk_s` cells inside the window), against
+C.DMG_TAKEN.BAND_MIN10_13, C.DASHES.BAND_MIN10_13 and C.TTK.SWARM_STEERED_MAX.
+
+Which runs count: only a run alive through the whole window. Its rates are over the minutes of the window. A run that ended
+or a hero that went down inside the window is printed, with its rates over the time alive, and never enters a verdict: a
+death in the window inflates a rate over time alive (Docs/Validation/S1_pull_rule.md). A run that ended before it reads nothing.
 
 Source: the JSONL `hero_damaged` (amount / max_hp), `dash`, `hero_down` and `run_end` records, clipped to the window
 exactly, and `hero_healed` for the RESTORES line; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows weighted by their overlap with the
-window. One line per run and player:
-  PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)
+window. Kill time needs both files: the CSV holds the cells, the JSONL says the run stamps the first hit (R-TEL-03).
+One line per run and player:
+  PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
-  TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> intervals    (median of the CSV `swarm_ttk_s` cells against C.TTK.SWARM_STEERED_MAX)
+  TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
                                                      back, never taken off the damage reading; printed only when one exists)
-With --check, one verdict per arm and one overall (T-DIR-02 is HUMAN-measured, a bot reading is a bound). An arm is a run
-folder's label (<arm>_s<seed>, Tools/BotRuns.ps1); runs outside such a folder form one arm. A pooled mean hides builds that
-miss in opposite directions, so the overall verdict passes only when every arm passes on its own:
-  T-DIR-02 <arm>: PASS|FAIL (...)
-  T-DIR-02: PASS|FAIL|n/a (...)      exit 1 on FAIL or n/a, else 0
+
+With --check, the statistic: the median of the per-run values over the runs that count, per group. A group is a bot arm (a
+run folder's label, <arm>_s<seed>, Tools/BotRuns.ps1), judged on its own because a pooled figure hides builds that miss in
+opposite directions; its reading is a bound. Runs outside such a folder are one session of people. Fewer than three runs that
+count read NOT READ; so does a session whose counting runs come from fewer than two validators. Telemetry holds no name, so
+a session names its validators on a sheet: --validators <sheet.csv>, with a header and one `run,validator` row per run
+(run = the file's base name, <seed>_<time>). Human runs are never pooled into one rate.
+  T-DIR-02 <group>: PASS|FAIL|NOT READ (...)      both medians inside their bands
+  T-DIR-02: PASS|FAIL|NOT READ (...)              PASS only when every group passes
+  T-DIR-18 <group>: PASS|FAIL|NOT READ (...)      the median kill time within C.TTK.SWARM_STEERED_MAX
+  T-DIR-18: PASS|FAIL|NOT READ (...)
+Exit 1 with --check unless every requested check reads PASS (both when none is named), else 0.
 """
 
 import csv
@@ -34,6 +48,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
 
 PLAYTESTS = os.path.join(dtconst.ROOT, "Saved", "Playtests")
+# Docs/10_Tuning.md section 2, the session statistic: below either floor a group reads NOT READ.
+MIN_RUNS = 3
+MIN_VALIDATORS = 2
+SESSION = "all"  # the group of runs outside a bot arm's folder: one session of people
+CHECKS = ("T-DIR-02", "T-DIR-18")
 
 
 def first_wins(pairs):
@@ -183,16 +202,105 @@ def ttk_is_first_hit(jsonl_path):
 	return False
 
 
-def swarm_ttk(csv_path, jsonl_path):
-	"""{owner: (median of the interval cells of `swarm_ttk_s`, intervals with a sample)}; {} for a run that cannot read the band."""
+def swarm_ttk(csv_path, jsonl_path, window=None):
+	"""{owner: (median of the interval cells of `swarm_ttk_s`, cells with a sample)}; {} for a run that cannot read the band.
+	With a window (lo, hi) only the cells of intervals that overlap it count: each row covers (run_time_s - interval, run_time_s]."""
 	if not csv_path or not os.path.exists(csv_path) or not ttk_is_first_hit(jsonl_path):
 		return {}
-	cells = {}
+	interval = dtconst.load()["TEL.INTERVAL_S"]["value"] if window else 0.0
+	cells, prev_end = {}, {}
 	with open(csv_path, encoding="utf-8", newline="") as f:
 		for row in csv.DictReader(f):
+			try:
+				owner, end = int(row["player"]), float(row["run_time_s"])
+			except (KeyError, TypeError, ValueError):
+				continue  # a torn last row, from a killed process
+			start = max(prev_end.get(owner, 0.0), end - interval)
+			prev_end[owner] = end
+			if window and min(window[1], end) - max(window[0], start) <= 0:
+				continue
 			if row.get("swarm_ttk_s"):
-				cells.setdefault(int(row["player"]), []).append(float(row["swarm_ttk_s"]))
+				cells.setdefault(owner, []).append(float(row["swarm_ttk_s"]))
 	return {owner: (statistics.median(v), len(v)) for owner, v in cells.items()}
+
+
+def alive_through(alive_min, lo, hi):
+	"""True for a run that counts: its hero was alive for every minute of the window."""
+	return alive_min >= (hi - lo) / 60.0 - 1e-9
+
+
+def read_validators(path):
+	"""{run base name: validator} from a sheet with a header and `run,validator` rows; an extension on the run is dropped."""
+	out = {}
+	with open(path, encoding="utf-8-sig", newline="") as f:
+		for row in csv.DictReader(f):
+			run, who = (row.get("run") or "").strip(), (row.get("validator") or "").strip()
+			if run and who:
+				out[os.path.splitext(os.path.basename(run.replace("\\", "/")))[0]] = who
+	return out
+
+
+def not_read(rows, session, validators, lo, hi, what=""):
+	"""Why a group's runs that count give no verdict (10_Tuning.md section 2), or None when they do."""
+	if len(rows) < MIN_RUNS:
+		return f"{len(rows)} run(s) alive through {lo}-{hi} s{what}, need {MIN_RUNS}"
+	if session:
+		if validators is None:
+			return f"{len(rows)} runs count, but no --validators sheet says who played them, and runs from fewer than {MIN_VALIDATORS} validators give no verdict"
+		unnamed = sorted({r["run"] for r in rows if r["run"] not in validators})
+		if unnamed:
+			return f"not on the validators sheet: {', '.join(unnamed)}"
+		names = {validators[r["run"]] for r in rows}
+		if len(names) < MIN_VALIDATORS:
+			return f"the {len(rows)} runs that count come from {len(names)} validator(s), need {MIN_VALIDATORS}"
+	return None
+
+
+def overall(verdicts):
+	return "FAIL" if "FAIL" in verdicts else "NOT READ" if "NOT READ" in verdicts or not verdicts else "PASS"
+
+
+def judge(readings, validators, dmg_band, dash_band, ttk_max, window, checks=CHECKS):
+	"""The verdict lines and {check: PASS|FAIL|NOT READ}. readings: [{group, run, dmg, dashes, counts, ttk}], one per run and
+	player; ttk is the run's median kill time inside the window or None. Only readings with `counts` enter a median."""
+	lo, hi = window
+	groups = {}
+	for r in readings:
+		groups.setdefault(r["group"], []).append(r)
+	lines, out = [], {}
+	for check in checks:
+		verdicts = {}
+		for group in sorted(groups):
+			session = group == SESSION
+			name = "session" if session else group
+			rows = [r for r in groups[group] if r["counts"] and (check == "T-DIR-02" or r["ttk"] is not None)]
+			left_out = sum(1 for r in groups[group] if not r["counts"])
+			why = not_read(rows, session, validators, lo, hi, " with a kill-time cell in it" if check == "T-DIR-18" else "")
+			if why:
+				verdicts[group] = "NOT READ"
+				lines.append(f"{check} {name}: NOT READ ({why})")
+				continue
+			tail = f"over {len(rows)} run(s) alive through {lo}-{hi} s" + (f", {left_out} that ended inside or before it left out" if left_out else "") \
+				+ ("" if session else "; a bot reading is a bound")
+			if check == "T-DIR-02":
+				d = statistics.median(r["dmg"] for r in rows)
+				s = statistics.median(r["dashes"] for r in rows)
+				ok = grade(d, dmg_band) == "IN" and grade(s, dash_band) == "IN"
+				lines.append(f"{check} {name}: {'PASS' if ok else 'FAIL'} (median {tail}: damage taken {d:.3f}/min [{grade(d, dmg_band)}] band {dmg_band[0]}-{dmg_band[1]}, "
+					f"dashes {s:.2f}/min [{grade(s, dash_band)}] band {dash_band[0]}-{dash_band[1]})")
+			else:
+				k = statistics.median(r["ttk"] for r in rows)
+				ok = k <= ttk_max
+				lines.append(f"{check} {name}: {'PASS' if ok else 'FAIL'} (median {tail}: swarm kill time {k:.3f} s [{grade(k, (0.0, ttk_max))}] max {ttk_max})")
+			verdicts[group] = "PASS" if ok else "FAIL"
+		out[check] = overall(list(verdicts.values()))
+		if not verdicts:
+			lines.append(f"{check}: NOT READ (no hero alive in {lo}-{hi} s)")
+			continue
+		named = lambda v: ", ".join("session" if g == SESSION else g for g in sorted(verdicts) if verdicts[g] == v)
+		lines.append(f"{check}: {out[check]} ({sum(v == 'PASS' for v in verdicts.values())}/{len(verdicts)} group(s) pass"
+			+ (f"; fail: {named('FAIL')}" if named("FAIL") else "") + (f"; not read: {named('NOT READ')}" if named("NOT READ") else "") + ")")
+	return lines, out
 
 
 def window_rates(jsonl_path=None, csv_path=None, consts=None):
@@ -248,37 +356,59 @@ def arm_of(name):
 	return m.group(1) if m else "all"
 
 
+def parse_args(argv):
+	"""(run arguments, checks or None, validators sheet or None)."""
+	args, checks, sheet = [], None, None
+	rest = list(argv[1:])
+	while rest:
+		a = rest.pop(0)
+		if a == "--check":
+			checks = CHECKS
+			if rest and rest[0].startswith("T-"):
+				checks = tuple(c for c in rest.pop(0).split(",") if c)
+		elif a == "--validators":
+			sheet = rest.pop(0) if rest else ""
+		else:
+			args.append(a)
+	return args, checks, sheet
+
+
 def main(argv):
-	check = "--check" in argv
-	args = [a for a in argv[1:] if a != "--check"]
+	args, checks, sheet = parse_args(argv)
+	if checks and any(c not in CHECKS for c in checks):
+		print(f"PRESSURE: unknown check in {','.join(checks)}; known: {', '.join(CHECKS)}")
+		return 2
 	consts = dtconst.load()
 	dmg_band = consts["DMG_TAKEN.BAND_MIN10_13"]["value"]
 	dash_band = consts["DASHES.BAND_MIN10_13"]["value"]
 	ttk_max = consts["TTK.SWARM_STEERED_MAX"]["value"]
+	lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
+	validators = read_validators(sheet) if sheet else None
 	runs = resolve(args)
 	if not runs:
 		print("PRESSURE: no run found")
-		if check:
-			print("T-DIR-02: n/a (no run)")
-		return 1 if check else 0
+		for check in checks or ():
+			print(f"{check}: NOT READ (no run)")
+		return 1 if checks else 0
 	readings = []
 	for name, jsonl, csv_path in runs:
 		rates, source = window_rates(jsonl, csv_path, consts)
+		ttks = swarm_ttk(csv_path, jsonl, (lo, hi))
 		for owner in sorted(rates):
 			dmg, dashes, alive = rates[owner]
+			counts = dmg is not None and alive_through(alive, lo, hi)
 			print(f"PRESSURE: {name} p{owner} dmg {fmt(dmg, 3)}/min [{grade(dmg, dmg_band)}] dashes {fmt(dashes, 2)}/min "
-				f"[{grade(dashes, dash_band)}] alive {alive:.2f} min ({source})")
+				f"[{grade(dashes, dash_band)}] alive {alive:.2f} min ({source})" + ("" if counts or dmg is None else "; ended in the window, not judged"))
 			if dmg is not None:
-				readings.append((arm_of(name), dmg, dashes))
+				readings.append({"group": arm_of(name), "run": os.path.basename(name.replace("\\", "/")), "dmg": dmg, "dashes": dashes,
+					"counts": counts, "ttk": ttks[owner][0] if owner in ttks else None})
 				if jsonl and alive > 0:
-					lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
 					src = sources_from_jsonl(jsonl, lo, hi, owner)
 					detail = " ".join(f"{k} {v / alive:.3f}/min" for k, v in sorted(src.items(), key=lambda kv: -kv[1]))
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
-		for owner, (ttk, n) in sorted(swarm_ttk(csv_path, jsonl).items()):
-			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} intervals")
+		for owner, (ttk, n) in sorted(ttks.items()):
+			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
 		if jsonl:
-			lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
 			for owner in sorted(rates):
 				whole = restores_from_jsonl(jsonl, 0.0, float("inf"), owner)
 				inside = restores_from_jsonl(jsonl, lo, hi, owner)
@@ -286,26 +416,10 @@ def main(argv):
 					detail = " ".join(f"{source} {n} for {share:.3f} of max HP (in window {inside.get(source, (0, 0.0))[0]}, {inside.get(source, (0, 0.0))[1]:.3f})"
 						for source, (n, share) in sorted(whole.items()))
 					print(f"RESTORES: {name} p{owner} {detail}")
-	if check:
-		lo, hi = consts["DIR.BAND_WINDOW_S"]["value"]
-		if not readings:
-			print(f"T-DIR-02: n/a (no hero alive in {lo}-{hi} s)")
-			return 1
-		arms = {}
-		for arm, d, s in readings:
-			arms.setdefault(arm, []).append((d, s))
-		failed = []
-		for arm in sorted(arms):
-			d = statistics.mean(r[0] for r in arms[arm])
-			s = statistics.mean(r[1] for r in arms[arm])
-			ok = grade(d, dmg_band) == "IN" and grade(s, dash_band) == "IN"
-			if not ok:
-				failed.append(arm)
-			print(f"T-DIR-02 {arm}: {'PASS' if ok else 'FAIL'} (mean over {len(arms[arm])} reading(s) in {lo}-{hi} s: damage taken {d:.3f}/min "
-				f"[{grade(d, dmg_band)}] band {dmg_band[0]}-{dmg_band[1]}, dashes {s:.2f}/min [{grade(s, dash_band)}] band {dash_band[0]}-{dash_band[1]})")
-		print(f"T-DIR-02: {'FAIL' if failed else 'PASS'} ({len(arms) - len(failed)}/{len(arms)} arm(s) inside both bands"
-			+ (f"; out: {', '.join(failed)}" if failed else "") + ")")
-		return 1 if failed else 0
+	if checks:
+		lines, verdicts = judge(readings, validators, dmg_band, dash_band, ttk_max, (lo, hi), checks)
+		print("\n".join(lines))
+		return 0 if all(v == "PASS" for v in verdicts.values()) else 1
 	return 0
 
 

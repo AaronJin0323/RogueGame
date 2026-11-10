@@ -1,7 +1,7 @@
-"""Value-budget ("power split") report from a run's telemetry (02_Systems/telemetry.md). Stdlib only.
+"""Attribution view ("power split") of one run's telemetry (02_Systems/telemetry.md, Docs/10_Tuning.md section 3). Stdlib only.
 
-Planned gate: T-BAL-01 (S2) -- at C.TEL.POWER_CHECK_LEVEL a player's Keeper share of damage must be at least
-C.POWER.KEEPER_SHARE_L16. Today this is a stub: it always exits 0 and only prints the verdict.
+A view, never a verdict (D-047): Keeper share is judged by loss in Tools/probe.py (T-KEE-18). This prints who landed the
+damage of one session log, to be read beside the probe's reading.
 
 Usage:  python -I Tools/power_split.py [run.csv | run.jsonl | <seed>_<time>]
         no argument: the newest run in Saved/Playtests
@@ -11,10 +11,13 @@ column (highest level reached per player). Sources are grouped by family, the na
 Keeper.*, Weapon.*, Modifier.*; everything else (Stress, Unknown, ...) is Other.
 
 Method note: this is attribution (who landed the damage), not ablation (how much damage disappears without a source,
-Handoff reference balance/model.md). Attribution undercounts multipliers; the S2 gate decides which one is binding.
+Handoff reference balance/model.md). Attribution undercounts multipliers and credits a converted weapon's whole output
+to the Keeper (D-015), so no floor is read against it.
 
 Prints per player the damage and kill share per family, then exactly one line
-  POWER: n/a (...) | POWER: PASS (...) | POWER: FAIL (...)
+  POWER: n/a (...)                     no run, or no player reached C.TEL.POWER_CHECK_LEVEL
+  POWER: attribution (P0 Keeper x %)   the Keeper damage share of each player at that level or above
+Exit 0 when a run was read, 1 when none was found.
 """
 
 import csv
@@ -98,20 +101,19 @@ def shares(by_source):
 
 def main(argv):
 	consts = dtconst.load()
-	need = consts["POWER.KEEPER_SHARE_L16"]["value"]
 	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
 
 	csv_path, jsonl_path = resolve(argv[1] if len(argv) > 1 else "")
 	if not jsonl_path:
 		print(f"POWER: n/a (no run found{' for ' + argv[1] if len(argv) > 1 else ' in ' + PLAYTESTS})")
-		return 0
+		return 1
 	print(f"run: {jsonl_path}" + (f" (+ {os.path.basename(csv_path)})" if csv_path else " (no CSV)"))
 	players, run_end = read_sources(jsonl_path)
 	levels = read_levels(csv_path)
 	if run_end is None:
 		print("warning: no run_end record (run still going, or it crashed)")
 
-	verdicts = []
+	read = []
 	for p in sorted(set(players) | set(levels)):
 		data = players.get(p, {"damage": {}, "kills": {}})
 		dmg_total, dmg = shares(data["damage"])
@@ -124,15 +126,17 @@ def main(argv):
 		if names:
 			print("  sources: " + ", ".join(f"{s} {data['damage'][s]}" for s in names))
 		if level >= check_level and dmg_total > 0:
-			verdicts.append((p, dmg["Keeper"] >= need, dmg["Keeper"]))
+			read.append((p, dmg["Keeper"]))
+	print(power_line(read, check_level))
+	return 0
 
-	if not verdicts:
-		print(f"POWER: n/a (not applicable: no player reached L{check_level}; Keeper share is checked at that level)")
-	else:
-		failed = [v for v in verdicts if not v[1]]
-		detail = ", ".join(f"P{p} Keeper {share * 100:.1f} %" for p, _, share in verdicts)
-		print(f"POWER: {'FAIL' if failed else 'PASS'} ({detail}; need >= {need * 100:.0f} % at L{check_level}; stub, not gating)")
-	return 0  # stub until T-BAL-01 (S2)
+
+def power_line(read, check_level):
+	"""The one POWER line from [(player, Keeper damage share)] of the players at the check level. It names no floor and no verdict."""
+	if not read:
+		return f"POWER: n/a (no player reached L{check_level}; attribution is read at that level)"
+	detail = ", ".join(f"P{p} Keeper {share * 100:.1f} %" for p, share in read)
+	return f"POWER: attribution ({detail} of the damage landed, whole run, L{check_level} reached; printed beside the loss of Tools/probe.py, never judged)"
 
 
 if __name__ == "__main__":
