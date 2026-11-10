@@ -891,7 +891,7 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 
 	if (Spec.Pattern == EDTWeaponPattern::Orbiter)
 	{
-		StepDrones(Context, Bullets, Player, Slot, Runtime, true);
+		StepDrones(Context, Bullets, Player, Slot, Runtime, true, SourceOverride);
 		return true;
 	}
 
@@ -1057,6 +1057,9 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 			Runtime.BeamDir = Dir;
 			Runtime.BeamLeft = DTReforge::Param(Spec.EvolveRow, TEXT("beam_s"));
 			Runtime.BeamTick = 0.0f;
+			// The ticks are this volley's: a free volley's beam stays its creator's, a dash volley's at its multiplier.
+			Runtime.BeamSource = bFree ? SourceOverride : 0;
+			Runtime.BeamMult = bVolleyForced ? VolleyMult : 1.0f;
 			break;
 		}
 		const int32 Remaining = Spec.Count - Converted;
@@ -1222,7 +1225,7 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 }
 
 void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
-	FWeaponRuntime& Runtime, bool bFreeVolley)
+	FWeaponRuntime& Runtime, bool bFreeVolley, uint16 FreeSource)
 {
 	using namespace DTWeaponSimLocal;
 	const FDTWeaponSpec& Spec = Runtime.Spec;
@@ -1258,6 +1261,7 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		const FVector2f From = DronePos(Drone);
 		const FVector2f Dir = SafeDir(View.EnemyPositions[Enemy] - From, FVector2f(1.0f, 0.0f));
 		FShot Shot = MakeShot(Owner, Slot, Runtime, Source, From);
+		Shot.Damage *= bVolleyForced ? VolleyMult : 1.0f; // a dash volley's bolts, as FireVolley's rounds (keepers.md R-KEE-34)
 		if (bCharge && ChargeShot(Spec, Instance.ShotCounter + 1, Shot))
 		{
 			SplitCharged(Context, Bullets, Runtime, Shot, From, Dir);
@@ -1284,8 +1288,8 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 
 	if (bFreeVolley)
 	{
-		// A free volley (Mod.ChainTrigger): every drone fires once at its nearest enemy.
-		const uint16 Source = Spec.ChainTriggerSource != 0 ? Spec.ChainTriggerSource : Instance.SourceId;
+		// A free volley (Mod.ChainTrigger, a dash volley): every drone fires once at its nearest enemy, as the source that fired it (R-WPN-07).
+		const uint16 Source = FreeSource != 0 ? FreeSource : Instance.SourceId;
 		for (int32 Drone = 0; Drone < Drones; ++Drone)
 		{
 			int32 Enemy = INDEX_NONE;
@@ -1965,7 +1969,8 @@ void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 S
 	const FVector2f Hero = DTWeaponSimLocal::HeroOf(*Context.View, OwnerId);
 	const float Done = FMath::Clamp(1.0f - Runtime.BeamLeft / Length, 0.0f, 1.0f);
 	const FDTWeaponInstance& Instance = Context.Run->GetPlayer(OwnerId).Weapons[Slot];
-	FShot Shot = MakeShot(OwnerId, Slot, Runtime, Instance.SourceId, Hero);
+	FShot Shot = MakeShot(OwnerId, Slot, Runtime, Runtime.BeamSource != 0 ? Runtime.BeamSource : Instance.SourceId, Hero);
+	Shot.Damage *= Runtime.BeamMult;
 	EmitArc(Context, Runtime, Shot, DTWeaponSimLocal::Rotate(Runtime.BeamDir, Sweep * (Done - 0.5f)), DTReforge::Param(Row, TEXT("width_deg")), Spec.Range, false);
 }
 

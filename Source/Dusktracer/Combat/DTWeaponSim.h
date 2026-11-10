@@ -282,6 +282,9 @@ private:
 		float BeamLeft = 0.0f;
 		FVector2f BeamDir = FVector2f(1.0f, 0.0f);
 		float BeamTick = 0.0f;
+		/** The source of the free volley that started the live beam, 0 for the weapon's own; and that volley's damage scale (R-WPN-07, R-KEE-34). */
+		uint16 BeamSource = 0;
+		float BeamMult = 1.0f;
 	};
 
 	/** A Frozen enemy held as a Glacier pillar (R-RFG-17). */
@@ -609,9 +612,9 @@ private:
 	/** Fires one volley of any pattern but Orbiter. Returns false when it found no target. */
 	bool FireVolley(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, uint16 SourceOverride, bool bFree);
-	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. */
+	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. A free volley fires every drone once as FreeSource, its creator's (R-WPN-07). */
 	void StepDrones(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
-		FWeaponRuntime& Runtime, bool bFreeVolley);
+		FWeaponRuntime& Runtime, bool bFreeVolley, uint16 FreeSource = 0);
 	void PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
 		float Damage, uint16 SourceId, bool bCharged);
 	void StepMines(const FDTSimContext& Context, FDTBulletPool* Bullets, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);
