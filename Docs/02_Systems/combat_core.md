@@ -16,6 +16,7 @@ The hero is the one body the player drives: it moves, dashes and calls its Keepe
 - **R-CMB-10** Death: the step HP reaches zero or below, the hero goes down exactly once, emits `HeroDown`, and stops moving, dashing, aiming and firing; its input is ignored. The run ends with reason `Death` the step every player's hero is down (`ADTGameMode` ends the run; revive is `coop.md`). Winning is the boss kill (`boss.md`), and it comes first: in a boss fight the death ends the run only after that step's kills are read, and a won run takes no hit (`boss.md` R-BOS-13, D-041).
 - **R-CMB-11** Intercession: each player has one meter that starts the run empty and fills over `C.HERO.INTERCESSION_CHARGE_S` of sim time times the cooldown stat (Keepers may add sources, `keepers.md`). An `IA_Intercession` press with a full meter empties the meter and emits one `Intercession` event `{OwnerId, Path}` (the Patron, picked before the first step, `offers.md` R-OFF-08); what it does is `keepers.md`. A press with the meter not full changes nothing in the sim and plays a deny cue. The meter does not fill while the sim is paused (offers, pause).
 - **R-CMB-12** The hero is deterministic and driveable: the same seed and the same per-step `FDTHeroInput` sequence give bit-identical hero states. The bot (S1) and the test harness drive the hero through the same `FDTHeroInput`, never through private setters. Hero randomness, if any is ever added, comes only from the `Combat` stream (R-TEC-02).
+- **R-CMB-13** Key labels: on the HUD the Dash label and the Intercession label (charging and ready) each end with the key that acts on them, in brackets (`Hud.KeyLabel`): the first key their action is mapped to in the mapping context of the device that player used last (`FDTHeroInput.Device`: `IMC_Gameplay_KBM` or `IMC_Gameplay_Pad`). It is read from the context on every draw, so it follows a rebinding and a device switch. A pad button is named by its usual letters (`RB`, `LB`), the same in every culture; any other key by the engine's short name for it in the current culture. An action with no key on that device shows its label alone.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -77,6 +78,7 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 - T-CMB-10 `Dusktracer.Combat.Hero.Death`: lethal damage downs the hero once and emits `HeroDown` once; a downed hero ignores input; one of two players down keeps the run going; both down ends it with `Death`.
 - T-CMB-11 `Dusktracer.Combat.Hero.Intercession`: the meter starts empty and fills in `C.HERO.INTERCESSION_CHARGE_S`; a press when full emits one event and empties it; a press when not full emits `IntercessionDenied` only; a paused sim does not fill it.
 - T-CMB-12 `Dusktracer.Combat.Hero.Determinism`: a recorded input sequence replayed twice gives bit-identical hero states; the bot input path gives the same states as the same inputs fed by the harness.
+- T-CMB-13 `Dusktracer.Combat.Input.KeyLabels`: with the default mappings the Dash label ends with Space on the keyboard and `RB` on a pad, the Intercession label with `Q` and `LB`, charging and ready; after a rebinding in a context the label of that device shows the new key and the other device keeps its own; an action with no key shows its label alone; through `UDTHeroSubsystem` the label follows the device of the last input, keyboard to pad and back.
 - HUMAN: on KBM and on pad only, in the S1 slice, a validator moves, dashes through a telegraphed charge line and fires the Intercession without reading the controls page; they never look for a fire button; dashes per minute in the band window of a steered run land in `C.DASHES.BAND_MIN10_13` (telemetry `dashes_per_min`).
 
 ## Telemetry
@@ -86,14 +88,14 @@ Events through `FDTRunState::ApplyEvent`, each with `OwnerId`: `Dash{Dir}`, `Her
 - `input_device` column: the device that last produced gameplay input (`kbm` or `pad`) at the interval end.
 
 ## Text
-- Prefix `ST_UI.Hud.*`, en + zh-Hans, budget six rows: `Hud.Hp`, `Hud.Dash`, `Hud.Intercession`, `Hud.IntercessionReady`, `Hud.RunOver`, `Hud.AimMode` (option label).
+- Prefix `ST_UI.Hud.*`, en + zh-Hans, budget seven rows: `Hud.Hp`, `Hud.Dash`, `Hud.Intercession`, `Hud.IntercessionReady`, `Hud.RunOver`, `Hud.AimMode` (option label), `Hud.KeyLabel` (a label and its key, R-CMB-13; the same form in both cultures).
 - HUD reads hero state per player: HP bar, dash charge pips with the refill arc, Intercession ring that reads `Hud.IntercessionReady` when full. Numbers on the HUD are formatted values, never text rows.
 
 ## Out of scope
 - What each Intercession does, its variants and strength band (`keepers.md`, `C.INTERCESSION.BAND`).
 - Weapons, targeting rules and modifiers (`weapons.md`, `modifiers.md`); stats and effects that change HP, armour, regen, speed or dash charges (`keepers.md`, `modifiers.md`).
 - Enemy contact damage values, enemy bullets and hazards (`enemies.md`); revive and shared camera (`coop.md`, not written); the Reclaimer's own passive (Muscle Memory, `progression.md` later).
-- Pad glyph art, rebinding UI and the settings screen (S3).
+- Pad glyph art, rebinding UI and the settings screen (S3). Until then R-CMB-13 names a key in text.
 
 ## Open
 - Aim assist is omitted because no S1 weapon needs precise aim → revisit if `weapons.md` adds a manual-aim weapon or pad validators miss in `Manual`.

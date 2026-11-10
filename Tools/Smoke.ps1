@@ -8,7 +8,7 @@
 # The run director is off (-DTNoDirector, director.md) so the goldens stay deterministic; -Director turns it on (pair it
 # with a -Name that has no golden, e.g. -Director -Seconds 60 -Name arena_director: the image check then fails by design).
 # Verdict: no crash, no ensure, no Error/Fatal line from LogDT, "Run start" seen, the drawn Test.LocRoundTrip equals
-# ST_UI.csv for the culture, screenshot present, and
+# ST_UI.csv for the culture, the drawn Dash and Intercession labels carry a key (R-CMB-13), screenshot present, and
 # Tools/image_check.py PASS against Docs/Validation/goldens/<Name>_<Culture>.png (-Update re-baselines the golden).
 # -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden; the hero is read from the arena_empty
 # shot of the same culture, where nothing stands on it. -DormantLine judges it with contrast_check.py --dormant-line instead:
@@ -114,6 +114,23 @@ if ($Drawn) {
 	$Loc = if ($LocOk) { "loc ok ($Culture)" } else { "loc MISMATCH (culture '$DrawnCulture', drew '$DrawnText', expected '$Expected')" }
 }
 
+# Key labels (combat_core.md R-CMB-13): the HUD logs player 0's Dash and Intercession lines once as drawn; each must be its
+# ST_UI label for this culture, then a key in brackets. No input reaches a smoke run, so the keys are the keyboard's.
+$UiRows = Import-Csv -Path (Join-Path $Root "Content\DT\Text\ST_UI.csv") -Encoding UTF8
+function Get-UiText([string]$Key) { return ($UiRows | Where-Object { $_.Key -eq $Key }).$Culture }
+$KeyLine = ($Lines | Select-String -Pattern "LogDT: HudKeys culture=(\S+) dash=(.*) \| intercession=(.*)$" | Select-Object -First 1)
+$KeysOk = $false
+$Keys = "keys: no HudKeys line"
+if ($KeyLine) {
+	$DrawnDash = $KeyLine.Matches[0].Groups[2].Value.Trim()
+	$DrawnMeter = $KeyLine.Matches[0].Groups[3].Value.Trim()
+	$Bracket = "  \[\S[^\]]*\]$"
+	$DashOk = $DrawnDash -cmatch ("^" + [regex]::Escape((Get-UiText "Hud.Dash")) + $Bracket)
+	$MeterOk = $DrawnMeter -cmatch ("^(" + [regex]::Escape((Get-UiText "Hud.Intercession")) + "|" + [regex]::Escape((Get-UiText "Hud.IntercessionReady")) + ")" + $Bracket)
+	$KeysOk = ($KeyLine.Matches[0].Groups[1].Value -eq $Culture) -and $DashOk -and $MeterOk
+	$Keys = if ($KeysOk) { "keys ok ($DrawnDash | $DrawnMeter)" } else { "keys MISMATCH (drew '$DrawnDash' and '$DrawnMeter')" }
+}
+
 # A judge's verdict counts once two runs on the same frame print the same lines and exit code. This host's CPU has been seen
 # to fault inside the checker under load (a Python TypeError or access violation in pure code, and now and then a reading off
 # by a few pixels with exit 0): a verdict one run gives alone is not trusted. Nothing about the frame or the rule changes.
@@ -161,8 +178,8 @@ if (Test-Path $Shot) {
 Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"
 
-$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Image
-if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $ImageOk) {
+$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}, {8}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Keys, $Image
+if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $KeysOk -and $ImageOk) {
 	Write-Host "SMOKE: PASS ($Summary)"
 	exit 0
 }

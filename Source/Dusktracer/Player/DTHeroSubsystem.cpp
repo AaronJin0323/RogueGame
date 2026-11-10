@@ -111,3 +111,16 @@ void UDTHeroSubsystem::UnregisterPawn(ADTHero* Pawn)
 {
 	Pawns.Remove(Pawn);
 }
+
+const UDTInputSet* UDTHeroSubsystem::GetInputSet(int32 OwnerId) const
+{
+	for (const TWeakObjectPtr<ADTHero>& Entry : Pawns)
+	{
+		const ADTHero* const Pawn = Entry.Get();
+		if (Pawn && Pawn->GetPlayerIndex() == OwnerId)
+		{
+			return Pawn->GetInputSet();
+		}
+	}
+	return nullptr;
+}
