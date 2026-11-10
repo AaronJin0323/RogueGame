@@ -73,6 +73,10 @@ struct FDTWeaponSpec
 	float ConvertArcDeg = 0.0f;
 	float ConvertReach = 0.0f;
 	float ConvertDamageFactor = 0.0f;
+	// A ConvertMelee that falls back on a weapon whose own strike is a sweep (R-WPN-08): the first sweeps of a volley are
+	// its cleave and deal its factor. No sweeps and a factor of one when no such flag names a damage factor.
+	int32 FallbackCleaveSweeps = 0;
+	float FallbackCleaveDamageFactor = 1.0f;
 
 	/** Every flag entry the weapon carries after stacking and caps, with its resolution. */
 	TArray<FDTResolvedFlag> Flags;

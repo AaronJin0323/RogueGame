@@ -881,12 +881,18 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			// Every second sweep faces the opposite way (R-WPN-06).
 			const FVector2f SweepDir = (Sweep % 2 == 0) ? Dir : -Dir;
-			EmitArc(Context, Runtime, Shot, SweepDir, Spec.ArcDeg, Spec.Range, false);
+			// Under a ConvertMelee fallback the first sweeps are the flag's cleave and deal its factor (R-WPN-08).
+			FShot SweepShot = Shot;
+			if (Sweep < Spec.FallbackCleaveSweeps)
+			{
+				SweepShot.Damage = Shot.Damage * Spec.FallbackCleaveDamageFactor;
+			}
+			EmitArc(Context, Runtime, SweepShot, SweepDir, Spec.ArcDeg, Spec.Range, false);
 			if (Spec.MirrorSource != 0)
 			{
-				FShot Copy = Shot;
+				FShot Copy = SweepShot;
 				Copy.SourceId = Spec.MirrorSource;
-				Copy.Damage = Shot.Damage * Spec.MirrorDamageRatio;
+				Copy.Damage = SweepShot.Damage * Spec.MirrorDamageRatio;
 				EmitArc(Context, Runtime, Copy, -SweepDir, Spec.ArcDeg, Spec.Range, false);
 			}
 		}

@@ -212,11 +212,22 @@ FDTWeaponSpec DTWeaponCompose::Compose(FDTWeaponInstance& Instance, TConstArrayV
 			const float Scale = 1.0f + Entry.Params.Get(DTFlagParam::RadiusScale);
 			switch (Resolved.Resolution.Cap)
 			{
-			case ECap::Melee: // +arc size
+			case ECap::Melee:
+			{
+				// +arc size: the weapon's own sweep is the cleave. It takes the larger arc and the longer reach of the two, and
+				// the sweeps the flag names deal what a native cleave deals per round it folds (R-WPN-08, R-WPN-10).
 				Spec.ArcDeg = FMath::Max(Spec.ArcDeg, Entry.Params.Get(DTFlagParam::ArcDeg));
-				Spec.Radius *= Scale;
-				Spec.Range *= Scale;
+				const float FlagReach = Entry.Params.Get(DTFlagParam::RadiusUu);
+				Spec.Radius = FMath::Max(Spec.Radius, FlagReach) * Scale;
+				Spec.Range = FMath::Max(Spec.Range, FlagReach) * Scale;
+				if (Entry.Params.Has(DTFlagParam::DmgMult))
+				{
+					const int32 Rounds = FMath::RoundToInt(Entry.Params.Get(DTFlagParam::Rounds));
+					Spec.FallbackCleaveSweeps = Rounds > 0 ? FMath::Min(Rounds, Spec.Count) : Spec.Count;
+					Spec.FallbackCleaveDamageFactor = DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO * Entry.Params.Get(DTFlagParam::DmgMult, 1.0f);
+				}
 				break;
+			}
 			case ECap::Mine: // +blast area
 				Spec.AreaRadius *= Scale;
 				break;
