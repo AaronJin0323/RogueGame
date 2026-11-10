@@ -40,6 +40,10 @@ Decided on 2026-11-11, from `Validation/plans_audit.md`:
 - **D-049** The S3 exit uses your rule of 2026-10-19: two of three hold (two of three testers want another run; two can name their build; you still want to play). It replaces D-034. "Fresh" means a fresh save, so the same three people can return.
 - **D-050** S4's first wave continues on `dev/s4`. Nothing further starts early, the S1 build is fixed first, and no number is tuned on bot survival until people calibrate the bots. This answers O-010.
 
+Decided on 2026-11-11, after the reread and the open calls of the handover:
+- **D-053** Hammer's Key still changes nothing on Orbital Drones, and its card now says so. Whether its cleave cards should also act on the Arc Blade's sweeps is asked of the people in session A and decided at the S1 gate. Hard Blow, which you took in your run and which did nothing, now knocks enemies back as its card says.
+- **D-054** A run played on a PC too slow to keep up is told by its slow share: the part of the time the game ran in slow motion. The limit is set after session A; until then it is printed and nothing is set aside.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.

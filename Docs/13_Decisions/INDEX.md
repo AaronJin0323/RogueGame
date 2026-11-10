@@ -54,3 +54,5 @@
 | D-050 | Until people have played: the S1 build first, S4 wave 1 continues, nothing further starts early | GO-NOGO | applied | `main` |
 | D-051 | The owner sees what was decided for them; decisions live on `main`; the number log's tags are named | RULE | applied; amends D-009 | `main` |
 | D-052 | Tool runs keep off logical processors 0 and 10 of this PC, and the gate proves the rest on every run | RULE | decided; the mask is in place, the tool half is the job `s1/gate-main` | `main` |
+| D-053 | Until people have played, Hammer's Key changes nothing on Orbital Drones or the Gravity Mine and says so; Hard Blow does what its card says | RULE | decided; the change job is `s1/forge-truth`; two questions go to the S1 gate | `main` |
+| D-054 | A slowed run is told by its slow share; the threshold is set at the S1 gate | RULE | decided; text in `s1/forge-truth`, the tool line after `s1/gate-main` | `main` |
