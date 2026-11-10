@@ -60,6 +60,8 @@ public:
 
 	TConstArrayView<FVector2f> GetPositions() const { return Pos; }
 	TConstArrayView<FVector2f> GetPrevPositions() const { return PrevPos; }
+	/** Where each round was fired from. Read by telemetry and by the muzzle flash (tracer_art.md R-TRC-07); nothing in the sim reads it. */
+	TConstArrayView<FVector2f> GetOrigins() const { return Origin; }
 	TConstArrayView<FVector2f> GetVelocities() const { return Vel; }
 	TConstArrayView<float> GetRadii() const { return Radius; }
 	TConstArrayView<float> GetDamage() const { return Damage; }

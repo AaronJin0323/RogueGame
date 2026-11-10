@@ -89,7 +89,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 524 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 530 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -203,6 +203,36 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.BULLETS.STRESS_PIERCE | 1000 | n | GATED(S0) | bullets.md, Debug/DTDebugBullets |
 | C.BULLETS.STRESS_DAMAGE | 1.0 | hp | GATED(S0) | bullets.md, Debug/DTDebugBullets |
 | C.BULLETS.STRESS_SPIN_DEG_S | 90 | deg/s | GATED(S0) | bullets.md, Debug/DTDebugBullets |
+
+## Tracer art (02_Systems/tracer_art.md)
+
+S4 wave 1 package D (D-043): presentation only, no reader in the sim.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.TRC.HEAD_WIDTH_RATIO | 0.85 | ratio | GATED(S4) | tracer_art.md R-TRC-01, T-TRC-01 (a player head's drawn half-width over the round's hit radius) |
+| C.TRC.HEAD_STRETCH | 1.8 | ratio | GATED(S4) | tracer_art.md R-TRC-01, T-TRC-01 (a moving head's half-length over its half-width, along the flight) |
+| C.TRC.TAIL_S | 0.08 | s | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (a player tail is the path of this many seconds of flight) |
+| C.TRC.TAIL_MIN_RATIO | 6.0 | ratio | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (shortest tail, in drawn head half-widths, so a slow round still reads as trailed) |
+| C.TRC.TAIL_MAX_UU | 150 | uu | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (longest tail) |
+| C.TRC.TAIL_WIDTH_RATIO | 0.8 | ratio | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (the tail's half-width at the head over the head's half-width) |
+| C.TRC.TAIL_EMISSIVE | 1.5 | ratio | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-06 (undimmed tail strength at the head end, times the token) |
+| C.TRC.TAIL_TIP_SHARE | 0.5 | ratio | GATED(S4) | tracer_art.md R-TRC-03, Tools/assets/tracer_materials.py (the share of the tail, from its tip, that takes the second Keeper's token) |
+| C.TRC.TAIL_Z_UU | 1.25 | uu | GATED(S4) | tracer_art.md R-TRC-05, T-TRC-05, Tools/assets/tracer_materials.py (the height tails, trails and flashes are drawn at: over cues, under every telegraph layer) |
+| C.TRC.DIM_START_ROUNDS | 150 | n | GATED(S4) | tracer_art.md R-TRC-06, T-TRC-06 (live player rounds up to which player fire draws undimmed) |
+| C.TRC.DIM_FULL_ROUNDS | 2400 | n | GATED(S4) | tracer_art.md R-TRC-06, T-TRC-06 (live player rounds from which player fire draws fully dimmed) |
+| C.TRC.DIM_EMISSIVE_MIN | 0.5 | ratio | GATED(S4) | tracer_art.md R-TRC-06, T-TRC-06 (fully dimmed head emissive over C.BULLETS.EMISSIVE_PLAYER) |
+| C.TRC.DIM_TAIL_MIN | 0.4 | ratio | GATED(S4) | tracer_art.md R-TRC-06, T-TRC-06 (fully dimmed tail strength over C.TRC.TAIL_EMISSIVE) |
+| C.TRC.DIM_WIDTH_MIN | 0.7 | ratio | GATED(S4) | tracer_art.md R-TRC-06, T-TRC-06 (fully dimmed tail width over its undimmed width) |
+| C.TRC.ENEMY_TRAIL_S | 0.07 | s | GATED(S4) | tracer_art.md R-TRC-04, T-TRC-04 (an enemy round's trail is the path of this many seconds of flight) |
+| C.TRC.ENEMY_TRAIL_WIDTH_RATIO | 0.7 | ratio | GATED(S4) | tracer_art.md R-TRC-04, T-TRC-04 (the trail's half-width at the round over the round's drawn radius) |
+| C.TRC.ENEMY_TRAIL_EMISSIVE | 0.5 | ratio | GATED(S4) | tracer_art.md R-TRC-04, T-TRC-04 (trail strength, times Pal.Enemy.Bullet; the same at every density) |
+| C.TRC.ENEMY_TRAIL_OPACITY | 0.9 | ratio | GATED(S4) | tracer_art.md R-TRC-04, T-TRC-04 (trail opacity at the round; under the round's rim in the frame) |
+| C.TRC.MUZZLE_S | 0.1 | s | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (how long a muzzle flash lasts after its round is fired) |
+| C.TRC.MUZZLE_LENGTH_RATIO | 5.0 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (a fresh flash's length over the round's drawn radius) |
+| C.TRC.MUZZLE_WIDTH_RATIO | 1.4 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (a fresh flash's half-width over the round's drawn radius) |
+| C.TRC.MUZZLE_EMISSIVE | 2.0 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (flash strength, times Pal.Enemy.Muzzle) |
+| C.TRC.MUZZLE_OPACITY | 0.8 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (flash opacity at the muzzle) |
 
 ## Arena and measurement
 

@@ -386,6 +386,7 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 			RoundTransforms[Index] = FTransform(FQuat::Identity, FVector(P.X, P.Y, Z), FVector(Radii[Index] * InvMeshRadius));
 		}
 		RoundRenderer->SetInstances(RoundTransforms);
+		RoundRenderer->SetTrails(Rounds, Alpha, Z); // tracer_art.md R-TRC-04, R-TRC-07
 	}
 
 	if (TelegraphRenderer)

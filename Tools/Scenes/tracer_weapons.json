@@ -1,0 +1,9 @@
+{
+	"note": "tracer_art.md R-TRC-01 to R-TRC-03: the tracer look of the four wave 1 weapons in one frame, each with its head and a Keeper tail (the Patron's first blessing is held), against Tanks that soak the fire. The golden package D re-baselines when a head or a tail changes.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 4,
+	"cmds": ["DT.God 1", "DT.Bless Blessing.Storm.Tempest.Key", "DT.Give Weapon.PulseRifle 4", "DT.Give Weapon.ScatterCannon 4", "DT.Give Weapon.RingEmitter 4", "DT.Give Weapon.SpiralProjector 4", "DT.Spawn.Role Tank 8"]
+}

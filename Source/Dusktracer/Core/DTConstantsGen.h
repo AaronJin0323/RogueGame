@@ -175,6 +175,30 @@ namespace DTConst
 	inline constexpr int32 BULLETS_STRESS_PIERCE = 1000; // n, GATED(S0)
 	inline constexpr float BULLETS_STRESS_DAMAGE = 1.0f; // hp, GATED(S0)
 	inline constexpr int32 BULLETS_STRESS_SPIN_DEG_S = 90; // deg_per_s, GATED(S0)
+	// tracer_art
+	inline constexpr float TRC_HEAD_WIDTH_RATIO = 0.85f; // ratio, GATED(S4)
+	inline constexpr float TRC_HEAD_STRETCH = 1.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_S = 0.08f; // s, GATED(S4)
+	inline constexpr float TRC_TAIL_MIN_RATIO = 6.0f; // ratio, GATED(S4)
+	inline constexpr int32 TRC_TAIL_MAX_UU = 150; // uu, GATED(S4)
+	inline constexpr float TRC_TAIL_WIDTH_RATIO = 0.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_EMISSIVE = 1.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_TIP_SHARE = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_TAIL_Z_UU = 1.25f; // uu, GATED(S4)
+	inline constexpr int32 TRC_DIM_START_ROUNDS = 150; // n, GATED(S4)
+	inline constexpr int32 TRC_DIM_FULL_ROUNDS = 2400; // n, GATED(S4)
+	inline constexpr float TRC_DIM_EMISSIVE_MIN = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_DIM_TAIL_MIN = 0.4f; // ratio, GATED(S4)
+	inline constexpr float TRC_DIM_WIDTH_MIN = 0.7f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_S = 0.07f; // s, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_WIDTH_RATIO = 0.7f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_EMISSIVE = 0.5f; // ratio, GATED(S4)
+	inline constexpr float TRC_ENEMY_TRAIL_OPACITY = 0.9f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_S = 0.1f; // s, GATED(S4)
+	inline constexpr float TRC_MUZZLE_LENGTH_RATIO = 5.0f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_WIDTH_RATIO = 1.4f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_EMISSIVE = 2.0f; // ratio, GATED(S4)
+	inline constexpr float TRC_MUZZLE_OPACITY = 0.8f; // ratio, GATED(S4)
 	// arena
 	inline constexpr int32 ARENA_SUN_ELEVATION_DEG = 20; // deg, GATED(S0)
 	inline constexpr int32 ARENA_SUN_YAW_DEG = -60; // deg, GATED(S0)
@@ -212,7 +236,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 524; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 530; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

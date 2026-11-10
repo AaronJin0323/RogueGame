@@ -1,0 +1,10 @@
+{
+	"note": "tracer_art.md R-TRC-05, T-TRC-05: dense played fire from four weapons at the frame's centre, crossing Turret aim lines, Rusher bands and enemy rounds on every side. The enemy round and the telegraph are read inside the crossing: a player tail must never paint over either.",
+	"gate": "contrast",
+	"judge": "contrast",
+	"elements": ["telegraph", "enemy_rim"],
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 5,
+	"cmds": ["DT.God 1", "DT.Hero.Walk 450 0", "DT.Give Weapon.PulseRifle 8", "DT.Give Weapon.SpiralProjector 8", "DT.Give Weapon.RingEmitter 8", "DT.Give Weapon.ScatterCannon 8", "DT.Spawn.Role Turret 48", "DT.Spawn.Role Rusher 12 elite=Armored", "DT.EnemyFire.Ring 40 520 0.04 30"]
+}
