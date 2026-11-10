@@ -1279,6 +1279,23 @@ class HiddenLaunchGuard(unittest.TestCase):
 					found[name] = len(hits)
 		self.assertEqual(found, LAUNCH_EXCEPTIONS)
 
+	def test_no_tool_ends_a_process_it_did_not_start(self):
+		# Review #63, #107: PackageHubCheck ended every Dusktracer* process under the package folder, a person's game mid-run included.
+		# A tool ends what it launched, by the PID the launch gave it: Stop-DTHidden, or taskkill /PID on its own $Proc.
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if not name.endswith((".ps1", ".bat", ".cmd")):
+					continue
+				with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+					for number, line in enumerate(f, 1):
+						if line.lstrip().startswith(("#", "rem ", "::")):
+							continue
+						where = f"{name}:{number}: {line.strip()}"
+						self.assertNotRegex(line, r"(?i)\bStop-Process\b|\.Kill\(\)|\bkill\b\s+-", where)
+						self.assertNotRegex(line, r"(?i)taskkill(?!\s+/PID\s+\$Proc\.Id\b)", where)
+		with open(os.path.join(TOOLS, "PackageHubCheck.ps1"), encoding="utf-8") as f:
+			self.assertIn("function Stop-Game($Proc) { Stop-DTHidden $Proc }", f.read())
+
 	def test_every_script_that_launches_loads_the_helper(self):
 		for folder, _, names in os.walk(TOOLS):
 			for name in names:
@@ -1761,6 +1778,98 @@ class ReadAll(unittest.TestCase):
 		self.assertTrue(crash)
 		self.assertEqual(crash - pad, set())
 		self.assertEqual({".csv", ".jsonl", ".log", ".txt"} - pad, set())
+
+
+@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+class WinCheckCrash(unittest.TestCase):
+	"""Review #52 run, not read: Tools/WinCheck.ps1 itself, launching through Tools/HiddenLaunch.ps1, on staged logs.
+
+	The engine is a stand-in built here: a console program under a made-up UE_ROOT that copies the log staged for its seed to the
+	-ABSLOG it was given, as a launch writes its log. Nothing of the game runs, so what this holds is the script's reading of a log.
+	"""
+
+	STAND_IN = """
+using System;
+using System.IO;
+using System.Text.RegularExpressions;
+public static class StandIn {
+	public static int Main() {
+		string log = "";
+		string seed = "";
+		foreach (string arg in Environment.GetCommandLineArgs()) {
+			if (arg.StartsWith("-ABSLOG=")) { log = arg.Substring(8).Trim('"'); }
+			Match found = Regex.Match(arg, "DTSeed=([0-9]+)");
+			if (found.Success) { seed = found.Groups[1].Value; }
+		}
+		string here = Path.GetDirectoryName(typeof(StandIn).Assembly.Location);
+		File.AppendAllText(Path.Combine(here, "launched.txt"), seed + "\\n");
+		File.Copy(Path.Combine(here, "staged_" + seed + ".log"), log, true);
+		return 0;
+	}
+}
+"""
+	LOST = "[0]LogDT: WINCHECK the run is a win: WRONG\n[0]LogDT: WINCHECK: FAIL (1 wrong)\n"
+	CRASH = "[0]LogWindows: Error: === Critical error: ===\n[0]LogWindows: Error: Fatal error!\n"
+
+	@classmethod
+	def setUpClass(cls):
+		cls.dir = tempfile.TemporaryDirectory()
+		cls.root = cls.dir.name
+		cls.bin = os.path.join(cls.root, "Engine", "Binaries", "Win64")
+		os.makedirs(cls.bin)
+		os.makedirs(os.path.join(cls.root, "Repo", "Tools"))
+		for name in ("WinCheck.ps1", HIDDEN_LAUNCH):
+			shutil.copy(os.path.join(TOOLS, name), os.path.join(cls.root, "Repo", "Tools", name))
+		source = os.path.join(cls.root, "StandIn.cs")
+		with open(source, "w", encoding="utf-8") as f:
+			f.write(cls.STAND_IN)
+		target = os.path.join(cls.bin, "Unreal" + "Editor.exe")
+		built = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			f"Add-Type -TypeDefinition ([IO.File]::ReadAllText('{source}')) -OutputAssembly '{target}' -OutputType ConsoleApplication"], capture_output=True, encoding="utf-8", errors="replace")
+		assert os.path.exists(target), built.stdout + built.stderr
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.dir.cleanup()
+
+	def check(self, staged, seeds):
+		for name in os.listdir(self.bin):
+			if name.startswith("staged_") or name == "launched.txt":
+				os.remove(os.path.join(self.bin, name))
+		for seed, text in staged.items():
+			with open(os.path.join(self.bin, f"staged_{seed}.log"), "w", encoding="utf-8") as f:
+				f.write(text)
+		logs = os.path.join(self.root, "Repo", "Saved", "Logs")
+		shutil.rmtree(logs, ignore_errors=True)
+		# -Command, not -File: -File hands "71,72" over as one string, which is no list of seeds.
+		script = os.path.join(self.root, "Repo", "Tools", "WinCheck.ps1")
+		run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", f"& '{script}' -Cultures en -Seeds {seeds} -Timeout 60; exit $LASTEXITCODE"],
+			env=dict(os.environ, UE_ROOT=self.root), capture_output=True, encoding="utf-8", errors="replace")
+		with open(os.path.join(self.bin, "launched.txt"), encoding="utf-8") as f:
+			launched = f.read().split()
+		return run, launched, logs
+
+	def test_a_crash_on_a_lost_seed_fails_and_its_log_is_kept(self):
+		run, launched, logs = self.check({71: self.LOST + self.CRASH, 72: self.LOST}, "71,72")
+		self.assertEqual(run.returncode, 1, run.stdout)
+		self.assertIn("WIN: FAIL (en seed 71, 2 crash or ensure line(s);", run.stdout)
+		self.assertEqual(launched, ["71"])
+		with open(os.path.join(logs, "WinCheck_en_crash_71.log"), encoding="utf-8") as f:
+			self.assertEqual(f.read(), self.LOST + self.CRASH)
+
+	def test_an_ensure_on_a_lost_seed_fails_too(self):
+		run, launched, _ = self.check({71: "[0]LogOutputDevice: Error: Ensure condition failed: Index >= 0\n" + self.LOST, 72: self.LOST}, "71,72")
+		self.assertEqual(run.returncode, 1, run.stdout)
+		self.assertIn("1 crash or ensure line(s)", run.stdout)
+		self.assertEqual(launched, ["71"])
+
+	def test_a_clean_lost_seed_goes_to_the_next(self):
+		# The control: the same stand-in with no crash line walks every seed and fails on the wins, not on a crash.
+		run, launched, logs = self.check({71: self.LOST, 72: self.LOST}, "71,72")
+		self.assertEqual(run.returncode, 1, run.stdout)
+		self.assertIn("WIN: FAIL (en, no win on seeds 71 72)", run.stdout)
+		self.assertEqual(launched, ["71", "72"])
+		self.assertEqual([n for n in os.listdir(logs) if "crash" in n], [])
 
 
 class PoolRead(unittest.TestCase):

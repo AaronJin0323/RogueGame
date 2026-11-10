@@ -88,8 +88,6 @@ function Start-Game([string]$Config, [string]$UserDir, [string[]]$RunArgs, [swit
 	return $Proc
 }
 
-function Get-Games { return @(Get-Process -Name "Dusktracer*" -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($PackageRoot, [StringComparison]::OrdinalIgnoreCase) }) }
-
 # Waits for the process to end, or for $Done, or for $Seconds. True when it stopped waiting for a reason. Windows are the watch's (Tools/WindowWatch.ps1).
 function Watch-Game($Proc, [int]$Seconds, [scriptblock]$Done) {
 	$Deadline = (Get-Date).AddSeconds($Seconds)
@@ -101,11 +99,9 @@ function Watch-Game($Proc, [int]$Seconds, [scriptblock]$Done) {
 	return $false
 }
 
-function Stop-Game($Proc) {
-	foreach ($Game in Get-Games) { Stop-Process -Id $Game.Id -Force -ErrorAction SilentlyContinue }
-	if (-not $Proc.HasExited) { Stop-Process -Id $Proc.Id -Force -ErrorAction SilentlyContinue }
-	$null = $Proc.WaitForExit(5000)
-}
+# Ends the launch this check started and nothing else: the stub and the game under it, by PID (Tools/HiddenLaunch.ps1). Never by image name or by the
+# package's path: a person's game from the same package, mid-run, is not this check's to end (AGENTS.md, review #63).
+function Stop-Game($Proc) { Stop-DTHidden $Proc }
 
 function Get-RunFiles([string]$UserDir, [string]$Extension) {
 	return @(Get-ChildItem (Join-Path $UserDir "Saved\Playtests") -Filter "*.$Extension" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
