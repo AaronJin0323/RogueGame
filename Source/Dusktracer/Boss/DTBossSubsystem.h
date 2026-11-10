@@ -25,6 +25,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FDTOnBossDefeated, int64 /*StepIndex*/);
  * On the boss's death it logs "Run end reason=victory step=<n>", broadcasts OnBossDefeated and ends the telemetry
  * session ("victory") on the next tick, mirroring ADTGameMode's death path. ADTGameMode marks its run over from
  * OnBossDefeated; ADTHUD calls DrawBossBar.
+ *
+ * One outcome per run (R-BOS-13, D-041): the hull's death is read at the top of the step after its kill (EDTSimPhase::Input,
+ * before the Hero phase applies a hit), and while the hull stands every hero down ends the run only after that step's
+ * kills (EDTSimPhase::Effects). A Warden killed on the step the hero falls is a win, read once, everywhere.
  */
 UCLASS()
 class DUSKTRACER_API UDTBossSubsystem : public UWorldSubsystem, public IDTSimSystem
@@ -57,6 +61,20 @@ public:
 	static int32 GetWins() { return 0; }
 
 private:
+	/** Reads the run's end outside the Enemies phase (R-BOS-13): one registered before the Hero phase, one after ResolveHits. */
+	struct FRunEndPhase : public IDTSimSystem
+	{
+		UDTBossSubsystem* Owner = nullptr;
+		bool bAfterKills = false;
+		virtual void SimStep(const FDTSimContext& Context) override
+		{
+			if (Owner)
+			{
+				Owner->ReadRunEnd(Context, bAfterKills);
+			}
+		}
+	};
+
 	class FSink : public IDTBossSink
 	{
 	public:
@@ -73,9 +91,18 @@ private:
 	void HandleBossTime(float RunSeconds);
 	void HandleAllHeroesDown(int64 StepIndex);
 	void EndTelemetrySession();
+	/** A new run (UDTSimSubsystem::StartRun) forgets the old fight; called first by every phase this system steps in. */
+	void SyncRun(const FDTSimContext& Context);
+	/** R-BOS-13: the win if the hull was killed; after the kills of a step every hero went down in, else the death. */
+	void ReadRunEnd(const FDTSimContext& Context, bool bAfterKills);
+	/** The hero system holds a death's run end while the hull stands (UDTHeroSubsystem::HoldRunEnd). */
+	void SyncHold();
+	FDTBossStepIn MakeStepIn(const FDTSimContext& Context, UDTEnemySubsystem& Enemy) const;
 
 	FDTBossCore Core;
 	FSink Sink;
+	FRunEndPhase BeforeHero;
+	FRunEndPhase AfterKills;
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
 	TWeakObjectPtr<UDTEnemySubsystem> Enemies;
 	TWeakObjectPtr<UDTDirector> Director;

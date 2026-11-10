@@ -63,6 +63,16 @@ void UDTHeroSubsystem::SimStep(const FDTSimContext& Context)
 			OnIntercession.Broadcast(Event.OwnerId, Event.Path);
 		}
 	}
+	// R-BOS-13 (D-041): while the Warden's hull stands the boss system ends the run, after the step's kills are read.
+	const bool bRunWon = Context.View && Context.View->bRunWon;
+	if (!bRunWon && !bHoldRunEnd)
+	{
+		AnnounceAllDown();
+	}
+}
+
+void UDTHeroSubsystem::AnnounceAllDown()
+{
 	if (Hero.IsRunOver() && !bRunOverBroadcast)
 	{
 		bRunOverBroadcast = true;
