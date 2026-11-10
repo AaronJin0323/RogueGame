@@ -16,6 +16,7 @@ The run ends in one fight of pure pattern reading: telegraphed charges, then bul
 - **R-BOS-10** Fight bound: `C.BOSS.TARGET_FIGHT_S` is below `C.RUN.BOSS_MAX`, and each phase's latest start is below `C.RUN.BOSS_MAX`, so every build sees every phase; at `C.RUN.BOSS_MAX` the hazard ring has reached its minimum radius. No instant kill, no HP added after calibration.
 - **R-BOS-11** Statuses on the boss: Freeze is refused; Chill stacks stop at `C.STATUS.BOSS_CHILL_STACK_MAX`; Shock and Burn apply as R-ENM-22.
 - **R-BOS-12** The boss draws only from the `Boss` stream (R-TEC-02); the same seed and the same hero inputs give a bit-identical fight.
+- **R-BOS-13** One outcome (D-041): a Warden killed on the step the last hero falls, or on the step that dealt the hit that would down them, wins the run, and the run reads as a win everywhere: the game mode, the HUD, `boss_end`, `dir_block`, `run_end` and the bank. The hull's kill is read at the top of the next step, before the Hero phase applies a hit, and from then on no hero takes a hit. While the hull stands, every hero down ends the run only after that step's kills are resolved: the hull killed, the run is won; the hull standing, it ends by the death in that step. A hull that falls a step or more after the last hero changes nothing: the run was over.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -68,6 +69,7 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 - T-BOS-10 `Dusktracer.Boss.FightBound`: with zero incoming damage every phase starts before `C.RUN.BOSS_MAX` and the hazard ring is at its minimum then.
 - T-BOS-11 `Dusktracer.Boss.Statuses`: Freeze refused; Chill stops at its cap; Shock and Burn apply.
 - T-BOS-12 `Dusktracer.Boss.Determinism`: same seed and scripted hero give bit-identical boss positions, rounds and HP.
+- T-BOS-13 `Dusktracer.Boss.RunEnd`: in a game world with the game mode, the hull's last hit and the hero's last hit dealt on one step, and the hero down in the step whose kills take the hull, both end as a win in the game mode, `boss_end`, `dir_block` and `run_end`, with no record saying death; a death with the hull standing, and a hull that falls one step after it, end as a death in all of them.
 - Also `Dusktracer.Boss.FullFight` (a headless fight at a fixed DPS: calibrated HP within the clamp, phases in order, every ring's lane at least the rule, the fight ends before `C.RUN.BOSS_MAX`, same seed same fight) and `Dusktracer.Boss.World` (the boss steps after the enemy pool in a game world; its telegraphs are published).
 - HUMAN: a validator who has never seen the Warden names its phase-II and phase-III skill checks after one fight, says every ring had a way through, and does not describe the fight as a damage sponge.
 
@@ -96,3 +98,4 @@ Debug (not in Shipping): `DT.Boss [Form]` starts the fight, `DT.Boss.Phase <n>` 
 - `boss_end` `damage_raw_by_attack` sums `FDTHeroHit` damage before the hero's i-frames and reductions (the boss cannot see them), so it is raw (`telemetry.md` R-TEL-11): a hit the hero dashed through still counts. `hero_damaged` by `attack` is the applied reading. Runs from before the name wrote `damage_taken_by_attack`; no tool reads either.
 - The hazard ring is centred on the arena centre; a phase change does not cancel attacks already telegraphed, and a crossing ring completes its pair through a shift.
 - Run end on the boss's death: `UDTBossSubsystem` logs `Run end reason=victory`, broadcasts `OnBossDefeated` and ends the telemetry session; `ADTGameMode` (run over) and `ADTHUD` (`DrawBossBar`) hook it. Wins come from the meta save (S3), zero until then.
+- Built (D-041, R-BOS-13): `UDTBossSubsystem` registers two more phase steps, Input (`FDTBossCore::ReadDefeat` before the Hero phase; it sets `FDTWorldView::bRunWon`) and Effects (after ResolveHits, acting only on the step every hero went down). While `FDTBossCore::HasHull` it holds the hero system's run end (`UDTHeroSubsystem::HoldRunEnd`) and releases it with `AnnounceAllDown`. The fight does not step between the death and that read, so `boss_end` of a death holds what it held.

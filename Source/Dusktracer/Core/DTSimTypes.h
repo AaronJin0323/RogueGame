@@ -232,6 +232,8 @@ struct FDTWorldView
 	bool bThreatBlock = false;
 	// Keepers (Effects) -> enemies and boss next step (keepers.md R-KEE-37); one step of enemy time is the step times this.
 	float EnemyTimeScale = 1.0f;
+	/** Boss -> hero: the Warden's hull was killed, so the run is won; no hero takes a hit from here on (boss.md R-BOS-13, D-041). */
+	bool bRunWon = false;
 };
 
 /** Everything a system gets when it steps. */

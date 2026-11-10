@@ -41,6 +41,9 @@ void UDTBossSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Director = Collection.InitializeDependency<UDTDirector>();
 	Heroes = Collection.InitializeDependency<UDTHeroSubsystem>();
 	Sink.Owner = this;
+	BeforeHero.Owner = this;
+	AfterKills.Owner = this;
+	AfterKills.bAfterKills = true;
 }
 
 void UDTBossSubsystem::Deinitialize()
@@ -48,7 +51,11 @@ void UDTBossSubsystem::Deinitialize()
 	if (UDTSimSubsystem* SimSystem = Sim.Get())
 	{
 		SimSystem->Unregister(this);
+		SimSystem->Unregister(&BeforeHero);
+		SimSystem->Unregister(&AfterKills);
 	}
+	BeforeHero.Owner = nullptr;
+	AfterKills.Owner = nullptr;
 	if (UDTDirector* Dir = Director.Get())
 	{
 		Dir->OnBossTime.Remove(BossTimeHandle);
@@ -85,6 +92,9 @@ void UDTBossSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		SimSystem->Register(EDTSimPhase::Enemies, Enemy);
 	}
 	SimSystem->Register(EDTSimPhase::Enemies, this);
+	// R-BOS-13: the win is read before the Hero phase; a death in the fight ends the run after the step's kills.
+	SimSystem->Register(EDTSimPhase::Input, &BeforeHero);
+	SimSystem->Register(EDTSimPhase::Effects, &AfterKills);
 	if (UDTDirector* Dir = Director.IsValid() ? Director.Get() : InWorld.GetSubsystem<UDTDirector>())
 	{
 		Director = Dir;
@@ -121,6 +131,62 @@ void UDTBossSubsystem::HandleBossTime(float RunSeconds)
 void UDTBossSubsystem::HandleAllHeroesDown(int64 StepIndex)
 {
 	Core.End(TEXT("death"), Sink);
+	SyncHold();
+}
+
+void UDTBossSubsystem::SyncRun(const FDTSimContext& Context)
+{
+	if (Context.StepIndex < LastStep)
+	{
+		// A new run (UDTSimSubsystem::StartRun): forget the old fight.
+		Core.Reset();
+		bStartRequested = false;
+	}
+	LastStep = Context.StepIndex;
+}
+
+void UDTBossSubsystem::SyncHold()
+{
+	if (UDTHeroSubsystem* Hero = Heroes.Get())
+	{
+		Hero->HoldRunEnd(Core.HasHull());
+	}
+}
+
+FDTBossStepIn UDTBossSubsystem::MakeStepIn(const FDTSimContext& Context, UDTEnemySubsystem& Enemy) const
+{
+	FDTBossStepIn In;
+	In.StepSeconds = Context.StepSeconds;
+	In.TimeScale = Context.View->EnemyTimeScale;
+	In.StepIndex = Context.StepIndex;
+	In.View = Context.View;
+	In.Pool = &Enemy.GetPool();
+	In.Rng = &Context.Run->GetRng().Get(EDTRngStream::Boss);
+	return In;
+}
+
+void UDTBossSubsystem::ReadRunEnd(const FDTSimContext& Context, bool bAfterKills)
+{
+	UDTEnemySubsystem* Enemy = Enemies.Get();
+	UDTHeroSubsystem* Hero = Heroes.Get();
+	if (!Context.View || !Context.Run || !Enemy)
+	{
+		return;
+	}
+	SyncRun(Context);
+	// After the kills only on the step every hero went down with the hull standing. Any other win is read before the
+	// next Hero phase: the step it was always read on, so no won run changes its length.
+	const bool bDeathHeld = Hero && Hero->IsRunEndHeld();
+	if (bAfterKills && !bDeathHeld)
+	{
+		return;
+	}
+	Core.ReadDefeat(MakeStepIn(Context, *Enemy), Sink);
+	if (bDeathHeld && !Context.View->bRunWon)
+	{
+		Hero->AnnounceAllDown(); // the hull stands: the run ends by the death (HandleAllHeroesDown ends the fight)
+	}
+	SyncHold();
 }
 
 void UDTBossSubsystem::SimStep(const FDTSimContext& Context)
@@ -129,17 +195,15 @@ void UDTBossSubsystem::SimStep(const FDTSimContext& Context)
 	{
 		return;
 	}
-	if (Context.StepIndex < LastStep)
-	{
-		// A new run (UDTSimSubsystem::StartRun): forget the old fight.
-		Core.Reset();
-		bStartRequested = false;
-	}
-	LastStep = Context.StepIndex;
+	SyncRun(Context);
 	UDTEnemySubsystem* Enemy = Enemies.Get();
 	if (!Enemy)
 	{
 		return;
+	}
+	if (const UDTHeroSubsystem* Hero = Heroes.Get(); Hero && Hero->IsRunEndHeld())
+	{
+		return; // every hero is down: the fight stops where the death found it, as it did when the death ended it at once
 	}
 	if (bStartRequested)
 	{
@@ -156,14 +220,8 @@ void UDTBossSubsystem::SimStep(const FDTSimContext& Context)
 		Core.Start(UDTMetaSubsystem::GetWins(this), Context.View->HeroPositions, Sink);
 		UE_LOG(LogDT, Log, TEXT("Boss: the Warden (form %s) queued at step %lld"), FDTBossCore::FormName(Core.GetForm()), Context.StepIndex);
 	}
-	FDTBossStepIn In;
-	In.StepSeconds = Context.StepSeconds;
-	In.TimeScale = Context.View->EnemyTimeScale;
-	In.StepIndex = Context.StepIndex;
-	In.View = Context.View;
-	In.Pool = &Enemy->GetPool();
-	In.Rng = &Context.Run->GetRng().Get(EDTRngStream::Boss);
-	Core.Step(In, Sink);
+	Core.Step(MakeStepIn(Context, *Enemy), Sink);
+	SyncHold();
 }
 
 void UDTBossSubsystem::EndTelemetrySession()

@@ -235,7 +235,9 @@ void ADTHUD::DrawHeroes()
 		Y += LineH + LineGapPx + BlockGapPx;
 	}
 
-	if (Hero->IsRunOver())
+	// Never over a win: a hero that fell on the step the Warden fell is in a won run (boss.md R-BOS-13).
+	const ADTGameMode* const Mode = GetWorld()->GetAuthGameMode<ADTGameMode>();
+	if (Hero->IsRunOver() && !(Mode && Mode->IsVictory()))
 	{
 		const FText RunOver = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.RunOver"));
 		float Width = 0.0f;
