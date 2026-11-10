@@ -199,6 +199,11 @@ FText DTMenuText::DiscoveryToast(TConstArrayView<FName> Ids)
 	return FText::Format(FText::FromStringTable(TEXT("ST_Discoveries"), TEXT("Discovery.Toast")), FText::Join(FText::FromString(TEXT(" · ")), Names));
 }
 
+const TCHAR* DTMenuText::ConfirmBodyKey(const FDTMenuState& State)
+{
+	return State.Screen == EDTMenuScreen::Confirm && !State.bHubHost ? TEXT("Pause.ConfirmBody") : nullptr;
+}
+
 const TCHAR* DTMenuText::TitleKey(const FDTMenuState& State)
 {
 	switch (State.Screen)
@@ -344,9 +349,9 @@ void DTMenuScreen::Draw(UCanvas* Canvas, const FDTMenuState& State, const FDTUse
 	{
 		Line = DTMenuText::StatusLine(State);
 	}
-	else if (State.Screen == EDTMenuScreen::Confirm)
+	else if (const TCHAR* Body = DTMenuText::ConfirmBodyKey(State))
 	{
-		Line = Ui(TEXT("Pause.ConfirmBody"));
+		Line = Ui(Body);
 	}
 	else if (State.Screen == EDTMenuScreen::RunOver)
 	{

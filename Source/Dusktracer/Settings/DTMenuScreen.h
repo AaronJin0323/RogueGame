@@ -21,6 +21,8 @@ namespace DTMenuText
 	DUSKTRACER_API FText DiscoveryToast(TConstArrayView<FName> Ids);
 	/** The ST_UI key of the screen's title (run-over screens carry the HUD's end line, R-SET-21). */
 	DUSKTRACER_API const TCHAR* TitleKey(const FDTMenuState& State);
+	/** The ST_UI key of the line under a confirmation's rows; null from the hub, where no run ends (vigil.md R-VIG-11). */
+	DUSKTRACER_API const TCHAR* ConfirmBodyKey(const FDTMenuState& State);
 	/** The ST_UI key of a plain row (pause, confirmation, run-over screens). */
 	DUSKTRACER_API const TCHAR* PlainRowKey(const FDTMenuState& State, int32 Row);
 }

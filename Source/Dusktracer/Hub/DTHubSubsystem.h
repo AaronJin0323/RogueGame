@@ -49,7 +49,7 @@ private:
 	TArray<FDTCodexRow> Codex;
 	FDTMetaProfile Empty;
 	TSharedPtr<IDTHubTab> Tree;
-	TSet<FKey> Down;
+	FDTHubKeys Keys;
 	TFunction<void(const FString&)> BeginOverride;
 	FString PendingOptions;
 	int32 Overflow = 0;

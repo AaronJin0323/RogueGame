@@ -158,6 +158,51 @@ bool FDTVigBack::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Back lands on the root"), State.Page, EDTHubPage::Root);
 		TestEqual(TEXT("on the row that opened the page"), State.RootRow(), Row);
 	}
+	{
+		// Begin with no Patron opens the Shrine, and Back from there lands on Begin, the row that opened it.
+		FDTHubState Bare = Open();
+		Bare.Selected = EDTPath::None;
+		Focus(Bare, EDTHubRow::Begin);
+		Bare.Apply(EDTMenuCommand::Accept);
+		TestEqual(TEXT("Begin with no Patron opens the Shrine"), Bare.Page, EDTHubPage::Patron);
+		Bare.Apply(EDTMenuCommand::Back);
+		TestEqual(TEXT("and Back lands on Begin"), Bare.RootRow(), EDTHubRow::Begin);
+		Focus(Bare, EDTHubRow::Patron);
+		Bare.Apply(EDTMenuCommand::Accept);
+		Bare.Apply(EDTMenuCommand::Back);
+		TestEqual(TEXT("the Shrine's own row still gets it back"), Bare.RootRow(), EDTHubRow::Patron);
+	}
+	{
+		// The key reader: a key held as the hub opens is no press, and one poll gives one command.
+		TSet<FKey> Held = { EKeys::Enter };
+		const auto IsDown = [&Held](const FKey& Key) { return Held.Contains(Key); };
+		FDTHubKeys Keys;
+		TestEqual(TEXT("a key held on arrival is not a press"), Keys.Poll(IsDown, false), EDTMenuCommand::None);
+		TestEqual(TEXT("nor while it stays down"), Keys.Poll(IsDown, false), EDTMenuCommand::None);
+		Held.Reset();
+		Keys.Poll(IsDown, false);
+		Held = { EKeys::Enter };
+		TestEqual(TEXT("up and down again is one"), Keys.Poll(IsDown, false), EDTMenuCommand::Accept);
+		Held.Reset();
+		Keys.Poll(IsDown, false);
+		int32 Accepts = 0;
+		for (const FKey& Key : DTMenuInput::Keys())
+		{
+			if (DTMenuInput::ForKey(Key) == EDTMenuCommand::Accept)
+			{
+				Held.Add(Key);
+				++Accepts;
+			}
+		}
+		TestTrue(TEXT("two keys accept"), Accepts >= 2);
+		TestEqual(TEXT("two keys landing together give one command"), Keys.Poll(IsDown, false), EDTMenuCommand::Accept);
+		TestEqual(TEXT("and the other is not kept for the next poll"), Keys.Poll(IsDown, false), EDTMenuCommand::None);
+		Held.Reset();
+		Keys.Poll(IsDown, false);
+		Held = { EKeys::Enter };
+		TestEqual(TEXT("a press under a menu is the menu's"), Keys.Poll(IsDown, true), EDTMenuCommand::None);
+		TestEqual(TEXT("and stays so while held"), Keys.Poll(IsDown, false), EDTMenuCommand::None);
+	}
 	const FDTHubOutcome AtRoot = State.Apply(EDTMenuCommand::Back);
 	TestEqual(TEXT("Back at the root does nothing but move"), AtRoot.Action, EDTHubAction::None);
 	TestEqual(TEXT("to Quit"), State.RootRow(), EDTHubRow::Quit);
@@ -429,6 +474,12 @@ bool FDTVigSettings::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Back from Controls is Settings"), Menu.Screen, EDTMenuScreen::Settings);
 	Menu.OpenQuitConfirm();
 	TestEqual(TEXT("the Quit row asks"), Menu.Screen, EDTMenuScreen::Confirm);
+	TestTrue(TEXT("with no line about a run: the hub has none"), DTMenuText::ConfirmBodyKey(Menu) == nullptr);
+	{
+		FDTMenuState Paused;
+		Paused.OpenQuitConfirm();
+		TestEqual(TEXT("a pause's confirmation keeps the line"), FString(DTMenuText::ConfirmBodyKey(Paused)), FString(TEXT("Pause.ConfirmBody")));
+	}
 	TestEqual(TEXT("on Cancel"), Menu.Focus, static_cast<int32>(EDTConfirmRow::Cancel));
 	TestTrue(TEXT("Cancel closes"), Menu.Apply(EDTMenuCommand::Accept, S).bClosed);
 	Menu.OpenQuitConfirm();
@@ -577,6 +628,8 @@ bool FDTVigTreeBuy::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the weapon joins Unlocked"), Session.Profile.Unlocked.Contains(TEXT("Weapon.ScatterCannon")));
 	TestTrue(TEXT("the row says it was signed"), Tab.RowDetail(Scatter).ToString().Contains(FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Purchased")), DTTree::NodeName(DTTree::FindNode(TEXT("Trunk.ScatterCannon")))).ToString()));
 	TestFalse(TEXT("only that row"), Tab.RowDetail(Rail).ToString().Contains(TEXT("\n")));
+	Tab.Opened();
+	TestFalse(TEXT("left and opened again, the page says nothing was just signed"), Tab.RowDetail(Scatter).ToString().Contains(TEXT("\n")));
 
 	// Read back from the file Accept wrote, before anything else touches it.
 	FDTMetaSession Reader;

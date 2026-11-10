@@ -20,6 +20,8 @@ public:
 	virtual FText Header() const = 0;
 	/** Accept on a row. The page writes its own data; the hub only redraws. */
 	virtual void Accept(int32 Row) = 0;
+	/** The page was opened from the root: what the last visit said about itself is gone. */
+	virtual void Opened() {}
 	/** A heading groups the rows under it: drawn, never focused, takes no Accept (R-VIG-20). */
 	virtual bool IsHeading(int32 Row) const { return false; }
 	/** A row that cannot be taken yet: drawn grey, and its value says why in words (R-VIG-15). */

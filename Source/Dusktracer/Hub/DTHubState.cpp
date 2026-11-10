@@ -107,7 +107,10 @@ void FDTHubState::AcceptRoot(FDTHubOutcome& Outcome)
 {
 	switch (RootRow())
 	{
-	case EDTHubRow::Patron: Enter(EDTHubPage::Patron); break;
+	case EDTHubRow::Patron:
+		ShrineOpener = EDTHubRow::Patron;
+		Enter(EDTHubPage::Patron);
+		break;
 	case EDTHubRow::Tree: Enter(EDTHubPage::Tree); break;
 	case EDTHubRow::Codex: Enter(EDTHubPage::Codex); break;
 	case EDTHubRow::Stats: Enter(EDTHubPage::Stats); break;
@@ -115,6 +118,7 @@ void FDTHubState::AcceptRoot(FDTHubOutcome& Outcome)
 	case EDTHubRow::Begin:
 		if (Selected == EDTPath::None)
 		{
+			ShrineOpener = EDTHubRow::Begin;
 			Enter(EDTHubPage::Patron); // a run needs its Patron first (R-VIG-07)
 		}
 		else
@@ -185,13 +189,35 @@ FDTHubOutcome FDTHubState::Apply(EDTMenuCommand Command)
 		}
 		else
 		{
-			ToRoot(Page == EDTHubPage::Patron ? EDTHubRow::Patron : (Page == EDTHubPage::Tree ? EDTHubRow::Tree : (Page == EDTHubPage::Codex ? EDTHubRow::Codex : EDTHubRow::Stats)));
+			ToRoot(Page == EDTHubPage::Patron ? ShrineOpener : (Page == EDTHubPage::Tree ? EDTHubRow::Tree : (Page == EDTHubPage::Codex ? EDTHubRow::Codex : EDTHubRow::Stats)));
 		}
 		break;
 	default:
 		break;
 	}
 	return Outcome;
+}
+
+EDTMenuCommand FDTHubKeys::Poll(TFunctionRef<bool(const FKey&)> IsDown, bool bAbsorb)
+{
+	EDTMenuCommand Out = EDTMenuCommand::None;
+	for (const FKey& Key : DTMenuInput::Keys())
+	{
+		if (!IsDown(Key))
+		{
+			Down.Remove(Key);
+		}
+		else if (!Down.Contains(Key))
+		{
+			Down.Add(Key);
+			if (bPrimed && !bAbsorb && Out == EDTMenuCommand::None)
+			{
+				Out = DTMenuInput::ForKey(Key);
+			}
+		}
+	}
+	bPrimed = true;
+	return Out;
 }
 
 float DTHubLayout::PanelHeight()

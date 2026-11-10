@@ -20,6 +20,7 @@ public:
 	virtual FText RowDetail(int32 Row) const override;
 	virtual FText Header() const override;
 	virtual void Accept(int32 Row) override;
+	virtual void Opened() override { Signed = INDEX_NONE; }
 	virtual bool IsHeading(int32 Row) const override;
 	virtual bool IsDimmed(int32 Row) const override;
 
@@ -40,7 +41,7 @@ private:
 
 	FDTMetaSession& Session;
 	TArray<FRow> Rows;
-	/** The row bought on this page, for its line. */
+	/** The row bought last on this visit of the page, for its line. */
 	int32 Signed = INDEX_NONE;
 };
 

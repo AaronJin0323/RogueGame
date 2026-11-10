@@ -40,6 +40,8 @@ struct DUSKTRACER_API FDTHubState
 	int32 TreeRows = 0;
 	/** Tree rows focus passes over (R-VIG-20). */
 	TSet<int32> TreeHeadings;
+	/** The root row that opened the Shrine: its own, or Begin with no Patron chosen. Back lands there (R-VIG-04). */
+	EDTHubRow ShrineOpener = EDTHubRow::Patron;
 
 	/** Opens the root; LastPatron is chosen when it is open (R-VIG-06). */
 	void Open(const TArray<FDTHubPatron>& InPatrons, EDTPath LastPatron);
@@ -57,6 +59,20 @@ private:
 	void StepFocus(int32 Step);
 	/** Off a heading the focus landed on: onward, or back from the end of the page. */
 	void LeaveHeading(int32 Step);
+};
+
+/** The hub's key reader (R-VIG-04): the keys held now against the keys held at the last poll. Pure, so tests feed it keys. */
+struct DUSKTRACER_API FDTHubKeys
+{
+	/**
+	 * The command of this poll. A key held as the hub opens is not a press: it has to come up first, as on the run-over screen
+	 * (settings.md R-SET-21). A poll gives one command at most, so two keys landing together never act twice. An absorbed poll gives none.
+	 */
+	EDTMenuCommand Poll(TFunctionRef<bool(const FKey&)> IsDown, bool bAbsorb);
+
+private:
+	TSet<FKey> Down;
+	bool bPrimed = false;
 };
 
 /** Layout of the hub in reference pixels at a 1080-line canvas (R-VIG-16). */

@@ -37,6 +37,7 @@ const FDTMetaProfile* UDTHubSubsystem::Profile() const
 void UDTHubSubsystem::Enter()
 {
 	bActive = true;
+	Keys = FDTHubKeys(); // what is held now came from the screen before
 	const FDTMetaProfile& Read = *Profile();
 	const UDTWeaponSubsystem* Weapons = GetWorld() ? GetWorld()->GetSubsystem<UDTWeaponSubsystem>() : nullptr;
 	State.Open(DTHubData::Patrons(Read, [Weapons](FName Id) { return Weapons && Weapons->IsInPool(Id); }), DTHubData::ParsePath(Read.LastPatron));
@@ -140,7 +141,13 @@ void UDTHubSubsystem::Command(EDTMenuCommand Command)
 	if (bActive && !bBeginPending)
 	{
 		SyncPage();
-		HandleOutcome(State.Apply(Command));
+		const EDTHubPage From = State.Page;
+		const FDTHubOutcome Outcome = State.Apply(Command);
+		if (State.Page == EDTHubPage::Tree && From != EDTHubPage::Tree && Tree.IsValid())
+		{
+			Tree->Opened();
+		}
+		HandleOutcome(Outcome);
 	}
 }
 
@@ -156,20 +163,10 @@ void UDTHubSubsystem::PollKeys()
 	const bool bMenuNow = Menu && Menu->IsOpen();
 	const bool bAbsorb = bMenuNow || bMenuLastFrame;
 	bMenuLastFrame = bMenuNow;
-	for (const FKey& Key : DTMenuInput::Keys())
+	const EDTMenuCommand Pressed = Keys.Poll([PC](const FKey& Key) { return PC->IsInputKeyDown(Key); }, bAbsorb);
+	if (Pressed != EDTMenuCommand::None)
 	{
-		if (!PC->IsInputKeyDown(Key))
-		{
-			Down.Remove(Key);
-		}
-		else if (!Down.Contains(Key))
-		{
-			Down.Add(Key);
-			if (!bAbsorb)
-			{
-				Command(DTMenuInput::ForKey(Key));
-			}
-		}
+		Command(Pressed);
 	}
 }
 
