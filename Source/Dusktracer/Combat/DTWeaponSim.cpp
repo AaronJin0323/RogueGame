@@ -888,8 +888,6 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	const FVector2f Hero = HeroOf(View, Owner);
 	const bool bManual = Players.IsValidIndex(Owner) && Players[Owner].bAimManual;
 	const FVector2f AimDir = SafeDir(View.HeroAimDirs.IsValidIndex(Owner) ? View.HeroAimDirs[Owner] : FVector2f(1.0f, 0.0f), FVector2f(1.0f, 0.0f));
-	// A free volley that is not a dash volley is a kill's: Mod.ChainTrigger. It never starts a live beam or ring again (D-039).
-	const bool bKillVolley = bFree && !bVolleyForced;
 
 	if (Spec.Pattern == EDTWeaponPattern::Orbiter)
 	{
@@ -1056,9 +1054,10 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 	{
 		if (Spec.Evolve == EDTEvolve::SweepBeam)
 		{
-			if (bKillVolley && Runtime.BeamLeft > 0.0f)
+			if (bFree && Runtime.BeamLeft > 0.0f)
 			{
-				// R-RFG-08: a kill's free volley leaves the live beam its sweep. It is one tick of the beam along its own aim, as that volley's.
+				// R-RFG-08: a free volley, a kill's or a dash's, leaves the live beam its sweep (D-039, D-040). It is one tick of the beam along
+				// its own aim, the densest line or the dash line, as that volley's and at its multiplier.
 				EmitArc(Context, Runtime, Shot, Dir, DTReforge::Param(Spec.EvolveRow, TEXT("width_deg")), Spec.Range, false);
 				break;
 			}
@@ -1066,7 +1065,7 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 			Runtime.BeamDir = Dir;
 			Runtime.BeamLeft = DTReforge::Param(Spec.EvolveRow, TEXT("beam_s"));
 			Runtime.BeamTick = 0.0f;
-			// The ticks are this volley's: a free volley's beam stays its creator's, a dash volley's at its multiplier.
+			// With no beam live a free volley starts one. Its ticks are that volley's: its creator's source, a dash volley's at its multiplier.
 			Runtime.BeamSource = bFree ? SourceOverride : 0;
 			Runtime.BeamMult = bVolleyForced ? VolleyMult : 1.0f;
 			break;
@@ -1174,15 +1173,15 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			const int32 Row = Spec.EvolveRow;
 			const float Grow = DTReforge::Param(Row, TEXT("grow_s"));
-			// R-RFG-12: a kill's free volley leaves the live ring where it stands, and the ring strikes its band once more, as that volley's.
-			if (bKillVolley && StrikeForceField(Context, Owner, Slot, Runtime, Shot.SourceId,
+			// R-RFG-12: a free volley, a kill's or a dash's, leaves the live ring where it stands (D-039, D-040). The ring strikes its band
+			// once more, as that volley's and at its multiplier. With none live the volley opens one below, and that ring is the volley's.
+			if (bFree && StrikeForceField(Context, Owner, Slot, Runtime, Shot.SourceId,
 				DTReforge::Param(Row, TEXT("dps")) * Shot.Damage * DTReforge::Param(Row, TEXT("tick_s"))))
 			{
 				break;
 			}
 			if (!OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
-				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s")),
-				bVolleyForced)) // a dash volley starts the live ring again, as its own (R-RFG-12, keepers.md R-KEE-34)
+				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s"))))
 			{
 				return false; // the last ring still lives: the cooldown stays ready, or a volley is lost for a whole cooldown
 			}
@@ -2005,41 +2004,32 @@ void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 S
 }
 
 bool FDTWeaponSim::OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
-	float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS, bool bRestart)
+	float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS)
 {
-	const auto Start = [&](FField& Field)
-	{
-		Field = FField();
-		Field.OwnerId = OwnerId;
-		Field.Slot = static_cast<int8>(Slot);
-		Field.SourceId = SourceId;
-		Field.Position = At;
-		Field.Radius = Radius;
-		Field.TimeLeft = Seconds;
-		Field.DamagePerSecond = DamagePerSecond;
-		Field.bForce = true;
-		Field.GrowS = GrowS;
-		Field.BandUu = BandUu;
-		Field.PushUuS = PushUuS;
-		Field.TickS = TickS;
-	};
-	for (FField& Live : Fields)
+	for (const FField& Live : Fields)
 	{
 		if (Live.bForce && Live.OwnerId == OwnerId && Live.Slot == Slot)
 		{
-			if (!bRestart)
-			{
-				return false; // one per weapon (R-RFG-12, R-RFG-13)
-			}
-			Start(Live); // still one: the live field starts again as this one (a dash volley's ring, R-RFG-12, D-038)
-			return true;
+			return false; // one per weapon (R-RFG-12, R-RFG-13)
 		}
 	}
 	if (!TryEmit(Runtime))
 	{
 		return false;
 	}
-	Start(Fields.AddDefaulted_GetRef());
+	FField& Field = Fields.AddDefaulted_GetRef();
+	Field.OwnerId = OwnerId;
+	Field.Slot = static_cast<int8>(Slot);
+	Field.SourceId = SourceId;
+	Field.Position = At;
+	Field.Radius = Radius;
+	Field.TimeLeft = Seconds;
+	Field.DamagePerSecond = DamagePerSecond;
+	Field.bForce = true;
+	Field.GrowS = GrowS;
+	Field.BandUu = BandUu;
+	Field.PushUuS = PushUuS;
+	Field.TickS = TickS;
 	++FieldsOpened;
 	return true;
 }

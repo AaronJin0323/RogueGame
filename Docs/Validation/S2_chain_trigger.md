@@ -63,7 +63,7 @@ D-038 lets a dash volley start Pulse Wall's live ring again, and R-RFG-08 did th
 | Breaches, 60 hp | 0 | 45572 |
 | Breaches, 240 hp | 0 | 35456 |
 
-A ring that starts again at every kill never reaches its radius. That is the reason D-039 does not follow D-038 here.
+A ring that starts again at every kill never reaches its radius. That is the reason D-039 does not follow D-038 here. D-040 has since read the restart at a dash's rate and taken it out for the dash volley too (`S2_dash_volley.md`).
 
 The first shape tried for Sweep Beam was one tick where the live beam points. At 60 hp it read 164 → 164 with no hit of the modifier's: the tick fell on the arc the beam had just emptied. The tick along the volley's own aim, the densest line, reads 164 → 171.
 
@@ -81,7 +81,7 @@ After the change `TESTS: PASS (7 run of 7 found, 0 failed)`.
 Only a run that holds `Mod.ChainTrigger` socketed on Blade Halo, Pulse Wall or Sweep Beam.
 - Seed 9107, on the changed build, all unchanged: None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446` (`Tools\BotRuns.ps1`, defaults, one process); RestartCheck `276faf8e`. None of the five runs evolves a weapon.
 - **Stale S2 exit readings: none.** Counted from the batch at 8231171 (`S2_exit.md`, the addendum of 2026-11-10): of 540 runs ten take an evolution, and one of them is one of the three, `Evolve.RailLance` on Tide:Whirlpool seed 11 at skill 0.6; no run evolves Orbital Drones or Ring Emitter. That run was offered Chain Trigger for the Sweep Beam and never took it; it never took `Mod.Refit` either, and none of its five `modifier_socketed` records is Chain Trigger. So 0 of 540 runs hold the modifier on a changed weapon. The ablation builds are level 16 snapshots taken before the Reforging hand, and no cast scene names an evolution.
-- `S2_exit.md` says of that batch "Reforging picks: one `Evolve.GravityMine`". The records hold ten evolution picks: Flak Mortar three, Pulse Rifle two, and one each of Gravity Mine, Rail Lance, Scatter Cannon, Seeker Swarm and Spiral Projector. Its conclusion about D-038 stands, since none is Orbital Drones, Arc Blade or Ring Emitter; the sentence was left as it is.
+- `S2_exit.md` says of that batch "Reforging picks: one `Evolve.GravityMine`". The records hold ten evolution picks: Flak Mortar three, Pulse Rifle two, and one each of Gravity Mine, Rail Lance, Scatter Cannon, Seeker Swarm and Spiral Projector. Its conclusion about D-038 stands, since none is Orbital Drones, Arc Blade or Ring Emitter; the sentence was corrected on `fix/dash-ring-shape`.
 - `main` has no evolutions. `dev/s3` carries the same sim code and takes this by merge.
 
 ## Not verified

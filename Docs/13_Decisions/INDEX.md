@@ -39,6 +39,7 @@
 | D-035 | On a save the duos' door opens the duo card; the reactions start when that card is taken | RULE | applied |
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied |
 | D-037 | A gate check reads every run it launches, and a pool check has to be able to tell the pools apart | RULE | applied |
-| D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied |
+| D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied; clause 3 replaced by D-040 |
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |
+| D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
