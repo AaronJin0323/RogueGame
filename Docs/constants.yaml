@@ -199,6 +199,20 @@ arena:
   PERF.S4_TURRET_RING_UU:       { value: 350, unit: uu, tag: CORE, dependents: [Debug/DTDebugPerfScene, S4_p0.md] }
   PERF.S4_TELEGRAPHS_MIN:       { value: 4, unit: n, tag: CORE, dependents: [Tools/Perf.ps1, S4_p0.md] }
   PERF.S4_TRAILED_MIN_RATIO:    { value: 0.9, unit: ratio, tag: CORE, dependents: [Tools/Perf.ps1, S4_p0.md] }
+  # S4 wave 1 package A, the arena's ground and edge (D-043, 02_Systems/arena_art.md): presentation only, no reader in the sim.
+  ARN.SLAB_COURSE_UU:           { value: 320, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py] }
+  ARN.SLAB_LENGTH_UU:           { value: [320, 760], unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py] }
+  ARN.JOINT_HALF_WIDTH_UU:      { value: 4, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py, T-ARN-01] }
+  ARN.JOINT_DEPTH_UU:           { value: 0.6, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py, T-ARN-01] }
+  ARN.APRON_STEPS:              { value: 5, unit: n, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py, Tools/create_arena.py] }
+  ARN.APRON_RISE_UU:            { value: 50, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py, Tools/create_arena.py] }
+  ARN.APRON_TREAD_UU:           { value: 240, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py] }
+  ARN.APRON_SKIRT_DROP_UU:      { value: 100, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py] }
+  ARN.APRON_REACH_UU:           { value: 9000, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py, T-ARN-02] }
+  ARN.FRAME_RADIUS_MAX_UU:      { value: 2000, unit: uu, tag: GATED(S4), dependents: [02_Systems/arena_art.md, T-ARN-02, Debug/DTDebugArena] }
+  ARN.ASPECT_MAX:               { value: 3.5556, unit: ratio, tag: GATED(S4), dependents: [02_Systems/arena_art.md, T-ARN-02] }
+  ARN.LAYOUT_SEED:              { value: 4043, unit: n, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/blender/env_arena.py] }
+  ARN.VOID_MAX_LEVEL:           { value: 2, unit: level, tag: GATED(S4), dependents: [02_Systems/arena_art.md, Tools/arena_check.py, T-ARN-05] }
 telemetry:
   TEL.INTERVAL_S:              { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-01] }
   TEL.RATE_UNIT_S:             { value: 60.0, unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }

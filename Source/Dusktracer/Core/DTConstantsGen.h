@@ -204,6 +204,20 @@ namespace DTConst
 	inline constexpr int32 PERF_S4_TURRET_RING_UU = 350; // uu, CORE
 	inline constexpr int32 PERF_S4_TELEGRAPHS_MIN = 4; // n, CORE
 	inline constexpr float PERF_S4_TRAILED_MIN_RATIO = 0.9f; // ratio, CORE
+	inline constexpr int32 ARN_SLAB_COURSE_UU = 320; // uu, GATED(S4)
+	inline constexpr int32 ARN_SLAB_LENGTH_UU_MIN = 320; // uu, GATED(S4)
+	inline constexpr int32 ARN_SLAB_LENGTH_UU_MAX = 760; // uu, GATED(S4)
+	inline constexpr int32 ARN_JOINT_HALF_WIDTH_UU = 4; // uu, GATED(S4)
+	inline constexpr float ARN_JOINT_DEPTH_UU = 0.6f; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_STEPS = 5; // n, GATED(S4)
+	inline constexpr int32 ARN_APRON_RISE_UU = 50; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_TREAD_UU = 240; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_SKIRT_DROP_UU = 100; // uu, GATED(S4)
+	inline constexpr int32 ARN_APRON_REACH_UU = 9000; // uu, GATED(S4)
+	inline constexpr int32 ARN_FRAME_RADIUS_MAX_UU = 2000; // uu, GATED(S4)
+	inline constexpr float ARN_ASPECT_MAX = 3.5556f; // ratio, GATED(S4)
+	inline constexpr int32 ARN_LAYOUT_SEED = 4043; // n, GATED(S4)
+	inline constexpr int32 ARN_VOID_MAX_LEVEL = 2; // level, GATED(S4)
 	// telemetry
 	inline constexpr float TEL_INTERVAL_S = 60.0f; // s, CORE
 	inline constexpr float TEL_RATE_UNIT_S = 60.0f; // s, CORE

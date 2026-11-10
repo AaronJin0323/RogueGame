@@ -238,6 +238,19 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PERF.S4_TURRET_RING_UU | 350 | uu | CORE | Debug/DTDebugPerfScene (their ring round the origin: C.ROLE.TURRET_FIRE_RANGE_UU less C.PERF.S2_HERO_ORBIT_UU, so every point of the orbit is in range) |
 | C.PERF.S4_TELEGRAPHS_MIN | 4 | n | CORE | Tools/Perf.ps1 -Scene S4 (median live telegraphs in the window) |
 | C.PERF.S4_TRAILED_MIN_RATIO | 0.9 | ratio | CORE | Tools/Perf.ps1 -Scene S4 (median rounds the trail draw takes, of the median live rounds) |
+| C.ARN.SLAB_COURSE_UU | 320 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (width of one course of slabs on the plate) |
+| C.ARN.SLAB_LENGTH_UU | [320, 760] | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (shortest and longest slab in a course) |
+| C.ARN.JOINT_HALF_WIDTH_UU | 4 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (half the width of a joint: each slab's chamfer) |
+| C.ARN.JOINT_DEPTH_UU | 0.6 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, T-ARN-01 (how far a joint falls under the plate's top: the whole relief) |
+| C.ARN.APRON_STEPS | 5 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, R-ARN-04 (steps of the apron; with the rise, the depth at which the stone reaches `Pal.Ground.Shadow`) |
+| C.ARN.APRON_RISE_UU | 50 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, R-ARN-04 (height of one step) |
+| C.ARN.APRON_TREAD_UU | 240 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (depth of one step's tread) |
+| C.ARN.APRON_SKIRT_DROP_UU | 100 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02 (the last fall, from the lowest step to the skirt) |
+| C.ARN.APRON_REACH_UU | 9000 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02 (how far the skirt runs past the plate on every side) |
+| C.ARN.FRAME_RADIUS_MAX_UU | 2000 | uu | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02, Debug/DTDebugArena (the widest frame the apron is sized for: the frame D-036 reverts to) |
+| C.ARN.ASPECT_MAX | 3.5556 | ratio | GATED(S4) | 02_Systems/arena_art.md R-ARN-02, T-ARN-02 (the widest window the apron is sized for, 32:9) |
+| C.ARN.LAYOUT_SEED | 4043 | n | GATED(S4) | 02_Systems/arena_art.md R-ARN-01, Tools/blender/env_arena.py (seed of the slab lengths: the generator's own stream, never a sim stream) |
+| C.ARN.VOID_MAX_LEVEL | 2 | level | GATED(S4) | 02_Systems/arena_art.md R-ARN-05, Tools/arena_check.py (a pixel at or under this level in every channel is the clear colour) |
 
 
 ## Telemetry (02_Systems/telemetry.md)

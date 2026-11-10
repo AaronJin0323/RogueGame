@@ -13,8 +13,11 @@ Assets:
                                       as seen by the camera) is the dark core, the rim the emissive 0..2 x 3. Unlit.
   /Game/DT/Materials/M_CueColor       unlit flat colour for telegraphs and control cues (R-PRE-03, R-PRE-11): emissive = PerInstanceCustomData
                                       0..2 x 3, nothing else. A lit quad takes the warm sun and the tonemapper then slides it off its token.
-  /Game/DT/Materials/M_Ground         base colour Pal.Ground.Lit (04_Presentation §3), rough, non-metallic
-  /Game/DT/Maps/L_Arena_Test          ground over +-C.ARENA.HALF_EXTENT_UU, low dusk sun, sky light, sky atmosphere,
+  /Game/DT/Materials/M_Ground         base colour Pal.Ground.Lit (04_Presentation §3), rough, non-metallic: the play plate (R-PRE-05)
+  /Game/DT/Materials/M_Env_Stone      the stone master (02_Systems/arena_art.md R-ARN-04): M_Ground's stone, its base colour falling from
+                                      Pal.Ground.Lit to Pal.Ground.Shadow with depth under the plate and on every face that is not a top
+  /Game/DT/Maps/L_Arena_Test          the play plate SM_Env_Plate over +-C.ARENA.HALF_EXTENT_UU and the apron SM_Env_Apron past it (both from
+                                      Tools/blender/env_arena.py, neither colliding: R-ARN-03), low dusk sun, sky light, sky atmosphere,
                                       unbound post-process volume enforcing 04_Presentation §4 (fixed exposure, no motion
                                       blur, no depth of field, no chromatic aberration, no lens flare, bloom threshold).
 Numbers come from Docs/constants.yaml (C.ARENA.*); colours from the token table of 04_Presentation §3.
@@ -36,11 +39,12 @@ C = {k: v["value"] for k, v in dtconst.load(os.path.join(ROOT, "Docs", "constant
 
 MAT_DIR = "/Game/DT/Materials"
 MAP_PATH = "/Game/DT/Maps/L_Arena_Test"
-PLANE_MESH = "/Engine/BasicShapes/Plane.Plane"
-PLANE_SIZE_UU = 100.0  # the engine plane is 100 x 100 uu at scale 1
+PLATE_MESH = "/Game/DT/Meshes/SM_Env_Plate"
+APRON_MESH = "/Game/DT/Meshes/SM_Env_Apron"
 
 # Palette token (04_Presentation §3), read by name from the token table (R-PRE-09; Tools/palette_lint.py fails a literal here).
 GROUND_TOKEN = "Pal.Ground.Lit"
+SHADOW_TOKEN = "Pal.Ground.Shadow"
 GROUND_ROUGHNESS = 0.9
 ROUND_EDGE_SHARPNESS = 40.0  # width of the core/rim edge in the material; not a tunable, it only anti-aliases
 
@@ -196,6 +200,54 @@ def build_ground():
     return mat
 
 
+def build_env_stone():
+    """R-ARN-04: the apron's stone. Fall = depth under the plate over the apron's stepped depth, plus how far the face turns from
+    straight up; base colour = Pal.Ground.Lit to Pal.Ground.Shadow by Fall. A tread darkens step by step, a riser is shadow stone."""
+    mat = fresh_material("M_Env_Stone")
+    fall_depth = float(C["ARN.APRON_STEPS"]) * float(C["ARN.APRON_RISE_UU"])
+    lit = expr(mat, unreal.MaterialExpressionConstant3Vector, -500, -300)
+    lit.set_editor_property("constant", unreal.LinearColor(*dtpalette.linear(GROUND_TOKEN), 1.0))
+    shadow = expr(mat, unreal.MaterialExpressionConstant3Vector, -500, -150)
+    shadow.set_editor_property("constant", unreal.LinearColor(*dtpalette.linear(SHADOW_TOKEN), 1.0))
+    position = expr(mat, unreal.MaterialExpressionWorldPosition, -1300, 50)
+    height = expr(mat, unreal.MaterialExpressionComponentMask, -1100, 50)
+    for channel, on in (("r", False), ("g", False), ("b", True), ("a", False)):
+        height.set_editor_property(channel, on)
+    MEL.connect_material_expressions(position, "", height, "")
+    per_uu = expr(mat, unreal.MaterialExpressionConstant, -1100, 150)
+    per_uu.set_editor_property("r", -1.0 / fall_depth)
+    depth = expr(mat, unreal.MaterialExpressionMultiply, -900, 50)
+    MEL.connect_material_expressions(height, "", depth, "A")
+    MEL.connect_material_expressions(per_uu, "", depth, "B")
+    normal = expr(mat, unreal.MaterialExpressionVertexNormalWS, -1300, 300)
+    up = expr(mat, unreal.MaterialExpressionComponentMask, -1100, 300)
+    for channel, on in (("r", False), ("g", False), ("b", True), ("a", False)):
+        up.set_editor_property(channel, on)
+    MEL.connect_material_expressions(normal, "", up, "")
+    turned = expr(mat, unreal.MaterialExpressionOneMinus, -900, 300)
+    MEL.connect_material_expressions(up, "", turned, "")
+    total = expr(mat, unreal.MaterialExpressionAdd, -700, 150)
+    MEL.connect_material_expressions(depth, "", total, "A")
+    MEL.connect_material_expressions(turned, "", total, "B")
+    fall = expr(mat, unreal.MaterialExpressionSaturate, -550, 150)
+    MEL.connect_material_expressions(total, "", fall, "")
+    colour = expr(mat, unreal.MaterialExpressionLinearInterpolate, -300, -150)
+    MEL.connect_material_expressions(lit, "", colour, "A")
+    MEL.connect_material_expressions(shadow, "", colour, "B")
+    MEL.connect_material_expressions(fall, "", colour, "Alpha")
+    rough = expr(mat, unreal.MaterialExpressionConstant, -300, 100)
+    rough.set_editor_property("r", GROUND_ROUGHNESS)
+    metal = expr(mat, unreal.MaterialExpressionConstant, -300, 200)
+    metal.set_editor_property("r", 0.0)
+    MEL.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    MEL.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    MEL.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
+    MEL.recompile_material(mat)
+    EAL.save_loaded_asset(mat, only_if_is_dirty=False)
+    log(f"M_Env_Stone built ({GROUND_TOKEN} to {SHADOW_TOKEN} over {fall_depth:.0f} uu of depth)")
+    return mat
+
+
 # ---- map -----------------------------------------------------------------------------------------------------------
 
 def open_clean_map(les, eas):
@@ -248,18 +300,29 @@ def post_process_settings(settings):
     return settings
 
 
-def build_map(ground_mat):
+def place_mesh(eas, label, mesh_path, material):
+    """A static mesh of the arena's ground, where its generator built it. It never collides (R-ARN-03): the sim clamps, no wall does."""
+    mesh = EAL.load_asset(mesh_path)
+    if mesh is None:
+        raise RuntimeError(f"{mesh_path} is missing: run Tools\blender\Mesh.ps1 -Source Tools\blender\env_arena.py first")
+    actor = spawn(eas, unreal.StaticMeshActor, label)
+    smc = actor.static_mesh_component
+    smc.set_static_mesh(mesh)
+    smc.set_material(0, material)
+    smc.set_collision_profile_name("NoCollision")
+    smc.set_editor_property("can_ever_affect_navigation", False)
+    actor.root_component.set_mobility(unreal.ComponentMobility.STATIC)
+    return actor
+
+
+def build_map(ground_mat, stone_mat):
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     open_clean_map(les, eas)
 
     half = float(C["ARENA.HALF_EXTENT_UU"])
-    ground = spawn(eas, unreal.StaticMeshActor, "Ground")
-    smc = ground.static_mesh_component
-    smc.set_static_mesh(EAL.load_asset(PLANE_MESH))
-    smc.set_material(0, ground_mat)
-    ground.set_actor_scale3d(unreal.Vector(2.0 * half / PLANE_SIZE_UU, 2.0 * half / PLANE_SIZE_UU, 1.0))
-    ground.root_component.set_mobility(unreal.ComponentMobility.STATIC)
+    place_mesh(eas, "Plate", PLATE_MESH, ground_mat)
+    place_mesh(eas, "Apron", APRON_MESH, stone_mat)
 
     sun = spawn(eas, unreal.DirectionalLight, "Sun_Dusk", (0.0, 0.0, 1000.0),
                 unreal.Rotator(roll=0.0, pitch=-float(C["ARENA.SUN_ELEVATION_DEG"]), yaw=float(C["ARENA.SUN_YAW_DEG"])))
@@ -282,7 +345,7 @@ def build_map(ground_mat):
 
     if not les.save_current_level():
         raise RuntimeError(f"could not save {MAP_PATH}")
-    log(f"{MAP_PATH} saved (ground +-{half:.0f} uu, sun {C['ARENA.SUN_ELEVATION_DEG']} deg, "
+    log(f"{MAP_PATH} saved (plate +-{half:.0f} uu, apron {C['ARN.APRON_REACH_UU']} uu past it, sun {C['ARENA.SUN_ELEVATION_DEG']} deg, "
         f"EV100 {C['ARENA.EXPOSURE_EV100']}, bloom threshold {C['ARENA.BLOOM_THRESHOLD']})")
 
 
@@ -299,7 +362,8 @@ def main():
     build_enemy_round()
     build_cue_color()
     ground = build_ground()
-    build_map(ground)
+    stone = build_env_stone()
+    build_map(ground, stone)
     log("DONE")
 
 
