@@ -102,7 +102,7 @@ Goldens re-baselined: `arena_empty_en`, `arena_empty_zh-Hans` (the frame moved 0
 
 Seed 9107, all as `S4_p0.md` §8 lists them: `Tools/RestartCheck.ps1` `276faf8e`; five arms run one after another, `input_hash` None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446`; the five `bot.csv` files are byte-identical to P0's by SHA-256 (`fa79587d4caca00c`, `0f7040940d7dee3e`, `5a3568925a419583`, `4452bfe6dbb65b3b`, `9bd5ffcad19643d5`). Meta `ba2a3ac8` is the gate's line.
 
-Gate: run on the commit that holds this note; its line is added by the commit after it.
+`GATE: PASS (a739d5f; 3 not run)` with `& Tools\Gate.ps1 -Base dev/s4` (pad: no package; scope; mac): 534 automation tests of 534 against the floor of 527, 260 tool tests, meta `ba2a3ac8`, restart `276faf8e`, contrast 7/7 with `WATCH: OK (telegraph 3.30, enemy_rim 3.21)`, nine smoke frames against their goldens (0.25 to 0.56 of 12).
 
 ## 8. Not verified
 
