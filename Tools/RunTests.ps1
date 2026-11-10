@@ -11,6 +11,8 @@ param(
 
 trap { Write-Host "TESTS: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")

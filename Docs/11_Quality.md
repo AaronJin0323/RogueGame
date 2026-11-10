@@ -4,10 +4,11 @@
 
 ## 1. Merge gates
 
-One command runs them all on the current tree, which for a merge is the merged tree: `& Tools\Gate.ps1` from PowerShell (`-AllFiles` for a full non-unity pass, `-Base <ref>` for the ref `nonunity` diffs against, `origin/main` if not given, `-Skip a,b` to skip steps, which then count as not run). It prints one line per step, in the order of the table, stops at the first failure, and ends with `GATE: PASS (<commit>; <n> not run)` or `GATE: FAIL at <step>`; a step that cannot run prints `NOT RUN (<reason>)` and is never counted as passed. A Python step whose script is missing also prints NOT RUN and the gate still passes, so read the not-run count.
+One command runs them all on the current tree, which for a merge is the merged tree: `& Tools\Gate.ps1` from PowerShell (`-AllFiles` for a full non-unity pass, `-Base <ref>` for the ref `nonunity` diffs against, `origin/main` if not given, `-Skip a,b` to skip steps, which then count as not run). It prints one line per step, in the order of the table, stops at the first failure, and ends with `GATE: PASS (<commit>; <n> not run; mask <mask>)` or `GATE: FAIL at <step> (<commit>; mask <mask>)`, where the mask is the processor mask the run held (D-052; `none` on a machine without the mask file); a step that cannot run prints `NOT RUN (<reason>)` and is never counted as passed. A Python step whose script is missing also prints NOT RUN and the gate still passes, so read the not-run count.
 
 | Step | Catches | Tool | Status |
 |---|---|---|---|
+| `cpu` | a logical processor that faults in plain code (D-052): the fault loop of `Validation/S4_py_fault.md §5`, one run pinned to each processor the mask leaves in; names the processor that faulted or summed wrong. Every Tools entry script applies the mask first (`Tools/Machine.ps1`), so everything after runs inside it | `Tools/cpu_canary.py` (size calibrated in `Validation/S1_gate_main.md`) | live |
 | `secrets` | keys/tokens in tracked files (public repo, D-006) | `Tools/secret_scan.py` | live |
 | `docs` | docs lint (`Harness/H02 §4`) | `Tools/docs_lint.py` | live |
 | `constants` | generated constants or palette header out of date (R-TEC-07); a colour literal outside the palette | `Tools/gen_constants.py --check` | live |

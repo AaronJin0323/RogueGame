@@ -1,5 +1,11 @@
 @echo off
 setlocal
+rem D-052: the machine's processor mask. This file runs again as a child of Tools\Machine.ps1, which holds the mask, so every child inherits it.
+if /i "%DT_MASKED_BAT%"=="%~f0" goto :masked
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Machine.ps1" -DTRunFile "%~f0" %*
+exit /b %ERRORLEVEL%
+:masked
+set "DT_MASKED_BAT="
 rem Compiles the game text for every culture (R-TEC-08):
 rem   1. python Tools\loc_build.py --build   CSV truth -> Content/DT/Text/Generated/ST_*.csv + Game.po
 rem   2. GatherText commandlet               gather (Config/Localization/Game_Gather.ini), import the .po

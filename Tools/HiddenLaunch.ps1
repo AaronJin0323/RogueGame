@@ -17,6 +17,8 @@
 # The packaged game's job (Dusktracer*.exe) holds the whole tree: the stub's real game is its child, and a package ships no shared daemon.
 # tools_test.py fails on a Start-Process or a direct call of an engine binary anywhere else in Tools.
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 if (-not ("DTHiddenDesktop" -as [type])) {
 	Add-Type -TypeDefinition @"
 using System;

@@ -9,6 +9,8 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +19,7 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
+import cpu_canary  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
 import power_split  # noqa: E402
@@ -925,6 +928,130 @@ class HiddenLaunchGuard(unittest.TestCase):
 						text = f.read()
 					if "Start-DTHidden" in text:
 						self.assertIn('. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")', text, name)
+
+
+def powershell(script, env=None, timeout=120):
+	"""Runs PowerShell code in a child (no profile), returns (exit code, output)."""
+	full = dict(os.environ)
+	full.update(env or {})
+	done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], capture_output=True, env=full, timeout=timeout)
+	return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
+
+
+def ps_quote(path):
+	return "'" + path.replace("'", "''") + "'"
+
+
+def first_statement(name, text):
+	"""The first statement of an entry script: after a .ps1's param block and its trap line; after a .bat's @echo off, setlocal and rem lines."""
+	if name.endswith(".bat"):
+		for line in text.splitlines():
+			if line.strip() and not re.match(r"\s*(@echo off|setlocal|rem\b|::)", line, re.IGNORECASE):
+				return line.strip()
+		return ""
+	code = [line for line in ps_code(text.splitlines()) if line.strip()]
+	i = 0
+	if code and re.match(r"\s*param\s*\(", code[0], re.IGNORECASE):
+		depth = 0
+		while i < len(code):
+			depth += code[i].count("(") - code[i].count(")")
+			i += 1
+			if depth <= 0:
+				break
+	if i < len(code) and code[i].lstrip().startswith("trap"):
+		i += 1
+	return code[i].strip() if i < len(code) else ""
+
+
+class Machine(unittest.TestCase):
+	"""D-052: every Tools entry script applies the machine's processor mask first (Tools/Machine.ps1), and the gate's `cpu` step catches a bad processor."""
+
+	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
+		"WindowWatch.ps1", "HiddenLaunch.ps1")
+	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat")
+	HELPER = os.path.join(TOOLS, "Machine.ps1")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.own = cpu_canary.affinity()[0]
+		# One processor this process may already use: the test never moves work onto a processor the machine's mask leaves out.
+		self.one = cpu_canary.bits(self.own)[-1]
+		self.child = os.path.join(self.tmp.name, "child.py")
+		with open(self.child, "w", encoding="utf-8") as f:
+			f.write(f"import sys\nsys.path.insert(0, {TOOLS!r})\nimport cpu_canary\nprint('CHILD %X' % cpu_canary.affinity()[0])\n")
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def mask_file(self, text):
+		path = os.path.join(self.tmp.name, "affinity.txt")
+		with open(path, "w", encoding="ascii") as f:
+			f.write(text + "\n")
+		return path
+
+	def run_helper(self, mask_path):
+		script = f". {ps_quote(self.HELPER)}; try {{ $M = Set-DTAffinity; \"MASK $M\" }} catch {{ \"THREW $_\" }}; & python -I {ps_quote(self.child)}"
+		return powershell(script, {"DT_AFFINITY_FILE": mask_path})
+
+	def test_a_child_started_after_the_helper_sees_the_mask(self):
+		rc, out = self.run_helper(self.mask_file(f"{1 << self.one:X}"))
+		self.assertEqual(rc, 0, out)
+		self.assertIn(f"MASK {1 << self.one:X}", out)
+		self.assertIn(f"CHILD {1 << self.one:X}", out)
+
+	def test_no_file_changes_nothing(self):
+		rc, out = self.run_helper(os.path.join(self.tmp.name, "absent.txt"))
+		self.assertIn("MASK none", out)
+		self.assertIn(f"CHILD {self.own:X}", out)
+
+	def test_a_bad_file_fails(self):
+		for text in ("zz", "FFFF\nFFFF", "0"):
+			rc, out = self.run_helper(self.mask_file(text))
+			self.assertIn("THREW", out, text)
+
+	def test_a_batch_entry_point_runs_under_the_mask(self):
+		shutil.copy(self.HELPER, self.tmp.name)
+		with open(os.path.join(TOOLS, "Build.bat"), encoding="utf-8") as f:
+			head = [line for line in f.read().splitlines()[:12]]
+		cut = next(i for i, line in enumerate(head) if line.startswith('set "DT_MASKED_BAT="')) + 1
+		bat = os.path.join(self.tmp.name, "t.bat")
+		with open(bat, "w", encoding="ascii") as f:
+			f.write("\r\n".join(head[:cut] + [f'python -I "{self.child}"', "exit /b 7", ""]))
+		done = subprocess.run(["cmd", "/c", bat], capture_output=True, env=dict(os.environ, DT_AFFINITY_FILE=self.mask_file(f"{1 << self.one:X}")), timeout=120)
+		self.assertEqual(done.returncode, 7)
+		self.assertIn(f"CHILD {1 << self.one:X}", done.stdout.decode("utf-8", "replace"))
+
+	def test_every_entry_script_calls_the_helper_first(self):
+		for name in self.ENTRY_PS + self.ENTRY_BAT:
+			with open(os.path.join(TOOLS, name), encoding="utf-8", errors="replace") as f:
+				first = first_statement(name, f.read())
+			if name.endswith(".bat"):
+				self.assertTrue(first.startswith('if /i "%DT_MASKED_BAT%"=="%~f0"'), name)
+			else:
+				self.assertTrue(first.startswith('. (Join-Path $PSScriptRoot "Machine.ps1")') and "Set-DTAffinity" in first, f"{name}: {first}")
+		with open(os.path.join(TOOLS, "Build.bat"), encoding="utf-8") as f:
+			self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read())
+
+	def test_launchers_for_people_stay_unmasked(self):
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if name in HUMAN_LAUNCHERS:
+					with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+						self.assertNotIn("Machine.ps1", f.read(), name)
+
+	def canary(self, *args):
+		out = io.StringIO()
+		with contextlib.redirect_stdout(out):
+			rc = cpu_canary.main(["--processors", str(self.one), "--rounds", "2", *args])
+		return rc, out.getvalue()
+
+	def test_the_canary_fails_on_a_wrong_sum_and_names_the_processor(self):
+		rc, out = self.canary("--force-wrong")
+		self.assertEqual(rc, 1)
+		self.assertIn(f"CPU: FAIL (processor {self.one})", out)
+		rc, out = self.canary()
+		self.assertEqual(rc, 0, out)
+		self.assertRegex(out, r"CPU: PASS \(1 processors, mask [0-9A-F]+, 2 rounds\)")
 
 
 class Loc(unittest.TestCase):
