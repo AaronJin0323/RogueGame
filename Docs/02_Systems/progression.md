@@ -72,7 +72,7 @@ JSONL records (`telemetry.md` format; `owner` = the player):
 
 ## Out of scope
 - Where gems and chests drop and how much each kill is worth (`director.md`); chest hands (`offers.md`).
-- XP-gain and pickup-radius upgrades from meta (S3); Muscle Memory and Heat (S3+).
+- XP-gain and pickup-radius upgrades from meta: cut, not deferred. Both are XP rate, and no Tree node raises a number in a run (D-023, `meta.md` R-MET-20). Muscle Memory and Heat (S3+).
 - Minor hands at XP midpoints: folded into the decision budget (`offers.md` R-OFF-15), not built.
 
 ## Open
