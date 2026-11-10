@@ -598,7 +598,7 @@ TArray<FDTOfferCard> DTOffers::Candidates(const FDTPlayerRunState& Player, const
 	for (int32 Mod = 0; Mod < DTCat::NumModifiers; ++Mod)
 	{
 		const FName Id = DTWeapons::ModifierId(Mod);
-		if (Banished.Contains(Id) || !IsModInPool(Mod, Pool))
+		if (Banished.Contains(Id) || !IsModInPool(Mod, Pool) || FDTWeaponSim::IsModDeadForPatron(Mod, Player))
 		{
 			continue;
 		}

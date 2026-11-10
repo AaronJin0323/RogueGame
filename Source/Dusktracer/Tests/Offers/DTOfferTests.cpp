@@ -18,6 +18,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Internationalization/StringTable.h"
+#include "Keepers/DTKeeperSpec.h"
 #include "Internationalization/StringTableCore.h"
 #include "Internationalization/StringTableRegistry.h"
 #include "Offers/DTOfferGenerator.h"
@@ -571,6 +572,36 @@ bool FDTOfferGuaranteeTest::RunTest(const FString& Parameters)
 }
 
 // T-OFF-07
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferDeadCardTest, "Dusktracer.Offers.DeadCard", DTOfferTest::Flags)
+bool FDTOfferDeadCardTest::RunTest(const FString& Parameters)
+{
+	// modifiers.md Intent: a modifier is only offered where it can express. One that applies the Patron's status has nothing to
+	// apply under a Patron with none (keepers.md R-KEE-34), so no hand of that player may hold it.
+	using namespace DTOfferTest;
+	int32 WithStatus = 0;
+	int32 Without = 0;
+	const auto Offered = [](FSimRun& Sim)
+	{
+		return DTOffers::Candidates(Sim.P(), Sim.Pool).ContainsByPredicate([](const FDTOfferCard& Card)
+		{
+			return Card.Kind == EDTCardKind::Mod && DTWeapons::ModifierUsesPatronStatus(DTWeapons::FindModifier(Card.ContentId));
+		});
+	};
+	for (int32 Path = 0; Path < static_cast<int32>(EDTPath::Count); ++Path)
+	{
+		FSimRun Sim(7);
+		Sim.Weapons.Give(Sim.Run, 0, PulseRifle, 1);
+		TestTrue(TEXT("before a Patron the card is in the list"), Offered(Sim));
+		Sim.P().Offer.PatronPath = static_cast<EDTPath>(Path);
+		EDTStatus Status;
+		const bool bHasStatus = DTKeepers::EnchantStatus(static_cast<EDTPath>(Path), Status);
+		(bHasStatus ? WithStatus : Without)++;
+		TestEqual(*FString::Printf(TEXT("%s: offered only if the Patron has a status"), DTOffers::PathName(static_cast<EDTPath>(Path))), Offered(Sim), bHasStatus);
+	}
+	TestTrue(TEXT("the catalog has both kinds of Patron, so both halves were read"), WithStatus > 0 && Without > 0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTOfferStarterPoolTest, "Dusktracer.Offers.StarterPool", DTOfferTest::Flags)
 bool FDTOfferStarterPoolTest::RunTest(const FString& Parameters)
 {

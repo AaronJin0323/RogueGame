@@ -132,6 +132,11 @@ public:
 	void SetEnemies(FDTEnemyPool* InEnemies) { Enemies = InEnemies; }
 	/** Non-starter ids in the run pool (DT.Unlock): Mod.Refit draws only from the pool. */
 	void Unlock(FName Id) { Unlocked.Add(Id); }
+	/**
+	 * A modifier that applies the Patron's status, for a player whose Patron has none (keepers.md R-KEE-34): it would do nothing,
+	 * so it is neither offered nor drawn (modifiers.md Intent). False with no Patron yet.
+	 */
+	static bool IsModDeadForPatron(int32 Mod, const FDTPlayerRunState& Player);
 
 	// --- S2 Keeper state the weapons read (keepers.md §9) ----------------------------------------------------------
 	/** Marks an enemy for OwnerId for C.STATUS.MARK_S plus the owner's mark_s, from StepIndex on (R-KEE-24). */

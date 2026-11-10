@@ -448,6 +448,39 @@ bool FDTArsenalRefit::RunTest(const FString& Parameters)
 		Kills(H, 3);
 		TestEqual(TEXT("not fitted full: no drop"), H.Run.GetPlayer(0).Weapons[1].Sockets.Num(), 0);
 	}
+	{
+		// The draw is the offer's list: no modifier the player banished (offers.md R-OFF-10), none that is dead under their Patron.
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), 1);
+		H.Weapons.Give(H.Run, 0, TEXT("Weapon.RingEmitter"), 1);
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Refit"));
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Pierce"));
+		H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.Conduit"));
+		for (int32 Mod = 0; Mod < DTCat::NumModifiers; ++Mod)
+		{
+			// dev/s2 has no shut starters (meta.md R-MET-25 is S3): the starters leave the draw as banished ids instead.
+			if (DTCat::Modifiers[Mod].bStarter && DTWeapons::ModifierId(Mod) != FName(TEXT("Mod.Conduit")))
+			{
+				H.Run.GetPlayer(0).Offer.Banished.Add(DTWeapons::ModifierId(Mod));
+			}
+		}
+		H.Weapons.Unlock(TEXT("Mod.Pierce"));
+		H.Weapons.Unlock(TEXT("Mod.Conduit"));
+		FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+		Player.Offer.Banished.Add(TEXT("Mod.Pierce"));
+		Player.Offer.PatronPath = EDTPath::Quicksilver;
+		const int32 Conduit = DTWeapons::FindModifier(TEXT("Mod.Conduit"));
+		TestTrue(TEXT("Conduit applies the Patron's status"), DTWeapons::ModifierUsesPatronStatus(Conduit));
+		TestFalse(TEXT("Pierce does not"), DTWeapons::ModifierUsesPatronStatus(DTWeapons::FindModifier(TEXT("Mod.Pierce"))));
+		TestTrue(TEXT("a Patron with no status leaves it dead"), FDTWeaponSim::IsModDeadForPatron(Conduit, Player));
+		Kills(H, 2);
+		TestEqual(TEXT("a banished modifier and a dead one: nothing drops"), Player.Weapons[1].Sockets.Num(), 0);
+		Player.Offer.PatronPath = EDTPath::Storm;
+		TestFalse(TEXT("a Patron with a status has a use for it"), FDTWeaponSim::IsModDeadForPatron(Conduit, Player));
+		Kills(H, 1);
+		TestTrue(TEXT("under such a Patron it is the draw, and the banished one still is not"),
+			Player.Weapons[1].Sockets.Num() == 1 && Player.Weapons[1].Sockets[0].ModId == FName(TEXT("Mod.Conduit")));
+	}
 	FDTHarness H;
 	H.Weapons.Give(H.Run, 0, TEXT("Weapon.PulseRifle"), 1);
 	H.Weapons.Give(H.Run, 0, TEXT("Weapon.RingEmitter"), 1);
