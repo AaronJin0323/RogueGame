@@ -27,11 +27,11 @@ Branch `dev/s3-narrative`, from `dev/s3`. Spec: `Docs/03_Narrative.md`. Sources:
 
 Layer 3 is `Codex.Root.Title` (`Win`) and `Codex.Warden.FormIII` (`Wins3.FormIII`). No Layer 4 row. Deepest layer before the first win: 2, read in the game by `Dusktracer.Core.StoryLayers` and `DT.Codex.ShowLayer`.
 
-What the check cannot read is meaning. It trusts the `Layer` and `Unlock` cells and a short word list. Nothing in the game shows these rows yet, so reachability is proved on the data, not on a screen.
+What the check cannot read is meaning. It trusts the `Layer` and `Unlock` cells and a short word list. When this was written nothing in the game showed these rows, so reachability was proved on the data, not on a screen. Since: the hub's Codex lists `ST_Codex` by layer and unlock (`vigil.md` R-VIG-08), the run-over toast names a Discovery, and `Tools/WinCheck.ps1` reads a win reaching the Codex on a launch; `ST_KeeperLines` still has no reader.
 
 ## Retired names
 
-Clean in en, zh, Context and Kw: RogueHero, `RH.*`, `God.*`, the Greek gods and enemies, Underworld, and "god" in en and in the Context of the narrative tables. The zh 神 rule holds (神血, 神眷, 神临 only here). These are now gate failures, and the retired-name list runs on all 12 tables.
+Clean in en, zh, Context and Kw: RogueHero, `RH.*`, `God.*`, the Greek gods and enemies, Underworld, and "god" in en and in the Context of the narrative tables. The zh 神 rule holds (神血, 神眷, 神临 only here). These are now gate failures, and the retired-name list runs on every table (12 then, 13 since `ST_Tree`).
 
 Handoff Context notes were rewritten, not copied; they cited the old GDD and a weapon list this build does not have.
 

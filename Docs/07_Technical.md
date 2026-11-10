@@ -102,7 +102,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) â
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
 | `bBossAlive`, `BossPosition` | weapons (Weapons) | bullets (R-BUL-09) | overwritten |
 | `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
-| `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends) | at the next `ResolveHits` |
+| `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends), the run recorder (`UDTRunRecorder`: the run's tally and its kill counters by role and weapon, `02_Systems/meta.md` R-MET-03, R-MET-41) | at the next `ResolveHits` |
 | `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step | after applying |
 | `Displacements` (`FDTDisplacement[]`) | weapons (mine pull), effects (`Flag.Pull`/`Push`, `Mod.Backwash`, Intercession) | enemies, next step, before movement | after applying |
 | `Telegraphs` (`FDTTelegraph[]`, `enemies.md`) | enemies, boss | render | overwritten |

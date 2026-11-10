@@ -59,7 +59,8 @@ function Copy-Text([string]$From, [string]$To) {
 	[IO.File]::WriteAllText($To, (Protect-Text $Text), $Utf8)
 }
 
-$Saved = @((Join-Path $env:LOCALAPPDATA "Dusktracer\Saved"), (Join-Path $PSScriptRoot "Dusktracer\Saved")) | Where-Object { Test-Path -LiteralPath $_ }
+$Looked = @((Join-Path $env:LOCALAPPDATA "Dusktracer\Saved"), (Join-Path $PSScriptRoot "Dusktracer\Saved"))
+$Saved = @($Looked | Where-Object { Test-Path -LiteralPath $_ })
 $Runs = @(); $Logs = @(); $Crashes = @(); $Dumps = 0
 foreach ($Dir in $Saved) {
 	$Sub = Join-Path $Dir "Playtests"
@@ -73,7 +74,7 @@ foreach ($Dir in $Saved) {
 		}
 	}
 }
-if ($Runs.Count + $Logs.Count + $Crashes.Count -eq 0) { Write-Host "EXPORT: FAIL (no run files or logs; looked in $($Saved -join ', '))"; exit 1 }
+if ($Runs.Count + $Logs.Count + $Crashes.Count -eq 0) { Write-Host "EXPORT: FAIL (no run files or logs; looked in $($Looked -join ', '))"; exit 1 }
 
 if (-not $OutDir) { $OutDir = [Environment]::GetFolderPath("Desktop") }
 if (-not $OutDir) { $OutDir = Join-Path $env:USERPROFILE "Desktop" }

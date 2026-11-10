@@ -1994,6 +1994,281 @@ class PoolRead(unittest.TestCase):
 		self.assertIn("-and $SameHands", text)
 
 
+class ReviewMinors(unittest.TestCase):
+	"""The third pass over the S3 review's minors (Validation/S3_review_fixes.md): each check here failed before its fix."""
+
+	ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+	def text(self, *parts):
+		with open(os.path.join(self.ROOT, *parts), encoding="utf-8-sig") as f:
+			return f.read()
+
+	def catalog(self, name):
+		with open(os.path.join(self.ROOT, "Docs", "09_Catalog", name), encoding="utf-8", newline="") as f:
+			return list(csv.DictReader(line for line in f if not line.startswith("#")))
+
+	def real(self):
+		tables, errors = loc_build.load_tables(self.ROOT)
+		self.assertEqual(errors, [])
+		return [list(t) for t in tables]
+
+	def story_row(self, key, layer="1", unlock="Start", en="Plain.", zh="平实。", context=""):
+		return {"Key": key, "en": en, "zh-Hans": zh, "Context": context, "Kw": "", "Layer": layer, "Unlock": unlock, "_line": 2}
+
+	def story_faults(self, table, row):
+		tables = self.real()
+		dict(tables)[table].append(row)
+		return " ".join(loc_build.check_story(tables))
+
+	# --- #120: T-NAR-02's Act II half and R-NAR-07's Context ban ---------------------------------------------------------
+	def test_an_act_two_key_and_an_npc_row_fail(self):
+		for table, key in (("ST_KeeperLines", "Keeper.Storm.Act2"), ("ST_KeeperLines", "Keeper.Storm.Act3"), ("ST_Codex", "Npc.Smith.Greeting"), ("ST_World", "Ending.Converge"),
+			("ST_Codex", "Codex.Recollection.Depth2"), ("ST_KeeperLines", "Keeper.Storm.Bid.Open")):
+			self.assertIn(f"{key}: Act II/III or NPC row is out of the v0.1 scope", self.story_faults(table, self.story_row(key)), key)
+
+	def test_god_in_a_narrative_context_fails(self):
+		for context in ("Said by the god of storms.", "The Gods' stones.", "神明的话。"):
+			row = self.story_row("Codex.Recollection.Extra", context=context)
+			self.assertIn("Context contains a forbidden word", " ".join(loc_build.check_story([("ST_Codex", [row])])), context)
+			# R-NAR-07 bars the word from Context in the narrative tables; elsewhere a Context may name what it forbids.
+			self.assertNotIn("forbidden word", " ".join(loc_build.check_story([("ST_UI", [dict(row, Key="Hud.Note")])])), context)
+
+	# --- #72: a row outside every counted family --------------------------------------------------------------------------
+	def test_a_story_row_outside_every_family_fails(self):
+		for table, key in (("ST_Codex", "Codex.Lore.Extra"), ("ST_Codex", "Codex.Recollection"), ("ST_KeeperLines", "Keeper.Storm.Tier4"), ("ST_KeeperLines", "Keeper.Storm.Aside")):
+			self.assertIn(f"{key}: no row family of the v0.1 scope takes this key", self.story_faults(table, self.story_row(key)), key)
+		# A label of ST_World is no story row, and the uncounted rows of the two story tables are named.
+		self.assertNotIn("no row family", self.story_faults("ST_World", self.story_row("World.NewPlace")))
+		self.assertNotIn("no row family", " ".join(loc_build.check_story(self.real())))
+
+	# --- #117: an Unlock the Codex page cannot open -------------------------------------------------------------------------
+	def test_a_codex_row_the_hub_cannot_open_fails(self):
+		for unlock in ("Tier.1", "Tier.3", "Run.L8"):
+			tables = self.real()
+			for r in dict(tables)["ST_Codex"]:
+				if r["Key"] == "Codex.Enemy.Tank":
+					r["Unlock"] = unlock
+			self.assertIn(f"Codex.Enemy.Tank: the Codex page cannot open Unlock '{unlock}'", " ".join(loc_build.check_story(tables)), unlock)
+		# The same cells are what a Keeper line opens on.
+		self.assertTrue(any(r["Unlock"].startswith("Tier.") for r in dict(self.real())["ST_KeeperLines"] if "Unlock" in r))
+
+	# --- #116: World.Yard's door ----------------------------------------------------------------------------------------------
+	def yard_faults(self, unlock):
+		tables = self.real()
+		for r in dict(tables)["ST_World"]:
+			if r["Key"] == "World.Yard":
+				r["Unlock"] = unlock
+		return " ".join(loc_build.check_story(tables))
+
+	def test_the_yard_label_opens_with_a_line_that_says_it(self):
+		# Layer 2 is reachable before a win, so the layer rule lets Start through: only this binding holds the label to its line.
+		for unlock in ("Start", "Discovery.ReachL10", "Kill.Swarm"):
+			self.assertIn("World.Yard: Unlock", self.yard_faults(unlock), unlock)
+		said = [r["Unlock"] for r in dict(self.real())["ST_Codex"] if r["Key"].startswith("Codex.Recollection.") and loc_build.truth_word_in("Yard", r["en"])]
+		self.assertTrue(said)
+		for unlock in said:
+			self.assertNotIn("World.Yard: Unlock", self.yard_faults(unlock), unlock)
+
+	# --- #115: a retired name in any spelling -----------------------------------------------------------------------------------
+	def test_a_retired_name_fails_in_any_case_number_and_language(self):
+		def faults(**cells):
+			row = {"Key": "A.B", "en": "x", "zh-Hans": "甲", "Context": "", "Kw": "", "_line": 2}
+			row.update(cells)
+			return [v for v in loc_build.check_row("ST_Test", row) if "retired name" in v]
+		for en in ("Harpies overhead.", "a hoplite", "CENTAURS", "the gorgons", "Cyclopes", "sirens", "asterion", "the underworld", "roguehero"):
+			self.assertTrue(faults(en=en), en)
+		for zh in ("鹰身女妖来了", "冥界之门", "塞壬", "独眼巨人"):
+			self.assertTrue(faults(**{"zh-Hans": zh}), zh)
+		self.assertTrue(faults(Context="Was the Harpy drone."))
+		for en in ("Sirenic.", "Harpyish.", "A hop light.", "Underworlds."):
+			self.assertEqual(faults(en=en), [], en)
+
+	# --- #119, #131, #82, #75: the two Voice rules a check can read (03_Narrative T-NAR-09) -----------------------------------------
+	def test_a_codex_entry_is_two_sentences_at_most(self):
+		def faults(key, en, zh):
+			return loc_build.check_voice("t", self.story_row(key, en=en, zh=zh), debts=set())
+		self.assertEqual(faults("Codex.Keeper.Test", "One; still one. Two.", "一句，还是一句。两句。"), [])
+		self.assertIn("zh-Hans is 3 sentences", " ".join(faults("Codex.Recollection.Test", "One. Two.", "一句。两句。三句。")))
+		self.assertIn("en is 3 sentences", " ".join(faults("Codex.Enemy.Test", "One. Two? Three!", "一句。两句。")))
+		self.assertEqual(faults("Codex.Keeper.Test", 'It said: "noted." Then nothing...', "它说：“已记录。”然后没有了……"), [])
+		# A card, a line and a label are not entries.
+		self.assertEqual(faults("Keeper.Storm.Tier1", "One. Two. Three.", "一。二。三。"), [])
+
+	def test_a_designation_is_the_same_string_in_every_culture(self):
+		def faults(en, zh):
+			return loc_build.check_voice("t", self.story_row("Codex.Recollection.Test", en=en, zh=zh), debts=set())
+		self.assertEqual(faults("FOUNDRY mends it.", "FOUNDRY 把它修好。"), [])
+		self.assertIn("FOUNDRY", " ".join(faults("FOUNDRY mends it.", "司炉把它修好。")))
+		self.assertIn("ROOT", " ".join(faults("Nothing.", "ROOT 无数据。")))
+		self.assertEqual(faults("Uprooted, relayed.", "平实。"), [])
+
+	def test_the_voice_debts_are_all_the_real_tables_owe(self):
+		owed = set()
+		for table, rows in self.real():
+			if table in loc_build.NARRATIVE_TABLES:
+				for row in rows:
+					for fault in loc_build.check_voice(row["Key"], row, debts=set()):
+						owed.add((row["Key"], "sentences" if "sentences" in fault else "designation"))
+		self.assertTrue(owed <= loc_build.VOICE_DEBTS, sorted(owed - loc_build.VOICE_DEBTS))
+		self.assertEqual([v for v in loc_build.check_story(self.real()) if "sentences" in v or "designation" in v], [])
+
+	# --- #73: a lookup through a file's own helper ----------------------------------------------------------------------------------
+	def test_a_key_asked_through_a_helper_must_exist(self):
+		source = (
+			'namespace Local\n{\n\tFText Ui(const TCHAR* Key)\n\t{\n\t\treturn FText::FromStringTable(TEXT("ST_UI"), Key);\n\t}\n'
+			'\tstatic FText World(const TCHAR* Name)\n\t{\n\t\treturn FText::FromStringTable(FName(TEXT("ST_World")), Name);\n\t}\n}\n'
+			'FText A = Local::Ui(TEXT("Hud.Dash"));\nFText B = Ui(TEXT("Hud.Gone"));\nFText C = World(TEXT("World.Gone"));\nFText D = Other.Ui(TEXT("Not.AHelperCall"));\nFText E = MyUi(TEXT("Not.This"));\n')
+		with tempfile.TemporaryDirectory() as root:
+			os.makedirs(os.path.join(root, "Source", "A"))
+			with open(os.path.join(root, "Source", "A", "B.cpp"), "w", encoding="utf-8") as f:
+				f.write(source)
+			tables = [("ST_UI", [{"Key": "Hud.Dash"}]), ("ST_World", [{"Key": "World.Keep"}])]
+			self.assertEqual(loc_build.check_code_keys(root, tables), ["Source/A/B.cpp:13 ST_UI Hud.Gone: no such row", "Source/A/B.cpp:14 ST_World World.Gone: no such row"])
+
+	def test_the_real_helpers_are_read(self):
+		# The hub's and the menu's own helpers are the shape the check follows: a key dropped from ST_UI under one of them fails loc.
+		for parts in (("Source", "Dusktracer", "Hub", "DTHubScreen.cpp"), ("Source", "Dusktracer", "Settings", "DTMenuScreen.cpp")):
+			self.assertTrue(loc_build.HELPER_RE.search(self.text(*parts)), parts[-1])
+		tables = [(t, [r for r in rows if r["Key"] != "Hub.Balance"]) for t, rows in self.real()]
+		self.assertTrue(any("ST_UI Hub.Balance: no such row" in v for v in loc_build.check_code_keys(self.ROOT, tables)))
+		self.assertEqual(loc_build.check_code_keys(self.ROOT, self.real()), [])
+
+	# --- #110: the order R-MET-28 says the generator holds ----------------------------------------------------------------------------
+	def test_the_flak_mortar_order_is_held_by_its_cells(self):
+		rows = self.catalog("discoveries.csv")
+		self.assertEqual(gen_catalog.door_order_faults(rows), [])
+		for row, cell, value in (("Survive10", "threshold", "60"), ("Survive10", "counter", "Kills"), ("ReachL10", "threshold", "12"), ("ReachL10", "counter", "Seconds")):
+			moved = [dict(r, **{cell: value}) if r["id"] == row else r for r in rows]
+			self.assertEqual(len(gen_catalog.door_order_faults(moved)), 1, (row, cell))
+		self.assertEqual(len(gen_catalog.door_order_faults([r for r in rows if r["id"] != "Survive10"])), 1)
+		self.assertEqual(set(gen_catalog.DOOR_ORDER_CELLS), gen_catalog.WITH_THE_FLAK_MORTAR)
+
+	# --- #78: a Tree node's text rows ----------------------------------------------------------------------------------------------
+	def test_a_tree_node_without_its_text_fails_the_generator(self):
+		nodes = self.catalog("tree.csv")
+		keys = {r["Key"] for r in gen_catalog.read_text_table("ST_Tree.csv")}
+		self.assertEqual(gen_catalog.tree_text_faults(nodes, keys), [])
+		first = nodes[0]
+		self.assertEqual(gen_catalog.tree_text_faults(nodes, keys - {first["text_key"] + ".Desc"})[0], (first["id"], first["text_key"] + ".Desc"))
+		self.assertTrue(gen_catalog.tree_text_faults(nodes, keys - {nodes[-1]["text_key"] + ".Name"}))
+
+	# --- #111: what the Gravity Mine fits on a save -----------------------------------------------------------------------------------
+	def test_the_gravity_mine_opens_with_its_one_modifier(self):
+		fits = {r["modifier"] for r in self.catalog("matrix.csv") if r["Weapon.GravityMine"] == "yes"}
+		starters = {r["id"] for r in self.catalog("modifiers.csv") if r["starter"] == "yes"}
+		locked = {r["id"]: r["door"] for r in self.catalog("first_run_locked.csv")}
+		targets = {r["id"]: [t for t in r["targets"].split(";") if t] for r in self.catalog("discoveries.csv")}
+		door = [row for row, items in targets.items() if "Weapon.GravityMine" in items]
+		self.assertEqual(door, ["Win"])
+		# No modifier a first run holds fits it, and its own door opens exactly one that does: R-MET-25 says so, and this keeps it true.
+		self.assertEqual(fits & (starters - set(locked)), set())
+		self.assertEqual(fits & set(targets["Win"]), {"Mod.Conduit"})
+		rule = self.text("Docs", "02_Systems", "meta.md").split("**R-MET-25**")[1].split("**R-MET-26**")[0]
+		self.assertIn("The Gravity Mine fits none of the four", rule)
+		self.assertIn("`Mod.Conduit`", rule)
+
+	# --- #43: no launcher names a window mode -------------------------------------------------------------------------------------------
+	def test_no_human_launcher_names_a_window_mode(self):
+		for parts in (("Tools", "Play.bat"), ("Tools", "PackageFiles", "Play_en.bat"), ("Tools", "PackageFiles", "Play_zh-Hans.bat")):
+			starts = [line for line in self.text(*parts).splitlines() if re.match(r'\s*start\s+""', line, re.IGNORECASE)]
+			self.assertEqual(len(starts), 1, parts[-1])
+			self.assertIsNone(re.search(r"-(fullscreen|windowed)\b", starts[0], re.IGNORECASE), parts[-1])
+		check = self.text("Tools", "SeedCheck.ps1")
+		self.assertIn("names a window mode", check)
+		self.assertNotIn("does not start full screen", check)
+		apply = self.text("Source", "Dusktracer", "Settings", "DTSettingsSubsystem.cpp")
+		self.assertRegex(apply, r"else\s*\{\s*ApplyWindow\(Loaded\);")
+
+	# --- #58, #104, #106: a check deletes by seed only in a folder of its own ---------------------------------------------------------------
+	def test_no_check_deletes_run_files_where_a_persons_runs_live(self):
+		tools = os.path.join(self.ROOT, "Tools")
+		checked = 0
+		for name in sorted(os.listdir(tools)):
+			if not name.endswith(".ps1"):
+				continue
+			text = self.text("Tools", name)
+			code = "\n".join(ps_code(text.splitlines()))
+			deletes = [line for line in code.splitlines() if "Remove-Item" in line and re.search(r"\$\w*(Playtests|Runs)\b", line)]
+			if not deletes:
+				continue
+			checked += 1
+			self.assertNotRegex(code, r'Join-Path \$Root "Saved\\Playtests"', f"{name} deletes run files and reads Saved\\Playtests")
+			self.assertIn("-userdir=", code, name)
+		self.assertGreaterEqual(checked, 5)
+		for name in ("MetaCheck.ps1", "VigilCheck.ps1", "RestartCheck.ps1", "EarnedCheck.ps1"):
+			code = "\n".join(ps_code(self.text("Tools", name).splitlines()))
+			self.assertIn('$Playtests = Join-Path $UserDir "Saved\\Playtests"', code, name)
+			launches = [i for i, line in enumerate(code.splitlines()) if "Start-DTHidden" in line]
+			self.assertTrue(launches, name)
+			self.assertEqual(code.count("$ArgList = @("), code.count('"-userdir=`"$UserDir`""'), f"{name}: every launch names the userdir")
+
+	# --- #50: ExportLogsCheck's stamp guard ------------------------------------------------------------------------------------------------
+	def test_export_logs_check_refuses_a_package_of_another_tree(self):
+		code = "\n".join(ps_code(self.text("Tools", "ExportLogsCheck.ps1").splitlines()))
+		first_launch = code.index('Invoke-Game $ShipExe "Shipping"')
+		for held in ("package_stamp.json", "came from a dirty tree", "came from a partial run", "is not in this history", "is stale"):
+			self.assertIn(held, code)
+			self.assertLess(code.index(held), first_launch, held)
+		self.assertIn("Tools/PackageFiles", code[code.index("git -C $Root diff"):first_launch])
+
+	# --- #90: a failed export says where it looked --------------------------------------------------------------------------------------------
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_a_failed_export_names_both_folders(self):
+		with tempfile.TemporaryDirectory() as root:
+			env = dict(os.environ, LOCALAPPDATA=root, TEMP=root, TMP=root)
+			run = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ExportLogs.SCRIPT, "-OutDir", os.path.join(root, "out")],
+				env=env, capture_output=True, encoding="utf-8", errors="replace")
+			self.assertEqual(run.returncode, 1, run.stdout)
+			line = [text for text in run.stdout.splitlines() if text.startswith("EXPORT: FAIL")][0]
+			self.assertIn(os.path.join(root, "Dusktracer", "Saved"), line)
+			self.assertEqual(line.count("Dusktracer\\Saved"), 2, line)
+
+	# --- #89, #65: PackageHubCheck's read of a live run file and its CSV comparison --------------------------------------------------------------
+	def hub_function(self, name):
+		found = re.search(rf"^function {name}\b.*?^}}\r?$", self.text("Tools", "PackageHubCheck.ps1"), re.M | re.S)
+		self.assertIsNotNone(found, name)
+		return found.group(0)
+
+	def run_ps(self, script, *args):
+		with tempfile.TemporaryDirectory() as root:
+			path = os.path.join(root, "t.ps1")
+			with open(path, "w", encoding="utf-8-sig") as f:
+				f.write(script)
+			return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path, *args], capture_output=True, encoding="utf-8", errors="replace")
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_a_run_file_being_written_reads_without_a_throw(self):
+		script = ("param([string]$Path)\n" + self.hub_function("Read-Live") + "\n"
+			"try { $null = [IO.File]::ReadAllText($Path); Write-Host 'PLAIN: read' } catch { Write-Host 'PLAIN: threw' }\n"
+			"Write-Host ('LIVE: ' + (Read-Live $Path))\nWrite-Host ('GONE: [' + (Read-Live ($Path + '.none')) + ']')\n")
+		with tempfile.TemporaryDirectory() as root:
+			path = os.path.join(root, "9107_run.jsonl")
+			with open(path, "ab") as held:  # as the game holds it for the length of one append
+				held.write(b'{"kind":"run_end"}\n')
+				held.flush()
+				run = self.run_ps(script, path)
+		self.assertIn("PLAIN: threw", run.stdout, run.stdout + run.stderr)
+		self.assertIn('LIVE: {"kind":"run_end"}', run.stdout)
+		self.assertIn("GONE: []", run.stdout)
+		poll = self.text("Tools", "PackageHubCheck.ps1").split("$Over = Watch-Game")[1].split("$Alive")[0]
+		self.assertIn("Read-Live $File.FullName", poll)
+		self.assertNotIn("ReadAllText", poll)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_step_e_compares_whole_intervals(self):
+		script = (self.hub_function("Get-WholeIntervals") + "\n"
+			"$Head = \"t,kills`r`n10,5`r`n20,9`r`n\"\n"
+			"$A = Get-WholeIntervals ($Head + \"23.4,2`r`n\")\n$B = Get-WholeIntervals ($Head + \"23.9,3`r`n\")\n$C = Get-WholeIntervals (\"t,kills`r`n10,6`r`n20,9`r`n23.4,2`r`n\")\n"
+			"Write-Host ('LASTROW: ' + ($A -ceq $B) + ' ' + $A.Length)\nWrite-Host ('MIDROW: ' + ($A -ceq $C))\n"
+			"Write-Host ('SHORT: [' + (Get-WholeIntervals \"t,kills`r`n3.1,1`r`n\") + ']')\n")
+		run = self.run_ps(script)
+		self.assertIn("LASTROW: True 17", run.stdout, run.stdout + run.stderr)
+		self.assertIn("MIDROW: False", run.stdout)
+		self.assertIn("SHORT: []", run.stdout)
+		step = self.text("Tools", "PackageHubCheck.ps1").split("$Fresh = Invoke-ShippingRun")[1].split("$CsvOk = ")[0]
+		self.assertEqual(step.count("= Get-WholeIntervals ("), 2)
+
+
 if __name__ == "__main__":
 	suite = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
 	result = unittest.TextTestRunner(stream=sys.stdout, verbosity=0).run(suite)

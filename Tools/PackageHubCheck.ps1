@@ -107,6 +107,26 @@ function Get-RunFiles([string]$UserDir, [string]$Extension) {
 	return @(Get-ChildItem (Join-Path $UserDir "Saved\Playtests") -Filter "*.$Extension" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
 }
 
+# A run file the game may be appending to at this moment. The game opens it to append and lets others read (FILEWRITE_AllowRead), but a
+# plain read asks that nobody else write, so it throws inside that moment, the script's trap prints FAIL on a healthy build and the
+# game is left running (review #89). This read shares the file, and a moment it still cannot have reads as nothing yet.
+function Read-Live([string]$Path) {
+	try {
+		$Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]"ReadWrite, Delete")
+		try { return (New-Object IO.StreamReader $Stream, (New-Object Text.UTF8Encoding $false)).ReadToEnd() }
+		finally { $Stream.Dispose() }
+	}
+	catch [IO.IOException] { return "" }
+}
+
+# A run's CSV without its last row. A death closes the file on the tick after its step, and the steps the sim still ran in that frame
+# are in the last, partial interval: how many depends on the frame, not the seed. Every whole interval before it is the seed's (review #65).
+function Get-WholeIntervals([string]$Csv) {
+	$Lines = @($Csv -split "`r?`n" | Where-Object { $_ })
+	if ($Lines.Count -lt 3) { return "" }
+	return ($Lines[0..($Lines.Count - 2)] -join "`n")
+}
+
 function Get-SavePath([string]$UserDir) { return Join-Path $UserDir "Saved\SaveGames\DTMeta.sav" }
 
 function Get-Field([string]$Text, [string]$Pattern) { if ($Text -match $Pattern) { return $Matches[1] }; return "" }
@@ -331,7 +351,7 @@ function Invoke-ShippingRun([string]$Tag, [string]$Culture, [string]$UserDir, [i
 	$Over = Watch-Game $Proc $Timeout {
 		$File = Get-RunFiles $UserDir "jsonl" | Where-Object { $Known -notcontains $_.Name } | Select-Object -Last 1
 		if ($File -and $script:RunFileAt -lt 0) { $script:RunFileAt = $Watch.Elapsed.TotalSeconds }
-		$File -and ([IO.File]::ReadAllText($File.FullName) -match '"kind":"run_end"') -and (Test-Path $Save) -and ((Get-Item $Save).LastWriteTimeUtc.Ticks -ne $Before)
+		$File -and ((Read-Live $File.FullName) -match '"kind":"run_end"') -and (Test-Path $Save) -and ((Get-Item $Save).LastWriteTimeUtc.Ticks -ne $Before)
 	}
 	$Alive = -not $Proc.HasExited
 	Stop-Game $Proc
@@ -354,8 +374,9 @@ $EnSeed = if ($Walked["en"]) { [int]$Walked["en"].First.Seed } else { $Seed }
 $Fresh = Invoke-ShippingRun "E" "en" $ShipUser $EnSeed
 if ($Fresh) {
 	if ($Walked["en"]) {
-		$A = [IO.File]::ReadAllText($Walked["en"].Csv.FullName)
-		$B = [IO.File]::ReadAllText((Get-RunFiles $ShipUser "csv" | Select-Object -Last 1).FullName)
+		# Both runs ended in a death, so the last row of each is the frame's (Get-WholeIntervals); the rows before it must be equal.
+		$A = Get-WholeIntervals ([IO.File]::ReadAllText($Walked["en"].Csv.FullName))
+		$B = Get-WholeIntervals ([IO.File]::ReadAllText((Get-RunFiles $ShipUser "csv" | Select-Object -Last 1).FullName))
 		$CsvOk = ($A.Length -gt 0) -and ($A -ceq $B)
 		if (-not $CsvOk) { Note-Fail "E Shipping's run is not the en walk's first run: steps $($Walked['en'].First.Steps) / $($Fresh.Steps), retained $($Walked['en'].First.Retained) / $($Fresh.Retained)" }
 		Write-Host "    E csv same as the en walk's first run=$CsvOk"

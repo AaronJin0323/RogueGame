@@ -477,6 +477,11 @@ def spec_pairs(ctx, where, text, limit):
 	return params[:limit] + [f"{{ {cpp_str('')}, 0.0f }}"] * max(0, limit - len(params)), min(len(params), limit)
 
 
+def tree_text_faults(rows, keys):
+	"""R-MET-21: [(node id, missing ST_Tree key)]. The page builds these keys at run time, so no text check of the code sees one missing (review #78)."""
+	return [(r["id"], f"{r['text_key']}.{suffix}") for r in rows for suffix in ("Name", "Desc") if f"{r['text_key']}.{suffix}" not in keys]
+
+
 def gen_tree(ctx, expression, reforge_ids):
 	"""tree.csv (meta.md R-MET-20, R-MET-21): the node table, checked against the pillar and the catalogs it unlocks."""
 	cols = ["id", "class", "ranks", "cost", "grant", "grant_per_rank", "requires", "unlocks", "text_key"]
@@ -534,6 +539,8 @@ def gen_tree(ctx, expression, reforge_ids):
 			f"{cpp_str(r['requires'])}, {cpp_str(r['unlocks'])}, {cpp_str(r['text_key'])} }},")
 	for item in sorted(gated - seen):
 		ctx.err("tree.csv", f"'{item}' has no node: it could never enter a person's pool")
+	for node, key in tree_text_faults(rows, {r["Key"] for r in read_text_table("ST_Tree.csv")}):
+		ctx.err(f"tree.csv:{node}:text_key", f"no {key} row in ST_Tree: the Contracts page would show the key")
 	return out, [f"\t\t{cpp_str(r['id'])}," for r in rows_locked]
 
 
@@ -686,6 +693,17 @@ STATED_OUT = {"Elites10"}
 # meta.md R-MET-28: Keepers over R-OFF-15's Reserve cap on the pool without the Flak Mortar, and the rows that land with it or after it.
 THIN_ON_THE_BARE_POOL = {"Keeper.Shade", "Keeper.Quicksilver"}
 WITH_THE_FLAK_MORTAR = {"ReachL10", "Survive10"}
+# What "with it or after it" stands on (R-MET-28): ReachL10 writes the Mortar at level 10, and Survive10 lands after it because ten
+# minutes is past level 10 on every saved run (S3_doors.md). A row of these moved to another counter or threshold keeps its name
+# and loses that order, so the cells are held here: changing one needs the reading again.
+DOOR_ORDER_CELLS = {"ReachL10": ("Best.Level", "10"), "Survive10": ("Seconds", "600")}
+
+
+def door_order_faults(discoveries):
+	"""R-MET-28: the messages for a row of DOOR_ORDER_CELLS that is no longer the row the order was read on."""
+	rows = {r["id"]: (r["counter"], r["threshold"]) for r in discoveries}
+	return [f"'{row}' must stay {want[0]} at {want[1]}, is {rows.get(row)}: Shade's and Quicksilver's doors land with the Flak Mortar or after it only on those cells (R-MET-28)"
+		for row, want in sorted(DOOR_ORDER_CELLS.items()) if rows.get(row) != want]
 
 
 def elites_per_run(timeline):
@@ -724,6 +742,8 @@ def check_doors(ctx):
 			ctx.err("discoveries.csv", f"'{item}': door '{writers[0]}' can bank below level 10, and this Keeper reads over R-OFF-15 on the pool without the Flak Mortar")
 	if "Weapon.FlakMortar" not in targets.get("ReachL10", []):
 		ctx.err("discoveries.csv", "'ReachL10' must open Weapon.FlakMortar: WITH_THE_FLAK_MORTAR stands on it")
+	for fault in door_order_faults(discoveries):
+		ctx.err("discoveries.csv", fault)
 	for r in tree:
 		for item in r["requires"].split(";"):
 			if item.startswith("Keeper.") and item not in opened and item not in nodes:

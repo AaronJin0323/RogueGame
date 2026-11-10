@@ -85,11 +85,11 @@ Build 996cd47, `2147483647_20261031_231306`: one designer run, not a validator s
 ## Not verified
 
 - A real pad: the proof sends pad key events through the player controller, not through a device.
-- A real desktop, Fullscreen, a Shipping or packaged launch of the hub: the gate builds Shipping but plays no hub there; `PadCheck` needs a package.
+- A real desktop, Fullscreen: still not. A Shipping or packaged launch of the hub: since read by `Tools/PackageHubCheck.ps1` (`S3_package.md`), by hand on a package, not in the gate.
 - The largest text on a real screen: read off-screen at 1280x720 only, on every page, in both cultures.
 - Language change live from the hub's Settings: each culture was launched, not switched.
-- A win reaching the Codex on a real launch: `Win` and layer reach are unit-tested only.
-- A person's launch without `-unattended`: the proof forces the hub on a tool run; the rule's person branch is a unit test, and auto-pick was on, so the Patron preset beat it rather than a human's hand. The gated run reads `-DTPoolGate`, the branch a person's launch takes by itself.
+- A win reaching the Codex on a real launch: since read by `Tools/WinCheck.ps1`, gate step `win` (`meta.md` T-MET-29).
+- A person's launch without `-unattended`: here the proof forces the hub on a tool run; the rule's person branch is a unit test, and auto-pick was on, so the Patron preset beat it rather than a human's hand. Since: `Tools/SeedCheck.ps1` and `Tools/PackageHubCheck.ps1` make a person's launches through the hub by real key events. The gated run reads `-DTPoolGate`, the branch a person's launch takes by itself.
 - Ichor earned and then spent: the proof's balance is planted. A run does reach the bank and the page reads the same balance, but no launch here earned its own purchase. `S3_earned.md` does.
 - `Tree.State.ReadOnly` on a real launch: a unit test reads it on no file and on a stuck session; no launch shows it.
 - A person reaching `Favor9`, `TwoPaths6`, `ScatterKills500` or `RailKills300` through the page: the nodes sell and their cards reach a hand, the rows themselves are not earned here.

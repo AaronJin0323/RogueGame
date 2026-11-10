@@ -64,6 +64,10 @@ HALF_PUNCT_RE = re.compile(f"[{CJK}][,;:!?()]|[,;:!?()][{CJK}]")
 NAME_ARGS = ("{Weapon}", "{Modifier}", "{Keeper}", "{Archetype}", "{Tool}", "{Name}", "{Toast}", "{A}", "{B}", "{0}", "{1}", "{Keys}")
 ARG_SPACE_RE = re.compile(f"[{CJK}](\\{{\\w+\\}})|(\\{{\\w+\\}})[{CJK}]")
 CODE_KEY_RE = re.compile(r'FromStringTable\(\s*TEXT\("(ST_\w+)"\)\s*,\s*TEXT\("([^"]+)"\)\s*\)')
+# A file's own one-line helper over one table, `FText Ui(const TCHAR* Key) { return FText::FromStringTable(TEXT("ST_UI"), Key); }`:
+# its calls with a literal key are lookups too. A key built at run time is still out of reach of any text check; the TextKeys
+# tests resolve those in the game (T-SET-18, T-VIG-15, T-MET-25).
+HELPER_RE = re.compile(r'\b(\w+)\(\s*const\s+TCHAR\s*\*\s*(\w+)\s*\)\s*\{\s*return\s+FText::FromStringTable\(\s*(?:FName\(\s*)?TEXT\("(ST_\w+)"\)\s*\)?\s*,\s*\2\s*\)\s*;\s*\}')
 REGISTER_RE = re.compile(r'LOCTABLE_FROMFILE_GAME\(\s*"(ST_\w+)"\s*,\s*"\1"\s*,\s*"DT/Text/Generated/\1\.csv"\s*\)')
 NO_TRANSLATE = "do not translate"
 ZH_BUDGET_RE = re.compile(r"(\d+)\s*(?:chars\s*)?zh\b|(\d+) zh chars")  # `<= 90 en / 40 zh`; an {arg} counts one, spaces none
@@ -131,7 +135,11 @@ NARRATIVE_TABLES = ("ST_Codex", "ST_KeeperLines", "ST_World", "ST_Discoveries")
 # Every row of these carries Layer and Unlock (03_Narrative R-NAR-03).
 LAYERED_TABLES = ("ST_Codex", "ST_KeeperLines", "ST_World")
 # Retired by G01_Name and 04_Narrative: the old project name and code prefix, the Greek enemies, the old Path.
-RETIRED_RE = re.compile(r"\b(RogueHero|RH\.\w+|URH\w+|God\.\w+|Harpy|Hoplite|Centaur|Gorgon|Cyclops|Siren|Asterion|Underworld)\b")
+# Any case and either number: "harpies" and "HOPLITE" are the same retired name (R-NAR-07).
+RETIRED_RE = re.compile(r"\b(RogueHero|RH\.\w+|URH\w+|God\.\w+|Harp(?:y|ies)|Hoplites?|Centaurs?|Gorgons?|Cyclops|Cyclopes|Sirens?|Asterion|Underworld)\b", re.IGNORECASE)
+# The same names as zh writes them. [invented] the list: the Handoff retired the names in en only, and these are their usual zh forms.
+ZH_RETIRED_NAMES = ("鹰身女妖", "哈耳庇厄", "重装步兵", "半人马", "戈耳工", "蛇发女妖", "独眼巨人", "塞壬", "阿斯忒里翁", "冥界", "冥府",
+                    "宙斯", "哈迪斯", "雅典娜", "阿瑞斯", "波塞冬", "阿波罗", "赫尔墨斯", "阿尔忒弥斯", "赫菲斯托斯", "奥林匹斯")
 # The exact count of each row family (03_Narrative R-NAR-02).
 SCOPE_COUNTS = (
     ("tier lines", r"^Keeper\.\w+\.Tier[123]$", 18), ("passed-over lines", r"^Keeper\.\w+\.PassedOver$", 6),
@@ -139,6 +147,23 @@ SCOPE_COUNTS = (
     ("the ROOT stop line", r"^Codex\.Root\.Title$", 1), ("bestiary lines", r"^Codex\.Enemy\.\w+$", 7),
     ("Warden Form III entries", r"^Codex\.Warden\.FormIII$", 1),
 )
+# Rows of the two story tables that are no story text: a format, and the names of 03_Narrative §3. Every other row there belongs
+# to a counted family, or the exact scope would let any new key through (R-NAR-02).
+UNCOUNTED_ROWS = {"ST_Codex": r"^Codex\.EntryTitle$", "ST_KeeperLines": r"^Keeper\.\w+\.(Short|Path|Designation)$"}
+# An Unlock the Codex page cannot open (vigil.md R-VIG-09, DTHubData::IsUnlocked): a row behind one would stay shut for ever.
+CODEX_SHUT_UNLOCK_RE = re.compile(r"^(Tier\.[123]|Run\.L8)$")
+# 03_Narrative §2 rule 4: a Codex entry is at most two sentences. Rule 6: a designation is the same string in every culture.
+CODEX_ENTRY_RE = re.compile(r"^Codex\.(Keeper|Recollection|Enemy|Warden)\.")
+CODEX_SENTENCES_MAX = 2
+EN_SENTENCE_RE = re.compile(r"[.!?]+(?=[\s\"')\]]|$)")
+ZH_SENTENCE_RE = re.compile("[。！？]+")
+DESIGNATIONS = ("ATMOS", "FOUNDRY", "CISTERN", "LEDGER", "LUMEN", "RELAY", "ROOT")
+# Rows that break one of those two rules today (review #119, #131, #82, #75). The text is the narrative owner's to change, so they
+# are named here instead of failing the gate; a row leaves this list with its fix, and nothing new may join it.
+VOICE_DEBTS = {
+    ("Codex.Keeper.Storm", "sentences"), ("Codex.Keeper.Forge", "sentences"), ("Codex.Keeper.Quicksilver", "sentences"),
+    ("Codex.Recollection.Win", "sentences"), ("Codex.Recollection.Linger", "designation"),
+}
 OUT_OF_SCOPE_RE = re.compile(r"^(Npc|Ending|Fate|Refusal|Arena)\.|\.Act[23]$|\.Bid\.|^Codex\.(Facet|Fate|Arena)\.|Depth[23]|Outfall|Sump")
 KEEPER_LINE_RE = re.compile(r"^Keeper\.\w+\.(Tier[123]|PassedOver)$")
 UNLOCK_WINS = {"Start": 0, "Run.L8": 0, "Win": 1, "Wins3.FormIII": 3}  # The others are read by unlock_wins.
@@ -214,6 +239,9 @@ def check_row(table, row):
             v.append(f"{where}: {col} contains Greek mythology name {m.group(0)!r}")
         for m in RETIRED_RE.finditer(row[col]):
             v.append(f"{where}: {col} contains retired name {m.group(0)!r}")
+        for name in ZH_RETIRED_NAMES:
+            if name in row[col]:
+                v.append(f"{where}: {col} contains retired name {name!r}")
     en_args, zh_args = collections.Counter(ARG_RE.findall(en)), collections.Counter(ARG_RE.findall(zh))
     if en_args - zh_args:
         v.append(f"{where}: zh-Hans drops {sorted((en_args - zh_args).elements())}")
@@ -271,14 +299,17 @@ def check_code_keys(root, tables):
             path = os.path.join(folder, name)
             with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
                 text = f.read()
-            for m in CODE_KEY_RE.finditer(text):
-                table, key = m.group(1), m.group(2)
+            lookups = [(m.start(), m.group(1), m.group(2)) for m in CODE_KEY_RE.finditer(text)]
+            for helper in HELPER_RE.finditer(text):
+                call = re.compile(r"(?<![\w:.>])" + re.escape(helper.group(1)) + r'\(\s*TEXT\("([^"]+)"\)\s*\)')
+                lookups += [(m.start(), helper.group(3), m.group(1)) for m in call.finditer(text)]
+            for at, table, key in sorted(lookups):
                 if table in known and key in known[table]:
                     continue
                 rel = os.path.relpath(path, root).replace(os.sep, "/")
                 # A table nobody wrote shows the key to the player just as a missing row does.
                 what = "no such row" if table in known else "no such table"
-                v.append(f"{rel}:{text.count(chr(10), 0, m.start()) + 1} {table} {key}: {what}")
+                v.append(f"{rel}:{text.count(chr(10), 0, at) + 1} {table} {key}: {what}")
     return v
 
 
@@ -326,6 +357,22 @@ def check_row_layer(where, row, discoveries, prewin_max, layer_max):
     return v
 
 
+def check_voice(where, row, debts=VOICE_DEBTS):
+    """03_Narrative §2 rules 4 and 6, the two a text check can read: the sentence cap of a Codex entry and the designations (T-NAR-09)."""
+    v = []
+    key, en, zh = row["Key"], row["en"], row["zh-Hans"]
+    if CODEX_ENTRY_RE.match(key) and (key, "sentences") not in debts:
+        for col, count in (("en", len(EN_SENTENCE_RE.findall(en))), ("zh-Hans", len(ZH_SENTENCE_RE.findall(zh)))):
+            if count > CODEX_SENTENCES_MAX:
+                v.append(f"{where}: {col} is {count} sentences, a Codex entry is at most {CODEX_SENTENCES_MAX}")
+    if (key, "designation") not in debts:
+        for name in DESIGNATIONS:
+            said = len(re.findall(rf"(?<![A-Za-z]){name}(?![A-Za-z])", en))
+            if said != len(re.findall(rf"(?<![A-Za-z]){name}(?![A-Za-z])", zh)):
+                v.append(f"{where}: en says {name} {said} time(s) and zh-Hans does not say it as often: a designation is the same string in every culture")
+    return v
+
+
 def check_story(tables, prewin_max=None, layer_max=None):
     """T-NAR-02..06: the narrative scope and its layer discipline."""
     consts = dtconst.load()
@@ -341,9 +388,14 @@ def check_story(tables, prewin_max=None, layer_max=None):
                     v.append(f"{where}: Act II/III or NPC row is out of the v0.1 scope")
                 if GOD_EN_RE.search(row["Context"]) or "神明" in row["Context"]:
                     v.append(f"{where}: Context contains a forbidden word")
+                v.extend(check_voice(where, row))
+            if table in UNCOUNTED_ROWS and not re.match(UNCOUNTED_ROWS[table], row["Key"]) and not any(re.match(p, row["Key"]) for _, p, _ in SCOPE_COUNTS):
+                v.append(f"{where}: no row family of the v0.1 scope takes this key")
             if "Layer" in row:
                 story.append(row)
                 v.extend(check_row_layer(where, row, discoveries, prewin_max, layer_max))
+                if table == "ST_Codex" and CODEX_SHUT_UNLOCK_RE.match(row["Unlock"].strip()):
+                    v.append(f"{where}: the Codex page cannot open Unlock {row['Unlock'].strip()!r}, so the row would never be read")
             elif table in LAYERED_TABLES:
                 v.append(f"{where}: this table needs the Layer and Unlock columns")
             if KEEPER_LINE_RE.match(row["Key"]):
@@ -355,6 +407,11 @@ def check_story(tables, prewin_max=None, layer_max=None):
         got = sum(1 for r in story if re.match(pattern, r["Key"]))
         if got != want:
             v.append(f"story tables: {got} {family}, the v0.1 scope is {want}")
+    # R-NAR-04: World.Yard opens with a Recollection that says the word, so the label never arrives before the line or without it.
+    says = sorted({r["Unlock"].strip() for r in story if r["Key"].startswith("Codex.Recollection.") and (truth_word_in("Yard", r["en"]) or "清理场" in r["zh-Hans"])})
+    for r in story:
+        if r["Key"] == "World.Yard" and r["Unlock"].strip() not in says:
+            v.append(f"ST_World:{r['_line']} World.Yard: Unlock {r['Unlock'].strip()!r} is not the Unlock of a Recollection that says Yard ({', '.join(says) or 'none does'})")
     return v
 
 

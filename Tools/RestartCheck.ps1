@@ -23,14 +23,17 @@ $Exe =Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\RestartCheck"
-$Playtests = Join-Path $Root "Saved\Playtests"
+# Every launch has a -userdir under Saved\RestartCheck\userdir: its run files land in that folder's Saved\Playtests, never in Saved\Playtests, where a person's Play.bat runs
+# live, so this check deletes by seed only what it wrote itself (review #58, #104).
+$UserDir = Join-Path $OutDir "userdir"
+$Playtests = Join-Path $UserDir "Saved\Playtests"
 New-Item -ItemType Directory -Force $LogDir, $OutDir | Out-Null
-foreach ($Old in @($Seed, $OtherSeed)) { Get-ChildItem $Playtests -Filter "${Old}_*" -ErrorAction SilentlyContinue | Remove-Item -Force }
+if (Test-Path $UserDir) { Remove-Item $UserDir -Recurse -Force }
 
 function Invoke-Run([string]$Tag, [string[]]$RunArgs) {
 	$Log = Join-Path $LogDir "RestartCheck_$Tag.log"
 	if (Test-Path $Log) { Remove-Item $Log -Force }
-	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false", "-ABSLOG=`"$Log`"") + $RunArgs
+	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false", "-ABSLOG=`"$Log`"", "-userdir=`"$UserDir`"") + $RunArgs
 	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
 		Stop-DTHidden $Proc
