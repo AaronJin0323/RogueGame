@@ -89,7 +89,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 527 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 531 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -521,3 +521,18 @@ Per-weapon level stats and per-modifier parameters live in `09_Catalog/weapons.c
 |---|---|---|---|---|
 | C.NARR.PREWIN_LAYER_MAX | 2 | layer | CORE | 03_Narrative.md, T-NAR-03, T-NAR-06 |
 | C.NARR.LAYER_MAX | 3 | layer | CORE | 03_Narrative.md, T-NAR-03 |
+
+## Enemy art (02_Systems/enemy_art.md)
+
+Presentation only (S4 wave 1 package B, D-043): no key here has a reader in the sim.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.EAR.FLOOR_HIDE_MAX_RATIO | 1.25 | x | GATED(S4) | enemy_art R-EAR-05, T-EAR-05, Tools/enemy_art_check.py (floor a role hull and its optic may hide, against the cube and optic cube they replace: `Validation/S4_wave1.md` §5 item 6) |
+| C.EAR.SILHOUETTE_OVERLAP_MAX | 0.75 | ratio | GATED(S4) | enemy_art R-EAR-07, T-EAR-07, Tools/enemy_art_check.py (greatest intersection over union of two roles' outlines at one area; two cubes read 1) |
+| C.EAR.SILHOUETTE_PX_PER_M | [27, 36] | px_per_m | GATED(S4) | enemy_art R-EAR-07, T-EAR-07, Tools/enemy_art_check.py, Tools/EnemyArt.ps1 (the frame of D-036 at 1080 rows, and the frame it reverts to) |
+| C.EAR.ELITE_LIGHT_VISIBLE_MIN | 1.0 | x | GATED(S4) | enemy_art R-EAR-04, T-EAR-04, Tools/enemy_art_check.py (the elite light's visible area over a role hull, against over the cube) |
+| C.EAR.ROLE_TRIS_MAX | 400 | n | GATED(S4) | enemy_art R-EAR-03, T-EAR-03, Tools/enemy_art_check.py (hull plus optic of one role; C.ENEMIES.CAP of them is the scene's worst) |
+| C.EAR.LINEUP_SPACING_UU | 320 | uu | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (slot size of `DT.Enemies.LineUp`) |
+| C.EAR.LINEUP_ROWS | 3 | n | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (facings per role in the line-up) |
+| C.EAR.FRAME_MASK_TOLERANCE | 0.06 | ratio | GATED(S4) | enemy_art T-EAR-07, Tools/enemy_art_check.py (how far a pixel's channel must sit from the slot's floor to count as drawn) |

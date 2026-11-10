@@ -1,0 +1,9 @@
+{
+	"note": "T-EAR-07: the four role hulls side by side round the hero, one column per role (Swarm, Tank, Rusher, Turret) and three facings each, drawn by the enemy renderer with no enemy in the pool. The golden of package B's own scene; Tools/EnemyArt.ps1 shoots the same staging at 36 and 27 px/m for the silhouette reading.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 4,
+	"cmds": ["DT.God 1", "DT.Enemies.LineUp"]
+}

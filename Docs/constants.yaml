@@ -223,7 +223,7 @@ telemetry:
   TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
   TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
 caps:
-  GATE.TEST_FLOOR:             { value: 527,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 531,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
@@ -456,3 +456,13 @@ weapons:
   # Narrative (03_Narrative.md)
   NARR.PREWIN_LAYER_MAX: { value: 2, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03, T-NAR-06] }
   NARR.LAYER_MAX: { value: 3, unit: layer, tag: CORE, dependents: [03_Narrative.md, T-NAR-03] }
+  # Enemy art (02_Systems/enemy_art.md, S4 wave 1 package B, D-043): presentation only, no reader in the sim.
+enemy_art:
+  EAR.FLOOR_HIDE_MAX_RATIO:      { value: 1.25, unit: x, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-05, T-EAR-05, Tools/enemy_art_check.py] }
+  EAR.SILHOUETTE_OVERLAP_MAX:    { value: 0.75, unit: ratio, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-07, T-EAR-07, Tools/enemy_art_check.py] }
+  EAR.SILHOUETTE_PX_PER_M:       { value: [27, 36], unit: px_per_m, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-07, T-EAR-07, Tools/enemy_art_check.py, Tools/EnemyArt.ps1] }
+  EAR.ELITE_LIGHT_VISIBLE_MIN:   { value: 1.0, unit: x, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-04, T-EAR-04, Tools/enemy_art_check.py] }
+  EAR.ROLE_TRIS_MAX:             { value: 400, unit: n, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-03, T-EAR-03, Tools/enemy_art_check.py] }
+  EAR.LINEUP_SPACING_UU:         { value: 320, unit: uu, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
+  EAR.LINEUP_ROWS:               { value: 3, unit: n, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
+  EAR.FRAME_MASK_TOLERANCE:      { value: 0.06, unit: ratio, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Tools/enemy_art_check.py] }

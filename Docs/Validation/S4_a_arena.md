@@ -115,3 +115,27 @@ Seed 9107, all as `S4_p0.md` §8 lists them: `Tools/RestartCheck.ps1` `276faf8e`
 - The perf readings are bounds taken while other agents worked (§6). The scheduler's reading on the merged tree is the verdict.
 - The 32:9 reach is the camera's sums, not a frame: `Smoke.ps1` shoots 16:9 only.
 - `DT.Arena.Frame` moves the camera only: at 2000 uu the frame is the old frame's, but nothing else of D-036's revert (limits of `contrast_check.py`, HUD) was staged with it.
+
+## 9. On the merged tree (with package B)
+
+`dev/s4` at 0ba754f, package B's Cast-off silhouettes, merged into `s4/a-arena`. One conflict, `number_change_log.csv`, kept both sides' rows; `DTConstantsGen.h` regenerated; `C.GATE.TEST_FLOOR` 527 to 531 for B's four tests, which B had not counted. The figures of §3 were read without B's hulls; these replace them.
+
+Contrast, three runs on the merged tree, 7/7 and `WATCH: OK` each time:
+
+| Element | vs lit ground | vs shadow |
+|---|---|---|
+| telegraph | 3.29, 3.29, 3.29 | 3.93, 3.93, 3.93 |
+| enemy round | 3.21, 3.21, 3.20 | 7.32, 7.33, 7.33 |
+| optic | 5.44, 5.44, 5.44 | 13.51, 13.51, 13.52 |
+| tracer core | 5.89, 5.85, 5.84 | 14.62, 14.51, 14.51 |
+| hero | 4.62, 4.62, 4.62 | 11.46, 11.46, 11.46 |
+| gem | 4.01, 4.02, 3.96 | 9.96, 9.99, 9.85 |
+| chest | 4.49, 4.48, 4.47 | 11.14, 11.13, 11.11 |
+
+- Lit ground Y 0.116 and the bare floor's spread 0.1113 to 0.1163, as in §3: the floor is this package's and B does not move it.
+- **Shadow Y 0.017, not the 0.013 of §3.** That is B's reading (`S4_b_enemies.md`: lower hulls, thinner shadows), and every "vs shadow" figure above is B's level, about 6 percent under what this package read alone (telegraph 4.19 to 3.93, round 7.83 to 7.33, optic 14.45 to 13.51). The plate adds nothing to it: B alone read telegraph 3.93, round 7.33 and optic 13.52 against shadow.
+- Against lit ground the two packages add: B alone read telegraph 3.26 to 3.27 and round 3.18 to 3.19; with the slabs' brighter reference they read 3.29 and 3.20 to 3.21.
+
+B's goldens stand on the merged tree and were not re-baselined: `combat_staged_en` 0.53, `combat_staged_zh-Hans` 0.54, `enemy_lineup_en` 0.46 of 12. `arena_empty_en` 0.31.
+
+Gate on the merge commit: its line is added by the commit after it.
