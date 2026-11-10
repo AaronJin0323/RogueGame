@@ -4,7 +4,7 @@
 
 ## 1. Merge gates
 
-One command runs them all on the current tree, which for a merge is the merged tree: `& Tools\Gate.ps1` from PowerShell (`-AllFiles` for a full non-unity pass, `-Base <ref>` for the ref `nonunity` diffs against, `origin/main` if not given, `-Skip a,b` to skip steps, which then count as not run). It prints one line per step, in the order of the table, stops at the first failure, and ends with `GATE: PASS (<commit>; <n> not run; mask <mask>)` or `GATE: FAIL at <step> (<commit>; mask <mask>)`, where the mask is the processor mask the run held (D-052; `none` on a machine without the mask file); a step that cannot run prints `NOT RUN (<reason>)` and is never counted as passed. A Python step whose script is missing also prints NOT RUN and the gate still passes, so read the not-run count.
+One command runs them all on the current tree, which for a merge is the merged tree: `& Tools\Gate.ps1` from PowerShell (`-AllFiles` for a full non-unity pass, `-Base <ref>` for the ref `nonunity` diffs against, `origin/main` if not given, `-Skip a,b` to skip steps, which then count as not run). It prints one line per step, in the order of the table, stops at the first failure, and ends with `GATE: PASS (<commit>; <n> not run; mask <mask>)` or `GATE: FAIL at <step> (<commit>; mask <mask>)`, where the mask is the processor mask the run held (D-052; `none` on a machine without the mask file); a step that cannot run prints `NOT RUN (<reason>)` and is never counted as passed. A Python step whose script is missing fails, and so does a `-Base` that does not resolve to a commit.
 
 | Step | Catches | Tool | Status |
 |---|---|---|---|
@@ -17,9 +17,10 @@ One command runs them all on the current tree, which for a merge is the merged t
 | `tools` | the logic of the Python tools (hit kinds, probes, contrast); a tool launch past `Tools/HiddenLaunch.ps1` | `Tools/tools_test.py` | live |
 | `build` | editor build, 0 compiler warnings | `Tools/Build.bat` | live |
 | `locbuild` | stale or missing generated text: rebuilds the git-ignored string tables, `.po` and `.locres`, so tests and smoke read current text (R-TEC-08) | `Tools/Localize.bat` | live |
-| `nonunity` | each `.cpp` compiles alone (R-TEC-09) | UBT `-SingleFile` per changed `.cpp` and the `.cpp` of each changed `.h` (`-AllFiles` for all) | live |
+| `nonunity` | each `.cpp` compiles alone (R-TEC-09) | UBT `-SingleFile` per changed `.cpp` and the `.cpp` of each changed `.h` (`-AllFiles` for all); a `-Base` that does not resolve fails | live |
 | `shipping` | code the Shipping game target cannot compile, or compiles with a warning (R-TEC-12) | `Tools/Build.bat Dusktracer Shipping` | live |
-| `tests` | automation suite `Dusktracer`, headless on the hidden desktop; every test found completes; crash scan; count ≥ `C.GATE.TEST_FLOOR` | `Tools/RunTests.ps1` | live |
+| `devgame` | code the Development game target cannot compile, or compiles with a warning: an editor-only API inside `WITH_DEV_AUTOMATION_TESTS` compiles in the editor target and is compiled out of Shipping | `Tools/Build.bat Dusktracer Development` | live |
+| `tests` | automation suite `Dusktracer`, headless on the hidden desktop; every test found completes; crash scan; count = `C.GATE.TEST_FLOOR` (fewer fails; more fails with a line naming the number to set) | `Tools/RunTests.ps1` | live |
 | `smoke` | a rendered run on the arena in en, then in zh-Hans: no crash, ensure or `LogDT` error, the drawn round-trip line equals `ST_UI.csv`, the drawn Dash and Intercession labels carry a key (`combat_core.md` R-CMB-13), the screenshot against its golden | `Tools/Smoke.ps1` | live |
 | `seed` | every human launch gets a fresh seed, tools and explicit seeds stay exact, an out-of-range seed is rejected (R-TEC-16): each launcher's real arguments started off-screen and `run_start.seed` read back | `Tools/SeedCheck.ps1` | live |
 | `contrast` | T-PRE-05 on an off-screen late frame (`Tools/contrast_check.py`); an element below `C.PRE.CONTRAST_MIN` or not found fails, unless `Docs/Validation/contrast_debts.txt` names it; then the HUD's dormant line (`modifiers.md` R-MOD-08) against its own panel, on a second staged frame, where a frame that shows no line fails | `Tools/Smoke.ps1 -Contrast`, then `Tools/Smoke.ps1 -DormantLine` | live |
@@ -28,7 +29,7 @@ One command runs them all on the current tree, which for a merge is the merged t
 | `scope` | files outside a brief's allowed list | none: the script holds no check and prints the line on every run | NOT RUN, always |
 | `mac` | Mac build | `Tools/MacGate.sh`, which the gate does not call | NOT RUN, deferred (D-007) |
 
-The floor `C.GATE.TEST_FLOOR` only rises: raise it in the same commit that adds tests.
+The floor `C.GATE.TEST_FLOOR` is the suite's count: set it in the same commit that adds or removes tests, and after a merge to the merged tree's count.
 
 ## 2. Test taxonomy
 Unit → system → end-to-end → bot regression → golden (images; the `SoloParity` golden is PLANNED(S6) and exists nowhere yet) → performance (p50, p95). Automation tests are named `Dusktracer.<System>.<Case>` and carry their `T-<SYS>-nn` id in a comment on the macro line; the docs lint fails a `T-` id named in a spec that no source or tool contains, unless it is marked `PLANNED(<stage>)`.
@@ -54,7 +55,7 @@ Not written yet, each PLANNED with its stage:
 Protocol, cadence and the note template: `Harness/H07 §4`, `Harness/templates/validation_note.md`. Notes go to `Docs/Validation/S<n>_<topic>.md`, named by stage and topic and not by date (`S0_exit.md`, `S1_owner_run.md`, `S1_kit.md`); stage findings to `Docs/Validation/findings_S<n>.md`, of which none exists on this branch. Pass rules are written in the note before the session.
 
 ## 5. Measurement
-GPU and performance runs hold `Saved/gpu.lock`; readings taken under contention are discarded. Report p50 and p95 against `C.BUDGET.*`. Bot numbers are bounds until calibrated against humans.
+GPU and performance runs hold `<git common dir>/dt-locks/gpu.lock`, one lock for every worktree on the machine (`Tools/GpuLock.ps1`); readings taken under contention are discarded. Report p50 and p95 against `C.BUDGET.*`. Bot numbers are bounds until calibrated against humans.
 
 ## 6. Release checklist
 `Harness/H07 §7`, plus: secret scan clean; licence log complete for every shipped asset.

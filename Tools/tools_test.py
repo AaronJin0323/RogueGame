@@ -1054,6 +1054,119 @@ class Machine(unittest.TestCase):
 		self.assertRegex(out, r"CPU: PASS \(1 processors, mask [0-9A-F]+, 2 rounds\)")
 
 
+class GateMain(unittest.TestCase):
+	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
+	a private canvas link, and one GPU lock for every worktree."""
+
+	PY_STEPS = (("cpu_canary.py", "CPU"), ("secret_scan.py", "SECRETS"), ("docs_lint.py", "DOCS"), ("gen_constants.py", "CONSTANTS"),
+		("gen_catalog.py", "CATALOG"), ("loc_build.py", "LOC"), ("tools_test.py", "TOOLS"))
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.env = {"DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")}
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def gate_tree(self, stubs):
+		"""A stand-in tree outside any git checkout: Gate.ps1 and Machine.ps1, plus a stub that passes for each Python step named."""
+		tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), tools)
+		for name, verdict in self.PY_STEPS:
+			if name in stubs:
+				with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
+					f.write(f"print('{verdict}: PASS (stub)')\n")
+		return os.path.join(tools, "Gate.ps1")
+
+	def test_a_missing_python_step_fails(self):
+		gate = self.gate_tree(stubs=())
+		rc, out = powershell(f"& {ps_quote(gate)}; exit $LASTEXITCODE", self.env)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("cpu_canary.py missing", out)
+		self.assertIn("GATE: FAIL at cpu", out)
+		self.assertNotIn("NOT RUN (Tools", out)
+
+	def test_a_base_that_does_not_resolve_fails_nonunity(self):
+		gate = self.gate_tree(stubs=[name for name, _ in self.PY_STEPS])
+		rc, out = powershell(f"& {ps_quote(gate)} -Skip build,locbuild -Base no/such/ref; exit $LASTEXITCODE", self.env)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("FAIL (base 'no/such/ref' does not resolve)", out)
+		self.assertIn("GATE: FAIL at nonunity", out)
+
+	def write_tests_log(self, found, run):
+		log = os.path.join(self.tmp.name, f"tests_{found}_{run}.log")
+		with open(log, "w", encoding="utf-8") as f:
+			f.write(f"LogAutomationCommandLine: Display: Found {found} automation tests based on 'Dusktracer'\n")
+			f.write("".join("LogAutomationController: Display: Test Completed. Result={Success} Name={T%d}\n" % i for i in range(run)))
+		return log
+
+	def run_tests(self, log, floor):
+		script = os.path.join(TOOLS, "RunTests.ps1")
+		return powershell(f"& {ps_quote(script)} -ReadLog {ps_quote(log)} -Floor {floor}; exit $LASTEXITCODE", self.env)
+
+	def test_the_test_count_must_equal_the_floor(self):
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 5)
+		self.assertEqual(rc, 0, out)
+		self.assertIn("TESTS: PASS (5 run of 5 found", out)
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 6)
+		self.assertEqual(rc, 1, out)
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 4)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("set C.GATE.TEST_FLOOR to 5", out)
+
+	def test_the_gate_reads_the_floor_from_constants(self):
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			gate = f.read()
+		self.assertIn("GATE\\.TEST_FLOOR", gate)
+		self.assertIsNone(re.search(r"-Floor\s+\d", gate))
+
+	def test_a_private_canvas_link_is_a_secret(self):
+		import secret_scan
+		links = [pattern for name, pattern in secret_scan.PATTERNS if "claude.ai" in name]
+		self.assertEqual(len(links), 1)
+		host = "claude" + ".ai/"
+		for path in ("artifact/", "code/artifact/", "public/artifacts/", "share/", "chat/", "project/"):
+			self.assertTrue(links[0].search("see https://" + host + path + "0f3a9c2e-1b7d-4e55-9a10-made0up"), path)
+		self.assertIsNone(links[0].search("https://" + host + "artifact/{id}"))
+		self.assertIsNone(links[0].search("https://" + host + "code"))
+
+	def test_two_worktrees_cannot_both_hold_the_gpu_lock(self):
+		repo = os.path.join(self.tmp.name, "repo")
+		other = os.path.join(self.tmp.name, "other")
+		git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=NUL"]
+		subprocess.run(["git", "init", "-q", repo], check=True, capture_output=True)
+		subprocess.run(git + ["-C", repo, "commit", "-q", "--allow-empty", "-m", "x"], check=True, capture_output=True)
+		subprocess.run(git + ["-C", repo, "worktree", "add", "-q", other], check=True, capture_output=True)
+		helper = ps_quote(os.path.join(TOOLS, "GpuLock.ps1"))
+		hold = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			f". {helper}; $L = Open-DTGpuLock {ps_quote(repo)}; if ($L) {{ 'HELD ' + (Get-DTGpuLockPath {ps_quote(repo)}) }} else {{ 'BUSY' }}; [Console]::Out.Flush(); $null = [Console]::In.ReadLine()"],
+			stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		try:
+			first = hold.stdout.readline().decode("utf-8", "replace").strip()
+			self.assertTrue(first.startswith("HELD "), first)
+			self.assertTrue(first.endswith(os.path.join("dt-locks", "gpu.lock")), first)
+			rc, out = powershell(f". {helper}; $L = Open-DTGpuLock {ps_quote(other)}; if ($L) {{ 'HELD ' + (Get-DTGpuLockPath {ps_quote(other)}) }} else {{ 'BUSY' }}")
+			self.assertIn("BUSY", out)
+		finally:
+			hold.communicate(b"\n", timeout=60)
+		rc, out = powershell(f". {helper}; $L = Open-DTGpuLock {ps_quote(other)}; if ($L) {{ 'HELD' }} else {{ 'BUSY' }}")
+		self.assertIn("HELD", out)
+
+	def test_a_tree_outside_git_locks_its_own_saved(self):
+		tree = os.path.join(self.tmp.name, "plain")
+		os.makedirs(tree)
+		rc, out = powershell(f". {ps_quote(os.path.join(TOOLS, 'GpuLock.ps1'))}; Get-DTGpuLockPath {ps_quote(tree)}")
+		self.assertIn(os.path.join(tree, "Saved", "gpu.lock"), out)
+
+	def test_perf_takes_the_one_lock(self):
+		with open(os.path.join(TOOLS, "Perf.ps1"), encoding="utf-8") as f:
+			perf = f.read()
+		self.assertIn("Open-DTGpuLock $Root", perf)
+		self.assertNotIn('Join-Path $Saved "gpu.lock"', perf)
+
+
 class Loc(unittest.TestCase):
 	def row(self, en, zh, key="Test.Row", context=""):
 		return {"Key": key, "en": en, "zh-Hans": zh, "Context": context, "Kw": "", "_line": 2}
