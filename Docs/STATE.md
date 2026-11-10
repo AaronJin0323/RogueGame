@@ -17,7 +17,7 @@
 
 ## Built on `dev/s2`
 - Bot v2 + skill knob, 10 weapons, 16 modifiers + matrix, elites, Keepers Shade, Radiance, Quicksilver, L16 Reforging, duo reactions, Time Dilation (scale reverted to 1.0), settings and accessibility, restart, abandon and quit, zh audit, 10 evolutions (D-020)
-- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`): 1 PASS, 3 FAIL, 2 NOT READ when last read. Those readings predate D-026 and D-027: attribution carries the Chain Trigger bias and older cast means are raw, so they are stale until reread
+- S2 exit by `Tools\S2Exit.ps1` (`S2_exit.md`, `S2_trace.md`), reread 2026-11-10 at d827a58: 1 PASS, 3 FAIL, 2 NOT READ, the same verdicts (Keeper share 8/18, build bands 9/18, Intercession 46/282; humans and the death histogram are human-only). D-026 and D-027 did not move the exit rows. 529 of 540 runs are identical; the 11 that differ are all Vector:Forge, where a Quicksilver dash volley now counts as a free volley (D-027's rule): a sim change, under trace
 
 ## Built on `dev/s3`
 - Narrative v0.1, saves, Ichor (神血, code `Currency`), Discoveries, the Contracts page, Vigil hub, Codex, log export, doors for all content (D-023, D-024), first-run locks of four modifiers, the hub's seed rule and its package proof (D-028)
@@ -25,7 +25,7 @@
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
 ## In flight (nothing running)
-- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` d827a58, `dev/s3` 589b203. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
+- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` 4fd1971, `dev/s3` 8cec09a. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
 - Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
 - `dev/s3` review done (`Validation/S3_review_fixes.md`): 28 fixed, 27 refuted, 82 deferred, no major left. D-037: a gate check reads every run it launches (firstrun needs six of six at the boss), and MetaCheck's pool steps play 600 s and read the dealt cards against a tool-run control. Not reproduced live: the pause-frame and two-process fixes
@@ -35,8 +35,8 @@
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
 2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
-3. S2 batteries reread (`docs/s2-reread`, running): fold the readings into Numbers at risk
-4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
+3. Trace the Vector:Forge sim change from D-027 on `dev/s2` and class it (BUG or intended), in flight
+4. Remaining `dev/s3` review minors by risk; the win-screen dark wedge at the left edge
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
 ## Holds
@@ -50,7 +50,7 @@
 
 ## Numbers at risk
 - The owner's run (n = 1): 104.2 % HP lost by 563.3 s against bot medians near 7 %; 1.81 dashes per minute; paused 20.6 s per sim minute against the limit of 15; XP 0.733 of the model at 300 s against reference 0.51. Passing weapons alone does not make that pressure in bots, and no skill dashes at that rate. T-DIR-02, L16 Keeper share, boss and Reforging stay unread
-- Probes (`S1_keeper_power.md`, bounds, 40× field): after D-019: T-KEE-15 FAIL 15/57 in band, Tide has no band (its cast deals no damage); T-KEE-18 FAIL (share mean 0.589, 5/9 arms). The share formula cannot pass Storm. Pass criteria stay until human readings
+- Probes (`S1_keeper_power.md` §8, bounds, 40× field, reread on `dev/s2` d827a58): T-KEE-15 FAIL 15/57 in band, Tide has no band (mean below zero; Whirlpool:Furnace −8425); T-KEE-18 FAIL (share mean 0.566, 4/9 arms; gain 0/9). The 11 moved T-KEE-15 rows all hold Furnace, which fits the field-tick fix. The share formula cannot pass Storm. Pass criteria stay until human readings
 - Bot at skill 1.0 (`S1_keeper_power.md` §5, 19 arms, 15 seeds): 192 steered runs reach the boss, 151 win. T-DIR-01 PASS (588.6 s). T-OFF-15 FAIL 197/198 (no bug). T-DIR-02 per arm FAIL (0/19 arms in band). Two Forge/Tide arms fell past noise, cause unmeasured
 - Primary Whirlpool and Stillness are the weakest Keeper arms. With no heal in S1 the band and boss reach cannot both hold
 - Contrast gate 7/7 on the rendered lit ground and shadow; telegraph (3.27) and round (3.18) pass with thin margins. The second weather does not exist
