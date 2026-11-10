@@ -930,6 +930,81 @@ bool FDTVigText::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigNotice, "Dusktracer.Hub.Notice", DTHubTest::Flags) // T-VIG-21
+bool FDTVigNotice::RunTest(const FString& Parameters)
+{
+	using namespace DTHubTest;
+	AddExpectedError(TEXT("Meta:"), EAutomationExpectedErrorFlags::Contains, 0);
+	TestTrue(TEXT("nothing to say, no line"), DTHubText::Notice(EDTMetaNotice::None, TEXT("DTMeta.sav.bad.1")).IsEmpty());
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	const FText Aside = DTHubText::Notice(EDTMetaNotice::KeptAside, TEXT("DTMeta.sav.bad.1"));
+	const FText Lost = DTHubText::Notice(EDTMetaNotice::RunLost, FString());
+	TestEqual(TEXT("a save set aside names the file it is kept as"), Aside.ToString(), FString(TEXT("The save could not be read. It is kept as DTMeta.sav.bad.1, and a new one starts empty.")));
+	TestEqual(TEXT("a run the last launch could not write"), Lost.ToString(), FString(TEXT("The last run could not be saved. Nothing from it is in this save.")));
+	FInternationalization::Get().SetCurrentCulture(Culture);
+	TestTrue(TEXT("both keys are the hub's"), DTHubText::AllKeys().Contains(TEXT("Hub.Notice.SaveAside")) && DTHubText::AllKeys().Contains(TEXT("Hub.Notice.RunLost")));
+	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+	FString Csv;
+	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
+	TestTrue(TEXT("the set-aside row carries both languages"), Csv.Contains(TEXT("Hub.Notice.SaveAside,\"The save could not be read. It is kept as {0}, and a new one starts empty.\",存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。,")));
+	TestTrue(TEXT("the lost-run row carries both languages"), Csv.Contains(TEXT("Hub.Notice.RunLost,The last run could not be saved. Nothing from it is in this save.,上一局没能保存。这份存档里没有那一局的记录。,")));
+
+	// Where it is drawn: the root's detail, on every row, and only there. What Begin lacks comes first on Begin.
+	const TArray<FDTCodexRow> Book;
+	const FDTMetaProfile Profile;
+	FDTHubState State = Open();
+	FDTHubView View;
+	View.State = &State;
+	View.Codex = &Book;
+	View.Profile = &Profile;
+	for (int32 Row = 0; Row < static_cast<int32>(EDTHubRow::Num); ++Row)
+	{
+		Focus(State, static_cast<EDTHubRow>(Row));
+		View.Notice = FText::GetEmpty();
+		const FString Bare = DTHubText::Detail(View).ToString();
+		View.Notice = Lost;
+		const FString Said = DTHubText::Detail(View).ToString();
+		if (static_cast<EDTHubRow>(Row) == EDTHubRow::Begin)
+		{
+			TestTrue(TEXT("Begin with no Patron says what it lacks, with or without a notice"), !Bare.IsEmpty() && Said == Bare);
+		}
+		else
+		{
+			TestTrue(FString::Printf(TEXT("root row %d: nothing without a notice, the notice with one"), Row), Bare.IsEmpty() && Said == Lost.ToString());
+		}
+	}
+	FDTHubState Chosen = Open(EDTPath::Storm);
+	Chosen.Selected = EDTPath::Storm;
+	Focus(Chosen, EDTHubRow::Begin);
+	View.State = &Chosen;
+	TestEqual(TEXT("Begin with a Patron chosen shows the notice"), DTHubText::Detail(View).ToString(), Lost.ToString());
+	Focus(Chosen, EDTHubRow::Stats);
+	Chosen.Apply(EDTMenuCommand::Accept);
+	TestTrue(TEXT("no other page draws it"), Chosen.Page == EDTHubPage::Stats && DTHubText::Detail(View).IsEmpty());
+
+	// The session decides which line: a bad save set aside comes before a run the last launch lost, and a launch says each once.
+	const FString Path = TempSave(TEXT("Notice.sav"));
+	IFileManager::Get().Delete(*DTMeta::LostPath(Path), false, true, true);
+	IFileManager::Get().Delete(*(Path + TEXT(".bad.1")), false, true, true);
+	FDTMetaSession Plain;
+	Plain.Open(Path);
+	TestEqual(TEXT("a fresh save has nothing to say"), Plain.Notice(), EDTMetaNotice::None);
+	TestTrue(TEXT("a marker is left"), FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Path)));
+	FDTMetaSession AfterLoss;
+	AfterLoss.Open(Path);
+	TestEqual(TEXT("the launch after a lost run says so"), AfterLoss.Notice(), EDTMetaNotice::RunLost);
+	TestTrue(TEXT("a marker and a bad save"), FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Path)) && FFileHelper::SaveStringToFile(TEXT("not a save"), *Path));
+	FDTMetaSession Both;
+	TestEqual(TEXT("the bad save is set aside"), Both.Open(Path), EDTMetaOpen::KeptAside);
+	TestTrue(TEXT("both hold, and the save set aside is the line"), Both.LostRuns == 1 && Both.Notice() == EDTMetaNotice::KeptAside);
+	TestEqual(TEXT("the line names the kept file"), DTHubText::Notice(Both.Notice(), FPaths::GetCleanFilename(Both.AsidePath)).ToString().Contains(TEXT("Notice.sav.bad.1")), true);
+	FDTMetaSession Next;
+	Next.Open(Path);
+	TestEqual(TEXT("the launch after that says neither"), Next.Notice(), EDTMetaNotice::None);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigLayout, "Dusktracer.Hub.Layout", DTHubTest::Flags) // T-VIG-16
 bool FDTVigLayout::RunTest(const FString& Parameters)
 {

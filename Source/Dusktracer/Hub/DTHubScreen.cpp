@@ -24,7 +24,7 @@ namespace DTHubScreenLocal
 	constexpr float HintAlpha = 0.75f;
 	constexpr float SealedAlpha = 0.5f;
 
-	const TCHAR* const UiKeys[] = { TEXT("Hub.Balance"), TEXT("Hub.Begin.NeedPatron"), TEXT("Hub.Tree.Empty"), TEXT("Hub.Hint.Read"), TEXT("Hub.Stats.Balance"),
+	const TCHAR* const UiKeys[] = { TEXT("Hub.Balance"), TEXT("Hub.Begin.NeedPatron"), TEXT("Hub.Notice.SaveAside"), TEXT("Hub.Notice.RunLost"), TEXT("Hub.Tree.Empty"), TEXT("Hub.Hint.Read"), TEXT("Hub.Stats.Balance"),
 		TEXT("Hub.Stats.Earned"), TEXT("Hub.Stats.Runs"), TEXT("Hub.Stats.Wins"), TEXT("Hub.Stats.Repairs"), TEXT("Hub.Stats.Kills"), TEXT("Hub.Stats.Elites"),
 		TEXT("Hub.Stats.Bosses"), TEXT("RunSummary.Time"), TEXT("Codex.Count"), TEXT("Codex.Locked"), TEXT("Menu.Hint.Pause"), TEXT("Pause.Quit") };
 
@@ -195,12 +195,23 @@ FText DTHubText::KeeperName(EDTPath Path)
 	return FText::FromStringTable(FName(TEXT("ST_Keepers")), FString(DTOffers::PathName(Path)) + TEXT(".Name"));
 }
 
+FText DTHubText::Notice(EDTMetaNotice Kind, const FString& AsideFile)
+{
+	switch (Kind)
+	{
+	case EDTMetaNotice::KeptAside: return FText::Format(DTHubScreenLocal::Ui(TEXT("Hub.Notice.SaveAside")), FText::FromString(AsideFile));
+	case EDTMetaNotice::RunLost: return DTHubScreenLocal::Ui(TEXT("Hub.Notice.RunLost"));
+	default: return FText::GetEmpty();
+	}
+}
+
 FText DTHubText::Detail(const FDTHubView& View)
 {
 	const FDTHubState& State = *View.State;
 	if (State.Page == EDTHubPage::Root)
 	{
-		return State.RootRow() == EDTHubRow::Begin && State.Selected == EDTPath::None ? DTHubScreenLocal::Ui(TEXT("Hub.Begin.NeedPatron")) : FText::GetEmpty();
+		// One line at a time: what the focused row needs comes before what the launch has to say.
+		return State.RootRow() == EDTHubRow::Begin && State.Selected == EDTPath::None ? DTHubScreenLocal::Ui(TEXT("Hub.Begin.NeedPatron")) : View.Notice;
 	}
 	if (State.Page == EDTHubPage::Patron && State.Patrons.IsValidIndex(State.Focus))
 	{

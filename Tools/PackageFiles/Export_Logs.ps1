@@ -74,7 +74,12 @@ foreach ($Dir in $Saved) {
 		}
 	}
 }
-if ($Runs.Count + $Logs.Count + $Crashes.Count -eq 0) { Write-Host "EXPORT: FAIL (no run files or logs; looked in $($Looked -join ', '))"; exit 1 }
+if ($Runs.Count + $Logs.Count + $Crashes.Count -eq 0) {
+	Write-Host "EXPORT: FAIL (no run files or logs; looked in $($Looked -join ', '))"
+	Write-Host "There is nothing to export yet. Play one run, then export again."
+	Write-Host ([regex]::Unescape("\u8fd8\u6ca1\u6709\u53ef\u5bfc\u51fa\u7684\u5185\u5bb9\u3002\u8bf7\u5148\u73a9\u4e00\u5c40\uff0c\u518d\u5bfc\u51fa\u4e00\u6b21\u3002"))
+	exit 1
+}
 
 if (-not $OutDir) { $OutDir = [Environment]::GetFolderPath("Desktop") }
 if (-not $OutDir) { $OutDir = Join-Path $env:USERPROFILE "Desktop" }
@@ -104,8 +109,9 @@ try {
 
 	$Lines = @("Dusktracer run data, exported $Stamp. Nothing was sent anywhere by this tool.",
 		"Playtests: gameplay numbers only: seed, build hash and build type, who drove the run (a person, a tool or a bot), culture, last input device, combat numbers per interval,",
-		"where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick,",
+		"where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick and their total per run,",
 		"and the start time, UTC inside each file and local in its name, so the two show the time zone. No name, account, machine name, path or hardware.",
+		([regex]::Unescape("\u5bf9\u5c40\u6587\u4ef6\u8fd8\u8bb0\u6709\u6bcf\u5f20\u724c\u7684\u9009\u62e9\u7528\u65f6\uff0c\u4ee5\u53ca\u6bcf\u5c40\u7684\u5408\u8ba1\u7528\u65f6\u3002")),
 		"The save and the settings file stay on this PC.",
 		"Logs and Crashes: the engine's own text, which names the graphics card, the CPU and the Windows version. The Windows user name and the",
 		"machine name are replaced by <user> and <machine>, in every profile path and wherever else they appear, and the engine's machine ids by <id> ($($script:Redacted) replaced).", "")

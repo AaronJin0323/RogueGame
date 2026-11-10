@@ -170,9 +170,11 @@ void UDTMenuSubsystem::SnapshotKeys()
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (PC)
 	{
+		const float StickX = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+		const float StickY = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
 		for (const FKey& Key : DTMenuInput::Keys())
 		{
-			if (PC->IsInputKeyDown(Key))
+			if (PC->IsInputKeyDown(Key) && DTMenuInput::StickKeyCounts(Key, StickX, StickY))
 			{
 				Down.Add(Key);
 			}
@@ -451,32 +453,29 @@ void UDTMenuSubsystem::PollKeys()
 		}
 		return;
 	}
-	TArray<FKey> Stale;
-	for (const FKey& Key : Down)
-	{
-		if (!PC->IsInputKeyDown(Key))
-		{
-			Stale.Add(Key);
-		}
-	}
-	for (const FKey& Key : Stale)
-	{
-		Down.Remove(Key);
-	}
+	// A stick a little off its axis holds two direction keys down: only the larger axis is a press, as in the hub (review #114),
+	// so a push down a list with a sideways slip does not change the value of the row it lands on.
+	const float StickX = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+	const float StickY = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+	const auto IsDown = [PC, StickX, StickY](const FKey& Key) { return PC->IsInputKeyDown(Key) && DTMenuInput::StickKeyCounts(Key, StickX, StickY); };
 	if (!IsOpen())
 	{
+		const TSet<FKey> Held = Down;
+		for (const FKey& Key : Held)
+		{
+			if (!IsDown(Key))
+			{
+				Down.Remove(Key);
+			}
+		}
 		return;
 	}
-	for (const FKey& Key : DTMenuInput::Keys())
+	for (const EDTMenuCommand Pressed : DTMenuInput::Presses(Down, IsDown))
 	{
-		if (PC->IsInputKeyDown(Key) && !Down.Contains(Key))
+		Command(Pressed);
+		if (!IsOpen())
 		{
-			Down.Add(Key);
-			Command(DTMenuInput::ForKey(Key));
-			if (!IsOpen())
-			{
-				return;
-			}
+			return;
 		}
 	}
 }

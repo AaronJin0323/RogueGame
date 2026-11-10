@@ -307,6 +307,27 @@ bool DTMenuInput::StickKeyCounts(const FKey& Key, float X, float Y)
 	return true;
 }
 
+TArray<EDTMenuCommand> DTMenuInput::Presses(TSet<FKey>& Down, TFunctionRef<bool(const FKey&)> IsDown)
+{
+	for (auto It = Down.CreateIterator(); It; ++It)
+	{
+		if (!IsDown(*It))
+		{
+			It.RemoveCurrent();
+		}
+	}
+	TArray<EDTMenuCommand> Out;
+	for (const FKey& Key : Keys())
+	{
+		if (IsDown(Key) && !Down.Contains(Key))
+		{
+			Down.Add(Key);
+			Out.Add(ForKey(Key));
+		}
+	}
+	return Out;
+}
+
 float DTMenuLayout::RowHeight(float TextScale)
 {
 	return DTMenuStateLocal::RowBase * TextScale;

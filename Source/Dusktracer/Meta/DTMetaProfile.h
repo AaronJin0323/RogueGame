@@ -60,6 +60,12 @@ struct FDTRunAward
 	int32 Waiting = 0;
 };
 
+/**
+ * What a launch has to tell the player about its save, one line at a time on the hub's root (R-MET-12, R-MET-11). KeptAside wins
+ * over RunLost when both hold: it is why the balance in front of the player is empty.
+ */
+enum class EDTMetaNotice : uint8 { None, RunLost, KeptAside };
+
 namespace DTMeta
 {
 	/** The canonical payload (R-MET-08): one profile always gives the same bytes. */

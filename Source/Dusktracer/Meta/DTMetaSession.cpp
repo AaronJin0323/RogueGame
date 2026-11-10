@@ -117,6 +117,11 @@ FString DTMeta::FreeAsidePath(const FString& Path)
 	}
 }
 
+FString DTMeta::LostPath(const FString& Path)
+{
+	return Path + TEXT(".lost");
+}
+
 bool DTMeta::WriteAtomic(const FString& Path, const TArray<uint8>& Bytes)
 {
 	IFileManager& Files = IFileManager::Get();
@@ -154,12 +159,24 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	Seen.Reset();
 	bUnsaved = false;
 	Pending.Reset();
+	UnsavedRuns = 0;
+	LostRuns = 0;
 	bWritable = false;
 	if (Path.IsEmpty())
 	{
 		return EDTMetaOpen::NoSave;
 	}
 	IFileManager& Files = IFileManager::Get();
+	// What the launch before this one could not write (Close). Read once: the marker goes whether or not the count reads.
+	const FString Marker = DTMeta::LostPath(Path);
+	if (Files.FileExists(*Marker))
+	{
+		FString Count;
+		FFileHelper::LoadFileToString(Count, *Marker, FFileHelper::EHashOptions::None, FILEREAD_Silent);
+		LostRuns = FMath::Max(1, FCString::Atoi(*Count));
+		Files.Delete(*Marker, /*bRequireExists*/ false, /*bEvenReadOnly*/ true, /*bQuiet*/ true);
+		UE_LOG(LogDT, Warning, TEXT("Meta: the last launch could not save %d run(s) (%s); the hub says so once"), LostRuns, *Marker);
+	}
 	if (!Files.FileExists(*Path))
 	{
 		bWritable = true;
@@ -232,6 +249,39 @@ bool FDTMetaSession::Flush()
 	return WriteHeld();
 }
 
+bool FDTMetaSession::Close()
+{
+	if (!bUnsaved || Flush())
+	{
+		return true;
+	}
+	if (UnsavedRuns > 0 && bWritable && !Path.IsEmpty())
+	{
+		// Beside the save, not under its lock. A marker an earlier launch left unread is added to, not written over.
+		const FString Marker = DTMeta::LostPath(Path);
+		FString Old;
+		const int32 Before = FFileHelper::LoadFileToString(Old, *Marker, FFileHelper::EHashOptions::None, FILEREAD_Silent) ? FMath::Max(0, FCString::Atoi(*Old)) : 0;
+		if (FFileHelper::SaveStringToFile(FString::FromInt(Before + UnsavedRuns), *Marker))
+		{
+			UE_LOG(LogDT, Warning, TEXT("Meta: %d run(s) could not be saved; %s tells the next launch"), UnsavedRuns, *Marker);
+		}
+		else
+		{
+			UE_LOG(LogDT, Warning, TEXT("Meta: %d run(s) could not be saved, and %s could not be written either"), UnsavedRuns, *Marker);
+		}
+	}
+	return false;
+}
+
+EDTMetaNotice FDTMetaSession::Notice() const
+{
+	if (!AsidePath.IsEmpty())
+	{
+		return EDTMetaNotice::KeptAside;
+	}
+	return LostRuns > 0 ? EDTMetaNotice::RunLost : EDTMetaNotice::None;
+}
+
 EDTMetaChange FDTMetaSession::Change(const FDTMetaEdit& Edit, bool bKeepIfBusy)
 {
 	if (!bWritable || Path.IsEmpty())
@@ -280,6 +330,7 @@ bool FDTMetaSession::WriteHeld()
 	Seen = MoveTemp(Bytes);
 	bUnsaved = false;
 	Pending.Reset();
+	UnsavedRuns = 0;
 	return true;
 }
 
@@ -364,7 +415,9 @@ FDTRunAward FDTMetaSession::Bank(const FDTRunTally& Tally, EDTRunEnd End)
 	}
 	else
 	{
-		Award.bDeferred = Change(Run, /*bKeepIfBusy*/ true) == EDTMetaChange::Busy;
+		const EDTMetaChange Result = Change(Run, /*bKeepIfBusy*/ true);
+		Award.bDeferred = Result == EDTMetaChange::Busy;
+		UnsavedRuns += Result == EDTMetaChange::Busy || Result == EDTMetaChange::Unsaved ? 1 : 0; // the file does not hold this run yet
 		Award.Waiting = Pending.Num();
 	}
 	Award.Retained = DTMeta::ComputeAward(Tally);

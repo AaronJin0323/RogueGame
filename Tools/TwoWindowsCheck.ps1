@@ -20,7 +20,9 @@
 # Then three scenes with the save's lock held by this script for longer than a launch waits (C.SAVE.LOCK_WAIT_MS), T-MET-50:
 #   held bank      a bank is kept in memory and said; once the lock is free the launch's next bank writes both runs
 #   held purchase  a purchase is refused as busy (result 6) and nothing is spent
-#   held to exit   a bot run ends and quits with the lock never free: its log and its telemetry say the bank was kept, the log says it is lost
+#   held to exit   a bot run ends and quits with the lock never free: its log and its telemetry say the bank was kept, the log says it is lost,
+#                  and it leaves DTMeta.sav.lost beside the save; the next launch reads the marker, its hub holds the line for a run not saved
+#                  (Hub.Notice.RunLost) and the marker is gone; the launch after that says nothing (T-MET-51)
 # Prints "TWOWINDOWS RACE: PASS (...)" or "TWOWINDOWS RACE: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\TwoWindowsCheck_race_<role>.log.
 param(
 	[int]$Seed = 9131,
@@ -215,8 +217,9 @@ if ($Race -gt 0) {
 	$HSave = Read-Save $H
 	$HRetained = 0
 	foreach ($One in [regex]::Matches($Text, "DT\.Meta\.BankWhen round \d+: retained (\d+),")) { $HRetained += [long]$One.Groups[1].Value }
-	Add-Held $H ($SaidKept -and $Unwritten -and $HSave.Runs -eq 2 -and $HSave.Balance -eq $HRetained -and $HRetained -gt 0) `
-		"lock held: said kept=$SaidKept, file unwritten=$Unwritten; lock free, next bank -> runs $($HSave.Runs) (want 2), balance $($HSave.Balance) (want $HRetained)"
+	$NoMarker = -not (Test-Path "$HFile.lost")
+	Add-Held $H ($SaidKept -and $Unwritten -and $HSave.Runs -eq 2 -and $HSave.Balance -eq $HRetained -and $HRetained -gt 0 -and $NoMarker) `
+		"lock held: said kept=$SaidKept, file unwritten=$Unwritten; lock free, next bank -> runs $($HSave.Runs) (want 2), balance $($HSave.Balance) (want $HRetained), no marker left=$NoMarker"
 
 	$H = "held_purchase"
 	$Signal = Join-Path $OutDir "$H.go"
@@ -245,7 +248,16 @@ if ($Race -gt 0) {
 		$Record = (Test-Path $Jsonl) -and [bool](Select-String -Path $Jsonl -Pattern '"kind":"save_deferred","owner":-1,"change":"bank","waiting":1' -SimpleMatch -Quiet)
 	}
 	$Unwritten = -not (Test-Path $HFile)
-	Add-Held $H ($SaidKept -and $SaidLost -and $Record -and $Unwritten) "lock never free: log says kept=$SaidKept, telemetry save_deferred=$Record, log says lost at exit=$SaidLost, file unwritten=$Unwritten"
+	# The marker the exit left, and what the next two launches make of it. Each opens the hub on the same folder, as a person's next launch does.
+	$Marker = "$HFile.lost"
+	$Marked = (Test-Path $Marker) -and ([IO.File]::ReadAllText($Marker).Trim() -eq "1")
+	$Next = Invoke-Hub $H "next" "DT.Meta.Dump,quit"
+	$Told = ($Next -match "Meta: the last launch could not save 1 run\(s\)") -and ($Next -match "Hub: notice RunLost")
+	$Removed = -not (Test-Path $Marker)
+	$After = Invoke-Hub $H "after" "DT.Meta.Dump,quit"
+	$Quiet = ($After -match "Hub: open") -and ($After -notmatch "Hub: notice") -and ($After -notmatch "could not save")
+	Add-Held $H ($SaidKept -and $SaidLost -and $Record -and $Unwritten -and $Marked -and $Told -and $Removed -and $Quiet) `
+		"lock never free: log says kept=$SaidKept, telemetry save_deferred=$Record, log says lost at exit=$SaidLost, file unwritten=$Unwritten, marker left=$Marked; next launch: hub line=$Told, marker removed=$Removed; the one after: says nothing=$Quiet"
 	$Median = ($Spreads | Sort-Object)[[int][math]::Floor($Spreads.Count / 2)]
 	$RaceLines
 	$HeldLines

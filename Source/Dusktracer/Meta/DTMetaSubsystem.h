@@ -14,7 +14,7 @@ class DUSKTRACER_API UDTMetaSubsystem : public UGameInstanceSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	/** A change whose write failed gets one more try at exit (R-MET-11). */
+	/** A change whose write failed gets one more try at exit; a run still kept after it leaves a marker (R-MET-11). */
 	virtual void Deinitialize() override;
 
 	/** Unattended, automation, a bot or -DTNoSave (R-MET-14). */
@@ -32,6 +32,8 @@ public:
 	static FDTPoolGrant GetRunGrant(const UObject* WorldContext);
 	/** The profile, read only (the hub, vigil.md R-VIG-14); nullptr with no session. */
 	static const FDTMetaProfile* ReadProfile(const UObject* WorldContext);
+	/** What the hub's root says of this launch's save (vigil.md R-VIG-21); OutFile: the name the bad save was kept under. */
+	static EDTMetaNotice ReadNotice(const UObject* WorldContext, FString* OutFile = nullptr);
 
 private:
 	FDTMetaSession Session;

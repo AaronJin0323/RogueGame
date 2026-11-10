@@ -158,11 +158,11 @@ CODEX_SENTENCES_MAX = 2
 EN_SENTENCE_RE = re.compile(r"[.!?]+(?=[\s\"')\]]|$)")
 ZH_SENTENCE_RE = re.compile("[。！？]+")
 DESIGNATIONS = ("ATMOS", "FOUNDRY", "CISTERN", "LEDGER", "LUMEN", "RELAY", "ROOT")
-# Rows that break one of those two rules today (review #119, #131, #82, #75). The text is the narrative owner's to change, so they
+# Rows that break the first of those two rules today (review #119, #131, #82; #75's row was fixed). The text is the narrative owner's to change, so they
 # are named here instead of failing the gate; a row leaves this list with its fix, and nothing new may join it.
 VOICE_DEBTS = {
     ("Codex.Keeper.Storm", "sentences"), ("Codex.Keeper.Forge", "sentences"), ("Codex.Keeper.Quicksilver", "sentences"),
-    ("Codex.Recollection.Win", "sentences"), ("Codex.Recollection.Linger", "designation"),
+    ("Codex.Recollection.Win", "sentences"),
 }
 OUT_OF_SCOPE_RE = re.compile(r"^(Npc|Ending|Fate|Refusal|Arena)\.|\.Act[23]$|\.Bid\.|^Codex\.(Facet|Fate|Arena)\.|Depth[23]|Outfall|Sump")
 KEEPER_LINE_RE = re.compile(r"^Keeper\.\w+\.(Tier[123]|PassedOver)$")

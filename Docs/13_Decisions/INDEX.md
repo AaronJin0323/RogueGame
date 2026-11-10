@@ -25,7 +25,7 @@
 | D-021 | The `Dusktracer` module builds `/fp:precise` in every target | RULE | applied |
 | D-022 | S3 starts on `dev/s3` before the S1 and S2 exit tests | GO-NOGO | applied |
 | D-023 | The Tree keeps pool and utility nodes only; the old stat ranks are cut | RULE | applied |
-| D-024 | Every pool row has a door: first-run locks and three Trunk pool nodes | RULE | applied |
+| D-024 | Every pool row has a door: first-run locks and three Trunk pool nodes | RULE | applied; last clause (`Crit500` unreachable) replaced by D-044 |
 | D-025 | Every human launch draws a fresh seed; tools and named seeds stay exact | RULE | applied |
 | D-026 | Run telemetry records say what the run did; applied and raw are named | RULE | applied |
 | D-027 | A free volley stays its modifier's under a Keeper conversion; a silenced socket shows | RULE | applied |
@@ -44,3 +44,4 @@
 | D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
 | D-042 | One change to the save at a time: reread, change and write under a lock held for that change | BUG | applied on `fix/d042-save-lock` |
+| D-044 | The doors of R-MET-28 are decided, and `Crit500` is reachable through them | RULE | applied |

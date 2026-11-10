@@ -45,6 +45,14 @@ void UDTHubSubsystem::Enter()
 	State.CodexRows = Codex.Num();
 	State.CodexFirst = FMath::Max(0, Codex.IndexOfByPredicate([](const FDTCodexRow& Row) { return Row.bRead; }));
 	Tree = DTHubTabs::MakeTree(GetWorld());
+	// What this launch has to say of its save: a bad file set aside, or a run the launch before could not write (R-VIG-21).
+	FString AsideFile;
+	const EDTMetaNotice Kind = UDTMetaSubsystem::ReadNotice(this, &AsideFile);
+	Notice = DTHubText::Notice(Kind, AsideFile);
+	if (Kind != EDTMetaNotice::None)
+	{
+		UE_LOG(LogDT, Log, TEXT("Hub: notice %s %s"), Kind == EDTMetaNotice::KeptAside ? TEXT("SaveAside") : TEXT("RunLost"), *AsideFile);
+	}
 	if (UDTMenuSubsystem* Menu = GetWorld() ? GetWorld()->GetSubsystem<UDTMenuSubsystem>() : nullptr)
 	{
 		Menu->SetHubHost();
@@ -64,6 +72,11 @@ void UDTHubSubsystem::ShowEverythingForCheck()
 	{
 		Patron.bOpen = true;
 	}
+}
+
+void UDTHubSubsystem::ShowNoticeForCheck(EDTMetaNotice Kind, const FString& AsideFile)
+{
+	Notice = DTHubText::Notice(Kind, AsideFile);
 }
 #endif
 
@@ -214,6 +227,7 @@ void UDTHubSubsystem::Draw(UCanvas* Canvas)
 		View.Codex = &Codex;
 		View.Profile = Profile();
 		View.Tree = Tree.Get();
+		View.Notice = Notice;
 		Overflow = DTHubScreen::Draw(Canvas, View, DTSettings::Live());
 	}
 }

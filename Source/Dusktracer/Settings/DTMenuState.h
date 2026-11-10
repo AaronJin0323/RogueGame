@@ -84,6 +84,12 @@ namespace DTMenuInput
 	 * axes now. Any other key counts, and so does a stick key with no axis reading (a simulated press).
 	 */
 	DUSKTRACER_API bool StickKeyCounts(const FKey& Key, float X, float Y);
+	/**
+	 * The pause and settings screens' reading of one poll (R-SET-17): forgets every key of Down that came up, then gives the
+	 * command of each fixed key that went down since, in the keys' order, and holds it in Down until it comes up. IsDown is
+	 * the keys as they count now, so a stick's slip off its axis is no press (StickKeyCounts).
+	 */
+	DUSKTRACER_API TArray<EDTMenuCommand> Presses(TSet<FKey>& Down, TFunctionRef<bool(const FKey&)> IsDown);
 }
 
 /** Layout of the screens in reference pixels at a 1080-line canvas (R-SET-12). */

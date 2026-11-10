@@ -62,6 +62,10 @@ struct DUSKTRACER_API FDTMetaSession
 	bool bUnsaved = false;
 	/** The changes the file does not hold yet, oldest first: made again on the file's profile if another launch wrote it meanwhile. */
 	TArray<FDTMetaEdit> Pending;
+	/** How many of those are runs: banks kept for a busy lock or a failed write. */
+	int32 UnsavedRuns = 0;
+	/** Runs the launch before this one could not write at its exit: its marker, read and removed by Open (R-MET-11). */
+	int32 LostRuns = 0;
 	FDTOnMetaBank OnBank;
 
 	/** Empty InPath: no save. Never fails a launch. */
@@ -76,6 +80,14 @@ struct DUSKTRACER_API FDTMetaSession
 	EDTMetaChange Change(const FDTMetaEdit& Edit, bool bKeepIfBusy);
 	/** A save point with no change of its own: writes what is waiting, under the lock. True when the file holds everything. */
 	bool Flush();
+	/**
+	 * The last save point of a launch (R-MET-11): Flush, and when a kept run still cannot be written, a marker beside the save
+	 * (DTMeta::LostPath, written without the lock: the lock is what could not be had) for the next launch to read. True when
+	 * nothing was lost.
+	 */
+	bool Close();
+	/** What the hub's root says of this save, if anything. */
+	EDTMetaNotice Notice() const;
 	/**
 	 * Writes the profile as it stands in memory, under the lock, with no reread: for a plant (tests, debug commands). The game's
 	 * own changes go through Change. False leaves the old file whole.
@@ -104,4 +116,6 @@ namespace DTMeta
 	DUSKTRACER_API bool WriteAtomic(const FString& Path, const TArray<uint8>& Bytes);
 	/** The first free <Path>.bad.<n>. */
 	DUSKTRACER_API FString FreeAsidePath(const FString& Path);
+	/** <Path>.lost: the marker a launch leaves when a run it kept could not be written at exit. Holds the count as text. */
+	DUSKTRACER_API FString LostPath(const FString& Path);
 }

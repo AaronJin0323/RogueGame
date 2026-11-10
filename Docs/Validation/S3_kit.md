@@ -105,7 +105,7 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 ## What they send back
 With the game closed, the validator double-clicks `Export_Logs.bat` in the package folder. It makes one file on the desktop, `Dusktracer_Logs_<date>_<time>.zip`, and prints where. Nothing leaves the PC by itself: they hand that one file to the host. A second export is fine: it holds every run so far.
 
-What the zip holds: gameplay only. Seed, build hash and build type, who drove the run (a person, a tool or a bot), culture, last input device, combat numbers, where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick, and the start time, UTC inside each file and local in its name, so the two show the time zone. No name, account, machine name, path or hardware. Shipping writes no game log, so a zip holds run files and a `MANIFEST.txt` saying this. The save and the settings file stay on the PC.
+What the zip holds: gameplay only. Seed, build hash and build type, who drove the run (a person, a tool or a bot), culture, last input device, combat numbers, where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick and their total per run, and the start time, UTC inside each file and local in its name, so the two show the time zone. No name, account, machine name, path or hardware. Shipping writes no game log, so a zip holds run files and a `MANIFEST.txt` saying this. The save and the settings file stay on the PC.
 
 Crash: note the time. The run's file has no `run_end`.
 

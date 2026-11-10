@@ -58,7 +58,7 @@ Order on the screen, with the default first:
 
 ### Screens
 - **R-SET-16** In a run the pause screen is the way in (the hub is `vigil.md`): Pause (`Esc`, pad Menu) opens it from any moment of play, the run-start Patron hand included, and pauses the world. Its rows are R-SET-19's. Closing never unpauses an open hand. A hand under the menu takes no input, its confirm guard (R-OFF-11) restarts when the menu closes, keys held then must be released first, and the time in the menu is not decision time.
-- **R-SET-17** Every row is reachable and usable from the keyboard alone and from the pad alone: up and down move focus and wrap, left and right step a value, Accept activates a row and steps a value forward, Back returns one screen, and Back from Pause closes it. No screen is a dead end. Keyboard navigation is the arrows plus `W A S D`, and `Space` is a second Accept; pad navigation is the D-pad and left stick. These stay fixed whatever the table says. `[invented]` the second keys.
+- **R-SET-17** Every row is reachable and usable from the keyboard alone and from the pad alone: up and down move focus and wrap, left and right step a value, Accept activates a row and steps a value forward, Back returns one screen, and Back from Pause closes it. No screen is a dead end. Keyboard navigation is the arrows plus `W A S D`, and `Space` is a second Accept; pad navigation is the D-pad and left stick. These stay fixed whatever the table says. `[invented]` the second keys. The stick is read as the hub reads it (`DTMenuInput::StickKeyCounts`): a push a little off its axis holds two of its direction keys down, and only the larger axis is a press, so a push down a list with a sideways slip moves one row and steps no value.
 - **R-SET-18** Grey-box, Canvas-drawn like the offer screen, no binary UI asset (R-TEC-06). Colour comes only from `Pal.UI.*` tokens (R-PRE-08, R-PRE-09); focus is carried by a frame, not by hue alone. All text is ST_UI, en and zh-Hans.
 
 ### Ending a run
@@ -110,7 +110,7 @@ Written from `reference/text_tables/ST_UI.csv` (`Pause.Abandon*`, `Controls.Acti
 - T-SET-14 `Dusktracer.Settings.Rebind`: bound, swapped, reserved and wrong-device results; no duplicates in a group and device after any sequence; reset.
 - T-SET-15 `Dusktracer.Settings.Capture`: a key held at the start is ignored; cancel changes nothing.
 - T-SET-16 `Dusktracer.Settings.PauseOverHand`: open and close over a hand keeps the world paused, blocks hand input and restarts the guard; alone it pauses and resumes.
-- T-SET-17 `Dusktracer.Settings.Navigation`: every row of every screen is reached and operated by the keyboard list and by the pad list; Back chains out from the deepest screen.
+- T-SET-17 `Dusktracer.Settings.Navigation`: every row of every screen is reached and operated by the keyboard list and by the pad list; Back chains out from the deepest screen. A stick pushed down a little off its axis, through the screens' reader (`DTMenuInput::Presses`), is one press that moves one row and changes no value; turned to the side it is one press sideways; two D-pad keys in one poll are both read.
 - T-SET-18 `Dusktracer.Settings.TextKeys`: every menu key resolves in ST_UI; menu code holds no colour outside the tokens.
 - T-SET-19 `Dusktracer.Settings.PauseRows`: the rows in order; each is reached and answers Accept from the keyboard list and the pad list.
 - T-SET-20 `Dusktracer.Settings.Confirm`: each destructive row opens its confirmation on Cancel; Cancel and Back change nothing and land on the row; only the confirm row acts.

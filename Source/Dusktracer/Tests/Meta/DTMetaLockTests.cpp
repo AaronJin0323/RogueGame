@@ -222,4 +222,107 @@ bool FDTMetSaveLock::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTMetLostRun, "Dusktracer.Meta.LostRun", DTMetaLockTest::Flags) // T-MET-51
+bool FDTMetLostRun::RunTest(const FString& Parameters)
+{
+	using namespace DTMetaLockTest;
+	AddExpectedError(TEXT("Meta:"), EAutomationExpectedErrorFlags::Contains, 0);
+	const int64 Price = DTCat::TreeNodes[DTTree::FindNode(LockNode)].Cost;
+	IFileManager& Files = IFileManager::Get();
+	const auto ReadMarker = [](const FString& Path)
+	{
+		FString Text;
+		return FFileHelper::LoadFileToString(Text, *DTMeta::LostPath(Path), FFileHelper::EHashOptions::None, FILEREAD_Silent) ? Text : FString(TEXT("<none>"));
+	};
+
+	// The lock is another launch's from the run's end to this launch's exit: the one path a bank is lost on (D-042 point 4).
+	{
+		const FString Path = TempSave(TEXT("Lost.sav"));
+		FDTMetaSession Session;
+		Session.Open(Path);
+		TestTrue(TEXT("a launch with nothing owed closes clean, and leaves no marker"), Session.Close() && !Files.FileExists(*DTMeta::LostPath(Path)));
+		{
+			const FDTMetaLock Other(Path);
+			const FDTRunAward Award = Session.Bank(Minutes(2), EDTRunEnd::Death);
+			TestTrue(TEXT("the bank is kept in memory"), Award.bDeferred && Session.UnsavedRuns == 1);
+			TestFalse(TEXT("the exit cannot write it"), Session.Close());
+			TestEqual(TEXT("so it leaves a marker beside the save, written with the lock still another's"), ReadMarker(Path), FString(TEXT("1")));
+			TestFalse(TEXT("and no save"), Files.FileExists(*Path));
+		}
+		FDTMetaSession Next;
+		TestEqual(TEXT("the next launch opens a fresh save"), Next.Open(Path), EDTMetaOpen::Fresh);
+		TestTrue(TEXT("reads the marker"), Next.LostRuns == 1 && Next.Notice() == EDTMetaNotice::RunLost);
+		TestFalse(TEXT("and removes it"), Files.FileExists(*DTMeta::LostPath(Path)));
+		TestTrue(TEXT("the lost run is in no profile"), Next.Profile.Runs == 0 && Next.Profile.Currency == 0);
+		FDTMetaSession Later;
+		Later.Open(Path);
+		TestTrue(TEXT("the launch after that has nothing to say"), Later.LostRuns == 0 && Later.Notice() == EDTMetaNotice::None);
+	}
+
+	// A kept bank the exit does write is no loss.
+	{
+		const FString Path = TempSave(TEXT("Saved.sav"));
+		FDTMetaSession Session;
+		Session.Open(Path);
+		{
+			const FDTMetaLock Other(Path);
+			Session.Bank(Minutes(1), EDTRunEnd::Left);
+			TestEqual(TEXT("one run waits"), Session.UnsavedRuns, 1);
+		}
+		TestTrue(TEXT("the lock free at exit: the run is written"), Session.Close() && Session.UnsavedRuns == 0);
+		TestFalse(TEXT("no marker"), Files.FileExists(*DTMeta::LostPath(Path)));
+		FDTMetaSession Next;
+		TestTrue(TEXT("the next launch reads the run and says nothing"), Next.Open(Path) == EDTMetaOpen::Read && Next.Profile.Runs == 1 && Next.Notice() == EDTMetaNotice::None);
+	}
+
+	// Two launches that each lose a run before any launch reads the marker: the count adds up, no marker is written over.
+	{
+		const FString Path = TempSave(TEXT("Twice.sav"));
+		FDTMetaSession First;
+		FDTMetaSession Second;
+		First.Open(Path);
+		Second.Open(Path);
+		{
+			const FDTMetaLock Other(Path);
+			First.Bank(Minutes(1), EDTRunEnd::Left);
+			Second.Bank(Minutes(1), EDTRunEnd::Left);
+			Second.Bank(Minutes(1), EDTRunEnd::Left);
+			TestFalse(TEXT("neither exit can write"), First.Close() || Second.Close());
+		}
+		TestEqual(TEXT("the marker holds all three runs"), ReadMarker(Path), FString(TEXT("3")));
+		FDTMetaSession Next;
+		Next.Open(Path);
+		TestEqual(TEXT("and the next launch reads three"), Next.LostRuns, 3);
+	}
+
+	// A write that fails (R-MET-13) to the exit: a kept run leaves the marker, a kept purchase alone does not, the line says a run.
+	{
+		const FString Path = TempSave(TEXT("Blocked.sav"));
+		const FString Blocker = Path + TEXT(".tmp");
+		FDTMetaSession Session;
+		Session.Open(Path);
+		Session.Profile.Currency = Price;
+		TestTrue(TEXT("the price is planted"), Session.Write());
+		Files.MakeDirectory(*Blocker, true);
+		TestEqual(TEXT("a purchase through a blocked write is in memory"), DTTree::Buy(Session, LockNode), EDTTreeBuy::Ok);
+		TestFalse(TEXT("the exit cannot write it"), Session.Close());
+		TestFalse(TEXT("a purchase alone leaves no marker"), Files.FileExists(*DTMeta::LostPath(Path)));
+		Session.Bank(Minutes(1), EDTRunEnd::Left);
+		TestTrue(TEXT("a run through the blocked write waits too"), Session.UnsavedRuns == 1 && Session.Pending.Num() == 2);
+		TestFalse(TEXT("the exit cannot write either"), Session.Close());
+		TestEqual(TEXT("the run leaves the marker"), ReadMarker(Path), FString(TEXT("1")));
+		Files.DeleteDirectory(*Blocker, false, true);
+		Files.Delete(*DTMeta::LostPath(Path), false, true, true);
+	}
+
+	// A session with no file, and one that is stuck, write nothing at all (R-MET-12, R-MET-14).
+	{
+		FDTMetaSession None;
+		None.Open(FString());
+		None.Bank(Minutes(1), EDTRunEnd::Left);
+		TestTrue(TEXT("no save: nothing owed, nothing said"), None.Close() && None.Notice() == EDTMetaNotice::None);
+	}
+	return true;
+}
+
 #endif

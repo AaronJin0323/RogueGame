@@ -520,6 +520,16 @@ namespace DTHubCheckLocal
 		Press(EKeys::Enter);
 		Is(TEXT("the Codex again, from its first row"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Codex) && Hub->GetState().Focus == 0; });
 		Walk(TEXT("the Codex, every row read"));
+		// The root's two lines about the save (R-VIG-21): no launch of this check has a bad save or a lost run, so each is put on
+		// the page and every root row walked under it. The file name is the longest a first bad save gets.
+		Press(EKeys::Escape);
+		for (const EDTMetaNotice Kind : { EDTMetaNotice::KeptAside, EDTMetaNotice::RunLost })
+		{
+			Check.Steps.Add([Kind](UDTHubSubsystem* Hub) { Hub->ShowNoticeForCheck(Kind, TEXT("DTMeta.sav.bad.10")); return true; });
+			Is(TEXT("the root holds a line about the save"), [](UDTHubSubsystem* Hub) { return IsPage(Hub, EDTHubPage::Root) && !Hub->GetNotice().IsEmpty(); });
+			Walk(Kind == EDTMetaNotice::KeptAside ? TEXT("the root, a save set aside") : TEXT("the root, a run not saved"));
+		}
+		Check.Steps.Add([](UDTHubSubsystem* Hub) { Hub->ShowNoticeForCheck(EDTMetaNotice::None, FString()); return true; });
 	}
 
 	/** A person's way into a run on an empty profile, for Tools/SeedCheck.ps1: the Shrine, the first Keeper, Begin. */

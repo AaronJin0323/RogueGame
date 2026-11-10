@@ -1660,6 +1660,9 @@ class ExportLogs(unittest.TestCase):
 		manifest = self.export("Storm", "x")["MANIFEST.txt"].decode("utf-8")
 		for held in ("who drove the run", "where the hero was", "where each hit on the hero came from", "how long each card took to pick", "The save and the settings file stay"):
 			self.assertIn(held, manifest)
+		# The third wall-clock field, run_end.wall_paused_s (review #41), and the same in zh.
+		self.assertIn("how long each card took to pick and their total per run,", manifest)
+		self.assertIn("对局文件还记有每张牌的选择用时，以及每局的合计用时。", manifest)
 
 	def test_s3_exit_reads_a_real_export(self):
 		run = json.dumps(S3Exit.start()) + "\n" + json.dumps({"kind": "run_end", "reason": "death"}) + "\n"
@@ -2109,7 +2112,8 @@ class ReviewMinors(unittest.TestCase):
 				for row in rows:
 					for fault in loc_build.check_voice(row["Key"], row, debts=set()):
 						owed.add((row["Key"], "sentences" if "sentences" in fault else "designation"))
-		self.assertTrue(owed <= loc_build.VOICE_DEBTS, sorted(owed - loc_build.VOICE_DEBTS))
+		# Equal, not within: a row that is fixed leaves the list with its fix (review #75), so the list never covers a row that could break again.
+		self.assertEqual(owed, loc_build.VOICE_DEBTS)
 		self.assertEqual([v for v in loc_build.check_story(self.real()) if "sentences" in v or "designation" in v], [])
 
 	# --- #73: a lookup through a file's own helper ----------------------------------------------------------------------------------
@@ -2211,6 +2215,24 @@ class ReviewMinors(unittest.TestCase):
 			self.assertLess(code.index(held), first_launch, held)
 		self.assertIn("Tools/PackageFiles", code[code.index("git -C $Root diff"):first_launch])
 
+	# The same guard on the two package checks that had none (seen with #50): nothing is launched, and no work folder is cleared, for a package of another tree.
+	def test_package_restart_check_refuses_a_package_of_another_tree(self):
+		code = "\n".join(ps_code(self.text("Tools", "PackageRestartCheck.ps1").splitlines()))
+		first_launch = min(code.index("Start-DTHidden"), code.index("Remove-Item $UserDirs"))
+		for held in ("package_stamp.json", "came from a dirty tree", "came from a partial run", "is not in this history", "is stale"):
+			self.assertIn(held, code)
+			self.assertLess(code.index(held), first_launch, held)
+		self.assertIn('-notcontains "Shipping"', code[:first_launch])
+		self.assertIn('-notcontains "Development"', code[:first_launch])
+
+	def test_crash_export_check_refuses_a_package_of_another_tree(self):
+		code = "\n".join(ps_code(self.text("Tools", "CrashExportCheck.ps1").splitlines()))
+		first_launch = min(code.index("Start-DTHidden"), code.index("Remove-Item $WorkDir"))
+		for held in ("package_stamp.json", "came from a dirty tree", "came from a partial run", "is not in this history", "is stale"):
+			self.assertIn(held, code)
+			self.assertLess(code.index(held), first_launch, held)
+		self.assertIn('-notcontains "Development"', code[:first_launch])
+
 	# --- #90: a failed export says where it looked --------------------------------------------------------------------------------------------
 	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
 	def test_a_failed_export_names_both_folders(self):
@@ -2222,6 +2244,11 @@ class ReviewMinors(unittest.TestCase):
 			line = [text for text in run.stdout.splitlines() if text.startswith("EXPORT: FAIL")][0]
 			self.assertIn(os.path.join(root, "Dusktracer", "Saved"), line)
 			self.assertEqual(line.count("Dusktracer\\Saved"), 2, line)
+			# What to do about it, in both languages, after the line a tool reads (review #90).
+			said = run.stdout.splitlines()
+			after = said[said.index(line) + 1:]
+			self.assertIn("There is nothing to export yet. Play one run, then export again.", after)
+			self.assertIn("还没有可导出的内容。请先玩一局，再导出一次。", after)
 
 	# --- #89, #65: PackageHubCheck's read of a live run file and its CSV comparison --------------------------------------------------------------
 	def hub_function(self, name):
