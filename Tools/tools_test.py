@@ -467,6 +467,45 @@ class Contrast(unittest.TestCase):
 		self.assertEqual(read["enemy_rim"][1], 40)
 		self.assertAlmostEqual(read["enemy_rim"][0], contrast_check.srgb_y(*pale))
 
+	def round_frame(self, side, hole):
+		"""A 200x200 ground frame with one square round: a rim `side` across round a dark centre `hole` across."""
+		w = h = 200
+		rgb = bytearray(self.GROUND * (w * h))
+		for y in range(90, 90 + side):
+			for x in range(90, 90 + side):
+				inside = (side - hole) // 2 <= x - 90 < (side + hole) // 2 and (side - hole) // 2 <= y - 90 < (side + hole) // 2
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = bytes((5, 2, 3) if inside else self.RIM)
+		return w, h, bytes(rgb)
+
+	def test_a_round_is_read_at_the_size_the_frame_draws_it(self):
+		# D-036's frame draws a round 14 to 16 pixels across, 94 to 137 rim pixels; the window holds that with room, and no more.
+		low, high = contrast_check.ROUND_BLOB_PX
+		for side, hole in ((14, 8), (16, 8), (18, 8)):
+			read = contrast_check.measure(*self.round_frame(side, hole))
+			self.assertTrue(low <= side * side - hole * hole <= high, side)
+			self.assertEqual(read["enemy_core"][1], 1, side)
+			self.assertEqual(read["enemy_rim"][1], side * side - hole * hole, side)
+		self.assertNotIn("enemy_core", contrast_check.measure(*self.round_frame(24, 8)))  # rounds run together, or a glow
+		self.assertGreater(24 * 24 - 8 * 8, high)
+		w, h, rgb = self.round_frame(3, 1)  # a fleck round a dark pixel: six rim pixels once two are ground again
+		rgb = bytearray(rgb)
+		for x in (91, 92):
+			rgb[(90 * w + x) * 3:(90 * w + x) * 3 + 3] = bytes(self.GROUND)
+		self.assertEqual(contrast_check.measure(w, h, bytes(rgb))["enemy_rim"][1], 6)
+		self.assertNotIn("enemy_core", contrast_check.measure(w, h, bytes(rgb)))
+		self.assertLess(6, low)
+
+	def test_the_whole_band_is_read_at_the_width_the_frame_draws_it(self):
+		w, h, rgb = self.frame([self.OPTIC, self.TRACER, self.GEM, self.CHEST, self.TELEGRAPH, self.RIM])
+		rgb = bytearray(rgb)
+		width = contrast_check.TELEGRAPH_BAND_REACH_PX
+		for y in range(100, 110):  # a band as wide as the reach left of the telegraph patch, then one more column that is not band
+			for x in range(108 - width, 108):
+				rgb[(y * w + x) * 3:(y * w + x) * 3 + 3] = b"\x00\x00\x00"
+		read = contrast_check.measure(w, h, bytes(rgb))
+		self.assertEqual(read["telegraph_band"][1], 10 * width)
+		self.assertGreaterEqual(width, 4)  # the D-036 frame draws the band three to four pixels wide
+
 	def test_a_missing_element_fails(self):
 		rows, failed = contrast_check.judge(self.readings([self.OPTIC]), 3.0, 20)
 		self.assertIn("chest", failed)

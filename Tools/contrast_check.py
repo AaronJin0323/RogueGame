@@ -50,7 +50,10 @@ SHADOW = (0.08, 0.29)  # value range of the shadow on it
 GROUND_SAT = 0.50
 ENEMY_CORE_MAX_V = 0.32
 TELEGRAPH_BAND_MAX_V = 0.12  # the band is black; this admits the band and nothing lit
-TELEGRAPH_BAND_REACH_PX = 3  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: about two pixels at gameplay camera, one more of anti-aliasing
+# Pixel sizes below are bound to the frame: 1280x720 at C.ARENA.CAMERA_FRAME_RADIUS_UU 1500 (D-036), 0.24 px per uu at the hero.
+# A frame radius move scales lengths by old / new and areas by its square; re-read them then (they were 3 and 4 to 200 at 2000).
+TELEGRAPH_BAND_REACH_PX = 4  # the band is C.PRE.TELEGRAPH_EDGE_UU wide: three to four pixels as drawn, its soft edge included
+ROUND_BLOB_PX = (7, 360)  # rim pixels of one enemy round: 94 to 137 as drawn. Under it a fleck, over it rounds run together or a glow
 TRACER_MIN_V = 0.70
 TRACER_MAX_S = 0.06
 LINE_PANEL_REACH = 10  # a rendered panel pixel is within this of the token, per channel
@@ -123,7 +126,7 @@ def enemy_round_tones(rim, rgb, w):
 					seen.add((nx, ny))
 					stack.append((nx, ny))
 		xs, ys = [p[0] for p in blob], [p[1] for p in blob]
-		if not 4 <= len(blob) <= 200:
+		if not ROUND_BLOB_PX[0] <= len(blob) <= ROUND_BLOB_PX[1]:
 			continue
 		cx, cy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
 		i = (cy * w + cx) * 3
