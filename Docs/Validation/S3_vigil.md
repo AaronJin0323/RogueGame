@@ -61,6 +61,8 @@ All marked `[invented]` in Context (R-NAR-08 asks it of the story tables; the sa
 | Table | Key | en | zh-Hans |
 |---|---|---|---|
 | ST_UI | `Hub.Balance` | Ichor {0} | 神血 {0} |
+| ST_UI | `Summary.Waiting` (D-042, awaiting a reading) | Save in use by another game. This run is saved at the next save or on quit. | 尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。 |
+| ST_Tree | `Tree.State.Busy` (D-042, awaiting a reading) | The save is in use by another game. Press again. | 存档正被另一个游戏使用，请再按一次。 |
 | ST_UI | `Hub.Begin.NeedPatron` | Choose a Patron at the Shrine first. | 先去祠堂选一位主司。 |
 | ST_UI | `Hub.Tree.Empty` | No terms are open yet. | 暂时没有可签的条款。 |
 | ST_UI | `Hub.Hint.Read` | Move: up and down    Page: left and right    Back: Esc or B | 移动：上下键    翻页：左右键    返回：Esc 或 B |

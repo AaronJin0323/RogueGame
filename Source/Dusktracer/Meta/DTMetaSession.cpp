@@ -4,6 +4,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
@@ -13,7 +14,10 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #else
+#include <fcntl.h>
 #include <stdio.h>
+#include <sys/file.h>
+#include <unistd.h>
 #endif
 
 namespace DTMetaSessionLocal
@@ -27,6 +31,68 @@ namespace DTMetaSessionLocal
 		return ::rename(TCHAR_TO_UTF8(*Temp), TCHAR_TO_UTF8(*Dest)) == 0;
 #endif
 	}
+}
+
+FString FDTMetaLock::PathFor(const FString& SavePath)
+{
+	return FPaths::ConvertRelativePathToFull(SavePath) + TEXT(".lock");
+}
+
+bool FDTMetaLock::TryOpen(const FString& LockPath)
+{
+#if PLATFORM_WINDOWS
+	// No sharing: a second open fails while this handle lives. Delete on close: no file is left, and none to clean up after a crash.
+	const HANDLE Opened = ::CreateFileW(*LockPath, GENERIC_WRITE | DELETE, 0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+	if (Opened == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+	Handle = Opened;
+	return true;
+#else
+	// The file stays (removing it would race a waiter that has it open); the lock is on the descriptor and goes with the process.
+	const int Opened = ::open(TCHAR_TO_UTF8(*LockPath), O_CREAT | O_RDWR | O_CLOEXEC, 0644);
+	if (Opened < 0)
+	{
+		return false;
+	}
+	if (::flock(Opened, LOCK_EX | LOCK_NB) != 0)
+	{
+		::close(Opened);
+		return false;
+	}
+	Descriptor = Opened;
+	return true;
+#endif
+}
+
+FDTMetaLock::FDTMetaLock(const FString& SavePath, int32 WaitMs)
+{
+	const FString LockPath = PathFor(SavePath);
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(LockPath), true);
+	const double Until = FPlatformTime::Seconds() + WaitMs / 1000.0;
+	for (;;)
+	{
+		bHeld = TryOpen(LockPath);
+		if (bHeld || FPlatformTime::Seconds() >= Until)
+		{
+			return;
+		}
+		FPlatformProcess::Sleep(DTConst::SAVE_LOCK_RETRY_MS / 1000.0f);
+	}
+}
+
+FDTMetaLock::~FDTMetaLock()
+{
+	if (!bHeld)
+	{
+		return;
+	}
+#if PLATFORM_WINDOWS
+	::CloseHandle(static_cast<HANDLE>(Handle));
+#else
+	::close(Descriptor);
+#endif
 }
 
 bool DTMeta::UsesFile(bool bToolRun, bool bPathGiven)
@@ -87,6 +153,7 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	AsidePath.Reset();
 	Seen.Reset();
 	bUnsaved = false;
+	Pending.Reset();
 	bWritable = false;
 	if (Path.IsEmpty())
 	{
@@ -135,6 +202,74 @@ bool FDTMetaSession::Write()
 	{
 		return false;
 	}
+	const FDTMetaLock Lock(Path);
+	if (!Lock.IsHeld())
+	{
+		bUnsaved = true;
+		UE_LOG(LogDT, Warning, TEXT("Meta: %s is locked by another launch; nothing was written and the next write carries this change"), *Path);
+		return false;
+	}
+	return WriteHeld();
+}
+
+bool FDTMetaSession::Flush()
+{
+	if (!bUnsaved)
+	{
+		return true;
+	}
+	if (!bWritable)
+	{
+		return false;
+	}
+	const FDTMetaLock Lock(Path);
+	if (!Lock.IsHeld())
+	{
+		UE_LOG(LogDT, Warning, TEXT("Meta: %s is locked by another launch; %d change(s) are still kept in memory"), *Path, Pending.Num());
+		return false;
+	}
+	Reread();
+	return WriteHeld();
+}
+
+EDTMetaChange FDTMetaSession::Change(const FDTMetaEdit& Edit, bool bKeepIfBusy)
+{
+	if (!bWritable || Path.IsEmpty())
+	{
+		return EDTMetaChange::Refused;
+	}
+	const FDTMetaLock Lock(Path);
+	if (!Lock.IsHeld())
+	{
+		if (!bKeepIfBusy)
+		{
+			UE_LOG(LogDT, Warning, TEXT("Meta: %s is locked by another launch; nothing was changed"), *Path);
+			return EDTMetaChange::Busy;
+		}
+		if (!Edit(*this))
+		{
+			return EDTMetaChange::Refused;
+		}
+		Pending.Add(Edit);
+		bUnsaved = true;
+		UE_LOG(LogDT, Warning, TEXT("Meta: %s is locked by another launch; this change is kept in memory and written at the next save (%d waiting)"), *Path, Pending.Num());
+		return EDTMetaChange::Busy;
+	}
+	Reread(); // another window on this save may have banked or bought since; this change lands on top of that
+	if (!Edit(*this))
+	{
+		if (bUnsaved)
+		{
+			WriteHeld(); // still a save point for what was waiting
+		}
+		return EDTMetaChange::Refused;
+	}
+	Pending.Add(Edit);
+	return WriteHeld() ? EDTMetaChange::Written : EDTMetaChange::Unsaved;
+}
+
+bool FDTMetaSession::WriteHeld()
+{
 	TArray<uint8> Bytes = FDTSaveEnvelope::Wrap(DTMeta::Serialize(Profile), Version);
 	if (!DTMeta::WriteAtomic(Path, Bytes))
 	{
@@ -144,14 +279,25 @@ bool FDTMetaSession::Write()
 	}
 	Seen = MoveTemp(Bytes);
 	bUnsaved = false;
+	Pending.Reset();
 	return true;
 }
 
 bool FDTMetaSession::Refresh()
 {
-	if (!bWritable || Path.IsEmpty() || bUnsaved)
+	if (!bWritable || Path.IsEmpty())
 	{
-		return false; // with a change of its own not yet on disk, this session's profile is the newer one
+		return false;
+	}
+	const FDTMetaLock Lock(Path);
+	return Lock.IsHeld() && Reread();
+}
+
+bool FDTMetaSession::Reread()
+{
+	if (!bWritable || Path.IsEmpty() || (bUnsaved && Pending.IsEmpty()))
+	{
+		return false; // a plant not yet on disk is no change that can be made again: this session's profile is the newer one
 	}
 	TArray<uint8> Bytes;
 	if (!IFileManager::Get().FileExists(*Path) || !FFileHelper::LoadFileToArray(Bytes, *Path, FILEREAD_Silent) || Bytes == Seen)
@@ -169,6 +315,20 @@ bool FDTMetaSession::Refresh()
 	Profile = MoveTemp(Read);
 	Seen = MoveTemp(Bytes);
 	UE_LOG(LogDT, Log, TEXT("Meta: another launch wrote %s; read again, balance %lld, runs %d"), *Path, Profile.Currency, Profile.Runs);
+	// What this session still owes the file is made again on what the other launch left.
+	const TArray<FDTMetaEdit> Waiting = MoveTemp(Pending);
+	Pending.Reset();
+	for (const FDTMetaEdit& Edit : Waiting)
+	{
+		if (Edit(*this))
+		{
+			Pending.Add(Edit);
+		}
+		else
+		{
+			UE_LOG(LogDT, Warning, TEXT("Meta: a change kept in memory no longer applies to %s as another launch left it; it is dropped"), *Path);
+		}
+	}
 	return true;
 }
 
@@ -187,14 +347,29 @@ FDTRunAward FDTMetaSession::Bank(const FDTRunTally& Tally, EDTRunEnd End)
 		Award.Balance = Profile.Currency + Award.Retained;
 		return Award;
 	}
-	Refresh(); // another window on this save may have banked or bought since; this run lands on top of that
-	Award.Retained = DTMeta::ApplyRun(Profile, Tally, End);
-	const TSet<FName> Known = Profile.Discoveries;
-	OnBank.Broadcast(Tally, Profile);
-	Award.Discovered = Profile.Discoveries.Difference(Known).Array();
-	Award.Discovered.Sort(FNameLexicalLess());
+	// The run as an edit: made on this profile now, and again on the file's if another launch writes before this one can.
+	const TSharedRef<TArray<FName>> Discovered = MakeShared<TArray<FName>>();
+	const FDTMetaEdit Run = [Tally, End, Discovered](FDTMetaSession& Session)
+	{
+		DTMeta::ApplyRun(Session.Profile, Tally, End);
+		const TSet<FName> Known = Session.Profile.Discoveries;
+		Session.OnBank.Broadcast(Tally, Session.Profile);
+		*Discovered = Session.Profile.Discoveries.Difference(Known).Array();
+		Discovered->Sort(FNameLexicalLess());
+		return true;
+	};
+	if (!bWritable)
+	{
+		Run(*this); // a stuck session (R-MET-12) plays on in memory and writes nothing
+	}
+	else
+	{
+		Award.bDeferred = Change(Run, /*bKeepIfBusy*/ true) == EDTMetaChange::Busy;
+		Award.Waiting = Pending.Num();
+	}
+	Award.Retained = DTMeta::ComputeAward(Tally);
+	Award.Discovered = *Discovered;
 	Award.Balance = Profile.Currency;
-	Write();
 	UE_LOG(LogDT, Log, TEXT("Meta: banked %lld, balance %lld, runs %d, wins %d"), Award.Retained, Award.Balance, Profile.Runs, Profile.Wins);
 	return Award;
 }

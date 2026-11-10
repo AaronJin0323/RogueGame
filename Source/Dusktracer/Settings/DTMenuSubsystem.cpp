@@ -507,7 +507,8 @@ void UDTMenuSubsystem::Draw(UCanvas* Canvas)
 		const UDTRunRecorder* Recorder = GetWorld() ? GetWorld()->GetSubsystem<UDTRunRecorder>() : nullptr;
 		const bool bSummary = State.Screen == EDTMenuScreen::RunOver && Recorder && Recorder->GetAward().bBanked;
 		DTMenuScreen::Draw(Canvas, State, DTSettings::Live(), bSummary ? DTMenuText::RunSummary(Recorder->GetAward().Retained, Recorder->GetAward().Balance) : FText::GetEmpty(),
-			bSummary ? DTMenuText::DiscoveryToast(Recorder->GetAward().Discovered) : FText::GetEmpty());
+			// A bank that could not reach the file says so where the toast goes: it matters more than what the run found (meta.md R-MET-11).
+			bSummary ? (Recorder->GetAward().bDeferred ? DTMenuText::SaveWaiting() : DTMenuText::DiscoveryToast(Recorder->GetAward().Discovered)) : FText::GetEmpty());
 	}
 }
 

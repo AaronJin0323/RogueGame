@@ -142,6 +142,7 @@ Controls.Bound,{0} set.,「{0}」已设置。,Controls status line after a rebin
 Controls.Reset,Reset to defaults,恢复默认,Controls screen button: restore every key and button.,
 Controls.ResetDone,Defaults restored.,已恢复默认按键。,Controls status line after Reset to defaults.,
 Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},"One run-summary line on the run-over screen. {0} the run's award, {1} the balance after it. Wording from Summary.Retained and RunSummary.Balance.",
+Summary.Waiting,Save in use by another game. This run is saved at the next save or on quit.,尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。,"[invented] Run-over screen, under the panel, when the run's bank could not reach the save because another launch holds its lock (meta.md R-MET-11, D-042).",
 Hub.Balance,Ichor {0},神血 {0},Hub root line: the balance. {0} Ichor held. [invented] vigil.md Text.,
 Hub.Begin.NeedPatron,Choose a Patron at the Shrine first.,先去祠堂选一位主司。,Hub detail on Begin with no Patron chosen. [invented] vigil.md Text.,
 Hub.Tree.Empty,No terms are open yet.,暂时没有可签的条款。,Contracts page with no tab behind it. [invented] vigil.md Text.,

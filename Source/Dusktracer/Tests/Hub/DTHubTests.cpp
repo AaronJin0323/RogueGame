@@ -749,6 +749,36 @@ bool FDTVigTreeBuy::RunTest(const FString& Parameters)
 	Tab.Accept(Scatter);
 	TestEqual(TEXT("a bought row buys nothing"), Session.Profile.Currency, static_cast<int64>(DTConst::TREE_COST_WEAPON));
 
+	// The save's lock is another launch's (meta.md R-MET-11): the press is refused, and the row says so in each culture.
+	{
+		AddExpectedError(TEXT("is locked by another launch"), EAutomationExpectedErrorFlags::Contains, 0);
+		const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+		{
+			const FDTMetaLock Other(Session.Path);
+			TestTrue(TEXT("another launch holds the lock"), Other.IsHeld());
+			Tab.Accept(Rail);
+			TestTrue(TEXT("a busy save sells nothing"), Session.Profile.TreeRanks.FindRef(TEXT("Trunk.RailLance")) == 0 && Session.Profile.Currency == DTConst::TREE_COST_WEAPON);
+			TArray<FString> Lines;
+			for (const TCHAR* Name : { TEXT("en"), TEXT("zh-Hans") })
+			{
+				FInternationalization::Get().SetCurrentCulture(Name);
+				Lines.Add(TreeText(TEXT("Tree.State.Busy")));
+				TestFalse(FString::Printf(TEXT("%s: the busy line resolves"), Name), Lines.Last().IsEmpty() || Lines.Last().Contains(TEXT("Tree.")));
+				TestTrue(FString::Printf(TEXT("%s: the row says the save is in use"), Name), Tab.RowDetail(Rail).ToString().EndsWith(TEXT("\n") + Lines.Last()));
+			}
+			FInternationalization::Get().SetCurrentCulture(Culture);
+			// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+			FString Csv;
+			FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_Tree.csv")), FFileHelper::EHashOptions::None);
+			TestTrue(TEXT("the busy row carries both languages"), Csv.Contains(TEXT("Tree.State.Busy,The save is in use by another game. Press again.,存档正被另一个游戏使用，请再按一次。,")));
+			TestFalse(TEXT("only that row"), Tab.RowDetail(Scatter).ToString().Contains(TreeText(TEXT("Tree.State.Busy"))));
+			TestEqual(TEXT("its state is as it was: open, at its price"), Tab.RowValue(Rail).ToString(), FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Cost")), FText::AsNumber(DTConst::TREE_COST_WEAPON)).ToString());
+		}
+		Tab.Accept(Rail);
+		TestEqual(TEXT("pressed again with the lock free, it buys"), Session.Profile.TreeRanks.FindRef(TEXT("Trunk.RailLance")), 1);
+		TestFalse(TEXT("and the busy line is gone"), Tab.RowDetail(Rail).ToString().Contains(TreeText(TEXT("Tree.State.Busy"))));
+	}
+
 	// With no writable file every row says so, and the page still backs out: reading it is all it does.
 	FDTMetaSession None;
 	None.Open(FString());

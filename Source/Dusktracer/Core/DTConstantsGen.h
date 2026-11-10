@@ -69,6 +69,8 @@ namespace DTConst
 	inline constexpr int32 SIM_FIXED_HZ = 60; // Hz, CORE
 	inline constexpr int32 SIM_MAX_SUBSTEPS = 2; // n, CORE
 	inline constexpr int32 SAVE_VERSION = 1; // n, CORE
+	inline constexpr int32 SAVE_LOCK_WAIT_MS = 250; // ms, CORE
+	inline constexpr int32 SAVE_LOCK_RETRY_MS = 5; // ms, CORE
 	// enemies
 	inline constexpr int32 ENM_SWARM_RADIUS_UU = 32; // uu, GATED(S1)
 	inline constexpr int32 ENM_SWARM_SPEED_UU_S = 280; // uu_per_s, GATED(S1)
@@ -204,7 +206,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 528; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 530; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

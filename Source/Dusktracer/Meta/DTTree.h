@@ -9,8 +9,11 @@
 
 struct FDTMetaSession;
 
-/** Why a rank can or cannot be bought now. NoSave: a session with no file, or one stuck on an unreadable file, buys nothing. */
-enum class EDTTreeBuy : uint8 { Ok, UnknownNode, NoSave, Maxed, Requires, Short };
+/**
+ * Why a rank can or cannot be bought now. NoSave: a session with no file, or one stuck on an unreadable file, buys nothing.
+ * Busy: another launch held the save's lock past the wait (R-MET-11); nothing was spent and the same ask can be made again.
+ */
+enum class EDTTreeBuy : uint8 { Ok, UnknownNode, NoSave, Maxed, Requires, Short, Busy };
 
 /** What a tile shows. A missing prerequisite wins over a short balance. */
 enum class EDTTreeState : uint8 { Open, Short, Locked, Maxed };
@@ -45,7 +48,7 @@ namespace DTTree
 	/** One node; Row stays INDEX_NONE for an unknown id. */
 	DUSKTRACER_API FDTTreeNode GetNode(const FDTMetaProfile& Profile, FName Id);
 	DUSKTRACER_API EDTTreeBuy CanBuy(const FDTMetaSession& Session, FName Id);
-	/** Spends, adds the rank, writes the unlocks and autosaves (R-MET-13). A failed write keeps the rank in memory, as a bank does. */
+	/** Spends, adds the rank, writes the unlocks and autosaves (R-MET-13), as one change under the save's lock (R-MET-11). A failed write keeps the rank in memory, as a bank does. */
 	DUSKTRACER_API EDTTreeBuy Buy(FDTMetaSession& Session, FName Id);
 
 	/** R-MET-22, R-MET-24. With bGated false the grant is empty, so no reader sees the profile. */

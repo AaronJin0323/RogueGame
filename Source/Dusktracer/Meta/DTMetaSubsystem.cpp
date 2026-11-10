@@ -16,6 +16,9 @@
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Misc/DateTime.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Timespan.h"
 #endif
 
 namespace DTMetaSubsystemLocal
@@ -103,6 +106,39 @@ namespace DTMetaSubsystemLocal
 				return false;
 			}), 0.1f);
 		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdBankWhen(TEXT("DT.Meta.BankWhen"), TEXT("DT.Meta.BankWhen <prefix> <rounds> <steps>: for each round n, wait until <prefix>.<n> exists, read the UTC tick count in it, hold until that instant, then bank a run of <steps> steps through FDTMetaSession::Bank, as a run's end does; quit after the last round. Several launches given one file bank at one instant (Tools/TwoWindowsCheck.ps1 -Race)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (Args.Num() != 3)
+			{
+				return;
+			}
+			UE_LOG(LogDT, Log, TEXT("DT.Meta.BankWhen: waiting for %s"), *Args[0]);
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Prefix = Args[0], Rounds = FCString::Atoi(*Args[1]), Steps = FCString::Atoi64(*Args[2]), Round = 1, Weak = TWeakObjectPtr<UWorld>(World)](float) mutable
+			{
+				FString Text;
+				const int64 Now = FDateTime::UtcNow().GetTicks();
+				const int64 At = FFileHelper::LoadFileToString(Text, *FString::Printf(TEXT("%s.%d"), *Prefix, Round)) ? FCString::Atoi64(*Text) : 0;
+				if (At <= 0 || At - Now > 5 * ETimespan::TicksPerSecond)
+				{
+					return true; // not written yet, or not an instant this launch can hold for
+				}
+				while (FDateTime::UtcNow().GetTicks() < At)
+				{
+				}
+				FDTRunTally Tally;
+				Tally.Steps = Steps;
+				FDTMetaSession* Session = UDTMetaSubsystem::FindSession(Weak.Get());
+				const FDTRunAward Award = Session ? Session->Bank(Tally, EDTRunEnd::Left) : FDTRunAward();
+				UE_LOG(LogDT, Log, TEXT("DT.Meta.BankWhen round %d: retained %lld, balance %lld"), Round, Award.Retained, Award.Balance);
+				if (++Round <= Rounds)
+				{
+					return true;
+				}
+				FPlatformMisc::RequestExit(false, TEXT("DT.Meta.BankWhen"));
+				return false;
+			}), 0.02f);
+		}));
 	static FAutoConsoleCommandWithWorldAndArgs CmdDump(TEXT("DT.Meta.Dump"), TEXT("Log this session's profile as it stands: balance, runs, wins, Tree ranks and unlocks (Tools/TwoWindowsCheck.ps1)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
@@ -163,9 +199,10 @@ void UDTMetaSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UDTMetaSubsystem::Deinitialize()
 {
-	if (Session.bUnsaved)
+	if (Session.bUnsaved && !Session.Flush())
 	{
-		Session.Write();
+		// The last save point there is. What is said here is all that is left of the change: no screen tells the player yet (D-042).
+		UE_LOG(LogDT, Error, TEXT("Meta: %s could not be written at exit; %d change(s) of this launch are lost"), *Session.Path, FMath::Max(1, Session.Pending.Num()));
 	}
 	Super::Deinitialize();
 }

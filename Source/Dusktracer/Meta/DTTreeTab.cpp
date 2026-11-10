@@ -114,6 +114,10 @@ FText FDTTreeTab::Reason(int32 Row) const
 	{
 		return FText::Format(Tree(TEXT("Tree.Purchased")), DTTree::NodeName(Rows[Row].Node));
 	}
+	if (Row == Busy)
+	{
+		return Tree(TEXT("Tree.State.Busy"));
+	}
 	switch (DTTree::CanBuy(Session, Node.Id))
 	{
 	case EDTTreeBuy::NoSave: return Tree(TEXT("Tree.State.ReadOnly"));
@@ -140,9 +144,19 @@ FText FDTTreeTab::Header() const
 
 void FDTTreeTab::Accept(int32 Row)
 {
-	if (Rows.IsValidIndex(Row) && !IsHeading(Row) && DTTree::Buy(Session, FName(DTCat::TreeNodes[Rows[Row].Node].Id)) == EDTTreeBuy::Ok)
+	Busy = INDEX_NONE; // what the last press was told is that press's
+	if (!Rows.IsValidIndex(Row) || IsHeading(Row))
+	{
+		return;
+	}
+	const EDTTreeBuy Result = DTTree::Buy(Session, FName(DTCat::TreeNodes[Rows[Row].Node].Id));
+	if (Result == EDTTreeBuy::Ok)
 	{
 		Signed = Row;
+	}
+	else if (Result == EDTTreeBuy::Busy)
+	{
+		Busy = Row; // nothing was spent and the row's state is as it was: only this line tells the press from one that did nothing
 	}
 }
 

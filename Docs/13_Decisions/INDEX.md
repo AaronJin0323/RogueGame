@@ -43,3 +43,4 @@
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied |
 | D-040 | A dash volley never starts a live ring or beam again: one strike, the rule of Chain Trigger's free volley | RULE | applied |
 | D-041 | A Warden killed on the step the hero falls is a win, and the run has one outcome everywhere | RULE | applied |
+| D-042 | One change to the save at a time: reread, change and write under a lock held for that change | BUG | applied on `fix/d042-save-lock` |

@@ -100,22 +100,41 @@ EDTTreeBuy DTTree::CanBuy(const FDTMetaSession& Session, FName Id)
 
 EDTTreeBuy DTTree::Buy(FDTMetaSession& Session, FName Id)
 {
-	Session.Refresh(); // a second window on this save may have spent or banked since: the price is taken from the file's balance
-	const EDTTreeBuy Result = CanBuy(Session, Id);
-	if (Result != EDTTreeBuy::Ok)
+	const EDTTreeBuy Before = CanBuy(Session, Id);
+	if (Before == EDTTreeBuy::UnknownNode || Before == EDTTreeBuy::NoSave)
 	{
-		return Result;
+		return Before;
 	}
-	const DTCat::FTreeNodeRow& Data = DTCat::TreeNodes[FindNode(Id)];
-	Session.Profile.Currency -= Data.Cost;
-	Session.Profile.TreeRanks.FindOrAdd(Id) += 1;
-	for (const FName& Item : SplitIds(Data.Unlocks))
+	// The purchase as an edit: a second window on this save may have spent or banked since, so the checks and the price are
+	// taken on the file's profile, under the lock. Kept after a failed write, it is checked again before it is made again.
+	const TSharedRef<EDTTreeBuy> Why = MakeShared<EDTTreeBuy>(Before);
+	const FDTMetaEdit Purchase = [Id, Why](FDTMetaSession& Held)
 	{
-		Session.Profile.Unlocked.Add(Item);
+		*Why = CanBuy(Held, Id);
+		if (*Why != EDTTreeBuy::Ok)
+		{
+			return false;
+		}
+		const DTCat::FTreeNodeRow& Data = DTCat::TreeNodes[FindNode(Id)];
+		Held.Profile.Currency -= Data.Cost;
+		Held.Profile.TreeRanks.FindOrAdd(Id) += 1;
+		for (const FName& Item : SplitIds(Data.Unlocks))
+		{
+			Held.Profile.Unlocked.Add(Item);
+		}
+		return true;
+	};
+	switch (Session.Change(Purchase, /*bKeepIfBusy*/ false))
+	{
+	case EDTMetaChange::Busy:
+		UE_LOG(LogDT, Warning, TEXT("Tree: %s not bought, the save is locked by another launch; nothing was spent"), *Id.ToString());
+		return EDTTreeBuy::Busy;
+	case EDTMetaChange::Refused:
+		return *Why;
+	default:
+		UE_LOG(LogDT, Log, TEXT("Tree: bought %s, balance %lld"), *Id.ToString(), Session.Profile.Currency);
+		return EDTTreeBuy::Ok;
 	}
-	Session.Write();
-	UE_LOG(LogDT, Log, TEXT("Tree: bought %s, balance %lld"), *Id.ToString(), Session.Profile.Currency);
-	return EDTTreeBuy::Ok;
 }
 
 FDTPoolGrant DTTree::MakeGrant(const FDTMetaProfile& Profile, bool bGated)
