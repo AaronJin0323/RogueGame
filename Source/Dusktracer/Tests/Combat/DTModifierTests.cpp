@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Tests/Combat/DTWeaponTestHarness.h"
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Combat/DTWeaponCompose.h"
 #include "Core/DTCatalogGen.h"
@@ -770,6 +771,516 @@ bool FDTModifiersDormantTable::RunTest(const FString& Parameters)
 				}
 			}
 		}
+	}
+	return true;
+}
+
+namespace DTChainTriggerTest
+{
+	using namespace DTWeaponTestHarness;
+
+	static const TCHAR* const ChainWeapons[] = { TEXT("Weapon.PulseRifle"), TEXT("Weapon.ScatterCannon"), TEXT("Weapon.OrbitalDrones"), TEXT("Weapon.RailLance"),
+		TEXT("Weapon.FlakMortar"), TEXT("Weapon.ArcBlade"), TEXT("Weapon.SeekerSwarm"), TEXT("Weapon.RingEmitter"), TEXT("Weapon.SpiralProjector"), TEXT("Weapon.GravityMine") };
+
+	struct FChainReading
+	{
+		EDTWeaponResult Socketed = EDTWeaponResult::Ok;
+		bool bDormant = false;
+		int32 ChainHits = 0;
+		float ChainDamage = 0.0f;
+		float Total = 0.0f;
+		int64 Kills = 0;
+		int64 Breaches = 0;
+	};
+
+	/** The weapon at level 8, evolved or not, with Chain Trigger socketed or not. */
+	static void GiveChained(FDTHarness& H, const TCHAR* Weapon, bool bEvolved, bool bChain, FChainReading& Out)
+	{
+		H.Weapons.Give(H.Run, 0, FName(Weapon), 8);
+		FDTWeaponInstance& Owned = H.Run.GetPlayer(0).Weapons[0];
+		Owned.Evolve = bEvolved ? DTReforge::FindEvolve(Owned.Def) : Owned.Evolve;
+		if (bChain)
+		{
+			Out.Socketed = H.Weapons.Socket(H.Run, 0, 0, TEXT("Mod.ChainTrigger"));
+		}
+	}
+
+	/** Rings of enemies where every pattern reaches one: a sweep's reach, the drone orbit, a ring's band. */
+	static void AddCrowd(FDTHarness& H, float Hp)
+	{
+		for (const float Radius : { 120.0f, static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU), 300.0f, 560.0f })
+		{
+			for (int32 Index = 0; Index < 24; ++Index)
+			{
+				H.AddEnemy(FVector2f(Radius, 0.0f).GetRotated(15.0f * static_cast<float>(Index)), Hp);
+			}
+		}
+	}
+
+	static void Read(const FDTHarness& H, FChainReading& Out)
+	{
+		const uint16 Chain = FDTTelemetrySources::FindOrAdd(TEXT("Modifier.ChainTrigger"));
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Out.ChainHits += Hit.SourceId == Chain ? 1 : 0;
+			Out.ChainDamage += Hit.SourceId == Chain ? Hit.Damage : 0.0f;
+			Out.Total += Hit.Damage;
+		}
+		Out.Kills = H.Enemies.GetTotalKills();
+	}
+
+	/**
+	 * One kill by the weapon, handed in a second after its first volley, so a ring, a beam or a mine of its own lives as it does in play.
+	 * Nothing dies and the weapon's own cadence runs on. bMove walks the hero back and forth, which Cyclone needs to turn at all.
+	 */
+	static FChainReading OneKill(const TCHAR* Weapon, bool bEvolved, bool bKill, bool bMove)
+	{
+		FChainReading Out;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, Weapon, bEvolved, true, Out);
+		AddCrowd(H, ToughHp);
+		const int32 KillStep = DTConst::SIM_FIXED_HZ;
+		for (int32 Step = 0; Step < KillStep + 6 * DTConst::SIM_FIXED_HZ; ++Step)
+		{
+			if (bMove)
+			{
+				H.View.HeroPositions[0] += FVector2f(Step % 2 == 0 ? 4.0f : -4.0f, 0.0f);
+			}
+			if (bKill && Step == KillStep)
+			{
+				FDTKill Kill;
+				Kill.OwnerId = 0;
+				Kill.WeaponSlot = 0;
+				H.PendingKills.Add(Kill);
+			}
+			H.StepOnce();
+		}
+		const FDTWeaponInstance& Owned = H.Run.GetPlayer(0).Weapons[0];
+		Out.bDormant = Owned.Sockets.Num() > 0 && Owned.Sockets[0].bDormant;
+		Read(H, Out);
+		return Out;
+	}
+
+	/**
+	 * Thirty seconds of a crowd that walks in and dies: six enemies a second from 750 uu at 100 uu/s, kills resolved by the pool, pushes applied,
+	 * so the modifier triggers as it does in play. Breaches are enemy-steps spent within 150 uu of the hero.
+	 */
+	static FChainReading March(const TCHAR* Weapon, bool bEvolved, bool bChain, bool bMove, float Hp)
+	{
+		FChainReading Out;
+		FDTHarness H;
+		GiveChained(H, Weapon, bEvolved, bChain, Out);
+		int32 Spawned = 0;
+		for (int32 Step = 0; Step < 30 * DTConst::SIM_FIXED_HZ; ++Step)
+		{
+			if (Step % (DTConst::SIM_FIXED_HZ / 6) == 0)
+			{
+				H.AddEnemy(FVector2f(750.0f, 0.0f).GetRotated(137.5f * static_cast<float>(Spawned++)), Hp);
+			}
+			if (bMove)
+			{
+				H.View.HeroPositions[0] += FVector2f(Step % 2 == 0 ? 4.0f : -4.0f, 0.0f);
+			}
+			H.StepOnce();
+			for (const FDTDisplacement& Move : H.View.Displacements)
+			{
+				if (H.Enemies.IsHandleValid(FDTEnemyHandle{ Move.EnemyIndex, Move.EnemySerial }))
+				{
+					H.Enemies.SetPosition(Move.EnemyIndex, H.Enemies.GetPositions()[Move.EnemyIndex] + Move.Delta);
+				}
+			}
+			H.View.Displacements.Reset();
+			for (int32 Enemy = 0; Enemy < H.Enemies.Num(); ++Enemy)
+			{
+				const FVector2f At = H.Enemies.GetPositions()[Enemy];
+				const float Dist = At.Size();
+				Out.Breaches += Dist < 150.0f ? 1 : 0;
+				if (Dist > 40.0f)
+				{
+					H.Enemies.SetPosition(Enemy, At - At / Dist * 100.0f * Dt);
+				}
+			}
+		}
+		Read(H, Out);
+		return Out;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerEveryWeapon, "Dusktracer.Modifiers.ChainTrigger.EveryWeapon", DTWeaponTestHarness::TestFlags) // T-MOD-16
+bool FDTModifiersChainTriggerEveryWeapon::RunTest(const FString& Parameters)
+{
+	// The card says a kill by the weapon fires one free volley. On every weapon, plain and evolved, that kill must add damage.
+	using namespace DTChainTriggerTest;
+	for (const TCHAR* Name : ChainWeapons)
+	{
+		for (int32 Evolved = 0; Evolved < 2; ++Evolved)
+		{
+			const bool bMove = Evolved == 1 && FCString::Strcmp(Name, TEXT("Weapon.ArcBlade")) == 0;
+			const FChainReading Without = OneKill(Name, Evolved == 1, false, bMove);
+			const FChainReading With = OneKill(Name, Evolved == 1, true, bMove);
+			const FString What = FString::Printf(TEXT("%s%s"), Name, Evolved ? TEXT(" evolved") : TEXT(""));
+			AddInfo(FString::Printf(TEXT("READ one kill | %s | own %.1f | with %.1f | chain hits %d | chain damage %.1f"), *What, Without.Total, With.Total, With.ChainHits, With.ChainDamage));
+			TestEqual(*FString::Printf(TEXT("%s: the socket takes Chain Trigger"), *What), With.Socketed, EDTWeaponResult::Ok);
+			TestFalse(*FString::Printf(TEXT("%s: the socket is not dormant"), *What), With.bDormant);
+			TestTrue(*FString::Printf(TEXT("%s: a kill's free volley adds damage"), *What), With.Total > Without.Total);
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerMarch, "Dusktracer.Modifiers.ChainTrigger.March", DTWeaponTestHarness::TestFlags) // T-MOD-16
+bool FDTModifiersChainTriggerMarch::RunTest(const FString& Parameters)
+{
+	// Against a crowd that walks in and dies, the modifier never makes its weapon kill less.
+	using namespace DTChainTriggerTest;
+	for (const TCHAR* Name : ChainWeapons)
+	{
+		for (int32 Evolved = 0; Evolved < 2; ++Evolved)
+		{
+			const bool bMove = Evolved == 1 && FCString::Strcmp(Name, TEXT("Weapon.ArcBlade")) == 0;
+			for (const float Hp : { 60.0f, 240.0f })
+			{
+				const FChainReading Without = March(Name, Evolved == 1, false, bMove, Hp);
+				const FChainReading With = March(Name, Evolved == 1, true, bMove, Hp);
+				const FString What = FString::Printf(TEXT("%s%s hp %.0f"), Name, Evolved ? TEXT(" evolved") : TEXT(""), Hp);
+				AddInfo(FString::Printf(TEXT("READ march | %s | kills %lld -> %lld | damage %.0f -> %.0f | breaches %lld -> %lld | chain hits %d | chain damage %.0f"), *What,
+					Without.Kills, With.Kills, Without.Total, With.Total, Without.Breaches, With.Breaches, With.ChainHits, With.ChainDamage));
+				TestTrue(*FString::Printf(TEXT("%s: no fewer kills with Chain Trigger"), *What), With.Kills >= Without.Kills);
+			}
+		}
+	}
+	return true;
+}
+
+namespace DTChainTriggerTest
+{
+	static void AddKill(FDTHarness& H)
+	{
+		FDTKill Kill;
+		Kill.OwnerId = 0;
+		Kill.WeaponSlot = 0;
+		H.PendingKills.Add(Kill);
+	}
+
+	static int32 HitsOn(const FDTHarness& H, uint32 Serial, uint16 Source, int32 From = 0)
+	{
+		int32 Count = 0;
+		for (int32 Index = From; Index < H.HitLog.Num(); ++Index)
+		{
+			Count += H.HitLog[Index].EnemySerial == Serial && H.HitLog[Index].SourceId == Source ? 1 : 0;
+		}
+		return Count;
+	}
+
+	/** A tough enemy, by serial. */
+	static uint32 AddSerial(FDTHarness& H, const FVector2f& At)
+	{
+		const int32 Enemy = H.AddEnemy(At);
+		return H.Enemies.GetSerials()[Enemy];
+	}
+
+	static uint16 ChainSource() { return FDTTelemetrySources::FindOrAdd(TEXT("Modifier.ChainTrigger")); }
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerBladeHalo, "Dusktracer.Modifiers.ChainTrigger.BladeHalo", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
+bool FDTModifiersChainTriggerBladeHalo::RunTest(const FString& Parameters)
+{
+	// Blade Halo fires no bolts (R-RFG-07): Chain Trigger's free volley is every blade striking once where it is, as the modifier's.
+	using namespace DTChainTriggerTest;
+	const uint16 Chain = ChainSource();
+	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
+	int32 OwnHits[2] = { 0, 0 };
+	for (int32 Killed = 0; Killed < 2; ++Killed)
+	{
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.OrbitalDrones"), true, true, Unused);
+		// A full ring on the orbit, so every blade touches some wherever the turn has carried it.
+		for (int32 Index = 0; Index < 36; ++Index)
+		{
+			H.AddEnemy(FVector2f(Orbit, 0.0f).GetRotated(10.0f * static_cast<float>(Index)));
+		}
+		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
+		int32 MostPerTouch = 0; // the most enemies one blade's own touch reaches on this ring
+		for (int32 Step = 0; Step < DTConst::SIM_FIXED_HZ + DTConst::SIM_FIXED_HZ / 2; ++Step)
+		{
+			if (Killed == 1 && Step == DTConst::SIM_FIXED_HZ / 2)
+			{
+				AddKill(H);
+			}
+			const int32 From = H.HitLog.Num();
+			H.StepOnce();
+			int32 Touch = 0;
+			for (int32 Index = From; Index < H.HitLog.Num(); ++Index)
+			{
+				Touch += H.HitLog[Index].SourceId == Own ? 1 : 0;
+			}
+			MostPerTouch = FMath::Max(MostPerTouch, Touch);
+		}
+		const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+		int32 ChainHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			OwnHits[Killed] += Hit.SourceId == Own ? 1 : 0;
+			ChainHits += Hit.SourceId == Chain ? 1 : 0;
+			if (Hit.SourceId == Chain)
+			{
+				TestEqual(TEXT("each strike is the row's blade damage, with no multiplier"), Hit.Damage, Spec.Damage);
+			}
+		}
+		if (Killed == 1)
+		{
+			TestTrue(TEXT("every blade strikes once as Modifier.ChainTrigger"), ChainHits >= Spec.Count);
+			TestTrue(TEXT("once each: no more than one touch of every blade"), ChainHits <= Spec.Count * MostPerTouch);
+		}
+		else
+		{
+			TestEqual(TEXT("without a kill nothing is the modifier's"), ChainHits, 0);
+		}
+		TestEqual(TEXT("and still no bolts"), H.Bullets.Num(), 0);
+	}
+	TestEqual(TEXT("no blade's turn is spent"), OwnHits[1], OwnHits[0]);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerPulseWall, "Dusktracer.Modifiers.ChainTrigger.PulseWall", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
+bool FDTModifiersChainTriggerPulseWall::RunTest(const FString& Parameters)
+{
+	// One ring lives per weapon (R-RFG-12). Chain Trigger's free volley opens no second ring and does not start the live one again:
+	// the ring strikes its band once more where it stands, as the modifier's.
+	using namespace DTChainTriggerTest;
+	const uint16 Chain = ChainSource();
+	int32 OwnRim[2] = { 0, 0 };
+	for (int32 Killed = 0; Killed < 2; ++Killed)
+	{
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.RingEmitter"), true, true, Unused);
+		const int32 Row = H.Run.GetPlayer(0).Weapons[0].Evolve;
+		const float Radius = DTReforge::Param(Row, TEXT("radius_uu"));
+		const uint32 Rim = AddSerial(H, FVector2f(Radius - 40.0f, 0.0f));
+		const uint32 Inner = AddSerial(H, FVector2f(0.0f, 0.4f * Radius));
+		H.StepMany(DTConst::SIM_FIXED_HZ); // the ring has grown and holds
+		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
+		TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
+		TestTrue(TEXT("and strikes its band as the weapon"), HitsOn(H, Rim, Own) > 0);
+		const int32 Before = H.HitLog.Num();
+		if (Killed == 1)
+		{
+			AddKill(H);
+		}
+		H.StepMany(2);
+		if (Killed == 1)
+		{
+			TestEqual(TEXT("the band is struck once more, as Modifier.ChainTrigger"), HitsOn(H, Rim, Chain, Before), 1);
+			const float Tick = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
+			for (int32 Index = Before; Index < H.HitLog.Num(); ++Index)
+			{
+				if (H.HitLog[Index].SourceId == Chain)
+				{
+					TestNearlyEqual(TEXT("for one tick of the row, with no multiplier"), H.HitLog[Index].Damage, Tick, 0.01f);
+				}
+			}
+		}
+		H.StepMany(DTConst::SIM_FIXED_HZ);
+		TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
+		TestEqual(TEXT("one ring was ever opened"), H.Weapons.GetFieldsOpened(), 1);
+		TestEqual(TEXT("one kill is one strike"), HitsOn(H, Rim, Chain, Before), Killed);
+		TestEqual(TEXT("the ring did not start again: what it had passed is left alone"), HitsOn(H, Inner, Own, Before) + HitsOn(H, Inner, Chain, Before), 0);
+		OwnRim[Killed] = HitsOn(H, Rim, Own, Before);
+	}
+	TestTrue(TEXT("the wall holds and ticks on"), OwnRim[0] > 0);
+	TestEqual(TEXT("the ring's own ticks are not spent"), OwnRim[1], OwnRim[0]);
+	{
+		// With no ring live the free volley opens one, and that ring is the modifier's.
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.RingEmitter"), true, true, Unused);
+		const int32 Row = H.Run.GetPlayer(0).Weapons[0].Evolve;
+		const uint32 Rim = AddSerial(H, FVector2f(DTReforge::Param(Row, TEXT("radius_uu")) - 40.0f, 0.0f));
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f;
+		H.StepOnce();
+		TestEqual(TEXT("no ring yet"), H.Weapons.GetLiveFields(), 0);
+		AddKill(H);
+		H.StepMany(2 * DTConst::SIM_FIXED_HZ);
+		TestEqual(TEXT("with none live, the free volley opens one"), H.Weapons.GetLiveFields(), 1);
+		TestTrue(TEXT("and it strikes as Modifier.ChainTrigger"), HitsOn(H, Rim, Chain) > 0);
+		TestEqual(TEXT("the weapon has none of it"), HitsOn(H, Rim, H.Run.GetPlayer(0).Weapons[0].SourceId), 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerSweepBeam, "Dusktracer.Modifiers.ChainTrigger.SweepBeam", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
+bool FDTModifiersChainTriggerSweepBeam::RunTest(const FString& Parameters)
+{
+	// One beam lives per weapon (R-RFG-08). Chain Trigger's free volley does not start it again: it is one tick of the beam along its own aim.
+	using namespace DTChainTriggerTest;
+	const uint16 Chain = ChainSource();
+	int32 OwnHits[2] = { 0, 0 };
+	int32 FirstHitStep = INDEX_NONE;
+	for (int32 Killed = 0; Killed < 2; ++Killed)
+	{
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.RailLance"), true, true, Unused);
+		const int32 Row = H.Run.GetPlayer(0).Weapons[0].Evolve;
+		const uint32 Centre = AddSerial(H, FVector2f(500.0f, 0.0f));
+		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
+		const int32 Steps = FMath::RoundToInt(DTReforge::Param(Row, TEXT("beam_s")) / Dt) + 30;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			if (Killed == 1 && Step == FirstHitStep / 2)
+			{
+				AddKill(H); // the kill lands while the live beam is still short of the enemy
+			}
+			H.StepOnce();
+			H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f; // one beam of the weapon's own
+			if (Killed == 0 && FirstHitStep == INDEX_NONE && HitsOn(H, Centre, Own) > 0)
+			{
+				FirstHitStep = Step;
+			}
+		}
+		OwnHits[Killed] = HitsOn(H, Centre, Own);
+		if (Killed == 0)
+		{
+			TestTrue(TEXT("the weapon's beam crosses the enemy"), FirstHitStep > 0 && OwnHits[0] > 0);
+			TestEqual(TEXT("without a kill nothing is the modifier's"), HitsOn(H, Centre, Chain), 0);
+		}
+		else
+		{
+			TestEqual(TEXT("one tick along the densest line, as Modifier.ChainTrigger"), HitsOn(H, Centre, Chain), 1);
+			for (const FDTHit& Hit : H.HitLog)
+			{
+				if (Hit.SourceId == Chain)
+				{
+					TestEqual(TEXT("for one tick of the beam, with no multiplier"), Hit.Damage, H.Weapons.GetLastSpec(0, 0).Damage);
+				}
+			}
+		}
+	}
+	TestEqual(TEXT("the beam did not start again: the weapon's sweep runs on to its end"), OwnHits[1], OwnHits[0]);
+	{
+		// With no beam live the free volley starts one, and that beam is the modifier's (R-RFG-08).
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.RailLance"), true, true, Unused);
+		const int32 Row = H.Run.GetPlayer(0).Weapons[0].Evolve;
+		const uint32 Centre = AddSerial(H, FVector2f(500.0f, 0.0f));
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f;
+		H.StepOnce();
+		TestEqual(TEXT("no beam yet"), H.HitLog.Num(), 0);
+		AddKill(H);
+		H.StepMany(FMath::RoundToInt(DTReforge::Param(Row, TEXT("beam_s")) / Dt) + 30);
+		TestTrue(TEXT("with none live, the free volley starts a beam as Modifier.ChainTrigger"), HitsOn(H, Centre, Chain) > 0);
+		TestEqual(TEXT("the weapon has none of it"), HitsOn(H, Centre, H.Run.GetPlayer(0).Weapons[0].SourceId), 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerCyclone, "Dusktracer.Modifiers.ChainTrigger.Cyclone", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
+bool FDTModifiersChainTriggerCyclone::RunTest(const FString& Parameters)
+{
+	// Cyclone keeps its rule (R-RFG-10): standing still it stops, and a kill's free volley stops with it. Moving, the free volley sweeps.
+	using namespace DTChainTriggerTest;
+	const uint16 Chain = ChainSource();
+	FChainReading Unused;
+	FDTHarness H;
+	H.bResolve = false;
+	GiveChained(H, TEXT("Weapon.ArcBlade"), true, true, Unused);
+	const uint32 Serial = AddSerial(H, FVector2f(100.0f, 0.0f));
+	H.StepMany(DTConst::SIM_FIXED_HZ);
+	TestEqual(TEXT("standing still it does not turn"), H.HitLog.Num(), 0);
+	AddKill(H);
+	H.StepMany(DTConst::SIM_FIXED_HZ / 2);
+	TestEqual(TEXT("at rest a kill's free volley does not turn it either"), H.HitLog.Num(), 0);
+	for (int32 Step = 0; Step < DTConst::SIM_FIXED_HZ / 2; ++Step)
+	{
+		H.View.HeroPositions[0] += FVector2f(Step % 2 == 0 ? 4.0f : -4.0f, 0.0f);
+		if (Step == 4)
+		{
+			AddKill(H);
+		}
+		H.StepOnce();
+	}
+	TestEqual(TEXT("moving, a kill's free volley is one sweep as Modifier.ChainTrigger"), HitsOn(H, Serial, Chain), 1);
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		if (Hit.SourceId == Chain)
+		{
+			TestEqual(TEXT("at the weapon's damage"), Hit.Damage, H.Weapons.GetLastSpec(0, 0).Damage);
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerSingularity, "Dusktracer.Modifiers.ChainTrigger.Singularity", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
+bool FDTModifiersChainTriggerSingularity::RunTest(const FString& Parameters)
+{
+	// Singularity keeps its rule (R-RFG-14): the free volley's mines join the live one, damage kept, and the mine stays its creator's.
+	using namespace DTChainTriggerTest;
+	const uint16 Chain = ChainSource();
+	float Most[2] = { 0.0f, 0.0f };
+	for (int32 Killed = 0; Killed < 2; ++Killed)
+	{
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.GravityMine"), true, true, Unused);
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.StepOnce();
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f;
+		TestEqual(TEXT("the weapon laid one mine"), H.Weapons.GetLiveMines(0, 0), 1);
+		if (Killed == 1)
+		{
+			AddKill(H);
+		}
+		H.StepMany(2);
+		TestEqual(TEXT("a free volley lays no second mine"), H.Weapons.GetLiveMines(0, 0), 1);
+		H.StepMany(4 * DTConst::SIM_FIXED_HZ);
+		int32 ChainHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Most[Killed] = FMath::Max(Most[Killed], Hit.Damage);
+			ChainHits += Hit.SourceId == Chain ? 1 : 0;
+		}
+		TestEqual(TEXT("the merged mine stays the weapon's"), ChainHits, 0);
+	}
+	TestTrue(TEXT("the mine blasts"), Most[0] > 0.0f);
+	TestNearlyEqual(TEXT("the free volley's damage joins the live mine: one volley more"), Most[1], 2.0f * Most[0], 0.01f * Most[0]);
+	{
+		// The other order: the free volley lays the mine, the weapon's own volley joins it, and the mine is the modifier's.
+		FChainReading Unused;
+		FDTHarness H;
+		H.bResolve = false;
+		GiveChained(H, TEXT("Weapon.GravityMine"), true, true, Unused);
+		H.AddEnemy(FVector2f(300.0f, 0.0f));
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f;
+		H.StepOnce();
+		TestEqual(TEXT("no mine yet"), H.Weapons.GetLiveMines(0, 0), 0);
+		AddKill(H);
+		H.StepMany(2);
+		TestEqual(TEXT("the free volley lays the mine"), H.Weapons.GetLiveMines(0, 0), 1);
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 0.0f;
+		H.StepOnce();
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 60.0f;
+		TestEqual(TEXT("the weapon's volley joins it"), H.Weapons.GetLiveMines(0, 0), 1);
+		H.StepMany(4 * DTConst::SIM_FIXED_HZ);
+		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
+		float Blast = 0.0f;
+		int32 OwnHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Blast = Hit.SourceId == Chain ? FMath::Max(Blast, Hit.Damage) : Blast;
+			OwnHits += Hit.SourceId == Own ? 1 : 0;
+		}
+		TestNearlyEqual(TEXT("a mine the free volley laid is the modifier's, whatever joins it"), Blast, 2.0f * Most[0], 0.01f * Most[0]);
+		TestEqual(TEXT("and the weapon has none of it"), OwnHits, 0);
 	}
 	return true;
 }

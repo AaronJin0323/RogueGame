@@ -129,7 +129,7 @@ Two lines of that first run failed for the tests' own reasons and were rewritten
 - **Pulse Wall**: the live ring starts again at the hero as the dash volley's, ×`dmg_mult`, with the refund. Never two rings, as Sweep Beam's one beam (R-RFG-08).
 - **Singularity**: unchanged. The dash mine's damage joins the live mine at ×`dmg_mult`; the mine keeps the source of the volley that laid it, so a mine the weapon laid earns no refund and a mine the dash laid is Quicksilver's whatever joins it.
 
-**What moves.** Only a run that holds `Flag.VolleyOnDash` with Blade Halo, Cyclone or Pulse Wall. Chain Trigger's free volley is not a dash volley and goes through none of the new branches.
+**What moves.** Only a run that holds `Flag.VolleyOnDash` with Blade Halo, Cyclone or Pulse Wall. Chain Trigger's free volley is not a dash volley and goes through none of the new branches. What it does on those weapons was decided after this, by D-039 (`S2_chain_trigger.md`).
 
 ## Reread after both, 2026-11-10, at 8231171
 The stale readings named above were reread with the whole S2 exit battery (`S2_exit.md`, the addendum of this date, old against new). The verdicts are the same, 1 PASS, 3 FAIL, 2 NOT READ. 533 of 540 runs keep their `input_hash`; the seven that differ all hold a dash volley with Orbital Drones, on Vector:Forge and Momentum:Storm, and no outcome flips. T-KEE-18's Vector row moves 0.795 to 0.781; 30 of the 31 T-KEE-15 rows with Vector move, none across its band. No run or scene of that battery holds a dash volley with Blade Halo, Cyclone or Pulse Wall, so D-038 is read by its tests only.

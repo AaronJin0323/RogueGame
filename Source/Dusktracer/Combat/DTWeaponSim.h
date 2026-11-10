@@ -609,7 +609,7 @@ private:
 	/** Fires one volley of any pattern but Orbiter. Returns false when it found no target. */
 	bool FireVolley(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, uint16 SourceOverride, bool bFree);
-	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. A free volley fires every drone once as FreeSource, its creator's (R-WPN-07). Blade Halo's dash volley is every blade's touch once (R-RFG-07). */
+	/** Steps the drones of an Orbiter weapon; fires one drone's bolt when its turn is ready. A free volley fires every drone once as FreeSource, its creator's (R-WPN-07). Blade Halo's free volley is every blade's touch once (R-RFG-07). */
 	void StepDrones(const FDTSimContext& Context, FDTBulletPool* Bullets, FDTPlayerRunState& Player, int32 Slot,
 		FWeaponRuntime& Runtime, bool bFreeVolley, uint16 FreeSource = 0);
 	void PlaceMine(const FDTSimContext& Context, FWeaponRuntime& Runtime, int32 OwnerId, int32 Slot, const FVector2f& At,
@@ -635,6 +635,10 @@ private:
 	bool OpenForceField(int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, const FVector2f& At, float Radius, float Seconds,
 		float GrowS, float BandUu, float PushUuS, float DamagePerSecond, float TickS, bool bRestart = false);
 	void StepForceField(const FDTSimContext& Context, FField& Field);
+	/** One strike of a force field on one enemy, as an impact. */
+	void AddFieldHit(FDTWorldView& View, const FField& Field, FWeaponRuntime& Runtime, int32 Enemy, uint16 SourceId, float Damage);
+	/** Pulse Wall under a kill's free volley (R-RFG-12): the weapon's live ring strikes its band once, as SourceId. False when none lives. */
+	bool StrikeForceField(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, float Damage);
 	void AddShockStack(const FDTSimContext& Context, int32 OwnerId, uint32 Serial);
 	void Discharge(const FDTSimContext& Context, int32 OwnerId, const FVector2f& From, uint32 Serial);
 	void StepOverload(const FDTSimContext& Context, int32 OwnerId, FPlayerRuntime& Player);

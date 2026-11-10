@@ -11,7 +11,7 @@ A modifier specialises one weapon: it changes *how* that weapon's rounds behave 
 | `Mod.ScatterShell` | Expiry, Mine | — | `Flag.Split` at expiry or detonation, ring | Storm, Tide |
 | `Mod.Pierce` | Projectile | — | more pierce | Storm, Tide |
 | `Mod.Mirror` | Aimed, Melee | Homing | each volley copied backwards | Forge |
-| `Mod.ChainTrigger` | any | — | a kill fires a free volley | Storm, Forge |
+| `Mod.ChainTrigger` | any | — | a kill fires a free volley (R-MOD-16) | Storm, Forge |
 | `Mod.LingeringField` | any | — | `Flag.Field` at impacts, sweeps, detonations | Forge, Tide |
 | `Mod.Backwash` | Projectile, Lob, Melee | — | `Flag.Pull` toward the round's origin | Tide |
 | `Mod.Conduit` | any | — | `Flag.StatusApply` with the patron's status | Storm, Forge, Tide |
@@ -47,6 +47,7 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - **R-MOD-13** `Mod.SpreadWave`: a round of the weapon's generation-zero volley whose life runs out strikes an arc of `arc_deg` and `reach_uu` onward, each enemy once, for `wave_damage_ratio` of the round. The wave starts no reaction.
 - **R-MOD-14** `Mod.Spillover`: when the weapon's hit kills, the damage past the enemy's health jumps to the nearest other enemy within `seek_range_uu`, next step, as one hit carrying `Modifier.Spillover`; a jump's own overkill does not jump. Health and Shock are read before the step resolves; the Tank's plate is not, so the figure is an estimate.
 - **R-MOD-15** `Mod.Refit`: a kill by a weapon with at least `modifiers_fitted` socketed, at most once per `interval_s`, fits a random compatible modifier from the run pool into the first weapon with a free socket (`Combat` stream). No pickup exists in S2: the fit is immediate. With nothing to fit the interval is not spent.
+- **R-MOD-16** `Mod.ChainTrigger`: a kill by the weapon fires one free volley of it, at most once per `min_interval_s`, as `Modifier.ChainTrigger` (R-MOD-09) at the weapon's damage with no multiplier. The free volley spends no cooldown, counts as no activation, and takes no charge or Stillness. It acts on every weapon, plain and evolved, each in its own shape, and never starts again what lives one per weapon (D-039; `reforging.md` R-RFG-07, R-RFG-08, R-RFG-12): Blade Halo's blades each strike once; Sweep Beam with a beam live gives one tick of the beam along the densest line; Pulse Wall with a ring live strikes its band once more. Two weapon rules stand over it: a resting Cyclone does not sweep (R-RFG-10), and Singularity's mines join the live mine, which keeps its source (R-RFG-14).
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -88,6 +89,7 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - T-MOD-13 `Dusktracer.Arsenal.SpreadWave`: the wave strikes past the round's reach, for its share.
 - T-MOD-14 `Dusktracer.Arsenal.Spillover`: one jump of the hit's overkill, from its own source.
 - T-MOD-15 `Dusktracer.Arsenal.Refit`: nothing below the fitted count; a kill fits a compatible pool modifier into the first free socket; again after the interval.
+- T-MOD-16 `Dusktracer.Modifiers.ChainTrigger.EveryWeapon`: on all ten weapons, plain and evolved, the socket takes the modifier, it is not dormant, and one kill adds damage. `.March`: against a crowd that walks in and dies, no form kills less with the modifier than without. `.BladeHalo`, `.PulseWall`, `.SweepBeam`: every blade once with no turn spent; one strike of the live ring's band, or one tick of the beam on the densest line, with the live one not started again and its own ticks unspent; with none live the free volley starts one as the modifier's. `.Cyclone`, `.Singularity`: the two weapon rules that stand.
 - HUMAN: a validator never sees a modifier card that obviously cannot work on its weapon, and can say how a chosen modifier changed what their Keeper does. A validator who takes a card that puts a modifier to sleep can say so, and which one, without being told.
 
 ## Telemetry
@@ -103,7 +105,8 @@ Cut from the reference list as multipliers: Overclock, Heavy Slug, Magnify, Crit
 - Flag meanings and Keeper archetypes (`keepers.md`); status behaviour (`enemies.md`).
 
 ## Open
-- `Mod.ChainTrigger` snowball in dense crowds is bounded only by its interval and the spawn rate cap → measured in the first steered bot runs.
+- `Mod.ChainTrigger` snowball in dense crowds is bounded only by its interval and the spawn rate cap → measured in the first steered bot runs. Since D-039 that covers Blade Halo, Pulse Wall and Sweep Beam too, and no bot run holds those pairs yet.
+- The card says "one free volley"; on Pulse Wall and Sweep Beam with one live the kill gets one tick of it (R-MOD-16) → read with humans.
 - `modifier_socketed` has no caller in the game yet, for offers or `Mod.Refit` → wired with the telemetry owner's next pass.
 - `Mod.Refit` has no pickup; the reference's drop is a socket fit → a real pickup waits for art (S4).
 - Boomerang gives a lone target one hit per round, not the source's two (R-MOD-12) → read with humans.
