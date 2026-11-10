@@ -24,19 +24,18 @@
 - Seed 9107 hashes are unchanged on `dev/s3`; read on Shipping and Development. Meta widens the pool and never raises a number. Evidence: the `S3_*.md` notes in `Validation/`
 - No person has played any of it. Invented Tree prices and zh rows are marked and wait for a reading
 
-## In flight (resumed 2026-11-10)
-- Tips before `integrate/w5`, gated PASS and pushed: `main` cf7db4f, `dev/s2` 6aea9c6, `dev/s3` f564b0b. D-036's sim split is on all three (`C.KEEPER.SCREEN_SCOPE_RADIUS_UU`, seed 9107 hashes unchanged)
-- `main` now holds `fix/contrast-flake` (the shot holds its sim step and waits for a still frame; the smoke judge needs two equal checker results), gated at bf8c8c8. `integrate/w5-s2` and `integrate/w5-s3` carry it to `dev/s2` and `dev/s3`
-- D-036 is applied on `main` (cf7db4f, GATE: PASS): the frame radius is 1500 uu, about 53 m across at 36 px/m, fixed and not a setting; T-UX-01 and T-UX-02 are live; the camera keeps its height in wide windows. Seed 9107 hashes unchanged. Contrast pixel limits scaled with the frame and the rim hue band widened to 312–346 so the whole rim stroke is read; thresholds untouched. `dev/s2` and `dev/s3` still frame 2000 until they take it
+## In flight (nothing running)
+- Tips, gated PASS and pushed: `main` (code at cf7db4f), `dev/s2` d827a58, `dev/s3` 00c270c. All three hold D-036 applied (frame 1500 uu, about 53 m across at 36 px/m, T-UX-01/02, the camera keeps its height in wide windows), the sim's own screen scope key, and the held-step shot. Seed 9107 hashes unchanged on all three; contrast 7/7 on all three with the scaled pixel limits and the rim hue band 312–346
+- Package checks read on `dev/s3` 00c270c: PKGRESTART PASS, PKGHUB PASS, EXPORTCHECK PASS, PERF PASS (game p95 1.78 ms, GPU 3.60 ms proxied); PADCHECK NOT RUN (machine half passed; a real pad needs a human)
 - Readings taken at the old frame: the owner's run, the `S1_probes.md` contrast table, `S0_exit.md` and `S1_no_windows.md` perf and image tables. Bot readings do not depend on the frame
 - `dev/s3` review done (`Validation/S3_review_fixes.md`): 26 fixed, 27 refuted, 84 deferred; deferred majors #94 and #64. Not reproduced live: the pause-frame and two-process fixes
-- Package checks moved to `-userdir` launches and are unread until a `dev/s3` package is built
+- PadCheck and PackageHubCheck list and compare the owner's folder read-only to prove it unchanged; nothing writes there
 - This PC's CPU (i9-13900KF) threw random faults under heavy parallel load; rerun an odd failure once before calling it real
 
 ## Queue (next 5)
 1. Owner playtest of `main` when free (the merge hold is waived, D-017). The first owner run is read in `Validation/S1_owner_run.md`: one designer run, not a validator session
-2. Carry D-036 to `dev/s2` and `dev/s3` after `integrate/w5`; settle its three held items (screen-wide effects against the frame, spawns in view, a Warden edge marker) at human readings
-3. Build a `dev/s3` package and read the package checks; then the deferred review majors #94 and #64
+2. D-036 held items, settled at human readings: screen-wide effects against the frame, spawns in view, a Warden edge marker
+3. Deferred review majors #94 (firstrun can pass on one run of six) and #64 (MetaCheck runs too short to tell pools apart)
 4. Reread the S2 batteries, T-KEE-15 and T-KEE-18 now that launches are window-free
 5. S3 external test: kit first, then three fresh validators, human-only. S4 Presentation queues behind the exit tests; the art book gap note sizes it at 212 rows, about 370 session-days
 
