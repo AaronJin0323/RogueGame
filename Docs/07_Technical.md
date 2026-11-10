@@ -34,7 +34,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 - **R-TEC-07** No magic numbers in gameplay code: tunables come from `Docs/constants.yaml` through the generated header `Source/Dusktracer/Core/DTConstantsGen.h` or from data assets. Generated files are regenerated, never edited.
   - T-TEC-07 `Tools/gen_constants.py --check`: the generated header matches the YAML.
 - **R-TEC-08** Localisation: per-table CSV in `Content/DT/Text/ST_<Table>.csv` (`Key,en,zh-Hans,Context,Kw`) is the truth; `Tools/loc_build.py --build` generates the engine CSVs (`Content/DT/Text/Generated/`) and `Game.po`; `.po`/`.locres` and generated CSVs are build products, never committed and never merged by hand. A table is registered as `LOCTABLE_FROMFILE_GAME("ST_<Table>", "ST_<Table>", ...)`: the namespace equals the table id, because the `.po` entries are keyed `ST_<Table>,<Key>`.
-  - T-TEC-08 `Tools/loc_build.py --check`: every key has en and zh-Hans; the round-trip test string exists in both.
+  - T-TEC-08 `Tools/loc_build.py --check`: every key has en and zh-Hans; the round-trip test string exists in both; zh keeps en's arguments, the glossary's terms and house style, and any budget in Context; each literal table lookup in code has its row (`S2_zh.md`).
 - **R-TEC-09** Every `.cpp` compiles alone (include-what-you-use); no file-scope `using namespace`.
   - T-TEC-09 non-unity gate (`Tools/Gate.ps1` step `nonunity`).
 - **R-TEC-10** Performance is measured as median and p95 against `C.BUDGET.*`, on the named hardware; GPU measurements hold the file semaphore `Saved/gpu.lock`.

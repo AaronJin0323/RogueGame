@@ -12,7 +12,7 @@ One command runs them all on the current tree, which for a merge is the merged t
 | `docs` | docs lint (`Harness/H02 §4`) | `Tools/docs_lint.py` | live |
 | `constants` | generated constants or palette header out of date (R-TEC-07); a colour literal outside the palette | `Tools/gen_constants.py --check` | live |
 | `catalog` | a malformed catalog; generated tables or native tags out of date (D-014) | `Tools/gen_catalog.py --check` | live |
-| `loc` | missing en/zh, forbidden words, round-trip string (R-TEC-08) | `Tools/loc_build.py --check` | live |
+| `loc` | missing en/zh, forbidden words, round-trip string, argument match, glossary drift, zh style and budgets, missing rows (R-TEC-08) | `Tools/loc_build.py --check` | live |
 | `tools` | the logic of the Python tools (hit kinds, probes, contrast); a tool launch past `Tools/HiddenLaunch.ps1` | `Tools/tools_test.py` | live |
 | `build` | editor build, 0 compiler warnings | `Tools/Build.bat` | live |
 | `locbuild` | stale or missing generated text: rebuilds the git-ignored string tables, `.po` and `.locres`, so tests and smoke read current text (R-TEC-08) | `Tools/Localize.bat` | live |
