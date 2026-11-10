@@ -148,7 +148,7 @@ Class RULE, rule layer, then sim. It replaces D-038's restart of Pulse Wall's li
 ```
 & Tools\RunTests.ps1 -Filter Dusktracer.Keepers.S2.Card.Quicksilver.Vector
 ```
-Each cell reads no Key → restart → one strike.
+Each cell reads no Key → restart → one strike. Damage and refund are sums over the four runs, which hold 14, 46 and 438 dashes at the three rates.
 
 | Weapon | Scene | A dash every | hp | Kills | Breaches | Damage | `Keeper.Quicksilver` damage, restart / strike | Refund, s, restart / strike |
 |---|---|---|---|---|---|---|---|---|
@@ -236,6 +236,7 @@ After it `TESTS: PASS (12 run of 12 found, 0 failed)`, and `Dusktracer.Modifiers
 
 **What moves.** Only a run that holds a dash volley with Pulse Wall or Sweep Beam.
 - **Stale S2 exit readings: none.** Counted from the batch at 8231171 (`bots_1.0` and `bots_0.6`, 540 runs): ten runs take an evolution, none evolves Ring Emitter, and the one that evolves Rail Lance (Tide:Whirlpool seed 11 at 0.6, Forge second) picks no Quicksilver card and no Slipstream Drive. Three of the ten are on Quicksilver arms (Momentum:Storm seed 2 at 1.0 with Flak Mortar, Rebound:Storm seed 2 at 0.6 with Pulse Rifle, Vector:Forge seed 14 at 0.6 with Spiral Projector), none with either weapon. So 0 of 540 runs hold a dash volley with Pulse Wall or Sweep Beam. The ablation builds and the cast scenes name neither evolution.
+- Seed 9107, on the changed build (d5b7d73), all unchanged: None `7bd32faf`, Random `f5270196`, Steered:Forge:Hammer `c6573c69`, Steered:Storm:Tempest `d7c8b43c`, Steered:Tide:Frost `209a3446` (`Tools\BotRuns.ps1`, defaults, one process); RestartCheck `276faf8e` on the gate, which read `GATE: PASS (d5b7d73; 3 not run)`. None of the five runs evolves a weapon.
 - `main` has no evolutions. `dev/s3` carries the same sim code and takes this by merge.
 
 ## Not verified
