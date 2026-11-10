@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Tests/Keepers/DTKeeperHarness.h"
+#include "Combat/DTReforge.h"
 #include "Combat/DTWeaponCatalog.h"
 #include "Core/DTCatalogGen.h"
 #include "Misc/FileHelper.h"
@@ -1043,6 +1044,108 @@ DT_S2_TEST(FDTKeeperS2VectorKey, "Card.Quicksilver.Vector.Key") // T-KEE-34
 		H.View.HeroIntangible[0] = false;
 		H.StepOnce();
 		TestTrue(TEXT("a sweep at the landing"), HitsOn(H, SerialOf(H, Enemy), Quick) > 0);
+	}
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorDrones, "Card.Quicksilver.Vector.Drones") // T-KEE-34
+{
+	// Orbital Drones fire their dash volley from their own step, not from FireVolley's body: the bolts are still the volley's (R-KEE-34).
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	const FVector2f Far(0.0f, -420.0f); // off the dash line: the bolt spent on it never crosses the landing point
+	const FVector2f Land(50.0f, 0.0f);
+	// Long enough for a dash bolt to cross the orbit, short of the drones' own next bolt (a share of the cooldown later) landing.
+	const int32 Flight = 8;
+	/** Drones with the Vector Key; the drones' own bolt is spent on a far enemy, so the next steps hold only the dash volley. */
+	const auto Arm = [&](FDTKeeperHarness& H)
+	{
+		H.Patron(EDTPath::Storm, 0, false);
+		H.Weapons.Give(H.Run, 0, OrbitalDrones, 1);
+		H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+		H.StepOnce();
+		H.AddEnemy(Far);
+		H.StepOnce();
+		H.HitLog.Reset();
+	};
+	{
+		FDTKeeperHarness H;
+		Arm(H);
+		// At the landing point every drone is nearer this enemy than the far one.
+		const uint32 Serial = SerialOf(H, H.AddEnemy(Land));
+		Dash(H, Land);
+		H.StepMany(Flight);
+		const uint16 Own = H.P().Weapons[0].SourceId;
+		TestTrue(TEXT("a drone's dash bolt is Keeper.Quicksilver"), HitsOn(H, Serial, Quick) > 0);
+		TestEqual(TEXT("the weapon takes none of the dash volley"), HitsOn(H, Serial, Own), 0);
+		float Most = 0.0f;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Most = Hit.SourceId == Quick ? FMath::Max(Most, Hit.Damage) : Most;
+		}
+		TestEqual(TEXT("at the Key's multiplier"), Most, 1.5f * H.Weapons.GetLastSpec(0, 0).Damage);
+	}
+	{
+		FDTKeeperHarness H;
+		Arm(H);
+		H.AddEnemy(Land, 1.0f);
+		Dash(H, Land);
+		H.StepMany(Flight);
+		TestEqual(TEXT("its kill refunds cooldown"), H.Weapons.TakeDashRefund(0), 0.15f);
+	}
+	return true;
+}
+
+DT_S2_TEST(FDTKeeperS2VectorEveryWeapon, "Card.Quicksilver.Vector.EveryWeapon") // T-KEE-34
+{
+	// Whatever path a weapon's dash volley takes (rounds, shells, mines, a ring, a beam), none of it reads as the weapon's own.
+	using namespace DTKeeperS2Test;
+	const uint16 Quick = Src(EDTPath::Quicksilver);
+	static const TCHAR* const Names[] = { TEXT("Weapon.PulseRifle"), TEXT("Weapon.RingEmitter"), TEXT("Weapon.ArcBlade"), TEXT("Weapon.ScatterCannon"),
+		TEXT("Weapon.RailLance"), TEXT("Weapon.FlakMortar"), TEXT("Weapon.SeekerSwarm"), TEXT("Weapon.SpiralProjector"), TEXT("Weapon.GravityMine") };
+	for (const TCHAR* Name : Names)
+	{
+		for (int32 Evolved = 0; Evolved < 2; ++Evolved)
+		{
+			FDTKeeperHarness H;
+			H.Patron(EDTPath::Storm, 0, false);
+			H.Weapons.Give(H.Run, 0, FName(Name), 8);
+			FDTWeaponInstance& Owned = H.P().Weapons[0];
+			Owned.Evolve = Evolved ? DTReforge::FindEvolve(Owned.Def) : Owned.Evolve;
+			Owned.Cooldown = 60.0f; // its own cadence stays out of this
+			H.Bless(Blessing(TEXT("Quicksilver.Vector"), TEXT("Key")));
+			for (int32 Index = 0; Index < 8; ++Index)
+			{
+				// A near ring for rounds and sweeps, a far one where Pulse Wall's band holds.
+				H.AddEnemy(FVector2f(120.0f, 0.0f).GetRotated(45.0f * static_cast<float>(Index)) + FVector2f(40.0f, 0.0f));
+				H.AddEnemy(FVector2f(560.0f, 0.0f).GetRotated(45.0f * static_cast<float>(Index)) + FVector2f(40.0f, 0.0f));
+			}
+			H.StepOnce();
+			H.P().Weapons[0].Cooldown = 60.0f;
+			H.View.HeroPositions[0] += FVector2f(40.0f, 0.0f);
+			H.View.HeroIntangible[0] = true;
+			H.StepOnce();
+			H.View.HeroIntangible[0] = false;
+			H.View.HeroPositions[0] += FVector2f(4.0f, 0.0f); // the hero lands moving
+			H.StepOnce();
+			for (int32 Step = 0; Step < 4 * Second; ++Step)
+			{
+				H.View.HeroPositions[0] += FVector2f(Step % 2 == 0 ? -4.0f : 4.0f, 0.0f); // Cyclone only turns while the hero moves
+				H.P().Weapons[0].Cooldown = 60.0f;
+				H.StepOnce();
+			}
+			const uint16 Own = H.P().Weapons[0].SourceId;
+			int32 OwnHits = 0;
+			int32 QuickHits = 0;
+			for (const FDTHit& Hit : H.HitLog)
+			{
+				OwnHits += Hit.SourceId == Own ? 1 : 0;
+				QuickHits += Hit.SourceId == Quick ? 1 : 0;
+			}
+			const FString What = FString::Printf(TEXT("%s%s"), Name, Evolved ? TEXT(" evolved") : TEXT(""));
+			TestTrue(*FString::Printf(TEXT("%s: the dash volley hits as Keeper.Quicksilver"), *What), QuickHits > 0);
+			TestEqual(*FString::Printf(TEXT("%s: none of it is the weapon's"), *What), OwnHits, 0);
+		}
 	}
 	return true;
 }
