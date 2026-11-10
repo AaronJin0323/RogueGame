@@ -2,9 +2,11 @@
 
 Branch `fix/s3-review`, from `dev/s3` at `8aaebef`. Input: the review dump, 137 entries: 1 blocker, 15 major and 121 minor. The earlier triage verified some of them, and each entry carried that triage's status. This pass rechecked the blocker and every major against the current code, and the privacy, data-loss and save-corruption minors first. A finding it could not reproduce from the code counts as refuted. An entry not reached here is **deferred**, never passed.
 
-Totals: **53 fixed, 30 refuted, 54 deferred.** Each fix is BUG or PRESENT class: nothing tunes a number or raises in-run power. One call was needed, D-035 (the duos' door). The two deferred majors, #94 and #64, were fixed afterwards on `fix/s3-check-strength` once their call was made, D-037; the first pass read 26 fixed and 84 deferred. Gate: `& Tools\Gate.ps1 -Base dev/s3`. Its line is in the report of this branch's tip.
+Totals: **54 fixed, 30 refuted, 53 deferred.** Each fix is BUG or PRESENT class: nothing tunes a number or raises in-run power. One call was needed, D-035 (the duos' door). The two deferred majors, #94 and #64, were fixed afterwards on `fix/s3-check-strength` once their call was made, D-037; the first pass read 26 fixed and 84 deferred. Gate: `& Tools\Gate.ps1 -Base dev/s3`. Its line is in the report of this branch's tip.
 
 A second pass, branch `fix/s3-minors-2` from `dev/s3` at `63d0321`, took the deferred minors by what they cost a first outside tester or the truth of a reading: a dead card, a stale or wrong line, a tool that reads PASS on a wrong run, a doc that promises what the build does not do. It rechecked each against the code at `63d0321` and fixed 25 entries (17 findings and their duplicates), found 3 gone, and left the rest; before it the totals read 28, 27 and 82. The rows it looked at and left say why. `C.GATE.TEST_FLOOR` rose from 30 to 510, which `11_Quality` asks of a commit that adds tests; no game number moved.
+
+Entry #20 was fixed afterwards on `integrate/d041-s3` once its call was made, D-041: a Warden killed on the step the hero falls is a win, so the run the bank pays is the run the screen and `run_end` name. The fix is in the sim on `main` (`fix/d041-main`) and reached this branch by merge; before it the totals read 53, 30 and 54. No number moved, and `C.GATE.TEST_FLOOR` was left where it was.
 
 ## Majors and the blocker
 | # | Finding | Outcome |
@@ -32,6 +34,7 @@ A second pass, branch `fix/s3-minors-2` from `dev/s3` at `63d0321`, took the def
 - The package tools (#25, #38, #40) are read by `tools_test.py` and were not run: this worktree has no package.
 - WinCheck's crash scan (#52) was not run on a staged crash.
 - Seven C++ assertions were seen failing with the fixes switched off behind their new functions, then passing (#6, #7, #9, #10, #11, #113). #70's one-command case is true of the reader's shape and was not seen failing.
+- #20's two orders are built scenes (hits written into the view of a game world with the game mode), not runs found in play; the bank is read on a world with no save file, through the recorder's tally and award and `DTMeta::ApplyRun` on an empty profile, not on a `DTMeta.sav` from a launch.
 
 ## Every entry
 | # | Severity | Where (at `5ccf82e`) | Finding | Verdict | Why | Commit |
@@ -56,7 +59,7 @@ A second pass, branch `fix/s3-minors-2` from `dev/s3` at `63d0321`, took the def
 | 17 | minor | `Content/DT/Text/ST_World.csv:6` | World.Yard opens on Dashes100 only, but Recollection.Win can be the first row to say Yard | **refuted** | Refuted by the earlier triage and not rechecked in this pass | - |
 | 18 | minor | `Content/DT/Text/ST_Codex.csv:2` | Codex.EntryTitle has no reader, so a Keeper entry's title never shows its designation | **refuted** | Refuted by the earlier triage and not rechecked in this pass | - |
 | 19 | minor | `Tools/PackageFiles/Export_Logs.ps1:43` | The id redaction only matches key=value, but the export also carries XML crash files | **fixed** | Duplicate of #35 | 2679905 |
-| 20 | minor | `Source/Dusktracer/Meta/DTRunRecorder.cpp:94` | A run that ends in death can earn Win, the boss bonus and Kill.Boss | **deferred** | The reading holds: a boss killed on the death step sets `bBossKilled`. Whether that kill pays the boss bonus is a call about the award, not a plain bug. Left for a decision with the other held award rows | - |
+| 20 | minor | `Source/Dusktracer/Meta/DTRunRecorder.cpp:94` | A run that ends in death can earn Win, the boss bonus and Kill.Boss | **fixed** | Confirmed on this branch with the fix switched off: with the hull's last hit and the hero's last hit on one step, and with the hero down in the step whose kills take the hull, the run closed as `death` while the tally held the boss kill, `Kills.Role.Boss`, the boss bonus and the `Win` Discovery. The call is D-041 (`boss.md` R-BOS-13): both orders are a win everywhere, so the recorder is unchanged and what it pays is now paid on a `victory`. A death with the hull standing pays none of them. Tests `Dusktracer.Boss.RunEnd` (T-BOS-13) and `Dusktracer.Meta.BossTrade` (T-MET-46), both seen failing first | e1055c2 |
 | 21 | minor | `Source/Dusktracer/Offers/DTOfferSubsystem.cpp:169` | No test or proof reaches the line that gives a run its Trunk tools | **refuted** | Refuted by the earlier triage and not rechecked in this pass | - |
 | 22 | minor | `Source/Dusktracer/Meta/DTMetaSubsystem.cpp:97` | The -DTBot and -DTNoSave terms of the tool rule are never tested | **refuted** | Refuted by the earlier triage and not rechecked in this pass | - |
 | 23 | minor | `Source/Dusktracer/Meta/DTMetaProfile.cpp:188` | R-MET-09's 'fates in range' has no test | **deferred** | Confirmed by the earlier triage. Not fixed in this pass: it is a doc, wording or check-strength item with no save, privacy or data-loss risk | - |
