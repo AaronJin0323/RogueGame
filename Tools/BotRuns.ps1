@@ -6,7 +6,7 @@
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
 # R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. -Unlock S2 (DT.Unlock per id) puts every
 # S2 weapon and modifier, the S1 non-starters and Reaction.Duos (duo reactions and duo cards, reactions.md R-REA-02) in the pool;
-# it unlocks no Keeper, and elites, Reforging and evolutions are on in every run (Expand-Unlock). Each run launches the game headless
+# -Unlock S2Arsenal the same without Reaction.Duos. Neither unlocks a Keeper, and elites, Reforging and evolutions are on in every run (Expand-Unlock). Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended, on the hidden desktop of Tools/HiddenLaunch.ps1: no flag is the no-window rule, AGENTS.md)
 # with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
@@ -82,19 +82,20 @@ if ($Policy -ne "All") {
 	if ($BotVersion -ne 1) { throw "-Policy $Policy reads bot v1, not -BotVersion $BotVersion" }
 }
 function Expand-Unlock([string[]]$Ids) {
-	# "S2" = every S2 row of weapons.csv and modifiers.csv and the S1 non-starters (D-013), each catalog's ids sorted, then
-	# Reaction.Duos, the one pool id of the duo reactions and duo cards (reactions.md R-REA-02). Other ids pass as given.
+	# "S2Arsenal" = every S2 row of weapons.csv and modifiers.csv and the S1 non-starters (D-013), each catalog's ids sorted
+	# (the meaning "S2" had before). "S2" = S2Arsenal, then Reaction.Duos, the one pool id of the duo reactions and duo cards
+	# (reactions.md R-REA-02). Other ids pass as given.
 	# Not Keeper.<Path>: an arm unlocks its own S2 Keepers (-DTUnlock below), because an unlocked Keeper takes a seat first
 	# in the Patron hand (keepers.md R-KEE-23) and three of them would leave an S1 arm no seat for its Patron.
 	# Elites, the Reforging hand and evolutions need no id: the director's EliteWave rows and the L16 hand are always on.
 	# Tools/tools_test.py runs this function alone (UnlockExpansion): keep it self-contained, reading only $Root.
 	$List = foreach ($Id in $Ids) {
-		if ($Id -ne "S2") { $Id; continue }
+		if ($Id -ne "S2" -and $Id -ne "S2Arsenal") { $Id; continue }
 		foreach ($Csv in @("weapons.csv", "modifiers.csv")) {
 			Import-Csv (Join-Path $Root "Docs\09_Catalog\$Csv") | Where-Object { $_.stage -eq "S2" -or ($_.stage -eq "S1" -and $_.starter -eq "no") } |
 				ForEach-Object { $_.id } | Sort-Object -Unique
 		}
-		"Reaction.Duos"
+		if ($Id -eq "S2") { "Reaction.Duos" }
 	}
 	if (-not $List) { return @() }
 	return @($List | Select-Object -Unique)

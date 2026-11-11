@@ -3,7 +3,9 @@
 # Run by hand. The S2 row says nightly: nothing schedules this.
 # Steps: the 18 showcase arms at each skill on bot v2 (<Out>\bots_<skill>), T-KEE-18 on the first skill's L16 builds up to seed -Builds
 # (<Out>\ab; judged by loss with share printed beside it, and the no-second-Keeper control scenes, D-047), T-KEE-15 on every Keeper (<Out>\ik), then the reader. -ReadOnly only reads. -Unlock "" reads the starter pool.
-# -Unlock S2, the default, goes to every BotRuns call: the S2 arsenal, the S1 non-starters and Reaction.Duos (BotRuns.ps1 Expand-Unlock).
+# -Unlock S2, the default, gives the arm batteries the S2 arsenal, the S1 non-starters and Reaction.Duos (BotRuns.ps1 Expand-Unlock), and the probe
+# scenes (-Jobs) S2Arsenal, the same without Reaction.Duos: a scene's method changes only with a number-log row (10_Tuning section 3). Any other
+# -Unlock goes to every call as given.
 # Every launch goes through Tools/BotRuns.ps1: -game -nullrhi -nosplash, hidden, killed by PID.
 # Prints the reader's EXIT lines and "S2EXIT: ..."; exit 0 when it ran, whatever the verdicts, 1 on a script error.
 param(
@@ -32,22 +34,23 @@ $Arms = "Steered:Storm:Tempest,Steered:Storm:ArcGrid,Steered:Storm:Downpour,Stee
 	"Steered:Tide:Frost,Steered:Tide:Stillness,Steered:Tide:Whirlpool"
 $SkillList = @($Skills -split ',' | Where-Object { $_ })
 $UnlockArgs = if ($Unlock) { @("-Unlock", $Unlock) } else { @() }
+$JobUnlockArgs = if ($Unlock -eq "S2") { @("-Unlock", "S2Arsenal") } else { $UnlockArgs }
 
 # A child process: BotRuns ends with exit, and a run that FAILs its check still leaves readings.
-function Invoke-BotRuns([string[]]$BotArgs) {
-	& powershell -NoProfile -ExecutionPolicy Bypass -File $BotRuns @BotArgs @UnlockArgs -Parallel $Parallel -Stagger $Stagger | Select-String "^BOTRUNS:" | ForEach-Object { $_.Line }
+function Invoke-BotRuns([string[]]$BotArgs, [string[]]$PoolArgs) {
+	& powershell -NoProfile -ExecutionPolicy Bypass -File $BotRuns @BotArgs @PoolArgs -Parallel $Parallel -Stagger $Stagger | Select-String "^BOTRUNS:" | ForEach-Object { $_.Line }
 }
 
 if (-not $ReadOnly) {
 	foreach ($Skill in $SkillList) {
-		Invoke-BotRuns @("-Arms", $Arms, "-ArmSet", "S2Keepers", "-Seeds", "$Seeds", "-BotVersion", "2", "-Skill", $Skill, "-Out", (Join-Path $Out "bots_$Skill"))
+		Invoke-BotRuns @("-Arms", $Arms, "-ArmSet", "S2Keepers", "-Seeds", "$Seeds", "-BotVersion", "2", "-Skill", $Skill, "-Out", (Join-Path $Out "bots_$Skill")) $UnlockArgs
 	}
 	$Ab = Join-Path $Out "ab"
 	$Ik = Join-Path $Out "ik"
 	& python -I $Probe ablation $Ab --builds (Join-Path $Out ("bots_" + $SkillList[0])) --stage all --max-build $Builds
-	Invoke-BotRuns @("-Jobs", (Join-Path $Ab "jobs.csv"), "-Out", (Join-Path $Ab "runs"))
+	Invoke-BotRuns @("-Jobs", (Join-Path $Ab "jobs.csv"), "-Out", (Join-Path $Ab "runs")) $JobUnlockArgs
 	& python -I $Probe intercession $Ik --seeds 2 --stage all
-	Invoke-BotRuns @("-Jobs", (Join-Path $Ik "jobs.csv"), "-Out", (Join-Path $Ik "runs"))
+	Invoke-BotRuns @("-Jobs", (Join-Path $Ik "jobs.csv"), "-Out", (Join-Path $Ik "runs")) $JobUnlockArgs
 }
 
 & python -I (Join-Path $Root "Tools\s2_exit.py") $Out

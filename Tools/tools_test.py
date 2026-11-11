@@ -1336,6 +1336,36 @@ class UnlockExpansion(unittest.TestCase):
 			f.write("id,stage\nTrap.Probe,S2\nTrap.Old,S1\n")
 		self.assertEqual(unlock_misses(cat, self.expand(["S2"], root=self.tmp.name)), ["traps.csv:Trap.Probe"])
 
+	def test_s2arsenal_is_s2_without_the_duos(self):
+		arsenal = self.expand(["S2Arsenal"])
+		self.assertNotIn("Reaction.Duos", arsenal)
+		self.assertEqual(arsenal, [i for i in self.expand(["S2"]) if i != "Reaction.Duos"])
+
+	def test_s2exit_gives_probe_scenes_no_duos_by_default(self):
+		# 10_Tuning section 3: a probe scene's method moves only with a number-log row, so -Jobs calls never get duos from the default.
+		with open(os.path.join(TOOLS, "S2Exit.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		default = re.search(r'\[string\]\$Unlock\s*=\s*"([^"]*)"', text).group(1)
+		body = ps_function(os.path.join(TOOLS, "S2Exit.ps1"), "Invoke-BotRuns")
+		self.assertNotRegex(body, r"(?i)\$\w*Unlock\w*|-Unlock")  # the pool comes from each call, not from the function
+		calls = [line.strip() for line in text.splitlines() if line.strip().startswith("Invoke-BotRuns ")]
+		jobs = [c for c in calls if '"-Jobs"' in c]
+		self.assertTrue(jobs and len(jobs) < len(calls), calls)
+		for c in calls:
+			self.assertTrue(c.endswith("$JobUnlockArgs" if c in jobs else "$UnlockArgs"), c)
+		lines = [line for line in text.splitlines() if re.match(r"\$(Job)?UnlockArgs\s*=", line)]
+		self.assertEqual(len(lines), 2, lines)
+		script = os.path.join(self.tmp.name, "pools.ps1")
+		with open(script, "w", encoding="utf-8") as f:
+			f.write(f"$Unlock = {ps_quote(default)}\n" + "\n".join(lines) + "\n"
+				"'ARMS=' + (@($UnlockArgs) -join ' ')\n'JOBS=' + (@($JobUnlockArgs) -join ' ')\n")
+		rc, out = powershell(f"& {ps_quote(script)}")
+		self.assertEqual(rc, 0, out)
+		pools = {k: v.split()[1:] for k, v in (line.split("=", 1) for line in out.splitlines() if line.startswith(("ARMS=", "JOBS=")))}
+		self.assertEqual(pools["ARMS"], [default])
+		self.assertIn("Reaction.Duos", self.expand(pools["ARMS"]))
+		self.assertNotIn("Reaction.Duos", self.expand(pools["JOBS"]))
+
 	def test_other_ids_pass_and_nothing_stays_nothing(self):
 		self.assertEqual(self.expand(["Weapon.GravityMine", "Keeper.Shade"]), ["Weapon.GravityMine", "Keeper.Shade"])
 		self.assertEqual(self.expand([]), [])
