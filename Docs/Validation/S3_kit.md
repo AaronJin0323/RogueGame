@@ -91,6 +91,7 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 | Run outcome per run: death time + cause, or boss win | | | |
 | Bugs, crashes, stutters (time) | | | |
 | What they looked at in Contracts and the Codex; what they bought | | | |
+| The run at which their duos opened (the summary screen's Discovery, or the first duo card in a hand), or "not in three runs" (D-069) | | | |
 | At the run-over screen: a key that did nothing, or a remark that it was slow to respond (run → their words) | | | |
 | **Asked for another run unprompted?** (Y/N) | | | |
 
@@ -110,6 +111,9 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 The zh wording is a first draft; the host may reword it and writes down what was asked.
 
 Question 2 is also asked once after the validator's first run, before anything is bought (D-064 reads it); write the answer beside "run 1".
+
+After the first duo card a validator took, at the end of that run, ask "What did that card do?" and write the answer down in their words (D-069 reads it).
+「你拿的那张双司卡做了什么？」 The zh is a first draft, as above.
 
 ## What they send back
 With the game closed, the validator double-clicks `Export_Logs.bat` in the package folder. It makes one file on the desktop, `Dusktracer_Logs_<date>_<time>.zip`, and prints where. Nothing leaves the PC by itself: they hand that one file to the host. A second export is fine: it holds every run so far.
