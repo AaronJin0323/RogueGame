@@ -9,15 +9,22 @@ A catalog row names a recipe `<module>.<function>` under Tools/audio/recipes/; t
 index and returns float samples at C.AUD.SAMPLE_RATE_HZ. A row with id Snd.<Family>.<Name> and n variants writes
 SW_<Family>_<Name>.wav, then SW_<Family>_<Name>_1.wav and on (a dot inside <Name> becomes an underscore).
 The WAV files are build output and are not committed. A stamp beside them (stamp.json) holds the hash of the
-generator sources (dtsynth.py, this file, every recipe module, the sample rate) and each file's hash: a file whose
-generator, recipe and bytes are unchanged is reused, not rebuilt. measures.json caches the measures by file hash.
+generator sources (dtsynth.py, Tools/dtconst.py, this file, every recipe module in recipes/ and its subfolders, the
+sample rate) and each file's hash: a file whose generator, recipe and bytes are unchanged is reused, not rebuilt.
+The build runs what it hashes: the core and every recipe module are read once into a Snapshot, hashed, and executed
+from those exact bytes into fresh module objects (never a module already in sys.modules, never a .pyc).
+measures.json caches the measures by file hash, under a key that also covers audio_metrics.py, this file and the
+value of every C.AUD.* key. A stamp or cache that is malformed reads as absent.
 
 This module also reads and validates the catalog for audio_check.py and gen_sounds.py.
 """
 
+import copy
 import csv
 import hashlib
 import importlib
+import importlib.abc
+import importlib.util
 import json
 import os
 import re
@@ -28,12 +35,31 @@ TOOLS = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(1, TOOLS)
 import dtconst  # noqa: E402
-import dtsynth  # noqa: E402
+
+
+def _memo_load(load):
+	"""dtconst.load, remembered per file state (path, mtime, size): the same answer, read once per process. The core and every
+	fresh snapshot of it call it; parsing the whole constants file each time was most of the step's time."""
+	memo = {}
+
+	def cached(path=dtconst.CONSTANTS_YAML):
+		st = os.stat(path)
+		k = (os.path.abspath(path), st.st_mtime_ns, st.st_size)
+		if k not in memo:
+			memo[k] = load(path)
+		return copy.deepcopy(memo[k])
+	cached.memo_of = load
+	return cached
+
+
+if not hasattr(dtconst.load, "memo_of"):
+	dtconst.load = _memo_load(dtconst.load)
 
 ROOT = dtconst.ROOT
 CATALOG = os.path.join(ROOT, "Docs", "09_Catalog", "sounds.csv")
 MANIFEST = os.path.join(HERE, "sound_manifest.csv")
 RECIPES = os.path.join(HERE, "recipes")
+DTSYNTH = os.path.join(HERE, "dtsynth.py")
 OUT = os.path.join(ROOT, "Saved", "AudioGen")
 
 COLUMNS = ["id", "family", "side", "zone", "class", "recipe", "variants", "loop", "volume", "pitch", "interval_ms", "voices", "agg_gain", "grid",
@@ -47,7 +73,7 @@ MANIFEST_NUMBERS = ["active_ms", "lead_ms", "attack_ms", "spike_db", "peak_db", 
 MANIFEST_COLUMNS = ["name", "frames", "sha256"] + MANIFEST_NUMBERS
 
 ID = re.compile(r"^Snd\.([A-Z][A-Za-z0-9]*)\.([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)$")
-RECIPE = re.compile(r"^([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)$")
+RECIPE = re.compile(r"^([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\.([a-z_][a-z0-9_]*)$")
 SET_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 INT = re.compile(r"^\d+$")
 NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
@@ -56,8 +82,10 @@ NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
 class Paths:
 	"""Where one build reads and writes: the committed tree by default, a fixture tree in the tests."""
 
-	def __init__(self, catalog=CATALOG, manifest=MANIFEST, recipes=RECIPES, out=OUT, licences=None, header=None):
+	def __init__(self, catalog=CATALOG, manifest=MANIFEST, recipes=RECIPES, out=OUT, licences=None, header=None, constants=None, measures=None):
 		self.catalog, self.manifest, self.recipes, self.out = catalog, manifest, recipes, out
+		self.constants = constants or dtconst.CONSTANTS_YAML
+		self.measures = measures or os.path.join(out, "measures.json")   # content-addressed: trees with the same files may share one
 		self.licences = licences or os.path.join(ROOT, "Docs", "09_Catalog", "licenses.csv")
 		self.header = header or os.path.join(ROOT, "Source", "Dusktracer", "Audio", "DTSoundsGen.h")
 
@@ -97,7 +125,9 @@ def file_names(row):
 
 
 def validate(rows, recipes=RECIPES):
-	"""Every cell of every row (`<where>: <what>` strings). A row with errors is left out of the build by the caller."""
+	"""Every cell of every row (`<where>: <what>` strings). A row with errors is left out of the build by the caller.
+	`recipes` is a recipes folder or the Snapshot of one."""
+	snapshot = recipes if isinstance(recipes, Snapshot) else Snapshot(recipes)
 	errors = []
 	seen_ids, seen_files = {}, {}
 	for row in rows:
@@ -151,7 +181,7 @@ def validate(rows, recipes=RECIPES):
 		if not rm:
 			bad.append(f"recipe '{row['recipe']}' is not <module>.<function>")
 		else:
-			problem = recipe_problem(recipes, rm.group(1), rm.group(2))
+			problem = snapshot.problem(rm.group(1), rm.group(2))
 			if problem:
 				bad.append(problem)
 		if m:
@@ -168,55 +198,117 @@ def validate(rows, recipes=RECIPES):
 	return errors
 
 
-# ---- recipes ---------------------------------------------------------------------------------------
+# ---- recipes: a snapshot of the generator, run from the bytes it hashed ---------------------------
 
 def recipe_modules(recipes):
-	"""The .py files of a recipes folder, by name."""
-	if not os.path.isdir(recipes):
-		return []
-	return sorted(name for name in os.listdir(recipes) if name.endswith(".py"))
+	"""The .py files under a recipes folder, subfolders included, as forward-slash paths relative to it."""
+	out = []
+	if os.path.isdir(recipes):
+		for base, dirs, names in os.walk(recipes):
+			dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+			rel = os.path.relpath(base, recipes).replace("\\", "/")
+			out += [(name if rel == "." else f"{rel}/{name}") for name in names if name.endswith(".py")]
+	return sorted(out)
 
 
-def _import(recipes, module):
-	"""The module <recipes folder>.<module>, imported fresh from that folder (a fixture tree has its own `recipes`)."""
-	package = os.path.basename(os.path.normpath(recipes))
-	for name in [n for n in sys.modules if n == package or n.startswith(package + ".")]:
-		if not os.path.normcase(getattr(sys.modules[name], "__file__", "") or "").startswith(os.path.normcase(os.path.normpath(recipes))):
-			del sys.modules[name]
-	parent = os.path.dirname(os.path.normpath(recipes))
-	sys.path.insert(0, parent)
-	try:
-		return importlib.import_module(f"{package}.{module}")
-	finally:
-		sys.path.remove(parent)
+class _Finder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
+	"""Serves `dtsynth` and `recipes[.*]` from a Snapshot's bytes while it loads; every other name is the normal import's."""
+
+	def __init__(self, snapshot):
+		self.snapshot = snapshot
+
+	def find_spec(self, fullname, path=None, target=None):
+		entry = self.snapshot.sources.get(fullname)
+		if entry is None:
+			return None
+		return importlib.util.spec_from_loader(fullname, self, origin=entry[0], is_package=entry[2])
+
+	def create_module(self, spec):
+		return None
+
+	def exec_module(self, module):
+		origin, source, _ = self.snapshot.sources[module.__name__]
+		module.__file__ = origin
+		exec(compile(source, origin, "exec", dont_inherit=True), module.__dict__)
 
 
-def recipe_problem(recipes, module, function):
-	if not os.path.exists(os.path.join(recipes, module + ".py")):
-		return f"recipe module recipes/{module}.py does not exist"
-	try:
-		mod = _import(recipes, module)
-	except Exception as e:  # a recipe that does not import is an error of its row, not a crash of the step
-		return f"recipe module recipes/{module}.py does not import: {type(e).__name__}: {e}"
-	if not callable(getattr(mod, function, None)):
-		return f"recipe {module}.{function} does not exist"
-	return None
+class Snapshot:
+	"""The generator's sources, read once: dtsynth.py and every module under a recipes folder. `hash` covers them, Tools/dtconst.py,
+	this file and the sample rate; `module()` executes them from these exact bytes into fresh module objects."""
 
+	PACKAGE = "recipes"
 
-def recipe(recipes, spec):
-	module, function = spec.split(".")
-	return getattr(_import(recipes, module), function)
+	def __init__(self, recipes=RECIPES):
+		self.recipes = recipes
+		self.sources = {}
+		with open(DTSYNTH, "rb") as f:
+			self.sources["dtsynth"] = (DTSYNTH, f.read(), False)
+		packages = {self.PACKAGE}
+		for rel in recipe_modules(recipes):
+			parts = rel[:-3].split("/")
+			for i in range(1, len(parts)):
+				packages.add(".".join([self.PACKAGE] + parts[:i]))
+			is_package = parts[-1] == "__init__"
+			name = ".".join([self.PACKAGE] + (parts[:-1] if is_package else parts))
+			with open(os.path.join(recipes, *rel.split("/")), "rb") as f:
+				self.sources[name] = (os.path.join(recipes, *rel.split("/")), f.read(), is_package)
+		for name in packages:      # a folder with no __init__.py is an empty package
+			if name not in self.sources:
+				folder = os.path.join(recipes, *name.split(".")[1:])
+				self.sources[name] = (os.path.join(folder, "__init__.py"), b"", True)
+		h = hashlib.sha256()
+		h.update(f"sample_rate={dtconst.load()['AUD.SAMPLE_RATE_HZ']['value']}\n".encode())
+		for label, path in (("dtconst.py", os.path.join(TOOLS, "dtconst.py")), ("audio_build.py", os.path.abspath(__file__))):
+			with open(path, "rb") as f:
+				h.update(label.encode() + b"\n" + f.read() + b"\n")
+		for name in sorted(self.sources):
+			h.update(name.encode() + b"\n" + self.sources[name][1] + b"\n")
+		self.hash = h.hexdigest()
+		self.modules = {}
+
+	def _ours(self, name):
+		return name == "dtsynth" or name == self.PACKAGE or name.startswith(self.PACKAGE + ".")
+
+	def module(self, name):
+		"""The module `name` ('dtsynth' or 'recipes.<...>'), executed once per snapshot from its bytes. Raises what its code raises."""
+		if name in self.modules:
+			return self.modules[name]
+		saved = {n: sys.modules.pop(n) for n in list(sys.modules) if self._ours(n)}
+		sys.modules.update(self.modules)
+		finder = _Finder(self)
+		sys.meta_path.insert(0, finder)
+		try:
+			importlib.import_module(name)
+		finally:
+			sys.meta_path.remove(finder)
+			for n in [n for n in sys.modules if self._ours(n)]:
+				self.modules[n] = sys.modules.pop(n)
+			sys.modules.update(saved)
+		return self.modules[name]
+
+	def problem(self, module, function):
+		"""None, or why `<module>.<function>` cannot be run."""
+		name = f"{self.PACKAGE}.{module}"
+		if name not in self.sources or self.sources[name][2]:
+			return f"recipe module recipes/{module.replace('.', '/')}.py does not exist"
+		try:
+			mod = self.module(name)
+		except KeyboardInterrupt:
+			raise
+		except BaseException as e:  # SystemExit too: a recipe that does not import is an error of its row, not the end of the step
+			return f"recipe module recipes/{module.replace('.', '/')}.py does not import: {type(e).__name__}: {e}"
+		if not callable(getattr(mod, function, None)):
+			return f"recipe {module}.{function} does not exist"
+		return None
+
+	def recipe(self, spec):
+		module, function = spec.rsplit(".", 1)
+		return getattr(self.module(f"{self.PACKAGE}.{module}"), function)
 
 
 def generator_hash(recipes=RECIPES):
 	"""SHA-256 over the generator's sources: the bytes of a file are a function of these and of the sample rate."""
-	h = hashlib.sha256()
-	h.update(f"sample_rate={dtsynth.SR}\n".encode())
-	for label, path in [("dtsynth.py", os.path.join(HERE, "dtsynth.py")), ("audio_build.py", os.path.abspath(__file__))] + [
-			("recipes/" + name, os.path.join(recipes, name)) for name in recipe_modules(recipes)]:
-		with open(path, "rb") as f:
-			h.update(label.encode() + b"\n" + f.read() + b"\n")
-	return h.hexdigest()
+	return Snapshot(recipes).hash
 
 
 def sha256_file(path):
@@ -225,27 +317,32 @@ def sha256_file(path):
 
 
 def _load_json(path):
+	"""A JSON object, or {} for a file that is missing, malformed or not an object: a cache that cannot be read is absent."""
 	try:
 		with open(path, encoding="utf-8") as f:
-			return json.load(f)
+			data = json.load(f)
 	except (OSError, ValueError):
 		return {}
+	return data if isinstance(data, dict) else {}
 
 
 def _save_json(path, data):
-	tmp = path + ".tmp"
+	tmp = f"{path}.{os.getpid()}.tmp"
 	with open(tmp, "w", encoding="utf-8", newline="\n") as f:
 		json.dump(data, f, indent=1, sort_keys=True)
 	os.replace(tmp, path)
 
 
-def build(rows, paths, force=False):
-	"""Builds or reuses the file of every variant of every valid row. ({stem: {path, sha256, frames, row, variant, rebuilt}}, [error])."""
+def build(rows, paths, force=False, snapshot=None, write_stamp=True):
+	"""Builds or reuses the file of every variant of every valid row. ({stem: {path, sha256, frames, row, variant, rebuilt}}, [error]).
+	write_stamp=False (audio_view.py) leaves the stamp as it is: a build of some rows never stands for the whole catalog."""
+	snapshot = snapshot or Snapshot(paths.recipes)
 	os.makedirs(paths.out, exist_ok=True)
 	stamp_path = os.path.join(paths.out, "stamp.json")
 	stamp = _load_json(stamp_path)
-	generator = generator_hash(paths.recipes)
-	old = stamp.get("files", {}) if stamp.get("generator") == generator and not force else {}
+	generator = snapshot.hash
+	old = stamp.get("files") if stamp.get("generator") == generator and not force else {}
+	old = old if isinstance(old, dict) else {}
 	files, errors = {}, []
 	for row in rows:
 		if not row.get("valid", True):
@@ -253,17 +350,20 @@ def build(rows, paths, force=False):
 		for v, stem in enumerate(file_names(row)):
 			path = os.path.join(paths.out, stem + ".wav")
 			was = old.get(stem)
-			if was and was.get("recipe") == row["recipe"] and was.get("variant") == v and os.path.exists(path) and sha256_file(path) == was.get("sha256"):
+			if isinstance(was, dict) and was.get("recipe") == row["recipe"] and was.get("variant") == v and os.path.exists(path) and sha256_file(path) == was.get("sha256"):
 				files[stem] = dict(was, path=path, row=row, variant=v, rebuilt=False)
 				continue
 			try:
-				samples = recipe(paths.recipes, row["recipe"])(v)
-				dtsynth.write_wav(path, samples)
-			except Exception as e:  # a recipe that raises is that row's error
+				samples = snapshot.recipe(row["recipe"])(v)
+				snapshot.module("dtsynth").write_wav(path, samples)
+			except KeyboardInterrupt:
+				raise
+			except BaseException as e:  # a recipe that raises, SystemExit too, is that row's error
 				errors.append(f"sounds.csv:{row['line']}: {row['id']}: recipe {row['recipe']}({v}) failed: {type(e).__name__}: {e}")
 				continue
 			files[stem] = {"recipe": row["recipe"], "variant": v, "sha256": sha256_file(path), "frames": len(samples), "path": path, "row": row, "rebuilt": True}
-	_save_json(stamp_path, {"generator": generator, "files": {stem: {k: f[k] for k in ("recipe", "variant", "sha256", "frames")} for stem, f in files.items()}})
+	if write_stamp:
+		_save_json(stamp_path, {"generator": generator, "files": {stem: {k: f[k] for k in ("recipe", "variant", "sha256", "frames")} for stem, f in files.items()}})
 	return files, errors
 
 
@@ -323,12 +423,20 @@ def _tenth(value):
 
 def measure_all(files, paths, shifts=None):
 	"""{stem: metrics} for every built file, plus `share_up_db` (the danger-band share at the semitone shift of `shifts[stem]`).
-	Cached in measures.json by file hash and the hash of audio_metrics.py, so an unchanged file is never measured twice."""
+	Cached in measures.json by file hash, under a version that covers audio_metrics.py, this file (it computes the edge and
+	step figures) and the value of every C.AUD.* key of `paths.constants`, so an unchanged file is never measured twice."""
 	import audio_metrics as M
-	cache_path = os.path.join(paths.out, "measures.json")
+	keys = M.aud_keys(paths.constants)
+	M.configure(keys)
+	cache_path = paths.measures
 	cache = _load_json(cache_path)
-	version = sha256_file(os.path.join(HERE, "audio_metrics.py"))
-	if cache.get("version") != version:
+	h = hashlib.sha256()
+	for path in (os.path.join(HERE, "audio_metrics.py"), os.path.abspath(__file__)):
+		with open(path, "rb") as f:
+			h.update(f.read())
+	h.update(json.dumps(keys, sort_keys=True).encode())
+	version = h.hexdigest()
+	if cache.get("version") != version or not isinstance(cache.get("files"), dict):
 		cache = {"version": version, "files": {}}
 	entries = cache["files"]
 	out, dirty = {}, False
@@ -356,8 +464,9 @@ def measure_all(files, paths, shifts=None):
 def main(argv):
 	paths = Paths()
 	rows, errors = read_catalog(paths.catalog)
-	errors += validate(rows, paths.recipes)
-	files, build_errors = build(rows, paths, force="--force" in argv)
+	snapshot = Snapshot(paths.recipes)
+	errors += validate(rows, snapshot)
+	files, build_errors = build(rows, paths, force="--force" in argv, snapshot=snapshot)
 	errors += build_errors
 	rebuilt = sum(1 for f in files.values() if f["rebuilt"])
 	if "--update" in argv:

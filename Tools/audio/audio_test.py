@@ -19,13 +19,16 @@ Last line: AUDIOTESTS: PASS|FAIL (<n> tests, <s> s). Exit 0 / 1.
 import contextlib
 import hashlib
 import io
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
+import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.dirname(HERE)
@@ -34,18 +37,23 @@ sys.path.insert(1, TOOLS)
 import audio_build as B  # noqa: E402
 import audio_check  # noqa: E402
 import audio_metrics as M  # noqa: E402
+import audio_view  # noqa: E402
+import dtconst  # noqa: E402
 import dtsynth  # noqa: E402
 import gen_sounds  # noqa: E402
 
 SAVED = os.path.join(B.ROOT, "Saved", "AudioTest")   # main() narrows it to a folder of this run, so two runs never share one
+# The fixture trees share one measures cache, kept between runs: it is keyed by file hash, measure code and keys like the step's own.
+SHARED_MEASURES = os.path.join(B.OUT, "test_measures.json")
 
-# The sketch's recipes.py (Saved/Session/audio_sketch/ of the Sound session, 2026-11-11), code unchanged; only this
-# docstring differs. Its twelve files, written by the sketch's own core, hash to SKETCH_SHA256.
+# The sketch's recipes.py (Saved/Session/audio_sketch/ of the Sound session, 2026-11-11, after its review: `low_end` sums with
+# total()), code unchanged; only this docstring differs. Its twelve files, written by the sketch's own core, hash to
+# SKETCH_SHA256 (the sketch's out\reference_sha256.txt).
 SKETCH_RECIPES = r'''"""Fixture: the Sound session's S2 sketch recipes, code unchanged (Tools/audio/audio_test.py, the port proof)."""
 
 from math import sqrt
 
-from dtsynth import (Rng, add_at, biquad, env_ad, finish, gain, hp4, hz, lp4, mul, n_of, noise, osc, saturate)
+from dtsynth import (Rng, add_at, biquad, env_ad, finish, gain, hp4, hz, lp4, mul, n_of, noise, osc, saturate, total)
 
 
 def knobs(v, salt):
@@ -147,7 +155,7 @@ def low_end(v=0):
     for i in range(m):
         u = i / m
         loop[i] = loop[i] * u + raw[n + i] * (1.0 - u)
-    r = (sum(s * s for s in loop) / n)
+    r = total(s * s for s in loop) / n
     g = 0.12 / sqrt(r)
     return [s * g for s in loop]
 
@@ -178,16 +186,16 @@ SKETCH_SHA256 = {
 	"SW_UI_Accept.wav": "45a563e73c72eeec80d3c0e307c2850d9a67238448a24b133042b910f47f563d",
 }
 
-# Fixture recipes beside the sketch's: a short seamless loop, and the faults the tests plant.
-FIXTURE_RECIPES = '''"""Fixture recipes of the audio tool tests."""
+# Fixture recipes beside the sketch's.
+FIXTURE_RECIPES = '''\"\"\"Fixture recipes of the audio tool tests: a seamless loop, and one planted fault per rule.\"\"\"
 
-from dtsynth import gain, hz, osc
+from dtsynth import Rng, edges, env_ad, gain, hp4, hz, mul, n_of, noise, osc, sin_turns
 
 from recipes import sketch
 
 
 def hum(v=0):
-    """0.2 s of A1, eleven whole cycles: a seamless loop."""
+    \"\"\"0.2 s of A1, eleven whole cycles: a seamless loop.\"\"\"
     return gain(osc(0.2, hz("A1")), 0.3 + 0.05 * v)
 
 
@@ -197,12 +205,74 @@ def hum_seam(v=0):
     return x
 
 
+def fade(v=0):
+    \"\"\"0.2 s of A3 (44 whole cycles), falling from 0.3 to 0.1: no step at the seam, a level seam.\"\"\"
+    x = osc(0.2, hz("A3"))
+    n = len(x)
+    return [s * (0.3 - 0.2 * i / n) for i, s in enumerate(x)]
+
+
 def clipped(v=0):
     return [-1.0 if s < -0.05 else 1.0 if s > 0.05 else s * 20.0 for s in sketch.kill_pop(v)]
 
 
 def same(v=0):
     return sketch.kill_pop(0)
+
+
+def silent(v=0):
+    return [0.0] * n_of(0.1)
+
+
+def offset(v=0):
+    x = sketch.kill_pop(0)
+    n = len(x)
+    return [s + 0.012 * sin_turns(i / (2.0 * n)) for i, s in enumerate(x)]
+
+
+def hiss(v=0):
+    x = sketch.kill_pop(0)
+    h = hp4(noise(0.2, Rng(9)), 9000.0)
+    e = env_ad(len(x), 2.0, 20.0)
+    return edges([a + 0.3 * b * c for a, b, c in zip(x, h, e)])
+
+
+def tail(v=0):
+    x = sketch.kill_pop(0)
+    x[-1] = 0.01
+    return x
+
+
+def late(v=0):
+    return [0.0] * n_of(0.005) + sketch.kill_pop(0)
+
+
+def tone(note, sec, attack_ms, tau_ms, in_ms=0.5):
+    return edges(mul(osc(sec, hz(note)), env_ad(n_of(sec), attack_ms, tau_ms)), in_ms)
+
+
+def sharp(v=0):
+    return gain(tone("A4", 0.15, 1.0, 40.0), 0.4)
+
+
+def spiky(v=0):
+    return gain(tone("A4", 0.1, 5.0, 0.6), 0.4)
+
+
+def dull(v=0):
+    return gain(tone("A4", 0.1, 1.0, 20.0, 0.2), 0.4)
+
+
+def high(v=0):
+    return gain(tone("E5", 0.2, 8.0, 60.0), 0.4)
+
+
+def thump(v=0):
+    return gain(tone("A1", 0.2, 8.0, 60.0), 0.4)
+
+
+def kill_or_warn(v=0):
+    return sketch.telegraph_warn(0) if v == 0 else sketch.kill_pop(1)
 '''
 
 ROW = {"id": "Snd.Kill.Pop", "family": "Kill", "side": "player", "zone": "body", "class": "Player", "recipe": "sketch.kill_pop", "variants": "2", "loop": "0",
@@ -227,10 +297,13 @@ class Tree:
 		recipes = os.path.join(self.root, "recipes")
 		os.makedirs(recipes)
 		for name, text in [("__init__.py", ""), ("sketch.py", SKETCH_RECIPES), ("fixture.py", FIXTURE_RECIPES)] + list((extra or {}).items()):
-			with open(os.path.join(recipes, name), "w", encoding="utf-8", newline="\n") as f:
-				f.write(text)
+			path = os.path.join(recipes, *name.split("/"))
+			os.makedirs(os.path.dirname(path), exist_ok=True)
+			with open(path, "wb") as f:
+				f.write(text if isinstance(text, bytes) else text.encode("utf-8"))
 		self.paths = B.Paths(catalog=os.path.join(self.root, "sounds.csv"), manifest=os.path.join(self.root, "sound_manifest.csv"), recipes=recipes,
-			out=os.path.join(self.root, "out"), licences=os.path.join(self.root, "licenses.csv"), header=os.path.join(self.root, "DTSoundsGen.h"))
+			out=os.path.join(self.root, "out"), licences=os.path.join(self.root, "licenses.csv"), header=os.path.join(self.root, "DTSoundsGen.h"),
+			measures=SHARED_MEASURES)
 		with open(self.paths.catalog, "w", encoding="utf-8", newline="\n") as f:
 			f.write(",".join(B.COLUMNS) + "\n" + "".join(",".join(r[c] for c in B.COLUMNS) + "\n" for r in rows))
 		with open(self.paths.licences, "w", encoding="utf-8", newline="\n") as f:
@@ -285,7 +358,7 @@ class PortProof(unittest.TestCase):
 		runner = os.path.join(root, "run_two.py")
 		with open(runner, "w", encoding="utf-8", newline="\n") as f:
 			f.write("import os, sys\n"
-				f"sys.path.insert(0, {HERE!r})\nsys.path.insert(0, {root!r})\n"
+				f"sys.path.insert(0, {TOOLS!r})\nsys.path.insert(0, {HERE!r})\nsys.path.insert(0, {root!r})\n"
 				"import dtsynth, sketch_recipes as R\n"
 				"for name, v in (('Telegraph_Warn', 0), ('Kill', 2), ('UI_Accept', 0)):\n"
 				"    dtsynth.write_wav(os.path.join(sys.argv[1], 'SW_%s%s.wav' % (name, '' if v == 0 else '_%d' % v)), R.SOUNDS[name][0](v))\n")
@@ -303,34 +376,70 @@ class PortProof(unittest.TestCase):
 
 
 class Lint(unittest.TestCase):
-	"""T-AUD-13 and T-AUD-14: the exact-operations lint, and pitches from the key."""
+	"""T-AUD-13 and T-AUD-14: the exact-operations lint, its import allow-list and its bans, and pitches from the key."""
+
+	MODULES = {"recipes", "recipes.x", "recipes.sketch", "recipes.sub", "recipes.sub.y"}
+
+	def lint(self, text, role="recipe"):
+		return audio_check.lint_source(text, role, "recipes.x" if role == "recipe" else "dtsynth", self.MODULES)
 
 	def test_the_core_and_the_sketch_recipes_pass(self):
 		with open(os.path.join(HERE, "dtsynth.py"), encoding="utf-8") as f:
-			self.assertEqual(audio_check.lint_source(f.read(), recipe=False), [])
-		self.assertEqual(audio_check.lint_source(SKETCH_RECIPES), [])
-		self.assertEqual(audio_check.lint_source(FIXTURE_RECIPES), [])
+			self.assertEqual(self.lint(f.read(), "core"), [])
+		self.assertEqual(self.lint(SKETCH_RECIPES), [])
+		self.assertEqual(self.lint(FIXTURE_RECIPES), [])
+		self.assertEqual(self.lint("import dtsynth\nfrom math import floor, sqrt\nfrom recipes import sketch\nfrom recipes.sub.y import f\nfrom . import sketch\n"
+			"from .sub import y\nx = dtsynth.osc(0.1, dtsynth.hz('A4'))\n"), [])
+
+	def assertOne(self, found, what, text):
+		self.assertEqual(len(found), 1, (text, found))
+		self.assertIn(what, found[0])
+		self.assertIn("T-AUD-13", found[0])
 
 	def test_operations_that_are_not_exact_fail(self):
-		for text, what in (("import math\nx = math.sin(1.0)\n", "math.sin"), ("from math import exp\n", "math.exp"), ("import random\n", "import random"),
-				("from cmath import exp\n", "from cmath"), ("x = 2.0 ** 0.5\n", "** operator"), ("x = 2.0\nx **= 3\n", "**= operator"),
-				("x = pow(2.0, 0.5)\n", "pow()"), ("x = round(2.5)\n", "round()"), ("import math as m\n", "import math as m"), ("import numpy as np\n", "import numpy")):
-			found = audio_check.lint_source(text)
-			self.assertEqual(len(found), 1, (text, found))
-			self.assertIn(what, found[0])
-			self.assertIn("T-AUD-13", found[0])
+		for text, what in (("from math import sin\n", "math.sin"), ("from math import exp\n", "math.exp"), ("from cmath import exp\n", "from cmath"),
+				("x = 2.0 ** 0.5\n", "** operator"), ("x = 2.0\nx **= 3\n", "**= operator"), ("x = {1.0, 2.0}\n", "a set"),
+				("x = {v for v in (1.0, 2.0)}\n", "a set"), ("x = (1.0).__class__\n", "attribute __class__"), ("import dtsynth\nx = dtsynth.math.sin(1.0)\n", "math reached"),
+				("x = __builtins__\n", "__builtins__")):
+			self.assertOne(self.lint(text), what, text)
+		for name in sorted(audio_check.BANNED_CALLS):
+			text = f"x = {name}(1)\n"
+			self.assertOne(self.lint(text), f"{name}()", text)
+			self.assertOne(self.lint(text, "core"), f"{name}()", text)
+
+	def test_a_recipe_imports_only_from_its_allow_list(self):
+		for text, what in (("import math\n", "import math"), ("import random\n", "import random"), ("import struct\n", "import struct"),
+				("from os import path\n", "from os"), ("from dtsynth import math\n", "no public name math"), ("from dtsynth import no_such\n", "no public name no_such"),
+				("from dtsynth import *\n", "import *"), ("from recipes.nowhere import f\n", "from recipes.nowhere"), ("import recipes_elsewhere\n", "import recipes_elsewhere"),
+				("from ..up import f\n", "from up")):
+			self.assertOne(self.lint(text), what, text)
+
+	def test_the_core_imports_only_its_four(self):
+		for text in ("import math\nimport struct\nimport wave\nimport dtconst\nfrom math import floor\n",):
+			self.assertEqual(self.lint(text, "core"), [])
+		for text, what in (("import os\n", "import os"), ("import sys\n", "import sys"), ("import math as m\n", "import math as m"),
+				("from dtconst import load\n", "from dtconst"), ("from math import sin\n", "math.sin"), ("import random\n", "import random")):
+			self.assertOne(self.lint(text, "core"), what, text)
 
 	def test_a_bare_number_frequency_and_a_note_outside_the_key_fail(self):
 		for text in ("x = osc(0.1, 440.0)\n", "x = osc(0.1, hz('A4'), 220 * 2)\n", "x = S.osc(0.1, f0=-110.0)\n", "x = osc(0.1, hz('F4'))\n", "x = osc(0.1, hz('B3'))\n"):
-			found = audio_check.lint_source(text)
+			found = self.lint(text)
 			self.assertEqual(len(found), 1, (text, found))
 			self.assertIn("T-AUD-14", found[0])
-		self.assertEqual(audio_check.lint_source("f = hz('D4')\nx = osc(0.1, f, f * 0.66)\ny = osc(0.1, hz('G7'), None)\n"), [])
+		self.assertEqual(self.lint("f = hz('D4')\nx = osc(0.1, f, f * 0.66)\ny = osc(0.1, hz('G7'), None)\n"), [])
 
 	def test_a_recipe_with_a_fault_fails_the_step(self):
-		tree = Tree([ROW], extra={"bad.py": "import math\n\n\ndef bad(v=0):\n    return [math.sin(i) for i in range(10)]\n"})
+		tree = Tree([ROW], extra={"bad.py": "from math import sin\n\n\ndef bad(v=0):\n    return [sin(i) for i in range(10)]\n",
+			"sub/__init__.py": "", "sub/deep.py": "x = {1.0}\n"})
 		text, _ = tree.check()
-		self.assertIn("recipes/bad.py: line 5: math.sin", text)
+		self.assertIn("recipes/bad.py: line 1: math.sin", text)
+		self.assertIn("recipes/sub/deep.py: line 1: a set", text)
+
+	def test_a_recipe_that_is_not_utf8_fails_with_a_verdict(self):
+		tree = Tree([dict(ROW, recipe="latin.f")], manifest=False, extra={"latin.py": b"# caf\xe9\ndef f(v=0):\n    return [0.0]\n"})
+		text, _ = tree.check()
+		self.assertIn("recipes/latin.py: not UTF-8", text)
+		self.assertIn("recipes/latin.py does not import", text)
 
 
 class Catalog(unittest.TestCase):
@@ -438,6 +547,229 @@ class Files(unittest.TestCase):
 		self.assertTrue(M.metrics([0.0] * 100)["silent"])
 
 
+FREE = dict(ROW, zone="free", pitch="fixed", grid="0", variants="1", level_min_lk="-60", level_max_lk="-1", len_min_ms="1", len_max_ms="2000")
+
+
+def plant(tree, stem, channels=1, width=2, rate=None):
+	"""Rewrites a built file in another format, and its stamp and manifest lines to match, so the format rule alone can see it."""
+	path = os.path.join(tree.paths.out, stem + ".wav")
+	_, _, ints = M.read_wav(path)
+	if width == 1:
+		data = bytes((v // 256) + 128 for v in ints)
+	else:
+		data = b"".join(v.to_bytes(2, "little", signed=True) for v in ints)
+	if channels == 2:
+		step = width
+		data = b"".join(data[i:i + step] * 2 for i in range(0, len(data), step))
+	with wave.open(path, "wb") as w:
+		w.setnchannels(channels)
+		w.setsampwidth(width)
+		w.setframerate(rate or M.SR)
+		w.writeframes(data)
+	digest = sha(path)
+	stamp_path = os.path.join(tree.paths.out, "stamp.json")
+	with open(stamp_path, encoding="utf-8") as f:
+		stamp = json.load(f)
+	stamp["files"][stem]["sha256"] = digest
+	with open(stamp_path, "w", encoding="utf-8") as f:
+		json.dump(stamp, f)
+	with open(tree.paths.manifest, encoding="utf-8") as f:
+		lines = f.read().splitlines()
+	lines = [",".join([stem, ln.split(",")[1], digest] + ln.split(",")[3:]) if ln.startswith(stem + ",") else ln for ln in lines]
+	with open(tree.paths.manifest, "w", encoding="utf-8", newline="\n") as f:
+		f.write("\n".join(lines) + "\n")
+
+
+class Rules(unittest.TestCase):
+	"""T-AUD-15 and T-AUD-16: one planted fault per rule, each alone in a tree that otherwise passes."""
+
+	def only(self, rows, what):
+		text, _ = Tree(rows).check()
+		self.assertIn(what, text)
+		self.assertEqual(len(text.splitlines()), 1, text)
+
+	def test_the_free_fixture_passes(self):
+		self.assertEqual(Tree([FREE]).check()[0], "")
+
+	def test_format(self):
+		for kwargs, what in ((dict(channels=2), "2 channel(s)"), (dict(rate=44100), "44100 Hz"), (dict(width=1), "8 bit")):
+			tree = Tree([FREE])
+			plant(tree, "SW_Kill_Pop", **kwargs)
+			text, _ = tree.check()
+			self.assertIn(f"SW_Kill_Pop: format", text)
+			self.assertIn(what, text)
+			if "width" not in kwargs:      # 8-bit adds its own quantisation noise; the others change nothing else
+				self.assertEqual(len(text.splitlines()), 1, text)
+
+	def test_silent(self):
+		self.only([dict(FREE, recipe="fixture.silent")], "the file is silent")
+
+	def test_mean_offset(self):
+		self.only([dict(FREE, recipe="fixture.offset")], "not under C.AUD.DC_MAX")
+
+	def test_air(self):
+		self.only([dict(FREE, recipe="fixture.hiss")], "above C.AUD.AIR_LINE_HZ")
+
+	def test_loudness_window(self):
+		self.only([dict(FREE, level_min_lk="-10", level_max_lk="-5")], "below its window")
+		self.only([dict(FREE, level_min_lk="-40", level_max_lk="-30")], "above its window")
+
+	def test_length_window(self):
+		self.only([dict(FREE, len_min_ms="10", len_max_ms="50")], "active length")
+
+	def test_a_one_shot_ends_at_zero(self):
+		self.only([dict(FREE, recipe="fixture.tail")], "a one-shot starts and ends at zero")
+
+	def test_lead(self):
+		self.only([dict(FREE, recipe="fixture.late")], "over C.AUD.LEAD_MAX_MS")
+
+	def test_a_body_attack_too_fast(self):
+		self.only([dict(FREE, zone="body", recipe="fixture.sharp")], "under C.AUD.PLAYER_ATTACK_MIN_MS")
+
+	def test_spike(self):
+		self.only([dict(FREE, zone="body", recipe="fixture.spiky")], "over C.AUD.SPIKE_MAX_DB")
+
+	def test_a_warning_with_too_little_in_the_band(self):
+		self.only([dict(WARN, recipe="fixture.dull", level_min_lk="-60", level_max_lk="-1")], "under C.AUD.WARN_BAND_SHARE_MIN_DB")
+
+	def test_the_low_zone(self):
+		self.only([dict(FREE, zone="low", recipe="fixture.high")], "under C.AUD.LOW_ZONE_SHARE_MIN_DB")
+
+	def test_small_speaker(self):
+		self.only([dict(FREE, side="ui", recipe="fixture.thump", **{"class": "UI"})], "over C.AUD.SMALL_SPEAKER_LOSS_MAX_DB")
+
+	def test_the_loop_level_seam(self):
+		self.only([dict(HUM, recipe="fixture.fade", variants="1")], "over C.AUD.LOOP_SEAM_LEVEL_MAX_DB")
+
+	def test_every_variant_pair_of_a_confusion_set(self):
+		# variant 0 of each is told apart (a kill against a warning); variant 1 of the second is the first's variant 1
+		text, _ = Tree([dict(ROW, confuse="kills"), dict(FREE, id="Snd.Kill.Mixed", recipe="fixture.kill_or_warn", variants="2", confuse="kills")]).check()
+		self.assertIn("confusion set kills: Snd.Kill.Pop and Snd.Kill.Mixed are too close in", text)
+		self.assertIn("SW_Kill_Mixed_1", text)
+
+
+class Caches(unittest.TestCase):
+	"""What the build hashes is what it runs; a cache never outlives its inputs; a cache that cannot be read is absent."""
+
+	def constants(self, tree, old, new):
+		with open(dtconst.CONSTANTS_YAML, encoding="utf-8") as f:
+			text = f.read()
+		self.assertEqual(text.count(old), 1, old)
+		path = os.path.join(tree.root, "constants.yaml")
+		with open(path, "w", encoding="utf-8", newline="\n") as f:
+			f.write(text.replace(old, new))
+		self.addCleanup(M.configure, M.aud_keys())
+		tree.paths.constants = path
+
+	def test_a_changed_key_is_not_read_from_the_cache(self):
+		tree = Tree([FREE])
+		tree.paths.measures = os.path.join(tree.paths.out, "measures.json")
+		self.assertEqual(tree.check()[0], "")
+		with open(os.path.join(tree.paths.out, "measures.json"), encoding="utf-8") as f:
+			before = json.load(f)
+		self.constants(tree, "value: [2000, 5000]", "value: [400, 5000]")
+		tree.check()
+		with open(os.path.join(tree.paths.out, "measures.json"), encoding="utf-8") as f:
+			after = json.load(f)
+		self.assertNotEqual(before["version"], after["version"])
+		share = [m["danger_share_db"] for m in before["files"].values()][0]
+		self.assertGreater([m["danger_share_db"] for m in after["files"].values()][0], share + 10.0)
+
+	def test_only_48_khz_is_measured(self):
+		tree = Tree([FREE])
+		self.constants(tree, "AUD.SAMPLE_RATE_HZ:            { value: 48000", "AUD.SAMPLE_RATE_HZ:            { value: 44100")
+		text, _ = tree.check()
+		self.assertIn("C.AUD.SAMPLE_RATE_HZ is 44100", text)
+		self.assertIn("BS.1770", text)
+
+	def test_a_module_already_imported_is_not_run(self):
+		fake = types.ModuleType("recipes.fixture")
+		fake.hum = lambda v=0: [0.5] * 10
+		saved = {n: sys.modules.get(n) for n in ("recipes", "recipes.fixture")}
+		sys.modules["recipes"] = types.ModuleType("recipes")
+		sys.modules["recipes.fixture"] = fake
+
+		def restore():
+			for n, m in saved.items():
+				if m is None:
+					sys.modules.pop(n, None)
+				else:
+					sys.modules[n] = m
+		self.addCleanup(restore)
+		tree = Tree([HUM])
+		self.assertEqual(tree.check()[0], "")
+		self.assertIn("SW_Kill_Hum,9600,", open(tree.paths.manifest, encoding="utf-8").read())
+		self.assertIs(sys.modules["recipes.fixture"], fake)
+
+	def test_a_changed_recipe_runs_its_new_code(self):
+		tree = Tree([HUM])
+		path = os.path.join(tree.paths.recipes, "fixture.py")
+		with open(path, encoding="utf-8") as f:
+			text = f.read()
+		with open(path, "w", encoding="utf-8", newline="\n") as f:
+			f.write(text.replace("0.3 + 0.05 * v", "0.25 + 0.05 * v"))
+		found, summary = tree.check()
+		self.assertIn("SW_Kill_Hum: bytes differ from sound_manifest.csv", found)
+		self.assertEqual(summary["rebuilt"], 2)
+
+	def test_the_stamp_covers_subfolders(self):
+		tree = Tree([], manifest=False)
+		before = B.Snapshot(tree.paths.recipes).hash
+		os.makedirs(os.path.join(tree.paths.recipes, "sub"))
+		with open(os.path.join(tree.paths.recipes, "sub", "z.py"), "w", encoding="utf-8") as f:
+			f.write("X = 1\n")
+		self.assertNotEqual(B.Snapshot(tree.paths.recipes).hash, before)
+
+	def test_malformed_caches_read_as_absent(self):
+		tree = Tree([FREE])
+		tree.paths.measures = os.path.join(tree.paths.out, "measures.json")
+		for name, text in (("stamp.json", "[1, 2]"), ("measures.json", "{oops")):
+			with open(os.path.join(tree.paths.out, name), "w", encoding="utf-8") as f:
+				f.write(text)
+		found, summary = tree.check()
+		self.assertEqual(found, "")
+		self.assertEqual(summary["rebuilt"], 1)
+
+	def test_the_pictures_leave_the_stamp_alone(self):
+		tree = Tree([ROW, WARN])
+		stamp = os.path.join(tree.paths.out, "stamp.json")
+		with open(stamp, "rb") as f:
+			before = f.read()
+		os.remove(os.path.join(tree.paths.out, "SW_Kill_Pop.wav"))
+		read, validate, paths = B.read_catalog, B.validate, B.Paths
+		B.read_catalog = lambda path=None: read(tree.paths.catalog)
+		B.validate = lambda rows, recipes=None: validate(rows, tree.paths.recipes)
+		B.Paths = lambda *a, **k: tree.paths
+		try:
+			items = audio_view.family_files("Kill")
+		finally:
+			B.read_catalog, B.validate, B.Paths = read, validate, paths
+		self.assertEqual(sorted(stem for stem, _, _ in items), ["SW_Kill_Pop", "SW_Kill_Pop_1"])
+		with open(stamp, "rb") as f:
+			self.assertEqual(f.read(), before)
+
+
+class Verdict(unittest.TestCase):
+	"""No path ends without a verdict."""
+
+	def test_a_recipe_that_exits_at_import_is_its_row_error(self):
+		text, _ = Tree([dict(ROW, recipe="boom.f")], manifest=False, extra={"boom.py": "raise SystemExit(3)\n"}).check()
+		self.assertIn("recipes/boom.py does not import: SystemExit", text)
+
+	def test_any_other_exception_is_one_error_and_a_fail(self):
+		run, check = audio_check.run_tool_tests, audio_check.check
+
+		def boom(paths):
+			raise RuntimeError("planted")
+		audio_check.run_tool_tests, audio_check.check = (lambda: (0, [])), boom
+		try:
+			with contextlib.redirect_stdout(io.StringIO()) as out:
+				self.assertEqual(audio_check.main([]), 1)
+		finally:
+			audio_check.run_tool_tests, audio_check.check = run, check
+		self.assertEqual(out.getvalue().splitlines(), ["error: the audio step stopped: RuntimeError: planted", "AUDIO: FAIL (1 error(s))"])
+
+
 class Header(unittest.TestCase):
 	"""gen_sounds.py: the text of Source/Dusktracer/Audio/DTSoundsGen.h, on fixtures (the runtime job writes the real one)."""
 
@@ -480,6 +812,7 @@ def main():
 	global SAVED
 	start = time.time()
 	os.makedirs(SAVED, exist_ok=True)
+	os.makedirs(B.OUT, exist_ok=True)
 	SAVED = tempfile.mkdtemp(prefix="run_", dir=SAVED)
 	stream = io.StringIO()
 	try:
