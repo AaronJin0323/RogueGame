@@ -58,3 +58,6 @@
 | D-054 | A slowed run is told by its slow share; the threshold is set at the S1 gate | RULE | applied: `10_Tuning §2` defines it and `Tools/pressure.py` prints it; the threshold waits for the S1 gate | `main` |
 | D-055 | Modules are developed side by side by module sessions under the scheduler; audio opens with a first wave | PROCESS, GO-NOGO | applied on the owner's word; amends D-050 item 1 and D-043's hold on audio | `main`; audio on `dev/s4` |
 | D-056 | Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger | SYSTEM | applied: accepted from the Sound session's draft; the wave is open, nothing built yet | `dev/s4` |
+| D-057 | S4's second visual wave draws state at silhouette grade, and opens only on session A's reading | GO-NOGO | accepted as the plan of record; held until session A is read | `dev/s4` |
+| D-058 | Draw code is the Visual module's by name, wherever it sits | PROCESS | applied; amends D-055 item 1 | `main` |
+| D-059 | The Forge and Quicksilver trails keep their colours, and a colour-vision debt is read on the drawn frame | RULE | applied on the owner's word; closes O-015; the evidence note is owed on `dev/s4` | `main` |
