@@ -1,6 +1,6 @@
 # S2 fit data: Shade, Radiance and Quicksilver in `fits` (2026-11-11)
 
-Build: `0a4b56d` on `s2/fit-and-unlock`, from `dev/s2` at `146af0a`. Class: BUG (data). Layer: the catalogs (`09_Catalog/weapons.csv`, `modifiers.csv`) and the catalog check. Replaces: empty S2 Paths in every `fits` cell. No number moved, no other column moved, no S1 Path's entry moved. Nothing was built, run or read in the engine for this note: it states what the data says, not what a run does.
+Build: `ed8afd8` on `s2/fit-and-unlock` (gated; the data change is `0a4b56d`), on `dev/s2` at `a7137b4` (cut from `146af0a`, `a7137b4` merged in at `8e6a9cd`). Class: BUG (data). Layer: the catalogs (`09_Catalog/weapons.csv`, `modifiers.csv`) and the catalog check. Replaces: empty S2 Paths in every `fits` cell. No number moved, no other column moved, no S1 Path's entry moved. The gate below is the only engine reading in this note; no bot battery was run.
 
 ## The defect
 On `dev/s2` at `146af0a` no `fits` cell of `weapons.csv` or `modifiers.csv` names `Shade`, `Radiance` or `Quicksilver`. `fits` is read per Path (`offers.md` R-OFF-02, `Offers/DTOfferGenerator.cpp` `DTOffers::Weight`): a new weapon that fits a Path the player owns a card of is × `C.OFFER.WEIGHT_WEAPON_FIT` (1.5); a modifier that amplifies one is × `C.OFFER.WEIGHT_MOD_AMPLIFIES` (2.0), and one that amplifies nothing owned × `C.OFFER.WEIGHT_MOD_NO_AMPLIFY` (0.7). So a player holding only S2 Keepers saw every modifier at 0.7 and no weapon at 1.5. Bot v1 also scores a weapon card +10 when its `fits` names the bot's own Path (`Bot/DTBotBrain.cpp` `CardScore`, which bot v2's `CardScoreV2` starts from), so a Steered bot of an S2 Path never had that lift.
@@ -73,5 +73,46 @@ Findings, not changes:
 - Elites come in every run that lives past 225 s: the director's EliteWave rows (`timeline_arena1.csv`, `Director/DTDirector.cpp` sets the elite stream every step, R-ELT-02); only director-less probe scenes have none. Reforging comes in every run that reaches L16 (R-OFF-09, `Offers/DTOfferGenerator.cpp`). The expansion was never what kept either out.
 - The bot takes an evolution in 10 of the 540 exit runs (`S2_exit.md`, D-038 paragraph). That is a matter for the battery's arms, not for the pool.
 - Time Dilation acts only through a Quicksilver cast, and its scale stands at 1.0 (`C.INTERCESSION.QUICKSILVER_TIME_SCALE`, R-KEE-37); only the experiment cvar `dt.Exp.DilationScale` moves it, which is a number and is not touched.
+## Gate on `ed8afd8`, 2026-11-11
+`& Tools\Gate.ps1 -Base dev/s2`, alone on the heavy slot (other agents' tool launches only), 507 s wall. `git lfs checkout`, `Tools\Build.bat` (`Result: Succeeded`, 66.49 s) and `Tools\Localize.bat` (`LOCALIZE: PASS`, 9 s) ran first. No step was rerun.
+
+```ncpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+secrets:    SECRETS: PASS (553 files, 0 hit(s))
+docs:       DOCS: PASS (0 error(s), 7 warning(s), 319 rules, must-read ~19352 tokens)
+constants:  CONSTANTS: PASS (constants + palette)
+catalog:    CATALOG: PASS (10 catalogs, 22 C. cells resolved, 98 tags)
+matrix:     MATRIX: PASS (16 modifiers)
+loc:        LOC: PASS (8 tables, 655 rows)
+tools:      TOOLS: PASS (159 tests)
+build:      rc 0, 0 warning(s)
+locbuild:   LOCALIZE: PASS (Content\Localization\Game\<culture>\Game.locres)
+nonunity:   0 file(s), 0 failed
+shipping:   rc 0, 0 warning(s)
+devgame:    rc 0, 0 warning(s)
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+smoke:      SMOKE: PASS (arena_empty_en, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok (en), 
+keys ok (Dash  [Space] | Intercession  [Q]), image PASS (1280x720, luma stddev 11.73, mean diff vs golden 0.33 (max 
+12.0)), mask FFFFF3FC, 85 sample(s), 0 outside)
+smoke:      SMOKE: PASS (arena_empty_zh-Hans, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok 
+(zh-Hans), keys ok (冲刺  [空格键] | 神临  [Q]), image PASS (1280x720, luma stddev 11.53, mean diff vs golden 0.36 (max 
+12.0)), mask FFFFF3FC, 81 sample(s), 0 outside)
+smoke:      SMOKE: PASS (burst_en, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok (en), keys 
+ok (Dash  [Space] | Intercession  [Q]), RENDER: PASS (PostProcess_Presentation: 5 settings as 04_Presentation s4 
+says), image PASS (1280x720, luma stddev 36.58, exposure shift +1.72 levels against the calm frame (max 12.0)), mask 
+FFFFF3FC, 89 sample(s), 0 outside)
+restart:    RESTART: PASS (seed 9107, input_hash 276faf8e / 276faf8e, steps 5400 / 5400, csv same=True, old run reads 
+restart=True, input check=True)
+seed:       PASS (4 human launches on fresh seeds, 4 exact, 2 rejected)
+contrast:   CONTRAST: PASS (7/7 elements at or above 3.0), mask FFFFF3FC, 94 sample(s), 0 outside)
+contrast:   CONTRAST: PASS (dormant_line 13.62 on its panel, need 3.0), mask FFFFF3FC, 63 sample(s), 0 outside)
+windows:    PASS (0 shown by bot, smoke and test runs across 92 processes; probe caught; bypass caught; 5 lost; 42 s)
+pad:        NOT RUN (no package; Tools\Package.ps1)
+scope:      NOT RUN (no brief in flight)
+mac:        NOT RUN (deferred, D-007)
+GATE: PASS (ed8afd8; 3 not run; mask FFFFF3FC)
+```
+
+The seed 9107 hash is the `restart` step's (`Tools/RestartCheck.ps1`: bot v2, skill 0.6, Steered Storm Tempest, an S1-only arm, 90 s). It reads `276faf8e`, the same as the last recorded reading on the `dev/s2` line before this branch (`S2_carry.md`, the gate at `b246064`), so this S1-only arm did not move. No arm holding an S2 Keeper is hashed by the gate. The `seed` step checks that human launches get fresh seeds; it hashes no bot arm. Tests: 480 of 480, floor 480 unchanged (this branch adds no C++ test).
+
 ## What this makes stale
-Every bot reading on `dev/s2` taken before this change is stale once this branch lands. The last is the reread at `146af0a` (`S2_exit.md`, "Addendum, 2026-11-11, at 146af0a"), the last reading before this branch; the earlier battery readings, their rereads and the probes are older still. They are stale for arms led or seconded by Shade, Radiance or Quicksilver: the offer weights of their weapons and modifiers moved, and the bots' weapon score (v1 and v2) moved for a bot whose own Path is one of them. Arms that hold only S1 Keepers are expected to be unmoved, because a Path the player does not own changes no factor of R-OFF-02 and the generated tables change only in those bits. That is expected, not shown: the gate's seed step and a rerun in phase 2 are what confirm it. No hash is claimed here.
+Every bot reading on `dev/s2` taken before this change is stale once this branch lands. The last is the reread at `146af0a` (`S2_exit.md`, "Addendum, 2026-11-11, at 146af0a"), the last reading before this branch; the earlier battery readings, their rereads and the probes are older still. They are stale for arms led or seconded by Shade, Radiance or Quicksilver: the offer weights of their weapons and modifiers moved, and the bots' weapon score (v1 and v2) moved for a bot whose own Path is one of them. Arms that hold only S1 Keepers are expected to be unmoved, because a Path the player does not own changes no factor of R-OFF-02 and the generated tables change only in those bits. The gate's one S1-only hash (seed 9107, above) is unmoved; the other S1-only arms are expected unmoved and are shown only by a battery rerun. No hash is claimed here.
