@@ -67,3 +67,4 @@
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
 | D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
 | D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
+| D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; no sound of it merged yet | `dev/s4` |
