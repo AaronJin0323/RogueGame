@@ -60,3 +60,4 @@
 | D-056 | Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger | SYSTEM | applied: accepted from the Sound session's draft; the wave is open, nothing built yet | `dev/s4` |
 | D-057 | S4's second visual wave draws state at silhouette grade, and opens only on session A's reading | GO-NOGO | accepted as the plan of record; held until session A is read | `dev/s4` |
 | D-058 | Draw code is the Visual module's by name, wherever it sits | PROCESS | applied; amends D-055 item 1 | `main` |
+| D-059 | The Forge and Quicksilver trails keep their colours, and a colour-vision debt is read on the drawn frame | RULE | applied on the owner's word; closes O-015; the evidence note is owed on `dev/s4` | `main` |
