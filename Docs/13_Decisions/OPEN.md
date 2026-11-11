@@ -1,6 +1,6 @@
 # OPEN — for the owner (D-009: the scheduler decides everything else; D-051: what it decided in your classes is listed last)
 
-Nothing here blocks the agents. The first four items are things only a person can do. The fifth needs your eyes. The last is a list to read.
+Nothing here blocks the agents. The first four items are things only a person can do. The fifth and sixth need your eyes. The last is a list to read.
 
 ## O-008 — Three people, two sittings  [GO-NOGO, human-only]
 - **Context:** the S1 exit is read in two sessions (D-048): session A reads the people and calibrates, a gate decision sets the pressure bands, session B confirms them. Each is three people who are not you, two runs each, about 40 minutes a person; at least one on a gamepad and one in Chinese. The same three can come back for B, and later for S2 and S3 on fresh saves (D-049). This has been the only thing between the game and its first exit since 2026-10-30.
@@ -30,6 +30,12 @@ Nothing here blocks the agents. The first four items are things only a person ca
 - **Recommendation:** B, because A binds every floor, light and weather the game will ever have to a window about 0.05 wide. It changes how danger looks, which is yours.
 - **Default if unanswered by the first S4 floor merge to `dev/s4`:** A is held as a limit, not a rule: floor and light work stays inside the two windows and reads its worst patch (D-050 item 8).
 
+## O-015 — Two trail colours for players with red-green colour blindness  [RULE, needs your eyes]
+- **Context:** simulated for deutan vision, the Forge trail colour (`Pal.Keeper.Forge` #FF9F3A) sits too close to the enemy muzzle flash (a difference of 8.5 where the Settings spec asks 15) and to the danger telegraph. The spec on `dev/s2` records both as debts and calls the fix "an owner call" (`settings.md` R-SET-11 and its Open section there). No person with that vision has looked.
+- **Options:** A — change the Forge and Quicksilver trails to the source game's lighter pair (#FFC17A, #B3FB60). B — keep the confirmed palette (D-008) and rely on the danger-outline setting that `dev/s2` already has.
+- **Recommendation:** none yet. The Visual session will put both options on one frame, plain and simulated, so you can choose by eye.
+- **Default if unanswered:** B: the palette stays as you confirmed it, and the two debts stay written in the spec.
+
 ## O-013 — Decided for you  [digest, D-051]
 Each stands unless you say no. A line leaves at the next stage gate.
 
@@ -44,6 +50,11 @@ Decided on 2026-11-11, from `Validation/plans_audit.md`:
 Decided on 2026-11-11, after the reread and the open calls of the handover:
 - **D-053** Hammer's Key still changes nothing on Orbital Drones. Its card names only the weapons it converts, and the drones are not among them. Whether its cleave cards should also act on the Arc Blade's sweeps is asked of the people in session A and decided at the S1 gate. Hard Blow, which you took in your run and which did nothing, now knocks enemies back as its card says.
 - **D-054** A run played on a PC too slow to keep up is told by its slow share: the part of the time the game ran in slow motion. The limit is set after session A; until then it is printed and nothing is set aside.
+
+Decided on 2026-11-11, on your three messages about working in parallel:
+- **D-055** Three module sessions (Mechanics, Visual, Sound) now plan and design their own module on Fable 5.2 extra-high and send out their own Opus 5.5 medium developers; the scheduler alone merges. Sound starts with a plan of its own decisions and a first wave on `dev/s4`. Still held until people have played: a second visual wave, any later stage, new gameplay content, and tuning on bot survival. Say so if you want any of those opened too. One risk is yours to know: four Fable sessions at once can reach the account's Fable limit, and that stops all of them until it resets.
+
+- **D-056** The first sounds. Every sound is made by a script in this repo, none is downloaded or recorded, and all of them sit in one musical key so that no combination clashes, as you ruled for the earlier game. Warnings get a pitch range of their own that your own fire is kept out of, and a warning turns your fire down while it sounds. There is no music in this first wave. Each Keeper gets a short signature when you pick its blessing. Tool runs stay silent; only a game you start yourself makes sound. Nobody has heard any of it: when the first sounds exist you get about ten minutes of listening, as its own item here.
 
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
