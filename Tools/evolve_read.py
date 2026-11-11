@@ -21,7 +21,7 @@ FAULT = re.compile(r"Ensure condition failed|Fatal error|Unhandled Exception|===
 
 def read_run(folder):
 	"""The offers by hand id and the picks in order, or None without telemetry."""
-	files = glob.glob(os.path.join(folder, "*.jsonl"))
+	files = glob.glob(os.path.join(glob.escape(folder), "*.jsonl"))
 	if not files:
 		return None
 	offers, picks = {}, []
@@ -66,7 +66,7 @@ def read_batch(root):
 	evolutions = collections.Counter()
 	totals = collections.Counter()
 	cards = collections.defaultdict(lambda: [0, 0, 0])
-	for folder in sorted(glob.glob(os.path.join(root, "Steered*"))):
+	for folder in sorted(glob.glob(os.path.join(glob.escape(root), "Steered*"))):
 		text = os.path.join(folder, "bot.csv.txt")
 		kv = {}
 		if os.path.exists(text):
@@ -143,7 +143,7 @@ def read_faults(folder):
 
 def read_telemetry(folder):
 	"""From the jsonl: the `reforge` record, player 0's `sources` by interval end, and the first boss spawn time if any."""
-	files = glob.glob(os.path.join(folder, "*.jsonl"))
+	files = glob.glob(os.path.join(glob.escape(folder), "*.jsonl"))
 	pick, intervals = None, []
 	if files:
 		with open(files[0], encoding="utf-8") as stream:
@@ -245,7 +245,7 @@ def carry_rows(runs):
 
 
 def read_carry(root, to_boss):
-	return [read_carry_run(folder, to_boss) for folder in sorted(glob.glob(os.path.join(root, "*Carry-*"))) if os.path.isdir(folder)]
+	return [read_carry_run(folder, to_boss) for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))) if os.path.isdir(folder)]
 
 
 def print_carry(root, hold):
@@ -270,9 +270,204 @@ def print_carry(root, hold):
 			print(f"  {r['missing']} run(s) with no record, {r['timeouts']} timed out")
 
 
+# --- The time after the pick in two windows, split at the boss's start (D-070; Docs/Validation/S2_evolve_read_split.md) -----------------
+# Per run: "before the boss" runs from the `reforge` record to the `boss_start` record, or to the run's end (`run_end`) when the run never met
+# the boss; "the boss fight" from `boss_start` to the run's end. A record at time t is in a window [lo, hi) when lo <= t < hi, so a hit exactly on
+# the boss's start is the fight's. Damage per minute comes from the `hit` records' damage_by_source (exact times: a short fight is read whole);
+# kills per minute before the boss from the whole `sources` intervals inside that window (an interval runs from interval x interval_s to its
+# record's t, so the last one, cut short by the run's end, counts at its own length); damage taken per minute from `hero_damaged`.
+# Medians over runs: every run with a pick before the boss, the runs that reached the boss in the fight. A run with no `reforge` record or no
+# `run_end` is left out and counted. Player 0's records only, as the carry reading.
+
+def read_split_run(folder):
+	"""The records the split needs from a run's jsonl, or None without one."""
+	files = sorted(glob.glob(os.path.join(glob.escape(folder), "*.jsonl")))
+	if not files:
+		return None
+	run = {"pick": None, "boss": None, "end": None, "reason": "", "hp_left": None, "interval_s": 60.0, "hits": [], "taken": [], "sources": []}
+	with open(files[0], encoding="utf-8") as stream:
+		for line in stream:
+			line = line.strip()
+			if not line:
+				continue
+			record = json.loads(line)
+			kind, owner, t = record.get("kind"), record.get("owner", 0), float(record.get("t", 0.0))
+			if kind == "run_start":
+				run["interval_s"] = float(record.get("interval_s") or 60.0)
+			elif kind == "reforge" and owner == 0 and run["pick"] is None:
+				run["pick"] = t
+			elif kind == "boss_start" and run["boss"] is None:
+				run["boss"] = t
+			elif kind == "boss_end":
+				run["hp_left"] = record.get("hp_left_frac")
+			elif kind == "run_end":
+				run["end"], run["reason"] = t, record.get("reason", "")
+			elif kind == "hit" and owner == 0:
+				run["hits"].append((t, record.get("damage_by_source") or {}))
+			elif kind == "hero_damaged" and owner == 0:
+				run["taken"].append((t, float(record.get("amount", 0.0))))
+			elif kind == "sources" and owner == 0:
+				run["sources"].append((int(record.get("interval", 0)) * run["interval_s"], t, record.get("kills") or {}))
+	return run
+
+
+def split_windows(run):
+	"""One run's two windows: per-minute figures and lengths; fight is None when the run never met the boss."""
+	pick, boss, end = run["pick"], run["boss"], run["end"]
+	def window(lo, hi):
+		minutes = (hi - lo) / 60.0
+		by_source = collections.defaultdict(float)
+		for t, damage in run["hits"]:
+			if lo <= t < hi:
+				for source, value in damage.items():
+					by_source[source] += value
+		taken = sum(a for t, a in run["taken"] if lo <= t < hi)
+		return {"seconds": hi - lo, "by_source": {k: v / minutes for k, v in by_source.items()} if minutes > 0 else {},
+			"all": sum(by_source.values()) / minutes if minutes > 0 else None, "taken": taken / minutes if minutes > 0 else None}
+	before_hi = boss if boss is not None else end
+	before = window(pick, before_hi)
+	kills = secs = 0.0
+	for start, stop, by_kills in run["sources"]:
+		if start >= pick - 1e-6 and stop <= before_hi + 1e-6 and stop > start:
+			kills += sum(by_kills.values())
+			secs += stop - start
+	before["kills"] = kills / secs * 60.0 if secs > 0 else None
+	fight = None
+	if boss is not None:
+		fight = window(boss, end)
+		fight["hp_left"] = run["hp_left"]
+	return {"before": before, "fight": fight, "died_before": boss is None and run["reason"] == "death"}
+
+
+def split_read(folders):
+	"""Medians over a batch's runs, the two windows each by itself."""
+	runs, no_pick, no_end = [], 0, 0
+	for folder in folders:
+		run = read_split_run(folder)
+		if run is None or run["pick"] is None:
+			no_pick += 1
+		elif run["end"] is None:
+			no_end += 1
+		else:
+			runs.append(split_windows(run))
+	fights = [r["fight"] for r in runs if r["fight"] is not None]
+	def by_source(windows):
+		names = sorted({s for w in windows for s in w["by_source"]})
+		return {s: median([w["by_source"].get(s, 0.0) for w in windows]) for s in names}
+	befores = [r["before"] for r in runs]
+	return {"runs": len(runs), "no_pick": no_pick, "no_end": no_end, "died_before": sum(r["died_before"] for r in runs), "reached": len(fights),
+		"before": {"all": median([w["all"] for w in befores]), "kills": median([w["kills"] for w in befores]), "taken": median([w["taken"] for w in befores]),
+			"seconds": median([w["seconds"] for w in befores]), "by_source": by_source(befores)},
+		"fight": {"all": median([w["all"] for w in fights]), "taken": median([w["taken"] for w in fights]), "seconds": median([w["seconds"] for w in fights]),
+			"hp_left": median([w["hp_left"] for w in fights]), "by_source": by_source(fights)}}
+
+
+def ratio(arm, hold):
+	return arm / hold if arm is not None and hold else None
+
+
+def split_lines(label, read):
+	b, f = read["before"], read["fight"]
+	left = f" ({read['no_pick']} without a pick and {read['no_end']} without a run_end, left out)" if read["no_pick"] or read["no_end"] else ""
+	sources = lambda d: ", ".join(f"{s} {number(v)}" for s, v in sorted(d.items(), key=lambda kv: -(kv[1] or 0))) or "none"
+	return [f"split at the boss's start, {label}: {read['runs']} runs{left}; died before the boss {read['died_before']}; reached the boss {read['reached']}",
+		f"  before the boss: all sources {number(b['all'])} a minute, kills {number(b['kills'])} a minute, damage taken {number(b['taken'], 1)} a minute, {number(b['seconds'])} s",
+		f"    by source: {sources(b['by_source'])}",
+		f"  boss fight ({read['reached']} of {read['runs']} runs): length {number(f['seconds'])} s, all sources {number(f['all'])} a minute, "
+		f"damage taken {number(f['taken'], 1)} a minute, boss HP left {number(f['hp_left'], 2)}",
+		f"    by source: {sources(f['by_source'])}"]
+
+
+def against_lines(weapon, arm, hold, whole_arm, whole_hold):
+	"""Evolved against hold for one carried weapon, each window by itself; the whole-time figure beside them, deciding nothing."""
+	before = ratio(arm["before"]["all"], hold["before"]["all"])
+	fight = ratio(arm["fight"]["all"], hold["fight"]["all"])
+	whole = ratio(whole_arm, whole_hold)
+	return before, fight, [
+		f"{weapon} evolved against hold, before the boss: {number(before, 2)} ({number(arm['before']['all'])} / {number(hold['before']['all'])}; {arm['runs']} and {hold['runs']} runs)",
+		f"{weapon} evolved against hold, boss fight: {number(fight, 2)} ({number(arm['fight']['all'])} / {number(hold['fight']['all'])}; {arm['reached']} and {hold['reached']} runs reached it)",
+		f"{weapon} evolved against hold, the whole time after the pick: {number(whole, 2)} ({number(whole_arm)} / {number(whole_hold)}), decides nothing"]
+
+
+def check_windows(readings, bar_before, bar_fight):
+	"""WINDOWS: PASS or FAIL naming each weapon's window that missed its bar. readings: [(weapon, before, fight)]."""
+	missed, held = [], []
+	for weapon, before, fight in readings:
+		for name, value, bar in (("before the boss", before, bar_before), ("boss fight", fight, bar_fight)):
+			if value is None:
+				missed.append(f"{weapon} {name}: no reading")
+			elif value < bar:
+				missed.append(f"{weapon} {name} {value:.2f} < {bar:g}")
+			else:
+				held.append(f"{weapon} {name} {value:.2f} >= {bar:g}")
+	if not readings:
+		missed.append("no carried weapon read")
+	if missed:
+		return f"WINDOWS: FAIL ({'; '.join(missed)})"
+	return f"WINDOWS: PASS ({', '.join(held)})"
+
+
+CARRIED = re.compile(r"Carry-([^_\\/]+)_s\d+$")
+
+
+def carry_groups(root):
+	"""A batch's run folders by the weapon they carry (the label's Carry-<weapon>), in name order."""
+	groups = {}
+	for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))):
+		found = CARRIED.search(os.path.basename(folder))
+		if os.path.isdir(folder) and found:
+			groups.setdefault(found.group(1), []).append(folder)
+	return groups
+
+
+def print_split(root, hold, check):
+	"""Per carried weapon: the two windows of the evolved batch and, with --hold, of the hold and each window against it."""
+	arms = carry_groups(root)
+	holds = carry_groups(hold) if hold else {}
+	whole = {}
+	if hold:
+		sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+		import dtconst
+		to_boss = dtconst.load()["RUN.LENGTH_TO_BOSS"]["value"]
+		for side, path in (("arm", root), ("hold", hold)):
+			for row in carry_rows(read_carry(path, to_boss)):
+				whole[side, row["weapon"].split(".")[-1]] = row["all_after"]
+	readings = []
+	for weapon, folders in sorted(arms.items()):
+		arm = split_read(folders)
+		for line in split_lines(f"{weapon} evolved", arm):
+			print(line)
+		if weapon not in holds:
+			readings.append((weapon, None, None))
+			continue
+		held = split_read(holds[weapon])
+		for line in split_lines(f"{weapon} hold", held):
+			print(line)
+		before, fight, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
+		for line in lines:
+			print(line)
+		readings.append((weapon, before, fight))
+	if not check:
+		return 0
+	verdict = check_windows(readings, *check)
+	print(verdict)
+	return 0 if verdict.startswith("WINDOWS: PASS") else 1
+
+
+def main(argv):
+	if argv[1:2] == ["--carry"]:
+		args = argv[3:]
+		hold = args[args.index("--hold") + 1] if "--hold" in args else None
+		check = None
+		if "--check-windows" in args:
+			at = args.index("--check-windows")
+			check = (float(args[at + 1]), float(args[at + 2]))
+		print_carry(argv[2], hold)
+		return print_split(argv[2], hold, check)
+	for batch in argv[1:]:
+		read_batch(batch)
+	return 0
+
+
 if __name__ == "__main__":
-	if sys.argv[1:2] == ["--carry"]:
-		print_carry(sys.argv[2], sys.argv[4] if sys.argv[3:4] == ["--hold"] else None)
-	else:
-		for batch in sys.argv[1:]:
-			read_batch(batch)
+	sys.exit(main(sys.argv))

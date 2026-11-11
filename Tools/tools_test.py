@@ -661,6 +661,128 @@ class CarryRead(unittest.TestCase):
 			self.assertEqual(evolve_read.read_faults(root), (["no log"], 1))
 
 
+class EvolveSplit(unittest.TestCase):
+	"""D-070: the time after the Reforging pick read as two windows split at the boss's start (Tools/evolve_read.py), from canned run files."""
+
+	@staticmethod
+	def hit(t, **by):
+		return {"kind": "hit", "owner": 0, "t": t, "damage_by_source": {k.replace("_", "."): v for k, v in by.items()}}
+
+	# A: never meets the boss and dies; B: meets it and wins, with a hit exactly on the boss's start; C: dies in the fight; D: no pick.
+	RUNS = {
+		"A": [{"kind": "run_start", "t": 0.0, "interval_s": 60.0}, {"kind": "reforge", "owner": 0, "t": 100.0},
+			{"kind": "sources", "owner": 0, "t": 120.0, "interval": 1, "kills": {"Weapon.RingEmitter": 99}},
+			{"kind": "sources", "owner": 0, "t": 180.0, "interval": 2, "kills": {"Weapon.RingEmitter": 50}},
+			{"kind": "hero_damaged", "owner": 0, "t": 150.0, "amount": 10.0}, "HIT 160 Weapon_RingEmitter=600",
+			{"kind": "sources", "owner": 0, "t": 400.0, "interval": 6, "kills": {"Keeper.Storm": 20}},
+			{"kind": "run_end", "owner": -1, "t": 400.0, "reason": "death"}],
+		"B": [{"kind": "reforge", "owner": 0, "t": 100.0}, "HIT 130 Weapon_RingEmitter=240",
+			{"kind": "sources", "owner": 0, "t": 180.0, "interval": 2, "kills": {"Weapon.RingEmitter": 20}},
+			{"kind": "boss_start", "owner": -1, "t": 220.0}, "HIT 220 Keeper_Storm=60", {"kind": "hero_damaged", "owner": 0, "t": 220.0, "amount": 3.0},
+			{"kind": "boss_end", "owner": -1, "t": 280.0, "hp_left_frac": 0.0}, {"kind": "run_end", "owner": -1, "t": 280.0, "reason": "victory"}],
+		"C": [{"kind": "reforge", "owner": 0, "t": 100.0}, "HIT 159.9 Weapon_RingEmitter=60", {"kind": "boss_start", "owner": -1, "t": 160.0},
+			"HIT 170 Weapon_RingEmitter=30", {"kind": "boss_end", "owner": -1, "t": 220.0, "hp_left_frac": 0.5},
+			{"kind": "run_end", "owner": -1, "t": 220.0, "reason": "death"}],
+		"D": [{"kind": "run_end", "owner": -1, "t": 50.0, "reason": "death"}],
+	}
+
+	def batch(self, root, runs=("A", "B", "C", "D")):
+		folders = []
+		for seed, name in enumerate(runs, 1):
+			folder = os.path.join(root, f"Steered-Storm-Tempest-Tide-Carry-RingEmitter_s{seed}")
+			os.makedirs(folder)
+			lines = []
+			for rec in self.RUNS[name]:
+				if isinstance(rec, str):
+					_, t, pair = rec.split(" ")
+					source, value = pair.split("=")
+					rec = self.hit(float(t), **{source: float(value)})
+				lines.append(json.dumps(rec, separators=(",", ":")))
+			with open(os.path.join(folder, "1_1.jsonl"), "w", encoding="utf-8") as f:
+				f.write("\n".join(lines) + "\n")
+			folders.append(folder)
+		return folders
+
+	def test_each_run_reads_its_two_windows(self):
+		with tempfile.TemporaryDirectory() as root:
+			a, b, c, d = (evolve_read.read_split_run(f) for f in self.batch(root))
+		never = evolve_read.split_windows(a)
+		self.assertIsNone(never["fight"], "a run that never meets the boss has no fight window")
+		self.assertTrue(never["died_before"])
+		self.assertEqual((never["before"]["seconds"], never["before"]["all"], never["before"]["taken"]), (300.0, 120.0, 2.0))
+		self.assertEqual(never["before"]["kills"], 42.0, "whole intervals inside the window only, the last one cut short by the run's end at its own length")
+		won = evolve_read.split_windows(b)
+		self.assertEqual(won["before"]["by_source"], {"Weapon.RingEmitter": 120.0})
+		self.assertEqual(won["fight"]["by_source"], {"Keeper.Storm": 60.0}, "a hit exactly on the boss's start is the fight's")
+		self.assertEqual((won["fight"]["seconds"], won["fight"]["taken"], won["fight"]["hp_left"]), (60.0, 3.0, 0.0))
+		self.assertFalse(won["died_before"])
+		lost = evolve_read.split_windows(c)
+		self.assertEqual((lost["before"]["all"], lost["fight"]["all"], lost["fight"]["hp_left"]), (60.0, 30.0, 0.5))
+		self.assertIsNone(lost["before"]["kills"], "no whole interval inside the window is no kill figure, not zero")
+		self.assertFalse(lost["died_before"], "a death in the fight is not a death before the boss")
+		self.assertIsNone(d["pick"])
+
+	def test_medians_over_the_batch_and_a_run_with_no_pick_is_left_out(self):
+		with tempfile.TemporaryDirectory() as root:
+			read = evolve_read.split_read(self.batch(root))
+		self.assertEqual((read["runs"], read["no_pick"], read["no_end"], read["died_before"], read["reached"]), (3, 1, 0, 1, 2))
+		self.assertEqual((read["before"]["all"], read["before"]["kills"]), (120.0, 31.0))
+		self.assertEqual((read["fight"]["all"], read["fight"]["seconds"], read["fight"]["hp_left"]), (45.0, 60.0, 0.25))
+		self.assertEqual(read["fight"]["by_source"], {"Keeper.Storm": 30.0, "Weapon.RingEmitter": 15.0}, "a source a fight lacks counts 0 in its median")
+		lines = evolve_read.split_lines("evolved", read)
+		self.assertEqual(lines[0], "split at the boss's start, evolved: 3 runs (1 without a pick and 0 without a run_end, left out); died before the boss 1; reached the boss 2")
+		self.assertTrue(lines[3].startswith("  boss fight (2 of 3 runs): length 60 s, all sources 45 a minute"), lines[3])
+
+	def test_each_window_against_the_hold_and_the_whole_time_decides_nothing(self):
+		with tempfile.TemporaryDirectory() as root:
+			arm = evolve_read.split_read(self.batch(root))
+		hold = {"runs": 15, "reached": 15, "before": {"all": 150.0}, "fight": {"all": 90.0}}
+		before, fight, lines = evolve_read.against_lines("RingEmitter", arm, hold, 75.0, 100.0)
+		self.assertEqual((before, fight), (0.8, 0.5))
+		self.assertEqual(lines, ["RingEmitter evolved against hold, before the boss: 0.80 (120 / 150; 3 and 15 runs)",
+			"RingEmitter evolved against hold, boss fight: 0.50 (45 / 90; 2 and 15 runs reached it)",
+			"RingEmitter evolved against hold, the whole time after the pick: 0.75 (75 / 100), decides nothing"])
+
+	def test_the_check_names_the_window_that_missed(self):
+		check = evolve_read.check_windows
+		self.assertEqual(check([("RingEmitter", 0.96, 0.52)], 0.95, 0.5),
+			"WINDOWS: PASS (RingEmitter before the boss 0.96 >= 0.95, RingEmitter boss fight 0.52 >= 0.5)")
+		self.assertEqual(check([("RingEmitter", 0.80, 0.52)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter before the boss 0.80 < 0.95)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.31)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight 0.31 < 0.5)")
+		self.assertEqual(check([("RingEmitter", 0.96, None)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight: no reading)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.52), ("SpiralProjector", 0.99, 0.2)], 0.95, 0.5), "WINDOWS: FAIL (SpiralProjector boss fight 0.20 < 0.5)")
+		self.assertEqual(check([], 0.95, 0.5), "WINDOWS: FAIL (no carried weapon read)")
+
+	def test_a_batch_of_several_carried_weapons_reads_each_apart(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.batch(root, ("A", "B"))
+			other = os.path.join(root, "Steered-Storm-Tempest-Tide-Carry-SpiralProjector_s1")
+			shutil.copytree(os.path.join(root, "Steered-Storm-Tempest-Tide-Carry-RingEmitter_s2"), other)
+			groups = evolve_read.carry_groups(root)
+			self.assertEqual({k: len(v) for k, v in groups.items()}, {"RingEmitter": 2, "SpiralProjector": 1})
+			self.assertEqual(evolve_read.split_read(groups["SpiralProjector"])["reached"], 1)
+
+	def test_the_command_line_judges_only_when_asked(self):
+		with tempfile.TemporaryDirectory() as root:
+			arm, hold = os.path.join(root, "arm [1]"), os.path.join(root, "hold")
+			self.batch(arm)
+			self.batch(hold)
+			def run(*extra):
+				out = io.StringIO()
+				with contextlib.redirect_stdout(out):
+					rc = evolve_read.main(["evolve_read.py", "--carry", arm, "--hold", hold, *extra])
+				return rc, out.getvalue().splitlines()
+			rc, lines = run()
+			self.assertEqual(rc, 0)
+			self.assertFalse([line for line in lines if line.startswith("WINDOWS:")], "without --check-windows nothing is judged")
+			self.assertIn("RingEmitter evolved against hold, before the boss: 1.00 (120 / 120; 3 and 3 runs)", lines)
+			self.assertIn("split at the boss's start, RingEmitter evolved: 3 runs (1 without a pick and 0 without a run_end, left out); died before the boss 1; reached the boss 2", lines)
+			self.assertTrue(lines[0].startswith("== "), "today's carry lines come first, unchanged")
+			self.assertEqual(run("--check-windows", "0.95", "0.5")[0], 0)
+			rc, lines = run("--check-windows", "1.5", "0.5")
+			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter before the boss 1.00 < 1.5)"))
+
+
 class S2Exit(unittest.TestCase):
 	"""T-BOT-17: the probe lines parse; human readings stay NOT READ whatever the bots do; no data is NOT READ."""
 
