@@ -285,6 +285,13 @@ def pause_per_min(run):
 	return player["wall_paused_s"] / (end / 60.0) if player and end > 0 else None
 
 
+def pause_without_patron(run):
+	"""Wall seconds in hands per sim minute with the Patron hand left out (D-013), or None without a run_end."""
+	player = (run["end"].get("per_player") or {}).get("0")
+	end = end_t(run)
+	return (player["wall_paused_s"] - hand_seconds(run).get("Patron", 0.0)) / (end / 60.0) if player and end > 0 else None
+
+
 def hand_seconds(run):
 	"""{hand kind: wall seconds to the pick}, the picks' own `wall_decide_s`, which is what a run_end's wall_paused_s sums."""
 	out = {}
@@ -382,7 +389,7 @@ def print_run(jsonl, key, t_cut=None):
 	if pause is None:
 		print("paused: unread, no run_end")
 	else:
-		print(f"paused: {player.get('wall_paused_s')} s, {pause:.1f} s per sim minute, {(player['wall_paused_s'] - hands.get('Patron', 0.0)) / (end / 60.0):.1f} without the Patron hand, "
+		print(f"paused: {player.get('wall_paused_s')} s, {pause:.1f} s per sim minute, {pause_without_patron(run):.1f} without the Patron hand, "
 			f"against C.OFFER.PAUSED_S_PER_MIN_MAX {consts['OFFER.PAUSED_S_PER_MIN_MAX']['value']}")
 	print(f"XP of model at {XP_CHECK_S:.0f} s: {pickup_text(run, consts)}")
 	share, floor = share_without(run["source_rows"], CLEAVE_SOURCE)

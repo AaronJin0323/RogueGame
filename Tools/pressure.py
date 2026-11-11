@@ -318,6 +318,11 @@ def alive_through(alive_min, lo, hi):
 	return alive_min >= (hi - lo) / 60.0 - 1e-9
 
 
+def run_base(text):
+	"""A sheet's run cell as a run's base name: no folder, no extension."""
+	return os.path.splitext(os.path.basename(text.strip().replace("\\", "/")))[0]
+
+
 def read_validators(path):
 	"""{run base name: validator} from a sheet with a header and `run,validator` rows; an extension on the run is dropped."""
 	out = {}
@@ -325,7 +330,7 @@ def read_validators(path):
 		for row in csv.DictReader(f):
 			run, who = (row.get("run") or "").strip(), (row.get("validator") or "").strip()
 			if run and who:
-				out[os.path.splitext(os.path.basename(run.replace("\\", "/")))[0]] = who
+				out[run_base(run)] = who
 	return out
 
 
@@ -516,25 +521,30 @@ def bot_fast(jsonl_path):
 	return None
 
 
+def slow_share(jsonl_path, arm=SESSION):
+	"""(share or None, the reading's text without the run's name): D-054's slow share, or why it is not read. `arm` is the run's
+	group when its file has no bot_fast: a bot arm's folder says the run was fast."""
+	counts = slow_counts(jsonl_path) if jsonl_path else None
+	if counts is None:
+		return None, "not read (no wall_dropped_steps in run_end)"
+	dropped, steps = counts
+	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
+	fast = bot_fast(jsonl_path)
+	if fast is not None:
+		if fast > 0:
+			return None, f"not read (bot at -DTBotFast={fast}; {dropped} dropped steps)"
+		return share, f"share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
+	note = "no bot_fast in run_start, told by its folder"
+	if arm != SESSION:
+		return None, f"not read (bot arm {arm} at -DTBotFast; {dropped} dropped steps; {note})"
+	return share, f"share {share:.4f} ({dropped} dropped of {steps + dropped} steps; {note})"
+
+
 def slow_line(name, jsonl_path):
 	"""D-054: the slow share is wall_dropped_steps over the steps run plus wall_dropped_steps, beside the count. It is read on people's
 	sessions only: a run whose run_start.bot_fast is above zero steps past the clock, so it prints as not read, never as zero. A run file
 	with no bot_fast is told by its folder (a bot arm's, Tools/BotRuns.ps1, or a session's) and says so. No threshold, no verdict."""
-	counts = slow_counts(jsonl_path) if jsonl_path else None
-	if counts is None:
-		return f"SLOW: {name} not read (no wall_dropped_steps in run_end)"
-	dropped, steps = counts
-	fast = bot_fast(jsonl_path)
-	if fast is not None:
-		if fast > 0:
-			return f"SLOW: {name} not read (bot at -DTBotFast={fast}; {dropped} dropped steps)"
-		share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
-		return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
-	note = "no bot_fast in run_start, told by its folder"
-	if arm_of(name) != SESSION:
-		return f"SLOW: {name} not read (bot arm {arm_of(name)} at -DTBotFast; {dropped} dropped steps; {note})"
-	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
-	return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps; {note})"
+	return f"SLOW: {name} {slow_share(jsonl_path, arm_of(name))[1]}"
 
 
 def parse_args(argv):
