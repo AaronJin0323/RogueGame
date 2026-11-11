@@ -2,6 +2,7 @@
 // Run headless: Tools\RunTests.ps1 -Filter Dusktracer.Audio
 
 #include "Misc/AutomationTest.h"
+#include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "Audio/DTAudioScheduler.h"
 #include "Audio/DTAudioSubsystem.h"
@@ -38,10 +39,11 @@ namespace DTAudioTest
 	using DTCat::ESoundSide;
 
 	static DTCat::FSoundRow Row(const TCHAR* Id, ESoundSide Side, int32 Variants, float Volume, ESoundPitch Pitch, int32 IntervalMs, int32 Voices, float Agg,
-		bool bGrid, int32 LengthMs)
+		bool bGrid, int32 LengthMs, DTCat::ESoundNote Note = DTCat::ESoundNote::None)
 	{
 		const ESoundClass Class = Side == ESoundSide::Danger ? ESoundClass::Danger : (Side == ESoundSide::UI ? ESoundClass::UI : ESoundClass::Player);
-		return DTCat::FSoundRow{ Id, TEXT("/Game/DT/Audio/SFX/SW_Test"), Side, Class, Variants, false, Volume, Pitch, IntervalMs, Voices, Agg, bGrid, LengthMs };
+		const DTCat::ESoundNote Written = Pitch == ESoundPitch::Key && Note == DTCat::ESoundNote::None ? DTCat::ESoundNote::D : Note;
+		return DTCat::FSoundRow{ Id, TEXT("/Game/DT/Audio/SFX/SW_Test"), Side, Class, Variants, false, Volume, Pitch, Written, IntervalMs, Voices, Agg, bGrid, LengthMs, true };
 	}
 
 	/** The staged trace's rows: ten weapons, hits, kills, a warning, an interface sound (RogueHero's table as the start, plan §3.4). */
@@ -125,6 +127,7 @@ namespace DTAudioTest
 		FString Jsonl;
 		int64 AudioAsked = 0;
 		bool bObserving = false;
+		bool bHasAudio = false;
 		int32 Decisions = 0;
 	};
 
@@ -154,7 +157,8 @@ namespace DTAudioTest
 		UDTDirector* Director = Test.World->GetSubsystem<UDTDirector>();
 		const UDTHeroSubsystem* Heroes = Test.World->GetSubsystem<UDTHeroSubsystem>();
 		UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
-		if (Sim && Bot && Telemetry && Director && Heroes && Audio)
+		Result.bHasAudio = Audio != nullptr;
+		if (Sim && Bot && Telemetry && Director && Heroes)
 		{
 			Sim->StartRun(Seed, 1);
 			Telemetry->StartSession(Seed, 1);
@@ -168,7 +172,10 @@ namespace DTAudioTest
 			Config.Seed = Seed;
 			Bot->Activate(Config);
 			const int32 Steps = BotSeconds * DTConst::SIM_FIXED_HZ;
-			Audio->Tick(0.0f); // binds the observer when the runtime is on
+			if (Audio)
+			{
+				Audio->Tick(0.0f); // binds the observer
+			}
 			while (Sim->GetStepIndex() < Steps && !Bot->IsRunFinished())
 			{
 				const int32 Chunk = FMath::Min<int32>(DTConst::SIM_FIXED_HZ, Steps - static_cast<int32>(Sim->GetStepIndex()));
@@ -176,7 +183,7 @@ namespace DTAudioTest
 				{
 					break;
 				}
-				if (UDTAudioSubsystem::IsEnabled())
+				if (Audio)
 				{
 					Audio->RunFrame(SecondsOf(Sim->GetStepIndex()));
 				}
@@ -195,11 +202,11 @@ namespace DTAudioTest
 				Result.Pos = State->Pos;
 				Result.Hp = State->Hp;
 			}
-			for (int32 Sound = 0; Sound < Audio->GetScheduler().NumSounds(); ++Sound)
+			for (int32 Sound = 0; Audio && Sound < Audio->GetScheduler().NumSounds(); ++Sound)
 			{
 				Result.AudioAsked += Audio->GetScheduler().GetCounts(Sound).Asked;
 			}
-			Result.bObserving = Audio->IsObserving();
+			Result.bObserving = Audio && Audio->IsObserving();
 			if (const UDTOfferSubsystem* Offers = Test.World->GetSubsystem<UDTOfferSubsystem>())
 			{
 				Result.Decisions = Offers->GetStats(0) ? Offers->GetStats(0)->Decisions : -1;
@@ -226,9 +233,9 @@ bool FDTAudTestSimUntouched::RunTest(const FString& Parameters)
 	Enabled.Set(0);
 	const FRunResult Off = Play(31);
 	TestTrue(TEXT("the run with audio played"), On.Steps > 0 && !On.Csv.IsEmpty());
-	AddInfo(FString::Printf(TEXT("audio on: observing %d, asked %lld, decisions %d; off: observing %d, asked %lld"), On.bObserving, On.AudioAsked, On.Decisions, Off.bObserving, Off.AudioAsked));
-	TestTrue(TEXT("audio observed and was asked for sounds (the picks)"), On.bObserving && On.AudioAsked > 0);
-	TestTrue(TEXT("audio off observed nothing"), !Off.bObserving && Off.AudioAsked == 0);
+	AddInfo(FString::Printf(TEXT("audio on: observing %d, asked %lld, decisions %d"), On.bObserving, On.AudioAsked, On.Decisions));
+	TestTrue(TEXT("with audio the world has the runtime, observing and asked for sounds (the picks)"), On.bHasAudio && On.bObserving && On.AudioAsked > 0);
+	TestFalse(TEXT("dt.Audio.Enabled 0 at world creation: no audio runtime at all"), Off.bHasAudio);
 	TestEqual(TEXT("same steps"), Off.Steps, On.Steps);
 	TestEqual(TEXT("same input stream"), Off.InputHash, On.InputHash);
 	TestEqual(TEXT("same hero position"), Off.Pos, On.Pos);
@@ -345,8 +352,21 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestSilent, "Dusktracer.Audio.Silent", DTAudioTest::Flags) // T-AUD-03
 bool FDTAudTestSilent::RunTest(const FString& Parameters)
 {
-	TestTrue(TEXT("the tests run unattended, as every tool run does"), UDTAudioSubsystem::IsSilentProcess());
+	// The predicates on staged inputs.
+	TestTrue(TEXT("-unattended is a tool process"), UDTAudioSubsystem::IsToolProcess(true, TEXT("Default")));
+	TestTrue(TEXT("a hidden desktop with no -unattended is a tool process (a packaged check)"), UDTAudioSubsystem::IsToolProcess(false, TEXT("DTHidden4242")));
+	TestFalse(TEXT("a person on the default desktop is not"), UDTAudioSubsystem::IsToolProcess(false, TEXT("Default")));
+	TestFalse(TEXT("no desktop name (not Windows) is not, by that signal"), UDTAudioSubsystem::IsToolProcess(false, FString()));
+	TestTrue(TEXT("a tool process is silent"), UDTAudioSubsystem::IsSilent(true, false));
+	TestTrue(TEXT("automation alone is silent (lock 1) and not a tool process (lock 2 leaves the volume)"), UDTAudioSubsystem::IsSilent(false, true));
+	TestFalse(TEXT("a person's launch is neither"), UDTAudioSubsystem::IsSilent(false, false));
+
+	// This process: the tests always run under automation, and a tool run (RunTests.ps1) is also a tool process.
+	const bool bTool = UDTAudioSubsystem::IsToolProcessNow();
+	TestTrue(TEXT("under automation the process is silent"), UDTAudioSubsystem::IsSilentNow());
+	AddInfo(FString::Printf(TEXT("desktop '%s', tool process %d"), *UDTAudioSubsystem::ProcessDesktopName(), bTool));
 	const float Was = FApp::GetVolumeMultiplier();
+	FApp::SetVolumeMultiplier(0.8f); // what the settings subsystem sets at its own start
 	{
 		DTAudioTest::FTestWorld Test;
 		UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
@@ -354,18 +374,28 @@ bool FDTAudTestSilent::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		TestFalse(TEXT("lock 1: no engine sink was made"), Audio->HasEngineSink());
-		FApp::SetVolumeMultiplier(1.0f); // what the settings subsystem sets at its own start
-		Audio->Tick(0.0f);
-		TestEqual(TEXT("lock 2: the application volume reads zero"), FApp::GetVolumeMultiplier(), 0.0f);
+		if (bTool)
+		{
+			TestEqual(TEXT("lock 2: zero straight after Initialize, before any tick"), FApp::GetVolumeMultiplier(), 0.0f);
+			FApp::SetVolumeMultiplier(0.6f);
+			Audio->Tick(0.0f);
+			TestEqual(TEXT("lock 2: zero again after a tick that follows a write"), FApp::GetVolumeMultiplier(), 0.0f);
+		}
+		else
+		{
+			TestEqual(TEXT("automation in a person's editor leaves the volume alone"), FApp::GetVolumeMultiplier(), 0.8f);
+		}
+		TestFalse(TEXT("lock 1: no engine sink"), Audio->HasEngineSink());
 		Audio->RequestUi(static_cast<int32>(DTCat::ESoundId::Snd_UI_Open), 1);
 		Audio->RunFrame(1.0);
 		const FDTAudioCounts& C = Audio->GetScheduler().GetCounts(static_cast<int32>(DTCat::ESoundId::Snd_UI_Open));
-		TestTrue(TEXT("the scheduler still runs and counts"), C.Asked == 1 && C.Played == 1);
-		TestEqual(TEXT("no voice reached the engine"), Audio->GetEngineStarts(), int64(0));
-		TestEqual(TEXT("the volume holds at zero"), FApp::GetVolumeMultiplier(), 0.0f);
+		TestTrue(TEXT("voices are scheduled with no engine sink to take them"), C.Asked == 1 && C.Played == 1);
+		TestFalse(TEXT("and still no engine sink"), Audio->HasEngineSink());
 	}
-	FApp::SetVolumeMultiplier(Was);
+	if (!bTool)
+	{
+		FApp::SetVolumeMultiplier(Was); // a tool process never gives the volume back
+	}
 	return true;
 }
 
@@ -404,6 +434,47 @@ bool FDTAudTestDangerFirst::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the warning starts in the frame it is asked for, first"), Out.Num() >= 1 && Out[0].Sound == 1 && Out[0].Step == Step);
 	TestTrue(TEXT("never varied"), Out.Num() >= 1 && Out[0].Pitch == 1.0f && Out[0].Volume == 0.8f);
 	TestTrue(TEXT("the frame cap holds"), Out.Num() <= DTConst::AUD_STARTS_PER_FRAME_MAX);
+
+	// Danger first, at the frame cap: player batches of several ids are asked before a warning in one frame. The warning starts
+	// first, the cap's other starts go to the first players, the rest wait one frame and are dropped when that frame is full too.
+	{
+		TArray<DTCat::FSoundRow> CapRows;
+		for (int32 Index = 0; Index < 6; ++Index)
+		{
+			CapRows.Add(Row(TEXT("Snd.Test.P"), ESoundSide::Player, 1, 0.5f, ESoundPitch::Fixed, 0, 8, 0.0f, false, 50));
+		}
+		for (int32 Index = 0; Index < DTConst::AUD_STARTS_PER_FRAME_MAX; ++Index)
+		{
+			CapRows.Add(Row(TEXT("Snd.Test.D"), ESoundSide::Danger, 1, 0.8f, ESoundPitch::Fixed, 0, 8, 0.0f, false, 50));
+		}
+		const int32 FirstDanger = 6;
+		FDTAudioScheduler C;
+		C.Configure(CapRows, 3);
+		for (int32 Player = 0; Player < 6; ++Player)
+		{
+			C.Request(Player, 1, 100);
+		}
+		C.Request(FirstDanger, 1, 100);
+		TArray<FDTAudioVoice> Frame1;
+		C.Frame(SecondsOf(100), 100, Frame1);
+		TestTrue(TEXT("the warning starts first though asked last"), Frame1.Num() > 0 && Frame1[0].Sound == FirstDanger);
+		TestEqual(TEXT("the cap holds, the warning counted in it"), Frame1.Num(), DTConst::AUD_STARTS_PER_FRAME_MAX);
+		TestEqual(TEXT("the players past the cap wait"), C.NumWaiting(), 6 - (DTConst::AUD_STARTS_PER_FRAME_MAX - 1));
+		for (int32 Danger = FirstDanger; Danger < CapRows.Num(); ++Danger)
+		{
+			C.Request(Danger, 1, 101);
+		}
+		TArray<FDTAudioVoice> Frame2;
+		C.Frame(SecondsOf(101), 101, Frame2);
+		TestTrue(TEXT("the next frame's warnings take its cap"), Frame2.Num() == DTConst::AUD_STARTS_PER_FRAME_MAX && Algo::AllOf(Frame2, [&](const FDTAudioVoice& V) { return V.Sound >= FirstDanger; }));
+		int64 Dropped = 0;
+		for (int32 Player = 0; Player < 6; ++Player)
+		{
+			Dropped += C.GetCounts(Player).Dropped;
+		}
+		TestEqual(TEXT("the waiting players dropped after their one frame"), Dropped, static_cast<int64>(6 - (DTConst::AUD_STARTS_PER_FRAME_MAX - 1)));
+		TestEqual(TEXT("nothing waits"), C.NumWaiting(), 0);
+	}
 
 	// The duck: down to C.AUD.DUCK_DB within C.AUD.DUCK_ATTACK_MS, held while it sounds, back over C.AUD.DUCK_RELEASE_MS.
 	const double Attack = DTConst::AUD_DUCK_ATTACK_MS / 1000.0;
@@ -493,7 +564,10 @@ bool FDTAudTestDensity::RunTest(const FString& Parameters)
 	TestTrue(TEXT("player voices keep off the kept slots"), WorstPlayer <= PlayerCap);
 	TestTrue(TEXT("player starts in any second at most the cap"), WorstSecond <= DTConst::AUD_PLAYER_STARTS_PER_S_MAX && WorstSlidingSecond <= DTConst::AUD_PLAYER_STARTS_PER_S_MAX);
 	TestTrue(TEXT("starts in any frame at most the cap"), WorstFrame <= DTConst::AUD_STARTS_PER_FRAME_MAX);
-	TestTrue(TEXT("the trace was dense: the caps were reached"), WorstSlidingSecond >= DTConst::AUD_PLAYER_STARTS_PER_S_MAX / 2 && S.GetCounts(Hit).Dropped > 0);
+	TestEqual(TEXT("the trace reaches the player voice limit"), WorstPlayer, PlayerCap);
+	TestEqual(TEXT("the trace reaches the player starts in a second"), WorstSlidingSecond, DTConst::AUD_PLAYER_STARTS_PER_S_MAX);
+	TestEqual(TEXT("the trace reaches the starts in a frame"), WorstFrame, DTConst::AUD_STARTS_PER_FRAME_MAX);
+	TestTrue(TEXT("and drops what the caps refuse"), S.GetCounts(Hit).Dropped > 0);
 	TestEqual(TEXT("no warning dropped"), S.GetCounts(Warn).Dropped, int64(0));
 	TestTrue(TEXT("every warning batch played"), S.GetCounts(Warn).Played == 20 * DTConst::SIM_FIXED_HZ / 30);
 	AddInfo(FString::Printf(TEXT("worst: %d voices, %d player, %d player starts in a second, %d starts in a frame"), WorstAlive, WorstPlayer, WorstSlidingSecond, WorstFrame));
@@ -547,57 +621,67 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestVariation, "Dusktracer.Audio.Variatio
 bool FDTAudTestVariation::RunTest(const FString& Parameters)
 {
 	using namespace DTAudioTest;
-	const TArray<DTCat::FSoundRow> Rows = {
-		Row(TEXT("Snd.Test.Key"), ESoundSide::Player, 3, 0.5f, ESoundPitch::Key, 0, 64, 0.0f, false, 10),
-		Row(TEXT("Snd.Test.Fixed"), ESoundSide::UI, 2, 0.6f, ESoundPitch::Fixed, 0, 64, 0.0f, false, 10),
-		Row(TEXT("Snd.Test.Warn"), ESoundSide::Danger, 1, 0.8f, ESoundPitch::Key, 0, 64, 0.0f, false, 10),
-	};
-	const auto Run = [&](uint64 Seed)
+	// A minor pentatonic as pitch classes above A, written here and not read from the scheduler's own table.
+	const TSet<int32> Scale = { 0, 3, 5, 7, 10 };
+	const TPair<DTCat::ESoundNote, int32> Notes[] = { { DTCat::ESoundNote::A, 0 }, { DTCat::ESoundNote::C, 3 }, { DTCat::ESoundNote::D, 5 },
+		{ DTCat::ESoundNote::E, 7 }, { DTCat::ESoundNote::G, 10 } };
+	for (const TPair<DTCat::ESoundNote, int32>& Written : Notes)
 	{
-		FDTAudioScheduler S;
-		S.Configure(Rows, Seed);
-		TArray<FDTAudioVoice> All;
-		for (int64 Step = 1; Step <= 40; ++Step)
+		const TArray<DTCat::FSoundRow> Rows = {
+			Row(TEXT("Snd.Test.Key"), ESoundSide::Player, 3, 0.5f, ESoundPitch::Key, 0, 64, 0.0f, false, 10, Written.Key),
+			Row(TEXT("Snd.Test.Fixed"), ESoundSide::UI, 2, 0.6f, ESoundPitch::Fixed, 0, 64, 0.0f, false, 10),
+			Row(TEXT("Snd.Test.Warn"), ESoundSide::Danger, 1, 0.8f, ESoundPitch::Key, 0, 64, 0.0f, false, 10, Written.Key),
+		};
+		const auto Run = [&](uint64 Seed)
 		{
-			S.Request(0, 1, Step);
-			S.Request(2, 1, Step);
-			if (Step % 4 == 0)
+			FDTAudioScheduler S;
+			S.Configure(Rows, Seed);
+			TArray<FDTAudioVoice> All;
+			for (int64 Step = 1; Step <= 60; ++Step)
 			{
-				S.RequestUi(1, 1);
+				S.Request(0, 1, Step);
+				S.Request(2, 1, Step);
+				if (Step % 4 == 0)
+				{
+					S.RequestUi(1, 1);
+				}
+				S.Frame(SecondsOf(Step), Step, All);
 			}
-			S.Frame(SecondsOf(Step), Step, All);
-		}
-		return All;
-	};
-	const TArray<FDTAudioVoice> A = Run(42);
-	TSet<float> Pitches;
-	int32 Last = INDEX_NONE;
-	for (const FDTAudioVoice& Voice : A)
-	{
-		if (Voice.Sound == 0)
+			return All;
+		};
+		const TArray<FDTAudioVoice> A = Run(42);
+		TSet<int32> Offsets;
+		int32 Last = INDEX_NONE;
+		for (const FDTAudioVoice& Voice : A)
 		{
-			TestTrue(TEXT("no variant twice running"), Voice.Variant != Last);
-			Last = Voice.Variant;
-			const bool bDegree = Algo::AnyOf(DTAudio::KeyDegrees, [&](int32 Degree) { return FMath::IsNearlyEqual(Voice.Pitch, FMath::Pow(2.0f, Degree / 12.0f), 1.0e-5f); });
-			TestTrue(TEXT("the pitch is a degree of the key"), bDegree);
-			const float Db = 20.0f * FMath::LogX(10.0f, Voice.Volume / 0.5f);
-			TestTrue(TEXT("the level within C.AUD.LEVEL_JITTER_DB"), FMath::Abs(Db) <= DTConst::AUD_LEVEL_JITTER_DB + 1.0e-4f);
-			Pitches.Add(Voice.Pitch);
+			if (Voice.Sound == 0)
+			{
+				TestTrue(TEXT("no variant twice running"), Voice.Variant != Last);
+				Last = Voice.Variant;
+				const int32 Offset = FMath::RoundToInt(12.0f * FMath::Log2(Voice.Pitch));
+				TestTrue(TEXT("the pitch is a whole number of semitones"), FMath::IsNearlyEqual(Voice.Pitch, FMath::Pow(2.0f, Offset / 12.0f), 1.0e-5f));
+				const int32 Class = ((Written.Value + Offset) % 12 + 12) % 12;
+				TestTrue(FString::Printf(TEXT("note %d: offset %+d lands in A minor pentatonic"), Written.Value, Offset), Scale.Contains(Class));
+				TestTrue(TEXT("within C.AUD.KEY_SEMIS_MAX"), FMath::Abs(Offset) <= DTConst::AUD_KEY_SEMIS_MAX);
+				const float Db = 20.0f * FMath::LogX(10.0f, Voice.Volume / 0.5f);
+				TestTrue(TEXT("the level within C.AUD.LEVEL_JITTER_DB"), FMath::Abs(Db) <= DTConst::AUD_LEVEL_JITTER_DB + 1.0e-4f);
+				Offsets.Add(Offset);
+			}
+			else
+			{
+				TestEqual(TEXT("a fixed row and a warning never vary in pitch"), Voice.Pitch, 1.0f);
+				TestEqual(TEXT("nor in level"), Voice.Volume, Rows[Voice.Sound].Volume);
+			}
 		}
-		else
+		TestTrue(TEXT("degrees are drawn, not one"), Offsets.Num() >= 3);
+		const TArray<FDTAudioVoice> B = Run(42);
+		bool bSame = A.Num() == B.Num();
+		for (int32 Index = 0; bSame && Index < A.Num(); ++Index)
 		{
-			TestEqual(TEXT("a fixed row and a warning never vary in pitch"), Voice.Pitch, 1.0f);
-			TestEqual(TEXT("nor in level"), Voice.Volume, Rows[Voice.Sound].Volume);
+			bSame = A[Index].Sound == B[Index].Sound && A[Index].Variant == B[Index].Variant && A[Index].Pitch == B[Index].Pitch && A[Index].Volume == B[Index].Volume;
 		}
+		TestTrue(TEXT("one seed, one voice log"), bSame);
 	}
-	TestTrue(TEXT("degrees are drawn, not one"), Pitches.Num() >= 3);
-	const TArray<FDTAudioVoice> B = Run(42);
-	bool bSame = A.Num() == B.Num();
-	for (int32 Index = 0; bSame && Index < A.Num(); ++Index)
-	{
-		bSame = A[Index].Sound == B[Index].Sound && A[Index].Variant == B[Index].Variant && A[Index].Pitch == B[Index].Pitch && A[Index].Volume == B[Index].Volume;
-	}
-	TestTrue(TEXT("one seed, one voice log"), bSame);
 	return true;
 }
 
@@ -615,15 +699,17 @@ bool FDTAudTestStingers::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the next one after the gap"), Q.Pop(0.02 + Gap, E) && E.Path == 1);
 
 	Q.Reset();
+	int64 Dropped = Q.GetDropped();
 	Q.Push(2, EDTStinger::Pick, 10.0);
 	TestFalse(TEXT("an entry past its expiry is dropped"), Q.Pop(10.0 + Expiry + 0.01, E));
-	TestEqual(TEXT("and counted"), Q.Num(), 0);
+	TestTrue(TEXT("and counted"), Q.Num() == 0 && Q.GetDropped() == Dropped + 1);
+	Dropped = Q.GetDropped();
 
 	Q.Reset();
 	Q.Push(3, EDTStinger::Pick, 20.0);
 	Q.Push(3, EDTStinger::Tier, 20.0);
 	TestFalse(TEXT("a pick behind its Path's tier is dropped"), Q.Push(3, EDTStinger::Pick, 20.0));
-	TestEqual(TEXT("the tier dropped the pending pick of its Path"), Q.Num(), 1);
+	TestTrue(TEXT("the tier dropped the pending pick of its Path, and both drops are counted"), Q.Num() == 1 && Q.GetDropped() == Dropped + 2);
 	Q.Push(4, EDTStinger::Pick, 19.9);
 	TestTrue(TEXT("the tier goes first, older picks or not"), Q.Pop(20.1, E) && E.Kind == EDTStinger::Tier);
 
@@ -679,6 +765,40 @@ bool FDTAudTestCounts::RunTest(const FString& Parameters)
 	S.Request(0, 2, Step + 1);
 	S.Reset(6);
 	TestTrue(TEXT("a reset drops what waited, and counts it"), Settled(S, 0));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestNewRun, "Dusktracer.Audio.NewRun", DTAudioTest::Flags) // T-AUD-02
+bool FDTAudTestNewRun::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	const TArray<DTCat::FSoundRow> Rows = {
+		Row(TEXT("Snd.Test.Run"), ESoundSide::Player, 1, 0.5f, ESoundPitch::Fixed, 500, 4, 0.0f, true, 1000),
+		Row(TEXT("Snd.Test.Ui"), ESoundSide::UI, 1, 0.6f, ESoundPitch::Fixed, 500, 4, 0.0f, false, 1000),
+		Row(TEXT("Snd.Test.Ui2"), ESoundSide::UI, 1, 0.6f, ESoundPitch::Fixed, 0, 4, 0.0f, false, 1000),
+	};
+	FDTAudioScheduler S;
+	S.Configure(Rows, 1);
+	TArray<FDTAudioVoice> Out;
+	S.Request(0, 1, 30);
+	S.RequestUi(1, 1);
+	S.Frame(1.0, 30, Out);
+	S.Request(0, 1, 31);   // a grid batch that waits for step 33
+	TArray<FDTAudioVoice> Next;
+	S.Frame(1.01, 31, Next);
+	TestTrue(TEXT("a run voice and an interface voice sound"), S.NumAlive(ESoundSide::Player) == 1 && S.NumAlive(ESoundSide::UI) == 1 && S.NumWaiting() == 1);
+	S.RequestUi(2, 1);     // asked before the new run, resolved after it
+	S.ResetRun(2);
+	TestEqual(TEXT("the run's voices are gone"), S.NumAlive(ESoundSide::Player), 0);
+	TestEqual(TEXT("the interface voice still sounds"), S.NumAlive(ESoundSide::UI), 1);
+	TestEqual(TEXT("the run's waiting batch is dropped, and counted"), S.GetCounts(0).Dropped, int64(1));
+	Out.Reset();
+	S.RequestUi(1, 1);     // inside the interface interval of its voice
+	S.Request(0, 1, 1);    // the new run's first step: no interval left over from the old run
+	S.Frame(1.1, 3, Out);
+	TestTrue(TEXT("the interface interval still holds across runs"), S.GetCounts(1).Merged == 1);
+	TestTrue(TEXT("the interface request asked before the new run still plays"), Out.ContainsByPredicate([](const FDTAudioVoice& V) { return V.Sound == 2; }));
+	TestTrue(TEXT("the new run starts free of the old run's interval"), Out.ContainsByPredicate([](const FDTAudioVoice& V) { return V.Sound == 0; }));
 	return true;
 }
 
