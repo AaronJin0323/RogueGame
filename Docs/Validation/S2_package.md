@@ -167,3 +167,19 @@ Budget 8 / 10. Both package changes sit inside the spread of the runs: no cost w
 **Contention: none.** Sampled every 3 s through every reading: one game process at a time, no compiler, cook or second Unreal process.
 
 **Not proved.** Engine code is still compiled by target; 30 full runs show it does not reach a hash here, which is a reading and not a guarantee. Nothing checks the editor against the package on each change; T-TEC-15 checks Development against Shipping.
+
+## Package checks under the launch job's affinity limit (2026-11-11, `s2/pkg-checks`)
+The reading of `dev/s3` 81c638e (`S3_package.md`, the reread of 2026-11-11) found two defects that live in scripts this branch holds.
+
+**1. Every Development launch logs `SetThreadAffinity failed with: 0x1f`, and PKGRESTART fails on any log warning.** Cause proven before the change: the same Development package (`dev/s3` 81c638e), the same arguments (a fast bot quitting at once on seed 9107), on the hidden desktop, launched once inside the launch job's affinity limit (`Tools/HiddenLaunch.ps1`, D-052, `0xFFFFF3FC`) and once with the limit set to none:
+
+| Launch | Limit | Ended | `SetThreadAffinity failed` lines | Other warning or error lines |
+|---|---|---|---|---|
+| inside | `0xFFFFF3FC` | yes, 3.4 s | 33 | 0 |
+| outside | none | yes, 3.4 s | 0 | 0 |
+
+The engine's worker threads ask for processors the limit leaves out, and Windows refuses them (ERROR_GEN_FAILURE, 0x1f). The fix: `Split-DTLimitWarnings` in `Tools/HiddenLaunch.ps1` sets aside exactly `LogThreadingWindows: Warning: Runnable thread ... call to SetThreadAffinity failed with: 0x1f`, and only when the limit held the launch. `Tools/PackageRestartCheck.ps1` uses it, counts the lines it set aside, and prints the count in its verdict; every other warning still fails. R-PKG-10 in `02_Systems/package.md` names the exception (D-052). `tools_test.py` `LimitWarnings` holds both sides: the limit's line set aside under a mask, a 0x57 variant and a streaming warning kept, and nothing set aside without a mask.
+
+**2. "Access is denied" when one check follows another in one shell.** It happened three times in that reading. Cause, reproduced: the launch helper's desktop and jobs are static to the PowerShell process, so they outlive a script run with `&`. `Start-DTWindowWatch` (`Tools/WindowWatch.ps1`) puts the process itself in a job, and Windows then refuses a new launch into the helper's older jobs, which lie outside it. Two scratch scripts in one process (a launch, then a watch and a launch) fail at the second launch with "Access is denied"; the second script alone does not. The watch now closes the helper's jobs and desktop before it starts, so the next launch makes new ones inside its tree. The same scratch pair then launches four times in a row in one process. `tools_test.py` `WatchAfterLaunch` fails before the change and passes after it.
+
+Reading with the change, on the same package, in this worktree: `PKGRESTART: PASS (same cook=True, hash 276faf8e, csv same=True, shipping bridge=True, reloads ms 44 42 33, LoadMap s first 0.016769 reload 0.041435, limit warnings set aside 134 (D-052))`.
