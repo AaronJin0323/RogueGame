@@ -33,6 +33,8 @@ Without `-OutDir`, the Shipping package's `.bat` wrote to `%USERPROFILE%\Desktop
 - A word-edge match missed a two-character Chinese name inside `张三的游戏`: Chinese has no word edges. Only short Latin names keep them.
 
 ## Frame cost in the package
+
+> Reread at the real size on 2026-11-11, with ExportLogsCheck and CrashExportCheck: `S3_package.md`, the section "Reread on 2026-11-11". The table below was taken at 888x500.
 `Tools/Perf.ps1 -Package`, the reading D-021 took by hand. One run each; other worktrees were not checked for GPU use, and `gpu.lock` is per worktree.
 
 | Scene | Game p50 | Game p95 | GPU p95 raw | Proxied | Load | Verdict |
