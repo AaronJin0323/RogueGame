@@ -1,0 +1,9 @@
+{
+	"note": "impact_art.md R-IMP-09: a hero losing health to a crowd on the held step, with the ring at its feet showing (no DT.God). Run by hand and by Tools/ImpactArt.ps1; no golden.",
+	"gate": "none",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 6,
+	"cmds": ["DT.Spawn.Role Swarm 30", "DT.Spawn.Role Rusher 6", "DT.Impact.Stats hold"]
+}

@@ -1,0 +1,9 @@
+{
+	"note": "impact_art.md R-IMP-06, R-IMP-07: kills of two roles in the PerKill tier (the rate never passes C.PRE.DENSITY_LOD_KILLS_PER_S before the shot), so kill flashes and debris of several ages are in the frame. The golden package E re-baselines when a flash or the debris changes.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 6,
+	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 4", "DT.Give Weapon.ScatterCannon 4", "DT.Spawn.Role Swarm 16", "DT.Spawn.Role Rusher 6", "DT.Impact.Stats hold"]
+}

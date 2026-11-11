@@ -1,0 +1,9 @@
+{
+	"note": "impact_art.md R-IMP-05: rounds landing on Tanks that soak the fire, so sparks of several ages are in the frame and no kill is, in the PerKill tier. The golden package E re-baselines when a spark changes.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 4,
+	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 4", "DT.Give Weapon.ScatterCannon 4", "DT.Spawn.Role Tank 8", "DT.Impact.Stats hold"]
+}

@@ -1,0 +1,10 @@
+{
+	"note": "impact_art.md R-IMP-04, R-IMP-08: the gate's contrast staging (all seven elements) with kills in the Crowd tier on the held step, so aggregated kill flashes and thinned sparks are in the frame while the telegraph and the enemy round are read. No effect may cover either.",
+	"gate": "contrast",
+	"judge": "contrast",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"director": true,
+	"seconds": 12,
+	"cmds": ["DT.God 1", "DT.Dir.Time 700", "DT.Gems.Drop 30 4 700", "DT.Spawn.Role Swarm 6 elite", "DT.Spawn.Role Turret 18", "DT.Spawn.Role Rusher 8", "DT.Bullets 800", "DT.Spawn.Keep 300", "DT.Impact.Stats hold"]
+}
