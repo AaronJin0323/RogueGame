@@ -648,7 +648,9 @@ bool FDTMetBadFile::RunTest(const FString& Parameters)
 		TestTrue(TEXT("nothing is set aside, and the hub's line says so (vigil.md R-VIG-21)"),
 			Session.AsidePath.IsEmpty() && !IFileManager::Get().FileExists(*(Held + TEXT(".bad.1"))) && Session.Notice() == EDTMetaNotice::SaveNotMoved);
 		TestFalse(TEXT("a stuck session writes nothing"), Session.Write());
-		TestEqual(TEXT("not even at a bank"), Session.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left).Retained, static_cast<int64>(DTConst::META_CURRENCY_PER_MINUTE));
+		const FDTRunAward Stuck = Session.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left);
+		TestEqual(TEXT("not even at a bank"), Stuck.Retained, static_cast<int64>(DTConst::META_CURRENCY_PER_MINUTE));
+		TestTrue(TEXT("and the bank says it is not saved, not that it waits (R-MET-06)"), Stuck.bBanked && Stuck.bNotSaved && !Stuck.bDeferred && Stuck.Waiting == 0);
 	}
 	TestTrue(TEXT("the file is untouched"), ReadFile(Held) == Junk);
 #endif
@@ -674,6 +676,7 @@ bool FDTMetAutosave::RunTest(const FString& Parameters)
 	AddExpectedError(TEXT("Meta:"), EAutomationExpectedErrorFlags::Contains, 0);
 	const FDTRunAward Second = Session.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left);
 	IFileManager::Get().DeleteDirectory(*Temp, false, true);
+	TestFalse(TEXT("a written bank, and one a failed write keeps for the next save point, are not a stuck save (R-MET-06)"), Award.bNotSaved || Second.bNotSaved);
 	const FDTRunAward Third = Session.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left);
 	TestEqual(TEXT("a failed write loses nothing"), Third.Balance, Award.Retained + Second.Retained + Third.Retained);
 	TestEqual(TEXT("a reload sees both runs"), Reader.Open(Path), EDTMetaOpen::Read);
