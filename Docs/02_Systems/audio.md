@@ -79,7 +79,7 @@ Read and not owned: `C.PRE.DENSITY_LOD_KILLS_PER_S`, `C.ENM.KILL_RATE_WINDOW_S`,
 | `Saved/AudioGen/` | build output | the WAV files; not committed |
 | `Saved/Audio/<seed>_<time>.csv` | run output | on `-DTAudioLog`: the voice log (step, time, id, variant, volume, pitch, duck in dB, count), then the counts and the timer |
 
-Interface events (the interface family, `Audio/Observe/DTObserveInterface`). Read once a frame from the menu's, the hub's and the offer subsystem's getters, for the local player (player zero, whose hand the offer screen shows); each line compares this frame with the last.
+Interface events (the interface family, `Audio/Observe/DTObserveInterface`). Read once a frame from the menu's, the hub's and the offer subsystem's getters, for the local player (player zero, whose hand the offer screen shows); each line compares this frame with the last. Its `.cpp` is audio's one reader of a `Settings/` header (`settings.md` T-SET-02's list), and stays the only one: the Step sound will read the settings from the same file.
 
 | Sound | Condition |
 |---|---|

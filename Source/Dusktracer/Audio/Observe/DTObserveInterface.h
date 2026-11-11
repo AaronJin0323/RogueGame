@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "Audio/DTAudioObserver.h"
 #include "Audio/DTSoundsGen.h"
-#include "Hub/DTHubState.h"
-#include "Settings/DTMenuState.h"
+#include "Hub/DTHubState.h"   // with it the menu's screen and status types (T-SET-02: the .cpp is audio's one settings reader)
 
 /** What the interface shows in one frame: all the observer compares. */
 struct FDTInterfaceView

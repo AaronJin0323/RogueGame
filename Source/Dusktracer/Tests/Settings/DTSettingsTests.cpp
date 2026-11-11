@@ -327,7 +327,7 @@ bool FDTSetReaders::RunTest(const FString& Parameters)
 	const TArray<FString> Allowed = {
 		TEXT("Game/DTHUD.cpp"), TEXT("Offers/DTOfferScreen.cpp"), TEXT("Player/DTHero.cpp"), TEXT("Player/DTInputSet.cpp"),
 		TEXT("Enemies/DTTelegraphRenderer.cpp"), TEXT("Enemies/DTEnemyBulletRenderer.cpp"),
-		TEXT("Hub/DTHubState.h"), TEXT("Hub/DTHubScreen.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp"), TEXT("Debug/DTDebugWinCheck.cpp") };
+		TEXT("Hub/DTHubState.h"), TEXT("Hub/DTHubScreen.cpp"), TEXT("Hub/DTHubSubsystem.cpp"), TEXT("Hub/DTHubCheck.cpp"), TEXT("Debug/DTDebugWinCheck.cpp"), TEXT("Audio/Observe/DTObserveInterface.cpp") };
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.h"), true, false);
 	IFileManager::Get().FindFilesRecursive(Files, *Root, TEXT("*.cpp"), true, false, false);
