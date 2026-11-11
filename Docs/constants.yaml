@@ -209,6 +209,7 @@ impact_art:
   IMP.SPARK_S:                        { value: 0.10, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
   IMP.SPARK_LENGTH_UU:                { value: 70, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
   IMP.SPARK_WIDTH_UU:                 { value: 44, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARK_STREAK_RATIO:             { value: 0.3, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
   IMP.SPARK_START_RATIO:              { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
   IMP.SPARK_EMISSIVE:                 { value: 3.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
   IMP.SPARKS_PER_STEP_MAX:            { value: 32, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
@@ -228,7 +229,7 @@ impact_art:
   IMP.AGG_FLOOD_CELL_UU:              { value: 800, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
   IMP.AGG_FLOOD_PER_STEP_MAX:         { value: 2, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
   IMP.DEBRIS_S:                       { value: 0.45, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
-  IMP.DEBRIS_SIZE_UU:                 { value: 22, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07, Tools/blender/debris.py] }
+  IMP.DEBRIS_SIZE_UU:                 { value: 28, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07, Tools/blender/debris.py] }
   IMP.DEBRIS_RADIUS_PER_PIECE_UU:     { value: 11, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
   IMP.DEBRIS_PIECES_MIN:              { value: 3, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
   IMP.DEBRIS_PIECES_MAX:              { value: 8, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
@@ -238,10 +239,10 @@ impact_art:
   IMP.DEBRIS_SPREAD_DEG:              { value: 70, unit: deg, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
   IMP.DEBRIS_SHRINK_SHARE:            { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
   IMP.DEBRIS_LIVE_MAX:                { value: 160, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
-  IMP.HERO_FLASH_S:                   { value: 0.20, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
-  IMP.HERO_FLASH_START_RATIO:         { value: 1.3, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
-  IMP.HERO_FLASH_END_RATIO:           { value: 2.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
-  IMP.HERO_FLASH_THICK_UU:            { value: 20, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_S:                   { value: 0.25, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_START_RATIO:         { value: 2.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_END_RATIO:           { value: 3.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_THICK_UU:            { value: 24, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
   IMP.HERO_FLASH_EMISSIVE:            { value: 2.5, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
   IMP.REDUCED_EMISSIVE_RATIO:         { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
 arena:

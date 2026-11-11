@@ -444,6 +444,7 @@ bool FDTImpactUnderTelegraphs::RunTest(const FString& Parameters)
 	}
 	Renderer->InitRender();
 	TestTrue(TEXT("every effect has its material and meshes"), Renderer->HasSparkMaterial() && Renderer->HasFlashMaterial() && Renderer->HasRingMaterial() && Renderer->HasDebris());
+	TestEqual(TEXT("the spark's streak width at the root is the constant's, set on the material (R-IMP-05)"), Renderer->GetSparkStreakRatio(), static_cast<float>(DTConst::IMP_SPARK_STREAK_RATIO), Tolerance);
 	TArray<FDTImpact> Step = { Hit(1, FVector2f(120.0f, 0.0f), FVector2f(100.0f, 0.0f), 20.0f), Hit(2, FVector2f(380.0f, 0.0f), FVector2f(400.0f, 0.0f), 40.0f, DTImpactFlags::Kill) };
 	const bool Hurt[] = { true };
 	const FVector2f Heroes[] = { FVector2f(-300.0f, 0.0f) };
@@ -497,6 +498,11 @@ bool FDTImpactShapes::RunTest(const FString& Parameters)
 	TestEqual(TEXT("born at its full strength"), Born.Emissive, static_cast<float>(DTConst::IMP_SPARK_EMISSIVE), Tolerance);
 	TestTrue(TEXT("grows and fades"), Half.Length > Born.Length && Half.Width > Born.Width && Half.Emissive < Born.Emissive);
 	TestEqual(TEXT("full size at the end"), DTImpactArt::SparkAt(SparkLife * 0.999f).Width, static_cast<float>(DTConst::IMP_SPARK_WIDTH_UU), 0.1f);
+	for (const float Age : { 0.0f, 0.5f * SparkLife, 0.99f * SparkLife })
+	{
+		const DTImpactArt::FDTSparkShape At = DTImpactArt::SparkAt(Age);
+		TestEqual(TEXT("each streak's root is C.IMP.SPARK_STREAK_RATIO of the spark's width"), At.StreakRoot, static_cast<float>(DTConst::IMP_SPARK_STREAK_RATIO) * At.Width, Tolerance);
+	}
 	TestFalse(TEXT("gone after its life"), DTImpactArt::SparkAt(SparkLife).bAlive);
 
 	// R-IMP-06: the flash's two ratios, an elite's drawn radius and the widest radius.

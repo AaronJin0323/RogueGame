@@ -42,6 +42,8 @@ public:
 	bool HasFlashMaterial() const { return bFlash; }
 	bool HasRingMaterial() const { return bRing; }
 	bool HasDebris() const { return bDebris; }
+	/** The spark material's StreakRatio parameter as set (R-IMP-05), or -1 without the material. */
+	float GetSparkStreakRatio() const;
 	/** Instances of Part whose scale is not zero: what is on screen. */
 	static int32 CountShown(const UInstancedStaticMeshComponent* Part);
 

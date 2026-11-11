@@ -17,6 +17,7 @@ namespace DTImpactRender
 	static const TCHAR* DebrisPackage = TEXT("/Game/DT/Materials/M_Fx_Debris");
 	static const TCHAR* ShardMeshes[DTImpactArt::NumShards] = { TEXT("/Game/DT/Meshes/SM_Fx_Debris_A"), TEXT("/Game/DT/Meshes/SM_Fx_Debris_B"), TEXT("/Game/DT/Meshes/SM_Fx_Debris_C") };
 	static const FName NowParameter(TEXT("Now"));
+	static const FName StreakParameter(TEXT("StreakRatio"));
 	/**
 	 * Bounds of a component, over those of its instances: the materials slide every vertex down its camera ray (R-IMP-04), a few percent of
 	 * the camera distance, and a plane is drawn inside its own square; twice the instances' bounds holds both at every framing of the arena.
@@ -104,6 +105,11 @@ void ADTImpactRenderer::InitRender()
 		return true;
 	};
 	bSpark = SetUp(Sparks, SparkPackage, SparkMaterial);
+	if (SparkMaterial)
+	{
+		// R-IMP-05: the streaks' width at the root comes from the constant, so tuning it needs no asset rebuild.
+		SparkMaterial->SetScalarParameterValue(StreakParameter, static_cast<float>(DTConst::IMP_SPARK_STREAK_RATIO));
+	}
 	bFlash = SetUp(Flashes, FlashPackage, FlashMaterial);
 	bRing = SetUp(Rings, RingPackage, RingMaterial);
 
@@ -128,6 +134,12 @@ void ADTImpactRenderer::InitRender()
 	{
 		UE_LOG(LogDT, Log, TEXT("Impact art: %s not found; debris is not drawn"), DebrisPackage);
 	}
+}
+
+float ADTImpactRenderer::GetSparkStreakRatio() const
+{
+	float Value = -1.0f;
+	return SparkMaterial && SparkMaterial->GetScalarParameterValue(FMaterialParameterInfo(DTImpactRender::StreakParameter), Value) ? Value : -1.0f;
 }
 
 int32 ADTImpactRenderer::CountShown(const UInstancedStaticMeshComponent* Part)

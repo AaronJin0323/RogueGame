@@ -6,8 +6,8 @@ Idempotent: re-running clears and rebuilds the same assets in place, so the asse
 Assets (licence row: Docs/09_Catalog/licenses.csv, M_Fx_*):
   /Game/DT/Materials/M_Fx_Spark   the hit spark (R-IMP-05). Unlit, additive, on the engine plane. PerInstanceCustomData 0..2 = linear RGB,
                                   3 = emissive at birth, 4 = birth (seconds of sim time). The plane is the spark at its full size, its -X edge
-                                  at the contact point and +X along the spark; three thin streaks open from the contact point, the middle one
-                                  longest, grown from C.IMP.SPARK_START_RATIO to full and faded to nothing over C.IMP.SPARK_S.
+                                  at the contact point and +X along the spark; three streaks open from the contact point, the middle one
+                                  longest, each StreakRatio (scalar parameter) of the spark's width at its root, grown from C.IMP.SPARK_START_RATIO to full and faded to nothing over C.IMP.SPARK_S.
   /Game/DT/Materials/M_Fx_Flash   the kill flash (R-IMP-06, R-IMP-08, R-IMP-09). Unlit, additive, on the engine plane. 0..2 RGB, 3 emissive,
                                   4 birth, 5 and 6 the disc's radius at birth and at the end of its life over the plane's half side (drawn
                                   never past the plane), 7 fade: 1 grows and fades over C.IMP.KILL_FLASH_S, 0 a steady disc at full size.
@@ -37,11 +37,11 @@ C = {k: v["value"] for k, v in dtconst.load(os.path.join(ROOT, "Docs", "constant
 
 MAT_DIR = "/Game/DT/Materials"
 # The engine plane's texture coordinates: U runs along the mesh's +X (0 at its -X edge), V along +Y, both 0 to 1.
-# Shape of the spark's fan, in its own size: the two side streaks reach this share of the length and this share of the half width,
-# and a streak is this share of the spark's width thick at its root, tapering to a point. Shapes only: the sizes are C.IMP.SPARK_*.
+# Shape of the spark's fan, in its own size: the two side streaks reach this share of the length and this share of the half width.
+# A streak's width at its root is the scalar parameter StreakRatio (the renderer sets it from C.IMP.SPARK_STREAK_RATIO, so tuning it needs
+# no rebuild) times the spark's width, tapering to a point. Shapes only: the sizes are C.IMP.SPARK_*.
 SIDE_LENGTH_SHARE = 0.7
 SIDE_SPREAD_SHARE = 0.85
-STREAK_HALF_SHARE = 0.12
 # The soft edge of the flash disc and of the ring, as a share of its radius and of its thickness.
 FLASH_SOFT_SHARE = 0.45
 RING_SOFT_SHARE = 0.5
@@ -187,7 +187,7 @@ float L = {float(C["IMP.SPARK_LENGTH_UU"])};
 float W = {float(C["IMP.SPARK_WIDTH_UU"])};
 float2 P = float2(UV.x * L, (UV.y - 0.5) * W) / S;
 float2 Ends[3] = {{ float2(L, 0), float2({SIDE_LENGTH_SHARE} * L, {SIDE_SPREAD_SHARE} * 0.5 * W), float2({SIDE_LENGTH_SHARE} * L, -{SIDE_SPREAD_SHARE} * 0.5 * W) }};
-float Half = {STREAK_HALF_SHARE} * W;
+float Half = 0.5 * Ratio * W;
 float Best = 0;
 for (int I = 0; I < 3; I++)
 {{
@@ -199,7 +199,8 @@ for (int I = 0; I < 3; I++)
 }}
 return Best * (1.0 - T);
 """
-	return g.custom(code, [("UV", g.uv()), ("Age", g.age())])
+	ratio = g.node(unreal.MaterialExpressionScalarParameter, parameter_name="StreakRatio", default_value=float(C["IMP.SPARK_STREAK_RATIO"]))
+	return g.custom(code, [("UV", g.uv()), ("Age", g.age()), ("Ratio", ratio)])
 
 
 def flash_shape(g):

@@ -67,10 +67,11 @@ namespace DTImpactArt
 	{
 		float Length = 0.0f;   // uu, along its direction
 		float Width = 0.0f;    // uu, across
+		float StreakRoot = 0.0f; // uu: each streak's width where it leaves the contact point, C.IMP.SPARK_STREAK_RATIO of Width
 		float Emissive = 0.0f; // times Pal.Player.Core
 		bool bAlive = false;
 	};
-	/** C.IMP.SPARK_START_RATIO to all of C.IMP.SPARK_LENGTH_UU by C.IMP.SPARK_WIDTH_UU, C.IMP.SPARK_EMISSIVE to nothing, over C.IMP.SPARK_S. */
+	/** C.IMP.SPARK_START_RATIO to all of C.IMP.SPARK_LENGTH_UU by C.IMP.SPARK_WIDTH_UU (each streak C.IMP.SPARK_STREAK_RATIO of the width at its root), C.IMP.SPARK_EMISSIVE to nothing, over C.IMP.SPARK_S. */
 	DUSKTRACER_API FDTSparkShape SparkAt(float Age);
 
 	/** A hull's drawn radius: its hit radius, times C.ELITE.DRAW_SCALE for an elite. */

@@ -133,6 +133,7 @@ DTImpactArt::FDTSparkShape DTImpactArt::SparkAt(float Age)
 	const float Size = FMath::Lerp(static_cast<float>(DTConst::IMP_SPARK_START_RATIO), 1.0f, T);
 	Out.Length = static_cast<float>(DTConst::IMP_SPARK_LENGTH_UU) * Size;
 	Out.Width = static_cast<float>(DTConst::IMP_SPARK_WIDTH_UU) * Size;
+	Out.StreakRoot = static_cast<float>(DTConst::IMP_SPARK_STREAK_RATIO) * Out.Width;
 	Out.Emissive = Out.bAlive ? static_cast<float>(DTConst::IMP_SPARK_EMISSIVE) * (1.0f - T) : 0.0f;
 	return Out;
 }
