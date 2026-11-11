@@ -1148,6 +1148,23 @@ class EngineMask(unittest.TestCase):
 				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
+class WatchAfterLaunch(unittest.TestCase):
+	"""Two check scripts in one shell (Validation/S2_package.md): a launch, then a window watch and a launch in the same process. The watch's job held the
+	shell, the earlier launch job lay outside it, and Start-DTHidden failed with "Access is denied"."""
+
+	def test_a_launch_after_a_watch_in_the_same_process(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			child = os.path.join(tmp, "quit.py")
+			with open(child, "w", encoding="ascii") as f:
+				f.write("print('ok')\n")
+			launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"'); $null = $P.WaitForExit(60000)"
+			script = (f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; . {ps_quote(os.path.join(TOOLS, 'WindowWatch.ps1'))}; "
+				f"try {{ {launch}; Start-DTWindowWatch; {launch}; $null = Stop-DTWindowWatch; 'LAUNCHED BOTH' }} catch {{ \"THREW $_\" }}")
+			rc, out = powershell(script, {"DT_AFFINITY_FILE": os.path.join(tmp, "absent.txt")})
+			self.assertIn("LAUNCHED BOTH", out)
+			self.assertNotIn("THREW", out)
+
+
 class Pre07(unittest.TestCase):
 	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
 
@@ -1380,7 +1397,8 @@ class HeavyLocks(unittest.TestCase):
 		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
-		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1"):
+		# Gate.ps1 takes its slot right before its first heavy step instead (GateSlot below).
+		for name in ("RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1"):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
@@ -1391,6 +1409,118 @@ class HeavyLocks(unittest.TestCase):
 		self.assertLess(machine.index("$null = Enter-DTHeavy -What (Split-Path -Leaf $Run.File)"), machine.index("& $Run.File @RunArgs"))
 		with open(os.path.join(TOOLS, "Play.bat"), encoding="utf-8") as f:
 			self.assertNotIn("Machine.ps1", f.read())
+
+
+SLOT_PROBE = '''import os, sys
+held = []
+for k in range(1, 3):
+	try:
+		open(os.path.join(os.environ["DT_LOCK_DIR"], "heavy", "slot%d.lock" % k), "r+b").close()
+		held.append("free")
+	except FileNotFoundError:
+		held.append("none")
+	except PermissionError:
+		held.append("held")
+open(os.environ["DT_PROBE_OUT"], "w").write(" ".join(held) + " inherited=" + ("yes" if os.environ.get("DT_HEAVY_HELD") else "no"))
+'''
+
+
+class GateSlot(unittest.TestCase):
+	"""R-TEC-18: the gate takes its one heavy-job slot right before its first heavy step that is not skipped; a text-only run takes none and never waits."""
+
+	TEXT = ("cpu_canary.py", "secret_scan.py", "docs_lint.py", "gen_constants.py", "gen_catalog.py", "loc_build.py", "tools_test.py")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.locks = os.path.join(self.tmp.name, "dt-locks")
+		os.makedirs(self.locks)
+		with open(os.path.join(self.locks, "slots.txt"), "w", encoding="ascii") as f:
+			f.write("2\n")
+		tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), tools)
+		for name in self.TEXT:
+			with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
+				f.write("print('STUB: PASS')\n")
+		self.probe_out = os.path.join(self.tmp.name, "probe.txt")
+		with open(os.path.join(self.tmp.name, "probe.py"), "w", encoding="utf-8") as f:
+			f.write(SLOT_PROBE)
+		# The build step's stand-in: it reads which slots are held while it runs, and whether it inherited the gate's.
+		with open(os.path.join(tools, "Build.bat"), "w", encoding="ascii") as f:
+			f.write(f'@echo off\r\npython -I "{os.path.join(self.tmp.name, "probe.py")}"\r\nexit /b 0\r\n')
+		self.gate = os.path.join(tools, "Gate.ps1")
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			self.heavy = re.findall(r'Start-HeavyStep "(\w+)"\)', f.read())
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def run_gate(self, run=(), wait_s="5"):
+		skip = ",".join(s for s in self.heavy if s not in run)
+		env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+		env.update({"DT_LOCK_DIR": self.locks, "DT_HEAVY_WAIT_MAX_S": wait_s, "DT_PROBE_OUT": self.probe_out,
+			"DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")})
+		done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", f"& {ps_quote(self.gate)} -Skip {skip}; exit $LASTEXITCODE"],
+			capture_output=True, env=env, timeout=300)
+		return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
+
+	def hold_all(self):
+		holders = []
+		for k in (1, 2):
+			os.makedirs(os.path.join(self.locks, "heavy"), exist_ok=True)
+			# Opened by this process with no sharing, as Enter-DTHeavy opens it: a gate that asked for a slot would wait.
+			holders.append(subprocess.Popen(["powershell", "-NoProfile", "-Command",
+				f"$S = [IO.File]::Open({ps_quote(os.path.join(self.locks, 'heavy', f'slot{k}.lock'))}, 'OpenOrCreate', 'ReadWrite', 'None'); 'HELD'; [Console]::Out.Flush(); $null = [Console]::In.ReadLine()"],
+				stdin=subprocess.PIPE, stdout=subprocess.PIPE))
+		for h in holders:
+			self.assertEqual(h.stdout.readline().decode().strip(), "HELD")
+		return holders
+
+	def release(self, holders):
+		for h in holders:
+			h.communicate(b"\n", timeout=30)
+
+	def test_the_gate_knows_its_heavy_steps(self):
+		self.assertIn("build", self.heavy)
+		self.assertIn("tests", self.heavy)
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			code = "\n".join(ps_code(f.read().splitlines()))
+		self.assertNotIn('if (-not (Skipped "', code)
+		self.assertEqual(code.count("Enter-DTHeavy"), 1)
+
+	def test_a_text_only_run_takes_no_slot_while_every_slot_is_taken(self):
+		holders = self.hold_all()
+		try:
+			rc, out = self.run_gate()
+		finally:
+			self.release(holders)
+		self.assertEqual(rc, 0, out)
+		self.assertIn("GATE: PASS", out)
+		self.assertNotIn("heavy:", out)
+
+	def test_a_text_only_run_does_not_wait_for_the_alone_hold(self):
+		with open(os.path.join(self.locks, "alone.txt"), "w", encoding="ascii") as f:
+			f.write("ALONE since now, by hand, no token.\n")
+		rc, out = self.run_gate()
+		self.assertEqual(rc, 0, out)
+		self.assertIn("GATE: PASS", out)
+
+	def test_the_alone_hold_still_stops_a_heavy_step(self):
+		with open(os.path.join(self.locks, "alone.txt"), "w", encoding="ascii") as f:
+			f.write("ALONE since now, by hand, no token.\n")
+		rc, out = self.run_gate(run=("build",), wait_s="3")
+		self.assertEqual(rc, 1, out)
+		self.assertIn("HEAVY: FAIL", out)
+		self.assertFalse(os.path.exists(self.probe_out))
+
+	def test_one_heavy_step_runs_on_one_slot_its_script_inherits(self):
+		rc, out = self.run_gate(run=("build",))
+		self.assertEqual(rc, 0, out)
+		with open(self.probe_out, encoding="ascii") as f:
+			first, second, inherited = f.read().split()
+		self.assertEqual((first, inherited), ("held", "inherited=yes"))
+		self.assertIn(second, ("free", "none"))  # no second slot: never made, or made and free
 
 
 class GateMain(unittest.TestCase):
