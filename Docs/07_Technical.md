@@ -127,7 +127,7 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`; t
 | Field | Written by (phase) | Read by | Cleared |
 |---|---|---|---|
 | `HeroPositions`, `HeroAimDirs`, `HeroIntangible` | hero (Hero) | all; weapons; enemy fire | overwritten each step |
-| `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`) | overwritten each step; a touch the hero refused never sets it |
+| `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`); `UDTImpactSubsystem` (Director: the hero ring, `impact_art.md` R-IMP-09) | overwritten each step; a touch the hero refused never sets it |
 | `HeroHits` (`FDTHeroHit[]`) | enemies: contact, Rusher charges, enemy rounds; boss attacks and its hazard ring (Enemies) | hero, next step | by the hero after reading; the enemy pool empties it again before it writes |
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
 | `bBossAlive`, `BossPosition` | weapons (Weapons) | bullets (R-BUL-09) | overwritten |
