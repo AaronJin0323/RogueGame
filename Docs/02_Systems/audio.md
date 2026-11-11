@@ -1,6 +1,6 @@
 # Audio — what is heard (S4 wave, the Sound module)
 
-> A skeleton, written with the plan `Validation/S4_audio_wave1.md` (D-055, its audio item). It binds nothing until that plan's decision draft is accepted and numbered; the first jobs then fill each section before their first line of code. A key is written here without its prefix, as `AUD.NAME`, until job one adds it to `constants.yaml`. Every test is planned, none exists.
+> Written with the plan `Validation/S4_audio_wave1.md` (D-055, its audio item); the plan is accepted as D-056, with its rulings. The jobs of its §8.1 fill each section before their first line of code. The keys are in `constants.yaml` (`C.AUD.*`, job one). A test is planned until its job builds it.
 
 ## Intent
 The player hears danger before it lands, hears their own power as a texture that grows richer with the crowd and never shrill, and hears every menu answer. Sound never changes a run: the same seed plays the same with sound on, off or absent. Every sound is made by a script in this repo and is made again byte for byte.
@@ -8,56 +8,56 @@ The player hears danger before it lands, hears their own power as a texture that
 ## Rules
 ### Seam
 - **R-AUD-01** Audio reads the sim and never writes it (`04_Presentation` R-PRE-11). No sim file includes a header of `Audio/`. Audio draws its random numbers from its own stream, seeded from the run seed inside `Audio/`, and from no sim stream.
-- **R-AUD-02** Audio observes once per sim step, at `UDTSimSubsystem::OnStepEnd`, through public delegates, counters that only grow, and the step's own buffers while they still stand. It never calls a take-once queue that has another owner, and never walks the bullet or enemy arrays: it reads counts, and at most `AUD.SCAN_MAX` entries of a step buffer. Requests inside a run carry their step, and intervals are counted in steps; interface sounds run on real time.
-- **R-AUD-03** A tool run is silent: in an unattended process no voice is handed to the engine. The scheduler still runs and counts.
+- **R-AUD-02** Audio observes once per sim step, at `UDTSimSubsystem::OnStepEnd`, through public delegates, counters that only grow, and the step's own buffers while they still stand. It never calls a take-once queue that has another owner, and never walks the bullet or enemy arrays: it reads counts, and at most `C.AUD.SCAN_MAX` entries of a step buffer. Requests inside a run carry their step, and intervals are counted in steps; interface sounds run on real time.
+- **R-AUD-03** A tool run is silent: in an unattended process no voice is handed to the engine. The scheduler still runs and counts. As a second lock (D-056, its ruling on silence), an unattended process also sets the application volume to zero.
 
 ### Mix
 - **R-AUD-04** Sound classes: Master over SFX, UI and Music; SFX holds Player and Danger. Master volume is the Settings row (`settings.md` R-SET-07); no other volume row exists. UI sounds play while the world is paused. Music is empty.
-- **R-AUD-05** Danger is heard first. A danger voice has kept slots (`AUD.VOICES_DANGER`), is never dropped for a player voice, is never delayed or pitch-varied, and reaches the engine in the frame it is asked for. While one sounds the Player group is lowered by `AUD.DUCK_DB`, in within `AUD.DUCK_ATTACK_MS` and out over `AUD.DUCK_RELEASE_MS`. While the heartbeat runs the low-end layer is lowered by `AUD.LOWHP_LOWEND_DUCK_DB`.
+- **R-AUD-05** Danger is heard first. A danger voice has kept slots (`C.AUD.VOICES_DANGER`), is never dropped for a player voice, is never delayed or pitch-varied, and reaches the engine in the frame it is asked for. While one sounds the Player group is lowered by `C.AUD.DUCK_DB`, in within `C.AUD.DUCK_ATTACK_MS` and out over `C.AUD.DUCK_RELEASE_MS`. While the heartbeat runs the low-end layer is lowered by `C.AUD.LOWHP_LOWEND_DUCK_DB`.
 
 ### Scheduling
-- **R-AUD-06** A sound is asked for by id and count. Each id has its least interval, most voices and aggregation gain in `09_Catalog/sounds.csv`. A batch inside one interval is one voice, louder by the aggregation rule and never by more than `AUD.AGGREGATE_MAX`.
-- **R-AUD-07** Caps: at most `AUD.VOICES_MAX` voices, with `AUD.VOICES_DANGER` and `AUD.VOICES_UI` kept; at most `AUD.PLAYER_STARTS_PER_S_MAX` player-side starts a second and `AUD.STARTS_PER_FRAME_MAX` starts a frame, danger first; above `AUD.FIRE_DENSE_SHOTS_PER_S` shots a second a weapon sounds at most `AUD.FIRE_DENSE_VOICES_PER_S` times a second.
-- **R-AUD-08** Density, on the sim's own kill rate: up to `C.PRE.DENSITY_LOD_KILLS_PER_S` every kill sounds; above it the crowd layer fades in and single kills thin to `AUD.KILL_DENSE_VOICES_PER_S`; above `AUD.LOWEND_ON_KILLS_PER_S` the low-end layer joins. A layer leaves at a lower rate than it enters (`AUD.CROWD_OFF_KILLS_PER_S`, `AUD.LOWEND_OFF_KILLS_PER_S`) and slews at `AUD.LAYER_FADE_PER_S`. A kill is never silent.
-- **R-AUD-09** Player hit and fire voices wait for a grid of `AUD.GRID_STEPS` sim steps, so overlaps land together. Only the sound waits; play never does, and a danger sound never does.
+- **R-AUD-06** A sound is asked for by id and count. Each id has its least interval, most voices and aggregation gain in `09_Catalog/sounds.csv`. A batch inside one interval is one voice, louder by the aggregation rule and never by more than `C.AUD.AGGREGATE_MAX`.
+- **R-AUD-07** Caps: at most `C.AUD.VOICES_MAX` voices, with `C.AUD.VOICES_DANGER` and `C.AUD.VOICES_UI` kept; at most `C.AUD.PLAYER_STARTS_PER_S_MAX` player-side starts a second and `C.AUD.STARTS_PER_FRAME_MAX` starts a frame, danger first; above `C.AUD.FIRE_DENSE_SHOTS_PER_S` shots a second a weapon sounds at most `C.AUD.FIRE_DENSE_VOICES_PER_S` times a second.
+- **R-AUD-08** Density, on the sim's own kill rate: up to `C.PRE.DENSITY_LOD_KILLS_PER_S` every kill sounds; above it the crowd layer fades in and single kills thin to `C.AUD.KILL_DENSE_VOICES_PER_S`; above `C.AUD.LOWEND_ON_KILLS_PER_S` the low-end layer joins. A layer leaves at a lower rate than it enters (`C.AUD.CROWD_OFF_KILLS_PER_S`, `C.AUD.LOWEND_OFF_KILLS_PER_S`) and slews at `C.AUD.LAYER_FADE_PER_S`. A kill is never silent.
+- **R-AUD-09** Player hit and fire voices wait for a grid of `C.AUD.GRID_STEPS` sim steps, so overlaps land together. Only the sound waits; play never does, and a danger sound never does.
 - **R-AUD-10** Variants play round robin with no repeat. A player-side voice draws a degree of the key and a small level change; a warning is always the same sound.
-- **R-AUD-11** Stingers queue: one per `AUD.STINGER_GAP_S`, dropped after `AUD.STINGER_EXPIRY_S`.
+- **R-AUD-11** Stingers queue: one per `C.AUD.STINGER_GAP_S`, dropped after `C.AUD.STINGER_EXPIRY_S`.
 - **R-AUD-12** The heartbeat sounds while a living hero is at or under `C.HUD.LOW_HP_FRAC`, one beat every `C.HUD.LOW_HP_PULSE_S` of sim time, in step with the HP bar's pulse (`hud.md` R-HUD-05). It stops with the sim.
 
 ### Sounds
 - **R-AUD-13** Every sound is generated by `Tools/audio/` from a recipe in source, with operations IEEE arithmetic defines exactly, and its bytes equal its line in `Tools/audio/sound_manifest.csv`. No sample, loop, recording or library enters the repo, and nothing is copied from another project's generated files (`04_Presentation` R-PRE-10). A family's licence row lands before its first binary.
 - **R-AUD-14** One key: every pitched sound is written in A minor pentatonic.
-- **R-AUD-15** The danger band `AUD.DANGER_BAND_HZ` belongs to warnings. A player-side or interface file has at most `AUD.PLAYER_BAND_SHARE_MAX_DB` of its energy there at the highest pitch it can be drawn at, and a soft start (`AUD.PLAYER_ATTACK_MIN_MS`, `AUD.SPIKE_MAX_DB`). A warning has at least `AUD.WARN_BAND_SHARE_MIN_DB` there and a hard start (`AUD.WARN_ATTACK_MAX_MS`). The heartbeat sits in `AUD.LOW_ZONE_HZ`. No file has more than `AUD.AIR_SHARE_MAX_DB` above the air line.
-- **R-AUD-16** File hygiene: mono at `AUD.SAMPLE_RATE_HZ`; length inside its family's window; peak at most `AUD.PEAK_MAX_DBFS` and no sample at full scale; a one-shot starts and ends at zero with its onset inside `AUD.LEAD_MAX_MS`; a loop has no seam; played loudness inside its family's window; a warning, the heartbeat and every interface sound keep their loudness through a small speaker (`AUD.SMALL_SPEAKER_LOSS_MAX_DB`).
-- **R-AUD-17** Two sounds a player must tell apart differ by `AUD.PAIR_DISTANCE_MIN_DB` in spectrum, or in their count of onsets, or by a factor of two in length. The sets are named in the catalog.
-- **R-AUD-18** Against the loudest player mix the scheduler allows, every warning leads by `AUD.DANGER_SMR_MIN_DB` and the heartbeat by `AUD.HEARTBEAT_SMR_MIN_DB`, in two bands of its zone at its worst alignment. From the sparsest to the densest mix the player side's share in the danger band holds its limit, its crest stays under `AUD.MIX_CREST_MAX_DB`, and its loudness rises by at most `AUD.DENSITY_RISE_MAX_DB`.
+- **R-AUD-15** The danger band `C.AUD.DANGER_BAND_HZ` belongs to warnings. A player-side or interface file has at most `C.AUD.PLAYER_BAND_SHARE_MAX_DB` of its energy there at the highest pitch it can be drawn at, and a soft start (`C.AUD.PLAYER_ATTACK_MIN_MS`, `C.AUD.SPIKE_MAX_DB`). A warning has at least `C.AUD.WARN_BAND_SHARE_MIN_DB` there and a hard start (`C.AUD.WARN_ATTACK_MAX_MS`). The heartbeat sits in `C.AUD.LOW_ZONE_HZ`. No file has more than `C.AUD.AIR_SHARE_MAX_DB` above the air line.
+- **R-AUD-16** File hygiene: mono at `C.AUD.SAMPLE_RATE_HZ`; length inside its family's window; peak at most `C.AUD.PEAK_MAX_DBFS` and no sample at full scale; a one-shot starts and ends at zero with its onset inside `C.AUD.LEAD_MAX_MS`; a loop has no seam; played loudness inside its family's window; a warning, the heartbeat and every interface sound keep their loudness through a small speaker (`C.AUD.SMALL_SPEAKER_LOSS_MAX_DB`).
+- **R-AUD-17** Two sounds a player must tell apart differ by `C.AUD.PAIR_DISTANCE_MIN_DB` in spectrum, or in their count of onsets, or by a factor of two in length. The sets are named in the catalog.
+- **R-AUD-18** Against the loudest player mix the scheduler allows, every warning leads by `C.AUD.DANGER_SMR_MIN_DB` and the heartbeat by `C.AUD.HEARTBEAT_SMR_MIN_DB`, in two bands of its zone at its worst alignment. From the sparsest to the densest mix the player side's share in the danger band holds its limit, its crest stays under `C.AUD.MIX_CREST_MAX_DB`, and its loudness rises by at most `C.AUD.DENSITY_RISE_MAX_DB`.
 - **R-AUD-19** Each imported asset holds the generated bytes: frames, rate and PCM hash equal the manifest.
 
 ### Counts and cost
 - **R-AUD-20** For each sound id audio counts asked, played, merged and dropped (`11_Quality` §3), prints them on request and writes them to its own file, never to a telemetry file.
-- **R-AUD-21** Everything audio does on the game thread (observing, scheduling, handing voices to the engine) costs at most `AUD.GAME_THREAD_MS_MAX` a frame at the p95 of the perf scenes, and audio times its own three parts on every frame so the figure can be read. The worst frame is printed and watched against `AUD.FRAME_MS_WATCH`.
+- **R-AUD-21** Everything audio does on the game thread (observing, scheduling, handing voices to the engine) costs at most `C.AUD.GAME_THREAD_MS_MAX` a frame at the p95 of the perf scenes, and audio times its own three parts on every frame so the figure can be read. The worst frame is printed and watched against `C.AUD.FRAME_MS_WATCH`.
 
 ## Numbers
-Proposed values; every key is presentation-only and `GATED(S4)`.
+Values live in `08_Constants.md` (Audio); every key is presentation-only and `GATED(S4)`.
 
-| Constant | Key | Proposed | Dependents |
+| Constant | Key | Tag | Dependents |
 |---|---|---|---|
-| Sample rate | AUD.SAMPLE_RATE_HZ | 48000 | R-AUD-16 |
-| Danger band, low zone | AUD.DANGER_BAND_HZ, AUD.LOW_ZONE_HZ | 2000 to 5000, 40 to 300 | R-AUD-15 |
-| Band shares | AUD.PLAYER_BAND_SHARE_MAX_DB, AUD.WARN_BAND_SHARE_MIN_DB, AUD.AIR_SHARE_MAX_DB | -30, -3, -30 | R-AUD-15 |
-| Starts | AUD.PLAYER_ATTACK_MIN_MS, AUD.SPIKE_MAX_DB, AUD.WARN_ATTACK_MAX_MS, AUD.LEAD_MAX_MS | 4, 3, 3, 2 | R-AUD-15, R-AUD-16 |
-| File limits | AUD.PEAK_MAX_DBFS, AUD.DC_MAX, AUD.SMALL_SPEAKER_LOSS_MAX_DB | -1, 0.002, 6 | R-AUD-16 |
-| Pair distance | AUD.PAIR_DISTANCE_MIN_DB | 6 | R-AUD-17 |
-| Audibility floors | AUD.DANGER_SMR_MIN_DB, AUD.HEARTBEAT_SMR_MIN_DB, AUD.WARN_OVER_MIX_MIN_DB | 12, 9, 6 | R-AUD-18 |
-| Mix limits | AUD.MIX_CREST_MAX_DB, AUD.DENSITY_RISE_MAX_DB, AUD.LIMIT_DBFS | 14, 6, -1 | R-AUD-18, R-AUD-04 |
-| Voices | AUD.VOICES_MAX, AUD.VOICES_DANGER, AUD.VOICES_UI | 32, 6, 4 | R-AUD-07 |
-| Starts | AUD.PLAYER_STARTS_PER_S_MAX, AUD.STARTS_PER_FRAME_MAX, AUD.FIRE_DENSE_SHOTS_PER_S, AUD.FIRE_DENSE_VOICES_PER_S | 60, 4, 8, 6 | R-AUD-07 |
-| Aggregation, scan | AUD.AGGREGATE_MAX, AUD.SCAN_MAX | 1.6, 64 | R-AUD-06, R-AUD-02 |
-| Layers | AUD.CROWD_OFF_KILLS_PER_S, AUD.LOWEND_ON_KILLS_PER_S, AUD.LOWEND_OFF_KILLS_PER_S, AUD.LAYER_FADE_PER_S, AUD.KILL_DENSE_VOICES_PER_S | 16, 60, 50, 3, 8 | R-AUD-08 |
-| Grid, warnings | AUD.GRID_STEPS, AUD.WARN_MIN_INTERVAL_MS | 3, 120 | R-AUD-09, R-AUD-06 |
-| Duck | AUD.DUCK_DB, AUD.DUCK_ATTACK_MS, AUD.DUCK_RELEASE_MS, AUD.LOWHP_LOWEND_DUCK_DB | -6, 20, 250, -12 | R-AUD-05 |
-| Stingers | AUD.STINGER_GAP_S, AUD.STINGER_EXPIRY_S | 0.45, 1.5 | R-AUD-11 |
-| Cost | AUD.GAME_THREAD_MS_MAX, AUD.FRAME_MS_WATCH | 0.05, 0.2 | R-AUD-21 |
+| Sample rate | C.AUD.SAMPLE_RATE_HZ | GATED(S4) | R-AUD-16 |
+| Danger band, low zone, air line | C.AUD.DANGER_BAND_HZ, C.AUD.LOW_ZONE_HZ, C.AUD.AIR_LINE_HZ | GATED(S4) | R-AUD-15 |
+| Band shares | C.AUD.PLAYER_BAND_SHARE_MAX_DB, C.AUD.WARN_BAND_SHARE_MIN_DB, C.AUD.AIR_SHARE_MAX_DB | GATED(S4) | R-AUD-15 |
+| Starts | C.AUD.PLAYER_ATTACK_MIN_MS, C.AUD.SPIKE_MAX_DB, C.AUD.WARN_ATTACK_MAX_MS, C.AUD.LEAD_MAX_MS | GATED(S4) | R-AUD-15, R-AUD-16 |
+| File limits, small speaker | C.AUD.PEAK_MAX_DBFS, C.AUD.DC_MAX, C.AUD.SMALL_SPEAKER_HZ, C.AUD.SMALL_SPEAKER_LOSS_MAX_DB | GATED(S4) | R-AUD-16 |
+| Pair distance | C.AUD.PAIR_DISTANCE_MIN_DB | GATED(S4) | R-AUD-17 |
+| Audibility reading and floors | C.AUD.MASK_SPREAD_DB, C.AUD.MASK_WINDOW_MS, C.AUD.DANGER_SMR_MIN_DB, C.AUD.HEARTBEAT_SMR_MIN_DB, C.AUD.WARN_OVER_MIX_MIN_DB | GATED(S4) | R-AUD-18 |
+| Mix limits | C.AUD.MIX_CREST_MAX_DB, C.AUD.DENSITY_RISE_MAX_DB, C.AUD.LIMIT_DBFS | GATED(S4) | R-AUD-18, R-AUD-04 |
+| Voices | C.AUD.VOICES_MAX, C.AUD.VOICES_DANGER, C.AUD.VOICES_UI | GATED(S4) | R-AUD-07 |
+| Start caps | C.AUD.PLAYER_STARTS_PER_S_MAX, C.AUD.STARTS_PER_FRAME_MAX, C.AUD.FIRE_DENSE_SHOTS_PER_S, C.AUD.FIRE_DENSE_VOICES_PER_S | GATED(S4) | R-AUD-07 |
+| Aggregation, scan | C.AUD.AGGREGATE_MAX, C.AUD.SCAN_MAX | GATED(S4) | R-AUD-06, R-AUD-02 |
+| Layers | C.AUD.CROWD_OFF_KILLS_PER_S, C.AUD.LOWEND_ON_KILLS_PER_S, C.AUD.LOWEND_OFF_KILLS_PER_S, C.AUD.LAYER_FADE_PER_S, C.AUD.KILL_DENSE_VOICES_PER_S | GATED(S4) | R-AUD-08 |
+| Grid, warnings | C.AUD.GRID_STEPS, C.AUD.WARN_MIN_INTERVAL_MS | GATED(S4) | R-AUD-09, R-AUD-06 |
+| Duck | C.AUD.DUCK_DB, C.AUD.DUCK_ATTACK_MS, C.AUD.DUCK_RELEASE_MS, C.AUD.LOWHP_LOWEND_DUCK_DB | GATED(S4) | R-AUD-05 |
+| Stingers | C.AUD.STINGER_GAP_S, C.AUD.STINGER_EXPIRY_S | GATED(S4) | R-AUD-11 |
+| Cost | C.AUD.GAME_THREAD_MS_MAX, C.AUD.FRAME_MS_WATCH | GATED(S4) | R-AUD-21 |
 
 Read and not owned: `C.PRE.DENSITY_LOD_KILLS_PER_S`, `C.ENM.KILL_RATE_WINDOW_S`, `C.HUD.LOW_HP_FRAC`, `C.HUD.LOW_HP_PULSE_S`.
 
@@ -79,7 +79,7 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step. Every lin
 
 - T-AUD-01 PLANNED(S4) `Dusktracer.Audio.SimUntouched`: one seed with audio on and off ends with equal steps, input hash, hero state and telemetry; no sim file includes an `Audio/` header.
 - T-AUD-02 PLANNED(S4) `Dusktracer.Audio.Observer`: each moment of the plan's event table raises its request on the step it happens, on both step paths; no take-once queue is called.
-- T-AUD-03 PLANNED(S4) `Dusktracer.Audio.Silent`: an unattended world hands no voice to the engine and still counts.
+- T-AUD-03 PLANNED(S4) `Dusktracer.Audio.Silent`: an unattended world hands no voice to the engine and still counts; an unattended process also sets the application volume to zero, and the test proves both: no voice handed to the engine, and the volume reads zero.
 - T-AUD-04 PLANNED(S4) `Dusktracer.Audio.Classes`: every sound sits in its catalog class; interface sounds carry the paused flag.
 - T-AUD-05 PLANNED(S4) `Dusktracer.Audio.DangerFirst`: with every player limit full a warning starts in its own frame, no danger voice is stolen, and the duck follows its curve.
 - T-AUD-06 PLANNED(S4) `Dusktracer.Audio.Aggregate`: a second request inside the interval merges; a batch is louder and capped.

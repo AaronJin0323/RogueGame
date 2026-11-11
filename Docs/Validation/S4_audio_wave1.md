@@ -26,12 +26,12 @@ The owner's taste is on record from RogueHero's playtest of 2026-10-20, after tw
 
 In the form of `13_Decisions/`. The scheduler numbers it or returns it.
 
-### D-nnn — Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger
+### D-056 — Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger
 
 - **Date:** 2026-11-11
 - **Decider:** scheduler (delegated, D-009), on a draft by the Sound module session (D-055 item 4)
 - **Class:** SYSTEM (presentation; no sim rule or number moves), with the scope calls of the wave
-- **Status:** open
+- **Status:** accepted (D-056, with the scheduler's rulings, 2026-11-11)
 
 #### Context
 D-055 item 8 opens audio with a first wave on `dev/s4` and asks for these decisions first. The gap note sizes audio at three rows (§2.3: the runtime, the density layers, the 24 signatures) and the heartbeat of §2.4, and leaves two calls open in its §6.3: whether RogueHero's Art §11 is what "audio signatures" means, and whether a music bed is in scope. The source's rule for density is one sound per kill, a crowd layer fading in from 20 to 60 kills a second, crowd plus low end above 60. The source's rule for sides is that enemy fire and telegraphs get the sharp sounds and player fire is soft, "so danger is heard first" (`reference/original_docs/05_ArtDirection.md` §11). Wave 1's four limits bind (D-043 Option C). §1 above holds the facts found.
