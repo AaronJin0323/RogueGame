@@ -2792,6 +2792,16 @@ class Licence(unittest.TestCase):
 			self.assertEqual(len(found), 1, source)
 			self.assertIn("O-009", found[0])
 
+	def test_a_row_naming_the_audio_tools_passes(self):
+		# D-056 ruling 3: the AI-service pattern names the service, not every word that holds its letters.
+		row = self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="audio wave 1")
+		self.assertEqual(self.errors([row], []), [])
+
+	def test_a_row_naming_the_audio_service_fails(self):
+		found = self.errors([self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="stems from Udio")], [])
+		self.assertEqual(len(found), 1)
+		self.assertIn("O-009", found[0])
+
 	def test_an_asset_kind_nobody_owns_fails(self):
 		rows = [self.row("Content/DT/*", kind="vfx")]
 		for name in ("Content/DT/UI/WBP_Card.uasset", "Content/DT/Fx/NS_Bullet_Trail.uasset", "Content/DT/Hero/SK_Hero.uasset"):
