@@ -1580,7 +1580,8 @@ class HeavyLocks(unittest.TestCase):
 		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
-		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1"):
+		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
+			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1"):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
