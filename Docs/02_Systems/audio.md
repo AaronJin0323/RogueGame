@@ -17,7 +17,7 @@ The player hears danger before it lands, hears their own power as a texture that
 
 ### Scheduling
 - **R-AUD-06** A sound is asked for by id and count. Each id has its least interval, most voices and aggregation gain in `09_Catalog/sounds.csv`. A batch inside one interval is one voice, louder by the aggregation rule and never by more than `AUD.AGGREGATE_MAX`.
-- **R-AUD-07** Caps: at most `AUD.VOICES_MAX` voices, with `AUD.VOICES_DANGER` and `AUD.VOICES_UI` kept; at most `AUD.PLAYER_STARTS_PER_S_MAX` player-side starts a second; above `AUD.FIRE_DENSE_SHOTS_PER_S` shots a second a weapon sounds at most `AUD.FIRE_DENSE_VOICES_PER_S` times a second.
+- **R-AUD-07** Caps: at most `AUD.VOICES_MAX` voices, with `AUD.VOICES_DANGER` and `AUD.VOICES_UI` kept; at most `AUD.PLAYER_STARTS_PER_S_MAX` player-side starts a second and `AUD.STARTS_PER_FRAME_MAX` starts a frame, danger first; above `AUD.FIRE_DENSE_SHOTS_PER_S` shots a second a weapon sounds at most `AUD.FIRE_DENSE_VOICES_PER_S` times a second.
 - **R-AUD-08** Density, on the sim's own kill rate: up to `C.PRE.DENSITY_LOD_KILLS_PER_S` every kill sounds; above it the crowd layer fades in and single kills thin to `AUD.KILL_DENSE_VOICES_PER_S`; above `AUD.LOWEND_ON_KILLS_PER_S` the low-end layer joins. A layer leaves at a lower rate than it enters (`AUD.CROWD_OFF_KILLS_PER_S`, `AUD.LOWEND_OFF_KILLS_PER_S`) and slews at `AUD.LAYER_FADE_PER_S`. A kill is never silent.
 - **R-AUD-09** Player hit and fire voices wait for a grid of `AUD.GRID_STEPS` sim steps, so overlaps land together. Only the sound waits; play never does, and a danger sound never does.
 - **R-AUD-10** Variants play round robin with no repeat. A player-side voice draws a degree of the key and a small level change; a warning is always the same sound.
@@ -35,7 +35,7 @@ The player hears danger before it lands, hears their own power as a texture that
 
 ### Counts and cost
 - **R-AUD-20** For each sound id audio counts asked, played, merged and dropped (`11_Quality` §3), prints them on request and writes them to its own file, never to a telemetry file.
-- **R-AUD-21** Observer and scheduler together cost at most `AUD.GAME_THREAD_MS_MAX` on the game thread at caps.
+- **R-AUD-21** Everything audio does on the game thread (observing, scheduling, handing voices to the engine) costs at most `AUD.GAME_THREAD_MS_MAX` a frame at the p95 of the perf scenes, and audio times its own three parts on every frame so the figure can be read. The worst frame is printed and watched against `AUD.FRAME_MS_WATCH`.
 
 ## Numbers
 Proposed values; every key is presentation-only and `GATED(S4)`.
@@ -51,13 +51,13 @@ Proposed values; every key is presentation-only and `GATED(S4)`.
 | Audibility floors | AUD.DANGER_SMR_MIN_DB, AUD.HEARTBEAT_SMR_MIN_DB, AUD.WARN_OVER_MIX_MIN_DB | 12, 9, 6 | R-AUD-18 |
 | Mix limits | AUD.MIX_CREST_MAX_DB, AUD.DENSITY_RISE_MAX_DB, AUD.LIMIT_DBFS | 14, 6, -1 | R-AUD-18, R-AUD-04 |
 | Voices | AUD.VOICES_MAX, AUD.VOICES_DANGER, AUD.VOICES_UI | 32, 6, 4 | R-AUD-07 |
-| Starts a second | AUD.PLAYER_STARTS_PER_S_MAX, AUD.FIRE_DENSE_SHOTS_PER_S, AUD.FIRE_DENSE_VOICES_PER_S | 60, 8, 6 | R-AUD-07 |
+| Starts | AUD.PLAYER_STARTS_PER_S_MAX, AUD.STARTS_PER_FRAME_MAX, AUD.FIRE_DENSE_SHOTS_PER_S, AUD.FIRE_DENSE_VOICES_PER_S | 60, 4, 8, 6 | R-AUD-07 |
 | Aggregation, scan | AUD.AGGREGATE_MAX, AUD.SCAN_MAX | 1.6, 64 | R-AUD-06, R-AUD-02 |
 | Layers | AUD.CROWD_OFF_KILLS_PER_S, AUD.LOWEND_ON_KILLS_PER_S, AUD.LOWEND_OFF_KILLS_PER_S, AUD.LAYER_FADE_PER_S, AUD.KILL_DENSE_VOICES_PER_S | 16, 60, 50, 3, 8 | R-AUD-08 |
 | Grid, warnings | AUD.GRID_STEPS, AUD.WARN_MIN_INTERVAL_MS | 3, 120 | R-AUD-09, R-AUD-06 |
 | Duck | AUD.DUCK_DB, AUD.DUCK_ATTACK_MS, AUD.DUCK_RELEASE_MS, AUD.LOWHP_LOWEND_DUCK_DB | -6, 20, 250, -12 | R-AUD-05 |
 | Stingers | AUD.STINGER_GAP_S, AUD.STINGER_EXPIRY_S | 0.45, 1.5 | R-AUD-11 |
-| Cost | AUD.GAME_THREAD_MS_MAX | 0.15 | R-AUD-21 |
+| Cost | AUD.GAME_THREAD_MS_MAX, AUD.FRAME_MS_WATCH | 0.05, 0.2 | R-AUD-21 |
 
 Read and not owned: `C.PRE.DENSITY_LOD_KILLS_PER_S`, `C.ENM.KILL_RATE_WINDOW_S`, `C.HUD.LOW_HP_FRAC`, `C.HUD.LOW_HP_PULSE_S`.
 
@@ -96,7 +96,7 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step. Every lin
 - T-AUD-18 PLANNED(S4) the `audio` step: the audibility floors and the density readings of the off-line mix, with a player-side sound failing as a control.
 - T-AUD-19 PLANNED(S4) `Dusktracer.Audio.Assets` (editor): frames, rate and PCM hash of each SoundWave equal the manifest; loops loop.
 - T-AUD-20 PLANNED(S4) `Dusktracer.Audio.Counts`: asked equals played plus merged plus dropped, for every id.
-- T-AUD-21 PLANNED(S4) `Dusktracer.Audio.Cost`: the density trace inside the budget.
+- T-AUD-21 PLANNED(S4) `Dusktracer.Audio.Cost`: the density trace through observer and scheduler stays under ten times their planned share, a blow-up check; the reading of record is the scheduler's perf run before and after a merge, with audio's own timer beside it.
 - HUMAN: no tool hears. The listening list of `Validation/S4_audio_wave1.md` §6.3 is the owner's; each family is reported as not heard until it is.
 
 ## Telemetry

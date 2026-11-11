@@ -60,7 +60,7 @@ C, in fourteen items.
 14. **Checks.** A gate step `audio` (Python, no engine) and automation tests in the `tests` step. What only ears can judge is a listening list for the owner and questions for a later kit (§6).
 
 #### Hypothesis
-We believe a first wave of generated sound makes danger heard before it lands and makes density sound rich and not shrill, because warnings own a band the player's fire is kept out of and every player-side sound is asked for by count under a cap; measured now by the gate (each warning stands at least `AUD.DANGER_SMR_MIN_DB` above the loudest player mix the scheduler allows; player-side starts stay at or under `AUD.PLAYER_STARTS_PER_S_MAX` with `C.ENEMIES.CAP` enemies and `C.BULLETS.CAP` rounds), and at the owner's first listening and the first kit that carries sound by two questions: was any hit not heard coming, and did anyone lower the volume or mute. Reverted, by leaving the families unmerged or by shipping the Master row at zero, if any seed 9107 hash moves, if game thread p95 at caps rises by more than `AUD.GAME_THREAD_MS_MAX`, or if the owner's listening finds a family harsh after one recipe pass.
+We believe a first wave of generated sound makes danger heard before it lands and makes density sound rich and not shrill, because warnings own a band the player's fire is kept out of and every player-side sound is asked for by count under a cap; measured now by the gate (each warning stands at least `AUD.DANGER_SMR_MIN_DB` above the loudest player mix the scheduler allows; player-side starts stay at or under `AUD.PLAYER_STARTS_PER_S_MAX` with `C.ENEMIES.CAP` enemies and `C.BULLETS.CAP` rounds), and at the owner's first listening and the first kit that carries sound by two questions: was any hit not heard coming, and did anyone lower the volume or mute. Reverted, by leaving the families unmerged or by shipping the Master row at zero, if any seed 9107 hash moves, if audio's game thread cost in the S4 scene reads over `AUD.GAME_THREAD_MS_MAX` after its caps are lowered (§7.3), or if the owner's listening finds a family harsh after one recipe pass.
 
 #### Impact (dependency sweep)
 - Rules replaced: none. `settings.md` R-SET-07 stands. D-043's audio hold was already replaced by D-055 item 8.
@@ -113,6 +113,7 @@ One Master row, already wired (R-SET-07). No reader is added for it. Audio does 
 | A batch inside one interval is one voice, louder by `gain x log2(count)`, capped at `AUD.AGGREGATE_MAX` 1.6 | as RogueHero | a hundred hits in a step is one tick, not a hundred |
 | `AUD.VOICES_MAX` 32, of which `AUD.VOICES_DANGER` 6 and `AUD.VOICES_UI` 4 are kept | RogueHero held 24 with no reserve | a player voice is stolen first; a danger voice never waits |
 | `AUD.PLAYER_STARTS_PER_S_MAX` 60 | new | the bound on "noise": a number the density test reads |
+| `AUD.STARTS_PER_FRAME_MAX` 4, danger first; a player voice past it waits a frame | RogueHero's four combat starts a frame | the bound on the game thread's worst frame (§7.3) |
 | Fire density: above `AUD.FIRE_DENSE_SHOTS_PER_S` 8 a weapon sounds at most `AUD.FIRE_DENSE_VOICES_PER_S` 6 times a second | as RogueHero, without the beds | the owner's second round |
 | Player hit and fire voices wait for a grid of `AUD.GRID_STEPS` 3 sim steps (50 ms) | RogueHero's 44.6 ms grid, made a whole number of steps | overlaps land together; only the sound waits, and never a danger sound |
 | Warnings: one per shape per `AUD.WARN_MIN_INTERVAL_MS` 120; more in the interval raise its gain by the aggregation rule | new | ten telegraphs at once are one louder warning |
@@ -239,7 +240,7 @@ In the `tests` step (headless, engine-free unless said):
 | `Dusktracer.Audio.DangerFirst` | with every player limit full, a warning starts in its own frame, the duck follows its curve, and no danger voice is stolen |
 | `Dusktracer.Audio.Silent` | in an unattended world no voice reaches the engine, and the counts still run |
 | `Dusktracer.Audio.SimUntouched` | one seed with audio on and off: equal steps, input hash, hero state and telemetry |
-| `Dusktracer.Audio.Cost` | the observer and scheduler under the density trace: time per step under `AUD.GAME_THREAD_MS_MAX` |
+| `Dusktracer.Audio.Cost` | the observer and scheduler under the density trace: a blow-up check at ten times their planned share; the reading itself is §7.3 |
 | `Dusktracer.Audio.Assets` (editor only) | every catalog row resolves; frames, rate and PCM hash equal the manifest; loops loop; classes are set |
 | `Dusktracer.Audio.Readers` | no sim file includes an `Audio/` header (or the tools test of §8.3 item 3) |
 
@@ -289,7 +290,26 @@ Never called by audio: `TakeEmissions`, `TakeReactionEvents`, `TakeStartedCasts`
 `11_Quality` §3 asks for trigger, VFX and audio counts per visible effect. Audio's half: for each sound id, asked (the trigger), played, merged into another voice, dropped by a limit. `DT.Audio.Stats` prints them; `-DTAudioLog` writes them and the voice log (step, id, variant, volume, pitch, duck) to `Saved/Audio/<seed>_<time>.csv`. Nothing is added to the telemetry files in this wave: a new record kind is a `telemetry.md` change and would move the byte-identical `bot.csv` proof, and the trigger and VFX halves are package E's. A shared record is a later job for the three modules.
 
 ### 7.3 Budget
-`AUD.GAME_THREAD_MS_MAX` 0.15 ms p95 at caps for observer and scheduler together, out of the wave's allowance of 5.0 ms (`S4_wave1.md` §5 item 5; `dev/s4` reads 2.45 to 2.53 at caps, and 4.76 to 4.78 in the S4 scene, which is about 0.2 ms under that figure). RogueHero's tick read 0.0099 ms on average and 0.496 ms at its worst frame. The verdict is the scheduler's perf reading on the merged tree, alone on the machine. Mixing is the engine's audio thread, bounded by `AUD.VOICES_MAX`.
+**What there is to spend.** The perf reading of record (`Validation/S4_perf_1080p.md`, fc5000b, alone on the machine, 1920x1080) puts game thread p95 at 2.45 to 2.53 ms at caps and at 4.76 to 4.78 ms in the S4 scene, against the wave's ceiling of 5.0 ms (`S4_wave1.md` §5 item 5). The S4 scene is the tight one: 0.22 to 0.24 ms are left there, and package E is not built and will spend there too.
+
+**What audio plans to spend.** `AUD.GAME_THREAD_MS_MAX` 0.05 ms p95 per frame in the S4 scene, a quarter of what is left, for everything audio does on the game thread:
+
+| Part | What it does | Planned | Bounded by |
+|---|---|---|---|
+| Observe | per sim step: a few hundred reads and compares of counters, hero state and at most `AUD.SCAN_MAX` buffer entries; no allocation | under 0.01 ms a frame for both together, at the two steps `C.SIM.MAX_SUBSTEPS` allows | R-AUD-02: counts, never the bullet or enemy arrays |
+| Schedule | per step: a few dozen requests against fixed tables sized at start | | the catalog's size |
+| Hand to the engine | per frame: one `PlaySound2D` per voice started, volume updates on the loops | the rest | `AUD.STARTS_PER_FRAME_MAX` 4: danger first, a player voice past the cap waits a frame |
+
+RogueHero's whole tick, play calls included, read 0.0099 ms on average and 0.496 ms on its worst single frame. A frame like that does not move a p95 and is still a hitch, so the worst frame is printed beside the p95 and watched against `AUD.FRAME_MS_WATCH` 0.2 ms; the per-frame start cap is what bounds it. If a reading is over, the lever is that cap and the starts-per-second cap. Audio asks for no more of the ceiling.
+
+**How it is measured.**
+
+1. **Audio's own timer**, always on: cycle counts around each of the three parts, every frame. `DT.Audio.Stats` prints p50, p95 and the worst frame per part over the run; a tool run writes the same lines to the audio log, and a person's run writes one closing line to the game log. This is the sharp instrument: it reads microseconds.
+2. **`Dusktracer.Audio.Cost`**, in the `tests` step: the density trace of `Dusktracer.Audio.Density` through observer and scheduler. A gate run shares the PC, so it is no reading; it fails at ten times the planned share and catches a blow-up.
+3. **The reading of record** is the scheduler's, alone on the machine, as `S4_wave1.md` §2 item 6 has it: `Tools\Perf.ps1 -Scene S4` and `-Scene S2` (the scene that holds a kill rate), three runs each, on the tree before the merge and on the merged tree. Two figures per scene: the timer's p95, and the move of the scene's game thread p95. The second is the cross-check that nothing outside the timer moved. The S4 scene's three runs spread 0.02 ms today, so the before and after resolves about that much: a move inside the spread is reported as inside the spread, not as zero. It is read at the runtime's merge and again at the fire family's, when the load is real.
+4. **The play calls are the part no tool run reads.** A tool run is silent (decision item 11), so part three costs nothing there, and the scenes above measure observe and schedule only. Two ways to close that: (A) the start cap bounds it by construction, and its real cost is read from the owner's first listening run, whose closing line holds the timer; (B) a muted perf mode, in which a tool run hands voices to the engine with the Master class and the application volume both at zero, so `Perf.ps1` reads the play calls too. A is planned. B hands voices to the engine in a tool run, so it needs the scheduler's yes; it is worth asking for only if the owner's run reads the play calls near the budget.
+
+Mixing itself is the engine's audio thread, bounded by `AUD.VOICES_MAX`; whether it moves the game thread is what the cross-check of item 3 is for.
 
 ### 7.4 What a Shipping package carries
 `Content/DT/Audio` cooks with `/Game/DT`: about 86 SoundWaves, the classes, the mix, the submix and its presets. No ini change is planned; if the import shows the engine's default compression or load settings to be wrong for 100 ms one-shots, the job reports it and the change to `Config/` is asked for by name. `Tools/Package.ps1` is not edited. The package check that proves it: the cooked build's `Dusktracer.Audio.Assets` equivalent, run by a later job through `PadCheck`'s launch path.
