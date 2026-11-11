@@ -29,6 +29,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
+- A new `R-` or `T-` id takes the next number free on every branch (`git grep` it on `main`, `dev/s2`, `dev/s3` and `dev/s4`), not only on yours: an id means one rule or one test everywhere.
 - Platforms: Win64 now; macOS deferred (D-007, amends D-003). Keep code portable; no Windows-only APIs outside `#if PLATFORM_WINDOWS`. A Mac gate that was not run is reported `not run`, never passed.
 - The repo is public (D-006): never commit keys, tokens, or assets whose licence forbids redistribution.
 - Build: `Tools/Build.bat`. Models: Blender 5.2.2, headless only (path in `Docs/STATE.md`).
