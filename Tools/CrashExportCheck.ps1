@@ -17,6 +17,7 @@ param(
 trap { Write-Host "CRASHEXPORT: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$DTHeavy = Enter-DTHeavy -What "CrashExportCheck"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $DevDir = Join-Path $Root "Saved\Package\Development\Windows"
