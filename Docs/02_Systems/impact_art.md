@@ -169,4 +169,3 @@ None.
 - The tiers' rates are the source's, and the ear's: `audio.md` R-AUD-08 holds the same three numbers under its own keys until it moves to this reader (`D-056 ruling 5`). Whether the eye wants other exits, and whether `Flood` should lose its sparks, is for a playtest.
 - With Screen flashes off the hero ring and kill flashes stay as steady marks. Whether that setting should remove them altogether is a person's call.
 - An effect is hidden by a hull or a hero it lies behind and also by one it lies in front of, because it is drawn at floor height, as tails are.
-- `07_Technical` §4 lists the structs systems share; `FDTImpact` is not listed there by this package, which may not edit that file. A line for it is the scheduler's to place.
