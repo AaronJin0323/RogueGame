@@ -22,7 +22,7 @@ Kit: `S3_kit.md`. Exit: `12_Production §2`, S3 row. Build and readings below ar
 | Row | What the docs hold | Reading | Filled by | Evidence |
 |---|---|---|---|---|
 | Validators | 3 validators × 3 runs (`12_Production §2`) | NOT READ | not filled | none |
-| Fresh | "fresh validators"; none of them the owner | NOT READ | not filled | none |
+| Fresh | each validator plays on a fresh save; none of them the owner, and the same three may return (D-049) | NOT READ | not filled | none |
 | zh-Hans | ≥ 1 zh-Hans (`12_Production §1`): how much play makes one is call 8 below | NOT READ | not filled | none |
 | Packaged pad pass | a real pad on this package (R-PKG-09), ≥ 1 gamepad (`12_Production §1`, call 8) and `Tools/PadCheck.ps1` on it | NOT READ | not filled | none |
 | Pass rule | two of three hold (D-049, call 1 below): ≥ 2 of V1 to V3 ask for another run unprompted; ≥ 2 of V1 to V3 name their build in their own words; the owner still wants to play after the session. Stop line: all three call it tiring, or none can name a build | NOT READ | not filled | none |
@@ -31,7 +31,7 @@ Kit: `S3_kit.md`. Exit: `12_Production §2`, S3 row. Build and readings below ar
 
 | Question | Reading | Filled by | Evidence |
 |---|---|---|---|
-| Not the owner, and never played any build | NOT READ | not filled | none |
+| Not the owner; plays on a fresh save (a returning validator may have played an earlier build, D-049) | NOT READ | not filled | none |
 | Own PC or own Windows account | NOT READ | not filled | none |
 | Ledger-stone before the first run: every row 0 | NOT READ | not filled | none |
 | Experience, input, language | NOT READ | not filled | none |
@@ -46,7 +46,7 @@ Kit: `S3_kit.md`. Exit: `12_Production §2`, S3 row. Build and readings below ar
 
 | Question | Reading | Filled by | Evidence |
 |---|---|---|---|
-| Not the owner, and never played any build | NOT READ | not filled | none |
+| Not the owner; plays on a fresh save (a returning validator may have played an earlier build, D-049) | NOT READ | not filled | none |
 | Own PC or own Windows account | NOT READ | not filled | none |
 | Ledger-stone before the first run: every row 0 | NOT READ | not filled | none |
 | Experience, input, language | NOT READ | not filled | none |
@@ -61,7 +61,7 @@ Kit: `S3_kit.md`. Exit: `12_Production §2`, S3 row. Build and readings below ar
 
 | Question | Reading | Filled by | Evidence |
 |---|---|---|---|
-| Not the owner, and never played any build | NOT READ | not filled | none |
+| Not the owner; plays on a fresh save (a returning validator may have played an earlier build, D-049) | NOT READ | not filled | none |
 | Own PC or own Windows account | NOT READ | not filled | none |
 | Ledger-stone before the first run: every row 0 | NOT READ | not filled | none |
 | Experience, input, language | NOT READ | not filled | none |
@@ -86,7 +86,7 @@ The docs do not settle these. No threshold is invented here: each call says what
 | # | Term | What the docs hold | The call | Until it is made |
 |---|---|---|---|---|
 | 1 | "pass 2 of 3" | `12_Production §2` says only this. `H03` and `H07` give "e.g. 2 of 3 criteria" and list none. `00_Vision §4` has four criteria, two of them written as ≥ 2 of 3 testers, one a band, one about the owner | Two of three what: criteria, or validators on each criterion? Which criteria? | Made: D-049, which replaces D-034: the designer's rule, two of three of another run asked for by ≥ 2 validators, a build named by ≥ 2, the owner still wanting to play; with its stop line. A person reads it from this file; `S3Exit` keeps the row NOT READ and names D-049 |
-| 2 | "fresh" | `12_Production`: "fresh validators". `H03`: "fresh users". Neither says what makes a person fresh | Does someone who played an S1 session, or watched one, count? | The kit asks for someone who has never played any build. `Fresh` reads NOT READ, or FAIL if a first run shows a card no fresh save can |
+| 2 | "fresh" | `12_Production`: "fresh validators". `H03`: "fresh users". Neither says what makes a person fresh | Does someone who played an S1 session, or watched one, count? | Made: D-049. Fresh is a fresh save, not a person who never played: someone who played an S1 or S2 session may return, and the sheet records what they played. `Fresh` reads NOT READ, or FAIL if a first run shows a card no fresh save can |
 | 3 | "× 3 runs" | No doc says what counts as a run | Does a run the player left count: `quit`, `abandoned`, `restart`? | `S3Exit` counts `death` and `victory` only, the strict side, and shows the rest beside them. `Validators` reads NOT READ when only the runs they left decide it |
 | 4 | "several sessions" | `H03` says several sessions; `12_Production` says 3 × 3 and nothing of sittings | May one validator play all three runs in one sitting? | The tool does not read sittings. The host writes the dates here |
 | 5 | "packaged pad pass" | The gate's `pad` step reads a pad run only from the `%LOCALAPPDATA%` of the PC it runs on (R-PKG-09), so a validator's pad on their own PC never reaches it | Is a real pad in an exported zip, read by `S3Exit`, the human half of this row? | `S3Exit` reads it that way and asks `Tools/PadCheck.ps1`'s line for the machine half, kept in the session folder (`S3_kit.md`). The gate's own step stays `NOT RUN` |
