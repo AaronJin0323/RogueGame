@@ -3,6 +3,9 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTPaletteGen.h"
 #include "Keepers/DTKeeperSpec.h"
+#include "Core/DTSimSubsystem.h"
+#include "Engine/World.h"
+#include "Player/DTHeroSubsystem.h"
 
 namespace DTTracerArtLocal
 {
@@ -148,6 +151,60 @@ bool DTTracerArt::MuzzleFlash(const FVector2f& Origin, const FVector2f& At, cons
 	return true;
 }
 
+// ---- the hero's clear zone ------------------------------------------------------------------------------------------------------
+
+float& DTTracerArt::ClearZoneSetting()
+{
+	static float Setting = -1.0f;
+	return Setting;
+}
+
+float DTTracerArt::ClearZoneRatio()
+{
+#if !UE_BUILD_SHIPPING
+	const float Setting = ClearZoneSetting();
+	if (Setting >= 0.0f)
+	{
+		return Setting;
+	}
+#endif
+	return static_cast<float>(DTConst::TRC_CLEAR_ZONE_RATIO);
+}
+
+DTTracerArt::FClearZone::FClearZone(TConstArrayView<FVector2f> InHeroes, float Ratio)
+{
+	if (Ratio > 0.0f)
+	{
+		const float Radius = Ratio * static_cast<float>(DTConst::HERO_RADIUS_UU);
+		RadiusSq = Radius * Radius;
+		Heroes.Append(InHeroes.GetData(), InHeroes.Num());
+	}
+}
+
+DTTracerArt::FClearZone DTTracerArt::FClearZone::OfWorld(const UWorld* World, float Alpha)
+{
+	const float Ratio = ClearZoneRatio();
+	const UDTHeroSubsystem* HeroSystem = World ? World->GetSubsystem<UDTHeroSubsystem>() : nullptr;
+	UDTSimSubsystem* Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
+	if (Ratio <= 0.0f || !HeroSystem || !Sim)
+	{
+		return FClearZone();
+	}
+	// The heroes as drawn this frame (UDTHeroSubsystem interpolates them the same way): read once per frame, never written.
+	TArray<FVector2f, TInlineAllocator<4>> Drawn;
+	for (int32 Player = 0; Player < Sim->GetRun().GetNumPlayers(); ++Player)
+	{
+		if (const FDTHeroState* State = HeroSystem->GetState(Player))
+		{
+			Drawn.Add(FMath::Lerp(State->PrevPos, State->Pos, Alpha));
+		}
+		else
+		{
+			Drawn.Add(FVector2f(UE_BIG_NUMBER, UE_BIG_NUMBER)); // no hero: a zone nothing reaches
+		}
+	}
+	return FClearZone(Drawn, Ratio);
+}
 // ---- instances --------------------------------------------------------------------------------------------------------------
 
 void DTTracerArt::SyncInstances(UInstancedStaticMeshComponent* Part, TConstArrayView<FTransform> Transforms, TConstArrayView<float> Row)

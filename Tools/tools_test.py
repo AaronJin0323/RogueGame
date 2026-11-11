@@ -1734,7 +1734,7 @@ class Machine(unittest.TestCase):
 	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
 		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 		"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "S3Exit.ps1", "TwoWindowsCheck.ps1",
-		"VigilCheck.ps1", "WinCheck.ps1", "EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", os.path.join("blender", "Mesh.ps1"))
+		"VigilCheck.ps1", "WinCheck.ps1", "EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", "HeroZone.ps1", os.path.join("blender", "Mesh.ps1"))
 	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat", "EditorPython.bat", os.path.join("blender", "CookMesh.bat"))
 	HELPER = os.path.join(TOOLS, "Machine.ps1")
 
@@ -2150,7 +2150,7 @@ class HeavyLocks(unittest.TestCase):
 		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1",
-			"EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", os.path.join("blender", "Mesh.ps1")):
+			"EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", "HeroZone.ps1", os.path.join("blender", "Mesh.ps1")):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
@@ -3402,6 +3402,62 @@ class PresentationReadsOnly(unittest.TestCase):
 					if hits:
 						found[relative] = hits
 		self.assertEqual(found, RENDERER_OWNERS)
+
+
+class HeroZone(unittest.TestCase):
+	"""tracer_art.md T-TRC-01, D-068: Tools/hero_zone.py reads the hero's clear zone on small synthetic frames."""
+
+	W, H = 480, 270
+
+	def frame(self, head):
+		"""An RGB frame of floor, with round-head white wherever head(x, y, d, in_box) says, d the floor distance in hero radii."""
+		import hero_zone
+		g = hero_zone.geometry(self.W, self.H)
+		cx, cy = g["centre"]
+		x0, y0, x1, y1 = g["box"]
+		out = bytearray()
+		for y in range(self.H):
+			for x in range(self.W):
+				d = ((((x - cx) / g["across"]) ** 2 + ((y - cy) / g["up"]) ** 2) ** 0.5) / g["radius"]
+				out += bytes((255, 255, 255)) if head(x, y, d, x0 <= x <= x1 and y0 <= y <= y1) else bytes((110, 98, 80))
+		return bytes(out), g
+
+	def figures(self, head):
+		import hero_zone
+		rgb, g = self.frame(head)
+		return hero_zone.measure(self.W, self.H, rgb), g
+
+	LIMITS = {"zone": 0.06, "figure": 20, "ring": 0.05}
+
+	def test_a_frame_full_of_heads_fails_zone_and_figure(self):
+		import hero_zone
+		figures, _ = self.figures(lambda x, y, d, box: True)
+		fails = " ".join(hero_zone.judge(figures, self.LIMITS))
+		self.assertIn("zone", fails)
+		self.assertIn("figure", fails)
+
+	def test_an_empty_frame_fails_ring(self):
+		import hero_zone
+		figures, _ = self.figures(lambda x, y, d, box: False)
+		self.assertEqual(figures["figure"], 0)
+		self.assertIn("ring", " ".join(hero_zone.judge(figures, self.LIMITS)))
+
+	def test_heads_only_outside_the_zone_pass(self):
+		import hero_zone
+		zone = hero_zone.geometry(self.W, self.H)["zone"]
+		figures, _ = self.figures(lambda x, y, d, box: zone <= d < hero_zone.RING_OUTER_RADII and not box)
+		self.assertEqual(hero_zone.judge(figures, self.LIMITS), [], figures)
+		self.assertEqual(figures["zone"], 0.0)
+
+	def test_the_geometry_comes_from_the_constants(self):
+		import hero_zone
+		g = hero_zone.geometry(1920, 1080)
+		self.assertAlmostEqual(g["across"], 0.36)
+		self.assertEqual(g["centre"], (959.5, 539.5))
+		self.assertLess(g["up"], g["across"])
+		x0, y0, x1, y1 = g["box"]
+		self.assertTrue(x0 < 959.5 < x1 and y0 < 539.5 < y1)
+		self.assertEqual(set(hero_zone.LIMITS), {1080, 810})
 
 
 class HudMasks(unittest.TestCase):

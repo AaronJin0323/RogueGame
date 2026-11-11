@@ -181,6 +181,7 @@ tracer_art:
   # S4 wave 1 package D (D-043, 02_Systems/tracer_art.md): presentation only, no reader in the sim.
   TRC.HEAD_WIDTH_RATIO:        { value: 0.85, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-01, T-TRC-01] }
   TRC.HEAD_STRETCH:            { value: 1.8, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-01, T-TRC-01] }
+  TRC.CLEAR_ZONE_RATIO:        { value: 2.5, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-01, R-TRC-02, T-TRC-01, Presentation/DTTracerArt] }
   TRC.TAIL_S:                  { value: 0.08, unit: s, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-02, T-TRC-02] }
   TRC.TAIL_MIN_RATIO:          { value: 6.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-02, T-TRC-02] }
   TRC.TAIL_MAX_UU:             { value: 150, unit: uu, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-02, T-TRC-02] }

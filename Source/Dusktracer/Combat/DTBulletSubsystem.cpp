@@ -70,12 +70,19 @@ void UDTBulletSubsystem::SimRender(float Alpha)
 	const TConstArrayView<float> Radii = Pool.GetRadii();
 	const float InvMeshRadius = 1.0f / Renderer->GetMeshRadius();
 	const double Z = DTConst::SIM_PLANE_Z_UU;
-	RenderTransforms.SetNumUninitialized(Count, EAllowShrinking::No);
+	// R-TRC-01, D-068: no head inside the hero's clear zone. The heroes are read once per frame, one squared distance per round.
+	const DTTracerArt::FClearZone Clear = DTTracerArt::FClearZone::OfWorld(GetWorld(), Alpha);
+	const TConstArrayView<int32> Owners = Pool.GetOwners();
+	RenderTransforms.Reset();
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		// tracer_art.md R-TRC-01: drawn apart from the hit radius, stretched along the flight. Read from the pool, never written.
 		const FVector2f P = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
-		RenderTransforms[Index] = DTTracerArt::Head(P, Pos[Index] - Prev[Index], Radii[Index], InvMeshRadius, Z);
+		if (Clear.Hides(Owners[Index], P))
+		{
+			continue;
+		}
+		RenderTransforms.Add(DTTracerArt::Head(P, Pos[Index] - Prev[Index], Radii[Index], InvMeshRadius, Z));
 	}
 	Renderer->SetInstances(RenderTransforms);
 	// R-TRC-06 (R-PRE-06): player fire dims with its own live count; one material parameter, no instance rewrite.

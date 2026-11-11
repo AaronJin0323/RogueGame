@@ -185,6 +185,7 @@ namespace DTConst
 	// tracer_art
 	inline constexpr float TRC_HEAD_WIDTH_RATIO = 0.85f; // ratio, GATED(S4)
 	inline constexpr float TRC_HEAD_STRETCH = 1.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_CLEAR_ZONE_RATIO = 2.5f; // ratio, GATED(S4)
 	inline constexpr float TRC_TAIL_S = 0.08f; // s, GATED(S4)
 	inline constexpr float TRC_TAIL_MIN_RATIO = 6.0f; // ratio, GATED(S4)
 	inline constexpr int32 TRC_TAIL_MAX_UU = 150; // uu, GATED(S4)
