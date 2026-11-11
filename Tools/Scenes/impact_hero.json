@@ -1,9 +1,9 @@
 {
-	"note": "impact_art.md R-IMP-09: a hero losing health to the first drones that reach it on the held step, with the ring at its feet showing (no DT.God). Run by hand and by Tools/ImpactArt.ps1; no golden.",
+	"note": "impact_art.md R-IMP-09: a hero losing health to a Rusher's charge on the held step, with the ring at its feet showing (no DT.God). Run by hand and by Tools/ImpactArt.ps1; no golden.",
 	"gate": "none",
 	"judge": "golden",
 	"cultures": ["en"],
 	"weather": "Dusk",
-	"seconds": 9,
+	"seconds": 8.33,
 	"cmds": ["DT.Spawn.Role Rusher 6", "DT.Impact.Stats hold"]
 }

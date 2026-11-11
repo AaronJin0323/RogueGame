@@ -24,7 +24,6 @@
 #include "Presentation/DTImpactArt.h"
 #include "Presentation/DTImpactRenderer.h"
 #include "Presentation/DTImpactSubsystem.h"
-#include "Settings/DTUserSettings.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -75,15 +74,13 @@ namespace DTImpactArtTest
 		}
 	};
 
-	/** Restores dt.Impact.Draw and Screen flashes however a test ends. */
+	/** Restores dt.Impact.Draw however a test ends. */
 	struct FKeepSettings
 	{
 		int32 Draw = UDTImpactSubsystem::DrawSetting();
-		bool bFlash = DTSettings::Live().bFlash;
 		~FKeepSettings()
 		{
 			UDTImpactSubsystem::DrawSetting() = Draw;
-			DTSettings::Live().bFlash = bFlash;
 		}
 	};
 
