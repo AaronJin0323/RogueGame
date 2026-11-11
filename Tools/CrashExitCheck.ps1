@@ -1,5 +1,5 @@
 # Does the packaged game end after a crash? (Docs/Validation/S1_crash_exit.md). Crashes it -Runs times on the hidden desktop and counts launches that hang.
-#   & Tools\CrashExitCheck.ps1 [-Config Development|Shipping] [-Runs 10] [-TimeoutS 60] [-Package <root>] [-Crash <launch args>] [-Extra <launch args>]
+#   & Tools\CrashExitCheck.ps1 [-Config Development|Shipping] [-Runs 10] [-TimeoutS 60] [-Package <root>] [-Crash <launch args>] [-Extra <launch args>] [-First <arg>]
 #                              [-NoUnattended] [-WithSound]
 # -Package is a package root as Tools\Package.ps1 writes it (default: this worktree's Saved\Package). The session A build in the main checkout's
 # Saved\Package(s) is refused: it is never launched by a tool.
@@ -20,6 +20,7 @@ param(
 	[int]$TimeoutS = 60,
 	[string]$Package = "",
 	[string]$Crash = '-ExecCmds="debug crash"',
+	[string]$First = "",  # put before every other argument (a map URL, as another reading's launch line had it)
 	[string]$Extra = "",  # trimmed: a value that starts with a space is not read as a parameter name when splatted
 	[switch]$NoUnattended,
 	[switch]$WithSound
@@ -34,6 +35,7 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 
 $Extra = $Extra.Trim()
+$First = $First.Trim()
 $Crash = $Crash.Trim()
 if (-not $Package) { $Package = Join-Path $Root "Saved\Package" }
 $Package = (Resolve-Path $Package).Path
@@ -57,7 +59,7 @@ New-Item -ItemType Directory -Force $Work | Out-Null
 $Base = @("-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-culture=en", "-DTSeed=770099")
 if (-not $NoUnattended) { $Base += "-unattended" }
 if (-not $WithSound) { $Base += "-nosound" }
-$Label = $Config + $(if ($NoUnattended) { ", no -unattended" } else { "" }) + $(if ($WithSound) { ", with sound" } else { "" }) + $(if ($Extra) { ", $Extra" } else { "" })
+$Label = $Config + $(if ($NoUnattended) { ", no -unattended" } else { "" }) + $(if ($WithSound) { ", with sound" } else { "" }) + $(if ($First) { ", first $First" } else { "" }) + $(if ($Extra) { ", $Extra" } else { "" })
 Write-Host ("crashexit: {0} x{1}, timeout {2} s, {3}; crash {4}; work {5}" -f $Config, $Runs, $TimeoutS, $Exe, $Crash, $Work)
 
 # Thread names as the engine set them (SetThreadDescription), read through GetThreadDescription: what a hung launch's threads are.
@@ -93,7 +95,7 @@ for ($N = 1; $N -le $Runs; $N++) {
 	$UserDir = Join-Path $Dir "user"
 	$Log = Join-Path $Dir "game.log"
 	New-Item -ItemType Directory -Force $UserDir | Out-Null
-	$ArgList = $Base + @("-userdir=`"$UserDir`"", "-ABSLOG=`"$Log`"", $Crash)
+	$ArgList = @(if ($First) { $First }) + $Base + @("-userdir=`"$UserDir`"", "-ABSLOG=`"$Log`"", $Crash)
 	if ($Extra) { $ArgList += $Extra }
 	$Start = Get-Date
 	$Proc = Start-DTHidden $Exe $ArgList
