@@ -70,6 +70,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 
 - **D-068** In a thick fight your own white shots covered your own pale figure, so the hero was the hardest thing on the screen to find. Now your shots are not drawn in a small circle round the hero, about a metre; they fly and hit as before. A lamp on the helm and a dark outline were tried on frames and left out for now: the lamp did not show, and the outline cost the figure its brightness. At your sitting you will be asked whether you can find the hero at a glance and whether the fire still looks like yours.
 
+- **D-069** A new save now starts with one whole archetype for each of the three first Keepers (D-064). A side effect showed up while building it: a run that takes all six cards of two Keepers now opens the duo cards and Spread Wave by play, where it used to take two purchases. I kept it: that door is named for building two Paths, and now that is how it opens. The first people who play this content are asked at which run their duos opened and what the first duo card did; if they call it noise, the door moves deeper, which is one cell.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.

@@ -65,8 +65,9 @@
 | D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | read: the number is not the cause, the cell stays at 2; a RULE on the band is the next draft | `dev/s2` |
 | D-062 | The L8 hand is drawn unweighted, and a person's all-Keepers run reserves no seat | text, RULE | accepted; the text on `main` now, the seats on `dev/s2` with the S2 kit | `main`, `dev/s2` |
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
-| D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
+| D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; amended by D-069; the job is on `dev/s3` | `dev/s3` |
 | D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
 | D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; no sound of it merged yet | `dev/s4` |
 | D-067 | Pulse Wall pushes out what its ring crosses | RULE | accepted; follows D-061; the job is on `dev/s2` | `dev/s2` |
 | D-068 | The player's own fire is not drawn within 2.5 hero radii of the hero | RULE | accepted; from the Visual session's frames (D-057 ruling 10); the job is on `dev/s4`; the owner's sitting follows it | `dev/s4` |
+| D-069 | The duos' door is earned by play: a run that holds six cards of two Keepers | RULE | accepted; amends D-064's Impact; built with D-064 on `dev/s3` | `dev/s3` |
