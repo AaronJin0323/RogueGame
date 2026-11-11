@@ -104,3 +104,18 @@ tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
 GATE: PASS (8c4dd45; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure.
+## Fourth carry: `main` 458e0ad, then 9b2917f, into `dev/s2` a7137b4 (`carry4/s2`)
+`main` gained the heavy-job slots and the alone hold (`Tools/Machine.ps1` `Enter-DTHeavy`, `Tools/Alone.ps1`, R-TEC-18 and T-TEC-18, `HeavyLocks` in `tools_test.py`), D-055 and D-056 with today's records, and one line in `12_Production.md §1` (the module sessions).
+- Conflicts: none. Git merged `07_Technical.md`, `12_Production.md`, `BotRuns.ps1`, `Gate.ps1`, `Perf.ps1` and `tools_test.py` by itself; R-TEC-18 and T-TEC-18 collide with nothing on this branch. `git diff 9b2917f -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty. `main` moved to 9b2917f by records only (D-056) after the gate; that merge was clean and the docs lint and secret scan pass on it (83cc828).
+- Scripts changed (one `Enter-DTHeavy` line right after `Set-DTAffinity`, and the names in `test_every_heavy_entry_takes_a_slot_and_play_does_not`): `S2Exit.ps1` (not under `-ReadOnly`, which only reads), `RestartCheck.ps1`, `PackageRestartCheck.ps1`. `main`'s own entry scripts came with the merge.
+- Left alone: `gen_matrix.py` (the `matrix` step: Python that reads catalogs, no heavy job), `s2_exit.py`, `bot_compare.py`, `elite_read.py`, `evolve_read.py`, `reaction_read.py` (read runs and logs only), and the helpers and launchers `main` already leaves alone (`HiddenLaunch.ps1`, `WindowWatch.ps1`, `GpuLock.ps1`, `Play.bat`).
+- **`S2Exit.ps1 -Parallel 6` is one heavy job.** It takes one slot for the whole battery; the `BotRuns.ps1` it starts inherits it, and its six (or twelve) bot launches at once are that one job's processes. So a slot is a job, not a core: an exit battery fills the machine on one slot while other slots stay free for others. That is why an exit battery runs alone (D-050 item 4): take the machine with `Tools\Alone.ps1 -Take` first, so no other heavy job starts beside it.
+- Counts: 480 found, 480 pass, `C.GATE.TEST_FLOOR` 480 (unchanged: the carry adds no engine test); `tools_test.py` 155.
+- Seed 9107 (`BotRuns.ps1 -Arms None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost -FirstSeed 9107`, on a65b7a7): `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`, all as before. The gate's restart step: `276faf8e / 276faf8e`.
+
+```
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+tools:      TOOLS: PASS (155 tests)
+GATE: PASS (a65b7a7; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s2_gate.txt` in the carrying worktree.
