@@ -54,6 +54,7 @@ The next ring keeps its fire (about 0.10 with and without the zone), so the fire
 - **A glance.** No candidate changes the reduced frame, the zone included. The case for the zone rests on the camera following the hero (`06_UX` R-UX-01: the hero is at (959, 539) in every frame here), so a player reads the centre and does not search. Only a person playing can say that is enough. It is question 1 of the sitting.
 - **Where the fire comes from.** With the zone the player's rounds appear about a metre from the hero, and the player has no muzzle flash of its own. In a held frame that looks fine; in motion it is a question for the sitting: does your fire still look like it comes from you?
 - **Hits at arm's length.** A round that hits an enemy touching the hero is never drawn. Package E's spark is then the sign of the hit; these frames predate E.
+- **The halo at heavy fire (seen on this job's frames).** With the zone on, the hero stands whole at the centre of a ring of round heads with the tails as spokes. At four weapons of level 8 (`impact_hit`, `tracer_weapons`) the zone's edge reads as a bright halo of heads round an empty disc: the figure is clear, and the halo is now the loudest thing at the centre. The zone-off shots of the same two scenes (`crop2x_<scene>_36_off.png`) show the same ring of fire, with heads also over the hero's legs and waist: the halo is the weapons' own pattern, and the zone empties its middle. Whether that halo helps a player find the hero or pulls the eye off it is for the sitting.
 - **The worst case only.** Both scenes put the hero on crossing bands. One seed and one step for `tracer_crossing`; one launch a variant for `combat_staged`.
 
 ## 5. The job: what was built (`s4/hero-clear-zone`)
@@ -111,8 +112,33 @@ In the Visual session's `Saved\S4Report\hero-zone\` (not in the repo): `tracer_c
 
 ## 8. Goldens, perf, contrast and the sim proof
 
-READINGS
+**The gate of record.** On 6ce4962 (this branch merged with `dev/s4` 64b40cf, with the granted test edit), `Tools\Gate.ps1 -Base dev/s4`, whole: `GATE: PASS (6ce4962; 3 not run; mask FFFFF3FC)`. The three not run are `pad` (no package), `scope` (no brief in flight) and `mac` (D-007).
+- `tests`: 582 run of 582 found, 0 failed, floor 582 (581 on `dev/s4` and `Dusktracer.Tracer.ClearZone`).
+- The sim proof: `restart` seed 9107, `input_hash` 276faf8e / 276faf8e, steps 5400 / 5400, csv same; `meta` `input_hash` ba2a3ac8 / ba2a3ac8, steps 1200 / 1200, csv same; `seed` PASS. No code that runs in a step changed.
+- `contrast`: 7/7 on `contrast`, 7/7 on `impact_dense`, 2/2 on `tracer_crossing`; `WATCH: OK` on each. On `tracer_crossing` the telegraph reads 3.32 and the enemy round 3.28, beside package E's gate of record 3.29 to 3.32 and 3.21 to 3.27; the watch floor is 3.10.
+- Build, shipping and devgame: 0 warnings; nonunity 7 files, 0 failed.
+
+**Goldens.** Every golden passed its tolerance (mean difference at most 12), so none was re-shot. Mean differences: arena_empty 0.30 (en) and 0.33 (zh-Hans), combat_staged 0.57 and 0.57, edge_corner 0.30 and 0.30, edge_corner_wide 0.29, enemy_lineup 0.25, hero_lineup 0.33, hud_boss 0.29, hud_staged 0.34 and 0.35, impact_hit 0.30, impact_kill 0.33, tracer_weapons 0.51.
+
+**Perf: not a reading.** `Tools\Perf.ps1 -Scene S4`, three times with the zone off (`DT_TRACER_CLEAR_ZONE=0`) and three times on, alternating, on the one build (1056932's code). Before each run the process list showed other sessions' engine processes: an editor and six editor commandlets, then seven commandlets, then an editor and five commandlets (five to seven other engine processes on every run). The GPU p95 swung between 7.46 and 9.58 ms (it reads 3.74 alone, `S4_e_feedback.md` §10). **The five `PERF: FAIL` lines are that hour's load, not this branch's.** The six runs as they are:
+
+| Run | Zone | Game thread p50 / p95 ms | GPU p50 / p95 ms | `SimRender` mean / p95 ms | `SimTick` mean / p95 ms | Verdict | Other engine processes before the run |
+|---|---|---|---|---|---|---|---|
+| 1 | off | 5.05 / 7.39 | 8.23 / 9.58 | 0.93 / 1.18 | 1.92 / 3.49 | FAIL | an editor, six commandlets |
+| 1 | on | 4.76 / 7.34 | 3.56 / 8.21 | 0.88 / 1.16 | 1.66 / 3.40 | FAIL | an editor, six commandlets |
+| 2 | off | 5.00 / 7.37 | 8.21 / 9.57 | 0.87 / 1.20 | 1.84 / 3.53 | FAIL | an editor, six commandlets |
+| 2 | on | 4.55 / 7.17 | 3.53 / 7.97 | 0.84 / 1.13 | 1.59 / 3.37 | FAIL | seven commandlets |
+| 3 | off | 4.73 / 7.33 | 3.52 / 7.46 | 0.85 / 1.15 | 1.63 / 3.42 | PASS | an editor, five commandlets |
+| 3 | on | 4.44 / 5.94 | 8.29 / 9.57 | 0.72 / 0.99 | 1.49 / 2.83 | FAIL | an editor, five commandlets |
+
+The game thread p95 with the zone on never reads higher than with it off (spread off 0.06, on 1.40), as it should not: a round inside the zone skips its write. That is a bound and not a reading. The branch lands on it; the scheduler takes the zone's reading of record alone after landing (`dev/s4` 64b40cf against the landed tip, the S4 and S2 scenes, three rounds), and a cost beyond the spread sets `C.TRC.CLEAR_ZONE_RATIO` to 0 until it is understood.
+
+**Package E on this branch.** `& Tools\ImpactArt.ps1 -NoMeshCheck`: `IMPACT ART ACCEPTANCE: PASS` (the kind checks; ring pixels 258 of 250 and 153 of 140 at the hurt step, 901 and 526 six steps later).
 
 ## 9. Not verified
 
-READINGS
+- No person has looked, and nothing was seen in motion. Every figure is a held step of one seed.
+- The perf of the zone: §8 is a bound under heavy load; the reading of record is the scheduler's, after landing.
+- Several heroes: the zone is built for each player's hero and a round is hidden only in its owner's zone; no scene has two heroes.
+- A round that hits an enemy touching the hero is never drawn: package E's spark is then the only sign; whether it reads as a hit is for the sitting.
+- The tool reads the hero at the frame's centre (the camera follows it); a frame where the camera stops at the arena's edge and the hero is off centre was not shot or read.
