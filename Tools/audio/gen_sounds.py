@@ -7,7 +7,7 @@ Usage:  python -I Tools/audio/gen_sounds.py --check   exit 1 if the header is mi
 
 The header holds namespace DTCat: an enum of sound ids, the enums of a row's cells and one constexpr row per sound
 with what the runtime reads (side, class, variants, loop, volume, pitch rule, interval, voices, aggregation gain,
-grid, asset path, and the longest variant's length in ms, read from Tools/audio/sound_manifest.csv: the scheduler holds
+grid, asset path, the written note of a key sound, whether the row may play (heard is yes or delegated), and the longest variant's length in ms, read from Tools/audio/sound_manifest.csv: the scheduler holds
 a voice's slot for that long; a sound with no manifest line reads 0). Loudness and length windows, zone, recipe and
 confusion set are the gate's and stay out. With no rows the
 table holds one empty entry and SoundCount is 0, since C++ has no array of length zero.
@@ -25,7 +25,8 @@ HEADER = os.path.join(B.ROOT, "Source", "Dusktracer", "Audio", "DTSoundsGen.h")
 ASSET_ROOT = "/Game/DT/Audio/SFX/"
 ENUMS = (("ESoundSide", "side", {"player": "Player", "danger": "Danger", "ui": "UI"}),
 	("ESoundClass", "class", {"Player": "Player", "Danger": "Danger", "UI": "UI", "Music": "Music"}),
-	("ESoundPitch", "pitch", {"fixed": "Fixed", "key": "Key", "ladder": "Ladder"}))
+	("ESoundPitch", "pitch", {"fixed": "Fixed", "key": "Key", "ladder": "Ladder"}),
+	("ESoundNote", "note", {"": "None", "A": "A", "C": "C", "D": "D", "E": "E", "G": "G"}))
 
 
 def _float(text):
@@ -77,11 +78,13 @@ def render(rows, manifest=None):
 		"\t\tbool bLoop;",
 		"\t\tfloat Volume;",
 		"\t\tESoundPitch Pitch;",
+		"\t\tESoundNote Note;       // the note a key sound is written on: its degrees are that note's own (R-AUD-10)",
 		"\t\tint32 IntervalMs;",
 		"\t\tint32 Voices;",
 		"\t\tfloat AggGain;",
 		"\t\tbool bGrid;",
 		"\t\tint32 LengthMs;        // the longest variant, from the manifest",
+		"\t\tbool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)",
 		"\t};",
 		"",
 		f"\tinline constexpr int32 SoundCount = {len(rows)};",
@@ -93,9 +96,12 @@ def render(rows, manifest=None):
 			side = ENUMS[0][2][row["side"]]
 			klass = ENUMS[1][2][row["class"]]
 			pitch = ENUMS[2][2][row["pitch"]]
+			note = ENUMS[3][2][row["note"]]
+			playable = "true" if B.heard_verdict(row) in B.IMPORTABLE else "false"
 			lines.append(f"\t\t{{ TEXT(\"{row['id']}\"), TEXT(\"{ASSET_ROOT}{B.base_name(row)}\"), ESoundSide::{side}, ESoundClass::{klass}, "
-				f"{int(row['variants'])}, {'true' if row['loop'] == '1' else 'false'}, {_float(row['volume'])}, ESoundPitch::{pitch}, "
-				f"{int(row['interval_ms'])}, {int(row['voices'])}, {_float(row['agg_gain'])}, {'true' if row['grid'] == '1' else 'false'}, {length_ms(row, manifest)} }},")
+				f"{int(row['variants'])}, {'true' if row['loop'] == '1' else 'false'}, {_float(row['volume'])}, ESoundPitch::{pitch}, ESoundNote::{note}, "
+				f"{int(row['interval_ms'])}, {int(row['voices'])}, {_float(row['agg_gain'])}, {'true' if row['grid'] == '1' else 'false'}, {length_ms(row, manifest)}, "
+				f"{playable} }},")
 		lines.append("\t};")
 	else:
 		lines.append("\tinline constexpr FSoundRow Sounds[1] = { {} }; // no rows yet: one empty entry, never read while SoundCount is 0")

@@ -1,11 +1,11 @@
-id,family,side,zone,class,recipe,variants,loop,volume,pitch,interval_ms,voices,agg_gain,grid,len_min_ms,len_max_ms,level_min_lk,level_max_lk,confuse,heard
-Snd.UI.Focus,UI,ui,body,UI,ui.focus,1,0,0.5,fixed,40,2,0,0,20,60,-34,-26,ui,rejected 2026-11-11
-Snd.UI.Step,UI,ui,body,UI,ui.step,1,0,0.55,fixed,40,2,0,0,30,80,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Open,UI,ui,body,UI,ui.open_screen,1,0,0.6,fixed,60,2,0,0,120,260,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Back,UI,ui,body,UI,ui.back,1,0,0.6,fixed,60,2,0,0,80,200,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Refuse,UI,ui,body,UI,ui.refuse,1,0,0.6,fixed,150,1,0,0,120,260,-30,-20,ui,rejected 2026-11-11
-Snd.UI.HandOpen,UI,ui,body,UI,ui.hand_open,1,0,0.6,fixed,300,1,0,0,500,1000,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Pick,UI,ui,body,UI,ui.pick,1,0,0.65,fixed,150,1,0,0,200,420,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Reroll,UI,ui,body,UI,ui.reroll,1,0,0.6,fixed,150,1,0,0,100,260,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Banish,UI,ui,body,UI,ui.banish,1,0,0.6,fixed,150,1,0,0,100,260,-30,-20,ui,rejected 2026-11-11
-Snd.UI.Lock,UI,ui,body,UI,ui.lock,1,0,0.6,fixed,150,1,0,0,80,220,-30,-20,ui,rejected 2026-11-11
+id,family,side,zone,class,recipe,variants,loop,volume,pitch,note,interval_ms,voices,agg_gain,grid,len_min_ms,len_max_ms,level_min_lk,level_max_lk,confuse,heard
+Snd.UI.Focus,UI,ui,body,UI,ui.focus,1,0,0.5,fixed,,40,2,0,0,20,60,-34,-26,ui,rejected 2026-11-11
+Snd.UI.Step,UI,ui,body,UI,ui.step,1,0,0.55,fixed,,40,2,0,0,30,80,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Open,UI,ui,body,UI,ui.open_screen,1,0,0.6,fixed,,60,2,0,0,120,260,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Back,UI,ui,body,UI,ui.back,1,0,0.6,fixed,,60,2,0,0,80,200,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Refuse,UI,ui,body,UI,ui.refuse,1,0,0.6,fixed,,150,1,0,0,120,260,-30,-20,ui,rejected 2026-11-11
+Snd.UI.HandOpen,UI,ui,body,UI,ui.hand_open,1,0,0.6,fixed,,300,1,0,0,500,1000,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Pick,UI,ui,body,UI,ui.pick,1,0,0.65,fixed,,150,1,0,0,200,420,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Reroll,UI,ui,body,UI,ui.reroll,1,0,0.6,fixed,,150,1,0,0,100,260,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Banish,UI,ui,body,UI,ui.banish,1,0,0.6,fixed,,150,1,0,0,100,260,-30,-20,ui,rejected 2026-11-11
+Snd.UI.Lock,UI,ui,body,UI,ui.lock,1,0,0.6,fixed,,150,1,0,0,80,220,-30,-20,ui,rejected 2026-11-11

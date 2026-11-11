@@ -277,11 +277,11 @@ def kill_or_warn(v=0):
 '''
 
 ROW = {"id": "Snd.Kill.Pop", "family": "Kill", "side": "player", "zone": "body", "class": "Player", "recipe": "sketch.kill_pop", "variants": "2", "loop": "0",
-	"volume": "0.5", "pitch": "key", "interval_ms": "45", "voices": "5", "agg_gain": "0.25", "grid": "1", "len_min_ms": "50", "len_max_ms": "200",
+	"volume": "0.5", "pitch": "key", "note": "E", "interval_ms": "45", "voices": "5", "agg_gain": "0.25", "grid": "1", "len_min_ms": "50", "len_max_ms": "200",
 	"level_min_lk": "-40", "level_max_lk": "-10", "confuse": "", "heard": "no"}
 WARN = dict(ROW, id="Snd.Danger.Warn", family="Danger", side="danger", zone="warn", **{"class": "Danger"}, recipe="sketch.telegraph_warn", variants="1",
-	volume="0.8", pitch="fixed", interval_ms="120", voices="2", grid="0", len_max_ms="250")
-HUM = dict(ROW, id="Snd.Kill.Hum", zone="free", recipe="fixture.hum", loop="1", pitch="fixed", grid="0", len_min_ms="100", len_max_ms="400",
+	volume="0.8", pitch="fixed", note="", interval_ms="120", voices="2", grid="0", len_max_ms="250")
+HUM = dict(ROW, id="Snd.Kill.Hum", zone="free", recipe="fixture.hum", loop="1", pitch="fixed", note="", grid="0", len_min_ms="100", len_max_ms="400",
 	level_min_lk="-60", level_max_lk="-5")
 LICENCE_HEADER = ",".join(["asset_path", "kind", "origin", "source", "author", "licence", "licence_file", "date_added", "used_for", "added_by"])
 
@@ -490,6 +490,14 @@ class Catalog(unittest.TestCase):
 			rows, _ = B.read_catalog(Tree([dict(ROW, heard=heard)], manifest=False).paths.catalog)
 			self.assertIn(what, "\n".join(B.validate(rows, os.path.join(HERE, "recipes"))), heard)
 
+	def test_a_key_sound_names_its_note(self):
+		# R-AUD-10: a key sound's degrees are its written note's own, so the note is in the catalog.
+		for over, ok in ((dict(), True), (dict(note="A"), True), (dict(note="G"), True), (dict(note=""), False), (dict(note="B"), False), (dict(note="a"), False),
+				(dict(pitch="fixed", note="E"), False), (dict(pitch="fixed", note=""), True), (dict(pitch="ladder", note="C"), False)):
+			rows, _ = B.read_catalog(Tree([dict(ROW, **over)], manifest=False).paths.catalog)
+			found = [e for e in B.validate(rows, os.path.join(HERE, "recipes")) if "note '" in e]
+			self.assertEqual(not found, ok, (over, found))
+
 	def test_the_verdict_counts_what_the_owner_heard(self):
 		# T-AUD-22: the counts on the step's PASS line.
 		rows = [dict(ROW, id="Snd.Kill.A", heard="yes 2026-11-12"), dict(ROW, id="Snd.Kill.B", heard="delegated 2026-11-12"),
@@ -539,7 +547,7 @@ class Files(unittest.TestCase):
 	def test_a_body_file_with_energy_in_the_band_fails(self):
 		text, _ = Tree([dict(ROW, recipe="sketch.telegraph_warn", variants="1", level_min_lk="-60", level_max_lk="-1", len_max_ms="400")]).check()
 		self.assertIn("SW_Kill_Pop: ", text)
-		self.assertIn("in C.AUD.DANGER_BAND_HZ at +4 semitones (pitch key), over C.AUD.PLAYER_BAND_SHARE_MAX_DB", text)
+		self.assertIn(f"in C.AUD.DANGER_BAND_HZ at +{audio_check.key('KEY_SEMIS_MAX')} semitones (pitch key), over C.AUD.PLAYER_BAND_SHARE_MAX_DB", text)
 
 	def test_a_warning_with_a_slow_attack_fails(self):
 		text, _ = Tree([dict(WARN, recipe="sketch.kill_pop", level_min_lk="-60", level_max_lk="-1")]).check()
@@ -569,7 +577,7 @@ class Files(unittest.TestCase):
 		self.assertTrue(M.metrics([0.0] * 100)["silent"])
 
 
-FREE = dict(ROW, zone="free", pitch="fixed", grid="0", variants="1", level_min_lk="-60", level_max_lk="-1", len_min_ms="1", len_max_ms="2000")
+FREE = dict(ROW, zone="free", pitch="fixed", note="", grid="0", variants="1", level_min_lk="-60", level_max_lk="-1", len_min_ms="1", len_max_ms="2000")
 
 
 def plant(tree, stem, channels=1, width=2, rate=None):
@@ -808,19 +816,22 @@ class Header(unittest.TestCase):
 		text = gen_sounds.render(rows)
 		self.assertIn("\t\tSnd_Kill_Pop,\r\n\t\tSnd_Danger_Warn,\r\n\t\tCount", text)
 		self.assertIn('{ TEXT("Snd.Kill.Pop"), TEXT("/Game/DT/Audio/SFX/SW_Kill_Pop"), ESoundSide::Player, ESoundClass::Player, 2, false, 0.5f, ESoundPitch::Key, '
-			"45, 5, 0.25f, true, 0 },", text)
-		self.assertIn("ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.8f, ESoundPitch::Fixed, 120, 2, 0.25f, false, 0 },", text)
+			"ESoundNote::E, 45, 5, 0.25f, true, 0, false },", text)
+		self.assertIn("ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.8f, ESoundPitch::Fixed, ESoundNote::None, 120, 2, 0.25f, false, 0, false },", text)
+		played = gen_sounds.render([dict(ROW, heard="yes 2026-11-12"), dict(WARN, heard="delegated 2026-11-12")])
+		self.assertIn("0.25f, true, 0, true },", played)
+		self.assertIn("0.25f, false, 0, true },", played)
 		# the length comes from the manifest: the longest variant, in whole ms rounded up
 		manifest = {"SW_Kill_Pop": {"frames": "4800"}, "SW_Kill_Pop_1": {"frames": "5281"}, "SW_Danger_Warn": {"frames": "7920"}}
 		text = gen_sounds.render(rows, manifest)
-		self.assertIn("0.25f, true, 111 },", text)
-		self.assertIn("0.25f, false, 165 },", text)
+		self.assertIn("0.25f, true, 111, false },", text)
+		self.assertIn("0.25f, false, 165, false },", text)
 		self.assertIn("inline constexpr int32 SoundCount = 2;", text)
 
 	@staticmethod
 	def shape(text):
 		"""The header with every initialiser value of the table's rows blanked: types, enums, fields, ids and their order stay."""
-		return re.sub(r"(?m)^(\t\t\{ TEXT\(\"[^\"]*\"\), TEXT\(\"[^\"]*\"\)).*$", lambda m: m.group(1) + ", " + ", ".join(["_"] * 11) + " },", text)
+		return re.sub(r"(?m)^(\t\t\{ TEXT\(\"[^\"]*\"\), TEXT\(\"[^\"]*\"\)).*$", lambda m: m.group(1) + ", " + ", ".join(["_"] * 13) + " },", text)
 
 	def test_a_data_cell_changes_values_never_the_shape(self):
 		# The table's shape is a function of the ids alone: a recipe branch that keeps its ids changes initialiser values only.
@@ -828,8 +839,8 @@ class Header(unittest.TestCase):
 		base_rows = [ROW, WARN]
 		base = gen_sounds.render(base_rows, manifest)
 		changes = [dict(volume="0.25"), dict(interval_ms="90"), dict(voices="3"), dict(agg_gain="0.5"), dict(grid="0"), dict(loop="1"), dict(variants="3"),
-			dict(pitch="fixed"), dict(side="ui", **{"class": "UI"}), dict(len_min_ms="10", len_max_ms="400"), dict(level_min_lk="-50", level_max_lk="-5"),
-			dict(confuse="kills"), dict(zone="free"), dict(recipe="sketch.fire_pulse"), dict(heard="yes 2026-11-12")]
+			dict(pitch="fixed", note=""), dict(note="A"), dict(side="ui", **{"class": "UI"}), dict(len_min_ms="10", len_max_ms="400"), dict(level_min_lk="-50", level_max_lk="-5"),
+			dict(confuse="kills"), dict(zone="free"), dict(recipe="sketch.fire_pulse"), dict(heard="yes 2026-11-12"), dict(heard="delegated 2026-11-12")]
 		for change in changes:
 			text = gen_sounds.render([dict(ROW, **change), WARN], manifest)
 			self.assertEqual(self.shape(text), self.shape(base), change)
