@@ -52,6 +52,10 @@ Gate: `GATE: PASS (08a4724; 3 not run; mask FFFFF3FC)`. The three not run are `p
 
 The whole gate read `GATE: PASS (08a4724; 3 not run; mask FFFFF3FC)` on `dev/s4` bc59250. `dev/s4` 0f8a973 (documents only: `audio.md` and the audio plan note) was merged afterwards (cc58c16) and the gate's text steps were rerun on the merged tip: `GATE: PASS (cc58c16; 19 not run; mask FFFFF3FC)`.
 
+`dev/s4` a9e9391 (the machine lock: Tools and records only) was merged (3f663a2), rebuilt, and the whole gate rerun on top: `GATE: PASS (3f663a2; 3 not run; mask FFFFF3FC)`, with restart `276faf8e`, meta `ba2a3ac8` and tests 573 run of 573, floor 573.
+
+The `FDTImpact` line of `07_Technical` §4 was added under the scheduler's grant (d0be5bf), which closes `impact_art.md`'s one Open item. `dev/s4` 23677f7 (a9e9391 plus the wave 2 plan note) was then merged (5ec21ce) and the gate's text steps rerun on the merged tip: `GATE: PASS (5ec21ce; 19 not run; mask FFFFF3FC)`.
+
 The docs step failed on the first gate, on the spec's form. It was fixed in form only (08a4724): the decision item on line 3 went into a code span, the second step's constants are named as a new `IMP` group and not as a `C.` key that does not exist yet, and R-IMP-02's test is listed as T-IMP-02 PLANNED(S4) for the second step to build with its first reader.
 
 ## 5. Not verified
