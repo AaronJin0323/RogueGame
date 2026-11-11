@@ -2139,7 +2139,8 @@ class HeavyLocks(unittest.TestCase):
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
 		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
-			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1"):
+			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
+			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1"):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
