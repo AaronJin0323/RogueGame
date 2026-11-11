@@ -15,6 +15,7 @@ param(
 trap { Write-Host "TESTS: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+if (-not $ReadLog) { $DTHeavy = Enter-DTHeavy -What "RunTests" }  # D-055 item 7: one heavy-job slot; -ReadLog launches nothing and takes none
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
