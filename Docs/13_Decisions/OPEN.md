@@ -68,6 +68,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 
 - **D-067** The Pulse Wall's card says its rings push enemies out. In the game the growing ring passed through them and the crowd ended up standing on the hero, which is why taking the card cost a run. Now the ring carries out what it crosses, as the card says. No number changed. Whether a wall that works makes the game too safe is for the first people who play that content.
 
+- **D-068** In a thick fight your own white shots covered your own pale figure, so the hero was the hardest thing on the screen to find. Now your shots are not drawn in a small circle round the hero, about a metre; they fly and hit as before. A lamp on the helm and a dark outline were tried on frames and left out for now: the lamp did not show, and the outline cost the figure its brightness. At your sitting you will be asked whether you can find the hero at a glance and whether the fire still looks like yours.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.
