@@ -20,6 +20,7 @@ import contextlib
 import hashlib
 import io
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -815,6 +816,31 @@ class Header(unittest.TestCase):
 		self.assertIn("0.25f, true, 111 },", text)
 		self.assertIn("0.25f, false, 165 },", text)
 		self.assertIn("inline constexpr int32 SoundCount = 2;", text)
+
+	@staticmethod
+	def shape(text):
+		"""The header with every initialiser value of the table's rows blanked: types, enums, fields, ids and their order stay."""
+		return re.sub(r"(?m)^(\t\t\{ TEXT\(\"[^\"]*\"\), TEXT\(\"[^\"]*\"\)).*$", lambda m: m.group(1) + ", " + ", ".join(["_"] * 11) + " },", text)
+
+	def test_a_data_cell_changes_values_never_the_shape(self):
+		# The table's shape is a function of the ids alone: a recipe branch that keeps its ids changes initialiser values only.
+		manifest = {"SW_Kill_Pop": {"frames": "4800"}, "SW_Kill_Pop_1": {"frames": "5281"}, "SW_Danger_Warn": {"frames": "7920"}}
+		base_rows = [ROW, WARN]
+		base = gen_sounds.render(base_rows, manifest)
+		changes = [dict(volume="0.25"), dict(interval_ms="90"), dict(voices="3"), dict(agg_gain="0.5"), dict(grid="0"), dict(loop="1"), dict(variants="3"),
+			dict(pitch="fixed"), dict(side="ui", **{"class": "UI"}), dict(len_min_ms="10", len_max_ms="400"), dict(level_min_lk="-50", level_max_lk="-5"),
+			dict(confuse="kills"), dict(zone="free"), dict(recipe="sketch.fire_pulse"), dict(heard="yes 2026-11-12")]
+		for change in changes:
+			text = gen_sounds.render([dict(ROW, **change), WARN], manifest)
+			self.assertEqual(self.shape(text), self.shape(base), change)
+			changed = [a for a, b in zip(text.split("\r\n"), base.split("\r\n")) if a != b]
+			self.assertTrue(all(line.startswith('\t\t{ TEXT("Snd.Kill.Pop")') for line in changed), (change, changed))
+		longer = gen_sounds.render(base_rows, dict(manifest, SW_Kill_Pop={"frames": "9600"}))
+		self.assertEqual(self.shape(longer), self.shape(base))
+		self.assertNotEqual(longer, base)
+		# What does change the shape: a new id (an enum member, the count), or a column the table emits.
+		self.assertNotEqual(self.shape(gen_sounds.render(base_rows + [dict(ROW, id="Snd.Kill.Extra")], manifest)), self.shape(base))
+		self.assertNotEqual(self.shape(gen_sounds.render([WARN, ROW], manifest)), self.shape(base))
 
 	def test_check_and_write(self):
 		tree = Tree([ROW], manifest=False)
