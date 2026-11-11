@@ -1,6 +1,6 @@
 # S2 fit data: Shade, Radiance and Quicksilver in `fits` (2026-11-11)
 
-Build: `ed8afd8` on `s2/fit-and-unlock` (gated; the data change is `0a4b56d`), on `dev/s2` at `a7137b4` (cut from `146af0a`, `a7137b4` merged in at `8e6a9cd`). Class: BUG (data). Layer: the catalogs (`09_Catalog/weapons.csv`, `modifiers.csv`) and the catalog check. Replaces: empty S2 Paths in every `fits` cell. No number moved, no other column moved, no S1 Path's entry moved. The gate below is the only engine reading in this note; no bot battery was run.
+Build: whole gate at `ed8afd8` on `s2/fit-and-unlock`, on `dev/s2` at `a7137b4` (the data change is `0a4b56d`; cut from `146af0a`, `a7137b4` merged at `8e6a9cd`), and the five seed 9107 arms equal on that build. Since then: `dev/s2` `38bac53` merged at `636206d`, two `settings.md` lines (`2f763ff`, `0e3f0bf`), `dev/s2` `fe107d7` merged at `5414ac8`, and the gate's text steps on `5414ac8` (below). The base moved by Tools and records only (`git diff a7137b4..fe107d7 -- Source Content Config` is empty), so by the scheduler's board the merged tip owes the text steps; the whole gate runs again on the top of the stack (`s2/d061-pulse-wall`). Class: BUG (data). Layer: the catalogs (`09_Catalog/weapons.csv`, `modifiers.csv`) and the catalog check. Replaces: empty S2 Paths in every `fits` cell. No number moved, no other column moved, no S1 Path's entry moved. The gate below is the only engine reading in this note; no bot battery was run.
 
 ## The defect
 On `dev/s2` at `146af0a` no `fits` cell of `weapons.csv` or `modifiers.csv` names `Shade`, `Radiance` or `Quicksilver`. `fits` is read per Path (`offers.md` R-OFF-02, `Offers/DTOfferGenerator.cpp` `DTOffers::Weight`): a new weapon that fits a Path the player owns a card of is × `C.OFFER.WEIGHT_WEAPON_FIT` (1.5); a modifier that amplifies one is × `C.OFFER.WEIGHT_MOD_AMPLIFIES` (2.0), and one that amplifies nothing owned × `C.OFFER.WEIGHT_MOD_NO_AMPLIFY` (0.7). So a player holding only S2 Keepers saw every modifier at 0.7 and no weapon at 1.5. Bot v1 also scores a weapon card +10 when its `fits` names the bot's own Path (`Bot/DTBotBrain.cpp` `CardScore`, which bot v2's `CardScoreV2` starts from), so a Steered bot of an S2 Path never had that lift.
@@ -113,6 +113,34 @@ GATE: PASS (ed8afd8; 3 not run; mask FFFFF3FC)
 ```
 
 The seed 9107 hash is the `restart` step's (`Tools/RestartCheck.ps1`: bot v2, skill 0.6, Steered Storm Tempest, an S1-only arm, 90 s). It reads `276faf8e`, the same as the last recorded reading on the `dev/s2` line before this branch (`S2_carry.md`, the gate at `b246064`), so this S1-only arm did not move. No arm holding an S2 Keeper is hashed by the gate. The `seed` step checks that human launches get fresh seeds; it hashes no bot arm. Tests: 480 of 480, floor 480 unchanged (this branch adds no C++ test).
+
+## Gate's text steps on `5414ac8` (`dev/s2` `fe107d7`), 2026-11-11
+`& Tools\Gate.ps1 -Base dev/s2 -Skip build,locbuild,nonunity,shipping,devgame,tests,smoke,restart,seed,contrast,windows,pad`, 93 s, no engine and no slot.
+
+```ncpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+secrets:    SECRETS: PASS (567 files, 0 hit(s))
+docs:       DOCS: PASS (0 error(s), 8 warning(s), 320 rules, must-read ~21573 tokens)
+constants:  CONSTANTS: PASS (constants + palette)
+catalog:    CATALOG: PASS (10 catalogs, 22 C. cells resolved, 98 tags)
+matrix:     MATRIX: PASS (16 modifiers)
+loc:        LOC: PASS (8 tables, 655 rows)
+tools:      TOOLS: PASS (204 tests)
+build:      NOT RUN (skipped by -Skip)
+locbuild:   NOT RUN (skipped by -Skip)
+nonunity:   NOT RUN (skipped by -Skip)
+shipping:   NOT RUN (skipped by -Skip)
+devgame:    NOT RUN (skipped by -Skip)
+tests:      NOT RUN (skipped by -Skip)
+smoke:      NOT RUN (skipped by -Skip)
+restart:    NOT RUN (skipped by -Skip)
+seed:       NOT RUN (skipped by -Skip)
+contrast:   NOT RUN (skipped by -Skip)
+windows:    NOT RUN (skipped by -Skip)
+pad:        NOT RUN (skipped by -Skip)
+scope:      NOT RUN (no brief in flight)
+mac:        NOT RUN (deferred, D-007)
+GATE: PASS (5414ac8; 14 not run; mask FFFFF3FC)
+```
 
 ## What this makes stale
 Every bot reading on `dev/s2` taken before this change is stale once this branch lands. The last is the reread at `146af0a` (`S2_exit.md`, "Addendum, 2026-11-11, at 146af0a"), the last reading before this branch; the earlier battery readings, their rereads and the probes are older still. They are stale for arms led or seconded by Shade, Radiance or Quicksilver: the offer weights of their weapons and modifiers moved, and the bots' weapon score (v1 and v2) moved for a bot whose own Path is one of them. Arms that hold only S1 Keepers are expected to be unmoved, because a Path the player does not own changes no factor of R-OFF-02 and the generated tables change only in those bits. The S1-only arms did not move: the gate's restart hash (seed 9107, above) is unmoved, and the five seed 9107 arms of `S2_carry.md` (third carry), rerun on the gated build with `& Tools\BotRuns.ps1 -Arms None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost -FirstSeed 9107 -Out Saved\BotRuns\seed9107_fit` (the note's command; bot v1, skill 1, starter pool, one process; `BOTRUNS: PASS`, 90 s), read the same `input_hash` on all five: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`, with the same `steps` (44137, 59380, 57749, 60231, 48598). Arms holding an S2 Keeper were not rerun. No hash is claimed here.
