@@ -1138,6 +1138,35 @@ class Pre07(unittest.TestCase):
 		self.assertEqual(docs_lint.passed_stage_errors("x.md", 1, "the marker `PLANNED(S0)` is named, not used"), [])
 
 
+class SlowShare(unittest.TestCase):
+	"""D-054: pressure.py prints the slow share of a person's run beside the count; a bot arm's run reads not read, never zero."""
+
+	def run_file(self, folder, end):
+		os.makedirs(folder, exist_ok=True)
+		path = os.path.join(folder, "9107_20261111_000000.jsonl")
+		with open(path, "w", encoding="utf-8") as f:
+			f.write('{"t":0.0,"kind":"run_start","owner":-1,"seed":9107,"players":1}\n')
+			f.write(json.dumps(dict({"t": 600.0, "kind": "run_end", "owner": -1, "reason": "quit"}, **end)) + "\n")
+		return path
+
+	def test_a_session_run_prints_its_share_beside_the_count(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "session"), {"steps": 36000, "wall_dropped_steps": 4000})
+			self.assertEqual(pressure.slow_line(path[:-6], path), f"SLOW: {path[:-6]} share 0.1000 (4000 dropped of 40000 steps)")
+
+	def test_a_bot_arm_run_is_not_read_never_zero(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "None_s9107"), {"steps": 38181, "wall_dropped_steps": 0})
+			line = pressure.slow_line(path[:-6], path)
+			self.assertIn("not read (bot arm None at -DTBotFast; 0 dropped steps)", line)
+			self.assertNotIn("share", line)
+
+	def test_a_run_from_before_the_field_is_not_read(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "session"), {"steps": 600})
+			self.assertIn("not read (no wall_dropped_steps", pressure.slow_line(path[:-6], path))
+
+
 class GateMain(unittest.TestCase):
 	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
 	a private canvas link, and one GPU lock for every worktree."""

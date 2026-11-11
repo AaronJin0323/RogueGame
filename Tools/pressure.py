@@ -22,6 +22,8 @@ One line per run and player:
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
                                                      back, never taken off the damage reading; printed only when one exists)
+  SLOW: <run> share <s> (<d> dropped of <n> steps)  (D-054, 10_Tuning section 2: run_end wall_dropped_steps over the steps run plus them;
+                                                     people's sessions only: a bot arm's run reads "not read", never zero; no threshold)
 
 With --check, the statistic: the median of the per-run values over the runs that count, per group. A group is a bot arm (a
 run folder's label, <arm>_s<seed>, Tools/BotRuns.ps1), judged on its own because a pooled figure hides builds that miss in
@@ -356,6 +358,35 @@ def arm_of(name):
 	return m.group(1) if m else "all"
 
 
+def slow_counts(jsonl_path):
+	"""(wall_dropped_steps, steps) from the run's run_end record, or None for a run without one or from before the field (R-TEL-08)."""
+	found = None
+	with open(jsonl_path, encoding="utf-8") as f:
+		for line in f:
+			if '"run_end"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=first_wins)
+			except ValueError:
+				continue
+			if rec.get("kind") == "run_end" and "wall_dropped_steps" in rec:
+				found = (int(rec["wall_dropped_steps"]), int(rec.get("steps", 0)))
+	return found
+
+
+def slow_line(name, jsonl_path):
+	"""D-054: the slow share is wall_dropped_steps over the steps run plus wall_dropped_steps, beside the count. It is read on people's
+	sessions only: a bot arm's run steps past the clock at -DTBotFast, so it prints as not read, never as zero. No threshold, no verdict."""
+	counts = slow_counts(jsonl_path) if jsonl_path else None
+	if counts is None:
+		return f"SLOW: {name} not read (no wall_dropped_steps in run_end)"
+	dropped, steps = counts
+	if arm_of(name) != SESSION:
+		return f"SLOW: {name} not read (bot arm {arm_of(name)} at -DTBotFast; {dropped} dropped steps)"
+	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
+	return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
+
+
 def parse_args(argv):
 	"""(run arguments, checks or None, validators sheet or None)."""
 	args, checks, sheet = [], None, None
@@ -408,6 +439,7 @@ def main(argv):
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
 		for owner, (ttk, n) in sorted(ttks.items()):
 			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
+		print(slow_line(name, jsonl))
 		if jsonl:
 			for owner in sorted(rates):
 				whole = restores_from_jsonl(jsonl, 0.0, float("inf"), owner)
