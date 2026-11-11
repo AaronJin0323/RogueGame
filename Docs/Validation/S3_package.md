@@ -189,3 +189,5 @@ A hung launch: the stub has one thread waiting (UserRequest), and the game has a
 - `PADCHECK: NOT RUN (package 22d462a ok, en+zh-Hans, 0 windows; real pad needs a human, no run of this build reads input_device=pad)`, exit code 2: the machine half passes.
 
 No "Access is denied" appeared: PKGHUB and PadCheck each started their window watch after other checks in the same process. Log: `Saved\Logs\final_chain.txt` in the carry agent's worktree.
+
+Carried onto the lock (2026-11-11): `s3/pkg-checks` took `dev/s3` 0ed7439 and `s2/pkg-checks` on the lock by clean merges. The package checks changed by the one heavy-job slot line each (`Enter-DTHeavy`, R-TEC-18) and nothing else, so the chain read at 19:34 above stands.
