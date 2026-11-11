@@ -1148,6 +1148,23 @@ class EngineMask(unittest.TestCase):
 				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
+class WatchAfterLaunch(unittest.TestCase):
+	"""Two check scripts in one shell (Validation/S2_package.md): a launch, then a window watch and a launch in the same process. The watch's job held the
+	shell, the earlier launch job lay outside it, and Start-DTHidden failed with "Access is denied"."""
+
+	def test_a_launch_after_a_watch_in_the_same_process(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			child = os.path.join(tmp, "quit.py")
+			with open(child, "w", encoding="ascii") as f:
+				f.write("print('ok')\n")
+			launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"'); $null = $P.WaitForExit(60000)"
+			script = (f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; . {ps_quote(os.path.join(TOOLS, 'WindowWatch.ps1'))}; "
+				f"try {{ {launch}; Start-DTWindowWatch; {launch}; $null = Stop-DTWindowWatch; 'LAUNCHED BOTH' }} catch {{ \"THREW $_\" }}")
+			rc, out = powershell(script, {"DT_AFFINITY_FILE": os.path.join(tmp, "absent.txt")})
+			self.assertIn("LAUNCHED BOTH", out)
+			self.assertNotIn("THREW", out)
+
+
 class Pre07(unittest.TestCase):
 	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
 
