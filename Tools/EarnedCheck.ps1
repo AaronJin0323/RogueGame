@@ -4,8 +4,8 @@
 # real key buys a node that run can afford. `EarnedRead`: a third reads the purchase. `next`: the same seed, gated: a hand now holds what the node opened, which `earn`'s hands could not.
 # The duos' door from both sides (D-069): `TwoPaths6` is earned when and only when a run held Tier 2 on two Paths, read from that run's own counters line (Tools/duo_read.py).
 # "When": `earn` held two Paths at Tier 2, its own hands held no duo card, and the save it left holds TwoPaths6, Reaction.Duos and Mod.SpreadWave (`Doors`); a later gated run on
-# that save is offered a duo card. "Only when": `quiet`, a gated run from another empty save that held Tier 2 on exactly one Path, taking blessings only and cut short of the
-# second Keeper's Tier 2; the save it left holds none of the door (`DuosShut`).
+# that save is offered a duo card. "Only when": `quiet`, a gated run from another empty save that held Tier 2 on exactly one Path, taking blessings only and cut short of its
+# other Keeper's Tier 2; the save it left holds none of the door (`DuosShut`).
 # Part two, on a copy of the save `earn` left, with only a balance planted, so its three Keepers and the duos are doors a run opened. `Doors`: keys buy one node of each new branch,
 # then choose Keepers 4 to 6 at the Shrine, begin a gated run on each, and take a real Restart. Then bots on that save: each new Keeper's run holds its bought card, the last with
 # nobody named, as on a Restart; a run on Storm reads an L8 hand holding a met Keeper and is offered a duo card, which `earn` could not be.
@@ -17,8 +17,8 @@ param(
 	[int[]]$Seeds = @(9100, 9101, 9102),
 	[int]$BranchSeed = 9120,
 	[int]$QuietSeed = 9100,
-	# Sim seconds of `quiet`, tried in order: past the Patron's Tier 2 and short of the second Keeper's, which starts at the L8 hand (about 270 s on
-	# the D-064 batteries).
+	# Sim seconds of `quiet`, tried in order: long enough for one Keeper's Tier 2 and short of the other's (the second Keeper starts at the L8 hand,
+	# about 270 s on the D-064 batteries).
 	[int[]]$QuietSeconds = @(400, 340, 460, 520),
 	[int[]]$DuoRunSeeds = @(9230, 9231, 9232),
 	[int]$HandSeconds = 300,
@@ -175,9 +175,9 @@ $HandsBefore = Read-SeedHands "earn" $RunSeed
 if ((Read-Unlocked $LogEarn) -ne 0) { Stop-Check "earn's pool was not a first run's" }
 if ($HandsBefore -match '"id":"Blessing\.Duo\.') { Stop-Check "earn's own hands held a duo card, before any run had earned the duos" }
 
-# The side "only when": a run from another empty save that held Tier 2 on exactly one Path, by its own counters. It takes blessings only (BlessingsOnly),
-# so its Patron, whose cards are the only ones open before the L8 commitment (keepers.md R-KEE-05), reaches Tier 2 early, and it is cut before the second
-# Keeper can: the first length of -QuietSeconds that reads exactly one is the run; with none the side is unbound and the check fails.
+# The side "only when": a run from another empty save that held Tier 2 on exactly one Path, by its own counters. It takes blessings only (BlessingsOnly), so
+# a Keeper reaches Tier 2 within the run, and it is cut before the other Keeper of the run can as well: the first length of -QuietSeconds that reads exactly
+# one is the run, whichever of its two Keepers that Path is; with none the side is unbound and the check fails.
 $Quiet = Join-Path $OutDir "Quiet.sav"
 $QuietPaths = $null
 $QuietTried = @()
