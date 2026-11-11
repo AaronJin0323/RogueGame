@@ -559,6 +559,13 @@ void UDTBotSubsystem::HandleStepEnd()
 	}
 	if (IsRunFinished())
 	{
+		// A fast bot's run is decided: hold the clock at this step boundary, so no step that wall time would owe runs between the
+		// decision and the session's close on a later tick (R-TEL-08: the closing records follow the steps, not the frames).
+		// A person's run, and a bot at real speed, keep running in real time to the close, as before.
+		if (StepsPerFrame > 0 && SimSys && !SimSys->IsHeld())
+		{
+			SimSys->Hold();
+		}
 		return; // the input stream (and its hash) is the run's; steps after its end are not the bot's
 	}
 	LatchNext();

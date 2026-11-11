@@ -1440,6 +1440,21 @@ class ArrivalHits(unittest.TestCase):
 			self.assertEqual(pressure.arrivals_detail({}),
 				"arrival charging 0 not charging 0; other charging 0 not charging 0; killed drop-in band 0")
 
+	def test_landed_dropins_are_the_denominator(self):
+		# T-TEL-16's reader: the Rusher drop-ins that landed, summed over the run's dir_block records; old files say so.
+		with tempfile.TemporaryDirectory() as root:
+			path = os.path.join(root, "9107_20261111_000000.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write('{"t":282.0,"kind":"dir_block","owner":-1,"dropins":4,"dropins_landed_by_role":{"Rusher":2,"Turret":1}}\n')
+				f.write('{"t":300.0,"kind":"dir_block","owner":-1,"dropins":1,"dropins_landed_by_role":{}}\n')
+				f.write('{"t":330.0,"kind":"dir_block","owner":-1,"dropins":2,"dropins_landed_by_role":{"Rusher":1}}\n')
+			self.assertEqual(pressure.landed_dropins_from_jsonl(path), 3)
+			self.assertEqual(pressure.landed_detail(3), "out of 3 landed Rusher drop-ins")
+			old = os.path.join(root, "old.jsonl")
+			with open(old, "w", encoding="utf-8") as f:
+				f.write('{"t":282.0,"kind":"dir_block","owner":-1,"dropins":4}\n')
+			self.assertIsNone(pressure.landed_dropins_from_jsonl(old))
+			self.assertEqual(pressure.landed_detail(None), "landed drop-ins not in the file")
 
 class GateMain(unittest.TestCase):
 	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,

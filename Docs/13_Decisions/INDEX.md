@@ -46,7 +46,7 @@
 | D-042 | One change to the save at a time: reread, change and write under a lock held for that change | BUG | applied on `fix/d042-save-lock` | `dev/s3` |
 | D-043 | S4 Presentation starts on `dev/s4` before the S1, S2 and S3 exit tests, limited to a first wave | GO-NOGO | applied | `dev/s4` |
 | D-044 | The doors of R-MET-28 are decided, and `Crit500` is reachable through them | RULE | applied | `dev/s3` |
-| D-045 | An arriving Rusher charges through where the hero stood | RULE | applied; the nineteen-arm reading shows no move in Rusher damage on bots and cannot count arrivals' charges yet; session A is open | `main` |
+| D-045 | An arriving Rusher charges through where the hero stood | RULE | applied; on bots an arrival's own attack hits 48 times in 270 runs, 0.045 of steered damage; session A is open | `main` |
 | D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | the restore applied, its hypothesis pending session A; the bands open until the S1 gate | `main` |
 | D-047 | Keeper share is the power a build loses without its blessings | RULE | applied on `main`; read 2026-11-11 (`Validation/S1_d047_reread.md`), it stands | `main` |
 | D-048 | The S1 exit is read in two sessions | GO-NOGO | applied | `main` |
