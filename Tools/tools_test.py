@@ -24,6 +24,7 @@ import contrast_check  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_matrix  # noqa: E402
 import cpu_canary  # noqa: E402
+import crash_exit  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
 import power_split  # noqa: E402
@@ -1307,7 +1308,7 @@ def first_statement(name, text):
 class Machine(unittest.TestCase):
 	"""D-052: every Tools entry script applies the machine's processor mask first (Tools/Machine.ps1), and the gate's `cpu` step catches a bad processor."""
 
-	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
+	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1")
 	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat")
 	HELPER = os.path.join(TOOLS, "Machine.ps1")
@@ -2150,7 +2151,7 @@ class HeavyLocks(unittest.TestCase):
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
 		# Gate.ps1 takes its slot right before its first heavy step instead (GateSlot below).
-		for name in ("RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
+		for name in ("RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1"):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
@@ -2162,6 +2163,78 @@ class HeavyLocks(unittest.TestCase):
 		self.assertLess(machine.index("$null = Enter-DTHeavy -What (Split-Path -Leaf $Run.File)"), machine.index("& $Run.File @RunArgs"))
 		with open(os.path.join(TOOLS, "Play.bat"), encoding="utf-8") as f:
 			self.assertNotIn("Machine.ps1", f.read())
+
+
+class CrashExit(unittest.TestCase):
+	"""Tools/CrashExitCheck.ps1's lines (Tools/crash_exit.py) from canned launch records: an ended launch, a hung one, the verdict."""
+
+	ENDED = {"n": 1, "ended": True, "seconds": 2.14, "exit_code": 3, "dump_bytes": 1364942, "shutdown": True, "log": True}
+	HUNG = {"n": 2, "ended": False, "seconds": 60.0, "threads": 101, "suspended": 100, "running": ["4242 Wait/UserRequest"], "dump_bytes": 0,
+		"windows": [], "last_line": "LogWindows: Windows GetLastError: The operation completed successfully. (0)", "log": True}
+
+	def test_an_ended_and_a_hung_launch(self):
+		self.assertEqual(crash_exit.record_line(self.ENDED),
+			"crashexit: 1 ended in 2.1 s, exit 3, dump 1364942 bytes, StaticShutdownAfterError in the log: yes")
+		self.assertEqual(crash_exit.record_line(self.HUNG),
+			"crashexit: 2 hung after a crash, at 60.0 s: 101 threads, 100 suspended, not suspended: 4242 Wait/UserRequest; dump 0 bytes; windows: none; "
+			"log ends: LogWindows: Windows GetLastError: The operation completed successfully. (0)")
+		shipping = dict(self.ENDED, dump_bytes=None, log=False, shutdown=None)
+		self.assertIn("no dump, StaticShutdownAfterError in the log: no log", crash_exit.record_line(shipping))
+		unknown = dict(self.HUNG, suspended=None, running=[], windows=["4242 #32770 'Dusktracer'"])
+		self.assertIn("101 threads, suspended unknown, not suspended: none; dump 0 bytes; windows: 4242 #32770 'Dusktracer'", crash_exit.record_line(unknown))
+
+	def test_the_verdict_counts_hung_launches(self):
+		self.assertEqual(crash_exit.result_line([self.ENDED, dict(self.ENDED, n=2, seconds=3.25)], "Development"),
+			"CRASHEXIT: PASS (2 of 2 ended, slowest 3.2 s; Development)")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, dict(self.HUNG, n=3)], "Shipping"), "CRASHEXIT: FAIL (2 of 3 hung after a crash; Shipping)")
+		self.assertEqual(crash_exit.result_line([], "Development"), "CRASHEXIT: FAIL (no launch recorded; Development)")
+
+	def test_a_launch_that_never_crashed_voids_the_reading(self):
+		"""Alive at the timeout with no crash folder, no dump and no fatal line: the crash never fired (a Patron hand waiting for a person), not a hang."""
+		idle = dict(self.HUNG, n=3, suspended=0, dump_bytes=None, crash_folder=False, fatal_line=False, log=False)
+		self.assertEqual(crash_exit.outcome(idle), "no crash")
+		self.assertEqual(crash_exit.outcome(dict(idle, crash_folder=True)), "hung")
+		self.assertEqual(crash_exit.outcome(dict(idle, log=True, fatal_line=True)), "hung")
+		self.assertEqual(crash_exit.outcome(self.HUNG), "hung", "a 0-byte dump is a crash that began")
+		self.assertEqual(crash_exit.record_line(idle), "crashexit: 3 did not crash in 60.0 s (no crash folder, no dump, no fatal line; 101 threads, 0 suspended): void")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, idle], "Shipping, no -unattended"),
+			"CRASHEXIT: VOID (1 of 3 never crashed; Shipping, no -unattended)")
+		self.assertIn("hung after a crash", crash_exit.record_line(dict(self.HUNG, last_line={"value": "x"})), "a non-text last line still prints")
+
+	def test_records_are_read_from_the_work_folder_and_names_are_scrubbed(self):
+		with tempfile.TemporaryDirectory() as work:
+			for rec in (self.HUNG, self.ENDED):
+				os.makedirs(os.path.join(work, str(rec["n"])))
+				with open(os.path.join(work, str(rec["n"]), "record.json"), "w", encoding="utf-8-sig") as f:
+					json.dump(rec, f)
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = crash_exit.main(["crash_exit.py", "result", work, "Development"])
+		self.assertEqual((rc, out.getvalue().strip()), (1, "CRASHEXIT: FAIL (1 of 2 hung after a crash; Development)"))
+		with mock.patch.dict(os.environ, {"USERNAME": "tester7", "COMPUTERNAME": "BOX9"}):
+			line = crash_exit.record_line(dict(self.HUNG, last_line="C:/Users/tester7/AppData on BOX9"))
+		self.assertTrue(line.endswith("log ends: C:/Users/<user>/AppData on <machine>"), line)
+
+	def test_a_packaged_crash_ends_shipping_by_default(self):
+		"""T-PKG-16, R-PKG-16: the game module takes Shipping off the in-process minidump unless -DTCrashDump, and any other packaged
+		build keeps the engine's path unless -DTCrashNoDump; Windows only, never an editor."""
+		with open(os.path.join(TOOLS, "..", "Source", "Dusktracer", "Dusktracer.cpp"), encoding="utf-8") as f:
+			code = f.read()
+		guard = code.index("#if PLATFORM_WINDOWS && !WITH_EDITOR")
+		block = code[guard:code.index("#endif", guard)]
+		self.assertIn('UE_BUILD_SHIPPING ? !FParse::Param(FCommandLine::Get(), TEXT("DTCrashDump")) : FParse::Param(FCommandLine::Get(), TEXT("DTCrashNoDump"))', block)
+		self.assertIn("GUseCrashReportClient = false;", block)
+		self.assertIn("MiniDumpFilenameW[0] = TEXT('\\0');", block)
+
+	def test_the_script_refuses_the_session_build_and_keeps_its_launches_hidden(self):
+		with open(os.path.join(TOOLS, "CrashExitCheck.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertIn('foreach ($Held in "Package", "Packages")', text)
+		self.assertIn("Start-DTHidden $Exe $ArgList", text)
+		self.assertIn("Stop-DTHidden $Proc", text)
+		self.assertIn('-userdir=`"$UserDir`"', text)
+		for flag in ("-RenderOffScreen", "-unattended", "-nosound", "-culture=en", "-DTSeed=770099"):
+			self.assertIn(flag, text)
 
 
 SLOT_PROBE = '''import os, sys
