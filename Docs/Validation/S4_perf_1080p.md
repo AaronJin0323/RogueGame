@@ -64,7 +64,7 @@ The S4 scene read 7.16 and 7.26 ms proxied on P0 at the smaller size and 5.94 an
 - The editor's Development build, not the Shipping package.
 - No render-thread reading and no hitch measure: p50 and p95 of 1800 frames only.
 - The perf scenes grant no Keeper blessings and play in one weather; Intercessions, statuses and the second weather are not on any scene here.
-- Package E's cost: E is not built.
+- Package E's cost: not in these runs. The reading with the tap and package E, on 3cb9534, is `S4_e_feedback.md` §10.
 
 ## Where the files are
 The carry agent's worktree `E:\Dusktracer\.claude\worktrees\agent-aa7a88e9be0750f6a`: `Saved\Logs\perf_devs4_1080p.txt` (the output of all seven runs), `Saved\Perf\perf.csv` (the last seven rows, stamped fc5000b), and the captures under `Saved\Profiling\CSV\`.
