@@ -806,6 +806,7 @@ void FDTEnemyPool::StepRoles(float Dt, int64 StepIndex, TConstArrayView<FVector2
 				[[fallthrough]];
 			case EDTEnemyState::Charge:
 			{
+				A.LastChargeStep = StepIndex; // telemetry only (AppendContacts)
 				const float Travel = FMath::Min(ChargeStep * Slow, A.ChargeLeft);
 				NextVel[Index] = A.AimDir * (Travel / Dt);
 				A.ChargeLeft -= Travel;
@@ -1110,6 +1111,9 @@ void FDTEnemyPool::AppendContacts(FDTWorldView& View) const
 			Hit.Kind = EDTHeroHitKind::Contact;
 			Hit.SourceRole = Role[Index];
 			Hit.bArrival = (Flags[Index] & DTEnemyFlags::Arrival) != 0; // telemetry only
+			// Telemetry only: a Rusher that moved under its charge this step, its last charge step included (StepRoles has already
+			// moved it into Recover by then).
+			Hit.bCharging = Role[Index] == EDTEnemyRole::Rusher && Aux[Index].LastChargeStep == ContactStep;
 			Hit.EnemySerial = Serial[Index];
 			Hit.Position = Pos[Index];
 		}
@@ -1137,6 +1141,7 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 
 	ResolveInit(View.HeroPositions);
 	AssignTokens(View.HeroPositions, View.bThreatBlock);
+	ContactStep = Context.StepIndex; // telemetry only: the step AppendContacts reads LastChargeStep against
 	StepRoles(Dt, Context.StepIndex, View.HeroPositions);
 	StepOrphans(Dt, View);
 

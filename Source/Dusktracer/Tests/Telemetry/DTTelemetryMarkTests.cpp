@@ -169,6 +169,7 @@ bool FDTTelArrivalMark::RunTest(const FString& Parameters)
 	Pool.Spawn(Spec, nullptr, true);
 	int32 Hazards = 0;
 	int32 Marked = 0;
+	int32 BandCharging = 0;
 	for (int32 Step = 0; Step < 2 * DTConst::SIM_FIXED_HZ; ++Step)
 	{
 		if (Step == 1 && Pool.Num() > 0)
@@ -188,10 +189,77 @@ bool FDTTelArrivalMark::RunTest(const FString& Parameters)
 		{
 			Hazards += Hit.Kind == EDTHeroHitKind::Charge ? 1 : 0;
 			Marked += Hit.Kind == EDTHeroHitKind::Charge && Hit.bArrival ? 1 : 0;
+			BandCharging += Hit.Kind == EDTHeroHitKind::Charge && Hit.bCharging ? 1 : 0;
 		}
 	}
 	TestEqual(TEXT("the killed arrival's band lands once"), Hazards, 1);
 	TestEqual(TEXT("and carries the mark"), Marked, 1);
+	TestEqual(TEXT("the band has no live hitter, so it is not charging"), BandCharging, 0);
+
+	// hero_damaged.charging: a Rusher's contact while it moves under its charge, drop-in or not, and only then.
+	for (const bool bDropIn : { true, false })
+	{
+		const FString Tag = bDropIn ? TEXT("drop-in: ") : TEXT("walked in: ");
+		FDTRunState ChargeRun;
+		ChargeRun.Start(64, 1);
+		FDTWorldView ChargeView;
+		ChargeView.HeroPositions = { FVector2f(500.0f, 0.0f) }; // inside the trigger range, so a walker charges too
+		ChargeView.HeroIntangible.Init(false, 1);
+		FDTSimContext ChargeContext = Context;
+		ChargeContext.Run = &ChargeRun;
+		ChargeContext.View = &ChargeView;
+		FDTEnemyPool Charger;
+		FDTEnemySpawn Rusher;
+		Rusher.Role = EDTEnemyRole::Rusher;
+		Rusher.bArrival = bDropIn;
+		Charger.Spawn(Rusher, nullptr, bDropIn);
+		int32 Contacts = 0;
+		int32 ChargingContacts = 0;
+		int32 ArrivalContacts = 0;
+		for (int32 Step = 0; Step < 3 * DTConst::SIM_FIXED_HZ; ++Step)
+		{
+			ChargeContext.StepIndex = Step;
+			Charger.StepEnemies(ChargeContext);
+			Charger.ResolveHits(ChargeContext);
+			const bool bInCharge = Charger.Num() > 0 && Charger.GetAux(0).LastChargeStep == Step;
+			for (const FDTHeroHit& Hit : ChargeView.HeroHits)
+			{
+				if (Hit.Kind != EDTHeroHitKind::Contact)
+				{
+					continue;
+				}
+				++Contacts;
+				ChargingContacts += Hit.bCharging ? 1 : 0;
+				ArrivalContacts += Hit.bArrival ? 1 : 0;
+				TestEqual(Tag + TEXT("charging is the charge step's"), Hit.bCharging, bInCharge);
+			}
+		}
+		TestTrue(Tag + TEXT("the charge touches the hero"), ChargingContacts > 0);
+		TestEqual(Tag + TEXT("arrival as spawned"), ArrivalContacts, bDropIn ? Contacts : 0);
+	}
+
+	// A body on the hero that is not charging: a Rusher still in its wind-up.
+	{
+		FDTRunState StillRun;
+		StillRun.Start(65, 1);
+		FDTWorldView StillView;
+		StillView.HeroPositions = { FVector2f::ZeroVector };
+		StillView.HeroIntangible.Init(false, 1);
+		FDTSimContext StillContext = Context;
+		StillContext.Run = &StillRun;
+		StillContext.View = &StillView;
+		FDTEnemyPool Still;
+		FDTEnemySpawn Rusher;
+		Rusher.Role = EDTEnemyRole::Rusher;
+		Rusher.bArrival = true;
+		Still.Spawn(Rusher, nullptr, true);
+		StillContext.StepIndex = 0;
+		Still.StepEnemies(StillContext);
+		const FDTHeroHit* Hit = StillView.HeroHits.FindByPredicate([](const FDTHeroHit& Each) { return Each.Kind == EDTHeroHitKind::Contact; });
+		TestTrue(TEXT("a drop-in on the hero in its wind-up touches it"), Hit != nullptr);
+		TestTrue(TEXT("and is not charging"), Hit && !Hit->bCharging && Hit->bArrival);
+	}
+	TestTrue(TEXT("the record writes charging"), Arrival.Contains(TEXT("\"charging\":false")) && Walker.Contains(TEXT("\"charging\":")));
 	return true;
 }
 

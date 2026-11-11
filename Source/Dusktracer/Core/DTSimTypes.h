@@ -103,6 +103,8 @@ struct FDTHeroHit
 	float RoundFlightSeconds = 0.0f;
 	/** The hitter carries DTEnemyFlags::Arrival (a director drop-in), or the hit is the band of an arrival killed in its wind-up (telemetry, D-045). Never gameplay. */
 	bool bArrival = false;
+	/** The hitter is a Rusher that moved under its charge this step (telemetry, D-045). Never gameplay. */
+	bool bCharging = false;
 };
 
 /** One death, filled by ResolveHits; read by effects and the director (drops, beat ends). */

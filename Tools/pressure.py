@@ -19,8 +19,9 @@ window. Kill time needs both files: the CSV holds the cells, the JSONL says the 
 One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
-  SOURCES: <run> p<n> rusher hits, whole run: arrival charge <a> contact <b>; other charge <c> contact <d>[; unmarked ...]
-                                                     (hero_damaged.arrival, D-045; then one such line per bot arm and one overall)
+  SOURCES: <run> p<n> rusher hits, whole run: arrival charging <a> not charging <b>; other charging <c> not charging <d>;
+                                                     killed drop-in band <e>[; unmarked contact <x> charge <y>]
+                                                     (hero_damaged.arrival and .charging, D-045; then one such line per bot arm and one overall)
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
                                                      back, never taken off the damage reading; printed only when one exists)
@@ -171,13 +172,14 @@ def sources_from_jsonl(path, lo, hi, owner=0):
 	return out
 
 
-ARRIVAL_KINDS = ("Charge", "Contact")
+RUSHER_PARTS = (("arrival", "charging"), ("arrival", "not charging"), ("other", "charging"), ("other", "not charging"))
 
 
 def rusher_hits_from_jsonl(path, owner=0):
-	"""{(mark, hit kind): count} of `owner`'s Rusher hits over the whole run (D-045: drop-ins start at 270 s, before the band window).
-	mark is "arrival" (hero_damaged.arrival true), "other" (false) or "unmarked" (a run file from before the field); hit kind is
-	Charge (the band of an arrival killed in its wind-up) or Contact (a body, a live charge included), as hero_hit_kind reads it."""
+	"""{part: count} of `owner`'s Rusher hits over the whole run (D-045: drop-ins start at 270 s, before the band window).
+	A part is ("band",) for the band of a drop-in killed in its wind-up (hit kind Charge), (mark, charging) for a body's hit (hit
+	kind Contact, a live charge included): mark "arrival" or "other" from hero_damaged.arrival, charging "charging" or "not
+	charging" from hero_damaged.charging; ("unmarked", <hit kind>) for a file from before the two fields."""
 	out = {}
 	with open(path, encoding="utf-8") as f:
 		for line in f:
@@ -196,22 +198,27 @@ def rusher_hits_from_jsonl(path, owner=0):
 			if fields.get("owner", -1) != owner or fields.get("role") != "Rusher":
 				continue
 			hit_kind = hero_hit_kind(fields)
-			if hit_kind not in ARRIVAL_KINDS:
+			if hit_kind not in ("Charge", "Contact"):
 				continue
-			mark = "unmarked" if "arrival" not in fields else ("arrival" if fields["arrival"] else "other")
-			out[(mark, hit_kind)] = out.get((mark, hit_kind), 0) + 1
+			if "arrival" not in fields or "charging" not in fields:
+				part = ("unmarked", hit_kind)
+			elif hit_kind == "Charge":
+				part = ("band",)
+			else:
+				part = ("arrival" if fields["arrival"] else "other", "charging" if fields["charging"] else "not charging")
+			out[part] = out.get(part, 0) + 1
 	return out
 
 
 def arrivals_detail(counts):
-	"""One reading of Rusher hits: marked and unmarked side by side, each split by charge and contact."""
+	"""One reading of Rusher hits, five ways: arrival or not by charging or not, and the killed drop-in's band; old files apart."""
 	parts = []
-	for mark in ("arrival", "other", "unmarked"):
-		if mark == "unmarked" and not any(m == mark for m, _ in counts):
-			continue
-		parts.append(f"{mark} " + " ".join(f"{k.lower()} {counts.get((mark, k), 0)}" for k in ARRIVAL_KINDS))
+	for mark in ("arrival", "other"):
+		parts.append(f"{mark} " + " ".join(f"{c} {counts.get((mark, c), 0)}" for m, c in RUSHER_PARTS if m == mark))
+	parts.append(f"killed drop-in band {counts.get(('band',), 0)}")
+	if any(p[0] == "unmarked" for p in counts):
+		parts.append("unmarked " + " ".join(f"{k.lower()} {counts.get(('unmarked', k), 0)}" for k in ("Contact", "Charge")))
 	return "; ".join(parts)
-
 
 def restores_from_jsonl(path, lo, hi, owner=0):
 	"""{source: (restores, HP restored as a share of max HP)} of `owner` with lo <= t < hi, from `hero_healed` (D-046).

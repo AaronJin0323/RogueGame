@@ -71,6 +71,7 @@ void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 		Hit.RoundVelocity = Event.RoundVelocity;
 		Hit.RoundFlightSeconds = Event.RoundFlightSeconds;
 		Hit.bArrival = Event.bArrival;
+		Hit.bCharging = Event.bCharging;
 		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp, Event.HeroPos);
 		break;
 	}

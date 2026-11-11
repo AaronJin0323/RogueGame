@@ -1214,25 +1214,31 @@ class SlowShare(unittest.TestCase):
 
 
 class ArrivalHits(unittest.TestCase):
-	"""T-TEL-14's reader: pressure.py counts Rusher hits by hero_damaged.arrival, split by charge and contact; old files read unmarked."""
+	"""T-TEL-14's reader: pressure.py splits Rusher hits five ways by hero_damaged.arrival and .charging, the killed drop-in's band
+	apart; files from before the fields read unmarked."""
 
 	LINES = [
-		'{"t":300.0,"step":1,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true}',
-		'{"t":301.0,"step":2,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Charge","role":"Rusher","arrival":true}',
-		'{"t":302.0,"step":3,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false}',
-		'{"t":303.0,"step":4,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Swarm","arrival":false}',
-		'{"t":304.0,"step":5,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher"}',
+		'{"t":300.0,"step":1,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}',
+		'{"t":301.0,"step":2,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":false}',
+		'{"t":302.0,"step":3,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":true}',
+		'{"t":303.0,"step":4,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":false}',
+		'{"t":304.0,"step":5,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Charge","role":"Rusher","arrival":true,"charging":false}',
+		'{"t":305.0,"step":6,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Swarm","arrival":false,"charging":false}',
+		'{"t":306.0,"step":7,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher"}',
 	]
 
-	def test_marked_beside_unmarked(self):
+	def test_five_ways_and_unmarked(self):
 		with tempfile.TemporaryDirectory() as root:
 			path = os.path.join(root, "9107_20261111_000000.jsonl")
 			with open(path, "w", encoding="utf-8") as f:
 				f.write("\n".join(self.LINES) + "\n")
 			hits = pressure.rusher_hits_from_jsonl(path)
-			self.assertEqual(hits, {("arrival", "Contact"): 1, ("arrival", "Charge"): 1, ("other", "Contact"): 1, ("unmarked", "Contact"): 1})
-			self.assertEqual(pressure.arrivals_detail(hits), "arrival charge 1 contact 1; other charge 0 contact 1; unmarked charge 0 contact 1")
-			self.assertEqual(pressure.arrivals_detail({}), "arrival charge 0 contact 0; other charge 0 contact 0")
+			self.assertEqual(hits, {("arrival", "charging"): 1, ("arrival", "not charging"): 1, ("other", "charging"): 1,
+				("other", "not charging"): 1, ("band",): 1, ("unmarked", "Contact"): 1})
+			self.assertEqual(pressure.arrivals_detail(hits), "arrival charging 1 not charging 1; other charging 1 not charging 1; "
+				"killed drop-in band 1; unmarked contact 1 charge 0")
+			self.assertEqual(pressure.arrivals_detail({}),
+				"arrival charging 0 not charging 0; other charging 0 not charging 0; killed drop-in band 0")
 
 
 class GateMain(unittest.TestCase):

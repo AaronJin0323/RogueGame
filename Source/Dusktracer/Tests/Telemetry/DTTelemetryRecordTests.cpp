@@ -276,9 +276,9 @@ bool FDTTelRecCombat::RunTest(const FString& Parameters)
 	Finish(Core, Csv, Jsonl);
 	TestTrue(TEXT("dash line"), Jsonl.Contains(Head(TEXT("dash"), 1) + TEXT(",\"dir_x\":0.6000,\"dir_y\":0.8000,\"charges_after\":0}\n")));
 	TestTrue(TEXT("hero_damaged line"), Jsonl.Contains(Head(TEXT("hero_damaged"), 0)
-		+ FString::Printf(TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\",\"arrival\":false,")
+		+ FString::Printf(TEXT(",\"amount\":10.0000,\"hp_after\":90.0000,\"max_hp\":100.0000,\"hit_kind\":\"Bullet\",\"role\":\"Turret\",\"attack\":\"Burst\",\"arrival\":false,\"charging\":false,")
 			TEXT("\"hero_x\":100,\"hero_y\":%d,\"src_x\":120,\"src_y\":-31,\"vel_x\":600,\"vel_y\":-801,\"flight_s\":0.7500}\n"), FMath::RoundToInt32(-50.5f))));
-	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null,\"arrival\":false,\"hero_x\":0,\"hero_y\":0,\"src_x\":0,\"src_y\":0}\n")));
+	TestTrue(TEXT("contact hit has no attack id"), Jsonl.Contains(TEXT(",\"hit_kind\":\"Contact\",\"role\":\"Swarm\",\"attack\":null,\"arrival\":false,\"charging\":false,\"hero_x\":0,\"hero_y\":0,\"src_x\":0,\"src_y\":0}\n")));
 	TestTrue(TEXT("hero_down line"), Jsonl.Contains(Head(TEXT("hero_down"), 0) + TEXT("}\n")));
 	TestTrue(TEXT("hero_healed line"), Jsonl.Contains(Head(TEXT("hero_healed"), 1)
 		+ TEXT(",\"amount\":15.0000,\"hp_after\":75.0000,\"max_hp\":100.0000,\"source\":\"Pickup.Chest\"}\n")));
