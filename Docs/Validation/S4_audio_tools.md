@@ -70,4 +70,4 @@ Beside them, for speed: `audio_build` remembers `dtconst.load` per file state (p
 
 ## 7. Density holds no audio rate
 
-The scheduler ruled on 2026-11-11 that there is one set of density numbers, Visual's (package E). `C.AUD.CROWD_OFF_KILLS_PER_S`, `LOWEND_ON_KILLS_PER_S` and `LOWEND_OFF_KILLS_PER_S` left `constants.yaml`, `08_Constants.md` and the change-log row (48 keys became 45); `audio.md` R-AUD-08 and T-AUD-08 read the shared tier; the plan's §3.5 and §8.1 record the ruling and the new order (the kills family after package E). `C.AUD.LAYER_FADE_PER_S` and `C.AUD.KILL_DENSE_VOICES_PER_S` stay.
+The scheduler ruled on 2026-11-11 that there is one set of density numbers, Visual's (package E). The three audio keys of the layers' entry and exit rates (crowd off, low end on, low end off) left `constants.yaml`, `08_Constants.md` and the change-log row (48 keys became 45); `audio.md` R-AUD-08 and T-AUD-08 read the shared tier; the plan's §3.5 and §8.1 record the ruling and the new order (the kills family after package E). `C.AUD.LAYER_FADE_PER_S` and `C.AUD.KILL_DENSE_VOICES_PER_S` stay.
