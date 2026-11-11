@@ -57,3 +57,44 @@ What the numbers say: the wall does not keep the crowd at its band. After the pi
 **No swept value brings the build to its hold's level.** The build ratio stays at 0.76 to 0.80 while the ring's own damage per minute nearly doubles from 2 to 8, passing the plain weapon's at 6. So the number is not the cause, as D-061's ruling 3 foresaw: the wall's damage rises and the build's does not, and the run still ends early. Nothing is committed to the catalog: the row stays at `dps` 2, no number-log row is written, and the next step is a RULE on the band, which the session drafts.
 
 What a person at the first S2 session should still judge: whether a Pulse Wall build feels weaker than the rings it replaced, and what the wall's push does to the crowd the rest of the build is aimed at.
+
+## Whole gate on the top of the stack, `fa1acde`, 2026-11-12
+`s2/d061-pulse-wall` at `fa1acde`: `s2/fit-and-unlock` and `s2/d060-payday` beneath it, `dev/s2` `63c4e51` merged at `1dcde7b`. `Tools\Build.bat` (`Result: Succeeded`), `Tools\Localize.bat` (`LOCALIZE: PASS`), then `& Tools\Gate.ps1 -Base dev/s2`; it waited about 13 minutes for the machine, which the scheduler held for a perf reading, then ran. Nothing was rerun.
+
+```ncpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+secrets:    SECRETS: PASS (574 files, 0 hit(s))
+docs:       DOCS: PASS (0 error(s), 6 warning(s), 321 rules, must-read ~19748 tokens)
+constants:  CONSTANTS: PASS (constants + palette)
+catalog:    CATALOG: PASS (10 catalogs, 22 C. cells resolved, 98 tags)
+matrix:     MATRIX: PASS (16 modifiers)
+loc:        LOC: PASS (8 tables, 655 rows)
+tools:      TOOLS: PASS (214 tests)
+build:      rc 0, 0 warning(s)
+locbuild:   LOCALIZE: PASS (Content\Localization\Game\<culture>\Game.locres)
+nonunity:   5 file(s), 0 failed
+shipping:   rc 0, 0 warning(s)
+devgame:    rc 0, 0 warning(s)
+tests:      481 run of 481 found, 0 failed, floor 481, 0 crash marker(s)
+smoke:      SMOKE: PASS (arena_empty_en, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok (en), 
+keys ok (Dash  [Space] | Intercession  [Q]), image PASS (1280x720, luma stddev 11.74, mean diff vs golden 0.29 (max 
+12.0)), mask FFFFF3FC, 84 sample(s), 0 outside)
+smoke:      SMOKE: PASS (arena_empty_zh-Hans, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok 
+(zh-Hans), keys ok (冲刺  [空格键] | 神临  [Q]), image PASS (1280x720, luma stddev 11.52, mean diff vs golden 0.36 (max 
+12.0)), mask FFFFF3FC, 90 sample(s), 0 outside)
+smoke:      SMOKE: PASS (burst_en, run start=True, crash=0, ensure=0, LogDT errors=0, killed=False, loc ok (en), keys 
+ok (Dash  [Space] | Intercession  [Q]), RENDER: PASS (PostProcess_Presentation: 5 settings as 04_Presentation s4 
+says), image PASS (1280x720, luma stddev 36.61, exposure shift +1.72 levels against the calm frame (max 12.0)), mask 
+FFFFF3FC, 275 sample(s), 0 outside)
+restart:    RESTART: PASS (seed 9107, input_hash 276faf8e / 276faf8e, steps 5400 / 5400, csv same=True, old run reads 
+restart=True, input check=True)
+seed:       PASS (4 human launches on fresh seeds, 4 exact, 2 rejected)
+contrast:   CONTRAST: PASS (7/7 elements at or above 3.0), mask FFFFF3FC, 147 sample(s), 0 outside)
+contrast:   CONTRAST: PASS (dormant_line 13.62 on its panel, need 3.0), mask FFFFF3FC, 279 sample(s), 0 outside)
+windows:    PASS (0 shown by bot, smoke and test runs across 92 processes; probe caught; bypass caught; 10 lost; 39 s)
+pad:        NOT RUN (no package; Tools\Package.ps1)
+scope:      NOT RUN (no brief in flight)
+mac:        NOT RUN (deferred, D-007)
+GATE: PASS (fa1acde; 3 not run; mask FFFFF3FC)
+```
+
+Then the five-arm seed 9107 check on that build (`& Tools\BotRuns.ps1 -Arms None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost -FirstSeed 9107`, `BOTRUNS: PASS`): `input_hash` None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`, the same five as before, with the same `steps`.
