@@ -14,6 +14,7 @@ param(
 )
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$DTHeavy = Enter-DTHeavy -What "Gate"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 
 # Any script error is a gate failure, never a silent exit 0.
 trap { Write-Host "GATE: FAIL (script error: $_; mask $DTMask)"; exit 1 }
