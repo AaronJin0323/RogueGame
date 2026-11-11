@@ -27,7 +27,9 @@ None of the three contradicts the scheduler's ruling (2026-11-12 03:12), so the 
 - `Tools/tools_test.py`, class `CrashExport`: the first launch ends with a context; the first hangs with a whole context; the first hangs with none and the second ends with one; three launches and no context; a partial context (cut, empty, still held open) is not read as whole; a hung launch alone never yields FAIL; the step and result commands on a work folder; the script's launch line and its stop by PID.
 - `Docs/02_Systems/package.md` T-PKG-15: one sentence. No new id.
 
-Tool tests: `TOOLS: PASS (344 tests)`.
+- The cap and a dead reader. "Three launches at most" has one source, `$MaxLaunches` in the script. The script passes it to the reader's `step`, and its own loop stops there whatever the reader answers. If the reader still asks for another launch, the script prints `CRASHEXPORT: FAIL (crash_export.py asked for launch 4 after the 3 allowed; none made)`. The reader prints its own FAIL line and exits 11, never Python's own 1 or 2. Any other exit is a reader that died, and the script then prints a `CRASHEXPORT: FAIL` line of its own. The reader lists the numbered launch folders without glob, so a work path that holds `[` `]` still reads its records. Tests for both: a work folder named `Saved [x]`, and the script's text holding the cap and the exit code.
+
+Tool tests: `TOOLS: PASS (346 tests)`.
 
 ## The package reading is owed
 

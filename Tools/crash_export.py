@@ -1,11 +1,12 @@
 """The launch decisions and lines of Tools/CrashExportCheck.ps1 (package.md T-PKG-15; Docs/Validation/S3_crashexport_hang.md). Stdlib only.
 
-Usage:  python -I Tools/crash_export.py step <work folder>
+Usage:  python -I Tools/crash_export.py step <work folder> <max launches>
         python -I Tools/crash_export.py result <work folder> <summary> [<first failure>]
 
 The Development game's crash can stall in the engine's in-process minidump with every other thread suspended (D-065, R-PKG-16). The check
 ends a launch that outlasts its limit by its PID and reads the crash context that launch left, when it is whole; else it launches again,
-MAX_LAUNCHES at most. A hung launch is a note in the result line, never a failure on its own: the hang is the engine's, and this check is
+<max launches> at most. That number has one source, $MaxLaunches in Tools/CrashExportCheck.ps1, which passes it here and also stops its own
+loop there whatever this reader answers. A hung launch is a note in the result line, never a failure on its own: the hang is the engine's, and this check is
 about the export's redaction.
 
 A record is what the script measured of one launch, as JSON in <work folder>/<n>/record.json:
@@ -19,20 +20,20 @@ A context is whole when it exists, is closed and parses as XML (so its root's cl
 
   crashexport: launch <n> ended in <s> s, exit <code>; context whole|partial (<why>)|absent
   crashexport: launch <n> hung at <s> s and was ended by its PID; context whole|partial (<why>)|absent
-step prints the newest launch's line and exits 0 (read that launch's context), 10 (launch again) or 1, after the FAIL line (no launch left).
+step prints the newest launch's line and exits 0 (read that launch's context), 10 (launch again) or VERDICT_FAIL after the FAIL line (no launch left).
   CRASHEXPORT: PASS (<summary>; <k> launch(es), <h> hung and ended by PID)
   CRASHEXPORT: FAIL (<summary>; <k> launch(es), <h> hung and ended by PID; first: <failure>)
   CRASHEXPORT: FAIL (no launch of <k> gave a whole CrashContext.runtime-xml: <h> hung, <e> ended without one)
-result prints PASS when no failure is given, else the redaction FAIL; exit 0 on PASS, 1 on FAIL.
+result prints PASS when no failure is given, else the redaction FAIL; exit 0 on PASS, VERDICT_FAIL on FAIL.
+VERDICT_FAIL (11) is not Python's own 1 (a traceback) nor 2 (usage), so the script can tell a FAIL line printed here from a reader that died.
 """
 
-import glob
 import json
 import os
 import sys
 import xml.etree.ElementTree as ElementTree
 
-MAX_LAUNCHES = 3
+VERDICT_FAIL = 11
 
 
 def decoded(data):
@@ -81,7 +82,7 @@ def launch_line(rec):
 	return f"crashexport: launch {rec['n']} hung at {seconds:.1f} s and was ended by its PID; {context_text(rec)}"
 
 
-def next_step(records, max_launches=MAX_LAUNCHES):
+def next_step(records, max_launches):
 	"""read (the newest launch left a whole context) | launch (again) | fail (no launch left)."""
 	if records and context_state(records[-1])[0] == "whole":
 		return "read"
@@ -120,27 +121,30 @@ def result_line(records, summary, failure=""):
 
 
 def read_records(folder):
+	"""Every <folder>/<n>/record.json, listed without glob, so a folder name holding [ ] reads as it is."""
 	out = []
-	for path in glob.glob(os.path.join(folder, "*", "record.json")):
-		with open(path, encoding="utf-8-sig") as f:
-			out.append(json.load(f))
+	for name in sorted(os.listdir(folder)):
+		path = os.path.join(folder, name, "record.json")
+		if name.isdigit() and os.path.isfile(path):
+			with open(path, encoding="utf-8-sig") as f:
+				out.append(json.load(f))
 	return sorted(out, key=lambda r: int(r.get("n", 0)))
 
 
 def main(argv):
-	if len(argv) == 3 and argv[1] == "step":
+	if len(argv) == 4 and argv[1] == "step" and argv[3].isdigit():
 		records = read_records(argv[2])
 		if records:
 			print(launch_line(records[-1]))
-		step = next_step(records)
+		step = next_step(records, int(argv[3]))
 		if step == "fail":
 			print(no_context_line(records))
-			return 1
+			return VERDICT_FAIL
 		return 0 if step == "read" else 10
 	if len(argv) in (4, 5) and argv[1] == "result":
 		line = result_line(read_records(argv[2]), argv[3], argv[4] if len(argv) == 5 else "")
 		print(line)
-		return 0 if line.startswith("CRASHEXPORT: PASS") else 1
+		return 0 if line.startswith("CRASHEXPORT: PASS") else VERDICT_FAIL
 	print(__doc__)
 	return 2
 

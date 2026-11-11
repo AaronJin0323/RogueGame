@@ -31,6 +31,8 @@ $Stub = Join-Path $DevDir "Dusktracer.exe"
 $WorkDir = Join-Path $Root "Saved\CrashExport"
 $ChosenFile = Join-Path $WorkDir "chosen.txt"  # the launch whose context was read, for a later -Export run on the same crash
 $Reader = Join-Path $PSScriptRoot "crash_export.py"
+$MaxLaunches = 3  # the one source of "three launches at most": passed to the reader's step, and the loop's own stop
+$VerdictFail = 11  # crash_export.py VERDICT_FAIL: it printed a FAIL line; Python's own 1 or 2 is a reader that died
 # Launch <n>'s own account, -userdir and crash folder: one launch's leftovers are never read as another's.
 function Use-Launch([int]$N) {
 	$script:Account = Join-Path $WorkDir "$N\account"
@@ -70,10 +72,11 @@ if (-not $Export.StartsWith($PSScriptRoot, [StringComparison]::OrdinalIgnoreCase
 else {
 	if (Test-Path $WorkDir) { Remove-Item $WorkDir -Recurse -Force }
 	New-Item -ItemType Directory -Force $WorkDir | Out-Null
-	# crash_export.py step: 0 reads the newest launch's whole context, 10 launches again, 1 has printed the FAIL line (three launches, none whole).
+	# crash_export.py step: 0 reads the newest launch's whole context, 10 launches again, $VerdictFail has printed the FAIL line (no launch left whole);
+	# any other exit is a reader that died. The loop stops at $MaxLaunches by its own count, whatever the reader answers.
 	$Step = 10
 	$N = 0
-	while ($Step -eq 10) {
+	while ($Step -eq 10 -and $N -lt $MaxLaunches) {
 		$N++
 		Use-Launch $N
 		New-Item -ItemType Directory -Force $UserDir | Out-Null
@@ -90,11 +93,12 @@ else {
 		$Record.context = if ($Context) { $Context.FullName } else { $null }
 		$Record.context_closed = [bool]($Context -and (Test-Closed $Context.FullName))
 		[IO.File]::WriteAllText((Join-Path $WorkDir "$N\record.json"), ($Record | ConvertTo-Json), (New-Object System.Text.UTF8Encoding($false)))
-		& python -I $Reader step $WorkDir
+		& python -I $Reader step $WorkDir $MaxLaunches
 		$Step = $LASTEXITCODE
 	}
-	if ($Step -eq 1) { exit 1 }
-	if ($Step -ne 0) { Write-Host "CRASHEXPORT: FAIL (crash_export.py step gave exit $Step)"; exit 1 }
+	if ($Step -eq 10) { Write-Host "CRASHEXPORT: FAIL (crash_export.py asked for launch $($N + 1) after the $MaxLaunches allowed; none made)"; exit 1 }
+	if ($Step -eq $VerdictFail) { exit 1 }
+	if ($Step -ne 0) { Write-Host "CRASHEXPORT: FAIL (crash_export.py step died with exit $Step and gave no verdict)"; exit 1 }
 	[IO.File]::WriteAllText($ChosenFile, "$N")
 }
 
@@ -148,4 +152,7 @@ $Summary = "a real crash, {0} file(s) in its folder, {1} id value(s) read from i
 $ResultArgs = @("result", $WorkDir, $Summary)
 if ($script:Failures.Count) { $ResultArgs += $script:Failures[0] }
 & python -I $Reader @ResultArgs
-exit $(if ($LASTEXITCODE -eq 0) { 0 } else { 1 })
+$Said = $LASTEXITCODE
+if ($Said -eq 0) { exit 0 }
+if ($Said -ne $VerdictFail) { Write-Host "CRASHEXPORT: FAIL (crash_export.py result died with exit $Said and gave no verdict; $Summary)" }
+exit 1
