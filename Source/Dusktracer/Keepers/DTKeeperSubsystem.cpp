@@ -382,6 +382,8 @@ void UDTKeeperSubsystem::SimRender(float Alpha)
 		const float InvPlane = 1.0f / DTTracerArt::PlaneSizeUU;
 		const double Z = DTConst::SIM_PLANE_Z_UU;
 		FTransform Tail;
+		// R-TRC-02, D-068: no tail while the round is inside its hero's clear zone; once out, its tail is drawn whole.
+		const DTTracerArt::FClearZone Clear = DTTracerArt::FClearZone::OfWorld(World, Alpha);
 		for (int32 Index = 0; Index < Live; ++Index)
 		{
 			const int32 Owner = Owners[Index];
@@ -391,6 +393,10 @@ void UDTKeeperSubsystem::SimRender(float Alpha)
 			}
 			// The tail runs from the head back along the round's flight (read from the pool, never written); a round at rest has none.
 			const FVector2f Head = FMath::Lerp(Prev[Index], Pos[Index], Alpha);
+			if (Clear.Hides(Owner, Head))
+			{
+				continue;
+			}
 			if (DTTracerArt::Tail(Head, Pos[Index] - Prev[Index], Radii[Index], WidthDim, InvPlane, Z, Tail))
 			{
 				TrailTransforms[BucketOf[Owner]].Add(Tail);

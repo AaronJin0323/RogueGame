@@ -224,7 +224,8 @@ bool FDTPrePlayerTracer::RunTest(const FString& Parameters)
 		Bullets->GetPool().Reset();
 		for (int32 Index = 0; Index < Rounds; ++Index)
 		{
-			Bullets->Spawn(PlayerRound(FVector2f(100.0f * Index, 0.0f), FVector2f(900.0f, 0.0f), 10.0f));
+			// Clear of the hero's clear zone round the stress hero at the origin (R-TRC-01, D-068): every round here draws a head and a tail.
+			Bullets->Spawn(PlayerRound(FVector2f(400.0f + 100.0f * Index, 0.0f), FVector2f(900.0f, 0.0f), 10.0f));
 		}
 		FDTWorldView View;
 		Bullets->GetPool().Step(1.0f / Hz, View); // one step, so every round has travelled
