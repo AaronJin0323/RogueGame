@@ -1405,7 +1405,7 @@ class CrashExit(unittest.TestCase):
 		self.assertEqual(crash_exit.record_line(self.ENDED),
 			"crashexit: 1 ended in 2.1 s, exit 3, dump 1364942 bytes, StaticShutdownAfterError in the log: yes")
 		self.assertEqual(crash_exit.record_line(self.HUNG),
-			"crashexit: 2 hung after 60.0 s: 101 threads, 100 suspended, not suspended: 4242 Wait/UserRequest; dump 0 bytes; windows: none; "
+			"crashexit: 2 hung after a crash, at 60.0 s: 101 threads, 100 suspended, not suspended: 4242 Wait/UserRequest; dump 0 bytes; windows: none; "
 			"log ends: LogWindows: Windows GetLastError: The operation completed successfully. (0)")
 		shipping = dict(self.ENDED, dump_bytes=None, log=False, shutdown=None)
 		self.assertIn("no dump, StaticShutdownAfterError in the log: no log", crash_exit.record_line(shipping))
@@ -1415,8 +1415,20 @@ class CrashExit(unittest.TestCase):
 	def test_the_verdict_counts_hung_launches(self):
 		self.assertEqual(crash_exit.result_line([self.ENDED, dict(self.ENDED, n=2, seconds=3.25)], "Development"),
 			"CRASHEXIT: PASS (2 of 2 ended, slowest 3.2 s; Development)")
-		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, dict(self.HUNG, n=3)], "Shipping"), "CRASHEXIT: FAIL (2 of 3 hung; Shipping)")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, dict(self.HUNG, n=3)], "Shipping"), "CRASHEXIT: FAIL (2 of 3 hung after a crash; Shipping)")
 		self.assertEqual(crash_exit.result_line([], "Development"), "CRASHEXIT: FAIL (no launch recorded; Development)")
+
+	def test_a_launch_that_never_crashed_voids_the_reading(self):
+		"""Alive at the timeout with no crash folder, no dump and no fatal line: the crash never fired (a Patron hand waiting for a person), not a hang."""
+		idle = dict(self.HUNG, n=3, suspended=0, dump_bytes=None, crash_folder=False, fatal_line=False, log=False)
+		self.assertEqual(crash_exit.outcome(idle), "no crash")
+		self.assertEqual(crash_exit.outcome(dict(idle, crash_folder=True)), "hung")
+		self.assertEqual(crash_exit.outcome(dict(idle, log=True, fatal_line=True)), "hung")
+		self.assertEqual(crash_exit.outcome(self.HUNG), "hung", "a 0-byte dump is a crash that began")
+		self.assertEqual(crash_exit.record_line(idle), "crashexit: 3 did not crash in 60.0 s (no crash folder, no dump, no fatal line; 101 threads, 0 suspended): void")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, idle], "Shipping, no -unattended"),
+			"CRASHEXIT: VOID (1 of 3 never crashed; Shipping, no -unattended)")
+		self.assertIn("hung after a crash", crash_exit.record_line(dict(self.HUNG, last_line={"value": "x"})), "a non-text last line still prints")
 
 	def test_records_are_read_from_the_work_folder_and_names_are_scrubbed(self):
 		with tempfile.TemporaryDirectory() as work:
@@ -1427,7 +1439,7 @@ class CrashExit(unittest.TestCase):
 			out = io.StringIO()
 			with contextlib.redirect_stdout(out):
 				rc = crash_exit.main(["crash_exit.py", "result", work, "Development"])
-		self.assertEqual((rc, out.getvalue().strip()), (1, "CRASHEXIT: FAIL (1 of 2 hung; Development)"))
+		self.assertEqual((rc, out.getvalue().strip()), (1, "CRASHEXIT: FAIL (1 of 2 hung after a crash; Development)"))
 		with mock.patch.dict(os.environ, {"USERNAME": "tester7", "COMPUTERNAME": "BOX9"}):
 			line = crash_exit.record_line(dict(self.HUNG, last_line="C:/Users/tester7/AppData on BOX9"))
 		self.assertTrue(line.endswith("log ends: C:/Users/<user>/AppData on <machine>"), line)

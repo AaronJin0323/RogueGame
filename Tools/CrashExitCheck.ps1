@@ -9,8 +9,10 @@
 # for the variations of the note; a launch without -unattended may show a dialog on the hidden desktop, and the hung line names it.
 # The script waits up to -TimeoutS for the process to end. A launch still running then is recorded (threads and their states as Windows reports them,
 # the dump's size, visible windows, the log's last line) and ended by the script itself, its own tree by PID (Stop-DTHidden).
-# The lines come from Tools\crash_exit.py, one per launch, then: CRASHEXIT: PASS (<n> of <n> ended, slowest <s> s; <config>) | FAIL (<k> of <n> hung; <config>).
-# Exit 0 on PASS, 1 on FAIL or a script error.
+# Three outcomes per launch: ended; hung after a crash (alive at the timeout, and the crash folder, the dump or the log's fatal line shows a crash
+# began); did not crash (alive with no such sign: the crash never fired, so the launch reads nothing about a hang).
+# The lines come from Tools\crash_exit.py, one per launch, then: CRASHEXIT: PASS (<n> of <n> ended, slowest <s> s; <config>) | FAIL (<k> of <n> hung
+# after a crash; <config>) | VOID (<k> of <n> never crashed; <config>). Exit 0 on PASS, 1 on FAIL, VOID or a script error.
 param(
 	[ValidateSet("Development", "Shipping")]
 	[string]$Config = "Development",
@@ -18,7 +20,7 @@ param(
 	[int]$TimeoutS = 60,
 	[string]$Package = "",
 	[string]$Crash = '-ExecCmds="debug crash"',
-	[string]$Extra = "",
+	[string]$Extra = "",  # trimmed: a value that starts with a space is not read as a parameter name when splatted
 	[switch]$NoUnattended,
 	[switch]$WithSound
 )
@@ -31,6 +33,8 @@ $DTHeavy = Enter-DTHeavy -What "CrashExitCheck"  # R-TEC-18: one heavy-job slot 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 
+$Extra = $Extra.Trim()
+$Crash = $Crash.Trim()
 if (-not $Package) { $Package = Join-Path $Root "Saved\Package" }
 $Package = (Resolve-Path $Package).Path
 $Common = (& git -C $Root rev-parse --path-format=absolute --git-common-dir 2>$null)
@@ -98,11 +102,14 @@ for ($N = 1; $N -le $Runs; $N++) {
 		Stop-DTHidden $Proc
 	}
 	$Record.dump_bytes = Get-DumpBytes $UserDir
+	$Record.crash_folder = Test-Path (Join-Path $UserDir "Saved\Crashes\*")
 	$Record.log = Test-Path $Log
+	$Record.fatal_line = $false
 	if ($Record.log) {
-		$Text = @(Get-Content $Log -Encoding UTF8 -ErrorAction SilentlyContinue)
+		$Text = @(Get-Content $Log -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object { [string]$_ })
 		$Record.shutdown = [bool]($Text | Select-String -SimpleMatch "StaticShutdownAfterError" -Quiet)
-		$Record.last_line = (@($Text | Where-Object { $_.Trim() }) | Select-Object -Last 1)
+		$Record.fatal_line = [bool]($Text | Select-String -Pattern "appError called|Fatal error|Unhandled Exception" -Quiet)
+		$Record.last_line = [string](@($Text | Where-Object { $_.Trim() }) | Select-Object -Last 1)
 	}
 	$RecordFile = Join-Path $Dir "record.json"
 	[IO.File]::WriteAllText($RecordFile, ($Record | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))

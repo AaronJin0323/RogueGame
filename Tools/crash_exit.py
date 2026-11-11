@@ -11,10 +11,12 @@ dump_bytes is null when no UEMinidump.dmp was written; suspended is null when Wi
 Windows user and no machine: either name in a log line is replaced by <user> or <machine>.
 
   crashexit: <n> ended in <s> s, exit <code>, dump <bytes> bytes|no dump, StaticShutdownAfterError in the log: yes|no|no log
-  crashexit: <n> hung after <s> s: <t> threads, <k> suspended, not suspended: <tid state/reason>, ...; dump ...; windows ...; log ends: <line>
+  crashexit: <n> did not crash in <s> s (...): void   (alive at the timeout, no crash folder, dump or fatal line)
+  crashexit: <n> hung after a crash, at <s> s: <t> threads, <k> suspended, not suspended: <tid state/reason>, ...; dump ...; windows ...; log ends: <line>
   CRASHEXIT: PASS (<n> of <n> ended, slowest <s> s; <config>)
-  CRASHEXIT: FAIL (<k> of <n> hung; <config>)
-Exit 0 when the lines printed (result: 0 on PASS, 1 on FAIL or no record).
+  CRASHEXIT: FAIL (<k> of <n> hung after a crash; <config>)
+  CRASHEXIT: VOID (<k> of <n> never crashed; <config>)    (any launch that did not crash voids the reading)
+Exit 0 when the lines printed (result: 0 on PASS, 1 on FAIL, VOID or no record). A record's crash_folder and fatal_line say whether a crash began.
 """
 
 import glob
@@ -36,8 +38,23 @@ def dump_text(rec):
 	return "no dump" if rec.get("dump_bytes") is None else f"dump {rec['dump_bytes']} bytes"
 
 
+def crash_began(rec):
+	"""True when a crash started in the launch: its crash folder or dump exists, or its log holds the fatal line."""
+	return bool(rec.get("crash_folder") or rec.get("dump_bytes") is not None or rec.get("fatal_line"))
+
+
+def outcome(rec):
+	"""ended | hung (alive at the timeout after a crash began) | no crash (alive with no sign of a crash: the launch reads nothing)."""
+	if rec.get("ended"):
+		return "ended"
+	return "hung" if crash_began(rec) else "no crash"
+
+
 def record_line(rec):
 	"""The one line of a launch."""
+	if outcome(rec) == "no crash":
+		return (f"crashexit: {rec['n']} did not crash in {rec['seconds']:.1f} s (no crash folder, no dump, no fatal line; {rec.get('threads')} threads, "
+			f"{'suspended unknown' if rec.get('suspended') is None else str(rec['suspended']) + ' suspended'}): void")
 	if rec.get("ended"):
 		shutdown = "no log" if not rec.get("log") else ("yes" if rec.get("shutdown") else "no")
 		return (f"crashexit: {rec['n']} ended in {rec['seconds']:.1f} s, exit {rec.get('exit_code')}, {dump_text(rec)}, "
@@ -45,8 +62,8 @@ def record_line(rec):
 	suspended = "suspended unknown" if rec.get("suspended") is None else f"{rec['suspended']} suspended"
 	running = ", ".join(rec.get("running") or []) or "none"
 	windows = ", ".join(rec.get("windows") or []) or "none"
-	last = scrub(rec.get("last_line") or "") if rec.get("log") else "no log"
-	return (f"crashexit: {rec['n']} hung after {rec['seconds']:.1f} s: {rec.get('threads')} threads, {suspended}, not suspended: {running}; "
+	last = scrub(str(rec.get("last_line") or "")) if rec.get("log") else "no log"
+	return (f"crashexit: {rec['n']} hung after a crash, at {rec['seconds']:.1f} s: {rec.get('threads')} threads, {suspended}, not suspended: {running}; "
 		f"{dump_text(rec)}; windows: {windows}; log ends: {last or '(empty)'}")
 
 
@@ -54,9 +71,12 @@ def result_line(records, config):
 	"""The verdict over every launch: PASS only when all ended."""
 	if not records:
 		return f"CRASHEXIT: FAIL (no launch recorded; {config})"
-	hung = [r for r in records if not r.get("ended")]
+	void = [r for r in records if outcome(r) == "no crash"]
+	if void:
+		return f"CRASHEXIT: VOID ({len(void)} of {len(records)} never crashed; {config})"
+	hung = [r for r in records if outcome(r) == "hung"]
 	if hung:
-		return f"CRASHEXIT: FAIL ({len(hung)} of {len(records)} hung; {config})"
+		return f"CRASHEXIT: FAIL ({len(hung)} of {len(records)} hung after a crash; {config})"
 	slowest = max(float(r.get("seconds") or 0.0) for r in records)
 	return f"CRASHEXIT: PASS ({len(records)} of {len(records)} ended, slowest {slowest:.1f} s; {config})"
 
