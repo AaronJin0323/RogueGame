@@ -155,3 +155,53 @@ The frames, with 3x crops and before/after pairs of `combat_staged` and `tracer_
 - The flash hint's fit is measured in `Dusktracer.Impact.HeroRing` from the menu font's width at the largest text size (both languages fit); no frame of the settings screen was shot.
 - What only a person can judge (§6).
 - Shipping and the packaged build: the gate's `shipping` step compiles it; `DT.Impact.*` and `dt.Impact.Draw` are not in Shipping, effects draw there at the default.
+
+## 8. Second pass: what the eye gets at play size
+
+The scheduler looked at every frame of the first pass and named three things that did not do their job at the game's size: the spark was a hairline, the hero ring was hidden when it was born, and debris was a few specks. This pass changes numbers and one shape. No rule's meaning, cap, tier or anything of the density reader Sound calls moved.
+
+| Key | Before | After | Why (the frame) |
+|---|---|---|---|
+| `C.IMP.SPARK_STREAK_RATIO` (new; R-IMP-05 gains its sentence) | streaks a fixed 0.24 of the width at the root in the material | 0.3, a material parameter the renderer sets from the constant | one-pixel lines in the 3x crop; no spark could be found in `impact_hit_36` |
+| `C.IMP.HERO_FLASH_START_RATIO`, `_END_RATIO` | 1.3 to 2.4 hero radii | 2.0 to 3.0 (outer radius 80 to 120 uu) | born under the hero's own figure and the Rusher's band; a sliver showed |
+| `C.IMP.HERO_FLASH_THICK_UU` | 20 uu | 24 uu | a wider ring, a thicker band |
+| `C.IMP.HERO_FLASH_S` | 0.20 s | 0.25 s | a wider ring shows a little longer |
+| `C.IMP.DEBRIS_SIZE_UU` | 22 uu (7.9 px at 36 px/m) | 28 uu (10.1 px; 7.6 at 27) | dark specks on a floor of dark shadows |
+
+These are this package's own presentation keys, first set without a frame; D-043's "no existing value changes" protects the sim's numbers, and no sim file reads any of them. Each has its row in `number_change_log.csv`.
+
+- The spark's streak width is the material's `StreakRatio` parameter, set by `ADTImpactRenderer::InitRender` from the constant, so the next tuning needs no asset rebuild; `M_Fx_Spark` was regenerated once for the parameter (and `M_Fx_Ring` for the ring's new life, which the material holds). T-IMP-05 gains the root-width check on the shape function and on the renderer's material.
+- Debris size is baked in the generator, so the three shards were rebuilt with `Tools/blender/Mesh.ps1` from the constant (now 28.0, 27.4 and 28.0 uu on their longest sides); `Mesh.ps1 -Check` passes.
+- `impact_hit` now holds 28 live sparks on its held step (step 389, armoured Tanks, the four weapons at level 8, no kill in the window).
+- `Tools/ImpactArt.ps1` shoots `impact_hero` again six steps after the hurt step (`impact_hero_late`), and each hero frame beside a twin with effects off; `Tools/impact_ring.py` counts the pixels in `Pal.Enemy.Muzzle`'s hue round the hero that the twin lacks.
+
+| Frame | Ring pixels | Floor |
+|---|---|---|
+| `impact_hero_36` (hurt step 499) | 262 | 250 |
+| `impact_hero_27` | 151 | 140 |
+| `impact_hero_late_36` (step 505) | 913 | reported |
+| `impact_hero_late_27` | 507 | reported |
+
+The born frame passes its floor by 12 and 11 pixels: on the step it is born the ring is at its smallest and the Rusher's band covers its lower side. By six steps later it has grown and shows whole.
+
+Contrast after this pass, three runs each (before: §2):
+
+| Scene | telegraph | enemy round | tracer core |
+|---|---|---|---|
+| `contrast` | 3.29, 3.26, 3.26 | 3.21, 3.18, 3.18 | 5.70, 5.78, 5.79 (first pass 5.71 every run) |
+| `tracer_crossing` | 3.32, 3.32, 3.32 | 3.28, 3.26, 3.29 | |
+| `impact_dense` | 3.29, 3.30, 3.30 | 3.21, 3.22, 3.22 | 5.71, 5.73, 5.72 (first pass 5.72 to 5.74) |
+
+7 of 7 on `contrast` and `impact_dense` every run, `WATCH: OK` every run, nothing under 3.18. The tracer core did not move: in these frames the sparks sit in the `Crowd` cap or next to hulls, too few pixels to shift its median. The pixel test again (`impact_dense`, effects off against on, more than 8 levels): telegraph 409 and 257 pixels changed, largest 43 and 37 (noise between two runs with effects off: 495, largest 40); enemy round 1233 and 1599, largest 110 and 111 (noise 1990, largest 42). The largest are the same nine-odd edge pixels of drone optics beside a spark as in §2.
+
+Goldens: `impact_hit_en` and `impact_kill_en` re-shot. `combat_staged_en` reads 0.48 against its golden (0.54 before the package). The other goldens' mean differences are in the gate's smoke lines.
+
+What the agent saw (`Saved\S4Report\E2\`, each crop beside its first-pass crop):
+- **The ring** is now an orange ring round the hero's feet, outside the figure, on the step it is born; its lower part is under the Rusher's band, as it must be. Six steps later it is a full ring, the clearest effect of the package.
+- **Debris** reads as small dark shards rather than specks in the 3x crop; at full frame it is still small.
+- **Sparks** read as short bright splashes at a hull's edge in the 3x crop. At full frame in `impact_hit` they share the frame with the player's own pale rounds and tails at four weapons of level 8, and are hard to tell from them; a person should judge whether a spark reads as a hit.
+- No effect over a hull, a round, a telegraph or the hero.
+
+The perf of record is the scheduler's (§3); this pass adds no work per frame (the same instance writes, one more parameter set once at start).
+
+The whole gate run on 4f3fd5e (the first pass merged with `dev/s4` a23a931) read `GATE: PASS (4f3fd5e; 3 not run; mask FFFFF3FC)`, 581 tests of 581. It is information only: `dev/s4` then moved with engine code, and the gate of record is the one on the second pass, merged.
