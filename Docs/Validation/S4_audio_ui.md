@@ -1,6 +1,10 @@
 # S4 audio: the interface family
 
-Job 2 of `Validation/S4_audio_wave1.md` §8.1 (D-056), branch `s4/audio-snd-ui` on `s4/audio-tools` at 8792462. Recipes, catalog rows and manifest lines only: no engine code, no asset, and nothing in the game plays them yet. The Sound session wrote the recipes and judged them from numbers and pictures. Nobody has heard them.
+Job 2 of `Validation/S4_audio_wave1.md` §8.1 (D-056), branch `s4/audio-snd-ui` on `s4/audio-tools` at 8792462. Recipes, catalog rows and manifest lines only: no engine code, no asset, and nothing in the game plays them yet. The Sound session wrote the recipes and judged them from numbers and pictures. The owner has heard them: §0.
+
+## 0. Heard, and rejected for style (2026-11-11)
+
+The owner heard these ten on 2026-11-11 and rejected all of them for style: "风格不对", "全部". The sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying (`Validation/S4_audio_world.md` §1). Every number below still holds; none of them measures style. Until the owner has chosen a direction, these recipes stay only as placeholders that give the runtime its ten ids: no asset is imported from them and nothing plays them. They are replaced, id for id, by the chosen direction's recipes.
 
 ## 1. The ten sounds
 
@@ -33,7 +37,7 @@ The ten are one confusion set, `ui`: 45 pairs. Every pair holds by spectral dist
 
 ## 4. What is not verified
 
-- Nobody has heard any of these. Whether a sound is pleasant, whether Refuse reads as "no", and whether Focus is too quiet or too frequent are the owner's to judge (`Validation/S4_audio_wave1.md` §6.3).
+- The owner's hearing is §0: the style is wrong. What replaces them is not written yet.
 - The band rule is proved per file. The mix checks are not active: no danger sound and no player mix exist yet.
 - Nothing plays them: the runtime and the import are the next two jobs. The events they are meant for are named in the plan's §7.1 and are wired in job 4.
 - The catalog's intervals and voice counts are RogueHero's starting values and have no reading here.
