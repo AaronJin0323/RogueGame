@@ -218,9 +218,9 @@ On 9781b94 (the second pass merged with `dev/s4` a155ace), `Tools\Gate.ps1 -Base
 
 ## 10. The perf reading of record (the scheduler's, alone)
 
-**Conditions.** `dev/s4` at 3cb9534 (this package as landed, with the tap of `s4/e0-tap`), read in this worktree by the scheduler on 2026-11-12: the machine held alone (D-050 item 4; `ALONE: TAKEN` at 02:21:49 once the last running gate had ended), the first run starting 02:22:16, the hold released 02:27:26. `Tools\Perf.ps1` at its defaults (Caps: `DT.Spawn.Keep 400,DT.Bullets 6000`, warmup 10 s), then `-Scene S4` and `-Scene S2` (warmup 20 s), 1800 frames each, three runs a scene. Every run rendered 1920x1080 and asked 1920x1080. Adapter, as the tool prints it: `GameViewer Virtual Display Adapter + OrayIddDriver Device + NVIDIA GeForce RTX 4080`. The tool prints no processor mask and no commit column; the commit is the one the reading names.
+**Conditions.** `dev/s4` at 3cb9534 (this package as landed, with the tap of `s4/e0-tap`), read in this worktree by the scheduler on 2026-11-12: the machine held alone (D-050 item 4; `ALONE: TAKEN` at 02:21:49 once the last running gate had ended); the nine runs were logged from 02:22:16 to 02:27:26, each time a run's end, and the hold was released as the last one ended. `Tools\Perf.ps1` at its defaults (Caps: `DT.Spawn.Keep 400,DT.Bullets 6000`, warmup 10 s), then `-Scene S4` and `-Scene S2` (warmup 20 s), 1800 frames each, three runs a scene. Every run rendered 1920x1080 and asked 1920x1080. Adapter, as the tool prints it: `GameViewer Virtual Display Adapter + OrayIddDriver Device + NVIDIA GeForce RTX 4080`. The tool prints no processor mask and no commit column; the commit is the one the reading names.
 
-| Start | Scene | Frame p50 / p95 ms | Game thread p50 / p95 ms | GPU p50 / p95 ms | Proxied GPU p95 ms | Load | Verdict |
+| Logged (the run's end) | Scene | Frame p50 / p95 ms | Game thread p50 / p95 ms | GPU p50 / p95 ms | Proxied GPU p95 ms | Load | Verdict |
 |---|---|---|---|---|---|---|---|
 | 02:22:16 | Caps | 3.81 / 4.21 | 2.10 / 2.55 | 3.05 / 3.11 | 4.98 | 5975 bullets / 388 enemies | PASS |
 | 02:22:42 | Caps | 3.84 / 4.24 | 2.10 / 2.57 | 3.05 / 3.11 | 4.98 | 5975 / 388 | PASS |
@@ -252,6 +252,18 @@ PERF: PASS (1920x1080, game p50 2.85 / p95 4.30 ms, GPU p95 3.70 ms, load 5809.0
 | S4 scene | 4.76 to 4.78 | 4.80 to 4.89 | +0.04 to +0.11 | 5.94 to 5.95 | 5.98 to 6.00 | +0.04 to +0.05 |
 | S2 scene | 4.20 (one run) | 4.30 to 4.38 | +0.10 to +0.18 | 5.87 (one run) | 5.92 to 5.94 | +0.05 to +0.07 |
 
+**Where the game thread's move sits.** The tool prints profile rows (the `DT/GameThread/*` scopes of the CSV) for the S4 and S2 scenes; Caps prints none. Before is the raw output of the fc5000b reading (`E:\Dusktracer\.claude\worktrees\agent-aa7a88e9be0750f6a\Saved\Logs\perf_devs4_1080p.txt`, the scheduler's), after this reading's.
+
+| Scope | S4 before | S4 after | S2 before (one run) | S2 after |
+|---|---|---|---|---|
+| `DT/GameThread/SimRender` mean | 0.58 | 0.60 to 0.62 | 0.45 | 0.47 to 0.49 |
+| `DT/GameThread/SimRender` p95 | 0.63 | 0.66 to 0.76 | 0.50 | 0.54 to 0.57 |
+| `DT/GameThread/SimTick` mean | 0.96 to 0.97 | 0.99 to 1.03 | 0.80 | 0.85 to 0.89 |
+| `DT/GameThread/SimTick` p95 | 2.08 to 2.09 | 2.12 to 2.17 | 1.81 | 1.87 to 1.91 |
+| `DT/GameThread/ImpactStep` p95 | (no such scope) | 0.00, 0.00, 0.00 | (no such scope) | 0.01, 0.00, 0.00 |
+
+The package's own step scope reads nothing. The draw scope (where every renderer writes, the impact renderer among them) and the step (which now carries the tap) each move by a few hundredths. The code opens `SimRender` inside `SimTick` (`UDTSimSubsystem::Tick` opens both scopes in one function body, `SimRender` after the steps), so `SimTick` includes `SimRender`. A scope's p95 does not add up to the frame's p95, so this places the move and does not split it exactly.
+
 **What it shows.**
 - All nine runs are inside the budgets: game thread p50 at most 3.37 ms against `C.BUDGET.GAME_THREAD_P50_MS` 8, p95 at most 4.89 against `C.BUDGET.GAME_THREAD_P95_MS` 10, proxied GPU p95 at most 6.00 against `C.BUDGET.GPU_MS_4070` 12.
 - Against package E's allowance of 0.5 ms of proxied GPU: the S2 scene, where the allowance is written, moves by 0.05 to 0.07; the S4 scene by 0.04 to 0.05; Caps by 0.15, the most of the three and still under a third of the allowance.
@@ -264,6 +276,6 @@ PERF: PASS (1920x1080, game p50 2.85 / p95 4.30 ms, GPU p95 3.70 ms, load 5809.0
 - Three runs a scene, and the S2 scene's before is one run.
 - No render-thread reading and no hitch measure.
 - The perf scenes raise no debris and no hero ring (§3), so the one per-frame transform write of the package is not exercised.
-- The scenes' kill rates sit in `Crowd`, so `PerKill` and `Flood` are not measured at load.
+- The scenes' kill rates sit in `Crowd`: the files count 41.1 to 42.2 kills a second in the S4 scene and 44.7 to 45.7 in the S2 scene, inside `Crowd`'s band, so `PerKill` and `Flood` are not measured at load.
 
 **Where the files are.** `E:\Dusktracer\.claude\worktrees\agent-a76c15a416b3c6fea\Saved\Logs\cps_perf_e_feedback_3cb9534.txt` (one line per run) and `E:\Dusktracer\.claude\worktrees\agent-a76c15a416b3c6fea\Saved\Logs\cps_perf_e_feedback_3cb9534.raw.txt` (the whole output); the CSV captures are under that worktree's `Saved\Profiling\CSV\`.
