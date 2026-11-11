@@ -11,6 +11,7 @@ Tree.Requires,Requires {0},需要先签：{0},"A locked node. {0} the Tree.Requi
 Tree.RequiresItem,{0} rank {1},{0} {1} 级,"One missing prerequisite. {0} a node's name, {1} the rank.",
 Tree.Purchased,Contract signed: {0},契约已签订：{0},After buying a rank. {0} a node's name.,
 Tree.State.ReadOnly,This save cannot be written. Contracts are read-only.,这个存档无法写入，契约只能查看，不能修改。,"[invented zh] Contracts detail when a purchase is refused for the file. The source's row spoke of a newer build, but such a file goes aside (R-MET-12); this one is a stuck or missing file.",
+Tree.State.Busy,The save is in use by another game. Press again.,存档正被另一个游戏使用，请再按一次。,"[invented] Contracts detail when a purchase is refused because another launch holds the save's lock (meta.md R-MET-11, D-042). Nothing was spent.",
 Tree.Row,{0} · {1},{0} · {1},"Contracts row value: a state, then the price. Format only, do not translate.",
 Tree.Hint,Sign: Enter or A    Page: left and right    Back: Esc or B,签订：回车或 A    翻页：左右键    返回：Esc 或 B,[invented zh] Footer of the Contracts page.,
 Tree.Trunk.Reroll.Name,Renegotiation Clause,重议条款,[invented zh] Trunk node Trunk.Reroll.,

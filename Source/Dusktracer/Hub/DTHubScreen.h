@@ -15,6 +15,8 @@ struct FDTHubView
 	const TArray<FDTCodexRow>* Codex = nullptr;
 	const FDTMetaProfile* Profile = nullptr;
 	const IDTHubTab* Tree = nullptr;
+	/** The root's line about the save, empty when there is none (R-VIG-21). */
+	FText Notice;
 };
 
 namespace DTHubText
@@ -25,7 +27,9 @@ namespace DTHubText
 	DUSKTRACER_API FText RootLabel(EDTHubRow Row);
 	/** The honorific of a Path. */
 	DUSKTRACER_API FText KeeperName(EDTPath Path);
-	/** The text under the rows: a Keeper's terms, a sealed hint, a book entry. */
+	/** What the root says of the save (R-VIG-21): Hub.Notice.SaveAside with the file's name, Hub.Notice.RunLost, or nothing. */
+	DUSKTRACER_API FText Notice(EDTMetaNotice Kind, const FString& AsideFile);
+	/** The text under the rows: a Keeper's terms, a sealed hint, a book entry; on the root, what Begin lacks, else the notice. */
 	DUSKTRACER_API FText Detail(const FDTHubView& View);
 }
 

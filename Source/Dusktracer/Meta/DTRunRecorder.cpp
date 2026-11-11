@@ -233,6 +233,10 @@ void UDTRunRecorder::HandleSessionEnding(const FString& Reason)
 		if (UDTTelemetrySubsystem* TelemetrySystem = Telemetry.Get())
 		{
 			TelemetrySystem->Records().RecordRunAward(EndName(End), Award.Retained, Tally.Steps, Tally.Kills, Tally.Elites, Tally.bBossKilled, Tally.Heat);
+			if (Award.bDeferred)
+			{
+				TelemetrySystem->Records().RecordSaveDeferred(TEXT("bank"), Award.Waiting);
+			}
 		}
 	}
 }

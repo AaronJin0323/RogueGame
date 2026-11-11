@@ -1,7 +1,7 @@
 # Seed check (gate step `seed`, 07_Technical R-TEC-16, T-TEC-16; package half T-PKG-04): every human launch really gets a fresh seed, off-screen.
 #   & Tools\SeedCheck.ps1 [-Package <folder of Play_*.bat>] [-LoadTimeout 900]
 # Each launcher is read by running it: cmd expands a copy whose `start` line echoes instead, so the check sees what the launcher would start, not a
-# fragment of its text. The game then starts with exactly those arguments, -fullscreen swapped for an off-screen window and no -unattended, which is
+# fragment of its text. The game then starts with exactly those arguments, an off-screen window added and no -unattended, which is
 # what makes it a human launch. The seed read back is run_start.seed in the run file that launch wrote, and the file name must agree. run_start.driver
 # is read from the same line (telemetry.md R-TEL-13, T-TEL-13): person on a launcher's arguments, tool on a named seed or -unattended.
 # Every launch runs on the hidden desktop of Tools/HiddenLaunch.ps1: a launch with no -unattended is one the engine may prompt on, and nothing it opens can
@@ -21,6 +21,8 @@ param(
 )
 
 trap { Write-Host "SEEDCHECK: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
@@ -74,13 +76,15 @@ function Read-Launcher([string]$Bat, [string]$Culture) {
 	$Arguments = @($Tokens | Select-Object -Skip 1)
 	$Ok = $true
 	if ($Arguments -notcontains "-culture=$Culture") { Note-Fail "$Name does not pass -culture=$Culture"; $Ok = $false }
-	if ($Arguments -notcontains "-fullscreen") { Note-Fail "$Name does not start full screen"; $Ok = $false }
+	# No launcher names a window mode: a -fullscreen here would beat Settings' Window row on every launch (settings.md R-SET-08, review #43).
+	$Mode = @($Arguments | Where-Object { $_ -match '^-(fullscreen|windowed)$' })
+	if ($Mode.Count) { Note-Fail "$Name names a window mode ($($Mode -join ' ')): Settings' Window row decides it"; $Ok = $false }
 	$Named = @($Arguments | Where-Object { $_ -match "(?i)DTSeed|%" })
 	if ($Named.Count) { Note-Fail "$Name names a seed or left a variable: $($Named -join ' ')"; $Ok = $false }
 	if ($Package -and $Exe -ne $GameExe) { Note-Fail "$Name starts $Exe, not $GameExe"; $Ok = $false }
 	if (-not $Ok) { return $null }
-	# Everything but -fullscreen is the launcher's own word. Play_*.bat name no project or map because the packaged exe needs none.
-	$Kept = @($Arguments | Where-Object { $_ -ne "-fullscreen" })
+	# Every argument is the launcher's own word. Play_*.bat name no project or map because the packaged exe needs none.
+	$Kept = @($Arguments)
 	if (-not $Package -and ($Kept -notcontains "-game")) { $Kept = @($Project, "-game") + $Kept }
 	return , $Kept
 }

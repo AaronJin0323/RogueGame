@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputCoreTypes.h"
+#include "Player/DTHeroTypes.h"
 #include "UObject/Object.h"
 #include "DTInputSet.generated.h"
 
@@ -29,6 +31,14 @@ public:
 	TArray<UInputMappingContext*> GetContexts() const;
 	/** Rebuilds both contexts from a binding table (settings.md R-SET-13); Pause, Aim and the stick stay fixed. */
 	void ApplyBindings(const struct FDTBindings& Bindings);
+
+	/** The key the device's context maps to Action, its first mapping there; an invalid key when it maps none (R-CMB-13). */
+	FKey GetBoundKey(const UInputAction* Action, EDTInputDevice Device) const;
+	/**
+	 * A key's short name for a HUD label (R-CMB-13): a pad button by its usual letters, the same in every culture; any
+	 * other key by the engine's short display name in the current culture.
+	 */
+	static FText KeyGlyph(const FKey& Key);
 
 	UPROPERTY() TObjectPtr<UInputAction> Move;
 	UPROPERTY() TObjectPtr<UInputAction> Aim;

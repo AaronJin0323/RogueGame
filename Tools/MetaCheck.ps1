@@ -21,6 +21,8 @@ param(
 
 trap { Write-Host "META: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -28,8 +30,12 @@ $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\MetaCheck"
-$Playtests = Join-Path $Root "Saved\Playtests"
-$Default = Join-Path $Root "Saved\SaveGames\DTMeta.sav"
+# Every launch has a -userdir under Saved\MetaCheck\userdir: its run files land in that folder's Saved\Playtests, never in Saved\Playtests, where a person's Play.bat runs
+# live, so this check deletes by seed only what it wrote itself (review #58, #104).
+# The default save a tool run must not touch is that folder's too, and it starts absent.
+$UserDir = Join-Path $OutDir "userdir"
+$Playtests = Join-Path $UserDir "Saved\Playtests"
+$Default = Join-Path $UserDir "Saved\SaveGames\DTMeta.sav"
 $Save = Join-Path $OutDir "DTMeta.sav"
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
@@ -45,7 +51,7 @@ function Invoke-Run([string]$Tag, [string[]]$RunArgs, [string]$Patron = "Storm",
 	$Record = Join-Path $OutDir "$Tag.csv"
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test$MapOptions", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false",
 		"-ABSLOG=`"$Log`"", "-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=$Skill", "-DTBotPath=$Patron", "-DTBotArchetype=$Archetype", "-DTBotFast=$Fast", "-DTBotQuit",
-		"-DTBotMaxSeconds=$Until", "-DTSeed=$Seed", "-DTBotOut=`"$Record`"") + $RunArgs
+		"-DTBotMaxSeconds=$Until", "-DTSeed=$Seed", "-DTBotOut=`"$Record`"", "-userdir=`"$UserDir`"") + $RunArgs
 	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
 		Stop-DTHidden $Proc

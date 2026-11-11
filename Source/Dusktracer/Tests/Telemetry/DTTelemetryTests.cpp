@@ -688,7 +688,8 @@ bool FDTTelRunStartDriver::RunTest(const FString& Parameters)
 		TestEqual(Line, FString(DTTelNames::Driver(Line, bUnattended, bAutomation)), FString(Want));
 	};
 	Reads(TEXT("person"), TEXT(""));
-	Reads(TEXT("person"), TEXT("-fullscreen -culture=zh-Hans")); // what Play_zh-Hans.bat passes
+	Reads(TEXT("person"), TEXT("-culture=zh-Hans")); // what Play_zh-Hans.bat passes
+	Reads(TEXT("person"), TEXT("-fullscreen -culture=zh-Hans")); // a window mode typed by hand is no tool flag
 	Reads(TEXT("person"), TEXT("\"E:\\My Game\\Dusktracer.uproject\" -game -windowed -RenderOffScreen -DTHubCheck=Begin")); // Tools/SeedCheck.ps1
 	Reads(TEXT("person"), TEXT("/Game/DT/Maps/L_Arena_Test?DTSeed=7 -game")); // a map's option is no switch
 	Reads(TEXT("person"), TEXT("-ABSLOG=\"E:\\x -DTBot=Steered\\y.log\"")); // nor is the inside of a value

@@ -1,5 +1,11 @@
 @echo off
 setlocal
+rem D-052: the machine's processor mask. This file runs again as a child of Tools\Machine.ps1, which holds the mask, so every child inherits it.
+if /i "%DT_MASKED_BAT%"=="%~f0" goto :masked
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Machine.ps1" -DTRunFile "%~f0" %*
+exit /b %ERRORLEVEL%
+:masked
+set "DT_MASKED_BAT="
 rem Runs one editor Python script headless, as a commandlet: no window (R-TEC-17), no renderer. The way a generated asset is made
 rem (07_Technical R-TEC-06): Tools\create_arena.py has its own launcher; mesh imports and the packages' material scripts use this one.
 rem Usage: Tools\EditorPython.bat <script.py>        Log: Saved\Logs\EditorPython_<script>.log

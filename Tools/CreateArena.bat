@@ -1,5 +1,11 @@
 @echo off
 setlocal
+rem D-052: the machine's processor mask. This file runs again as a child of Tools\Machine.ps1, which holds the mask, so every child inherits it.
+if /i "%DT_MASKED_BAT%"=="%~f0" goto :masked
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Machine.ps1" -DTRunFile "%~f0" %*
+exit /b %ERRORLEVEL%
+:masked
+set "DT_MASKED_BAT="
 rem Builds the S0 stress arena and its materials headless (Tools\create_arena.py). Idempotent.
 rem Usage: Tools\CreateArena.bat        Log: Saved\Logs\CreateArena.log
 rem Override UE_ROOT to use another engine install.

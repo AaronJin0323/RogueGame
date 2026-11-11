@@ -3,6 +3,7 @@
 #   $Proc = Start-DTHidden $Exe $ArgList   a [Diagnostics.Process], as Start-Process -PassThru gives, with its exit code held from the start
 #   Stop-DTHidden $Proc                    kills its tree by PID and waits; nothing if it has ended
 #   Get-DTHiddenWindows                    what is visible on the hidden desktop now: "<pid> <class> '<title>'"
+#   Hold-DTProcess                         this script and what it starts from now on, in a job that carries the mask's affinity limit
 #   Close-DTHidden                         ends whatever is left and closes the desktop. A script may leave this to its own exit: the OS does the same
 # $ArgList is joined with spaces, as Start-Process does, so a path with a space carries its own quotes. The editor needs the project path first.
 # Why a desktop: no launch flag is the rule. A launch that renders shows UnrealWindow, a flag can be forgotten, and -WindowStyle Hidden does not stop Unreal's own
@@ -16,6 +17,8 @@
 # The editor's job holds the launched process only. Its children leave silently: a daemon other worktrees are using must outlive this script.
 # The packaged game's job (Dusktracer*.exe) holds the whole tree: the stub's real game is its child, and a package ships no shared daemon.
 # tools_test.py fails on a Start-Process or a direct call of an engine binary anywhere else in Tools.
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 if (-not ("DTHiddenDesktop" -as [type])) {
 	Add-Type -TypeDefinition @"
@@ -52,16 +55,22 @@ public static class DTHiddenDesktop {
 	const uint CreateNoWindow = 0x08000000;
 	const uint KillOnJobClose = 0x2000;
 	const uint SilentBreakawayOk = 0x1000;
+	const uint LimitAffinity = 0x10;
 	const int ExtendedLimitInformation = 9;
 	static IntPtr Desktop;
 	static IntPtr EditorJob;
 	static IntPtr GameJob;
 	static string Name;
+	// D-052: the machine's processor mask as the jobs' affinity limit (0: no limit). A process mask alone does not hold the engine: its threads ask for
+	// every processor (FRunnableThreadWin::SetThreadAffinity) and Windows 11 widens the process to match. A job's limit refuses that request.
+	public static ulong Affinity;
+	public static uint JobFlags(uint flags, ulong affinity) { return affinity != 0 ? flags | LimitAffinity : flags; }
 	static IntPtr NewJob(uint flags) {
 		IntPtr job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
 		if (job == IntPtr.Zero) { throw new Win32Exception(); }
 		JobLimits limits = new JobLimits();
-		limits.flags = flags;
+		limits.flags = JobFlags(flags, Affinity);
+		limits.affinity = new UIntPtr(Affinity);
 		if (!SetInformationJobObject(job, ExtendedLimitInformation, ref limits, Marshal.SizeOf(typeof(JobLimits)))) { CloseHandle(job); throw new Win32Exception(); }
 		return job;
 	}
@@ -101,6 +110,17 @@ public static class DTHiddenDesktop {
 			CloseHandle(pi.process);
 		}
 	}
+	// The calling process and every process it starts from now on, in a job of their own that carries the affinity limit: the form for work that is
+	// not one launch (a batch file's commandlet, the cook RunUAT starts). No kill on close and no breakaway: a daemon the work starts stays held and lives on.
+	static IntPtr HeldJob;
+	public static bool HoldSelf() {
+		if (Affinity == 0) { return false; }
+		if (HeldJob != IntPtr.Zero) { return true; }
+		IntPtr job = NewJob(0);
+		if (!AssignProcessToJobObject(job, Process.GetCurrentProcess().Handle)) { CloseHandle(job); throw new Win32Exception(); }
+		HeldJob = job;
+		return true;
+	}
 	public static string[] Visible() {
 		List<string> found = new List<string>();
 		if (Desktop == IntPtr.Zero) { return found.ToArray(); }
@@ -131,6 +151,9 @@ public static class DTHiddenDesktop {
 "@
 }
 
+# The jobs take the helper's mask as their affinity limit, so the engine and everything in its job stay inside it; none when the helper returns none.
+[DTHiddenDesktop]::Affinity = if ($DTMask -and $DTMask -ne "none") { [Convert]::ToUInt64($DTMask, 16) } else { [UInt64]0 }
+
 function Start-DTHidden([string]$Exe, [string[]]$ArgList) { return [DTHiddenDesktop]::Start($Exe, ($ArgList -join " ")) }
 
 function Stop-DTHidden($Proc) {
@@ -139,6 +162,9 @@ function Stop-DTHidden($Proc) {
 		$Proc.WaitForExit(30000) | Out-Null
 	}
 }
+
+# Holds this script and all it starts from now on inside the machine's mask, by the same job limit as a launch (no limit without a mask).
+function Hold-DTProcess { return [DTHiddenDesktop]::HoldSelf() }
 
 function Get-DTHiddenWindows { return [DTHiddenDesktop]::Visible() }
 

@@ -132,9 +132,18 @@ void FDTHubState::AcceptRoot(FDTHubOutcome& Outcome)
 
 void FDTHubState::KeepInWindow()
 {
-	// Scrolling back to a group's first row brings its heading along.
+	// A row reached by scrolling back brings its group's heading along, whichever row of the group it is (R-VIG-20): the window
+	// never starts between a heading and the focus when both fit in it, and a group fits one window with its heading (R-VIG-16).
 	const int32 Lowest = FMath::Max(0, Focus - Window + 1);
-	const int32 Highest = IsHeading(Focus - 1) ? Focus - 1 : Focus;
+	int32 Highest = Focus;
+	for (int32 Row = Focus - 1; Row >= Lowest; --Row)
+	{
+		if (IsHeading(Row))
+		{
+			Highest = Row;
+			break;
+		}
+	}
 	Scroll = FMath::Clamp(Scroll, Lowest, FMath::Max(Lowest, Highest));
 }
 

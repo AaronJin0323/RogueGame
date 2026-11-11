@@ -61,6 +61,12 @@ All marked `[invented]` in Context (R-NAR-08 asks it of the story tables; the sa
 | Table | Key | en | zh-Hans |
 |---|---|---|---|
 | ST_UI | `Hub.Balance` | Ichor {0} | 神血 {0} |
+| ST_UI | `Summary.Waiting` (D-042, awaiting a reading) | Save in use by another game. This run is saved at the next save or on quit. | 尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。 |
+| ST_Tree | `Tree.State.Busy` (D-042, awaiting a reading) | The save is in use by another game. Press again. | 存档正被另一个游戏使用，请再按一次。 |
+| ST_UI | `Hub.Notice.SaveAside` (review #87, awaiting a reading) | The save could not be read. It is kept as {0}, and a new one starts empty. | 存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。 |
+| ST_UI | `Hub.Notice.RunLost` (D-042 point 7, awaiting a reading) | The last run could not be saved. Nothing from it is in this save. | 上一局没能保存。这份存档里没有那一局的记录。 |
+| `Export_Logs.ps1` | the failed export's next step (review #90, awaiting a reading; no table, the script holds it escaped) | There is nothing to export yet. Play one run, then export again. | 还没有可导出的内容。请先玩一局，再导出一次。 |
+| `Export_Logs.ps1` | the manifest's line on the time in hands (review #41, awaiting a reading; the manifest's one zh line) | how long each card took to pick and their total per run | 对局文件还记有每张牌的选择用时，以及每局的合计用时。 |
 | ST_UI | `Hub.Begin.NeedPatron` | Choose a Patron at the Shrine first. | 先去祠堂选一位主司。 |
 | ST_UI | `Hub.Tree.Empty` | No terms are open yet. | 暂时没有可签的条款。 |
 | ST_UI | `Hub.Hint.Read` | Move: up and down    Page: left and right    Back: Esc or B | 移动：上下键    翻页：左右键    返回：Esc 或 B |
@@ -85,11 +91,11 @@ Build 996cd47, `2147483647_20261031_231306`: one designer run, not a validator s
 ## Not verified
 
 - A real pad: the proof sends pad key events through the player controller, not through a device.
-- A real desktop, Fullscreen, a Shipping or packaged launch of the hub: the gate builds Shipping but plays no hub there; `PadCheck` needs a package.
+- A real desktop, Fullscreen: still not. A Shipping or packaged launch of the hub: since read by `Tools/PackageHubCheck.ps1` (`S3_package.md`), by hand on a package, not in the gate.
 - The largest text on a real screen: read off-screen at 1280x720 only, on every page, in both cultures.
 - Language change live from the hub's Settings: each culture was launched, not switched.
-- A win reaching the Codex on a real launch: `Win` and layer reach are unit-tested only.
-- A person's launch without `-unattended`: the proof forces the hub on a tool run; the rule's person branch is a unit test, and auto-pick was on, so the Patron preset beat it rather than a human's hand. The gated run reads `-DTPoolGate`, the branch a person's launch takes by itself.
+- A win reaching the Codex on a real launch: since read by `Tools/WinCheck.ps1`, gate step `win` (`meta.md` T-MET-29).
+- A person's launch without `-unattended`: here the proof forces the hub on a tool run; the rule's person branch is a unit test, and auto-pick was on, so the Patron preset beat it rather than a human's hand. Since: `Tools/SeedCheck.ps1` and `Tools/PackageHubCheck.ps1` make a person's launches through the hub by real key events. The gated run reads `-DTPoolGate`, the branch a person's launch takes by itself.
 - Ichor earned and then spent: the proof's balance is planted. A run does reach the bank and the page reads the same balance, but no launch here earned its own purchase. `S3_earned.md` does.
 - `Tree.State.ReadOnly` on a real launch: a unit test reads it on no file and on a stuck session; no launch shows it.
 - A person reaching `Favor9`, `TwoPaths6`, `ScatterKills500` or `RailKills300` through the page: the nodes sell and their cards reach a hand, the rows themselves are not earned here.

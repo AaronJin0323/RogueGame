@@ -136,6 +136,36 @@ bool FDTVigRoot::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Settings is an action"), State.Apply(EDTMenuCommand::Accept).Action, EDTHubAction::Settings);
 	Focus(State, EDTHubRow::Quit);
 	TestEqual(TEXT("Quit is an action"), State.Apply(EDTMenuCommand::Accept).Action, EDTHubAction::Quit);
+
+	// The rows in order, each under its own name (R-VIG-03): a row that opens the Codex and reads "Contracts" fails here.
+	struct FRootLabel
+	{
+		EDTHubRow Row;
+		const TCHAR* Table;
+		const TCHAR* Key;
+		EDTHubPage Opens;
+	};
+	const FRootLabel Labels[] = {
+		{ EDTHubRow::Patron, TEXT("ST_World"), TEXT("Hub.Shrine"), EDTHubPage::Patron }, { EDTHubRow::Tree, TEXT("ST_World"), TEXT("Hub.Contracts"), EDTHubPage::Tree },
+		{ EDTHubRow::Codex, TEXT("ST_World"), TEXT("Hub.Codex"), EDTHubPage::Codex }, { EDTHubRow::Stats, TEXT("ST_World"), TEXT("Hub.LedgerStone"), EDTHubPage::Stats },
+		{ EDTHubRow::Settings, TEXT("ST_World"), TEXT("Hub.Settings"), EDTHubPage::Root }, { EDTHubRow::Begin, TEXT("ST_World"), TEXT("Hub.Begin"), EDTHubPage::Root },
+		{ EDTHubRow::Quit, TEXT("ST_UI"), TEXT("Pause.Quit"), EDTHubPage::Root } };
+	TestEqual(TEXT("a label for every root row"), static_cast<int32>(UE_ARRAY_COUNT(Labels)), static_cast<int32>(EDTHubRow::Num));
+	TSet<FString> Shown;
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Labels); ++Index)
+	{
+		const FRootLabel& Want = Labels[Index];
+		const FString Label = DTHubText::RootLabel(Want.Row).ToString();
+		TestEqual(FString::Printf(TEXT("screen order: row %d"), Index), static_cast<int32>(Want.Row), Index);
+		TestEqual(FString::Printf(TEXT("row %d reads its own row of the table"), Index), Label, FText::FromStringTable(FName(Want.Table), Want.Key).ToString());
+		TestFalse(FString::Printf(TEXT("row %d resolves"), Index), Label.IsEmpty() || Label.Contains(TEXT("<MISSING")));
+		Shown.Add(Label);
+		if (Want.Opens != EDTHubPage::Root)
+		{
+			TestEqual(FString::Printf(TEXT("the page row %d opens is titled as the row"), Index), DTHubText::PageTitle(Want.Opens).ToString(), Label);
+		}
+	}
+	TestEqual(TEXT("no two rows read alike"), Shown.Num(), static_cast<int32>(EDTHubRow::Num));
 	return true;
 }
 
@@ -203,6 +233,35 @@ bool FDTVigBack::RunTest(const FString& Parameters)
 		TestEqual(TEXT("a press under a menu is the menu's"), Keys.Poll(IsDown, true), EDTMenuCommand::None);
 		TestEqual(TEXT("and stays so while held"), Keys.Poll(IsDown, false), EDTMenuCommand::None);
 	}
+	{
+		// A stick pushed up, 15 degrees off its axis, holds its sideways key down as well: only the larger axis is a press.
+		const float OffX = 0.26f;
+		const float OffY = 0.97f;
+		TestTrue(TEXT("up counts on a push that is mostly up"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Up, OffX, OffY));
+		TestFalse(TEXT("its sideways key does not"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Right, OffX, OffY));
+		TestFalse(TEXT("nor to the left"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Left, -OffX, -OffY));
+		TestTrue(TEXT("down counts on a push that is mostly down"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Down, -OffX, -OffY));
+		TestTrue(TEXT("sideways counts on a push that is mostly sideways"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Left, -OffY, OffX));
+		TestFalse(TEXT("and its vertical key does not"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Up, -OffY, OffX));
+		TestTrue(TEXT("a stick key with no axis reading is a press"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Left, 0.0f, 0.0f) && DTMenuInput::StickKeyCounts(EKeys::Gamepad_LeftStick_Down, 0.0f, 0.0f));
+		TestTrue(TEXT("the D-pad and the keyboard never wait on the stick"), DTMenuInput::StickKeyCounts(EKeys::Gamepad_DPad_Left, OffX, OffY) && DTMenuInput::StickKeyCounts(EKeys::A, OffX, OffY));
+
+		// Through the reader, as the hub polls it: that push on a long page moves one row and never a window.
+		FDTHubState Page = Open();
+		Page.CodexRows = 30;
+		Focus(Page, EDTHubRow::Codex);
+		Page.Apply(EDTMenuCommand::Accept);
+		const TSet<FKey> Held = { EKeys::Gamepad_LeftStick_Right, EKeys::Gamepad_LeftStick_Down };
+		const auto IsDown = [&Held, OffX, OffY](const FKey& Key) { return Held.Contains(Key) && DTMenuInput::StickKeyCounts(Key, OffX, -OffY); };
+		FDTHubKeys Stick;
+		Stick.Poll([](const FKey&) { return false; }, false);
+		const EDTMenuCommand First = Stick.Poll(IsDown, false);
+		TestEqual(TEXT("the push is Down"), First, EDTMenuCommand::Down);
+		Page.Apply(First);
+		const EDTMenuCommand Second = Stick.Poll(IsDown, false);
+		TestEqual(TEXT("and nothing more while it is held"), Second, EDTMenuCommand::None);
+		TestEqual(TEXT("so focus moved one row"), Page.Focus, 1);
+	}
 	const FDTHubOutcome AtRoot = State.Apply(EDTMenuCommand::Back);
 	TestEqual(TEXT("Back at the root does nothing but move"), AtRoot.Action, EDTHubAction::None);
 	TestEqual(TEXT("to Quit"), State.RootRow(), EDTHubRow::Quit);
@@ -255,7 +314,30 @@ bool FDTVigShrine::RunTest(const FString& Parameters)
 	View.State = &State;
 	View.Codex = &None;
 	View.Profile = &Profile;
+	const FString Hint = DTHubText::Detail(View).ToString();
 	TestTrue(TEXT("focus on it shows the hint"), DTHubText::Detail(View).EqualTo(FText::FromStringTable(TEXT("ST_World"), TEXT("Hub.Shrine.LockedHint"))));
+
+	// An open Keeper's detail is its own terms, <Path>.Desc (R-VIG-05): not the hint, not its name, not another Keeper's.
+	TSet<FString> Terms;
+	int32 OpenRows = 0;
+	for (int32 Row = 0; Row < State.Patrons.Num(); ++Row)
+	{
+		if (!State.Patrons[Row].bOpen)
+		{
+			continue;
+		}
+		++OpenRows;
+		State.Focus = Row;
+		const FString Path = DTOffers::PathName(State.Patrons[Row].Path);
+		const FString Detail = DTHubText::Detail(View).ToString();
+		TestEqual(FString::Printf(TEXT("%s open: the detail is its Desc row"), *Path), Detail, FText::FromStringTable(TEXT("ST_Keepers"), Path + TEXT(".Desc")).ToString());
+		TestFalse(FString::Printf(TEXT("%s: the row resolves"), *Path), Detail.IsEmpty() || Detail.Contains(TEXT("<MISSING")));
+		TestTrue(FString::Printf(TEXT("%s: it is neither the sealed hint nor the Keeper's name"), *Path), Detail != Hint && Detail != DTHubText::KeeperName(State.Patrons[Row].Path).ToString());
+		Terms.Add(Detail);
+	}
+	TestTrue(TEXT("a run's Keepers are open"), OpenRows > 0);
+	TestEqual(TEXT("each open Keeper shows its own terms"), Terms.Num(), OpenRows);
+	State.Focus = Sealed;
 
 	FDTMetaProfile Opened;
 	Opened.Unlocked.Add(DTOffers::KeeperId(State.Patrons[Sealed].Path));
@@ -370,21 +452,8 @@ bool FDTVigCodex::RunTest(const FString& Parameters)
 	TestNull(TEXT("a read row past the reach is still not listed"), Find(DTHubData::BuildCodex({ Deep }, Fresh), TEXT("Codex.Test.Deep")));
 
 	// Every row, read: a title and a body from the tables, in this culture, never a missing key.
-	FDTMetaProfile Everything;
-	Everything.Wins = DTConst::BOSS_FORM_III_WINS + 1;
-	Everything.LifetimeStats.Add(TEXT("BossKills"), 1);
-	for (const FDTCodexSource& Source : Sources)
-	{
-		FString Tail;
-		if (Source.Unlock.Split(TEXT("Discovery."), nullptr, &Tail))
-		{
-			Everything.Discoveries.Add(FName(*Tail));
-		}
-		if (Source.Unlock.Split(TEXT("Kill."), nullptr, &Tail))
-		{
-			Everything.LifetimeStats.Add(FName(*(TEXT("Kills.Role.") + Tail)), 1);
-		}
-	}
+	const FDTMetaProfile Everything = DTHubData::EverythingRead(Sources);
+	TestTrue(TEXT("the profile that reads everything is one a save could hold"), DTMeta::IsValid(Everything));
 	const TArray<FDTCodexRow> Whole = DTHubData::BuildCodex(Sources, Everything);
 	TestEqual(TEXT("all but the format row"), Whole.Num(), Sources.Num() - 1);
 	for (const FDTCodexRow& Row : Whole)
@@ -392,6 +461,33 @@ bool FDTVigCodex::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s is read"), *Row.Key), Row.bRead);
 		TestFalse(FString::Printf(TEXT("%s has a title"), *Row.Key), Row.Title.ToString().Contains(TEXT("<MISSING")) || Row.Title.IsEmpty());
 		TestFalse(FString::Printf(TEXT("%s has its text"), *Row.Key), Row.Body.ToString().Contains(TEXT("<MISSING")));
+		TestFalse(FString::Printf(TEXT("%s: the title is not the entry's own text"), *Row.Key), Row.Title.ToString() == Row.Body.ToString());
+	}
+	// The title comes from the row's subject (R-VIG-08): a Keeper's name, an enemy's name, the Discovery's name.
+	const auto TitleIs = [this, &Whole](const TCHAR* Key, const TCHAR* Table, const TCHAR* TitleKey)
+	{
+		const FDTCodexRow* Row = DTHubTest::Find(Whole, Key);
+		if (TestNotNull(FString::Printf(TEXT("%s is listed"), Key), Row))
+		{
+			TestEqual(FString::Printf(TEXT("%s is titled by %s"), Key, TitleKey), Row->Title.ToString(), FText::FromStringTable(FName(Table), TitleKey).ToString());
+		}
+	};
+	TitleIs(TEXT("Codex.Keeper.Storm"), TEXT("ST_Keepers"), TEXT("Storm.Name"));
+	TitleIs(TEXT("Codex.Keeper.Quicksilver"), TEXT("ST_Keepers"), TEXT("Quicksilver.Name"));
+	TitleIs(TEXT("Codex.Enemy.Tank"), TEXT("ST_Enemies"), TEXT("Enemy.Tank.Name"));
+	TitleIs(TEXT("Codex.Enemy.Boss"), TEXT("ST_Enemies"), TEXT("Enemy.Boss.Name"));
+	TitleIs(TEXT("Codex.Warden.FormIII"), TEXT("ST_Enemies"), TEXT("Enemy.Boss.Name"));
+	TitleIs(TEXT("Codex.Recollection.Velocity"), TEXT("ST_Discoveries"), TEXT("Discovery.Dashes100.Name"));
+	TitleIs(TEXT("Codex.Recollection.Win"), TEXT("ST_Discoveries"), TEXT("Discovery.Win.Name"));
+	for (const FDTCodexSource& Source : Sources)
+	{
+		FString Tail;
+		const FDTCodexRow* Row = Find(Whole, *Source.Key);
+		if (Row && Source.Key.StartsWith(TEXT("Codex.Recollection.")) && Source.Unlock.Split(TEXT("Discovery."), nullptr, &Tail))
+		{
+			TestEqual(FString::Printf(TEXT("%s is titled by its Discovery"), *Source.Key), Row->Title.ToString(),
+				FText::FromStringTable(TEXT("ST_Discoveries"), FString::Printf(TEXT("Discovery.%s.Name"), *Tail)).ToString());
+		}
 	}
 	const FDTCodexRow* Root = Find(Whole, TEXT("Codex.Root.Title"));
 	if (TestNotNull(TEXT("the ROOT row after a win"), Root))
@@ -451,11 +547,19 @@ bool FDTVigStats::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// The label beside each value (R-VIG-10): the balance row reading "Runs" fails here.
+	const TCHAR* const WantLabel[] = { TEXT("Hub.Stats.Balance"), TEXT("Hub.Stats.Earned"), TEXT("Hub.Stats.Runs"), TEXT("Hub.Stats.Wins"), TEXT("Hub.Stats.Repairs"),
+		TEXT("RunSummary.Time"), TEXT("Hub.Stats.Kills"), TEXT("Hub.Stats.Elites"), TEXT("Hub.Stats.Bosses") };
+	TSet<FString> Shown;
 	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
+		const FString Label = Rows[Index].Label.ToString();
 		TestEqual(TEXT("the value"), Rows[Index].Value.ToString(), FString(Want[Index]));
-		TestFalse(TEXT("the label"), Rows[Index].Label.ToString().Contains(TEXT("<MISSING")));
+		TestFalse(TEXT("the label"), Label.IsEmpty() || Label.Contains(TEXT("<MISSING")));
+		TestEqual(FString::Printf(TEXT("row %d: the label of its value"), Index), Label, FText::FromStringTable(TEXT("ST_UI"), WantLabel[Index]).ToString());
+		Shown.Add(Label);
 	}
+	TestEqual(TEXT("no two rows read alike"), Shown.Num(), Rows.Num());
 	return true;
 }
 
@@ -645,6 +749,36 @@ bool FDTVigTreeBuy::RunTest(const FString& Parameters)
 	Tab.Accept(Scatter);
 	TestEqual(TEXT("a bought row buys nothing"), Session.Profile.Currency, static_cast<int64>(DTConst::TREE_COST_WEAPON));
 
+	// The save's lock is another launch's (meta.md R-MET-11): the press is refused, and the row says so in each culture.
+	{
+		AddExpectedError(TEXT("is locked by another launch"), EAutomationExpectedErrorFlags::Contains, 0);
+		const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+		{
+			const FDTMetaLock Other(Session.Path);
+			TestTrue(TEXT("another launch holds the lock"), Other.IsHeld());
+			Tab.Accept(Rail);
+			TestTrue(TEXT("a busy save sells nothing"), Session.Profile.TreeRanks.FindRef(TEXT("Trunk.RailLance")) == 0 && Session.Profile.Currency == DTConst::TREE_COST_WEAPON);
+			TArray<FString> Lines;
+			for (const TCHAR* Name : { TEXT("en"), TEXT("zh-Hans") })
+			{
+				FInternationalization::Get().SetCurrentCulture(Name);
+				Lines.Add(TreeText(TEXT("Tree.State.Busy")));
+				TestFalse(FString::Printf(TEXT("%s: the busy line resolves"), Name), Lines.Last().IsEmpty() || Lines.Last().Contains(TEXT("Tree.")));
+				TestTrue(FString::Printf(TEXT("%s: the row says the save is in use"), Name), Tab.RowDetail(Rail).ToString().EndsWith(TEXT("\n") + Lines.Last()));
+			}
+			FInternationalization::Get().SetCurrentCulture(Culture);
+			// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+			FString Csv;
+			FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_Tree.csv")), FFileHelper::EHashOptions::None);
+			TestTrue(TEXT("the busy row carries both languages"), Csv.Contains(TEXT("Tree.State.Busy,The save is in use by another game. Press again.,存档正被另一个游戏使用，请再按一次。,")));
+			TestFalse(TEXT("only that row"), Tab.RowDetail(Scatter).ToString().Contains(TreeText(TEXT("Tree.State.Busy"))));
+			TestEqual(TEXT("its state is as it was: open, at its price"), Tab.RowValue(Rail).ToString(), FText::Format(FText::FromStringTable(TEXT("ST_Tree"), TEXT("Tree.Cost")), FText::AsNumber(DTConst::TREE_COST_WEAPON)).ToString());
+		}
+		Tab.Accept(Rail);
+		TestEqual(TEXT("pressed again with the lock free, it buys"), Session.Profile.TreeRanks.FindRef(TEXT("Trunk.RailLance")), 1);
+		TestFalse(TEXT("and the busy line is gone"), Tab.RowDetail(Rail).ToString().Contains(TreeText(TEXT("Tree.State.Busy"))));
+	}
+
 	// With no writable file every row says so, and the page still backs out: reading it is all it does.
 	FDTMetaSession None;
 	None.Open(FString());
@@ -698,6 +832,31 @@ bool FDTVigTreeFocus::RunTest(const FString& Parameters)
 	State.Apply(EDTMenuCommand::Up);
 	TestEqual(TEXT("up to a group's first row"), State.Focus, 8);
 	TestEqual(TEXT("brings its heading into the window"), State.Scroll, 7);
+	// Not only a group's first row (R-VIG-20): any row reached by scrolling back, when the heading and the row fit one window.
+	State.Focus = 10;
+	State.Scroll = 10;
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("up to a group's second row"), State.Focus, 9);
+	TestEqual(TEXT("brings its heading in too"), State.Scroll, 7);
+	State.Focus = 14;
+	State.Scroll = 11;
+	State.Apply(EDTMenuCommand::Left);
+	TestEqual(TEXT("a page left into the middle of a group"), State.Focus, 10);
+	TestEqual(TEXT("brings that group's heading in"), State.Scroll, 7);
+	State.Focus = 12;
+	State.Scroll = 11;
+	State.Apply(EDTMenuCommand::Down);
+	State.Apply(EDTMenuCommand::Down);
+	TestEqual(TEXT("walking down a group"), State.Focus, 14);
+	TestEqual(TEXT("keeps its heading in the window while it fits"), State.Scroll, 11);
+	State.Focus = 6;
+	State.Scroll = 6;
+	State.Apply(EDTMenuCommand::Up);
+	TestEqual(TEXT("a row too far under its heading for one window"), State.Focus, 5);
+	TestEqual(TEXT("scrolls by the row alone"), State.Scroll, 5);
+	State.Focus = 9;
+	State.Scroll = 9;
+	State.Apply(EDTMenuCommand::Up);
 	const FDTHubOutcome Outcome = State.Apply(EDTMenuCommand::Accept);
 	TestEqual(TEXT("Accept names the row"), Outcome.Row, 8);
 	State.Apply(EDTMenuCommand::Back);
@@ -768,6 +927,81 @@ bool FDTVigText::RunTest(const FString& Parameters)
 	TestTrue(TEXT("colour comes from the tokens"), Text.Contains(TEXT("DTPal::UI_")));
 	TestFalse(TEXT("no literal colour"), Text.Contains(TEXT("FColor(")) || Text.Contains(TEXT("FLinearColor(")) || Text.Contains(TEXT("FromHex")));
 	TestFalse(TEXT("no combat token"), Text.Contains(TEXT("DTPal::Enemy")) || Text.Contains(TEXT("DTPal::Telegraph")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTVigNotice, "Dusktracer.Hub.Notice", DTHubTest::Flags) // T-VIG-21
+bool FDTVigNotice::RunTest(const FString& Parameters)
+{
+	using namespace DTHubTest;
+	AddExpectedError(TEXT("Meta:"), EAutomationExpectedErrorFlags::Contains, 0);
+	TestTrue(TEXT("nothing to say, no line"), DTHubText::Notice(EDTMetaNotice::None, TEXT("DTMeta.sav.bad.1")).IsEmpty());
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	const FText Aside = DTHubText::Notice(EDTMetaNotice::KeptAside, TEXT("DTMeta.sav.bad.1"));
+	const FText Lost = DTHubText::Notice(EDTMetaNotice::RunLost, FString());
+	TestEqual(TEXT("a save set aside names the file it is kept as"), Aside.ToString(), FString(TEXT("The save could not be read. It is kept as DTMeta.sav.bad.1, and a new one starts empty.")));
+	TestEqual(TEXT("a run the last launch could not write"), Lost.ToString(), FString(TEXT("The last run could not be saved. Nothing from it is in this save.")));
+	FInternationalization::Get().SetCurrentCulture(Culture);
+	TestTrue(TEXT("both keys are the hub's"), DTHubText::AllKeys().Contains(TEXT("Hub.Notice.SaveAside")) && DTHubText::AllKeys().Contains(TEXT("Hub.Notice.RunLost")));
+	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+	FString Csv;
+	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
+	TestTrue(TEXT("the set-aside row carries both languages"), Csv.Contains(TEXT("Hub.Notice.SaveAside,\"The save could not be read. It is kept as {0}, and a new one starts empty.\",存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。,")));
+	TestTrue(TEXT("the lost-run row carries both languages"), Csv.Contains(TEXT("Hub.Notice.RunLost,The last run could not be saved. Nothing from it is in this save.,上一局没能保存。这份存档里没有那一局的记录。,")));
+
+	// Where it is drawn: the root's detail, on every row, and only there. What Begin lacks comes first on Begin.
+	const TArray<FDTCodexRow> Book;
+	const FDTMetaProfile Profile;
+	FDTHubState State = Open();
+	FDTHubView View;
+	View.State = &State;
+	View.Codex = &Book;
+	View.Profile = &Profile;
+	for (int32 Row = 0; Row < static_cast<int32>(EDTHubRow::Num); ++Row)
+	{
+		Focus(State, static_cast<EDTHubRow>(Row));
+		View.Notice = FText::GetEmpty();
+		const FString Bare = DTHubText::Detail(View).ToString();
+		View.Notice = Lost;
+		const FString Said = DTHubText::Detail(View).ToString();
+		if (static_cast<EDTHubRow>(Row) == EDTHubRow::Begin)
+		{
+			TestTrue(TEXT("Begin with no Patron says what it lacks, with or without a notice"), !Bare.IsEmpty() && Said == Bare);
+		}
+		else
+		{
+			TestTrue(FString::Printf(TEXT("root row %d: nothing without a notice, the notice with one"), Row), Bare.IsEmpty() && Said == Lost.ToString());
+		}
+	}
+	FDTHubState Chosen = Open(EDTPath::Storm);
+	Chosen.Selected = EDTPath::Storm;
+	Focus(Chosen, EDTHubRow::Begin);
+	View.State = &Chosen;
+	TestEqual(TEXT("Begin with a Patron chosen shows the notice"), DTHubText::Detail(View).ToString(), Lost.ToString());
+	Focus(Chosen, EDTHubRow::Stats);
+	Chosen.Apply(EDTMenuCommand::Accept);
+	TestTrue(TEXT("no other page draws it"), Chosen.Page == EDTHubPage::Stats && DTHubText::Detail(View).IsEmpty());
+
+	// The session decides which line: a bad save set aside comes before a run the last launch lost, and a launch says each once.
+	const FString Path = TempSave(TEXT("Notice.sav"));
+	IFileManager::Get().Delete(*DTMeta::LostPath(Path), false, true, true);
+	IFileManager::Get().Delete(*(Path + TEXT(".bad.1")), false, true, true);
+	FDTMetaSession Plain;
+	Plain.Open(Path);
+	TestEqual(TEXT("a fresh save has nothing to say"), Plain.Notice(), EDTMetaNotice::None);
+	TestTrue(TEXT("a marker is left"), FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Path)));
+	FDTMetaSession AfterLoss;
+	AfterLoss.Open(Path);
+	TestEqual(TEXT("the launch after a lost run says so"), AfterLoss.Notice(), EDTMetaNotice::RunLost);
+	TestTrue(TEXT("a marker and a bad save"), FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Path)) && FFileHelper::SaveStringToFile(TEXT("not a save"), *Path));
+	FDTMetaSession Both;
+	TestEqual(TEXT("the bad save is set aside"), Both.Open(Path), EDTMetaOpen::KeptAside);
+	TestTrue(TEXT("both hold, and the save set aside is the line"), Both.LostRuns == 1 && Both.Notice() == EDTMetaNotice::KeptAside);
+	TestEqual(TEXT("the line names the kept file"), DTHubText::Notice(Both.Notice(), FPaths::GetCleanFilename(Both.AsidePath)).ToString().Contains(TEXT("Notice.sav.bad.1")), true);
+	FDTMetaSession Next;
+	Next.Open(Path);
+	TestEqual(TEXT("the launch after that says neither"), Next.Notice(), EDTMetaNotice::None);
 	return true;
 }
 

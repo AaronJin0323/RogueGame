@@ -281,7 +281,7 @@ def exit_lines(logs, build, pad, findings, locked):
 		rows.append(("Packaged pad pass", "PASS", f"every counted run of {', '.join(pads)} on a real pad, Tools/PadCheck.ps1 passed package {build}"))
 	else:
 		rows.append(("Packaged pad pass", "NOT READ", f"every counted run of {', '.join(pads)} on a real pad; the machine half is unread: {pad}"))
-	rows.append(("Pass rule", "NOT READ", "a person reads it from findings_S3.md: >= 2 of the 3 validators on each of the two 00_Vision rows written as 2 of 3 (D-034)"))
+	rows.append(("Pass rule", "NOT READ", "a person reads it from findings_S3.md: two of three hold, >= 2 validators ask for another run, >= 2 name their build, the owner still wants to play (D-049)"))
 	if findings is None:
 		rows.append(("findings_S3.md", "NOT READ", "no file"))
 	else:

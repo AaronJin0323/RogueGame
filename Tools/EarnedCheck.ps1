@@ -19,6 +19,8 @@ param(
 
 trap { Write-Host "EARNED: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
@@ -26,7 +28,10 @@ $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\EarnedCheck"
-$Playtests = Join-Path $Root "Saved\Playtests"
+# Every launch has a -userdir under Saved\EarnedCheck\userdir: its run files land in that folder's Saved\Playtests, never in Saved\Playtests, where a person's Play.bat runs
+# live, so this check deletes by seed only what it wrote itself (review #58, #104).
+$UserDir = Join-Path $OutDir "userdir"
+$Playtests = Join-Path $UserDir "Saved\Playtests"
 $Map = "/Game/DT/Maps/L_Arena_Test"
 $RunSeconds = 1100
 $Clock = [Diagnostics.Stopwatch]::StartNew()
@@ -42,7 +47,7 @@ function Start-Launch([string]$Tag, [string]$MapUrl, [string[]]$Extra) {
 	$Log = Join-Path $LogDir "EarnedCheck_$Tag.log"
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	$ArgList = @("`"$Project`"", $MapUrl, "-game", "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-LiveCoding=false",
-		"-unattended", "-nopause", "-nosound", "-culture=en", "-ABSLOG=`"$Log`"") + $Extra
+		"-unattended", "-nopause", "-nosound", "-culture=en", "-ABSLOG=`"$Log`"", "-userdir=`"$UserDir`"") + $Extra
 	$Proc = Start-DTHidden $Exe $ArgList
 	return @{ Proc = $Proc; Log = $Log; Tag = $Tag }
 }
@@ -93,7 +98,7 @@ function Read-SeedHands([string]$Tag, [int]$Seed) {
 	return Read-Hands $Tag @(Get-ChildItem $Playtests -Filter "${Seed}_*.jsonl" -ErrorAction SilentlyContinue)
 }
 
-# A launch that draws its own seeds: its files are the ones its log names, never what the clock finds. Saved\Playtests is where a person's runs live (Tools\SeedCheck.ps1), and Read-Hands deletes what it reads.
+# A launch that draws its own seeds: its files are the ones its log names, never what the clock finds. Read-Hands deletes what it reads, and those files are under this check's own -userdir.
 function Read-LogHands([string]$Tag, [string]$Log) {
 	$Files = @(Select-String -Path $Log -Pattern "Telemetry: session seed=\d+ players=\d+ -> (.+)\.csv\s*$" | ForEach-Object { Get-Item -LiteralPath ($_.Matches[0].Groups[1].Value + ".jsonl") -ErrorAction Stop })
 	return Read-Hands $Tag $Files

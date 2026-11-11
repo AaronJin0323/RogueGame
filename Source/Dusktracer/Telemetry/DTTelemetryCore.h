@@ -93,9 +93,16 @@ public:
 	/**
 	 * Writes the final partial interval (if any step ran since the last row) and run_end; the session stops. run_end
 	 * carries per_player{owner: {decisions hands_by_kind{} reserve_cards cards_offered wall_paused_s level xp_total}} and
-	 * the run's gems_spawned gems_collected gems_left (offers.md, progression.md).
+	 * the run's gems_spawned gems_collected gems_left (offers.md, progression.md), then wall_dropped_steps and
+	 * wall_duration_s as last set by SetRunWall (R-TEL-08).
 	 */
 	void End(const FString& Reason);
+	/**
+	 * run_end wall_dropped_steps and wall_duration_s (no record): the steps the fixed-step clock dropped in this session
+	 * (FDTFixedStep, a frame owed more than C.SIM.MAX_SUBSTEPS) and its wall seconds. Both depend on the machine, so both
+	 * are wall fields: a slow PC's run reads apart from a normal one, and no tool compares them (R-TEL-08).
+	 */
+	void SetRunWall(int64 DroppedSteps, double DurationSeconds);
 	bool IsActive() const { return bActive; }
 	const FDTTelemetryConfig& GetConfig() const { return Config; }
 
@@ -167,6 +174,8 @@ public:
 	 */
 	void RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, float Amount, float HpAfter, float MaxHp, FVector2f HeroPos);
 	void RecordHeroDown(int32 Owner);
+	/** hero_healed{amount hp_after max_hp source}: Amount is the HP really restored, zero at full health (D-046). */
+	void RecordHeroHealed(int32 Owner, float Amount, float HpAfter, float MaxHp, FName Source);
 	/** Counted per interval; one intercession_denied{interval, count} record per player at the interval end when above zero. */
 	void RecordIntercessionDenied(int32 Owner);
 	/** The device that last produced gameplay input (CSV input_device at the interval end). */
@@ -187,6 +196,8 @@ public:
 	// meta.md
 	/** One per banked run, before run_end; run-derived only (R-MET-16). */
 	void RecordRunAward(const TCHAR* End, int64 Retained, int64 Steps, int64 Kills, int64 Elites, bool bBoss, int32 Heat);
+	/** meta.md R-MET-11: the save's lock was busy past its wait and a change is kept in memory. Never written by a launch alone on its save. */
+	void RecordSaveDeferred(const TCHAR* Change, int32 Waiting);
 
 	// progression.md
 	/** Aggregated: one xp{gems, xp} record per player per step with pickups. */
@@ -355,6 +366,8 @@ private:
 	int64 GemsSpawned = 0;
 	int64 GemsCollected = 0;
 	int32 GemsLive = 0;
+	int64 WallDroppedSteps = 0;
+	double WallDurationSeconds = 0.0;
 
 	FString CsvOut;
 	FString JsonlOut;

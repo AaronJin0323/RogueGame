@@ -273,6 +273,26 @@ bool FDTMetSummaryLine::RunTest(const FString& Parameters)
 	FString Csv;
 	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
 	TestTrue(TEXT("the row carries both languages"), Csv.Contains(TEXT("Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},")));
+
+	// The whole line as en reads it, so a format that drops or swaps a number fails here. This process is an editor, which shows game
+	// text in its source language whatever the culture is set to, so zh-Hans is held by the row above and drawn by a zh-Hans launch.
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	TestEqual(TEXT("en reads the en cell, both numbers in their places"), DTMenuText::RunSummary(12, 345).ToString(), FString(TEXT("Ichor retained 12 · Balance 345")));
+	FInternationalization::Get().SetCurrentCulture(Culture);
+
+	// The line for a bank the save's lock kept in memory (R-MET-11): it resolves in both cultures, and differs between them.
+	TestTrue(TEXT("the waiting line is listed with the menu's keys"), DTMenuText::AllKeys().Contains(TEXT("Summary.Waiting")));
+	TArray<FString> Waiting;
+	for (const TCHAR* Name : { TEXT("en"), TEXT("zh-Hans") })
+	{
+		FInternationalization::Get().SetCurrentCulture(Name);
+		Waiting.Add(DTMenuText::SaveWaiting().ToString());
+		TestFalse(FString::Printf(TEXT("%s: the waiting line resolves"), Name), Waiting.Last().IsEmpty() || Waiting.Last().Contains(TEXT("MISSING")) || Waiting.Last().Contains(TEXT("Summary.")));
+	}
+	FInternationalization::Get().SetCurrentCulture(Culture);
+	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
+	TestTrue(TEXT("the waiting row carries both languages"), Csv.Contains(TEXT("Summary.Waiting,Save in use by another game. This run is saved at the next save or on quit.,尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。,")));
 	return true;
 }
 
@@ -286,6 +306,17 @@ bool FDTMetDiscoveryToast::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the row's name is in the line"), Line.Contains(Name));
 	TestTrue(TEXT("the second is too"), Line.Contains(FText::FromStringTable(TEXT("ST_Discoveries"), TEXT("Discovery.Survive10.Name")).ToString()));
 	TestFalse(TEXT("the keys resolve"), Line.Contains(TEXT("MISSING")) || Line.Contains(TEXT("{0}")));
+
+	// One toast holds every name of the bank, so its words read for one or many (review #118): no "a Recollection", no measure word.
+	FString Csv;
+	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_Discoveries.csv")), FFileHelper::EHashOptions::None);
+	TestTrue(TEXT("the toast's row reads for one or many, in both languages"), Csv.Contains(TEXT("Discovery.Toast,Recollections recovered: {0},寻回忆痕：{0},")));
+	const FString Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	const FName One[] = { FName(TEXT("Win")) };
+	TestEqual(TEXT("one name"), DTMenuText::DiscoveryToast(One).ToString(), FString::Printf(TEXT("Recollections recovered: %s"), *Name));
+	TestTrue(TEXT("two names, one line"), DTMenuText::DiscoveryToast(Ids).ToString().StartsWith(TEXT("Recollections recovered: ")) && DTMenuText::DiscoveryToast(Ids).ToString().Contains(TEXT(" · ")));
+	FInternationalization::Get().SetCurrentCulture(Culture);
 	return true;
 }
 
@@ -460,6 +491,40 @@ bool FDTSetDisplay::RunTest(const FString& Parameters)
 	TestEqual(TEXT("windowed"), S.Window, EDTWindow::Windowed);
 	TestTrue(TEXT("window steps back"), DTSettings::StepRow(S, EDTSettingRow::Window, -1));
 	TestEqual(TEXT("fullscreen"), S.Window, EDTWindow::Fullscreen);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTSetWindowRow, "Dusktracer.Settings.WindowRow", DTSettingsTest::Flags) // T-SET-08: the row decides the window, no launcher does
+bool FDTSetWindowRow::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("with nothing saved the row is Fullscreen"), FDTUserSettings().Window, EDTWindow::Fullscreen);
+	TestEqual(TEXT("and so is a file that does not say"), DTSettings::Parse(TEXT("Version=1\n")).Window, EDTWindow::Fullscreen);
+	FDTUserSettings Windowed;
+	Windowed.Window = EDTWindow::Windowed;
+	TestEqual(TEXT("a saved Windowed reads back"), DTSettings::Parse(DTSettings::Serialize(Windowed)).Window, EDTWindow::Windowed);
+	TestTrue(TEXT("a person's launch sets its window mode, saved or default"), DTSettings::SetsWindow(DTSettings::UsesFile(false, false), false));
+	TestFalse(TEXT("a tool run with no file leaves the engine's"), DTSettings::SetsWindow(DTSettings::UsesFile(true, false), false));
+	TestFalse(TEXT("an off-screen run has no window to set"), DTSettings::SetsWindow(DTSettings::UsesFile(false, false), true));
+	TestFalse(TEXT("even when it names a file"), DTSettings::SetsWindow(DTSettings::UsesFile(true, true), true));
+
+	// What would beat the row: a window mode on a launcher's own start line. None names one (review #43).
+	for (const TCHAR* Launcher : { TEXT("Tools/Play.bat"), TEXT("Tools/PackageFiles/Play_en.bat"), TEXT("Tools/PackageFiles/Play_zh-Hans.bat") })
+	{
+		FString Text;
+		TestTrue(FString::Printf(TEXT("%s is read"), Launcher), FFileHelper::LoadFileToString(Text, *FPaths::Combine(FPaths::ProjectDir(), Launcher)));
+		TArray<FString> Lines;
+		Text.ParseIntoArrayLines(Lines);
+		int32 Starts = 0;
+		for (const FString& Line : Lines)
+		{
+			if (Line.TrimStart().StartsWith(TEXT("start "), ESearchCase::IgnoreCase))
+			{
+				++Starts;
+				TestFalse(FString::Printf(TEXT("%s names no window mode"), Launcher), Line.Contains(TEXT("-fullscreen"), ESearchCase::IgnoreCase) || Line.Contains(TEXT("-windowed"), ESearchCase::IgnoreCase));
+			}
+		}
+		TestEqual(FString::Printf(TEXT("%s has one start line"), Launcher), Starts, 1);
+	}
 	return true;
 }
 
@@ -836,6 +901,45 @@ bool FDTSetNavigation::RunTest(const FString& Parameters)
 	const FDTMenuOutcome Closed = Menu.Apply(EDTMenuCommand::Back, S);
 	TestTrue(TEXT("Back from Pause closes"), Closed.bClosed);
 	TestEqual(TEXT("no screen"), Menu.Screen, EDTMenuScreen::None);
+
+	// The stick as these screens poll it (DTMenuInput::Presses over StickKeyCounts): a push down a list, 15 degrees off its axis,
+	// holds its sideways key down as well. It moves one row and changes no value; read by its buttons alone it did both.
+	{
+		const float OffX = 0.26f;
+		const float OffY = -0.97f;
+		const TSet<FKey> Held = { EKeys::Gamepad_LeftStick_Right, EKeys::Gamepad_LeftStick_Down };
+		const auto Counts = [&Held, OffX, OffY](const FKey& Key) { return Held.Contains(Key) && DTMenuInput::StickKeyCounts(Key, OffX, OffY); };
+		const auto Nothing = [](const FKey&) { return false; };
+		FDTUserSettings Live;
+		FDTMenuState Screen;
+		Screen.Open();
+		Screen.Focus = static_cast<int32>(EDTPauseRow::Settings);
+		Screen.Apply(EDTMenuCommand::Accept, Live);
+		const FDTUserSettings Before = Live;
+		TSet<FKey> Down;
+		bool bChanged = false;
+		const TArray<EDTMenuCommand> Slip = DTMenuInput::Presses(Down, Counts);
+		for (const EDTMenuCommand Pressed : Slip)
+		{
+			bChanged |= Screen.Apply(Pressed, Live).bSettingsChanged;
+		}
+		TestTrue(TEXT("a push down with a sideways slip is one press, Down"), Slip.Num() == 1 && Slip[0] == EDTMenuCommand::Down);
+		TestEqual(TEXT("focus moved one row"), Screen.Focus, 1);
+		TestFalse(TEXT("and no value changed"), bChanged || !(Live == Before));
+		TestEqual(TEXT("held, it is no second press"), DTMenuInput::Presses(Down, Counts).Num(), 0);
+		TestEqual(TEXT("released, nothing is held"), DTMenuInput::Presses(Down, Nothing).Num() + Down.Num(), 0);
+
+		// The stick turned over to the side with no release in between: now the sideways key is the press, once.
+		const auto Sideways = [&Held, OffX, OffY](const FKey& Key) { return Held.Contains(Key) && DTMenuInput::StickKeyCounts(Key, -OffY, OffX); };
+		DTMenuInput::Presses(Down, Counts);
+		const TArray<EDTMenuCommand> Turned = DTMenuInput::Presses(Down, Sideways);
+		TestTrue(TEXT("a stick turned to the side is one press, Right"), Turned.Num() == 1 && Turned[0] == EDTMenuCommand::Right);
+
+		// Two real keys landing in one poll are both read, as they always were: the rule is the stick's alone.
+		const TSet<FKey> Both = { EKeys::Gamepad_DPad_Down, EKeys::Gamepad_DPad_Right };
+		TSet<FKey> Pad;
+		TestEqual(TEXT("the D-pad never waits on the stick"), DTMenuInput::Presses(Pad, [&Both, OffX, OffY](const FKey& Key) { return Both.Contains(Key) && DTMenuInput::StickKeyCounts(Key, OffX, OffY); }).Num(), 2);
+	}
 	return true;
 }
 

@@ -23,6 +23,8 @@ public:
 	static void ApplyVolume(const FDTUserSettings& Settings);
 	/** Sets the scalability level and the window mode (R-SET-08). */
 	static void ApplyDisplay(const FDTUserSettings& Settings);
+	/** Sets the window mode alone: no launcher names one, so the row decides it, and its default on a launch with no file yet (R-SET-08). */
+	static void ApplyWindow(const FDTUserSettings& Settings);
 	/** Switches the culture now; off the input path (R-SET-06). */
 	static void ApplyCulture(const FDTUserSettings& Settings);
 };

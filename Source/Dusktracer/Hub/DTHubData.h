@@ -39,6 +39,8 @@ namespace DTHubData
 	DUSKTRACER_API TArray<FDTCodexSource> ReadCodexTable();
 	/** The book: listed rows only, by layer, then key. A row's text reaches the output only when it is read. */
 	DUSKTRACER_API TArray<FDTCodexRow> BuildCodex(const TArray<FDTCodexSource>& Sources, const FDTMetaProfile& Profile);
+	/** A profile that reads every one of these rows: the wins, kills and Discoveries their Unlock cells ask for. For tests and proofs. */
+	DUSKTRACER_API FDTMetaProfile EverythingRead(const TArray<FDTCodexSource>& Sources);
 	/** The Keepers in Path order; InPool: this launch's own pool says the id is in it (R-VIG-05). */
 	DUSKTRACER_API TArray<FDTHubPatron> Patrons(const FDTMetaProfile& Profile, TFunctionRef<bool(FName)> InPool);
 	/** The Path of a save's LastPatron; None for an empty or unknown name. */

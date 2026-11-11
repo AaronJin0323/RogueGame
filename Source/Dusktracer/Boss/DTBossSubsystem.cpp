@@ -238,7 +238,7 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas, float TextScale) const
 	}
 	using namespace DTBossSubsystemLocal;
 	UFont* const Font = GEngine->GetLargeFont();
-	const FText Name = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.BossName"));
+	const FText Name = FText::FromStringTable(TEXT("ST_Enemies"), TEXT("Enemy.Boss.Name")); // one row for the bar and the Codex (boss.md Text)
 	float NameW = 0.0f;
 	float NameH = 0.0f;
 	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale * TextScale, NameScale * TextScale);

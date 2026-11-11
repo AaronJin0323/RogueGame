@@ -33,7 +33,7 @@ namespace DTMenuScreenLocal
 	const TCHAR* const PauseRowKeys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
 	const TCHAR* const EndKeys[] = { TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"), TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"),
 		TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"), TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"),
-		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line"), TEXT("RunSummary.ReturnTo") };
+		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line"), TEXT("Summary.Waiting"), TEXT("RunSummary.ReturnTo") };
 	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
 		TEXT("Settings.Percent"), TEXT("Settings.LanguageName.en"), TEXT("Settings.LanguageName.zhHans"), TEXT("Settings.On"), TEXT("Settings.Off"),
 		TEXT("Settings.Controls.Open"), TEXT("Settings.Hint.Volume"), TEXT("Settings.Hint.Graphics"), TEXT("Settings.Hint.Shake"), TEXT("Settings.Hint.Flash"),
@@ -182,6 +182,11 @@ FText DTMenuText::StatusLine(const FDTMenuState& State)
 FText DTMenuText::RunSummary(int64 Retained, int64 Balance)
 {
 	return FText::Format(DTMenuScreenLocal::Ui(TEXT("Summary.Line")), FText::AsNumber(Retained), FText::AsNumber(Balance));
+}
+
+FText DTMenuText::SaveWaiting()
+{
+	return DTMenuScreenLocal::Ui(TEXT("Summary.Waiting"));
 }
 
 FText DTMenuText::DiscoveryToast(TConstArrayView<FName> Ids)

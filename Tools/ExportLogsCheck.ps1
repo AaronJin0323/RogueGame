@@ -17,6 +17,8 @@ param(
 
 trap { Write-Host "EXPORTCHECK: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $PackageRoot = Join-Path $Root "Saved\Package"
 $ShipDir = Join-Path $PackageRoot "Shipping\Windows"
@@ -35,6 +37,15 @@ $Map = "/Game/DT/Maps/L_Arena_Test"
 foreach ($File in $ShipExe, (Join-Path $DevDir "Export_Logs.bat")) {
 	if (-not (Test-Path $File)) { Write-Host "EXPORTCHECK: NOT RUN (no $File; Tools\Package.ps1)"; exit 2 }
 }
+# Which package (R-PKG-08), as Tools\PadCheck.ps1 asks: an old package's export script would pass or fail for a tree that is not this one.
+$StampFile = Join-Path $PackageRoot "package_stamp.json"
+if (-not (Test-Path $StampFile)) { Write-Host "EXPORTCHECK: NOT RUN (no package stamp; Tools\Package.ps1)"; exit 2 }
+$Stamp = [IO.File]::ReadAllText($StampFile) | ConvertFrom-Json
+if ($Stamp.dirty) { Write-Host "EXPORTCHECK: NOT RUN (package $($Stamp.commit) came from a dirty tree)"; exit 2 }
+if (@($Stamp.configs) -notcontains "Shipping" -or @($Stamp.configs) -notcontains "Development" -or $Stamp.skipcook) { Write-Host "EXPORTCHECK: NOT RUN (package $($Stamp.commit) came from a partial run: $(@($Stamp.configs) -join '+'), skipcook=$([bool]$Stamp.skipcook))"; exit 2 }
+$Changed = @(& git -C $Root diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject Tools/PackageFiles)
+if ($LASTEXITCODE -ne 0) { Write-Host "EXPORTCHECK: NOT RUN (package commit $($Stamp.commit) is not in this history)"; exit 2 }
+if ($Changed.Count -gt 0) { Write-Host "EXPORTCHECK: NOT RUN (package $($Stamp.commit) is stale, $($Changed.Count) file(s) changed since)"; exit 2 }
 
 $script:Failures = @()
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
@@ -147,7 +158,7 @@ try {
 		if ($PressRc -ne 0) { Note-Fail "pressure.py rc $PressRc on $($Run.Name)" }
 		Write-Host "    $($Run.Name): $Power; pressure rc $PressRc"
 	}
-	$Summary = "zip {0:n0} KB, {1} files, {2} scanned clean, raw log named the user {3} times, 0 game processes" -f ($Zip.Length / 1KB), $All.Count, ($All.Count - $Dirty), $RawCount
+	$Summary = "package {4}, zip {0:n0} KB, {1} files, {2} scanned clean, raw log named the user {3} times, 0 game processes" -f ($Zip.Length / 1KB), $All.Count, ($All.Count - $Dirty), $RawCount, $Stamp.commit
 }
 finally {
 	Close-DTHidden

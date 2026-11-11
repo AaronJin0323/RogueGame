@@ -32,6 +32,14 @@ public:
 	const IDTHubTab* GetTree() const { return Tree.Get(); }
 	/** Strings of the last frame drawn that ran past their room (R-VIG-16). */
 	int32 GetOverflow() const { return Overflow; }
+	/** The root's line about the save, as Enter read it (R-VIG-21). */
+	const FText& GetNotice() const { return Notice; }
+#if !UE_BUILD_SHIPPING
+	/** Proof seam (Tools/VigilCheck.ps1 launch Large): the root with this notice on it, on this hub's page only. */
+	void ShowNoticeForCheck(EDTMetaNotice Kind, const FString& AsideFile);
+	/** Proof seam (Tools/VigilCheck.ps1 launch Large, T-VIG-16): every Codex row read and every Keeper open, on this hub's pages only. */
+	void ShowEverythingForCheck();
+#endif
 	/** Test seam: receives the map options instead of opening the map. */
 	void SetBeginOverride(TFunction<void(const FString&)> InOverride) { BeginOverride = MoveTemp(InOverride); }
 
@@ -52,6 +60,7 @@ private:
 	FDTHubKeys Keys;
 	TFunction<void(const FString&)> BeginOverride;
 	FString PendingOptions;
+	FText Notice;
 	int32 Overflow = 0;
 	bool bActive = false;
 	bool bBeginPending = false;

@@ -1,5 +1,5 @@
 Key,en,zh-Hans,Context,Kw
-Discovery.Toast,Recollection recovered: {0},寻回了一段忆痕：{0},Unlock toast. {0} a Discovery name.,
+Discovery.Toast,Recollections recovered: {0},寻回忆痕：{0},"Unlock toast, one per bank. {0} one Discovery name or several joined with a middle dot, so the line reads for one or many (review #118). [invented] the zh without its measure word; the source has 寻回了一段忆痕 for one.",
 Discovery.Unlocks,Opens: {0},解锁：{0},Codex line under a Discovery. {0} a list of unlocked names.,
 Discovery.ReachL10.Name,Deep Work,深入作业,Discovery name.,
 Discovery.ReachL10.Desc,Reach level 10 in a single run.,单局升到 10 级。,[invented] Condition text.,

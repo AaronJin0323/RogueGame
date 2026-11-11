@@ -76,6 +76,9 @@ private:
 	TWeakObjectPtr<UDTSimSubsystem> Sim;
 	TWeakObjectPtr<UDTHeroSubsystem> Heroes;
 	FDelegateHandle HeroEventHandle;
+	/** The clock's dropped-step count and the wall clock when the session started (run_end wall_dropped_steps, wall_duration_s). */
+	int64 DroppedStepsAtStart = 0;
+	double WallSecondsAtStart = 0.0;
 	TArray<int32> LevelScratch;
 	TArray<int64> XpScratch;
 };

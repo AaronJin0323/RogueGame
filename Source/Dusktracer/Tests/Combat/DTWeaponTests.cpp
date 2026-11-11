@@ -1,4 +1,4 @@
-// Weapon tests (02_Systems/weapons.md T-WPN-01..13).
+// Weapon tests (02_Systems/weapons.md T-WPN-01..14).
 // Run headless: UnrealEditor-Cmd.exe Dusktracer.uproject -ExecCmds="Automation RunTests Dusktracer.Weapons; Quit" -unattended -nullrhi
 
 #include "Misc/AutomationTest.h"
@@ -17,6 +17,8 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Keepers/DTKeeperSpec.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Telemetry/DTTelemetrySources.h"
 
 namespace DTWeaponTest
@@ -552,6 +554,110 @@ bool FDTWeaponsConversion::RunTest(const FString& Parameters)
 		H.Weapons.StepWeapons(H.Context(), &H.Bullets);
 		TestEqual(TEXT("partial: remaining rounds fly"), H.Bullets.Num(), 2);
 		TestEqual(TEXT("partial: one arc hit"), H.View.Hits.Num(), 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsHammerKeyFallback, "Dusktracer.Weapons.HammerKeyFallback", DTWeaponTestHarness::TestFlags) // T-WPN-19
+bool FDTWeaponsHammerKeyFallback::RunTest(const FString& Parameters)
+{
+	using namespace DTWeaponTest;
+	using namespace DTWeaponTestHarness;
+	// The real Key and the real Long Haft, as a Forge Patron holds them, and the numbers their cards print.
+	const FName KeyId(TEXT("Blessing.Forge.Hammer.Key"));
+	FDTKeeperRunState Keepers;
+	Keepers.Primary = EDTPath::Forge;
+	TestTrue(TEXT("the real Key"), DTOffers::AddBlessing(Keepers, KeyId));
+	const FDTWeaponFlags Key = DTKeepers::BuildKeeperFlags(Keepers, EDTPath::Forge);
+	TestTrue(TEXT("the real Long Haft"), DTOffers::AddBlessing(Keepers, FName(TEXT("Blessing.Forge.Hammer.Amp2"))));
+	const FDTWeaponFlags KeyAndHaft = DTKeepers::BuildKeeperFlags(Keepers, EDTPath::Forge);
+	float CardArcDeg = 0.0f;
+	float CardReach = 0.0f;
+	float CardMult = 0.0f; // {cleave_mult} of the Key's rules row
+	const FDTBlessingInfo KeyInfo = DTOffers::FindBlessing(KeyId);
+	for (const TPair<FString, double>& Param : DTOffers::SpecParams(DTCat::Archetypes[KeyInfo.Archetype].Effects[KeyInfo.Column]))
+	{
+		if (Param.Key == TEXT("arc_deg")) { CardArcDeg = static_cast<float>(Param.Value); }
+		if (Param.Key == TEXT("radius_uu")) { CardReach = static_cast<float>(Param.Value); }
+		if (Param.Key == TEXT("dmg_mult")) { CardMult = static_cast<float>(Param.Value * DTConst::WEAPON_CONVERT_MELEE_DAMAGE_RATIO); }
+	}
+	float HaftScale = 1.0f;
+	const FDTBlessingInfo HaftInfo = DTOffers::FindBlessing(FName(TEXT("Blessing.Forge.Hammer.Amp2")));
+	for (const TPair<FString, double>& Param : DTOffers::SpecParams(DTCat::Archetypes[HaftInfo.Archetype].Effects[HaftInfo.Column]))
+	{
+		if (Param.Key == TEXT("radius_scale")) { HaftScale += static_cast<float>(Param.Value); }
+	}
+	TestTrue(TEXT("the Key names an arc, a reach and a multiplier"), CardArcDeg > 0.0f && CardReach > 0.0f && CardMult > 0.0f && HaftScale > 1.0f);
+
+	// Arc Blade: its sweep is the cleave. With the Key it has the card's arc and reach where those are larger, and deals the
+	// card's multiplier; it stays the weapon's own hit (R-WPN-07: nothing was reshaped into a Keeper emission).
+	const int32 Blade = DTWeapons::FindWeapon(ArcBlade);
+	const uint16 BladeSource = FDTTelemetrySources::FindOrAdd(TEXT("Weapon.ArcBlade"));
+	for (int32 Level = 1; Level <= DTWeapons::GetMaxLevel(Blade); ++Level)
+	{
+		const DTCat::FWeaponLevelRow& Row = *DTWeapons::GetLevelRow(Blade, Level);
+		const FString Cell = FString::Printf(TEXT("Arc Blade L%d"), Level);
+		if (!TestTrue(Cell + TEXT(": the catalog reach is inside the Key's"), Row.Radius_uu + 10.0f <= CardReach))
+		{
+			continue;
+		}
+		struct FReading
+		{
+			FDTWeaponSpec Spec;
+			TArray<FDTHit> Hits;
+		};
+		auto Read = [&](const FDTWeaponFlags* Flags)
+		{
+			FDTHarness H;
+			H.bResolve = false;
+			H.AddEnemy(FVector2f(150.0f, 0.0f)); // in front, inside every level's reach
+			H.Enemies.Publish(H.View);
+			const float EnemyRadius = H.View.EnemyRadii[0];
+			H.AddEnemy(FVector2f(Row.Radius_uu + EnemyRadius + 10.0f, 0.0f)); // in front, past the blade's own reach, inside the Key's
+			H.AddEnemy(FVector2f(-150.0f, 0.0f)); // behind: only a second sweep reaches it
+			H.Weapons.Give(H.Run, 0, ArcBlade, Level);
+			if (Flags)
+			{
+				H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), *Flags);
+			}
+			H.Enemies.Publish(H.View);
+			H.Weapons.StepWeapons(H.Context(), &H.Bullets);
+			return FReading{ H.Weapons.ComposeSlot(H.Run, 0, 0), H.View.Hits };
+		};
+		const FReading Bare = Read(nullptr);
+		const FReading Keyed = Read(&Key);
+		const FReading Hafted = Read(&KeyAndHaft);
+		const int32 BareHits = Row.Count >= 2 ? 2 : 1;
+		if (TestEqual(Cell + TEXT(": bare, the near enemies only"), Bare.Hits.Num(), BareHits))
+		{
+			TestEqual(Cell + TEXT(": bare damage is the row's"), Bare.Hits[0].Damage, Row.Damage, 1e-3f);
+		}
+		TestEqual(Cell + TEXT(": the Key's arc"), Keyed.Spec.ArcDeg, FMath::Max(static_cast<float>(DTConst::WEAPON_ARC_DEG), CardArcDeg), 1e-3f);
+		TestEqual(Cell + TEXT(": the Key's reach"), Keyed.Spec.Range, FMath::Max(Row.Radius_uu, CardReach), 1e-3f);
+		if (TestEqual(Cell + TEXT(": with the Key the sweep reaches the far enemy too"), Keyed.Hits.Num(), BareHits + 1))
+		{
+			for (const FDTHit& Hit : Keyed.Hits)
+			{
+				TestEqual(Cell + TEXT(": every sweep deals the card's multiplier"), Hit.Damage, Row.Damage * CardMult, 1e-3f);
+				TestEqual(Cell + TEXT(": the sweep stays the weapon's"), Hit.SourceId, BladeSource);
+			}
+		}
+		TestEqual(Cell + TEXT(": Long Haft scales the Key's reach, as it does a native cleave's"), Hafted.Spec.Range, FMath::Max(Row.Radius_uu, CardReach) * HaftScale, 1e-2f);
+	}
+
+	// Gravity Mine and Orbital Drones: the Key still changes nothing. What it should mean on a blast and on drones is a rule
+	// R-WPN-08 has not made (weapons.md Open); this pins today's reading so it changes with that rule and not by accident.
+	for (const FName& Weapon : { GravityMine, OrbitalDrones })
+	{
+		FDTHarness H;
+		H.Weapons.Give(H.Run, 0, Weapon, 1);
+		const FDTWeaponSpec Bare = H.Weapons.ComposeSlot(H.Run, 0, 0);
+		H.Weapons.AddFlagSource(0, TEXT("Test.Hammer"), Key);
+		const FDTWeaponSpec Keyed = H.Weapons.ComposeSlot(H.Run, 0, 0);
+		TestTrue(Weapon.ToString() + TEXT(": the Key resolves to a fallback"), Keyed.FindFlag(DTCat::EFlag::ConvertMelee) && Keyed.FindFlag(DTCat::EFlag::ConvertMelee)->IsFallback());
+		TestTrue(Weapon.ToString() + TEXT(": open, the Key moves no number (weapons.md Open)"),
+			Keyed.Damage == Bare.Damage && Keyed.Count == Bare.Count && Keyed.Cooldown == Bare.Cooldown && Keyed.Radius == Bare.Radius
+			&& Keyed.Range == Bare.Range && Keyed.AreaRadius == Bare.AreaRadius && Keyed.Conversion == DTCat::EFlag::None);
 	}
 	return true;
 }

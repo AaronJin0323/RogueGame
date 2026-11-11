@@ -7,6 +7,8 @@
 #include "Core/DTSimSubsystem.h"
 #include "Core/DTSimTypes.h"
 #include "Engine/World.h"
+#include "EnhancedInputComponent.h"
+#include "Game/DTHUD.h"
 #include "GameFramework/MovementComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
@@ -472,6 +474,89 @@ bool FDTCmbNoFireAction::RunTest(const FString& Parameters)
 	H.View.EnemyPositions = { FVector2f(0.0f, 500.0f) };
 	H.Steps(1);
 	TestTrue(TEXT("aim published with no input"), H.View.HeroAimDirs[0].Equals(FVector2f(0.0f, 1.0f), 1e-5f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTCmbKeyLabels, "Dusktracer.Combat.Input.KeyLabels", DTHeroTest::Flags) // T-CMB-13
+bool FDTCmbKeyLabels::RunTest(const FString& Parameters)
+{
+	using namespace DTHeroTest;
+	UDTInputSet* Set = UDTInputSet::Create(GetTransientPackage());
+	const FText Dash = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));
+	const FText Meter = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Intercession"));
+	const FText Ready = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.IntercessionReady"));
+	auto Bracket = [](const FKey& Key) { return FString::Printf(TEXT("[%s]"), *UDTInputSet::KeyGlyph(Key).ToString()); };
+	auto Label = [Set](const FText& Name, const UInputAction* Action, EDTInputDevice Device)
+	{
+		return ADTHUD::KeyLabel(Name, Set, Action, Device).ToString();
+	};
+	// A label is its name, then the key in brackets: nothing else is drawn on the line.
+	auto Reads = [this](const TCHAR* What, const FString& Line, const FText& Name, const FString& Key)
+	{
+		TestTrue(FString::Printf(TEXT("%s: '%s' starts with the label"), What, *Line), Line.StartsWith(Name.ToString(), ESearchCase::CaseSensitive));
+		TestTrue(FString::Printf(TEXT("%s: '%s' ends with %s"), What, *Line, *Key), Line.EndsWith(Key, ESearchCase::CaseSensitive));
+	};
+
+	// The defaults of combat_core.md Data, per device.
+	TestTrue(TEXT("Space has a name"), !UDTInputSet::KeyGlyph(EKeys::SpaceBar).IsEmpty());
+	Reads(TEXT("dash on KBM"), Label(Dash, Set->Dash, EDTInputDevice::KBM), Dash, Bracket(EKeys::SpaceBar));
+	Reads(TEXT("Intercession on KBM"), Label(Meter, Set->Intercession, EDTInputDevice::KBM), Meter, TEXT("[Q]"));
+	Reads(TEXT("the full meter keeps its key"), Label(Ready, Set->Intercession, EDTInputDevice::KBM), Ready, TEXT("[Q]"));
+	Reads(TEXT("dash on pad"), Label(Dash, Set->Dash, EDTInputDevice::Pad), Dash, TEXT("[RB]"));
+	Reads(TEXT("Intercession on pad"), Label(Meter, Set->Intercession, EDTInputDevice::Pad), Meter, TEXT("[LB]"));
+	TestFalse(TEXT("the pad label does not name the keyboard key"), Label(Dash, Set->Dash, EDTInputDevice::Pad).Contains(Bracket(EKeys::SpaceBar)));
+
+	// A rebinding: the label is read from the mapping context, so it follows, on that device only.
+	Set->Kbm->UnmapKey(Set->Dash, EKeys::SpaceBar);
+	Set->Kbm->MapKey(Set->Dash, EKeys::LeftShift);
+	TestNotEqual(TEXT("Shift and Space have different names"), Bracket(EKeys::LeftShift), Bracket(EKeys::SpaceBar));
+	Reads(TEXT("dash rebound on KBM"), Label(Dash, Set->Dash, EDTInputDevice::KBM), Dash, Bracket(EKeys::LeftShift));
+	Reads(TEXT("the pad keeps its button"), Label(Dash, Set->Dash, EDTInputDevice::Pad), Dash, TEXT("[RB]"));
+	Reads(TEXT("Intercession keeps its key"), Label(Meter, Set->Intercession, EDTInputDevice::KBM), Meter, TEXT("[Q]"));
+	Set->Pad->UnmapKey(Set->Intercession, EKeys::Gamepad_LeftShoulder);
+	Set->Pad->MapKey(Set->Intercession, EKeys::Gamepad_FaceButton_Top);
+	Reads(TEXT("Intercession rebound on pad"), Label(Meter, Set->Intercession, EDTInputDevice::Pad), Meter, TEXT("[Y]"));
+	// No key on the device: the label alone, never an empty bracket.
+	Set->Kbm->UnmapKey(Set->Dash, EKeys::LeftShift);
+	TestEqual(TEXT("an unbound action shows its label alone"), Label(Dash, Set->Dash, EDTInputDevice::KBM), Dash.ToString());
+	TestEqual(TEXT("no input set shows the label alone"), ADTHUD::KeyLabel(Dash, nullptr, Set->Dash, EDTInputDevice::KBM).ToString(), Dash.ToString());
+
+	// A device switch: the HUD asks the hero system which device player 0 used last and whose keys those are.
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+	if (!TestNotNull(TEXT("test world"), World))
+	{
+		return false;
+	}
+	World->BeginPlay();
+	UDTSimSubsystem* Sim = World->GetSubsystem<UDTSimSubsystem>();
+	UDTHeroSubsystem* HeroSystem = World->GetSubsystem<UDTHeroSubsystem>();
+	ADTHero* Pawn = World->SpawnActor<ADTHero>();
+	if (TestNotNull(TEXT("sim subsystem"), Sim) && TestNotNull(TEXT("hero subsystem"), HeroSystem) && TestNotNull(TEXT("pawn spawned"), Pawn))
+	{
+		Sim->StartRun(3, 1);
+		TestNull(TEXT("no pawn registered for a second player"), HeroSystem->GetInputSet(1));
+		Pawn->SetupPlayerInputComponent(NewObject<UEnhancedInputComponent>(Pawn));
+		HeroSystem->RegisterPawn(Pawn);
+		const UDTInputSet* Keys = HeroSystem->GetInputSet(0);
+		if (TestNotNull(TEXT("the pawn's input set"), Keys) && TestTrue(TEXT("it is the set the pawn binds"), Keys == Pawn->GetInputSet()))
+		{
+			auto Drawn = [&]() { return ADTHUD::KeyLabel(Dash, Keys, Keys->Dash.Get(), HeroSystem->GetLastInputDevice(0)).ToString(); };
+			FDTHeroInput In;
+			In.Device = EDTInputDevice::KBM;
+			HeroSystem->LatchInput(0, In);
+			Sim->StepNow(1);
+			Reads(TEXT("keyboard in use"), Drawn(), Dash, Bracket(EKeys::SpaceBar));
+			In.Device = EDTInputDevice::Pad;
+			HeroSystem->LatchInput(0, In);
+			Sim->StepNow(1);
+			Reads(TEXT("after the pad is used"), Drawn(), Dash, TEXT("[RB]"));
+			In.Device = EDTInputDevice::KBM;
+			HeroSystem->LatchInput(0, In);
+			Sim->StepNow(1);
+			Reads(TEXT("back on the keyboard"), Drawn(), Dash, Bracket(EKeys::SpaceBar));
+		}
+	}
+	World->DestroyWorld(false);
 	return true;
 }
 

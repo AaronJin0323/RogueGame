@@ -7,10 +7,10 @@
 | Area | Choice | Why |
 |---|---|---|
 | Bullets | C++ struct-of-arrays in a world subsystem; fixed step; spatial hash on the XY plane; rendered as ISM (Niagara only as an A/B item that must win by a measured margin) | `C.BULLETS.CAP` live bullets cannot be Actors |
-| Enemies | SoA manager for movement/HP/status; instanced meshes + vertex animation; Actors only for elites and the boss | `C.ENEMIES.CAP` must cost almost nothing per instance |
-| Abilities | No GAS: `FDTStatSet` + `UDTEffect` objects subscribed to batched events | GAS is built for networked prediction we do not need |
-| Content | Primary data assets + gameplay tags, generated from `09_Catalog/*.csv` | designers edit tables; code reads data |
-| UI / input | UMG + CommonUI built in code; Enhanced Input with KBM and pad contexts | pad from the first offer screen |
+| Enemies | C++ struct-of-arrays pool (`FDTEnemyPool`) for movement, HP and statuses, stepped by a world subsystem; drawn as instanced meshes, a hull and an optic per enemy. An elite is a flag on a pool slot and the boss is a pool role (`EDTEnemyRole::Boss`, `boss.md` R-BOS-03): no enemy is an Actor | `C.ENEMIES.CAP` must cost almost nothing per instance |
+| Abilities | No GAS. Each sim system owns its plain stat struct (`FDTHeroStats`, `FDTWeaponHeroStats`, `FDTProgressionStats`). A Keeper's blessings become weapon flag sources (`FDTWeaponFlags`). The weapon system composes level, modifiers, flags and hero stats into each weapon's spec for the step and reacts to the step's batched hits and kills in the `Effects` phase, where the Keeper system rolls enchantment and runs Intercession (§4) | GAS is built for networked prediction we do not need |
+| Content | `09_Catalog/*.csv` compiles into constexpr tables (`DTCat::*`, `Core/DTCatalogGen.h`) and native gameplay tags (`DTTag::*`, `Core/DTTagsGen.h`); no data asset exists (D-014) | designers edit tables; code reads data |
+| UI / input | Canvas drawing from one `AHUD` (`ADTHUD`): hero block, XP bar, boss bar, director banner and the offer screen (`UDTOfferScreen`); the module depends on neither UMG nor CommonUI. Enhanced Input: the actions and the KBM and pad contexts are built in C++ (`UDTInputSet`), both contexts live at once | pad from the first offer screen; no binary UI asset (R-TEC-06) |
 | Text | String tables; per-table CSV is the source (en, zh-Hans, context, keyword ids) | bilingual from the first string |
 | Rendering | Lumen (software), VSM, Nanite for environment statics, TSR; no motion blur, no chromatic aberration, fixed exposure | readability contract (`04_Presentation §2`) |
 | Platform | Win64 in the gates; macOS deferred (D-007) | |
@@ -37,12 +37,12 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
   - T-TEC-08 `Tools/loc_build.py --check`: every key has en and zh-Hans; the round-trip test string exists in both; zh keeps en's arguments, the glossary's terms and house style, and any budget in Context; each literal table lookup in code has its row (`S2_zh.md`).
 - **R-TEC-09** Every `.cpp` compiles alone (include-what-you-use); no file-scope `using namespace`.
   - T-TEC-09 non-unity gate (`Tools/Gate.ps1` step `nonunity`).
-- **R-TEC-10** Performance is measured as median and p95 against `C.BUDGET.*`, on the named hardware; GPU measurements hold the file semaphore `Saved/gpu.lock`.
-  - T-TEC-10 PLANNED(S0) `Tools/Perf.ps1` on the stress map.
+- **R-TEC-10** Performance is measured as median and p95 against `C.BUDGET.*`, on the named hardware; GPU measurements hold the file semaphore `<git common dir>/dt-locks/gpu.lock`, one file every worktree of the repository shares (`Tools/GpuLock.ps1`; `Saved/gpu.lock` only in a tree that is not a git checkout).
+  - T-TEC-10 `Tools/Perf.ps1` on the stress arena at `C.BULLETS.CAP` bullets and `C.ENEMIES.CAP` enemies: p50 and p95 of game thread and GPU time against `C.BUDGET.*`, read while it holds `<git common dir>/dt-locks/gpu.lock`, at the size of `C.BUDGET.RES` read back from the capture (a run that rendered another size fails), ending `PERF: PASS` or `PERF: FAIL`. A hand reading: no step of `Tools/Gate.ps1` runs it (`Validation/S0_exit.md` holds the S0 reading).
 - **R-TEC-11** Bullets and swarm enemies are never Actors.
   - T-TEC-11 `Dusktracer.Tec.Bullets.NoActors`: a real game world fires `C.BULLETS.CAP` bullets; no actor is added and there is one instance per bullet.
 - **R-TEC-12** Debug console commands (`DT.*`) and experiments (`dt.Exp.*`) are compiled out of Shipping.
-  - T-TEC-12 Shipping compile gate (`Tools/Gate.ps1` step `shipping`) + `Dusktracer.Tec.Debug.NotInShipping` PLANNED(S1).
+  - T-TEC-12 Shipping compile gate (`Tools/Gate.ps1` step `shipping`): the Shipping game target builds with no warning. PLANNED(S1): a package check that a Shipping build answers no `DT.*` command and holds no `dt.Exp.*` cvar; an automation test cannot hold it, because automation tests compile out of Shipping.
 
 - **R-TEC-13** Proximity queries go through `FDTSpatialHash` (uniform grid of `C.HASH.CELL_UU` over `±C.ARENA.HALF_EXTENT_UU`, rebuilt every step by counting sort); a query never misses a point inside its circle, and points outside the arena clamp into edge cells.
   - T-TEC-13 `Dusktracer.Tec.SpatialHash.Query`: brute-force oracle over random points, including points outside the arena.
@@ -59,18 +59,25 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 
 ```
 Source/Dusktracer/
-  Core/     module, log, constants (generated), RNG streams, fixed step, run state, save envelope
-  Player/   ADTHero, stats, dash, Intercession
-  Combat/   UDTBulletSubsystem, spatial hash, weapons
-  Enemies/  UDTEnemySubsystem, director, boss
-  Build/    offers, modifiers, blessings, UDTKeeperDef, effects
-  Meta/     meta subsystem, saves, registry
-  UI/       screens built in code
-  Debug/    console commands (not in Shipping)
-  Tests/    automation tests, one folder per system
-Content/DT/  Maps/ Data/ Text/ Materials/ Meshes/ VFX/ UI/ Input/ Audio/
+  Core/         sim subsystem and shared sim types, fixed step, RNG streams, run seed, run state, save envelope, spatial hash;
+                generated: constants, palette, catalog tables, native tags
+  Game/         ADTGameMode, ADTCameraPawn, ADTHUD
+  Player/       ADTHero, hero sim and subsystem (stats, dash, Intercession meter), input set
+  Combat/       bullet pool, renderer and subsystem; weapon catalog, flags, composition, sim and subsystem (modifiers live here)
+  Enemies/      enemy pool, enemy rounds, renderers, telegraphs, subsystem
+  Boss/         FDTBossCore, UDTBossSubsystem
+  Director/     FDTDirectorCore, UDTDirector
+  Keepers/      effect-spec parser, Keeper sim and subsystem (blessings, enchantment, Intercession)
+  Offers/       generator (DTOffers), screen, card style, subsystem
+  Progression/  gem and chest pool, XP and levels, pickup renderer, XP bar
+  Telemetry/    core, records, sources, writer, subsystem
+  Bot/          bot brain, probe script, subsystem (a tool, never a player feature)
+  Debug/        console commands (not in Shipping)
+  Tests/        automation tests, one folder per system
+Content/DT/  Maps/ Materials/ Text/
 ```
-- C++ prefix `DT`; assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`; data assets `DA_Weapon_PulseRifle`, `DA_Keeper_Storm`, `DA_Enemy_Swarm`.
+- These are the folders of this branch. `Settings/` arrives with `dev/s2`, `Meta/` and `Hub/` with `dev/s3`; no other `Content/DT/` folder exists yet.
+- C++ prefix `DT`; assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`. No `DA_` asset exists (D-014): catalog rows are named by their tag spelling (`Weapon.PulseRifle`, `Keeper.Storm`, `Enemy.Swarm`).
 - Keys are the Path (`Storm Forge Tide Shade Radiance Quicksilver`) and the enemy role; fiction only in string tables. Tag roots `Keeper.* Enemy.* Cap.* Flag.* Status.*`.
 - Console `DT.*`; cvars `dt.*`; experiments `dt.Exp.<Name>` with an expiry date in their help text.
 - Automation tests: `Dusktracer.<System>.<Case>`, with the `T-<SYS>-nn` id in a comment on the same line as the test macro.
@@ -78,19 +85,40 @@ Content/DT/  Maps/ Data/ Text/ Materials/ Meshes/ VFX/ UI/ Input/ Audio/
 ## 4. Runtime architecture (shape)
 
 ```
-GameInstance
-  UDTMetaSubsystem      saves (R-TEC-04), currency, unlocks
-World
-  ADTGameMode           run start/end; owns the run seed → FDTRngStreams (R-TEC-02)
-  UDTSimSubsystem       the fixed-step clock (R-TEC-03); ticks the systems below in order
-  FDTPlayerRunState[]   one per player (R-TEC-01)
-  UDTBulletSubsystem    SoA sim, spatial hash, hit buffer, ISM render
-  UDTEnemySubsystem     SoA sim, statuses, ISM render
-  UDTDirector           pacing, events, boss
-  UDTEffectManager      batched hook dispatch (OnHit/OnKill/OnDash/OnLevel/OnStep), every event with OwnerId
-  UDTOfferGenerator     five-card offers per player
+World (Game and PIE worlds; a world subsystem unless marked)
+  ADTGameMode (actor)     reads the launch seed (R-TEC-16); starts the run for one player, its telemetry session and the director
+  UDTSimSubsystem         the fixed-step clock (R-TEC-03); owns FDTRunState and FDTWorldView; steps the registered systems in phase order (R-TEC-14)
+    FDTRunState           the run's FDTRngStreams (R-TEC-02) and one FDTPlayerRunState per player (R-TEC-01)
+  UDTHeroSubsystem        FDTHeroSim: every player's hero; the latched input; draws the ADTHero pawns
+  UDTEnemySubsystem       FDTEnemyPool: SoA sim, statuses, enemy rounds, telegraphs, hit resolution; ISM render
+  UDTBossSubsystem        FDTBossCore: the Warden, a hull in the enemy pool; boss bar; the win
+  UDTWeaponSubsystem      FDTWeaponSim: fire, composition of levels, modifiers and Keeper flags, reactions; ISM render
+  UDTBulletSubsystem      FDTBulletPool: SoA sim, collision against the enemy hash, hit buffer; ISM render
+  UDTKeeperSubsystem      FDTKeeperSim: Keeper flag sources, enchantment procs, Intercession; trail render
+  UDTGemSubsystem         FDTGemPool and FDTProgression: gems and chests, XP, level-ups; ISM render
+  UDTDirector             FDTDirectorCore: pacing, spawns, drop-ins, drops, boss time
+  UDTTelemetrySubsystem   FDTTelemetryCore and its writer: one CSV and one JSONL per session
+  UDTOfferSubsystem       hands per player, the pause, the offer screen; the five cards come from the pure functions of DTOffers
+  UDTBotSubsystem         a tool, off by default: drives player 0 through the hero's input path and answers its hands
+  ADTHUD, ADTCameraPawn (actors)   the Canvas HUD; the follow camera of player 0
 ```
-Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) → **Hero** (reads last step's `HeroHits`, moves, dashes, aims) → **Enemies** (applies queued spawns, `StatusApplies` and `Displacements`; statuses tick (Burn appends hits); role machines and movement; publish and hash rebuild; enemy fire and contact append `HeroHits`; boss) → **Weapons** (fire: rounds, arc and mine hits, mine displacements) → **Bullets** (integrate, collide → `Hits`) → **ResolveHits** (apply `Hits`, emit `Hit`/`Kill`, fill `Kills`, compact, republish) → **Effects** (`UDTEffectManager` hooks: Keeper flags, modifiers, enchantment procs, Intercession) → **Pickups** (gems and chests, XP, level-ups) → **Director** (pacing, drops, markers; telemetry closes the step). Hits appended after `ResolveHits` (Effects) resolve in the next step's `ResolveHits`. Rendering reads the last two steps and interpolates.
+Each core named before a colon is plain C++ with no world, so tests drive it headless; its subsystem wires it to the sim, the world and its renderer actors. `UDTOfferSubsystem` and `UDTBotSubsystem` tick on their own, also while the game is paused, and are not sim systems. Nothing lives on the game instance on this branch: saves and meta arrive with `dev/s3`, and `FDTSaveEnvelope` (R-TEC-04) has no caller outside its test.
+
+Registered systems, read from the `Register` calls. A system object registers for one phase; a subsystem that works in a second phase registers an adapter for it. Within a phase systems run in registration order, which the code fixes in two places: the bullet pool before its observers, the enemy pool before the boss.
+
+| Phase | Registered |
+|---|---|
+| `Input` | the input adapter of `UDTHeroSubsystem`; the run-end reader of `UDTBossSubsystem` (a win, `boss.md` R-BOS-13) |
+| `Hero` | `UDTHeroSubsystem` |
+| `Enemies` | `UDTEnemySubsystem`, then `UDTBossSubsystem` |
+| `Weapons` | `UDTWeaponSubsystem`; the `DT.Bullets` stress emitter (`Debug/`, not in Shipping) |
+| `Bullets` | `UDTBulletSubsystem`, then the adapters of `UDTWeaponSubsystem` (mirrors rounds, captures impacts) and `UDTKeeperSubsystem` (captures the step's player hits) |
+| `ResolveHits` | the adapter of `UDTEnemySubsystem` |
+| `Effects` | the adapter of `UDTWeaponSubsystem`; `UDTKeeperSubsystem`; the run-end reader of `UDTBossSubsystem` (a step every hero falls on in the fight, R-BOS-13) |
+| `Pickups` | `UDTGemSubsystem`; the adapter of `UDTKeeperSubsystem` (status telemetry) |
+| `Director` | `UDTDirector`; `UDTTelemetrySubsystem` |
+
+Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`; the boss reads a win from last step's `Kills`) → **Hero** (reads last step's `HeroHits`, moves, dashes, aims) → **Enemies** (applies queued spawns, `StatusApplies` and `Displacements`; statuses tick (Burn appends hits); role machines and movement; publish and hash rebuild; enemy fire and contact append `HeroHits`; boss) → **Weapons** (fire: rounds, arc and mine hits, mine displacements) → **Bullets** (integrate, collide → `Hits`; the weapon and Keeper systems capture the step's impacts and player hits) → **ResolveHits** (apply `Hits`, emit `Hit`/`Kill`, fill `Kills`, compact, republish) → **Effects** (the weapon system reacts to the step's kills and impacts: modifiers, Keeper flags, held control; the Keeper system rolls enchantment procs and runs Intercession; on a step every hero falls on in the fight, the boss reads that step's `Kills` and settles win or death) → **Pickups** (gems and chests, XP, level-ups) → **Director** (pacing, drops, markers; telemetry closes the step). Hits appended after `ResolveHits` (Effects) resolve in the next step's `ResolveHits`. Rendering reads the last two steps and interpolates.
 
 `FDTWorldView` (R-TEC-14; S0 fields kept, S1 fields added). "Next" = consumed in the next step.
 
@@ -98,12 +126,12 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) �
 |---|---|---|---|
 | `HeroPositions`, `HeroAimDirs`, `HeroIntangible` | hero (Hero) | all; weapons; enemy fire | overwritten each step |
 | `HeroHurt` | hero (Hero) | weapons (Slam's `HitTaken`) | overwritten each step; a touch the hero refused never sets it |
-| `HeroHits` (`FDTHeroHit[]`) | enemies: contact, enemy rounds; boss hazards (Enemies) | hero, next step | by the hero after reading |
+| `HeroHits` (`FDTHeroHit[]`) | enemies: contact, Rusher charges, enemy rounds; boss attacks and its hazard ring (Enemies) | hero, next step | by the hero after reading; the enemy pool empties it again before it writes |
 | `EnemyPositions`, `EnemyRadii`, `EnemySerials`, `EnemyHash` | enemies (Enemies); republished after compaction (ResolveHits) | all | overwritten |
 | `bBossAlive`, `BossPosition` | weapons (Weapons) | bullets (R-BUL-09) | overwritten |
 | `Hits` (`FDTHit[]`) | weapons, bullets, enemies (Burn), effects (next step) | `ResolveHits` | by `ResolveHits` |
-| `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends) | at the next `ResolveHits` |
-| `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step | after applying |
+| `Kills` (`FDTKill[]`) | `ResolveHits` | effects, director (drops, beat ends), boss (the hull's death, R-BOS-13), the run recorder (`UDTRunRecorder`: the run's tally and its kill counters by role and weapon, `02_Systems/meta.md` R-MET-03, R-MET-41) | at the next `ResolveHits` |
+| `StatusApplies` (`FDTStatusApply[]`, `enemies.md`) | effects (Effects) | enemies, next step; Keeper telemetry (Pickups) | after applying |
 | `Displacements` (`FDTDisplacement[]`) | weapons (mine pull), effects (`Flag.Pull`/`Push`, `Mod.Backwash`, Intercession) | enemies, next step, before movement | after applying |
 | `Telegraphs` (`FDTTelegraph[]`, `enemies.md`) | enemies, boss | render | overwritten |
 | `DropInMarkers` (`FDTDropInMarker[]`), `bThreatBlock` | director (Director) | render; enemies next step (aim tokens) | overwritten |
@@ -111,8 +139,8 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`) �
 | `bRunWon` | boss (Input or Effects, `boss.md` R-BOS-13) | hero (Hero): a won run takes no hit | set once per run, cleared at run start |
 
 Shared structs (`Core/DTSimTypes.h`); an enemy is named across steps by `Serial` (`enemies.md` R-ENM-23), within the step by index:
-- `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce}`: `Damage` is final (crit, load and stats applied by the emitter); `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits.
-- `FDTHeroHit{PlayerId Damage Kind(Contact Bullet Hazard) SourceRole AttackId EnemySerial Position RoundVelocity RoundFlightSeconds}`: damage already scaled by the enemy's `DmgScale`; `Position` is where the hit came from, a round's firing point for a round, and the last three are read by telemetry only (`telemetry.md` R-TEL-10).
+- `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce bFieldTick}`: `Damage` is final (crit, load and stats applied by the emitter); `SourceId` names the dealer for telemetry only; `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits and stress fire; `bFieldTick` = a field's tick, damage that rolls no enchantment (`keepers.md` R-KEE-16).
+- `FDTHeroHit{PlayerId Damage Kind(Contact Bullet HazardRing Charge Sweep DashCharge) SourceRole AttackId EnemySerial Position RoundVelocity RoundFlightSeconds}`: damage already scaled by the enemy's `DmgScale`; `Position` is where the hit came from, a round's firing point for a round, and the last three are read by telemetry only (`telemetry.md` R-TEL-10).
 - `FDTKill{EnemySerial Role Position OwnerId SourceId WeaponSlot bElite bDirector BeatId}`.
 - `FDTDisplacement{EnemyIndex EnemySerial Delta OwnerId}`: a stale serial is ignored; the boss hull ignores every displacement (`boss.md`).
 
@@ -130,11 +158,19 @@ Frame and thread budgets are `C.BUDGET.*`; caps are `C.BULLETS.CAP` and `C.ENEMI
 - `origin` = `github.com/AaronJin0323/RogueGame`, **public** (D-006). Binary content through LFS (`.gitattributes`).
 - `main` always opens and plays; topic branches `dev/<topic>`; `release/<ver>` from S3.
 - Commit prefixes `feat: fix: content: data: perf: docs: chore:`. Every compiling step is a commit.
-- Generated files are not committed, except `DTConstantsGen.h` (committed so the C++ build needs no Python step; the `constants` gate keeps it in sync).
+- Generated C++ is committed, so the C++ build needs no Python step: `Core/DTConstantsGen.h` and `Core/DTPaletteGen.h` (kept in sync by gate step `constants`), `Core/DTCatalogGen.h` and `Core/DTTagsGen.h/.cpp` (gate step `catalog`). Generated text is not committed (R-TEC-08): `Content/DT/Text/Generated/`, `.po` and `.locres` are git-ignored and gate step `locbuild` rebuilds them.
 
 ## 8. Risks
+A mitigation is named only if it exists; "none yet" means nothing guards the risk.
+
 | Risk | Mitigation |
 |---|---|
-| ISM bullets too slow at the cap | Niagara A/B behind `dt.Exp.NiagaraBullets`; decide by `T-TEC-10` |
-| Fixed step drifts from render on hitches | substep cap + carried remainder (R-TEC-03); hitch case in T-TEC-03 |
-| Public repo leaks a secret | `AGENTS.md` rule; secret scan before every push (`Tools/Gate.ps1` step `secrets`) |
+| Every build, gate, bot battery, measurement and package comes from one PC, whose logical processors 0 and 10 fault in plain code (`Validation/S4_py_fault.md`): a wrong PASS or a bad package looks like a real one | D-052: every Tools entry script applies the machine's mask first (`Tools/Machine.ps1`, mask file `<git common dir>/dt-locks/affinity.txt`), so the compiler, the bots and Python inherit it; an engine launch's job carries it as its affinity limit (`Tools/HiddenLaunch.ps1`), because the engine's threads ask for every processor and would widen a process mask alone, and the same job limit holds the commandlets of `Tools/Localize.bat` and `Tools/CreateArena.bat` and the cook of `Tools/Package.ps1` with all they start (`Hold-DTProcess`); children that leave an editor launch's own job by breakaway (shader workers, the trace and storage servers) keep the plain process mask, and the `smoke` step samples the game's mask for its whole life; gate step `cpu` (`Tools/cpu_canary.py`) runs the fault loop on each processor left in and names one that faults; the `GATE:` line prints the mask. An odd failure is rerun once and reported with both results (D-052 item 4). A package for people, an exit battery and a perf reading run with no other engine or compiler process alive (`12_Production §3`). Not covered: `Tools/Play.bat` and a packaged build run by a person (O-012). A second machine: none yet |
+| Determinism across builds (R-TEC-15) is a hand reading: no golden `input_hash` is committed, T-TEC-15 is not a gate step and nothing pins the compiler | One float mode in every target (`FPSemantics` in `Dusktracer.Build.cs`). A committed hash, a gate step, a compiler pin: none yet |
+| Four long-lived stacked branches (`main`, `dev/s2`, `dev/s3`, `dev/s4`), and `Tools/Gate.ps1` runs a different step list on each | Fixes land on the lowest branch that has the defect and are carried forward by merge; a branch lands when the stage under it exits (`12_Production §3`). One gate for all four: none yet |
+| No pipeline and no scheduled job: the gate runs when someone runs it | none yet |
+| The perf lock (R-TEC-10) sees only another measurement, not another engine or compiler at work | One lock for the machine: `<git common dir>/dt-locks/gpu.lock`, shared by every worktree (`Tools/GpuLock.ps1`, `Tools/Perf.ps1`). By hand: a perf reading runs with no other engine or compiler process alive (`12_Production §3`). A tool check of other processes: none yet |
+| A PC that renders fewer than `C.SIM.FIXED_HZ` divided by `C.SIM.MAX_SUBSTEPS` frames a second drops sim steps and plays in slow motion (R-TEC-03); `FDTFixedStep` counts the dropped steps and `run_end` writes them (`wall_dropped_steps`, with `wall_duration_s`, `telemetry.md` R-TEL-08) | D-054: the slow share (`10_Tuning.md §2`) is printed for every run a person plays; a run at `-DTBotFast` reads not read. The threshold that sets a run aside: none yet, set at the S1 gate from session A |
+| Solo shortcuts above the sim against the co-op promise (D-004): `ADTGameMode` starts every run with one player, the follow camera serves player 0, the offer screen takes input from the first local player | Inside the sim R-TEC-01 holds, with its test. Above the sim: none yet |
+| No gameplay code is compiled on macOS while the Mac gate is deferred (D-007) | A habit only: no Windows-only API outside `#if PLATFORM_WINDOWS` (`AGENTS.md`). A compile: none yet |
+| The public repo leaks a secret (D-006) | `AGENTS.md` rule; `Tools/secret_scan.py` runs as gate step `secrets`, so only when the gate is run. The only pre-push hook is Git LFS's: a push with no gate run is not scanned |

@@ -2507,4 +2507,56 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamWhirlpoolLayer, "WhirlpoolLayer") // keepers.
 
 #undef DT_KEEPER_PARAM_TEST
 
+// T-KEE-39 (D-053 item 3): while Hard Blow is held, every enemy a cleave strikes is pushed straight away from the cleave's origin
+// by the card's knockback_uu, the value the Forge Intercession ring reads, through the same displacement queue. Without the card
+// a cleave moves nothing.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTKeepersHardBlowKnockback, "Dusktracer.Keepers.HardBlowKnockback", DTWeaponTestHarness::TestFlags) // T-KEE-39
+bool FDTKeepersHardBlowKnockback::RunTest(const FString& Parameters)
+{
+	using namespace DTKeeperTest;
+	const float Knockback = DTKeepers::PathParam(EDTPath::Forge, DTCat::EFlag::ConvertMelee, FName(TEXT("knockback_uu")), 0.0f);
+	TestTrue(TEXT("the catalog names Hard Blow's knockback"), Knockback > 0.0f);
+	const uint16 Forge = DTKeepers::KeeperSource(EDTPath::Forge);
+	const auto Run = [](bool bHardBlow, FDTKeeperHarness& H)
+	{
+		H.AddEnemy(FVector2f(200.0f, 0.0f));
+		H.AddEnemy(FVector2f(180.0f, 90.0f));
+		H.AddEnemy(FVector2f(180.0f, -90.0f));
+		H.Patron(EDTPath::Forge);
+		H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Key")));
+		if (bHardBlow)
+		{
+			H.Bless(Blessing(TEXT("Forge.Hammer"), TEXT("Amp1")));
+		}
+		H.StepMany(120);
+	};
+	{
+		FDTKeeperHarness H;
+		Run(true, H);
+		int32 CleaveHits = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			CleaveHits += Hit.SourceId == Forge ? 1 : 0;
+		}
+		TestTrue(TEXT("Hard Blow: the cleaves strike"), CleaveHits > 0);
+		TestEqual(TEXT("Hard Blow: one knockback per enemy a cleave strikes"), H.MoveLog.Num(), CleaveHits);
+		int32 Exact = 0;
+		int32 Away = 0;
+		for (const FDTDisplacement& Move : H.MoveLog)
+		{
+			Exact += FMath::IsNearlyEqual(Move.Delta.Size(), Knockback, 1.0e-3f) ? 1 : 0;
+			const FDTHit* Hit = H.HitLog.FindByPredicate([&Move](const FDTHit& Each) { return Each.EnemySerial == Move.EnemySerial; });
+			Away += Hit && FVector2f::DotProduct(Move.Delta.GetSafeNormal(), Hit->Position.GetSafeNormal()) > 0.99f ? 1 : 0;
+		}
+		TestEqual(TEXT("Hard Blow: every push is the card's knockback_uu"), Exact, H.MoveLog.Num());
+		TestEqual(TEXT("Hard Blow: every push is away from the hero"), Away, H.MoveLog.Num());
+	}
+	{
+		FDTKeeperHarness H;
+		Run(false, H);
+		TestEqual(TEXT("without Hard Blow a cleave moves nothing"), H.MoveLog.Num(), 0);
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

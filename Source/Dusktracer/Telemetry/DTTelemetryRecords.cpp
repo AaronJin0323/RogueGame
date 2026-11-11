@@ -379,6 +379,21 @@ void FDTTelemetryCore::RecordHeroDown(int32 Owner)
 	}
 }
 
+void FDTTelemetryCore::RecordHeroHealed(int32 Owner, float Amount, float HpAfter, float MaxHp, FName Source)
+{
+	if (RecordOwner(Owner))
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("hero_healed"), Owner)).Num(TEXT("amount"), Amount).Num(TEXT("hp_after"), HpAfter)
+			.Num(TEXT("max_hp"), MaxHp).Name(TEXT("source"), Source).Line();
+	}
+}
+
+void FDTTelemetryCore::SetRunWall(int64 DroppedSteps, double DurationSeconds)
+{
+	WallDroppedSteps = FMath::Max<int64>(0, DroppedSteps);
+	WallDurationSeconds = FMath::Max(0.0, DurationSeconds);
+}
+
 void FDTTelemetryCore::RecordIntercessionDenied(int32 Owner)
 {
 	if (FPlayerInterval* P = RecordOwner(Owner))
@@ -437,6 +452,14 @@ void FDTTelemetryCore::RecordRunAward(const TCHAR* End, int64 Retained, int64 St
 	{
 		JsonlOut += FDTTelJson(JsonHead(TEXT("run_award"), INDEX_NONE)).Str(TEXT("end"), End).Int(TEXT("retained"), Retained).Int(TEXT("steps"), Steps)
 			.Int(TEXT("kills"), Kills).Int(TEXT("elites"), Elites).Bool(TEXT("boss"), bBoss).Int(TEXT("heat"), Heat).Line();
+	}
+}
+
+void FDTTelemetryCore::RecordSaveDeferred(const TCHAR* Change, int32 Waiting)
+{
+	if (bActive)
+	{
+		JsonlOut += FDTTelJson(JsonHead(TEXT("save_deferred"), INDEX_NONE)).Str(TEXT("change"), Change).Int(TEXT("waiting"), Waiting).Line();
 	}
 }
 
@@ -707,7 +730,8 @@ FString FDTTelemetryCore::RunEndExtras() const
 	});
 	// Appended after mirror_desyncs: an object that continues the run_end record.
 	FString Out = FDTTelJson(FString()).Raw(TEXT("per_player"), PerPlayer).Int(TEXT("gems_spawned"), GemsSpawned)
-		.Int(TEXT("gems_collected"), GemsCollected).Int(TEXT("gems_left"), GemsLive).Close();
+		.Int(TEXT("gems_collected"), GemsCollected).Int(TEXT("gems_left"), GemsLive)
+		.Int(TEXT("wall_dropped_steps"), WallDroppedSteps).Num(TEXT("wall_duration_s"), WallDurationSeconds).Close();
 	Out.LeftChopInline(1); // drop the closing brace: the caller closes the record
 	return Out;
 }

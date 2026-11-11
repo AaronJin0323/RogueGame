@@ -27,11 +27,11 @@ Branch `dev/s3-narrative`, from `dev/s3`. Spec: `Docs/03_Narrative.md`. Sources:
 
 Layer 3 is `Codex.Root.Title` (`Win`) and `Codex.Warden.FormIII` (`Wins3.FormIII`). No Layer 4 row. Deepest layer before the first win: 2, read in the game by `Dusktracer.Core.StoryLayers` and `DT.Codex.ShowLayer`.
 
-What the check cannot read is meaning. It trusts the `Layer` and `Unlock` cells and a short word list. Nothing in the game shows these rows yet, so reachability is proved on the data, not on a screen.
+What the check cannot read is meaning. It trusts the `Layer` and `Unlock` cells and a short word list. When this was written nothing in the game showed these rows, so reachability was proved on the data, not on a screen. Since: the hub's Codex lists `ST_Codex` by layer and unlock (`vigil.md` R-VIG-08), the run-over toast names a Discovery, and `Tools/WinCheck.ps1` reads a win reaching the Codex on a launch; `ST_KeeperLines` still has no reader.
 
 ## Retired names
 
-Clean in en, zh, Context and Kw: RogueHero, `RH.*`, `God.*`, the Greek gods and enemies, Underworld, and "god" in en and in the Context of the narrative tables. The zh 神 rule holds (神血, 神眷, 神临 only here). These are now gate failures, and the retired-name list runs on all 12 tables.
+Clean in en, zh, Context and Kw: RogueHero, `RH.*`, `God.*`, the Greek gods and enemies, Underworld, and "god" in en and in the Context of the narrative tables. The zh 神 rule holds (神血, 神眷, 神临 only here). These are now gate failures, and the retired-name list runs on every table (12 then, 13 since `ST_Tree`).
 
 Handoff Context notes were rewritten, not copied; they cited the old GDD and a weapon list this build does not have.
 
@@ -46,7 +46,7 @@ Handoff Context notes were rewritten, not copied; they cited the old GDD and a w
 7. **Muscle Memory** rows are text with no reader. Stage 3 raises a level cap, a power gain under D-022's rule; flagged there, not decided here.
 8. **`Keeper.Radiance.Tier1`** has no row in `zh_overrides.csv`; it uses the §4.2 draft, which predates the clarity pass.
 
-## zh not from the Handoff (20, for a native reader)
+## zh not from the Handoff (22, for a native reader)
 
 Each carries `[invented]` in Context. The bestiary's zh was promised in the art book boards, which the Handoff does not hold.
 
@@ -72,5 +72,7 @@ Each carries `[invented]` in Context. The bestiary's zh was promised in the art 
 | `Discovery.WeaponL8.Desc` | Raise a weapon to level 8. | 把一件武器升到 Lv.8。 |
 | `Discovery.Elites10.Desc` | Destroy 10 elites in a single run. | 单局摧毁 10 个精英。 |
 | `Discovery.Dashes100.Desc` | Dash 100 times in a single run. | 单局冲刺 100 次。 |
+| `Discovery.Toast` (review #118, awaiting a reading) | Recollections recovered: {0} | 寻回忆痕：{0} (the source's 寻回了一段忆痕 says one, and the line holds every name of a bank) |
+| `Codex.Recollection.Linger` (review #75, awaiting a reading: one word) | ... before FOUNDRY rebuilds the Reclaimer. | ……FOUNDRY 才重新造出回收者。 (FOUNDRY where 司炉 stood; the rest of the cell is the source's) |
 
 Not marked invented: `World.*` and hub labels are in `zh_glossary` §2, `ROOT — [无数据]` is in Handoff §10, Short and Path names are in `zh_glossary` §3.

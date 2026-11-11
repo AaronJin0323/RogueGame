@@ -18,6 +18,8 @@ param(
 
 trap { Write-Host "VIGIL: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
@@ -26,17 +28,21 @@ $CmdExe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
 $LogDir = Join-Path $Root "Saved\Logs"
 $OutDir = Join-Path $Root "Saved\VigilCheck"
-$Playtests = Join-Path $Root "Saved\Playtests"
+# Every launch has a -userdir under Saved\VigilCheck\userdir: its run files land in that folder's Saved\Playtests, never in Saved\Playtests, where a person's Play.bat runs
+# live, so this check deletes by seed only what it wrote itself (review #58, #104).
+$UserDir = Join-Path $OutDir "userdir"
+$Playtests = Join-Path $UserDir "Saved\Playtests"
 $Pages = @("root", "shrine", "contracts", "contracts_bought", "contracts_sealed", "contracts_locked", "contracts_after", "codex", "ledger", "settings", "root_chosen", "runover", "ledger_after",
 	"root_large", "shrine_large", "contracts_large", "codex_large", "ledger_large")
 $Cultures = @($Cultures | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 New-Item -ItemType Directory -Force $LogDir, $OutDir | Out-Null
+if (Test-Path $UserDir) { Remove-Item $UserDir -Recurse -Force }
 
 function Invoke-Launch([string]$Culture, [string]$Script, [string]$Save, [string]$Shots, [string[]]$Extra = @()) {
 	$Log = Join-Path $LogDir "VigilCheck_${Culture}_$Script.log"
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-windowed", "-RenderOffScreen", "-nosplash", "-ResX=1280", "-ResY=720", "-LiveCoding=false",
-		"-unattended", "-nopause", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTHub", "-DTHubCheck=$Script", "-DTHubShots=`"$Shots`"", "-DTMetaFile=`"$Save`"", "-DTSeed=$Seed") + $Extra
+		"-unattended", "-nopause", "-culture=$Culture", "-ABSLOG=`"$Log`"", "-DTHub", "-DTHubCheck=$Script", "-DTHubShots=`"$Shots`"", "-DTMetaFile=`"$Save`"", "-DTSeed=$Seed", "-userdir=`"$UserDir`"") + $Extra
 	$Proc = Start-DTHidden $Exe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
 		Stop-DTHidden $Proc
@@ -55,7 +61,7 @@ function Get-Hands([string]$Tag, [string[]]$Extra = @()) {
 	if (Test-Path $Log) { Remove-Item $Log -Force }
 	Get-ChildItem $Playtests -Filter "${HandSeed}_*" -ErrorAction SilentlyContinue | Remove-Item -Force
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-nullrhi", "-nosplash", "-nopause", "-unattended", "-LiveCoding=false", "-ABSLOG=`"$Log`"",
-		"-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=1.0", "-DTBotPath=Storm", "-DTBotArchetype=Tempest", "-DTBotFast=60", "-DTBotQuit", "-DTBotMaxSeconds=$BotSeconds", "-DTSeed=$HandSeed", "-DTPoolGate") + $Extra
+		"-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=1.0", "-DTBotPath=Storm", "-DTBotArchetype=Tempest", "-DTBotFast=60", "-DTBotQuit", "-DTBotMaxSeconds=$BotSeconds", "-DTSeed=$HandSeed", "-DTPoolGate", "-userdir=`"$UserDir`"") + $Extra
 	$Proc = Start-DTHidden $CmdExe $ArgList
 	if (-not $Proc.WaitForExit($Timeout * 1000)) {
 		Stop-DTHidden $Proc

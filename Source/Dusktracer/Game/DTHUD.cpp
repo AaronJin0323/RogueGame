@@ -30,6 +30,7 @@
 #include "Offers/DTOfferStyle.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Player/DTInputSet.h"
 #include "Progression/DTXPBar.h"
 #include "Settings/DTMenuSubsystem.h"
 #include "Settings/DTUserSettings.h"
@@ -120,6 +121,19 @@ void ADTHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+FText ADTHUD::KeyLabel(const FText& Label, const UDTInputSet* Set, const UInputAction* Action, EDTInputDevice Device)
+{
+	const FKey Key = Set ? Set->GetBoundKey(Action, Device) : FKey();
+	if (!Key.IsValid())
+	{
+		return Label;
+	}
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Name"), Label);
+	Args.Add(TEXT("Keys"), UDTInputSet::KeyGlyph(Key));
+	return FText::Format(FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.KeyLabel")), Args);
+}
+
 void ADTHUD::DrawRun()
 {
 	UWorld* const World = GetWorld();
@@ -159,13 +173,25 @@ void ADTHUD::DrawRun()
 		P.Hp = FText::Format(FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Hp")), Args);
 		M.Hp = State.Hp;
 		M.MaxHp = State.MaxHp;
-		P.Dash = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash"));
+		// The key or pad button of the device this player used last, beside the Dash and Intercession labels (R-CMB-13).
+		const UDTInputSet* const Keys = Hero->GetInputSet(OwnerId);
+		const EDTInputDevice Device = Hero->GetLastInputDevice(OwnerId);
+		P.Dash = KeyLabel(FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.Dash")), Keys, Keys ? Keys->Dash.Get() : nullptr, Device);
 		P.DashPips = FDTHeroSim::ComputeMaxCharges(State.Stats);
 		M.DashCharges = State.DashCharges;
 		const float Cooldown = DTConst::DASH_COOLDOWN_S * State.Stats.DashCooldownMul;
 		M.DashRefill01 = Cooldown > 0.0f ? FMath::Clamp(1.0f - State.DashRefillLeft / Cooldown, 0.0f, 1.0f) : 0.0f;
 		M.Intercession01 = FMath::Clamp(State.Intercession01, 0.0f, 1.0f);
-		P.Intercession = FText::FromStringTable(TEXT("ST_UI"), M.Intercession01 >= 1.0f ? TEXT("Hud.IntercessionReady") : TEXT("Hud.Intercession"));
+		P.Intercession = KeyLabel(FText::FromStringTable(TEXT("ST_UI"), M.Intercession01 >= 1.0f ? TEXT("Hud.IntercessionReady") : TEXT("Hud.Intercession")),
+			Keys, Keys ? Keys->Intercession.Get() : nullptr, Device);
+#if !UE_BUILD_SHIPPING
+		if (OwnerId == 0 && !bLoggedKeyLabels)
+		{
+			bLoggedKeyLabels = true;
+			UE_LOG(LogDT, Log, TEXT("HudKeys culture=%s dash=%s | intercession=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(),
+				*P.Dash.ToString(), *P.Intercession.ToString());
+		}
+#endif // !UE_BUILD_SHIPPING
 		if (Hero->GetAimMode(OwnerId) == EDTAimMode::Manual)
 		{
 			P.AimMode = FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.AimMode"));

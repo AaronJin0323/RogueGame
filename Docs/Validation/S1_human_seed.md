@@ -46,7 +46,7 @@ Press counts, picks and declines match too. Telemetry is a side reading on 6 of 
 `Steps` is the one field that is not exact. The `6a96eaa` batch read 26128 on Tide Frost, full length, where the table has 26129, and eight reruns of that arm on the same binary, four serial and four parallel, all read 26129. The record takes the step count after the run is over: the bot stops stepping at the end, but `UDTSimSubsystem::Tick` keeps stepping by the wall clock until telemetry closes, so the count holds a tail of 1 or 2 steps past `End s`. `End s` and `input_hash` do not include that tail, and neither moved.
 
 ## What the gate now proves
-`Tools/SeedCheck.ps1` (gate step `seed`) runs each launcher with its `start` line echoing, so it judges what `cmd` really expands, then starts the game with exactly those arguments, `-fullscreen` swapped for off-screen flags and no `-unattended`, and reads `run_start.seed` from the run file. Each launch has a `-userdir` of its own, so the file it reads can only be that launch's.
+`Tools/SeedCheck.ps1` (gate step `seed`) runs each launcher with its `start` line echoing, so it judges what `cmd` really expands, then starts the game with exactly those arguments, `-fullscreen` swapped for off-screen flags and no `-unattended` (since review #43 no launcher names a window mode, so the check only adds the off-screen flags and fails a launcher that names one), and reads `run_start.seed` from the run file. Each launch has a `-userdir` of its own, so the file it reads can only be that launch's.
 
 | Launch | Reading |
 |---|---|

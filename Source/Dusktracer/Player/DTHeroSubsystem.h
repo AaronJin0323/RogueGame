@@ -10,6 +10,7 @@
 #include "DTHeroSubsystem.generated.h"
 
 class ADTHero;
+class UDTInputSet;
 
 /** A player's Intercession fired this step (R-CMB-11). What it does is keepers.md; bind here. */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FDTOnIntercession, int32 /*OwnerId*/, EDTPath /*Path*/);
@@ -44,6 +45,8 @@ public:
 
 	void RegisterPawn(ADTHero* Pawn);
 	void UnregisterPawn(ADTHero* Pawn);
+	/** The input set of the pawn that samples OwnerId's input (the HUD's key labels, R-CMB-13); null when no pawn does. */
+	const UDTInputSet* GetInputSet(int32 OwnerId) const;
 
 	const FDTHeroSim& GetHero() const { return Hero; }
 	int32 GetNumHeroes() const { return Hero.Num(); }
@@ -69,7 +72,11 @@ public:
 	EDTAimMode GetAimMode(int32 OwnerId) const { return Hero.GetAimMode(OwnerId); }
 	void SetAimMode(int32 OwnerId, EDTAimMode Mode) { Hero.SetAimMode(OwnerId, Mode); }
 	void SetStats(int32 OwnerId, const FDTHeroStats& Stats) { Hero.SetStats(OwnerId, Stats); }
-	void Heal(int32 OwnerId, float Amount) { Hero.Heal(OwnerId, Amount); }
+	/**
+	 * Restores Amount HP to a living hero, never above max; a down hero stays down. Every restore that reaches a living
+	 * hero broadcasts HeroHealed with the HP really restored and Source (a DTHealSource name): the hero_healed record.
+	 */
+	void Heal(int32 OwnerId, float Amount, const TCHAR* Source);
 	void RefillDash(int32 OwnerId) { Hero.RefillDash(OwnerId); }
 	void RefundDash(int32 OwnerId, float Seconds) { Hero.RefundDash(OwnerId, Seconds); }
 	void SetNoDamage(bool bInNoDamage) { Hero.SetNoDamage(bInNoDamage); }

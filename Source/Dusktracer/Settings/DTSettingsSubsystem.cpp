@@ -54,10 +54,18 @@ void UDTSettingsSubsystem::ApplyDisplay(const FDTUserSettings& Settings)
 	Scalability::FQualityLevels Levels = Scalability::GetQualityLevels();
 	Levels.SetFromSingleQualityLevel(DTSettings::ScalabilityLevel(Settings.Graphics));
 	Scalability::SetQualityLevels(Levels);
+	ApplyWindow(Settings);
+}
 
-	// An off-screen run has no window to change (and must never make one).
-	UGameUserSettings* Window = GEngine ? GEngine->GetGameUserSettings() : nullptr;
-	if (Window && !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
+void UDTSettingsSubsystem::ApplyWindow(const FDTUserSettings& Settings)
+{
+	// An off-screen run has no window to change (and must never make one), and a tool run with no file keeps the engine's.
+	if (!FApp::CanEverRender() || GIsEditor || !DTSettings::SetsWindow(!ActivePath().IsEmpty(), FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"))))
+	{
+		return;
+	}
+	// A window mode typed on the command line still wins for that launch, as -culture= does (R-SET-06); no launcher passes one.
+	if (UGameUserSettings* Window = GEngine ? GEngine->GetGameUserSettings() : nullptr)
 	{
 		Window->SetFullscreenMode(Settings.Window == EDTWindow::Windowed ? EWindowMode::Windowed : EWindowMode::WindowedFullscreen);
 		Window->ApplyResolutionSettings(/*bCheckForCommandLineOverrides*/ true);
@@ -90,6 +98,10 @@ void UDTSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (bFile)
 	{
 		ApplyDisplay(Loaded);
+	}
+	else
+	{
+		ApplyWindow(Loaded); // a first launch has no file: the row's default, Fullscreen, is what Play*.bat used to force (R-SET-08)
 	}
 	UE_LOG(LogDT, Log, TEXT("Settings: %s %s"), bFile ? TEXT("read") : TEXT("no file;"), *Path);
 }

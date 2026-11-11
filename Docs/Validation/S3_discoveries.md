@@ -4,7 +4,7 @@ Branch `dev/s3-discoveries`, from `dev/s3-base` at `364e264`. Spec: `Docs/02_Sys
 
 ## Reading
 
-A bot at skill 1.0 earned **10 of 15 on the default pool** and **13 of 15 once S2 content is unlocked and a weapon is carried**. No single run earned more than 8 on the default pool or 9 with unlocks. Two rows were never met: `Elites10` cannot be, on arena 1, and `Crit500` was not, in 135 runs.
+A bot at skill 1.0 earned **10 of 15 on the default pool**, **12 of 15 once S2 content is unlocked and a weapon is carried**, and **13 of 15 across the two arms**: the carry arm adds three rows and never met `Dashes100`, which the default pool met twice. No single run earned more than 8 on the default pool or 9 with unlocks. Two rows were never met: `Elites10` cannot be, on arena 1, and `Crit500` was not, in 135 runs.
 
 - Arm A: bot v2, skill 1.0, the 18 archetypes, seeds 1 to 5, the default pool: 90 runs (`BotRuns -ArmSet S2Keepers`; S2 Keepers are unlocked for their own arms, as the harness does).
 - Arm B: bot v2, skill 1.0, `-Unlock S2`, Tempest, Slam and Frost carrying each of Scatter Cannon, Rail Lance and Orbital Drones, seeds 1 to 5: 45 runs.

@@ -11,17 +11,17 @@ shape:
   POOL.STARTER_WEAPONS:        { value: 4,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   POOL.STARTER_MODIFIERS:      { value: 8,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   POOL.STARTER_BLESSINGS:      { value: 18,   unit: n,     tag: CORE, dependents: [02_Systems/offers.md, 02_Systems/keepers.md] }
-  BULLETS.CAP:                 { value: 6000, unit: n,     tag: CORE, dependents: [07_Technical.md, T-PERF-01] }
-  ENEMIES.CAP:                 { value: 400,  unit: n,     tag: CORE, dependents: [07_Technical.md, T-PERF-01] }
+  BULLETS.CAP:                 { value: 6000, unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-10] }
+  ENEMIES.CAP:                 { value: 400,  unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-10] }
   OFFER.CARDS:                 { value: 5,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   OFFER.REROLLS:               { value: 2,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   OFFER.BANISH:                { value: 1,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
   OFFER.LOCK:                  { value: 1,    unit: n,     tag: CORE, dependents: [02_Systems/offers.md] }
-  TTK.SWARM_STEERED_MAX:       { value: 0.3,  unit: s,     tag: CORE, dependents: [10_Tuning.md] }
+  TTK.SWARM_STEERED_MAX:       { value: 0.3,  unit: s,     tag: CORE, dependents: [10_Tuning.md, 02_Systems/director.md, T-DIR-18] }
   DMG_TAKEN.BAND_MIN10_13:     { value: [0.30, 0.50], unit: ratio_per_min, tag: CORE, dependents: [02_Systems/director.md, T-DIR-02] }
   DASHES.BAND_MIN10_13:        { value: [6, 10], unit: per_min, tag: CORE, dependents: [02_Systems/combat_core.md] }
-  POWER.KEEPER_SHARE_L16:      { value: 0.60, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-BAL-01] }
-  POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md] }
+  POWER.KEEPER_SHARE_L16:      { value: 0.60, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-KEE-18] }
+  POWER.ARCHETYPE_BAND:        { value: 0.15, unit: ratio, tag: CORE, dependents: [10_Tuning.md, T-KEE-18] }
   INTERCESSION.BAND:           { value: 0.20, unit: ratio, tag: CORE, dependents: [02_Systems/keepers.md] }
 sim:
   ARENA.HALF_EXTENT_UU:        { value: 4000, unit: uu,    tag: GATED(S1),  dependents: [07_Technical.md, Core/DTSpatialHash] }
@@ -73,6 +73,8 @@ budget:
   SIM.FIXED_HZ:                { value: 60,   unit: Hz,    tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
   SIM.MAX_SUBSTEPS:            { value: 2,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-03] }
   SAVE.VERSION:                { value: 1,    unit: n,     tag: CORE, dependents: [07_Technical.md, T-TEC-04] }
+  SAVE.LOCK_WAIT_MS:           { value: 250,  unit: ms,    tag: CORE, dependents: [02_Systems/meta.md, Meta/DTMetaSession, T-MET-50] }
+  SAVE.LOCK_RETRY_MS:          { value: 5,    unit: ms,    tag: CORE, dependents: [02_Systems/meta.md, Meta/DTMetaSession, T-MET-50] }
 enemies:
   ENM.SWARM_RADIUS_UU:         { value: 32,   unit: uu,    tag: GATED(S1),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-ENM-03] }
   ENM.SWARM_SPEED_UU_S:        { value: 280,  unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-ENM-02] }
@@ -80,7 +82,7 @@ enemies:
   ENM.STEER_ACCEL_UU_S2:       { value: 2400, unit: uu_per_s2, tag: GATED(S1), dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool] }
   ENM.SEPARATION_RADIUS_UU:    { value: 72,   unit: uu,    tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-ENM-03] }
   ENM.SEPARATION_STRENGTH:     { value: 1.5,  unit: ratio, tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-ENM-03] }
-  ENM.MAX_NEIGHBOURS:          { value: 8,    unit: n,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-PERF-01] }
+  ENM.MAX_NEIGHBOURS:          { value: 8,    unit: n,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, Enemies/DTEnemyPool, T-TEC-10] }
   ENM.SPAWN_RING_RADIUS_UU:    { value: 1600, unit: uu,    tag: GATED(S1),  dependents: [02_Systems/enemies.md, Debug/DTDebugEnemies] }
   ENM.KILL_RATE_WINDOW_S:      { value: 1.0,  unit: s,     tag: GATED(S0),  dependents: [02_Systems/enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S, T-ENM-05] }
   ENEMIES.OPTIC_EMISSIVE:      { value: 14.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-24, T-ENM-24] }
@@ -106,6 +108,7 @@ enemies:
   ROLE.RUSHER_CHARGE_S:        { value: 0.65, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_RECOVER_S:       { value: 0.8, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
   ROLE.RUSHER_COOLDOWN_S:      { value: 2.0, unit: s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-11, T-ENM-11] }
+  ROLE.RUSHER_ARRIVAL_OVERSHOOT_UU: { value: 200, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-13, T-ENM-13] }
   ROLE.TURRET_HP:              { value: 40, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-09] }
   ROLE.TURRET_RADIUS_UU:       { value: 48, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-12] }
   ROLE.TURRET_CONTACT_DAMAGE:  { value: 6, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, 09_Catalog/enemies.csv, R-ENM-14] }
@@ -136,7 +139,7 @@ enemies:
   ELITE.PART_RATIO: { value: 0.35, unit: ratio, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11, T-ELT-11] }
   ELITE.SHIELD_ORBIT_DEG_S: { value: 90, unit: deg_per_s, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-11] }
   ELITE.LABELS_MAX: { value: 12, unit: n, tag: GATED(S2), dependents: [02_Systems/elites.md, R-ELT-12, T-ELT-12] }
-  ENEMY_FIRE.CAP:              { value: 1024, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-15, T-ENM-15, T-PERF-01] }
+  ENEMY_FIRE.CAP:              { value: 1024, unit: n, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-15, T-ENM-15, T-TEC-10] }
   ENEMY_FIRE.SHOT_SPEED_UU_S:  { value: 650, unit: uu_per_s, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-12] }
   ENEMY_FIRE.SHOT_RADIUS_UU:   { value: 16, unit: uu, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-16, T-ENM-20] }
   ENEMY_FIRE.SHOT_DAMAGE:      { value: 5, unit: hp, tag: GATED(S1), dependents: [02_Systems/enemies.md, R-ENM-16] }
@@ -210,7 +213,7 @@ arena:
   ARENA.CAMERA_FOV_DEG:        { value: 50,   unit: deg,   tag: GATED(S1),  dependents: [Game/DTCameraPawn] }
   ARENA.CAMERA_FRAME_RADIUS_UU: { value: 1500, unit: uu,   tag: GATED(S0),  dependents: [06_UX.md, Game/DTCameraPawn] }
   SMOKE.SECONDS:               { value: 10,   unit: s,     tag: CORE,       dependents: [Tools/Smoke.ps1] }
-  SMOKE.GOLDEN_MEAN_DIFF_MAX:  { value: 12.0, unit: level, tag: GATED(S0),  dependents: [Tools/image_check.py, Tools/Smoke.ps1] }
+  SMOKE.GOLDEN_MEAN_DIFF_MAX:  { value: 12.0, unit: level, tag: GATED(S0),  dependents: [Tools/image_check.py, Tools/Smoke.ps1, Tools/image_check.py --exposure (T-PRE-07)] }
   SMOKE.IMAGE_STDDEV_MIN:      { value: 4.0,  unit: level, tag: CORE,       dependents: [Tools/image_check.py] }
   PERF.WARMUP_S:               { value: 10,   unit: s,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
   PERF.CAPTURE_FRAMES:         { value: 1800, unit: n,     tag: CORE,       dependents: [Tools/Perf.ps1, T-TEC-10] }
@@ -251,9 +254,9 @@ telemetry:
   TEL.TTK_PERCENTILE:          { value: 0.50, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, C.TTK.SWARM_STEERED_MAX] }
   TEL.NEAREST_PERCENTILE:      { value: 0.10, unit: ratio, tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore] }
   TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
-  TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01] }
+  TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/probe.py, Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-KEE-18] }
 caps:
-  GATE.TEST_FLOOR:             { value: 549,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1] }
+  GATE.TEST_FLOOR:             { value: 543,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1, Tools/RunTests.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
@@ -352,6 +355,7 @@ offers:
   PICKUP.GEM_SIZE_UU:                { value: 24, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
   PICKUP.CHEST_SIZE_UU:              { value: 70, unit: uu, tag: GATED(S1), dependents: [02_Systems/progression.md, Progression/DTPickupRenderer] }
   PICKUP.EMISSIVE:                   { value: 3.0, unit: ratio, tag: GATED(S1), dependents: [02_Systems/progression.md, 04_Presentation.md] }
+  PICKUP.CHEST_RESTORE_HP_RATIO:     { value: 0.15, unit: ratio, tag: GATED(S1), dependents: [02_Systems/progression.md, R-PRG-09, T-PRG-09] }
 
 combat:
   HERO.MAX_HP:                 { value: 100,  unit: hp,    tag: GATED(S1),  dependents: [02_Systems/combat_core.md, T-CMB-10, T-DIR-02] }
@@ -386,7 +390,7 @@ combat:
   HERO_ART.OUTLINE_OVERLAP_MAX: { value: 0.8, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
   HERO_ART.FACING_DIFF_MIN:    { value: 0.15, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
   HERO_ART.ARMOUR_PX_MIN:      { value: 368,  unit: px,    tag: GATED(S4),  dependents: [02_Systems/hero_art.md, Tools/hero_outline.py, T-HAR-03] }
-  DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09] }
+  DIR.BAND_WINDOW_S:           { value: [600, 780], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-02, T-DIR-09, T-DIR-18] }
   DIR.NOPICK_DEATH_BAND_S:     { value: [480, 720], unit: s, tag: GATED(S1), dependents: [02_Systems/director.md, T-DIR-01] }
   DIR.BOT_RUNS:                { value: 10,   unit: n,     tag: GATED(S1),  dependents: [02_Systems/director.md, T-DIR-01] }
   DEATH.FIRST_ATTEMPT_CUTOFF_S: { value: 600, unit: s,     tag: GATED(S2),  dependents: [02_Systems/bot.md, R-BOT-17, T-BOT-17] }

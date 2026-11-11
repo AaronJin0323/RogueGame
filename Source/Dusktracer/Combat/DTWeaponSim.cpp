@@ -1,5 +1,6 @@
 #include "Combat/DTWeaponSim.h"
 #include "Combat/DTBulletPool.h"
+#include "Combat/DTKnockback.h"
 #include "Core/DTConstantsGen.h"
 #include "Dusktracer.h"
 #include "Enemies/DTEnemyPool.h"
@@ -636,6 +637,8 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 	int32 Hit = 0;
 	const FDTResolvedFlag* Melee = Runtime.Spec.FindFlag(DTCat::EFlag::ConvertMelee);
 	const bool bMarkKills = Melee && Melee->Entry.Params.Has(DTFlagParam::BurningExplodeOnDeathUu);
+	// Hard Blow: a cleave pushes what it strikes by knockback_uu, through the one knockback path (D-053 item 3).
+	const float Knockback = bCleave && Melee ? Melee->Entry.Params.Get(DTFlagParam::KnockbackUu) : 0.0f;
 	for (const int32 Enemy : Candidates)
 	{
 		if (Enemy < 0 || Enemy >= Num)
@@ -689,6 +692,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		{
 			StepCleaved.Add(Out.EnemySerial);
 		}
+		DTKnockback::Push(View, Shot.OwnerId, Enemy, Shot.Origin, Dir, Knockback);
 		++Runtime.Counters.Impacts;
 	}
 	if (bImpacts)
@@ -1201,12 +1205,18 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			// Every second sweep faces the opposite way (R-WPN-06).
 			const FVector2f SweepDir = (Sweep % 2 == 0) ? Dir : -Dir;
-			EmitArc(Context, Runtime, Shot, SweepDir, Spec.ArcDeg, Spec.Range, false);
+			// Under a ConvertMelee fallback the first sweeps are the flag's cleave and deal its factor (R-WPN-08).
+			FShot SweepShot = Shot;
+			if (Sweep < Spec.FallbackCleaveSweeps)
+			{
+				SweepShot.Damage = Shot.Damage * Spec.FallbackCleaveDamageFactor;
+			}
+			EmitArc(Context, Runtime, SweepShot, SweepDir, Spec.ArcDeg, Spec.Range, false);
 			if (Spec.MirrorSource != 0)
 			{
-				FShot Copy = Shot;
+				FShot Copy = SweepShot;
 				Copy.SourceId = Spec.MirrorSource;
-				Copy.Damage = Shot.Damage * Spec.MirrorDamageRatio;
+				Copy.Damage = SweepShot.Damage * Spec.MirrorDamageRatio;
 				EmitArc(Context, Runtime, Copy, -SweepDir, Spec.ArcDeg, Spec.Range, false);
 			}
 		}

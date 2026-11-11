@@ -1,0 +1,8 @@
+{
+	"note": "T-PRE-07, the burst half: the frame Tools/Smoke.ps1 -Burst shoots full of fire and judges against the calm arena_empty frame of the same culture (no exposure change). Gate step smoke reads its commands from here; no step runs it as a scene.",
+	"gate": "none",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"cmds": ["DT.Bullets 6000"]
+}

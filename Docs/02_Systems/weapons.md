@@ -53,11 +53,13 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 | Split | native | ring of children from the hero, every Nth activation | same, every Nth sweep | native: children burst from the detonation |
 | Echo | native | native | native | the detonation repeats in place |
 | ConvertOrbit | native | one more drone | the sweep becomes a full spin | mines circle the hero before they drop |
-| ConvertMelee | native | larger drone contact area | larger arc | larger blast |
+| ConvertMelee | native | Hammer's Key leaves the drones unchanged (D-053); only `radius_scale` sets a larger drone contact area | the sweep is the cleave: larger arc, the cleave's damage | Hammer's Key leaves the mine unchanged (D-053); only `radius_scale` sets a larger blast |
 | Seek | native | drones pick the target class first | more damage vs the target class | mines drop on the target class |
 | Charge, VolleyOnDash | native | native | every Nth sweep charged / a sweep at the dash landing | native |
 | Ricochet | native | faster orbit | faster sweep | the mine hops once to the next cluster |
 | Slam Field Pull Push Stillness Hunter Nova SpeedScale Chain StatusApply | native | native | native | native |
+
+`ConvertMelee` on a `Melee`-first weapon: the weapon's own sweep is the cleave. It takes the wider of the two arcs (`C.WEAPON.ARC_DEG`, the flag's `arc_deg`) and the longer of the two reaches (the level row's `radius_uu`, the flag's `radius_uu`), both then scaled by `radius_scale` as a native cleave's reach is, and the first `rounds` sweeps of a volley deal × `dmg_mult` × `C.WEAPON.CONVERT_MELEE_DAMAGE_RATIO`, the `{cleave_mult}` Hammer's Key prints (`keepers.md` Text). Nothing merges: an Arc Blade's two sweeps still face opposite ways (R-WPN-06). The sweeps stay the weapon's own hits (R-WPN-07) and take no conversion slot or cap (R-WPN-10).
 
 **Composition and caps**
 - **R-WPN-09** A weapon's spec is composed in one order: level row → modifiers → flags → hero stats (`FDTStatSet`) → load factor. Parameters stack the same way for modifiers and flags: counts and magnitudes add, ranges and times take the largest, damage and scale factors multiply, then the per-flag caps (`modifiers.md` R-MOD-05). The product of every multiplying behaviour (echo, split, chain, fork, hunters, extra volleys) is limited to `C.WEAPON.SPAWN_RATE_MAX_PER_S` emissions per weapon; emissions over it are dropped and counted as `Throttled`, never silently. The global `C.BULLETS.CAP` recycle still applies (R-BUL-03).
@@ -118,6 +120,7 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 - T-WPN-16 `Dusktracer.Arsenal.FlakMortar`: no pool round, no hit in flight, one hit per enemy in the blast at landing; no target, no shell.
 - T-WPN-17 `Dusktracer.Arsenal.SeekerSwarm`: missiles reach enemies off their launch bearing, spread over the living, same seed same hits; a dead target is replaced.
 - T-WPN-18 `Dusktracer.Arsenal.SpiralProjector`: fires with no enemy at the stated rate, each round turned on from the last, one per arm; Echo strikes through its fallback.
+- T-WPN-19 `Dusktracer.Weapons.HammerKeyFallback`: with the real `Blessing.Forge.Hammer.Key`, an Arc Blade at every level sweeps the Key's arc and reach, reaches an enemy past its own reach, deals the card's `{cleave_mult}` on every sweep under the weapon's own source, and Long Haft scales that reach; on Gravity Mine and Orbital Drones the Key moves no number, as R-WPN-08 states (D-053).
 - `Dusktracer.Arsenal.Catalog`: ten weapons with full level tracks, a reach and a fit; sixteen modifiers with a fit (T-WPN-01 over the arsenal).
 - HUMAN: a validator can say in their own words what each S1 weapon does, and can see the difference when a Keeper flag changes it (split fans on the Ring Emitter, a cleave from the Pulse Rifle, the mine's pull).
 
@@ -135,8 +138,7 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 - Per-weapon trails and VFX assets (`04_Presentation`).
 
 ## Open
-- Source credit for conversions keeps the weapon's source, which may understate the Keeper share at L16 → checked against `Tools/power_split.py` on the first steered bot runs.
-- The MEASURED reference shows Gravity Mine an order of magnitude over every other weapon in a dense crowd, and Ring Emitter and Drones never one-shot a late swarm → tuned in the S1 catalog pass against `C.TTK.SWARM_STEERED_MAX`.
+- Two questions for the S1 gate decision, with session A's answers (D-053; `Validation/S1_kit.md` asks a validator who held Hammer's Key with the Arc Blade or the drones): are the sweeps the Key reshapes cleaves (`bCleave`), so that Hammer's `on=Cleave` Burn, Masterwork and Hard Blow act on them and they count as `Keeper.Forge` (D-015 argues yes; today they are the blade's at the printed `{cleave_mult}`, T-WPN-19)? And does a Key act on a weapon with no round to convert through that weapon's own strike, the drones' bolts and the mine's blast (D-038 on `dev/s2` took that line for the dash volley)? A Shipping validator cannot hold the Gravity Mine.
 - Speeds and ranges are first guesses (no MEASURED value) → set in the S1 feel pass. The S2 five's are logged with hypotheses in `number_change_log.csv` and read in `Validation/S2_arsenal.md`.
 - `ConvertMelee` folds a Scatter Cannon's whole volley, or the Spiral's stream at its own cadence, into arcs (R-WPN-10) → read in the Keeper arms of `Validation/S2_arsenal.md`; no number changed yet.
 - A Lob's cells are chosen at launch; a shell does not follow the crowd.

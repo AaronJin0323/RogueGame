@@ -92,6 +92,8 @@ namespace DTSettings
 	DUSKTRACER_API FString DefaultPath();
 	/** R-SET-05: an unattended process touches no file unless one was named. */
 	DUSKTRACER_API bool UsesFile(bool bUnattended, bool bPathGiven);
+	/** R-SET-08: a launch that uses a settings file sets its own window mode, from the file or, with none saved yet, from the default; an off-screen run has no window. */
+	DUSKTRACER_API bool SetsWindow(bool bUsesFile, bool bOffScreen);
 
 	/** One step of the row in Direction (+1 or -1); true when a value changed. Controls is not a value. */
 	DUSKTRACER_API bool StepRow(FDTUserSettings& Settings, EDTSettingRow Row, int32 Direction);

@@ -1,5 +1,11 @@
 @echo off
 setlocal
+rem D-052: the machine's processor mask. This file runs again as a child of Tools\Machine.ps1, which holds the mask, so every child inherits it.
+if /i "%DT_MASKED_BAT%"=="%~f0" goto :masked
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\Machine.ps1" -DTRunFile "%~f0" %*
+exit /b %ERRORLEVEL%
+:masked
+set "DT_MASKED_BAT="
 rem Cooks the named packages alone for Windows into a scratch folder, as a commandlet: no window (R-TEC-17). The last step of the mesh
 rem pipeline's proof (Tools\blender\Mesh.ps1 -Cook): an imported mesh that cannot be cooked would only fail at packaging.
 rem Usage: Tools\blender\CookMesh.bat <package>[+<package>...] <output folder>      Log: Saved\Logs\CookMesh.log

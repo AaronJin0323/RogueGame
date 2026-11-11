@@ -8,13 +8,15 @@
 # Refuses to crash anything when the package carries a crash reporter (it would send the report) or when it cannot see where the crash
 # folder will land. Nothing here reads, writes or lists %LOCALAPPDATA%\Dusktracer: the crash folder is found under the -userdir, or the check fails.
 # -Export runs another copy of the export script on the same crash, for a fail-before reading of an older rule.
-# Prints "CRASHEXPORT: PASS (...)" or "CRASHEXPORT: FAIL (...)"; exit 0 / 1, 2 when there is no package or the crash was not staged.
+# Prints "CRASHEXPORT: PASS (...)" or "CRASHEXPORT: FAIL (...)"; exit 0 / 1, 2 when there is no package, it is not this tree's (its stamp: dirty, partial, stale) or the crash was not staged.
 param(
 	[int]$Timeout = 180,
 	[string]$Export = ""
 )
 
 trap { Write-Host "CRASHEXPORT: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $DevDir = Join-Path $Root "Saved\Package\Development\Windows"
@@ -29,6 +31,16 @@ if (-not (Test-Path $Stub)) { Write-Host "CRASHEXPORT: NOT RUN (no $Stub; Tools\
 # A crash reporter in the package would be started by the crash and, unattended, would send the report. This package ships none.
 $Reporter = @(Get-ChildItem $DevDir -Recurse -File -Filter "CrashReportClient*.exe" -ErrorAction SilentlyContinue)
 if ($Reporter.Count) { Write-Host "CRASHEXPORT: NOT RUN (the package carries $($Reporter[0].Name): a staged crash would send a report)"; exit 2 }
+# Which package (R-PKG-08), as Tools\ExportLogsCheck.ps1 asks: an old package's crash would pass or fail for a tree that is not this one.
+# The export script is read from this tree, not from the package, so Tools/PackageFiles is not part of what makes the package stale here.
+$StampFile = Join-Path $Root "Saved\Package\package_stamp.json"
+if (-not (Test-Path $StampFile)) { Write-Host "CRASHEXPORT: NOT RUN (no package stamp; Tools\Package.ps1)"; exit 2 }
+$Stamp = [IO.File]::ReadAllText($StampFile) | ConvertFrom-Json
+if ($Stamp.dirty) { Write-Host "CRASHEXPORT: NOT RUN (package $($Stamp.commit) came from a dirty tree)"; exit 2 }
+if (@($Stamp.configs) -notcontains "Development" -or $Stamp.skipcook) { Write-Host "CRASHEXPORT: NOT RUN (package $($Stamp.commit) came from a partial run: $(@($Stamp.configs) -join '+'), skipcook=$([bool]$Stamp.skipcook))"; exit 2 }
+$Changed = @(& git -C $Root diff --name-only "$($Stamp.commit)" HEAD -- Source Content Config Dusktracer.uproject)
+if ($LASTEXITCODE -ne 0) { Write-Host "CRASHEXPORT: NOT RUN (package commit $($Stamp.commit) is not in this history)"; exit 2 }
+if ($Changed.Count -gt 0) { Write-Host "CRASHEXPORT: NOT RUN (package $($Stamp.commit) is stale, $($Changed.Count) file(s) changed since)"; exit 2 }
 
 $script:Failures = @()
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }

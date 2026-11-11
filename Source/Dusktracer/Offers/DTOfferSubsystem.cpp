@@ -757,7 +757,7 @@ void UDTOfferSubsystem::ApplyReserve(int32 OwnerId, EDTReserveKind Kind)
 	case EDTReserveKind::Restore:
 		if (State)
 		{
-			Hero->Heal(OwnerId, DTConst::OFFER_RESERVE_RESTORE_HP_RATIO * State->MaxHp);
+			Hero->Heal(OwnerId, DTConst::OFFER_RESERVE_RESTORE_HP_RATIO * State->MaxHp, DTHealSource::ReserveRestore);
 		}
 		break;
 	case EDTReserveKind::Salvage:
