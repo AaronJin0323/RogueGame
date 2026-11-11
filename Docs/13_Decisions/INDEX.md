@@ -68,6 +68,6 @@
 | D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; amended by D-069; the job is on `dev/s3` | `dev/s3` |
 | D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
 | D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; no sound of it merged yet | `dev/s4` |
-| D-067 | Pulse Wall pushes out what its ring crosses | RULE | accepted; follows D-061; the job is on `dev/s2` | `dev/s2` |
+| D-067 | Pulse Wall pushes out what its ring crosses | RULE | reverted by its own clause on 2026-11-12: hypothesis not met (nearest enemy 232 uu against 500, the build at 0.74 of its hold); nothing merged | `dev/s2` |
 | D-068 | The player's own fire is not drawn within 2.5 hero radii of the hero | RULE | accepted; from the Visual session's frames (D-057 ruling 10); the job is on `dev/s4`; the owner's sitting follows it | `dev/s4` |
 | D-069 | The duos' door is earned by play: a run that holds six cards of two Keepers | RULE | accepted; amends D-064's Impact; built with D-064 on `dev/s3` | `dev/s3` |
