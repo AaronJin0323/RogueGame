@@ -25,7 +25,7 @@ Session A reads `main`, the S1 build, which has none of wave 1's art. So a row p
 
 ## 3. The packages
 
-Seven packages after a foundations package: 22 rows opened or finished, 27 with W2-H, about 39 session-days. Sixteen of the rows are new (the 159 rows `S4_wave1.md` §4 left become 143); the rest finish rows wave 1 opened. W2-0 lands first and alone. The rest are ordered by what a player gains per unit of risk; A, B, C and G touch different files and can run side by side, one heavy job at a time (D-055 item 7).
+Seven packages after a foundations package: 21 rows opened or finished, 26 with W2-H, about 38 session-days. Sixteen of the rows are new (the 159 rows `S4_wave1.md` §4 left become 143); the rest finish rows wave 1 opened. W2-0 lands first and alone. The rest are ordered by what a player gains per unit of risk; A, B, C and G touch different files and can run side by side, one heavy job at a time (D-055 item 7).
 
 | | Package | Gap rows | Gap-note size | Wave 2 share (estimate) |
 |---|---|---|---|---|
@@ -35,9 +35,9 @@ Seven packages after a foundations package: 22 rows opened or finished, 27 with 
 | W2-C | Weapons past the tracer | 4 | 6 d | 6 d |
 | W2-G | Elite parts on the role hulls | 1 (leftover) | 7 d | 1 d |
 | W2-E | The hero's stride | 1 (leftover) | 4 d | 1.5 d |
-| W2-D | Impact, second pass | 3 | 9.5 d | 7 d |
+| W2-D | Impact, second pass | 2 | 8 d | 6.5 d |
 | W2-H | Offer screen pass (only on the call of §5 item 3) | 5 | 4.5 d | 5 d |
-| | Total | 27 with H | 59 d | about 39 d |
+| | Total | 26 with H | 57.5 d | about 38 d |
 
 ### W2-0. Foundations and checks (first, alone)
 
@@ -102,8 +102,8 @@ Gems and chests stop being cubes.
 
 ### W2-D. Impact, second pass (after the owner has played package E)
 
-- **Rows:** §2.3 r32 per-reaction effects, 15 rows (L); §2.3 r33 leftover: a band in place of the kill threshold's line; §2.3 r34 leftover: smoke and the ground haze R-PRE-06 names.
-- **Why it waits:** package E is feel-changing and the owner plays it first (H03 §4). Whether debris helps, whether the threshold's switch shows, and whether a kill needs more than a flash are that look's answers; this package is built on them.
+- **Rows:** §2.3 r32 per-reaction effects, 15 rows (L); §2.3 r34 leftover: smoke and the ground haze R-PRE-06 names. The rest of §2.3 r33, a second threshold and exits below the entries, is no longer left: D-056 ruling 5 (on `main`) has package E build one density reader for the eye and the ear, with the source's three tiers.
+- **Why it waits:** package E is feel-changing and the owner plays it first (H03 §4). Whether debris helps, whether the tiers' exits suit the eye, and whether a kill needs more than a flash are that look's answers; this package is built on them.
 - **Tap needed:** whether a reaction can be told from `FDTImpact::SourceId` or needs its own read-only list is the package's first question.
 - **Files:** `Presentation/DTImpactArt.*`, `DTImpactSubsystem.*`, `DTImpactRenderer.*`, `Tools/assets/fx_*.py`, `Docs/02_Systems/impact_art.md`.
 - **Acceptance:** as package E's, with the reaction cap `C.REACTION.FX_PER_S_MAX` kept and smoke opacity bounded so the contrast frame holds with haze over it.
@@ -117,7 +117,7 @@ Gems and chests stop being cubes.
 
 ## 4. Rows left for later, and what clears each
 
-The rows outside both waves (143 with W2-H taken, 146 without), by what would have to happen first. A row with several reasons is under the first that would have to clear. This table regroups `S4_wave1.md` §4 by what clears a row; it was not re-counted row by row (§7).
+The rows outside both waves (143 with W2-H taken, 146 without), by what would have to happen first. A row with several reasons is under the first that would have to clear. This table regroups `S4_wave1.md` §4 by what clears a row; a script recounted it against the gap note, and all 143 are placed.
 
 | What clears it | Rows |
 |---|---|
@@ -143,7 +143,7 @@ The first option of each is the recommendation.
 1. **The bar.** `S4_wave1.md` §5 item 10 left "the reference bar" of the S4 exit as "its own call before a second wave". (A) Wave 2 stays at silhouette grade and widens to state; the reference bar is defined after session A confirms the frame, in the record that opens a third wave. (B) Define the bar now and deepen wave 1's rows first. B spends on detail the frame and the hull rule can undo.
 2. **Draw code outside `Presentation/`.** D-055 item 1 gives Mechanics all of `Source/Dusktracer` but `Presentation` and `Audio`; wave 1's draw code lives in `Enemies/DTEnemyRenderer.*`, `DTEnemyBulletRenderer.*`, `DTTelegraphRenderer.*`, `DTElite.*` (draw half), `Combat/DTBulletRenderer.*`, `Game/DTHUD.*`, `DTHudLayout.*`, `DTUIStyle.*`, `Progression/DTXPBar.*`, `DTPickupRenderer.*`, the boss bar's fill in `Boss/DTBossSubsystem.cpp`, and the `SimRender` bodies of the classes that draw (the weapon, bullet, enemy, Keeper and gem subsystems, the hero and the director). (A) Those files are Visual's by name, where they are: a list in the record, built on the one `Tools/tools_test.py` already keeps (every `*Renderer.h` is a presentation header there, and `RENDERER_OWNERS` lists the files outside presentation that may include one); a `SimRender` body is Visual's, the rest of its file Mechanics'. (B) Move draw code under `Presentation/`. (C) Every edit by grant. B moves files on `dev/s4` that exist on `main`, so every carry conflicts; C makes the scheduler a gate on each package. Draft 2 of §8 is option A.
 3. **The UI stack.** (A) Stay on `UCanvas` through S4: the UI is drawn by C++ a headless test can walk, and a `WBP_` asset has no owner under the licence check (`S4_p0.md` §3). Revisit only when a row needs what a canvas cannot draw (card windows, §2.4 r16). (B) Move to UMG and CommonUI first, as `07_Technical` says. A opens W2-H; B is an L row before a pixel moves.
-4. **Perf headroom.** Read alone at 1920x1080 on fc5000b (`STATE.md` on `main`, In flight): Caps game thread p95 2.45 to 2.53 ms and 4.82 to 4.83 ms proxied GPU; the S2 scene 4.20 and 5.87; the S4 scene 4.76 to 4.78 and 5.94 to 5.95. The Caps scene draws no status, no weapon shape and no kill, so it cannot carry wave 2's allowance. (A) Wave 2 is read in the S2 and S4 scenes and in W2-0's scene, and ends at or under 8.0 ms proxied GPU p95 and 6.5 ms game thread p95 in each, with allowances over the reading taken after package E of 0.8 ms for statuses, 0.3 for weapons, 0.05 each for pickups, elite parts and the stride, 0.3 for the second impact pass: 1.55 ms in all, which fits under 8.0 from the S4 scene's 5.95 plus package E's 0.5. (B) First come, first served up to `C.BUDGET.*`. A keeps a third of the GPU budget for both weathers and for the unknown in `C.PERF.GPU_PROXY_4080_TO_4070`. The game thread figure is new: wave 1's 5.0 was written "at caps", and the S4 scene already reads 4.78.
+4. **Perf headroom.** Read alone at 1920x1080 on fc5000b (`STATE.md` on `main`, In flight): Caps game thread p95 2.45 to 2.53 ms and 4.82 to 4.83 ms proxied GPU; the S2 scene 4.20 and 5.87; the S4 scene 4.76 to 4.78 and 5.94 to 5.95. The Caps scene draws no status, no weapon shape and no kill, so it cannot carry wave 2's allowance. (A) Wave 2 is read in the S2 and S4 scenes and in W2-0's scene, and ends at or under 8.0 ms proxied GPU p95 and 6.5 ms game thread p95 in each, with allowances over the reading taken after package E of 0.8 ms for statuses, 0.3 for weapons, 0.05 each for pickups, elite parts and the stride, 0.3 for the second impact pass: 1.55 ms in all, which fits under 8.0 from the S4 scene's 5.95 plus package E's 0.5. (B) First come, first served up to `C.BUDGET.*`. A keeps a third of the GPU budget for both weathers and for the unknown in `C.PERF.GPU_PROXY_4080_TO_4070`. The game thread figure is new: wave 1's 5.0 was written "at caps", the S4 scene already reads 4.78 (`Validation/S4_perf_1080p.md`), and D-056 ruling 6 has split the 0.22 ms left there between audio (0.05) and package E. Wave 2 cannot be held to 5.0 in that scene; 6.5 is a proposal against `C.BUDGET.GAME_THREAD_P95_MS` 10, and the number is the scheduler's to set.
 5. **The margin watch.** (A) Keep `C.PRE.CONTRAST_WATCH_MIN` 3.10 on lit ground and add the shadow side to the watch line: package B raised the frame's shadow tone from Y 0.013 to 0.017 and every "vs shadow" ratio fell by about 6 percent with nothing watching it (telegraph 3.93 against shadow on the merged tree). (B) Lit ground only, as now. The change to `Tools/contrast_check.py` is a job the scheduler dispatches.
 6. **Goldens.** Wave 1's notes hold four different readings of who re-shoots a golden (`S4_p0.md` §4, `S4_a_arena.md` §2, `S4_b_enemies.md` §6, `S4_f_hud.md` §6). (A) One rule: a package takes and re-shoots the goldens of its own scenes on its branch; a golden another package owns is re-shot by the scheduler at merge, with the mean difference before the re-shoot in the note. (B) As each package reads it.
 7. **Which reading opens the wave.** (A) Wave 2 starts when session A has been held and read and its reading moved neither the frame, a token nor a rule of `04_Presentation` §2; if it moved one, the packages it touches are re-planned first. (B) Start on the date session A is held. D-050 item 1 says "held and read".
@@ -171,7 +171,7 @@ The first option of each is the recommendation.
 - Whether Mark, Blind, a taken chest, a mine's pulled set and a reaction can each be read today without a new getter was not checked in code. Each is named as its package's first job for that reason.
 - The perf figures of §5 item 4 are proposals, not readings. No scene today draws a status on 400 hulls.
 - The shares in §3's last column are guesses; the gap note's sizes are for whole rows. No human days are sized.
-- §4 regroups the rows `S4_wave1.md` §4 left; the totals are sums (159 less the 16 new rows of §3), and the table's cells were not re-counted against the gap note row by row.
+- §4 regroups the rows `S4_wave1.md` §4 left. The ids were recounted by script (143 of 143 placed); which reason a row sits under is this plan's reading of the gap note, not a check.
 - Whether session A will be asked about statuses or the hand at all depends on its kit, which this plan did not read.
 - Package E was specified and not built when this was written. W2-D assumes it lands as `impact_art.md` describes.
 - The machine checks named for status shapes and pickup outlines are proxies, as package B's silhouette check is.
