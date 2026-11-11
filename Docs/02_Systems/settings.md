@@ -141,5 +141,5 @@ Prefixes `ST_UI.Pause.*`, `ST_UI.Settings.*`, `ST_UI.Controls.*`, `ST_UI.Menu.*`
 ## Open
 | Question | Data that resolves it |
 |---|---|
-| Change `Pal.Keeper.Forge` and `Pal.Keeper.Quicksilver` trails to the source's combat colours (`#FFC17A`, `#B3FB60`), or keep them and rely on outlines? | an owner call; a token change is PRESENT and runs through the Combat renderer |
+| Change `Pal.Keeper.Forge` and `Pal.Keeper.Quicksilver` trails to the source's combat colours (`#FFC17A`, `#B3FB60`), or keep them and rely on outlines? | decided by D-059: the palette stays (D-008), and a colour-vision debt between a player mark and an enemy mark is read on the drawn frame |
 | Do Medium and Low hold R-PRE-05? | T-PRE-05 at each level; the gate reads Epic only |
