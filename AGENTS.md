@@ -26,7 +26,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 
 ## Conventions (`Handoff_Dusktracer/game/G01_Name.md`)
 - Module `Dusktracer`; C++ prefix `DT` (`ADTHero`, `UDTBulletSubsystem`); content root `/Game/DT/`; console `DT.*`, cvars `dt.*`, experiments `dt.Exp.*` with expiry.
-- Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
+- Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`; audio `SW_` (wave), `SC_` (class), `SMX_` (mix and submix) (D-056).
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
 - A new `R-` or `T-` id takes the next number free on every branch (`git grep` it on `main`, `dev/s2`, `dev/s3` and `dev/s4`), not only on yours: an id means one rule or one test everywhere.
