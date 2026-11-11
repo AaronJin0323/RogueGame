@@ -2,7 +2,7 @@
 
 Exit test (`12_Production §2`, S3): **3 validators on fresh saves × 3 runs**, none of them the owner; a validator who played an earlier build may return, and the sheet records what they played (D-049); ≥ 1 on a gamepad and ≥ 1 in zh-Hans (`§1`); **passes when two of three hold**: ≥ 2 ask for another run unprompted, ≥ 2 name their build, the owner still wants to play (D-049); a packaged pad pass; `findings_S3.md` written. The scheduler prepares the build; the owner hosts and watches. **Watch, don't explain.**
 
-No session has been played. "Pass 2 of 3", "fresh", what counts as a run and how much play makes a gamepad or a zh-Hans validator have no definition in the docs yet, and `Harness/H07 §4` wants the pass rule written before the session: settle calls 1 to 3 in `findings_S3.md` first. Book one validator for a whole session in zh-Hans and one for a whole session on a pad: those read `PASS` however call 8 lands.
+No session has been played. D-049 settled the pass rule, which `Harness/H07 §4` wants written before the session: two of three hold (≥ 2 validators ask for another run unprompted, ≥ 2 name their build in their own words, the owner still wants to play), with its stop line. It also settled "fresh": a fresh save, and a validator who played an earlier build may return. Those are calls 1 and 2 in `findings_S3.md`. What counts as a run and how much play makes a gamepad or a zh-Hans validator still have no definition in the docs: settle call 3 in `findings_S3.md` first. Book one validator for a whole session in zh-Hans and one for a whole session on a pad: those read `PASS` however call 8 lands.
 
 ## What a validator gets
 - A folder: the package from `Tools\Package.ps1`, `Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans. Copy it to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from it once.
@@ -91,6 +91,7 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 | Run outcome per run: death time + cause, or boss win | | | |
 | Bugs, crashes, stutters (time) | | | |
 | What they looked at in Contracts and the Codex; what they bought | | | |
+| At the run-over screen: a key that did nothing, or a remark that it was slow to respond (run → their words) | | | |
 | **Asked for another run unprompted?** (Y/N) | | | |
 
 ## Ask after each validator (in this order, record exact words)
@@ -101,6 +102,12 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 5. "Was there anything you wanted to buy?" (D-023)
 6. "Did anything feel tiring or unfair?"
 7. "What would make you play again?"
+8. Only if they bought a blessing node: "After you bought it, did your next run feel stronger, weaker or just different?"
+   「你买了那个之后，下一局感觉更强、更弱，还是只是不一样？」
+9. "When a run ended, did the screen respond when you wanted it to?" (R-SET-21)
+   「一局结束的时候，结算界面在你想按的时候有反应吗？」
+
+The zh wording is a first draft; the host may reword it and writes down what was asked.
 
 ## What they send back
 With the game closed, the validator double-clicks `Export_Logs.bat` in the package folder. It makes one file on the desktop, `Dusktracer_Logs_<date>_<time>.zip`, and prints where. Nothing leaves the PC by itself: they hand that one file to the host. A second export is fine: it holds every run so far.
@@ -159,6 +166,7 @@ Then triage every finding (class, layer, owner) in `findings_S3.md`.
 - A real pad through `S3Exit`, and a first hand from a real fresh save through `Fresh`: both are held on fixtures only.
 - The real path of the save and the run files under `%LOCALAPPDATA%` on Shipping: no check aims there, on purpose (`S3_package.md`). `PadCheck` last read a run there on package `53d3547` (`S3_logs.md`), before it took a `-userdir`, so the first zip is the next reading. The Ledger-stone is what the host trusts.
 - That a person reads this sheet as written: nobody has hosted from it.
+- **Fresh against full.** The kit plays fresh saves only, so it cannot say whether opening the pool makes a run stronger or weaker for a person (the bot won 69 of 90 on the first-run pool against 47 on the full pool, `S3_tree.md`). That is read in the owner's rehearsal of the kit, one run on a fresh save and one on a full profile, with the owner's word on which felt stronger.
 
 ## Readings of the kit
 Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, sorting runs by a noted start time with a zip per validator, and `PadCheck`'s shared folder and PID bookkeeping with a `-userdir` of its own. No rule of play moved and no number was tuned.
