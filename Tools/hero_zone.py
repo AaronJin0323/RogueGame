@@ -35,7 +35,7 @@ FIGURE_HEAD_RADII = 0.75        # the head over the neck joint
 
 # The check's limits, by frame height (Tools/HeroZone.ps1; Docs/Validation/S4_hero_read.md says how each was fixed).
 LIMITS = {
-	1080: {"zone": 0.06, "figure": 20, "ring": 0.05},
+	1080: {"zone": 0.06, "figure": 16, "ring": 0.05},
 	810: {"zone": 0.06, "figure": 12, "ring": 0.05},
 }
 
