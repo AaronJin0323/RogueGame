@@ -645,6 +645,8 @@ bool FDTMetBadFile::RunTest(const FString& Parameters)
 		TUniquePtr<IFileHandle> Hold(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Held));
 		FDTMetaSession Session;
 		TestEqual(TEXT("held open it cannot move"), Session.Open(Held), EDTMetaOpen::Stuck);
+		TestTrue(TEXT("nothing is set aside, and the hub's line says so (vigil.md R-VIG-21)"),
+			Session.AsidePath.IsEmpty() && !IFileManager::Get().FileExists(*(Held + TEXT(".bad.1"))) && Session.Notice() == EDTMetaNotice::SaveNotMoved);
 		TestFalse(TEXT("a stuck session writes nothing"), Session.Write());
 		TestEqual(TEXT("not even at a bank"), Session.Bank(Tally(StepsForMinutes(1)), EDTRunEnd::Left).Retained, static_cast<int64>(DTConst::META_CURRENCY_PER_MINUTE));
 	}
