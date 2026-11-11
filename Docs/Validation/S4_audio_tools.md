@@ -67,6 +67,8 @@ Beside them, for speed: `audio_build` remembers `dtconst.load` per file state (p
 
 - Before the review, on 707b70e (`dev/s4` at 0f8a973): `GATE: PASS (707b70e; 3 not run; mask FFFFF3FC)`, with `AUDIO: PASS (0 sounds, 0 files, 22 tool tests; not active yet: the mix checks (R-AUD-18) and the generated C++ table DTSoundsGen.h; 0 rebuilt, 2.7 s)`. Not run: pad (no package), scope (no brief in flight), mac (deferred, D-007).
 - After the review, on f28fbe8 (`dev/s4` still at 0f8a973): `GATE: PASS (f28fbe8; 3 not run; mask FFFFF3FC)`, with `AUDIO: PASS (0 sounds, 0 files, 50 tool tests; not active yet: the mix checks (R-AUD-18) and the generated C++ table DTSoundsGen.h; 0 rebuilt, 4.5 s)`. It does not count for the handover: `dev/s4` had moved.
+- The whole gate of record, on ee14e8a (the merge of `dev/s4` at 23677f7, with the density ruling of §7): `GATE: PASS (ee14e8a; 3 not run; mask FFFFF3FC)`, 572 tests run of 572 found, restart `276faf8e`, meta `ba2a3ac8`, contrast 7/7. Not run: pad, scope, mac.
+- After the merge of `dev/s4` at a86107a (the hit and kill tap, 573 tests), on 8792462: the gate's text steps only, by the scheduler's rule for this branch: `GATE: PASS (8792462; 20 not run; mask FFFFF3FC)`, with `AUDIO: PASS (0 sounds, 0 files, 50 tool tests; ...)` and `TOOLS: PASS (358 tests)`. The Sound session ran the same text checks again in its own worktree with the same results. The merged tree with the tap's code was not compiled or tested on this branch: the branch's one file under `Source/` is the regenerated constants header, which no C++ reads yet.
 
 ## 7. Density holds no audio rate
 
