@@ -143,6 +143,7 @@ Controls.Reset,Reset to defaults,恢复默认,Controls screen button: restore ev
 Controls.ResetDone,Defaults restored.,已恢复默认按键。,Controls status line after Reset to defaults.,
 Summary.Line,Ichor retained {0} · Balance {1},留存神血 {0} · 神血余额 {1},"One run-summary line on the run-over screen. {0} the run's award, {1} the balance after it. Wording from Summary.Retained and RunSummary.Balance.",
 Summary.Waiting,Save in use by another game. This run is saved at the next save or on quit.,尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。,"[invented] Run-over screen, under the panel, when the run's bank could not reach the save because another launch holds its lock (meta.md R-MET-11, D-042).",
+Summary.NotSaved,Nothing from this run was saved. The save cannot be written.,这一局的内容没有保存。存档无法写入。,"[invented] Run-over screen, in place of Summary.Line, when the run ends in a session stuck on its save: nothing was kept, so no award, balance or Discovery is shown (meta.md R-MET-12, R-MET-06).",
 Hub.Balance,Ichor {0},神血 {0},Hub root line: the balance. {0} Ichor held. [invented] vigil.md Text.,
 Hub.Begin.NeedPatron,Choose a Patron at the Shrine first.,先去祠堂选一位主司。,Hub detail on Begin with no Patron chosen. [invented] vigil.md Text.,
 Hub.Notice.SaveAside,"The save could not be read. It is kept as {0}, and a new one starts empty.",存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。,"[invented] Hub root detail, for the launch that set a bad save aside (meta.md R-MET-12, vigil.md R-VIG-21, review #87). {0} the kept file's name, as DTMeta.sav.bad.1. Shown in place of Hub.Notice.RunLost when both hold.",
