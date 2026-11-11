@@ -134,7 +134,7 @@ The rows outside both waves (143 with W2-H taken, 146 without), by what would ha
 | `vigil.md` R-VIG-15 | §2.2 r10, r11, r18, r19; §2.4 r21 to r23 |
 | No in-run surface, or not S4 | §2.2 r12 to r17, r20, r21; §2.8 r10, r11, r13, r14; §2.6 r1, r13 to r16; §2.5 r2, r13; §2.3 r47, r51, r53; §2.4 r20 |
 | The Sound module (D-055 item 8) | §2.3 r36 to r38; the heartbeat of §2.4 r10 |
-| Nothing: closed by a call | §2.8 r1 the camera (D-036); §2.8 r21 goldens during S4 (`S4_wave1.md` §5 item 3, and §5 item 6 here) |
+| Nothing: closed by a call, or nothing to build | §2.8 r1 the camera (D-036); §2.8 r21 goldens during S4 (`S4_wave1.md` §5 item 3, and §5 item 6 here); §2.5 r9 the optic and elite light values (the gap row asks for no change of value) |
 
 ## 5. Calls the scheduler makes before wave 2 starts
 
