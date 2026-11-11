@@ -284,7 +284,8 @@ bool FDTTecBulletsNoActors::RunTest(const FString& Parameters)
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const float Angle = static_cast<float>(UE_TWO_PI) * static_cast<float>(Index) / static_cast<float>(Count);
-			Bullets->Spawn(Make(FVector2f::ZeroVector, FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * 100.0f, 100.0f));
+			// Fired from clear of the hero's clear zone round hero 0 at the origin (D-068, tracer_art.md R-TRC-01): every round here is drawn.
+			Bullets->Spawn(Make(FVector2f(1000.0f, 0.0f), FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * 100.0f, 100.0f));
 		}
 		Sim->StepNow(2);
 		Bullets->SimRender(0.5f);
