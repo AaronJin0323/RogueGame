@@ -101,6 +101,8 @@ struct FDTHeroHit
 	/** Kind Bullet (telemetry, R-TEL-10): the round's velocity and seconds in the air, so Position draws its whole line. Never gameplay. */
 	FVector2f RoundVelocity = FVector2f::ZeroVector;
 	float RoundFlightSeconds = 0.0f;
+	/** The hitter carries DTEnemyFlags::Arrival (a director drop-in), or the hit is the band of an arrival killed in its wind-up (telemetry, D-045). Never gameplay. */
+	bool bArrival = false;
 };
 
 /** One death, filled by ResolveHits; read by effects and the director (drops, beat ends). */

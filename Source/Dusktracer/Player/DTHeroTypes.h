@@ -144,6 +144,8 @@ struct FDTHeroEvent
 	/** HeroDamaged, Kind Bullet: FDTHeroHit::RoundVelocity and RoundFlightSeconds. */
 	FVector2f RoundVelocity = FVector2f::ZeroVector;
 	float RoundFlightSeconds = 0.0f;
+	/** HeroDamaged: FDTHeroHit::bArrival. */
+	bool bArrival = false;
 	/** Intercession: the player's Patron Path. */
 	EDTPath Path = EDTPath::None;
 };

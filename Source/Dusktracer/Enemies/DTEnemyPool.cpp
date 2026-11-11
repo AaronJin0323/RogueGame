@@ -984,6 +984,7 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 						Hit.SourceRole = EDTEnemyRole::Rusher;
 						Hit.AttackId = FDTEnemyRoleDef::Get(EDTEnemyRole::Rusher).AttackId;
 						Hit.EnemySerial = O.EnemySerial;
+						Hit.bArrival = true; // only arrivals leave an orphan attack (telemetry)
 						Hit.Position = O.Origin;
 					}
 				}
@@ -1108,6 +1109,7 @@ void FDTEnemyPool::AppendContacts(FDTWorldView& View) const
 			Hit.Damage = ContactDamage[Index] * DmgScale[Index];
 			Hit.Kind = EDTHeroHitKind::Contact;
 			Hit.SourceRole = Role[Index];
+			Hit.bArrival = (Flags[Index] & DTEnemyFlags::Arrival) != 0; // telemetry only
 			Hit.EnemySerial = Serial[Index];
 			Hit.Position = Pos[Index];
 		}

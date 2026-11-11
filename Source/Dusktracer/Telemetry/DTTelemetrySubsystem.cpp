@@ -1,4 +1,5 @@
 #include "Telemetry/DTTelemetrySubsystem.h"
+#include "Bot/DTBotSubsystem.h"
 #include "Combat/DTBulletPool.h"
 #include "Combat/DTBulletSubsystem.h"
 #include "Core/DTRunState.h"
@@ -69,6 +70,7 @@ void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 		Hit.Position = Event.SourcePos;
 		Hit.RoundVelocity = Event.RoundVelocity;
 		Hit.RoundFlightSeconds = Event.RoundFlightSeconds;
+		Hit.bArrival = Event.bArrival;
 		Core.RecordHeroDamaged(Event.OwnerId, Hit, Event.Amount, Event.HpAfter, Event.MaxHp, Event.HeroPos);
 		break;
 	}
@@ -144,6 +146,10 @@ void UDTTelemetrySubsystem::StartSession(int32 RunSeed, int32 NumPlayers)
 	WallSecondsAtStart = FPlatformTime::Seconds();
 	Config.Build = GetBuildHash();
 	Config.Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
+	if (const UDTBotSubsystem* Bot = GetWorld() ? GetWorld()->GetSubsystem<UDTBotSubsystem>() : nullptr)
+	{
+		Config.BotFastSteps = Bot->IsActive() ? Bot->GetStepsPerFrame() : 0; // set at world begin play, before the game mode starts the run
+	}
 	Config.WallStart = FDateTime::UtcNow().ToIso8601(); // the trailing Z says UTC; the file name keeps the local time (R-TEL-07)
 
 	Writer.Open(FDTTelemetryWriter::MakeBaseName(RunSeed, Now));
