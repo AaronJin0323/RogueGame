@@ -40,7 +40,7 @@ A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the p
 - Start the game or editor only through a Tools script: `Smoke`, `Perf`, `BotRuns`, `RunTests` (`-Filter` for a test by hand) and the check scripts.
 - A new script dot-sources `Tools/HiddenLaunch.ps1` and starts with `Start-DTHidden`, which puts the launch on a hidden desktop. `tools_test.py` fails on a `Start-Process` or a direct call of an engine binary anywhere else in `Tools`. A commandlet (`-run=`) opens no game window and stays as it is.
 - With no script for it: the project path first, then `-game -windowed -RenderOffScreen -nosplash -unattended -LiveCoding=false`. Flags before the project path open a blocking dialog.
-- Never give a console binary a new console: Windows hands it to the default terminal, which opens on the real desktop even from a hidden one.
+- Never give a console binary a new console: Windows hands it to the default terminal, which opens on the real desktop even from a hidden one. This holds for your own commands as much as for Tools scripts: no `Start-Process` of `powershell`, `cmd` or `python`, whatever its `-WindowStyle`. A long command runs in your tool's own background mode.
 - Every package launch names a `-userdir` under `Saved`. Nothing writes to or deletes from `%LOCALAPPDATA%\Dusktracer`: the owner's run files live there.
 
 ## Known traps (from the previous project)
@@ -50,7 +50,7 @@ A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the p
 - Tests live inside `WITH_DEV_AUTOMATION_TESTS`; file-local constants get a prefix to avoid unity collisions.
 - Launch the editor with `-LiveCoding=false` for command-line builds.
 - Kill stray processes by PID, never by image name.
-- In a fresh git worktree run `git lfs checkout` before the gate: `.uasset`/`.umap` files start as LFS pointer text and tests fail on missing materials.
+- In a fresh git worktree run `git lfs checkout` before the gate: `.uasset`/`.umap` files start as LFS pointer text and tests fail on missing materials. The generated text is git-ignored too: `Tools\RunTests.ps1` by hand fails its text-key tests there until the gate's `locbuild` step or `Tools\Localize.bat` has run once.
 - Never union-merge generated files (`.po`, `.locres`, matrices, constants headers): regenerate them.
 - This PC has processors that fault in plain code (D-052, `Docs/Validation/S4_py_fault.md`), and every tool run keeps off them. The Tools scripts apply the mask themselves (`Tools/Machine.ps1`): it is the one line of `<git common dir>\dt-locks\affinity.txt`, and a machine without that file runs unmasked. A command of your own that is not a Tools script (a bare `python`, a loop in a shell) starts, in PowerShell, with `. Tools\Machine.ps1; $null = Set-DTAffinity;`. The gate's `cpu` step tests every processor the mask leaves in; if it names one, stop and report it.
 
