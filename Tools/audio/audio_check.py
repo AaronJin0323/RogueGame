@@ -305,14 +305,14 @@ def pair_errors(rows, files, measures):
 	return errors
 
 
-def header_errors(rows, header_path):
+def header_errors(rows, header_path, manifest=None):
 	"""The generated table, once it exists: (active, [error])."""
 	if not os.path.exists(header_path):
 		return False, []
 	import gen_sounds
 	with open(header_path, encoding="utf-8", newline="") as f:
 		text = f.read()
-	if text != gen_sounds.render([r for r in rows if r.get("valid")]):
+	if text != gen_sounds.render([r for r in rows if r.get("valid")], manifest):
 		return True, [f"{os.path.relpath(header_path, dtconst.ROOT)} is out of date against sounds.csv (python -I Tools/audio/gen_sounds.py --write)"]
 	return True, []
 
@@ -345,7 +345,7 @@ def check(paths):
 	for stem in sorted(files):
 		errors += [f"{stem}: {e}" for e in file_errors(stem, files[stem]["row"], measures[stem])]
 	errors += pair_errors(rows, files, measures)
-	header_active, found = header_errors(rows, paths.header)
+	header_active, found = header_errors(rows, paths.header, manifest)
 	errors += found
 	return errors, {"sounds": len(rows), "files": len(files), "rebuilt": sum(1 for f in files.values() if f["rebuilt"]), "header": header_active}
 

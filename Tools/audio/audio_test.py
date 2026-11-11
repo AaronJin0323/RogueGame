@@ -786,13 +786,18 @@ class Header(unittest.TestCase):
 		text = gen_sounds.render(rows)
 		self.assertIn("\t\tSnd_Kill_Pop,\r\n\t\tSnd_Danger_Warn,\r\n\t\tCount", text)
 		self.assertIn('{ TEXT("Snd.Kill.Pop"), TEXT("/Game/DT/Audio/SFX/SW_Kill_Pop"), ESoundSide::Player, ESoundClass::Player, 2, false, 0.5f, ESoundPitch::Key, '
-			"45, 5, 0.25f, true },", text)
-		self.assertIn("ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.8f, ESoundPitch::Fixed, 120, 2, 0.25f, false },", text)
+			"45, 5, 0.25f, true, 0 },", text)
+		self.assertIn("ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.8f, ESoundPitch::Fixed, 120, 2, 0.25f, false, 0 },", text)
+		# the length comes from the manifest: the longest variant, in whole ms rounded up
+		manifest = {"SW_Kill_Pop": {"frames": "4800"}, "SW_Kill_Pop_1": {"frames": "5281"}, "SW_Danger_Warn": {"frames": "7920"}}
+		text = gen_sounds.render(rows, manifest)
+		self.assertIn("0.25f, true, 111 },", text)
+		self.assertIn("0.25f, false, 165 },", text)
 		self.assertIn("inline constexpr int32 SoundCount = 2;", text)
 
 	def test_check_and_write(self):
 		tree = Tree([ROW], manifest=False)
-		args = ["--csv", tree.paths.catalog, "--out", tree.paths.header, "--recipes", tree.paths.recipes]
+		args = ["--csv", tree.paths.catalog, "--out", tree.paths.header, "--recipes", tree.paths.recipes, "--manifest", tree.paths.manifest]
 		with contextlib.redirect_stdout(io.StringIO()) as out:
 			self.assertEqual(gen_sounds.main(["--check"] + args), 1)
 			self.assertEqual(gen_sounds.main(["--write"] + args), 0)
