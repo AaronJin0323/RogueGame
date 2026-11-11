@@ -1254,4 +1254,41 @@ bool FDTDirBlockTelemetry::RunTest(const FString& Parameters)
 	return true;
 }
 
+// T-TEL-16: dir_block.dropins_landed_by_role counts, per block and role, the drop-ins that landed there: every arrival the
+// director spawned is in exactly one block's count, by its role, and no landed count exceeds what was published.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTDirDropInsLanded, "Dusktracer.Director.DropInsLanded", DTDirTest::Flags) // T-TEL-16
+bool FDTDirDropInsLanded::RunTest(const FString& Parameters)
+{
+	using namespace DTDirTest;
+	FHarness H(15, false, EKill::All);
+	H.Start();
+	H.RunAll();
+	int32 Arrivals[static_cast<int32>(EDTEnemyRole::Count)] = {};
+	for (const FSpawnRec& S : H.Spawns)
+	{
+		Arrivals[static_cast<int32>(S.Spawn.Role)] += S.Spawn.bArrival ? 1 : 0;
+	}
+	int32 Landed[static_cast<int32>(EDTEnemyRole::Count)] = {};
+	int32 LandedAll = 0;
+	int32 Published = 0;
+	for (const FDTTelDirBlock& B : H.Blocks)
+	{
+		for (int32 Role = 0; Role < static_cast<int32>(EDTEnemyRole::Count); ++Role)
+		{
+			Landed[Role] += B.DropInsLandedByRole[Role];
+			LandedAll += B.DropInsLandedByRole[Role];
+		}
+		Published += B.DropIns;
+	}
+	const int32 Rusher = static_cast<int32>(EDTEnemyRole::Rusher);
+	TestTrue(TEXT("the run has Rusher drop-ins"), Arrivals[Rusher] > 0);
+	for (int32 Role = 0; Role < static_cast<int32>(EDTEnemyRole::Count); ++Role)
+	{
+		TestEqual(FString::Printf(TEXT("role %d: landed drop-ins are the arrivals spawned"), Role), Landed[Role], Arrivals[Role]);
+	}
+	TestEqual(TEXT("the blocks' landed counts sum to the run's"), LandedAll, H.Dir.GetTotals().DropInsLanded);
+	TestTrue(TEXT("no more land than were published"), LandedAll <= Published);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

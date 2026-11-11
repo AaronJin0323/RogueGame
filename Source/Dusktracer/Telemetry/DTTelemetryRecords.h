@@ -75,7 +75,10 @@ struct FDTTelDirBlock
 	FString EndedBy;
 	int32 SpawnedByRole[static_cast<int32>(EDTEnemyRole::Count)] = {};
 	int32 SkippedAtCap = 0;
+	/** Drop-in markers published in the block, landed or cancelled later (R-DIR-07). */
 	int32 DropIns = 0;
+	/** Drop-ins that landed in the block, by role: the arrivals (DTEnemyFlags::Arrival) it spawned. Telemetry only. */
+	int32 DropInsLandedByRole[static_cast<int32>(EDTEnemyRole::Count)] = {};
 	int32 ThreatActions = 0;
 	int32 Kills = 0;
 	/** Median distance from the killing player's hero at each kill; negative = no kill (written as null). */

@@ -478,6 +478,7 @@ void FDTDirectorCore::StepDropIns(const FDTDirectorStepIn& In, IDTDirectorSink& 
 		{
 			FDTEnemySpawn Spawn = MakeSpawn(DropIns[Index].Spawn.Role, DropIns[Index].Spawn.Position);
 			Spawn.bArrival = true;
+			++Open.DropInsLandedByRole[static_cast<int32>(Spawn.Role)]; // telemetry only: the arrivals that landed in this block
 			Emit(Spawn, Sink);
 			++Totals.DropInsLanded;
 			DropIns.RemoveAt(Index);
