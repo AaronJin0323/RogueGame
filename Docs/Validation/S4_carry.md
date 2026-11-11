@@ -88,3 +88,16 @@ tests:      570 run of 570 found, 0 failed, floor 570, 0 crash marker(s)
 GATE: PASS (5980687; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run): every smoke scene against its golden with the key labels, firstrun 6/6 at the boss, settings, contrast with WATCH OK. No golden re-shot; no odd failure.
+## Third carry: `carry3/s3` (`main` d17458f through `dev/s2` and `dev/s3`) into `dev/s4` ae25e37 (`carry3/s4`)
+- Conflicts: the scheduler's records take `main`'s side whole (`git diff d17458f -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty); `number_change_log.csv`, every row of both sides; the floor and the generated header. Nothing else conflicted. `dev/s4` added no field to `dir_block`.
+- The bot: both versions end a decided run in `UDTBotSubsystem::HandleStepEnd`, where the hold sits; nothing added. T-TEL-17 passes; RestartCheck (`276faf8e`, 5400 / 5400) and MetaCheck (`ba2a3ac8`, 1200 / 1200) stay equal; firstrun 6/6 at the boss.
+- Pinned values: none moved, since no test or tool check pins a fast bot's step count. `S4_p0.md` §8 and `S4_tracers.md` record each arm's `bot.csv` bytes and SHA-256 as the wave's sim proof: those are notes, and the files now differ in their `steps` line (two lower) while every `input_hash` holds, so a byte comparison against those notes reads stale until they are retaken.
+- Ids: T-TEL-16 and T-TEL-17 collide with nothing.
+- Counts: 572 found, 572 pass; `C.GATE.TEST_FLOOR` 570 to 572; `tools_test.py` 348.
+- Seed 9107, read on ae25e37 and on e1fbb6d: every `input_hash` unchanged (`00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`); `steps` two lower on each (44139 to 44137, 59382 to 59380, 57751 to 57749, 60233 to 60231, 48600 to 48598), which is this fix.
+
+```
+tests:      572 run of 572 found, 0 failed, floor 572, 0 crash marker(s)
+GATE: PASS (e1fbb6d; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run): every smoke scene against its golden, contrast with WATCH OK, settings. No golden re-shot; no odd failure.
