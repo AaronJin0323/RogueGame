@@ -447,10 +447,11 @@ bool FDTEnmTelegraphLead::RunTest(const FString& Parameters)
 	}
 
 	// An arriving Rusher charges through where its hero stood (D-045): from every landing point on the director's threat ring
-	// the band covers the hero's position at the start of the wind-up, a hero who stands still is hit, and one who steps a
-	// hero width off the line before the charge is not. One hero width is exactly where the two circles touch (both radii
-	// are half of it), and touching is no contact (R-ENM-14 reads overlap): on the four axis landings the arithmetic is exact
-	// and the step is exactly one hero width; on the others rounding decides a touch, so the step is that plus TouchSlackUU.
+	// the band covers the hero's position at the start of the wind-up, a hero who stands still is hit, and one who steps more
+	// than one hero width off the line before the charge (the body clear of the band) is not. One hero width is exactly where
+	// the two circles touch (both radii are half of it), and touching is no contact (R-ENM-14 reads overlap): on the four axis
+	// landings the arithmetic is exact and a step of exactly one hero width is a touch; on the others rounding decides a touch,
+	// so the step is one hero width plus TouchSlackUU.
 	{
 		constexpr int32 RingAngles = 16;
 		constexpr float TouchSlackUU = 0.01f; // float rounding of a tangent pass, not a tuned number
@@ -519,7 +520,7 @@ bool FDTEnmTelegraphLead::RunTest(const FString& Parameters)
 		TestEqual(TEXT("arrival: the band is drawn for the whole wind-up"), BandMissing, 0);
 		TestEqual(TEXT("arrival: from every landing on the threat ring the band covers where the hero stood, overshoot beyond"), Covered, Landings);
 		TestEqual(TEXT("arrival: a hero who stands still is hit from every landing"), StoodAndHit, Landings);
-		TestEqual(TEXT("arrival: a hero who steps one hero width off the line is hit from none"), SteppedAndHit, 0);
+		TestEqual(TEXT("arrival: a hero who steps more than one hero width off the line is hit from none"), SteppedAndHit, 0);
 	}
 
 	// An arrival's charge is clipped by the arena as any charge is.
@@ -622,6 +623,50 @@ bool FDTEnmContact::RunTest(const FString& Parameters)
 			TestEqual(TEXT("role contact damage x DmgScale"), Hit.Damage, DTConst::ROLE_TURRET_CONTACT_DAMAGE * 1.5f);
 			TestEqual(TEXT("source role"), Hit.SourceRole, EDTEnemyRole::Turret);
 			TestEqual(TEXT("source serial"), Hit.EnemySerial, Pool.GetSerials()[0]);
+		}
+	}
+
+	// A touch is no hit on either path: a body exactly at the reach (the two radii) is clear, one uu inside is hit. Contact
+	// (R-ENM-14) and a killed arrival's charge band (R-ENM-13, the hazard) take the same strict comparison.
+	constexpr float InsideUU = 1.0f; // one uu of overlap, not a tuned number
+	for (const bool bTouch : { true, false })
+	{
+		const FString Tag = bTouch ? TEXT("touch: ") : TEXT("one uu inside: ");
+		{
+			FHarness C({ FVector2f::ZeroVector });
+			FDTEnemyPool Still;
+			Still.SetFireEnabled(false);
+			Still.Spawn(EDTEnemyRole::Turret, FVector2f(1000.0f, 0.0f));
+			const float Reach = Still.GetRadii()[0] + static_cast<float>(DTConst::HERO_RADIUS_UU);
+			Still.SetPosition(0, FVector2f(Reach - (bTouch ? 0.0f : InsideUU), 0.0f));
+			C.Tick(Still);
+			TestEqual(Tag + TEXT("contact"), C.CountHeroHits(EDTHeroHitKind::Contact), bTouch ? 0 : 1);
+		}
+		{
+			FHarness R({ FVector2f(500.0f, 0.0f) });
+			FDTEnemyPool Band;
+			FDTEnemySpawn Arrival;
+			Arrival.Role = EDTEnemyRole::Rusher;
+			Arrival.bArrival = true;
+			Band.Spawn(Arrival, nullptr, true);
+			const float Reach = Band.GetRadii()[0] + static_cast<float>(DTConst::HERO_RADIUS_UU); // half the band's width + the hero's
+			const int32 KillAt = 10;
+			int32 Hazards = 0;
+			for (int32 Step = 0; Step < Steps(2.0f); ++Step)
+			{
+				if (Step == KillAt)
+				{
+					R.View.Hits.Add(MakeHit(Band, 0, 0, 1.0e6f, Band.GetPositions()[0]));
+				}
+				if (Step == KillAt + 1)
+				{
+					R.View.HeroPositions[0] = FVector2f(500.0f, Reach - (bTouch ? 0.0f : InsideUU)); // beside the band's line
+				}
+				R.Tick(Band);
+				Hazards += R.CountHeroHits(EDTHeroHitKind::Charge);
+			}
+			TestEqual(Tag + TEXT("the Rusher died before its band landed"), Band.Num(), 0);
+			TestEqual(Tag + TEXT("killed arrival's band"), Hazards, bTouch ? 0 : 1);
 		}
 	}
 	return true;
