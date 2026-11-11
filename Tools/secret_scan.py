@@ -18,6 +18,8 @@ PATTERNS = [
 	("Slack token", re.compile(r"\bxox[abprs]-[A-Za-z0-9\-]{10,}\b")),
 	("private key", re.compile(r"-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")),
 	("UE AndroidFileServer token", re.compile(r"SecurityToken=[0-9A-F]{32}")),
+	# A claude.ai page with an id is private to the owner (the art book canvases): the repo is public, so its link never lands here.
+	("private claude.ai link", re.compile(r"claude\.ai/(?:code/artifact|public/artifacts|artifact|share|chat|project)/[A-Za-z0-9][A-Za-z0-9_\-]{7,}")),
 	("assigned secret", re.compile(r"(?i)\b(password|passwd|api[_-]?key|secret|token)\s*[:=]\s*[\"'][^\"'\s]{12,}[\"']")),
 ]
 

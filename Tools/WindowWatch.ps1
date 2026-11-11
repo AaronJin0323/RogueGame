@@ -11,6 +11,8 @@
 # thread can be named; if that thread has gone too, or is closed to this process, the event counts in .Lost, not in .Windows. csrss.exe's are: it flashes one
 # window as each child PowerShell starts, so a step that starts four reads 4 lost (Docs/Validation/S1_no_windows.md).
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 if (-not ("DTWindowWatch" -as [type])) {
 	Add-Type -TypeDefinition @"
 using System;
