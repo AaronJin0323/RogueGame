@@ -41,8 +41,12 @@ try {
 	}
 
 	$Lines = @("Dusktracer run data. Gameplay numbers only: seed, build hash, culture, last input device, combat numbers per interval,",
-		"hero positions on the arena (one every few seconds and at each hit taken), cards offered and picked, Keeper and weapon choices,",
-		"and the start time, UTC inside each file and local in its name, so the two show the time zone.",
+		"every hit the hero took (what dealt it, where both stood, whether it had dropped in or was charging), health restored,",
+		"how many enemies dropped in, hero positions on the arena (one every few seconds and at each hit taken), cards offered and picked,",
+		"Keeper and weapon choices, whether a test bot ran the run at fast speed, and five clock readings: the start time (UTC inside",
+		"each file and local in its name, so the two show the time zone), the seconds each hand of cards took, the seconds the run was",
+		"paused, the run's length on the clock, and the steps this PC could not keep up with.",
+		"Every run in this PC's run folder is included, earlier ones too.",
 		"No name, account, machine name, path or hardware.",
 		"Exported $Stamp. Files:", "")
 	$Lines += $Runs | Sort-Object Name | ForEach-Object { "{0}  {1} bytes" -f $_.Name, $_.Length }
