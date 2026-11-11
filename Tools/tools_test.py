@@ -1721,6 +1721,35 @@ class SessionRead(unittest.TestCase):
 		self.assertIn("READS: 3_20261111_140000 swarm kill time NOT READ (no cell); pause NOT READ (no run_end)", text)
 		self.assertIn("end no run_end (crash or killed)", text)
 
+	def test_the_first_trait_card_offered_and_taken(self):
+		"""C.KEEPER.TRAIT_PREREQ_CARDS's first reading: the level and time a Trait was first shown and first taken."""
+		trait = "Blessing.Storm.Tempest.Trait"
+		self.assertIn(trait, session_read.trait_ids(), "ids come from expression.csv's Path and Archetype")
+		body = [rec(300.0, "offer", hand_id=2, hand_kind="Level", level=9, cards=[{"slot": 0, "kind": "Blessing", "id": trait}, {"slot": 1, "kind": "Weapon", "id": "Weapon.ArcBlade"}]),
+			rec(300.0, "offer_pick", hand_id=2, slot=1, card_kind="Weapon", id="Weapon.ArcBlade"),
+			rec(420.0, "offer", hand_id=5, hand_kind="Level", level=12, cards=[{"slot": 0, "kind": "Blessing", "id": trait}]),
+			rec(420.0, "offer_pick", hand_id=5, slot=0, card_kind="Blessing", id=trait)]
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
+		self.put("T2", "2_20261111_130000", run_text(900.0, body=body[:2]))
+		self.put("T3", "3_20261111_140000", run_text(900.0))
+		rc, text = self.read()
+		self.assertIn(f"READS: 1_20261111_120000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): first offered at L9, 5:00 (300.0 s), {trait}; "
+			f"first taken at L12, 7:00 (420.0 s), {trait}", text)
+		self.assertIn(f"READS: 2_20261111_130000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): first offered at L9, 5:00 (300.0 s), {trait}; not taken", text)
+		self.assertIn("READS: 3_20261111_140000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): none offered", text)
+
+	def test_bots_read_without_a_session(self):
+		"""The skill rows print before any session exists; the bracket itself waits for a session median."""
+		rc, text = self.read("--bots", self.battery({"Low": ("0.5", [(0.2, 900.0)])}))
+		self.assertIn("no run found", text)
+		self.assertIn("BRACKET: skill 0.5: 1 run(s) in 1 arm(s), alive at 600 s 1; median HP lost by 600 s 0.200", text)
+		self.assertIn("BRACKET: NOT READ (no session median)", text)
+		self.assertEqual(rc, 0)
+		empty = os.path.join(self.tmp.name, "nobots")
+		os.makedirs(empty)
+		rc, text = self.read("--bots", empty)
+		self.assertEqual(rc, 1)
+
 	def test_bad_arguments_exit_2_and_an_empty_folder_exits_1(self):
 		rc, text = self.read("--frobnicate")
 		self.assertEqual(rc, 2)
@@ -1734,6 +1763,21 @@ class SessionRead(unittest.TestCase):
 
 def dtconst_load():
 	return session_read.dtconst.load()
+
+
+class Manifest(unittest.TestCase):
+	"""Audit G16: MANIFEST.txt names what the run files record (package.md section Data, telemetry.md R-TEL-08 and R-TEL-10)."""
+
+	def test_the_manifest_names_the_five_clock_readings_and_the_two_marks(self):
+		with open(os.path.join(TOOLS, "PackageFiles", "ExportTelemetry.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		block = text[text.index("$Lines = @("):text.index('"Exported $Stamp. Files:"')]
+		for phrase in ("five clock readings", "the start time (UTC inside", "the seconds each hand of cards took", "the seconds the run was",
+				"the run's length on the clock", "the steps this PC could not keep up with", "whether it had dropped in or was charging",
+				"health restored", "how many enemies dropped in", "whether a test bot ran the run at fast speed",
+				"No name, account, machine name, path or hardware."):
+			self.assertIn(phrase, block)
+		self.assertNotIn("whether a bot played", block, "bot_fast says only that a bot ran fast")
 
 
 class GateMain(unittest.TestCase):

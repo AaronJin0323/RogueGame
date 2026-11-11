@@ -37,7 +37,8 @@ Every line starts with a fixed prefix, in this order:
   D-036:     hits whose source stands off the camera frame; OFFFRAME: one line per such hit
   D-053:     when Hammer's Key was picked and whether the Arc Blade or the Orbital Drones were held with it
   D-054:     each run's slow share, sorted; no threshold
-  READS:     what D-048 reads with no verdict: swarm kill time, pause, the L8 and L16 times, the pickup ratio, attribution
+  READS:     what D-048 reads with no verdict: swarm kill time, pause, the L8 and L16 times, the pickup ratio, attribution;
+             and per run the level and time a Trait card was first offered and first taken (C.KEEPER.TRAIT_PREREQ_CARDS)
   ROW 7:     where the tool row is read (Tools/probe.py)
   TIMELINE:  with --timeline, one line per event of a run, sorted by sim time
   SHEET:     a thing only the paper sheet holds, with the kit's question or row
@@ -49,7 +50,11 @@ weapon ids from Docs/09_Catalog/weapons.csv. The starter weapon (the Pulse Rifle
 right after the Patron pick, like any other weapon. The camera frame is derived as ADTCameraPawn::ComputeFramingDistance and
 T-UX-01 derive it; the HUD's run timer is the sim clock (see the TIMELINE header).
 
-Exit 0 when the folder held at least one run and the tool read it; 1 for no run; 2 for bad arguments.
+A zip over 2 GB is not copied: a NOTE says so. With no run in the session folder but --bots given, the BRACKET skill rows still
+print, then `BRACKET: NOT READ (no session median)`.
+
+Exit 0 when the folder held at least one run and the tool read it (or, with no run, when --bots read at least one bot run); 1 for
+no run; 2 for bad arguments.
 """
 
 import contextlib
@@ -74,6 +79,8 @@ RUN_FILE = re.compile(r"^(\d+_\d{8}_\d{6})\.(csv|jsonl)$")
 MANIFEST = "MANIFEST.txt"
 MAX_MEMBER_BYTES = 256 * 1024 * 1024
 MAX_MEMBERS = 5000
+MAX_ZIP_BYTES = 2 * 1024 * 1024 * 1024  # a returned zip past this is not copied at all
+EXPRESSION_CSV = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "expression.csv")
 MARKER = "session_read.marker"
 TIMELINE_CSV = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "timeline_arena1.csv")
 WEAPONS_CSV = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "weapons.csv")
@@ -179,6 +186,9 @@ def copy_in(session, work, notes):
 		seen_in = "." if rel_dir == "." else rel_dir.replace("\\", "/")
 		name = os.path.basename(path)
 		if name.lower().endswith(".zip"):
+			if os.path.getsize(path) > MAX_ZIP_BYTES:
+				notes.append(f"NOTE: {seen_in}/{name} is over 2 GB; not copied, skipped")
+				continue
 			zips += 1
 			copy = os.path.join(work, "zips", f"{zips:03d}.zip")
 			os.makedirs(os.path.dirname(copy), exist_ok=True)
@@ -775,7 +785,7 @@ def print_hp600(sheet, sheet_runs):
 def print_bracket(bots, session):
 	if not bots:
 		print("BRACKET: NOT READ (no bot battery given: --bots)")
-		return
+		return 0
 	rows = {}
 	for folder in bots:
 		for label, arm in owner_read.read_arms(folder, owner_read.KEY).items():
@@ -784,9 +794,10 @@ def print_bracket(bots, session):
 				rows.setdefault(skill, {}).setdefault(f"{os.path.basename(os.path.normpath(folder))}/{label}", []).append(run)
 	if not rows:
 		print("BRACKET: NOT READ (no bot run in the battery folders)")
-		return
+		return 0
 	print("BRACKET: a bot reading is a bound; rows pool every arm of a skill, read by the code of HP600")
 	medians = {}
+	read = sum(len(arm) for arms in rows.values() for arm in arms.values())
 	for skill in sorted(rows):
 		runs = [run for arm in rows[skill].values() for run in arm]
 		n, alive, (hp, least), dashes = hp600_stats(runs)
@@ -797,8 +808,8 @@ def print_bracket(bots, session):
 			f"(arm medians {min(arm_hp):.3f} to {max(arm_hp):.3f}); median dashes {'-' if dashes is None else f'{dashes:.2f}'}/min "
 			f"(arm medians {f'{min(arm_dash):.2f} to {max(arm_dash):.2f}' if arm_dash else '-'})")
 	if session is None:
-		print("BRACKET: NOT READ (no session median: see HP600)")
-		return
+		print("BRACKET: NOT READ (no session median)")
+		return read
 	for label, idx, value in (("HP lost by 600 s", 0, session[0]), ("dashes per minute", 1, session[2])):
 		if value is None:
 			print(f"BRACKET: {label}: NOT READ (no session value)")
@@ -811,6 +822,7 @@ def print_bracket(bots, session):
 			continue
 		u, o = max(under), min(over)
 		print(f"BRACKET: {label}: validators {value:.3f}; just under: skill {u[1]} ({u[0]:.3f}); just over: skill {o[1]} ({o[0]:.3f})")
+	return read
 
 
 def own_attack(hits):
@@ -960,6 +972,41 @@ def print_d054(sheet_runs):
 	print("SHEET: D-054 revert clause (question 13, the slow-motion row) against these shares")
 
 
+def trait_ids():
+	"""The Trait blessing of every archetype, Blessing.<Path>.<Archetype>.Trait (keepers.md R-KEE-01), from expression.csv."""
+	ids = set()
+	with open(EXPRESSION_CSV, encoding="utf-8", newline="") as f:
+		for row in csv.DictReader(f):
+			path, archetype = (row.get("Path") or "").split("."), (row.get("Archetype") or "").split(".")
+			if len(path) == 2 and len(archetype) == 3:
+				ids.add(f"Blessing.{path[1]}.{archetype[2]}.Trait")
+	return ids
+
+
+def trait_reading(run, ids):
+	"""((t, level, id) of the first hand that showed a Trait card, (t, level, id) of the first Trait taken), each None when none:
+	the hand's `offer` record carries its level and its cards' ids, the `offer_pick` the id taken in that hand."""
+	offered = taken = None
+	for hand in sorted(run["hands"].values(), key=lambda h: float(h.get("t", 0.0))):
+		hit_ids = [c.get("id") for c in hand.get("cards", []) if c.get("id") in ids]
+		if hit_ids:
+			offered = (float(hand.get("t", 0.0)), hand.get("level"), hit_ids[0])
+			break
+	for pick in sorted(run["picks"].values(), key=lambda p: float(p.get("t", 0.0))):
+		if pick.get("id") in ids:
+			taken = (float(pick.get("t", 0.0)), run["hands"].get(pick.get("hand_id"), {}).get("level"), pick.get("id"))
+			break
+	return offered, taken
+
+
+def trait_text(run, ids):
+	offered, taken = trait_reading(run, ids)
+	if offered is None:
+		return "none offered"
+	at = lambda x: f"at L{x[1]}, {mss(x[0])} ({x[0]:.1f} s), {x[2]}"
+	return f"first offered {at(offered)}; " + (f"first taken {at(taken)}" if taken else "not taken")
+
+
 def attribution(r, check):
 	"""power_split's POWER line of a run at the check level, or n/a; its own warnings are swallowed (NOTE lines say them)."""
 	with contextlib.redirect_stdout(io.StringIO()):
@@ -977,6 +1024,7 @@ def print_reads(readings, consts):
 	l8, l16 = consts["OFFER.SECOND_KEEPER_LEVEL"]["value"], consts["TEL.POWER_CHECK_LEVEL"]["value"]
 	print(f"READS: with no verdict (D-048); L{l8} against C.LEVEL.L8_MIN {consts['LEVEL.L8_MIN']['value']} s, L{l16} against "
 		f"C.LEVEL.L16_MIN {consts['LEVEL.L16_MIN']['value']} s")
+	traits = trait_ids()
 	for r, _, _, _, counts in readings:
 		run = r["run"]
 		if not run:
@@ -994,6 +1042,7 @@ def print_reads(readings, consts):
 		print(f"READS: {r['base']} swarm kill time {ttk_text}; pause {pause_text}; L{l8} {lv(l8)}, L{l16} {lv(l16)}; "
 			f"pickup ratio (XP of model at {owner_read.XP_CHECK_S:.0f} s) " + owner_read.pickup_text(run, consts).replace("unread (", "NOT READ (")
 			+ f"; attribution {attribution(r, l16)}")
+		print(f"READS: {r['base']} Trait card (C.KEEPER.TRAIT_PREREQ_CARDS {consts['KEEPER.TRAIT_PREREQ_CARDS']['value']}): {trait_text(run, traits)}")
 
 
 def print_timeline(r, fr):
@@ -1083,6 +1132,9 @@ def main(argv):
 		print(line)
 	if not runs:
 		print(f"SESSION: folder {session}; {zips} zip(s), {loose} loose run file(s); no run found")
+		if opts["bots"]:
+			# Bot batteries read before any session exists: the skill rows print, and the bracket waits for people.
+			return 0 if print_bracket(opts["bots"], None) else 1
 		return 1
 	if sheet is None:
 		sheet_runs, not_on_sheet = runs, []

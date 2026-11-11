@@ -63,6 +63,8 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 
 **The Key with a weapon it leaves unchanged (D-053).** A run held Hammer's Key with the Arc Blade or the Orbital Drones when it has the `keeper_pick` of the Key and a `weapon_acquired` of either weapon, before the pick or after it.
 
+**First Trait card.** Per run, the level and sim time of the first `offer` whose cards hold a Trait blessing (`Blessing.<Path>.<Archetype>.Trait`, one per archetype of `expression.csv`) and of the first `offer_pick` that takes one, or none offered; it is the first reading of `C.KEEPER.TRAIT_PREREQ_CARDS`.
+
 **Off-frame sources (D-036).** A hit's source is off the solo frame when, with dx the source's offset up-screen (world +X) from the hero and dy across, dx is below minus the frame's down-screen reach, above its up-screen reach, or the size of dy is above the half-width at that row. The reaches and the half-width come from `C.ARENA.CAMERA_PITCH_DEG`, `C.ARENA.CAMERA_FOV_DEG` and `C.ARENA.CAMERA_FRAME_RADIUS_UU` as the camera computes its distance (`06_UX.md` R-UX-01, T-UX-01): at 16:9, 1504.25 uu down, 2041.16 up, and 2666.67 + 0.2332 dx across. A round's source is its firing point, so a `Bullet` hit is also tested against the hero's position at its fire time, interpolated between the `hero_pos` records around it. Limits: the screen's shape is not in the files, so the sides are exact for 16:9 only (a wider screen shows more at the sides, never less height); a body is partly in view up to its radius past an edge; the HUD covers part of the frame.
 
 ## 3. Power: loss, package gain, archetype band, Intercession

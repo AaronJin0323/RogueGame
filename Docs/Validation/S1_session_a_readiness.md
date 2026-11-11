@@ -16,19 +16,28 @@ It copies the returned zips into `Saved\SessionRead\A\`, takes only the run file
 
 ## The audit's gaps
 
-The gaps this job's brief names by number, with what now reads them:
+The session A audit (read on `main` ee38eb1, package `e4926d4`) named sixteen gaps. Each, with what now reads or states it; tests are in `Tools/tools_test.py`.
 
-| Gap | What it was | What reads it now | Test (`Tools/tools_test.py`) |
-|---|---|---|---|
-| G3 | `owner_read.py run` ignored `--t` | `run --t <s>` prints `HP lost by <s> s`, restores beside it, and `ended at ... : a lower bound` for a run that stopped earlier; `session_read.py` HP600 uses the same function | `OwnerRead.test_run_honours_t_with_the_lower_bound_of_a_run_that_ended_before`, `SessionRead.test_hp600_with_a_run_down_at_480_s_reads_at_least` |
-| G4 | one run without landed drop-ins nulled a whole group's D-045 denominator | `pressure.py` group lines and `session_read.py` D-045 take hits and landed drop-ins from the same runs, name the runs without the count and leave them out of both sides | `PressureStatistic.test_a_group_reads_the_landed_count_over_the_runs_that_carry_it`, `SessionRead.test_d045_reads_drop_in_hits_over_the_runs_that_carry_the_count` |
-| G5 | the pickup ratio of a run that ended before 300 s printed a number | `owner_read.py` prints `unread (ended at <t> s, before 300 s)`; `session_read.py` READS prints `NOT READ (...)` | `OwnerRead.test_the_pickup_ratio_of_a_run_that_ended_before_300_s_is_unread`, `SessionRead.test_slow_shares_sorted_a_crash_unread_and_the_pickup_ratio_unread_under_300_s` |
-| G6 | the timeline had no drop-in or charging mark and no restores | `owner_read.py` timeline hits carry `[drop-in]` and `[charging]`, and `healed` lines appear; `session_read.py --timeline` adds `off frame` | `OwnerRead.test_the_timeline_marks_drop_ins_charges_and_restores`, `SessionRead.test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate` |
-| G9 | `power_split.py` read one run only | given a folder it reads every run under it, each `POWER:` line after its run; one file prints as before (PadCheck's call) | `Attribution.test_a_folder_reads_every_run_and_one_file_as_before` |
-| G10 | `pressure.py --check T-DIR-02` judged PASS or FAIL against draft bands | it prints `NOT SET` with the same medians while `DRAFT_BANDS` holds the check, for a session and a bot arm alike; the per-run grade says `draft band` | `PressureStatistic.test_draft_bands_print_not_set_with_the_same_medians`, `test_the_draft_list_follows_the_tuning_table` |
-| G16 | `MANIFEST.txt` listed less than the files record | **not closed in this job**: the text the brief gives says the files tell "whether a bot played the run", and they do not (below) | none yet |
+- **G1, not closed** (it needs a game change, which this branch does not make; both fields are optional). `run_start` has no `config` field, so a Shipping file cannot be told from the Development proof build by its content. And `boss_start` holds no health. `session_read.py` D-046 derives the health at the boss from the last `hp_after` instead (`SessionRead.test_d046_reads_each_second_run_at_the_boss`).
+- **G2, closed.** `session_read.py` MINUTES prints the per-minute damage and dash tables. BANDS prints the middle half, the quarter-of-median floor and both bounds, and ends `NOT SET` (`test_the_minute_table_marks_the_partial_last_minute`, `test_bands_print_not_set_under_three_runs`, `test_the_band_arithmetic_on_four_hand_checked_runs`).
+- **G3, closed.** `owner_read.py run --t <s>` prints `HP lost by <s> s` with the lower-bound wording; `session_read.py` HP600 uses the same function (`OwnerRead.test_run_honours_t_with_the_lower_bound_of_a_run_that_ended_before`, `SessionRead.test_hp600_with_a_run_down_at_480_s_reads_at_least`).
+- **G4, closed.** The `pressure.py` group SOURCES lines and `session_read.py` D-045 read hits and landed drop-ins over the runs that carry the count, and name the rest (`PressureStatistic.test_a_group_reads_the_landed_count_over_the_runs_that_carry_it`, `SessionRead.test_d045_reads_drop_in_hits_over_the_runs_that_carry_the_count`).
+- **G5, closed.** The pickup ratio of a run that ended before 300 s reads `unread` in `owner_read.py` and `NOT READ` in `session_read.py` READS (`OwnerRead.test_the_pickup_ratio_of_a_run_that_ended_before_300_s_is_unread`, `SessionRead.test_slow_shares_sorted_a_crash_unread_and_the_pickup_ratio_unread_under_300_s`).
+- **G6, closed.** The `owner_read.py` timeline marks hits `[drop-in]` and `[charging]` and lists restores. `session_read.py --timeline` adds `off frame`, and its header maps the HUD timer to `t` (`OwnerRead.test_the_timeline_marks_drop_ins_charges_and_restores`, `SessionRead.test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate`).
+- **G7, closed.** `session_read.py` D-036 and OFFFRAME test every source against the frame derived from the camera constants, a round also at its fire time (`test_the_frame_comes_from_the_constants_and_tests_each_edge`, `test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate`).
+- **G8, half closed.** `session_read.py` RUN lists the input device of every run in a returned zip, and ROW 1 counts only `pad` (`test_row_one_needs_a_pad_run_and_kbm_never_counts`). The gate's `pad` step still reads only the development PC's folder (`Tools/PadCheck.ps1`), so a pad run from another PC never turns it to PASS. `package.md` Open records that; closing it is a PadCheck change outside this branch.
+- **G9, half closed.** `power_split.py` reads a folder (`Attribution.test_a_folder_reads_every_run_and_one_file_as_before`). `Tools/probe.py` still cannot take a person's build: it rebuilds bot snapshots only, so pass rule row 7 stays a probe reading on the session build (`ROW 7:`).
+- **G10, closed.** `pressure.py --check T-DIR-02` prints `NOT SET` while `DRAFT_BANDS` holds it, and a test ties that list to `10_Tuning.md` §1 (`PressureStatistic.test_draft_bands_print_not_set_with_the_same_medians`, `test_the_draft_list_follows_the_tuning_table`).
+- **G11, closed.** The kit's run table has one row per run: tester, first or second run, launch time, input, language, end and seed. The scheduler types it into `validators.csv` (`run,validator,order`), and `session_read.py --list` prints the rows to fill (`test_list_prints_only_the_csv_to_fill`, `test_a_run_not_on_the_sheet_is_left_out_and_no_sheet_reads_not_read`).
+- **G12, closed in the kit.** Questions 8 and 14 and the drop-in row cover D-045 ("no time to get away", unprompted and prompted kept apart). Question 7 covers D-046 ("what came closest to killing you"). Question 13 and the slow-motion row cover D-054. Questions 10, 11, 12 and their rows cover D-036's held items. The tool prints each one as a `SHEET:` line.
+- **G13, closed in the kit.** "The owner, after the session" is session A row 3. The row "Took Hammer Hand while holding the Arc Blade or the Orbital Drones" leads to question 6, and `session_read.py` D-053 reads the same thing from the files (`test_d053_names_who_held_the_key_with_the_blade_before_or_after_the_pick`).
+- **G14, closed in the kit.** Hand-over: the owner puts the zip and the sheet in `Saved\Sessions\A\<tester>\` and says so in the scheduler's session.
+- **G15, closed in the kit.** The pass rule names the two rows D-048 added: **Unseen hit** and **Elite**.
+- **G16, closed.** The manifest text in `Tools/PackageFiles/ExportTelemetry.ps1` now names every hit's source and positions, the drop-in and charging marks, restores, the drop-in count, whether a test bot ran the run at fast speed (`run_start.bot_fast` says no more than that) and the five clock readings of R-TEL-08. The kit's "What the zip holds" and `package.md` §Data say the same (`Manifest.test_the_manifest_names_the_five_clock_readings_and_the_two_marks`). From this commit the built package is stale (`Tools/PadCheck.ps1` compares `Tools/PackageFiles`), so it is rebuilt before session A.
 
-G2, G7, G8 and G11 to G15 are not described in this job's inputs, so this note cannot say which line closes each. What the tool reads for each S1 gate item, whatever the audit numbered it:
+The audit's kit mismatches are gone in the kit as given. It names the runtime path `Engine\Extras\Redist\en-us\vc_redist.x64.exe` and says what is true only on the development PC (slowdown, the faulty processors, the owner's own runs in the export). It ties the `pad` step to that PC.
+
+What the tool reads for each S1 gate item:
 
 | Item | Section of `session_read.py` | Test |
 |---|---|---|
@@ -46,8 +55,8 @@ G2, G7, G8 and G11 to G15 are not described in this job's inputs, so this note c
 | D-054 slow share | `D-054:` | `test_slow_shares_sorted_a_crash_unread_and_the_pickup_ratio_unread_under_300_s` |
 | Kill time, pause, L8 and L16, pickup ratio, attribution | `READS:` | as G5 |
 | HUD times on the sheet against the files | `TIMELINE:` (its header) | `test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate` |
-
-**The manifest (G16), held.** The brief's manifest text says the files record "whether a bot played the run". The only field is `run_start.bot_fast`: the steps per frame an active bot ran past the clock, which is zero for a person's run and also zero for a bot at real speed (`telemetry.md` R-TEL-08, T-TEL-15). The dry read shows it: PadCheck's bot runs read `bot_fast` 0 and a slow share like a person's; only their end reason `bot_timeout` says a bot played. So the manifest is unchanged here, and the same words stand in the kit's "What the zip holds". `package.md` §Data keeps "whether a bot ran the run fast". Every other phrase of the brief's text matches R-TEL-08, R-TEL-10, §Data and `combat_core.md` §Telemetry, and no written personal-looking field is missing from it.
+| The first Trait card offered and taken (`C.KEEPER.TRAIT_PREREQ_CARDS`) | `READS:` | `test_the_first_trait_card_offered_and_taken` |
+| Bot skill rows before any session | `BRACKET:` | `test_bots_read_without_a_session` |
 
 ## Dry read
 
@@ -120,7 +129,9 @@ D-054: 2 run(s) read, 0 not read; no threshold exists; the S1 gate decision sets
 SHEET: D-054 revert clause (question 13, the slow-motion row) against these shares
 READS: with no verdict (D-048); L8 against C.LEVEL.L8_MIN 300 s, L16 against C.LEVEL.L16_MIN 630 s
 READS: 770077_20261111_155519 swarm kill time 0.092 s over 2 cells, whole run (not alive through the window); pause 0.0 s per sim minute, 0.0 without the Patron hand; L8 not reached, L16 not reached; pickup ratio (XP of model at 300 s) NOT READ (ended at 65.0 s, before 300 s); attribution n/a (level 3, under L16)
+READS: 770077_20261111_155519 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): none offered
 READS: 770077_20261111_155626 swarm kill time 0.092 s over 2 cells, whole run (not alive through the window); pause 0.0 s per sim minute, 0.0 without the Patron hand; L8 not reached, L16 not reached; pickup ratio (XP of model at 300 s) NOT READ (ended at 65.0 s, before 300 s); attribution n/a (level 3, under L16)
+READS: 770077_20261111_155626 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): none offered
 ROW 7: NOT READ here (the probe on the session build: Tools/probe.py; the note that holds it is named in the session note)
 TIMELINE: 770077_20261111_155519: the HUD's run timer (top right, Game/DTHUD.cpp) shows MM:SS of whole sim seconds since the run started, the step count over C.SIM.FIXED_HZ with the fraction dropped; it stops while a hand is open, as t does, and starts on the step the run file starts (Game/DTGameMode.cpp starts both together). HUD m:ss is t from m*60+ss to m*60+ss+1
 TIMELINE: 770077_20261111_155519 0:00 0.0 Patron Keeper Storm
