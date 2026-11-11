@@ -60,6 +60,28 @@ if (-not $WithSound) { $Base += "-nosound" }
 $Label = $Config + $(if ($NoUnattended) { ", no -unattended" } else { "" }) + $(if ($WithSound) { ", with sound" } else { "" }) + $(if ($Extra) { ", $Extra" } else { "" })
 Write-Host ("crashexit: {0} x{1}, timeout {2} s, {3}; crash {4}; work {5}" -f $Config, $Runs, $TimeoutS, $Exe, $Crash, $Work)
 
+# Thread names as the engine set them (SetThreadDescription), read through GetThreadDescription: what a hung launch's threads are.
+Add-Type -Namespace DTCrashExit -Name Threads -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError = true)] static extern System.IntPtr OpenThread(int Access, bool Inherit, int Id);
+[DllImport("kernel32.dll")] static extern bool CloseHandle(System.IntPtr Handle);
+[DllImport("kernel32.dll")] static extern int GetThreadDescription(System.IntPtr Thread, out System.IntPtr Text);
+[DllImport("kernel32.dll")] static extern System.IntPtr LocalFree(System.IntPtr Memory);
+public static string Name(int Id)
+{
+	System.IntPtr Handle = OpenThread(0x0800, false, Id);
+	if (Handle == System.IntPtr.Zero) { return ""; }
+	try
+	{
+		System.IntPtr Text;
+		if (GetThreadDescription(Handle, out Text) < 0 || Text == System.IntPtr.Zero) { return ""; }
+		string Result = System.Runtime.InteropServices.Marshal.PtrToStringUni(Text);
+		LocalFree(Text);
+		return Result ?? "";
+	}
+	finally { CloseHandle(Handle); }
+}
+'@
+
 function Get-DumpBytes([string]$UserDir) {
 	$Dumps = @(Get-ChildItem (Join-Path $UserDir "Saved\Crashes") -Recurse -Filter "UEMinidump.dmp" -ErrorAction SilentlyContinue)
 	if (-not $Dumps.Count) { return $null }
@@ -92,7 +114,9 @@ for ($N = 1; $N -le $Runs; $N++) {
 			try {
 				$Record.suspended = @($Threads | Where-Object { $_.ThreadState -eq "Wait" -and "$($_.WaitReason)" -eq "Suspended" }).Count
 				$Record.running = @($Threads | Where-Object { -not ($_.ThreadState -eq "Wait" -and "$($_.WaitReason)" -eq "Suspended") } |
-					ForEach-Object { "{0} {1}/{2}" -f $_.Id, $_.ThreadState, $(if ($_.ThreadState -eq "Wait") { $_.WaitReason } else { "-" }) })
+					ForEach-Object { "{0} '{1}' {2}/{3}" -f $_.Id, [DTCrashExit.Threads]::Name($_.Id), $_.ThreadState, $(if ($_.ThreadState -eq "Wait") { $_.WaitReason } else { "-" }) })
+				# Every thread by name and state, for the note (Q3): which one is left running, and whether the audio threads are among the suspended.
+				$Record.thread_names = @($Threads | ForEach-Object { "{0}|{1}|{2}" -f $_.Id, [DTCrashExit.Threads]::Name($_.Id), $(if ($_.ThreadState -eq "Wait") { $_.WaitReason } else { $_.ThreadState }) })
 			}
 			catch { $Record.suspended = $null; $Record.running = @() }
 			$Record.windows = @(Get-DTHiddenWindows | Where-Object { $_ -match "^$($Proc.Id) " })
