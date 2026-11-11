@@ -40,7 +40,7 @@ Each invariant is a rule with a test. `PLANNED(<stage>)` marks a test that does 
 - **R-TEC-10** Performance is measured as median and p95 against `C.BUDGET.*`, on the named hardware; GPU measurements hold the file semaphore `<git common dir>/dt-locks/gpu.lock`, one file every worktree of the repository shares (`Tools/GpuLock.ps1`; `Saved/gpu.lock` only in a tree that is not a git checkout).
   - T-TEC-10 `Tools/Perf.ps1` on the stress arena at `C.BULLETS.CAP` bullets and `C.ENEMIES.CAP` enemies: p50 and p95 of game thread and GPU time against `C.BUDGET.*`, read while it holds `<git common dir>/dt-locks/gpu.lock`, at the size of `C.BUDGET.RES` read back from the capture (a run that rendered another size fails), ending `PERF: PASS` or `PERF: FAIL`. A hand reading: no step of `Tools/Gate.ps1` runs it (`Validation/S0_exit.md` holds the S0 reading).
 - **R-TEC-11** Bullets and swarm enemies are never Actors.
-  - T-TEC-11 `Dusktracer.Tec.Bullets.NoActors`: a real game world fires `C.BULLETS.CAP` bullets; no actor is added and there is one instance per bullet.
+  - T-TEC-11 `Dusktracer.Tec.Bullets.NoActors`: a real game world fires `C.BULLETS.CAP` bullets; no actor is added and there is one instance per bullet drawn (a player round inside the hero's clear zone has none, `tracer_art.md` R-TRC-01).
 - **R-TEC-12** Debug console commands (`DT.*`) and experiments (`dt.Exp.*`) are compiled out of Shipping.
   - T-TEC-12 Shipping compile gate (`Tools/Gate.ps1` step `shipping`): the Shipping game target builds with no warning. PLANNED(S1): a package check that a Shipping build answers no `DT.*` command and holds no `dt.Exp.*` cvar; an automation test cannot hold it, because automation tests compile out of Shipping.
 
