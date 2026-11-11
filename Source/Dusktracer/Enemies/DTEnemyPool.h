@@ -155,6 +155,35 @@ struct FDTEliteDeath
 	int32 BeatId = INDEX_NONE;
 };
 
+/** Bits of FDTImpact::Flags (impact_art.md R-IMP-01). */
+namespace DTImpactFlags
+{
+	inline constexpr uint8 Kill = 1 << 0;       // this hit killed the enemy: one per death
+	inline constexpr uint8 Crit = 1 << 1;       // FDTHit::bCrit
+	inline constexpr uint8 Pierce = 1 << 2;     // FDTHit::bPierce
+	inline constexpr uint8 FieldTick = 1 << 3;  // FDTHit::bFieldTick
+	inline constexpr uint8 StatusTick = 1 << 4; // a Burn tick the pool appended in this step's Enemies phase
+	inline constexpr uint8 Plate = 1 << 5;      // a Tank's front plate reduced it
+	inline constexpr uint8 Shield = 1 << 6;     // an elite's shield absorbed it
+	inline constexpr uint8 Elite = 1 << 7;      // the hull is an elite
+}
+
+/** One applied hit as presentation and audio may read it (impact_art.md R-IMP-01). Written by ApplyHits; nothing in the sim reads it. */
+struct FDTImpact
+{
+	FVector2f Position = FVector2f::ZeroVector;      // the contact point (FDTHit::Position)
+	FVector2f EnemyPosition = FVector2f::ZeroVector; // the hull's centre when the hit resolved
+	float EnemyRadius = 0.0f;                        // hit radius in uu
+	float Dealt = 0.0f;                              // health taken; 0 for an absorbed hit
+	float MaxHp = 0.0f;
+	uint32 EnemySerial = 0;
+	int32 OwnerId = INDEX_NONE;
+	uint16 SourceId = 0;
+	int8 WeaponSlot = INDEX_NONE;
+	EDTEnemyRole Role = EDTEnemyRole::Swarm;
+	uint8 Flags = 0; // bits of DTImpactFlags
+};
+
 /** One threat action started this step (enemies.md Telemetry ThreatAction{Role, AttackId}); the subsystem forwards it to telemetry. */
 struct FDTThreatAction
 {
@@ -290,6 +319,8 @@ public:
 	TConstArrayView<FDTEliteBlast> GetEliteBlasts() const { return Blasts; }
 	/** Elite deaths of the last ResolveHits (elites.md R-ELT-13). */
 	TConstArrayView<FDTEliteDeath> GetStepEliteDeaths() const { return StepEliteDeaths; }
+	/** The hits the last ResolveHits applied, in order (impact_art.md R-IMP-01): read-only, for presentation and audio. */
+	TConstArrayView<FDTImpact> GetStepImpacts() const { return StepImpacts; }
 
 	/** Volley directions (R-ENM-19, R-ENM-20): Count rounds Spread degrees apart around Aim; an even count is shifted half a
 	 *  step so one round flies exactly along Aim, to the left on even volleys and to the right on odd ones. */
@@ -307,6 +338,8 @@ public:
 	bool TryPull(const FDTEnemyHandle& Handle, int64 StepIndex, int64 IntervalSteps);
 
 private:
+	/** ApplyHits with the tap's Burn range: hits [BurnFirst, BurnEnd) of Hits are flagged StatusTick (ResolveHits only). */
+	int32 ApplyHitsTapped(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TArray<FDTKill>* OutKills, int32 BurnFirst, int32 BurnEnd);
 	void SwapRemove(int32 Index);
 	void ResolveInit(TConstArrayView<FVector2f> Heroes);
 	void ApplyDisplacements(TArray<FDTDisplacement>& Displacements);
@@ -359,6 +392,11 @@ private:
 	TArray<FDTEliteDeath> StepEliteDeaths;
 	TArray<FDTThreatAction> StepThreats;
 	TArray<FDTEnemyDeath> StepDeaths;
+	/** The tap (impact_art.md R-IMP-01): written by ApplyHits, read by nothing in the sim. */
+	TArray<FDTImpact> StepImpacts;
+	/** The tap only: View.Hits indices [StepBurnFirst, StepBurnEnd) are this step's Burn ticks; cleared by ResolveHits. */
+	int32 StepBurnFirst = 0;
+	int32 StepBurnEnd = 0;
 	bool bFireEnabled = true;
 
 	FDTSpatialHash NeighbourHash;
