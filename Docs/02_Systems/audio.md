@@ -70,6 +70,7 @@ Read and not owned: `C.PRE.DENSITY_LOD_KILLS_PER_S`, `C.ENM.KILL_RATE_WINDOW_S`,
 | `Tools/audio/recipes/<family>.py` | source | one pure function per sound over `Tools/audio/dtsynth.py` |
 | `Content/DT/Audio/SFX/SW_*` | asset | SoundWaves, imported by `Tools/audio/import_audio.py` |
 | `Content/DT/Audio/Mix/*` | asset | the classes, the mix, the Player submix and its presets, made by the same script |
+| `Tools/audio/Audio.ps1`, `Tools/audio/AudioRun.ps1` | heavy entry scripts | the import and a real run's voice log; each takes the processor mask and then a heavy-job slot (`07_Technical` R-TEC-18). Every other audio tool is plain Python and takes none |
 | `Saved/AudioGen/` | build output | the WAV files; not committed |
 | `Saved/Audio/<seed>_<time>.csv` | run output | counts and the voice log, on `-DTAudioLog` |
 

@@ -333,7 +333,16 @@ Mixing itself is the engine's audio thread, bounded by `AUD.VOICES_MAX`; whether
 | 10 | `s4/audio-evidence` | developer | `Tools/audio/AudioRun.ps1`, `Validation/S4_audio_mix.md` | yes | a real run's voice log rendered off line and read as §5; the owner's audition files in `Saved\S4Report\Audio` |
 
 ### 8.2 What runs side by side
-Jobs 1 and 2 need no engine and can run while `alone.txt` stands. Every recipe job (the session's, one at a time) needs no engine and overlaps any developer job. Jobs 3 and 4 own different files and take turns at the one heavy slot; one built worktree serves both, and the same developer is kept for the wiring jobs. Each family adds one observer file and its own block of catalog rows, so two families do not edit one file.
+Jobs 1 and 2 need no engine and can run while the machine is held alone. Every recipe job (the session's, one at a time) needs no engine and overlaps any developer job. Jobs 3 and 4 own different files and take turns at the session's one heavy job; one built worktree serves both, and the same developer is kept for the wiring jobs. Each family adds one observer file and its own block of catalog rows, so two families do not edit one file.
+
+**Heavy and not heavy** (`07_Technical` R-TEC-18, on `main` since 458e0ad and carried to `dev/s4`). Two audio tools start the engine, so each is a heavy entry script and calls `Enter-DTHeavy` right after `Set-DTAffinity`:
+
+| Tool | Starts | Slot |
+|---|---|---|
+| `Tools/audio/Audio.ps1` | the editor commandlet that imports the WAV files and makes the mix assets, through `Tools\EditorPython.bat`, then the asset test | takes one at its start; the batch file under it inherits it and takes no second. It imports only: it refuses WAV files older than the generator and does not synthesise while it holds the slot |
+| `Tools/audio/AudioRun.ps1` | the game on the hidden desktop, for a voice log of a real run | takes one at its start |
+
+Everything else in `Tools/audio/` is plain Python and takes no slot: `audio_build.py`, `audio_check.py`, `audio_view.py`, `mix_model.py`, `gen_sounds.py`, `audio_test.py`. The gate's `audio` step runs inside the gate's own slot. A developer's compiler, test and gate runs go through the Tools scripts, which take the slot themselves; the session still holds itself and its developers to one heavy job at a time (D-055 item 7).
 
 ### 8.3 Asked of the scheduler
 
@@ -342,7 +351,7 @@ Jobs 1 and 2 need no engine and can run while `alone.txt` stands. Every recipe j
 | 1 | `Tools/catalog_lint.py`, `Tools/tools_test.py` | `udio` becomes `\budio\b` in `AI_SOURCED`, with a test that a row naming `Tools/audio/x.py` passes and one naming the service fails | the first licence row |
 | 2 | `Tools/Gate.ps1`, `Tools/tools_test.py` (`PY_STEPS`), `11_Quality.md` §1 | one line after `palette`: `Invoke-PyStep "audio" "Tools\audio\audio_check.py" "AUDIO"`, its header comment, its stand-in entry, its table row | the gate step |
 | 3 | `Tools/tools_test.py` | the R-PRE-11 include check also treats `Audio/` as presentation: no sim file includes an `Audio/` header | job 3's proof |
-| 4 | `Tools/tools_test.py` (`ENTRY_PS`) | `audio/Audio.ps1` and `audio/AudioRun.ps1` join the scripts held to the mask rule | jobs 4 and 10 |
+| 4 | `Tools/tools_test.py` (`ENTRY_PS`) | `audio/Audio.ps1` and `audio/AudioRun.ps1` join the entry scripts the tests hold to the mask rule and to R-TEC-18's slot rule | jobs 4 and 10 |
 | 5 | `Content/DT/Text/ST_UI.csv`, `settings.md` (Mechanics) | `Settings.Hint.Volume` in en and zh-Hans, and the Master volume row's "the game has no sound yet" | job 4; text for a native reader |
 | 6 | `Tests/Settings/DTSettingsTests.cpp` (Mechanics) | the one audio file that reads the settings header joins T-SET-02's readers | job 4 |
 | 7 | `AGENTS.md` | asset prefixes `SW_` (wave), `SC_` (class), `SMX_` (mix and submix) | none; naming |
