@@ -1,18 +1,21 @@
 # T-TEC-10 performance measurement (07_Technical R-TEC-10, 11_Quality s5) on the stress arena.
-#   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX 1920 -ResY 1080] [-Warmup <s>] [-Frames <n>]
+#   & Tools\Perf.ps1 [-Cmds "DT.Spawn.Keep 400,DT.Bullets 6000"] [-ResX <w> -ResY <h>] [-Warmup <s>] [-Frames <n>]
 #                    [-Map /Game/DT/Maps/L_Arena_Test] [-Culture en]
-# Holds the GPU semaphore Saved\gpu.lock (an exclusively opened file) for the whole run and refuses to start while
+# Holds the GPU semaphore (Tools\GpuLock.ps1: <git common dir>\dt-locks\gpu.lock, one file for every worktree, opened exclusively) for the whole run and refuses to start while
 # another process holds it: readings taken under contention are discarded, so none are taken.
 # Launches the game like Tools\Smoke.ps1, on the hidden desktop of Tools\HiddenLaunch.ps1, with the stress commands (default: C.ENEMIES.CAP enemies, C.BULLETS.CAP
 # bullets), lets ADTGameMode record the CSV event DTPerfStart after -Warmup seconds (default C.PERF.WARMUP_S), and the
 # UE CSV profiler captures -Frames frames from that event (default C.PERF.CAPTURE_FRAMES) and quits the game.
 # Prints p50 / p95 of FrameTime, GameThreadTime and GPU time (when the CSV has it) against C.BUDGET.GAME_THREAD_P50_MS,
 # C.BUDGET.GAME_THREAD_P95_MS and C.BUDGET.GPU_MS_4070 (judged on the GPU p95), then "PERF: PASS|FAIL (...)";
-# appends one line to Saved\Perf\perf.csv. Exit 0 = pass, 1 = fail or no measurement.
+# appends one line to Saved\Perf\perf.csv.
+# The size: -ResX/-ResY default to C.BUDGET.RES (16:9). The run passes -ForceRes, without which the engine shrinks a window that does not fit
+# the desktop (1920x1080 became 888x500, Validation/S1_gate_main.md). The size the run really rendered is read from the capture
+# (systemresolution.resx/resy in the CSV's metadata), printed, written to perf.csv, and a size other than the one asked for ends PERF: FAIL. Exit 0 = pass, 1 = fail or no measurement.
 param(
 	[string]$Cmds = "",
-	[int]$ResX = 1920,
-	[int]$ResY = 1080,
+	[int]$ResX = -1,
+	[int]$ResY = -1,
 	[double]$Warmup = -1,
 	[int]$Frames = -1,
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
@@ -21,6 +24,8 @@ param(
 )
 
 trap { Write-Host "PERF: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
@@ -47,17 +52,22 @@ $GpuProxy = Get-Constant "PERF.GPU_PROXY_4080_TO_4070"
 $LoadMin = Get-Constant "PERF.LOAD_MIN_RATIO"
 $BulletCap = Get-Constant "BULLETS.CAP"
 $EnemyCap = Get-Constant "ENEMIES.CAP"
+if ($ResX -lt 0 -or $ResY -lt 0) {
+	$Res = Select-String -Path (Join-Path $Root "Docs\constants.yaml") -Pattern '^\s+BUDGET\.RES:\s*\{\s*value:\s*"(\d+)p\d+"'
+	if (-not $Res) { throw "constant BUDGET.RES missing from Docs/constants.yaml" }
+	$ResY = [int]$Res.Matches[0].Groups[1].Value
+	$ResX = [int][math]::Round($ResY * 16 / 9)
+}
 if ($Warmup -lt 0) { $Warmup = Get-Constant "PERF.WARMUP_S" }
 if ($Frames -lt 0) { $Frames = [int](Get-Constant "PERF.CAPTURE_FRAMES") }
 if (-not $PSBoundParameters.ContainsKey("Cmds")) { $Cmds = "DT.Spawn.Keep {0},DT.Bullets {1}" -f (Get-Constant "ENEMIES.CAP"), (Get-Constant "BULLETS.CAP") }
 
 # --- GPU semaphore --------------------------------------------------------------------------------------------------
-$LockPath = Join-Path $Saved "gpu.lock"
-try {
-	$Lock = [System.IO.File]::Open($LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
-}
-catch {
-	Write-Host "PERF: FAIL (Saved\gpu.lock is held by another measurement; not run)"
+. (Join-Path $PSScriptRoot "GpuLock.ps1")
+$LockPath = Get-DTGpuLockPath $Root
+$Lock = Open-DTGpuLock $Root
+if (-not $Lock) {
+	Write-Host "PERF: FAIL ($LockPath is held by another measurement; not run)"
 	exit 1
 }
 
@@ -74,12 +84,12 @@ try {
 	$Before = @(if (Test-Path $CsvDir) { Get-ChildItem $CsvDir -Filter *.csv | ForEach-Object { $_.FullName } })
 
 	if (Test-Path $Log) { Remove-Item $Log -Force }
-	$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-LiveCoding=false", "-nosplash",
+	$ArgList = @("`"$Project`"", $Map, "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-ForceRes", "-LiveCoding=false", "-nosplash",
 		"-unattended", "-culture=$Culture", "-ABSLOG=`"$Log`"", ("-DTCsvAfter={0}" -f $Warmup), "-csvStartOnEvent=DTPerfStart",
 		"-csvCaptureOnEventFrameCount=$Frames", "-ExitAfterCsvProfiling", "-csvGpuStats")
 	if ($Cmds) { $ArgList += "-ExecCmds=`"$Cmds`"" }
 	$Proc = Start-DTHidden $Exe $ArgList
-	Write-Host ("perf: {0} {1}x{2} cmds='{3}' warmup {4} s, {5} frames, GPU '{6}' (PID {7})" -f $Map, $ResX, $ResY, $Cmds, $Warmup, $Frames, $Gpu, $Proc.Id)
+	Write-Host ("perf: {0} {1}x{2} asked, cmds='{3}' warmup {4} s, {5} frames, GPU '{6}' (PID {7})" -f $Map, $ResX, $ResY, $Cmds, $Warmup, $Frames, $Gpu, $Proc.Id)
 
 	function Read-Log { if (Test-Path $Log) { Get-Content $Log -Raw -ErrorAction SilentlyContinue } else { "" } }
 	$Deadline = (Get-Date).AddSeconds($LoadTimeout)
@@ -106,6 +116,10 @@ if ($New.Count -eq 0) {
 }
 $Csv = $New[-1].FullName
 $Lines = Get-Content $Csv
+# The size the run rendered, from the capture's own metadata ([systemresolution.resx],<w>,... on its last line), never from the flags.
+$Meta = $Lines[-1].Split(",")
+$GotX = [array]::IndexOf($Meta, "[systemresolution.resx]"); $GotY = [array]::IndexOf($Meta, "[systemresolution.resy]")
+$Got = if ($GotX -ge 0 -and $GotY -ge 0) { "{0}x{1}" -f $Meta[$GotX + 1], $Meta[$GotY + 1] } else { "unknown" }
 $Header = $Lines[0].Split(",")
 function Col([string[]]$Names) { foreach ($N in $Names) { $I = [array]::IndexOf($Header, $N); if ($I -ge 0) { return $I } }; return -1 }
 $Cols = [ordered]@{
@@ -139,6 +153,7 @@ $N = $Values["frame"].Count
 
 function Fmt([double]$V) { if ([double]::IsNaN($V)) { "n/a" } else { $V.ToString("0.00", [Globalization.CultureInfo]::InvariantCulture) } }
 Write-Host ("    frames      {0} (csv {1})" -f $N, $Csv)
+Write-Host ("    size        {0} rendered, {1}x{2} asked" -f $Got, $ResX, $ResY)
 Write-Host ("    FrameTime   p50 {0} ms  p95 {1} ms" -f (Fmt $R.frame50), (Fmt $R.frame95))
 Write-Host ("    GameThread  p50 {0} ms  p95 {1} ms   budget p50 <= {2}, p95 <= {3}" -f (Fmt $R.game50), (Fmt $R.game95), $GtP50Max, $GtP95Max)
 Write-Host ("    Load        bullets p50 {0} (cap {1})  enemies p50 {2} (cap {3})  need >= {4} of cap" -f (Fmt $R.bul50), $BulletCap, (Fmt $R.enm50), $EnemyCap, $LoadMin)
@@ -147,6 +162,7 @@ $Gpu95Judged = $R.gpu95 * $Factor
 Write-Host ("    GPU         p50 {0} ms  p95 {1} ms   x{2} proxy = {3} ms, budget p95 <= {4} (C.BUDGET.GPU_MS_4070; GPU here: {5})" -f (Fmt $R.gpu50), (Fmt $R.gpu95), $Factor, (Fmt $Gpu95Judged), $GpuMax, $Gpu)
 
 $Why = @()
+if ($Got -ne "${ResX}x${ResY}") { $Why += "rendered $Got, not ${ResX}x${ResY}" }
 if ($N -lt $Frames * 0.9) { $Why += "captured $N of $Frames frames" }
 if ([double]::IsNaN($R.game50)) { $Why += "no GameThreadTime column" }
 elseif ($R.game50 -gt $GtP50Max -or $R.game95 -gt $GtP95Max) { $Why += "game thread over budget" }
@@ -160,10 +176,10 @@ $Verdict = if ($Why.Count -eq 0) { "PASS" } else { "FAIL" }
 
 $Result = Join-Path $PerfDir "perf.csv"
 if (-not (Test-Path $Result)) { "time,commit,gpu,res,cmds,frames,frame_p50,frame_p95,game_p50,game_p95,gpu_p50,gpu_p95,verdict" | Set-Content $Result -Encoding ascii }
-('{0},{1},"{2}",{3}x{4},"{5}",{6},{7},{8},{9},{10},{11},{12},{13}' -f $Stamp, $Head, $Gpu, $ResX, $ResY, $Cmds, $N,
+('{0},{1},"{2}",{3},"{4}",{5},{6},{7},{8},{9},{10},{11},{12}' -f $Stamp, $Head, $Gpu, $Got, $Cmds, $N,
 	(Fmt $R.frame50), (Fmt $R.frame95), (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu50), (Fmt $R.gpu95), $Verdict) | Add-Content $Result -Encoding ascii
 
-$Summary = "game p50 {0} / p95 {1} ms, GPU p95 {2} ms, load {3} bullets / {4} enemies, {5} frames" -f (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu95), (Fmt $R.bul50), (Fmt $R.enm50), $N
+$Summary = "$Got, game p50 {0} / p95 {1} ms, GPU p95 {2} ms, load {3} bullets / {4} enemies, {5} frames" -f (Fmt $R.game50), (Fmt $R.game95), (Fmt $R.gpu95), (Fmt $R.bul50), (Fmt $R.enm50), $N
 if ($Verdict -eq "PASS") { Write-Host "PERF: PASS ($Summary)"; exit 0 }
 Write-Host ("PERF: FAIL ({0}; {1})" -f $Summary, ($Why -join "; "))
 exit 1

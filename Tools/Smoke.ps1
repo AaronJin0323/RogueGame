@@ -13,6 +13,7 @@
 # -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden; the hero is read from the arena_empty
 # shot of the same culture, where nothing stands on it. -DormantLine judges it with contrast_check.py --dormant-line instead:
 # the HUD's dormant line on its panel, as rendered (R-MOD-08); pass -Cmds that stage one.
+# Before the launch, T-PRE-07's config half: the render settings 04_Presentation s4 lists hold their values in Config/DefaultEngine.ini.
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -29,6 +30,8 @@ param(
 )
 
 trap { Write-Host "SMOKE: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
@@ -49,6 +52,29 @@ function Get-Constant([string]$Key) {
 	return [double]$Line.Matches[0].Groups[1].Value
 }
 if ($Seconds -lt 0) { $Seconds = Get-Constant "SMOKE.SECONDS" }
+
+# --- T-PRE-07, the config half (04_Presentation R-PRE-07): each setting 04_Presentation s4 lists as set in Config/DefaultEngine.ini holds the value it names.
+# The table is the source; its words read as config values. The arena post-process volume half and the burst frame are not built (Validation/S1_gate_main.md).
+$Words = @{ "lumen" = @("1"); "tsr" = @("4"); "true" = @("true", "1"); "on" = @("true", "1"); "false" = @("false", "0"); "off" = @("false", "0") }
+$Ini = @{}
+foreach ($L in Get-Content (Join-Path $Root "Config\DefaultEngine.ini")) { if ($L -match '^\s*([A-Za-z][\w.]*)\s*=\s*(.*?)\s*$') { $Ini[$Matches[1]] = $Matches[2] } }
+$Section = @((Get-Content (Join-Path $Root "Docs\04_Presentation.md") -Raw -Encoding UTF8) -split "(?m)^## " | Where-Object { $_ -match "^4\. Render settings" })[0]
+$Settings = @()
+$Pre07 = @()
+foreach ($Row in @("$Section" -split "`n" | Where-Object { $_ -match '^\|\s*`r\.' })) {
+	$Cells = @($Row.Trim().Trim("|").Split("|") | ForEach-Object { $_.Trim() })
+	$Want = $Words[$Cells[1].ToLowerInvariant()]
+	foreach ($M in [regex]::Matches($Cells[0], '`([^`]+)`')) {
+		$Key = $M.Groups[1].Value
+		$Settings += $Key
+		if (-not $Want) { $Pre07 += "$Key ('$($Cells[1])' has no config reading)" }
+		elseif (-not $Ini.ContainsKey($Key)) { $Pre07 += "$Key missing" }
+		elseif ($Want -notcontains $Ini[$Key].ToLowerInvariant()) { $Pre07 += "$Key=$($Ini[$Key]), 04_Presentation s4 says $($Cells[1])" }
+	}
+}
+if ($Settings.Count -eq 0) { $Pre07 += "no setting read from 04_Presentation s4" }
+if ($Pre07.Count -gt 0) { $Pre07 | ForEach-Object { "  ! T-PRE-07 $_" }; Write-Host ("SMOKE: FAIL (T-PRE-07: {0} of {1} render setting(s) wrong in Config/DefaultEngine.ini)" -f $Pre07.Count, $Settings.Count); exit 1 }
+Write-Host ("smoke: T-PRE-07 config half, {0} render settings as 04_Presentation s4 says" -f $Settings.Count)
 
 # --- text: generated string table + compiled .locres must be current (R-TEC-08) --------------------------------------
 $LocOut = & python -I (Join-Path $Root "Tools\loc_build.py") --build 2>&1
