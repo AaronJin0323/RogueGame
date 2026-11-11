@@ -18,6 +18,8 @@ A modifier specialises one weapon: it changes *how* that weapon's rounds behave 
 | `Mod.Fork` | Aimed, Orbit, Homing, Mine | — | side rounds or extra mines | Storm |
 | `Mod.Ricochet` | Projectile | Orbit | `Flag.Ricochet` | Storm |
 
+The fit column names the S1 Paths only; the fits for Shade, Radiance and Quicksilver are in the `fits` column of `modifiers.csv`, from the amplify columns of `keeper_identity_spec.md` §3.4 to §3.6 (`Docs/Validation/S2_fit_data.md`).
+
 **The S2 six** (all non-starters until meta, S3: `DT.Unlock`):
 
 | Modifier | Requires (any of) | Blocked by | Expresses | Rule |

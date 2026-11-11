@@ -13,6 +13,8 @@ Weapons are the carriers of the build: each one is a base pattern that fills the
 | `Weapon.ArcBlade` | Melee, Area | the melee carrier: no rounds at all, hits through `FDTHit` | Forge, Tide |
 | `Weapon.GravityMine` | Mine, Area | the mine carrier and native Pull: Tide control and Forge zones | Forge, Tide |
 
+The column is the S1 design reason (D-002) and names the S1 Paths only; every weapon's fits for Shade, Radiance and Quicksilver are in `weapons.csv`, from the D-59 fit table of `keeper_identity_spec.md` §3.7 (`Docs/Validation/S2_fit_data.md`).
+
 **The S2 five** (level rows from `reference/balance/weapons.csv`, all non-starters until meta, S3: `DT.Unlock`):
 
 | Weapon | Pattern, target | Rule | Identity |

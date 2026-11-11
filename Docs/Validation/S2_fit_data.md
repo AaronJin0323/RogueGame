@@ -44,11 +44,25 @@ Each of the nine archetypes has its three D-59 weapons, all in the catalog. Ever
 Every pair can meet in a run: each modifier is compatible (`matrix.csv`) with at least one D-59 weapon of the archetype that names it (Split Core on Collectors through Seeker Swarm, Fork on Ledger through Seeker Swarm, Homing on Hound through Ring, Scatter and Spiral). No `required_caps`, `blocked_caps` or `IncompatFlags` cell rules a pair out.
 
 ## Left out, and why
-- **Not in this catalog** (the source names them; no row exists, and adding one is new content, held by D-050 and D-055): Velocity Coil (Hound :140, Lance :155, Momentum :171), Crit Lens (Hound :140, Lance :155, Prism :156), Lifeline (Collectors :141), Burst Capacitor (Ledger :142), Heavy Slug (Lance :155, Solar :157), Magnify (Solar :157), Overclock (Vector :170, Momentum :171).
+- **Not in this catalog** (the source names them; `modifiers.md` cut all seven from the reference list as multipliers, R-MOD-03, so no row exists): Velocity Coil (Hound :140, Lance :155, Momentum :171), Crit Lens (Hound :140, Lance :155, Prism :156), Lifeline (Collectors :141), Burst Capacitor (Ledger :142), Heavy Slug (Lance :155, Solar :157), Magnify (Solar :157), Overclock (Vector :170, Momentum :171).
 - **No catalog modifier for Quicksilver Momentum.** The source names only Velocity Coil and Overclock (:171), neither a row here. At the catalog's grain (the Path) Momentum is covered by the other Quicksilver rows (Pierce, Split Core, Fork, Mirror, Ricochet), so T-OFF-19 holds and a Momentum player's modifiers still read ×2.0; but no modifier is there *because* of Momentum. This is the one archetype gap; filling it is a content or design call.
 - **Silent in the source:** `Mod.Conduit` (every hit applies the Patron's status; Shade's would be Mark, `expression.csv` Hound Key) is named by no S2 archetype, nor are `Mod.Backwash`, `Mod.OrbitLock`, `Mod.Boomerang`, `Mod.SpreadWave`, `Mod.Spillover` or `Mod.Refit` (`Mod.Refit` fits every S1 Path in this catalog with the same note; the source does not name it for S2). None was given an S2 Path.
 - **The replaced columns.** The §3.4 to §3.6 "Best weapons" columns differ from D-59 (for example Hound: Pulse, Rail, Scatter, Ring at :140 against Ring, Spiral, Scatter at :246; Momentum: "any" at :171). They are not used.
 
+## S1 fits come from the older columns (not moved)
+The S1 Paths' weapon fits (Storm, Forge, Tide) were written from the older "Best weapons" columns of §3.1 to §3.3 and were not moved by this job, so S1 and S2 fits now come from two generations of the same source. Moving the S1 fits to D-59 would change S1 offer weights (and the bots' weapon score) on `main` and is not done here. Where D-59, read over the catalog's S1 archetypes (Tempest, Arc Grid, Downpour; Hammer, Furnace, Slam; Whirlpool, Frost, Stillness; `keeper_identity_spec.md` :235 to :245), and the CSV's S1 Paths disagree:
+
+| Weapon | CSV S1 Paths | D-59 S1 Paths | CSV has, D-59 does not | D-59 has, CSV does not |
+|---|---|---|---|---|
+| `Weapon.PulseRifle` | Storm, Forge, Tide | Forge (Hammer), Tide (Frost) | Storm | none |
+| `Weapon.RingEmitter` | Storm, Tide | Storm (Tempest), Forge (Slam), Tide (Whirlpool) | none | Forge |
+| `Weapon.OrbitalDrones` | Storm, Tide | Storm (Arc Grid), Forge (Slam), Tide (Frost) | none | Forge |
+| `Weapon.ArcBlade` | Forge, Tide | Storm (Arc Grid), Forge (Hammer, Slam) | Tide | Storm |
+| `Weapon.GravityMine` | Forge, Tide | Storm (Downpour), Forge (Furnace), Tide (Whirlpool, Stillness) | none | Storm |
+| `Weapon.ScatterCannon` | Storm, Forge, Tide | Storm (Tempest), Forge (Hammer) | Tide | none |
+| `Weapon.SpiralProjector` | Storm, Tide | Storm (Tempest), Forge (Furnace) | Tide | Forge |
+
+Rail Lance, Flak Mortar and Seeker Swarm agree. For comparison, the CSV's S1 Paths are the union of the older columns over the same archetypes (:93 to :127; Slam's "any" at :111 read as no list) with two differences: Tide also holds Arc Blade and Scatter Cannon, and Forge does not hold Orbital Drones. No change is made here.
 ## The check (T-OFF-19)
 `Tools/gen_catalog.py --check` (gate step `catalog`) now fails when an archetype of `expression.csv` has no weapon and no modifier, of its stage or an earlier one, whose `fits` names its Path (`fit_gaps`). On `dev/s2` at `146af0a` it names 18 gaps (each of the nine S2 archetypes, weapon and modifier). On `0a4b56d` it names none. `Tools/tools_test.py` `CatalogFit` proves it on copies of the catalogs: a Path left out of the weapons or of the modifiers gives one gap per archetype of that Path, an S2 row does not cover an S1 archetype, and the gap fails `main --check`. This is a Python check, not a C++ automation test, so `C.GATE.TEST_FLOOR` does not move.
 
