@@ -77,6 +77,7 @@ namespace DTFlagParam
 	const FName ApplyModifierOnHit(TEXT("apply_modifier_on_hit"));
 	const FName EveryN(TEXT("every_n"));
 	const FName KillShocksNeighboursUu(TEXT("kill_shocks_neighbours_uu"));
+	const FName KnockbackUu(TEXT("knockback_uu"));
 }
 
 EDTParamOp FDTFlagParams::DefaultOp(FName Name)

@@ -1,4 +1,5 @@
 #include "Keepers/DTKeeperSim.h"
+#include "Combat/DTKnockback.h"
 #include "Combat/DTWeaponSim.h"
 #include "Core/DTConstantsGen.h"
 #include "Enemies/DTEnemyPool.h"
@@ -725,14 +726,8 @@ int32 FDTKeeperSim::HitCircle(const FDTSimContext& Context, int32 OwnerId, FPlay
 			Out.SourceId = DTKeepers::KeeperSource(Path); // R-KEE-13: Intercession damage is Keeper damage
 		}
 		Player.Cast.EnemiesHit.Add(Serial);
-		if (KnockbackUu > 0.0f)
-		{
-			FDTDisplacement& Move = View.Displacements.AddDefaulted_GetRef();
-			Move.EnemyIndex = Enemy;
-			Move.EnemySerial = Serial;
-			Move.Delta = (Away.IsNearlyZero() ? DTKeeperSimLocal::AimOf(View, OwnerId) : Away.GetSafeNormal()) * KnockbackUu;
-			Move.OwnerId = OwnerId;
-		}
+		// The one knockback path, shared with Hard Blow's cleaves (Combat/DTKnockback.h).
+		DTKnockback::Push(View, OwnerId, Enemy, Center, DTKeeperSimLocal::AimOf(View, OwnerId), KnockbackUu);
 		for (int32 Burn = 0; bBurn && Burn < BurnApplications; ++Burn)
 		{
 			AppendStatus(View, Player, EDTStatus::Burn, Enemy, Serial, Damage, OwnerId, Path);
