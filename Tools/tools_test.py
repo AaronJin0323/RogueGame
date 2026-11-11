@@ -737,17 +737,30 @@ class EvolveSplit(unittest.TestCase):
 		with tempfile.TemporaryDirectory() as root:
 			arm = evolve_read.split_read(self.batch(root))
 		hold = {"runs": 15, "reached": 15, "before": {"all": 150.0}, "fight": {"all": 90.0}}
-		before, fight, lines = evolve_read.against_lines(arm, hold, 75.0, 100.0)
+		before, fight, lines = evolve_read.against_lines("RingEmitter", arm, hold, 75.0, 100.0)
 		self.assertEqual((before, fight), (0.8, 0.5))
-		self.assertEqual(lines, ["evolved against hold, before the boss: 0.80 (120 / 150; 3 and 15 runs)",
-			"evolved against hold, boss fight: 0.50 (45 / 90; 2 and 15 runs reached it)",
-			"evolved against hold, the whole time after the pick: 0.75 (75 / 100), decides nothing"])
+		self.assertEqual(lines, ["RingEmitter evolved against hold, before the boss: 0.80 (120 / 150; 3 and 15 runs)",
+			"RingEmitter evolved against hold, boss fight: 0.50 (45 / 90; 2 and 15 runs reached it)",
+			"RingEmitter evolved against hold, the whole time after the pick: 0.75 (75 / 100), decides nothing"])
 
 	def test_the_check_names_the_window_that_missed(self):
-		self.assertEqual(evolve_read.check_windows(0.96, 0.52, 0.95, 0.5), "WINDOWS: PASS (before the boss 0.96 >= 0.95, boss fight 0.52 >= 0.5)")
-		self.assertEqual(evolve_read.check_windows(0.80, 0.52, 0.95, 0.5), "WINDOWS: FAIL (before the boss 0.80 < 0.95)")
-		self.assertEqual(evolve_read.check_windows(0.96, 0.31, 0.95, 0.5), "WINDOWS: FAIL (boss fight 0.31 < 0.5)")
-		self.assertEqual(evolve_read.check_windows(0.96, None, 0.95, 0.5), "WINDOWS: FAIL (boss fight: no reading)")
+		check = evolve_read.check_windows
+		self.assertEqual(check([("RingEmitter", 0.96, 0.52)], 0.95, 0.5),
+			"WINDOWS: PASS (RingEmitter before the boss 0.96 >= 0.95, RingEmitter boss fight 0.52 >= 0.5)")
+		self.assertEqual(check([("RingEmitter", 0.80, 0.52)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter before the boss 0.80 < 0.95)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.31)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight 0.31 < 0.5)")
+		self.assertEqual(check([("RingEmitter", 0.96, None)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight: no reading)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.52), ("SpiralProjector", 0.99, 0.2)], 0.95, 0.5), "WINDOWS: FAIL (SpiralProjector boss fight 0.20 < 0.5)")
+		self.assertEqual(check([], 0.95, 0.5), "WINDOWS: FAIL (no carried weapon read)")
+
+	def test_a_batch_of_several_carried_weapons_reads_each_apart(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.batch(root, ("A", "B"))
+			other = os.path.join(root, "Steered-Storm-Tempest-Tide-Carry-SpiralProjector_s1")
+			shutil.copytree(os.path.join(root, "Steered-Storm-Tempest-Tide-Carry-RingEmitter_s2"), other)
+			groups = evolve_read.carry_groups(root)
+			self.assertEqual({k: len(v) for k, v in groups.items()}, {"RingEmitter": 2, "SpiralProjector": 1})
+			self.assertEqual(evolve_read.split_read(groups["SpiralProjector"])["reached"], 1)
 
 	def test_the_command_line_judges_only_when_asked(self):
 		with tempfile.TemporaryDirectory() as root:
@@ -762,11 +775,12 @@ class EvolveSplit(unittest.TestCase):
 			rc, lines = run()
 			self.assertEqual(rc, 0)
 			self.assertFalse([line for line in lines if line.startswith("WINDOWS:")], "without --check-windows nothing is judged")
-			self.assertIn("evolved against hold, before the boss: 1.00 (120 / 120; 3 and 3 runs)", lines)
+			self.assertIn("RingEmitter evolved against hold, before the boss: 1.00 (120 / 120; 3 and 3 runs)", lines)
+			self.assertIn("split at the boss's start, RingEmitter evolved: 3 runs (1 without a pick and 0 without a run_end, left out); died before the boss 1; reached the boss 2", lines)
 			self.assertTrue(lines[0].startswith("== "), "today's carry lines come first, unchanged")
 			self.assertEqual(run("--check-windows", "0.95", "0.5")[0], 0)
 			rc, lines = run("--check-windows", "1.5", "0.5")
-			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (before the boss 1.00 < 1.5)"))
+			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter before the boss 1.00 < 1.5)"))
 
 
 class S2Exit(unittest.TestCase):

@@ -378,63 +378,80 @@ def split_lines(label, read):
 		f"    by source: {sources(f['by_source'])}"]
 
 
-def against_lines(arm, hold, whole_arm, whole_hold):
-	"""Evolved against hold, each window by itself; the whole-time figure beside them, deciding nothing."""
+def against_lines(weapon, arm, hold, whole_arm, whole_hold):
+	"""Evolved against hold for one carried weapon, each window by itself; the whole-time figure beside them, deciding nothing."""
 	before = ratio(arm["before"]["all"], hold["before"]["all"])
 	fight = ratio(arm["fight"]["all"], hold["fight"]["all"])
 	whole = ratio(whole_arm, whole_hold)
 	return before, fight, [
-		f"evolved against hold, before the boss: {number(before, 2)} ({number(arm['before']['all'])} / {number(hold['before']['all'])}; {arm['runs']} and {hold['runs']} runs)",
-		f"evolved against hold, boss fight: {number(fight, 2)} ({number(arm['fight']['all'])} / {number(hold['fight']['all'])}; {arm['reached']} and {hold['reached']} runs reached it)",
-		f"evolved against hold, the whole time after the pick: {number(whole, 2)} ({number(whole_arm)} / {number(whole_hold)}), decides nothing"]
+		f"{weapon} evolved against hold, before the boss: {number(before, 2)} ({number(arm['before']['all'])} / {number(hold['before']['all'])}; {arm['runs']} and {hold['runs']} runs)",
+		f"{weapon} evolved against hold, boss fight: {number(fight, 2)} ({number(arm['fight']['all'])} / {number(hold['fight']['all'])}; {arm['reached']} and {hold['reached']} runs reached it)",
+		f"{weapon} evolved against hold, the whole time after the pick: {number(whole, 2)} ({number(whole_arm)} / {number(whole_hold)}), decides nothing"]
 
 
-def check_windows(before, fight, bar_before, bar_fight):
-	"""WINDOWS: PASS or FAIL naming each window that missed its bar."""
-	missed = []
-	for name, value, bar in (("before the boss", before, bar_before), ("boss fight", fight, bar_fight)):
-		if value is None:
-			missed.append(f"{name}: no reading")
-		elif value < bar:
-			missed.append(f"{name} {value:.2f} < {bar:g}")
+def check_windows(readings, bar_before, bar_fight):
+	"""WINDOWS: PASS or FAIL naming each weapon's window that missed its bar. readings: [(weapon, before, fight)]."""
+	missed, held = [], []
+	for weapon, before, fight in readings:
+		for name, value, bar in (("before the boss", before, bar_before), ("boss fight", fight, bar_fight)):
+			if value is None:
+				missed.append(f"{weapon} {name}: no reading")
+			elif value < bar:
+				missed.append(f"{weapon} {name} {value:.2f} < {bar:g}")
+			else:
+				held.append(f"{weapon} {name} {value:.2f} >= {bar:g}")
+	if not readings:
+		missed.append("no carried weapon read")
 	if missed:
 		return f"WINDOWS: FAIL ({'; '.join(missed)})"
-	return f"WINDOWS: PASS (before the boss {before:.2f} >= {bar_before:g}, boss fight {fight:.2f} >= {bar_fight:g})"
+	return f"WINDOWS: PASS ({', '.join(held)})"
 
 
-def carry_folders(root):
-	return [folder for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))) if os.path.isdir(folder)]
+CARRIED = re.compile(r"Carry-([^_\\/]+)_s\d+$")
 
 
-def whole_after(root, to_boss):
-	"""Today's one figure for the whole time after the pick: the build's damage per minute after it, median over the runs that took it."""
-	rows = carry_rows(read_carry(root, to_boss))
-	return rows[0]["all_after"] if len(rows) == 1 else None
+def carry_groups(root):
+	"""A batch's run folders by the weapon they carry (the label's Carry-<weapon>), in name order."""
+	groups = {}
+	for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))):
+		found = CARRIED.search(os.path.basename(folder))
+		if os.path.isdir(folder) and found:
+			groups.setdefault(found.group(1), []).append(folder)
+	return groups
 
 
 def print_split(root, hold, check):
-	arm = split_read(carry_folders(root))
-	for line in split_lines("evolved" if hold else root, arm):
-		print(line)
-	if not hold:
-		if check:
-			print("WINDOWS: FAIL (no --hold to read against)")
-			return 1
+	"""Per carried weapon: the two windows of the evolved batch and, with --hold, of the hold and each window against it."""
+	arms = carry_groups(root)
+	holds = carry_groups(hold) if hold else {}
+	whole = {}
+	if hold:
+		sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+		import dtconst
+		to_boss = dtconst.load()["RUN.LENGTH_TO_BOSS"]["value"]
+		for side, path in (("arm", root), ("hold", hold)):
+			for row in carry_rows(read_carry(path, to_boss)):
+				whole[side, row["weapon"].split(".")[-1]] = row["all_after"]
+	readings = []
+	for weapon, folders in sorted(arms.items()):
+		arm = split_read(folders)
+		for line in split_lines(f"{weapon} evolved", arm):
+			print(line)
+		if weapon not in holds:
+			readings.append((weapon, None, None))
+			continue
+		held = split_read(holds[weapon])
+		for line in split_lines(f"{weapon} hold", held):
+			print(line)
+		before, fight, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
+		for line in lines:
+			print(line)
+		readings.append((weapon, before, fight))
+	if not check:
 		return 0
-	held = split_read(carry_folders(hold))
-	for line in split_lines("hold", held):
-		print(line)
-	sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-	import dtconst
-	to_boss = dtconst.load()["RUN.LENGTH_TO_BOSS"]["value"]
-	before, fight, lines = against_lines(arm, held, whole_after(root, to_boss), whole_after(hold, to_boss))
-	for line in lines:
-		print(line)
-	if check:
-		verdict = check_windows(before, fight, *check)
-		print(verdict)
-		return 0 if verdict.startswith("WINDOWS: PASS") else 1
-	return 0
+	verdict = check_windows(readings, *check)
+	print(verdict)
+	return 0 if verdict.startswith("WINDOWS: PASS") else 1
 
 
 def main(argv):
