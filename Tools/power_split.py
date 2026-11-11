@@ -3,8 +3,9 @@
 A view, never a verdict (D-047): Keeper share is judged by loss in Tools/probe.py (T-KEE-18). This prints who landed the
 damage of one session log, to be read beside the probe's reading.
 
-Usage:  python -I Tools/power_split.py [run.csv | run.jsonl | <seed>_<time>]
-        no argument: the newest run in Saved/Playtests
+Usage:  python -I Tools/power_split.py [run.csv | run.jsonl | <seed>_<time> | <folder>]
+        no argument: the newest run in Saved/Playtests; a folder: every run under it (recursively, as Tools/pressure.py finds
+        them), each run's POWER line printed after its name (`<folder>/<run>: POWER: ...`)
 
 Reads the JSONL `sources` records (damage, kills, hits by source name, per player per interval) and the CSV `level`
 column (highest level reached per player). Sources are grouped by family, the name's first dotted part:
@@ -17,7 +18,7 @@ to the Keeper (D-015), so no floor is read against it.
 Prints per player the damage and kill share per family, then exactly one line
   POWER: n/a (...)                     no run, or no player reached C.TEL.POWER_CHECK_LEVEL
   POWER: attribution (P0 Keeper x %)   the Keeper damage share of each player at that level or above
-Exit 0 when a run was read, 1 when none was found.
+Exit 0 when a run was read (in a folder: at least one), 1 when none was found.
 """
 
 import csv
@@ -28,6 +29,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
+import pressure  # noqa: E402
 
 FAMILIES = ("Keeper", "Weapon", "Modifier", "Other")
 PLAYTESTS = os.path.join(dtconst.ROOT, "Saved", "Playtests")
@@ -103,10 +105,29 @@ def main(argv):
 	consts = dtconst.load()
 	check_level = consts["TEL.POWER_CHECK_LEVEL"]["value"]
 
+	if len(argv) > 1 and os.path.isdir(argv[1]):
+		# Audit G9: a folder reads every run under it, found the way pressure.py finds them, each POWER line after its run's name.
+		read = 0
+		for name, jsonl_path, csv_path in pressure.resolve([argv[1]]):
+			if not jsonl_path:
+				print(f"{name}: POWER: n/a (no JSONL)")
+				continue
+			print(f"{name}: {read_run(csv_path, jsonl_path, check_level)}")
+			read += 1
+		if not read:
+			print(f"POWER: n/a (no run found in {argv[1]})")
+		return 0 if read else 1
+
 	csv_path, jsonl_path = resolve(argv[1] if len(argv) > 1 else "")
 	if not jsonl_path:
 		print(f"POWER: n/a (no run found{' for ' + argv[1] if len(argv) > 1 else ' in ' + PLAYTESTS})")
 		return 1
+	print(read_run(csv_path, jsonl_path, check_level))
+	return 0
+
+
+def read_run(csv_path, jsonl_path, check_level):
+	"""Prints one run's attribution by family and returns its POWER line."""
 	print(f"run: {jsonl_path}" + (f" (+ {os.path.basename(csv_path)})" if csv_path else " (no CSV)"))
 	players, run_end = read_sources(jsonl_path)
 	levels = read_levels(csv_path)
@@ -127,8 +148,7 @@ def main(argv):
 			print("  sources: " + ", ".join(f"{s} {data['damage'][s]}" for s in names))
 		if level >= check_level and dmg_total > 0:
 			read.append((p, dmg["Keeper"]))
-	print(power_line(read, check_level))
-	return 0
+	return power_line(read, check_level)
 
 
 def power_line(read, check_level):
