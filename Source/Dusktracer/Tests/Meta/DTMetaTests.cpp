@@ -389,6 +389,15 @@ bool FDTMetBankCounts::RunTest(const FString& Parameters)
 	TestEqual(TEXT("leaving is a run"), P.Runs, 2);
 	TestEqual(TEXT("leaving moves no repair"), P.DeathsSinceWin, 1);
 	TestEqual(TEXT("an empty Patron keeps the last"), P.LastPatron, FName(TEXT("Forge")));
+	// DT.Meta.LastPatron plants the same field a bank writes, by a Keeper's Path name, and nothing else (Tools/PlantSave.ps1).
+	{
+		FDTMetaProfile Planted = P;
+		TestTrue(TEXT("a Keeper's name is planted"), UDTMetaSubsystem::PlantLastPatron(Planted, TEXT("Shade")) && Planted.LastPatron == FName(TEXT("Shade")));
+		TestFalse(TEXT("another name is refused"), UDTMetaSubsystem::PlantLastPatron(Planted, TEXT("Nobody")));
+		TestEqual(TEXT("and changes nothing"), Planted.LastPatron, FName(TEXT("Shade")));
+		Planted.LastPatron = P.LastPatron;
+		TestTrue(TEXT("only the Patron moved"), DTMeta::Same(Planted, P));
+	}
 
 	DTMeta::ApplyRun(P, Tally(StepsForMinutes(1), 0, 0, true), EDTRunEnd::Victory);
 	TestEqual(TEXT("a win"), P.Wins, 1);

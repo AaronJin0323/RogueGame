@@ -1,11 +1,11 @@
 # A person's loop on real launches (gate step `earned`, meta.md R-MET-30, T-MET-30), off-screen, no window.
-#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-QuietSeed 9100] [-QuietSeconds 240] [-DuoRunSeeds 9230,9231,9232] [-HandSeconds 300] [-Timeout 300]
+#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-QuietSeed 9100] [-QuietSeconds 400,340,460,520] [-DuoRunSeeds 9230,9231,9232] [-HandSeconds 300] [-Timeout 300]
 # Part one, nothing planted, on one save from empty. `earn`: a bot plays a gated run and banks what it earned. `Earned`: a second process opens Contracts and a
 # real key buys a node that run can afford. `EarnedRead`: a third reads the purchase. `next`: the same seed, gated: a hand now holds what the node opened, which `earn`'s hands could not.
 # The duos' door from both sides (D-069): `TwoPaths6` is earned when and only when a run held Tier 2 on two Paths, read from that run's own counters line (Tools/duo_read.py).
 # "When": `earn` held two Paths at Tier 2, its own hands held no duo card, and the save it left holds TwoPaths6, Reaction.Duos and Mod.SpreadWave (`Doors`); a later gated run on
-# that save is offered a duo card. "Only when": `quiet`, a gated run from another empty save that ends before the L8 commitment, so by keepers.md R-KEE-05 it holds one Keeper's
-# cards and at most one Path at Tier 2 (it takes blessings only, BlessingsOnly, to reach as high as one Path can); the save it left holds none of the door (`DuosShut`).
+# that save is offered a duo card. "Only when": `quiet`, a gated run from another empty save that held Tier 2 on exactly one Path, taking blessings only and cut short of the
+# second Keeper's Tier 2; the save it left holds none of the door (`DuosShut`).
 # Part two, on a copy of the save `earn` left, with only a balance planted, so its three Keepers and the duos are doors a run opened. `Doors`: keys buy one node of each new branch,
 # then choose Keepers 4 to 6 at the Shrine, begin a gated run on each, and take a real Restart. Then bots on that save: each new Keeper's run holds its bought card, the last with
 # nobody named, as on a Restart; a run on Storm reads an L8 hand holding a met Keeper and is offered a duo card, which `earn` could not be.
@@ -17,8 +17,9 @@ param(
 	[int[]]$Seeds = @(9100, 9101, 9102),
 	[int]$BranchSeed = 9120,
 	[int]$QuietSeed = 9100,
-	# Sim seconds of `quiet`: under the L8 hand of a fresh Storm run (about 270 s on the D-064 batteries); the check fails if that run met it.
-	[int]$QuietSeconds = 240,
+	# Sim seconds of `quiet`, tried in order: past the Patron's Tier 2 and short of the second Keeper's, which starts at the L8 hand (about 270 s on
+	# the D-064 batteries).
+	[int[]]$QuietSeconds = @(400, 340, 460, 520),
 	[int[]]$DuoRunSeeds = @(9230, 9231, 9232),
 	[int]$HandSeconds = 300,
 	[int]$Timeout = 300
@@ -174,15 +175,25 @@ $HandsBefore = Read-SeedHands "earn" $RunSeed
 if ((Read-Unlocked $LogEarn) -ne 0) { Stop-Check "earn's pool was not a first run's" }
 if ($HandsBefore -match '"id":"Blessing\.Duo\.') { Stop-Check "earn's own hands held a duo card, before any run had earned the duos" }
 
-# The side "only when": another empty save, a run that ends before the L8 commitment, so it holds one Keeper's cards (keepers.md R-KEE-05).
+# The side "only when": a run from another empty save that held Tier 2 on exactly one Path, by its own counters. It takes blessings only (BlessingsOnly),
+# so its Patron, whose cards are the only ones open before the L8 commitment (keepers.md R-KEE-05), reaches Tier 2 early, and it is cut before the second
+# Keeper can: the first length of -QuietSeconds that reads exactly one is the run; with none the side is unbound and the check fails.
 $Quiet = Join-Path $OutDir "Quiet.sav"
-if (Test-Path $Quiet) { Remove-Item $Quiet -Force }
-$LogQuiet = Wait-Launch (Start-Bot "quiet" $QuietSeed $Quiet "Storm" "ArcGrid" $QuietSeconds -Named -Pick "BlessingsOnly")
-$null = Read-Bank $LogQuiet 1
-if ((Read-Unlocked $LogQuiet) -ne 0) { Stop-Check "quiet's pool was not a first run's" }
-$QuietHands = Read-SeedHands "quiet" $QuietSeed
-if ($QuietHands -match '"hand_kind":"Keeper"') { Stop-Check "quiet reached the L8 hand inside $QuietSeconds s, so it is no run of one Keeper: the side 'only when' is unbound" }
-$QuietPaths = Read-Paths $LogQuiet
+$QuietPaths = $null
+$QuietTried = @()
+foreach ($Length in $QuietSeconds) {
+	if (Test-Path $Quiet) { Remove-Item $Quiet -Force }
+	$LogQuiet = Wait-Launch (Start-Bot "quiet" $QuietSeed $Quiet "Storm" "ArcGrid" $Length -Named -Pick "BlessingsOnly")
+	$null = Read-Bank $LogQuiet 1
+	if ((Read-Unlocked $LogQuiet) -ne 0) { Stop-Check "quiet's pool was not a first run's" }
+	$QuietPaths = Read-Paths $LogQuiet
+	$QuietHands = Read-SeedHands "quiet" $QuietSeed
+	$QuietTried += "$Length s: $QuietPaths"
+	if ($QuietPaths -eq 1) { break }
+	Write-Host "    quiet, seed $QuietSeed, $Length s held $QuietPaths Paths at Tier 2, not exactly one; next length"
+}
+if ($QuietPaths -ne 1) { Stop-Check "no length of $($QuietSeconds -join ' ') s on seed $QuietSeed held Tier 2 on exactly one Path ($($QuietTried -join ', ')): the side 'only when' is unbound" }
+if ($QuietHands -match '"id":"Blessing\.Duo\.') { Stop-Check "quiet's hands held a duo card on an empty save" }
 $null = Invoke-Hub "DuosShut" $Quiet
 $Planted = Join-Path $OutDir "Planted.sav"
 Copy-Item $Earned $Planted -Force

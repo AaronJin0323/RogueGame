@@ -3575,6 +3575,9 @@ class DuoRead(unittest.TestCase):
 		self.assertTrue(ok)
 		self.assertEqual(text, "earned with 2 Paths at Tier 2 (seed 9100), not earned with 1 (seed 9100), duo card on the next run (seed 9230)")
 		self.assertIn("'when' is unbound", duo_read.verdict((1, "9100"), (0, "9100"), "9230")[1])
+		# A quiet run with no Path at Tier 2 says little: the side reads exactly one.
+		self.assertIn("not exactly one", duo_read.verdict((2, "9100"), (0, "9100"), "9230")[1])
+		self.assertFalse(duo_read.verdict((2, "9100"), (0, "9100"), "9230")[0])
 		self.assertFalse(duo_read.verdict((1, "9100"), (0, "9100"), "9230")[0])
 		self.assertIn("'only when' is unbound", duo_read.verdict((2, "9100"), (2, "9100"), "9230")[1])
 		self.assertFalse(duo_read.verdict((2, "9100"), (2, "9100"), "9230")[0])

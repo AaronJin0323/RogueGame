@@ -38,6 +38,12 @@ public:
 	 */
 	static EDTMetaNotice ReadNotice(const UObject* WorldContext, FString* OutFile = nullptr);
 
+	/**
+	 * Sets the profile's last Patron to a Keeper of the catalog by its Path name, as a bank would (R-MET-05): the first seat of a Restart's Patron
+	 * hand (keepers.md R-KEE-23). For the debug command DT.Meta.LastPatron, which plants a save for a battery. False, and nothing set, on any other name.
+	 */
+	static bool PlantLastPatron(FDTMetaProfile& Profile, const FString& Path);
+
 private:
 	FDTMetaSession Session;
 };

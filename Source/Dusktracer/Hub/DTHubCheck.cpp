@@ -650,11 +650,11 @@ namespace DTHubCheckLocal
 		Press(EKeys::Escape);
 	}
 
-	/** On the save a run with fewer than two Paths at Tier 2 left, from empty: the duos' door stays shut, and nothing it writes is there (D-069). */
+	/** On the save a run with exactly one Path at Tier 2 left, from empty: the duos' door stays shut, and nothing it writes is there (D-069). */
 	static void BuildDuosShut()
 	{
 		Is(TEXT("the save holds the run that was banked"), [](UDTHubSubsystem* Hub) { return Profile(Hub).Runs == 1; });
-		Is(TEXT("a run with fewer than two Paths at Tier 2 left neither the duos, TwoPaths6 nor Spread Wave"), [](UDTHubSubsystem* Hub) { return !HoldsAnyDuo(Hub); });
+		Is(TEXT("a run with one Path at Tier 2 left neither the duos, TwoPaths6 nor Spread Wave"), [](UDTHubSubsystem* Hub) { return !HoldsAnyDuo(Hub); });
 	}
 
 	/** Each Keeper a door opened, straight after Contracts: chosen at the Shrine by keys, a gated run begun from the hub, abandoned, and back. */

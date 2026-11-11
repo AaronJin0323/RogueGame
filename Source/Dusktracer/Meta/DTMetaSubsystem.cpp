@@ -44,6 +44,13 @@ namespace DTMetaSubsystemLocal
 				Session->Write();
 			}
 		}));
+	static FAutoConsoleCommandWithWorldAndArgs CmdLastPatron(TEXT("DT.Meta.LastPatron"), TEXT("DT.Meta.LastPatron <Path>: set this session's last Patron, the first seat of a Restart's Patron hand, and write the file (Tools/PlantSave.ps1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			FDTMetaSession* Session = UDTMetaSubsystem::FindSession(World);
+			const bool bSet = Session && Args.Num() == 1 && UDTMetaSubsystem::PlantLastPatron(Session->Profile, Args[0]);
+			UE_LOG(LogDT, Log, TEXT("DT.Meta.LastPatron %s: %s"), Args.Num() == 1 ? *Args[0] : TEXT("?"), bSet && Session->Write() ? TEXT("written") : TEXT("refused"));
+		}));
 	static FAutoConsoleCommandWithWorldAndArgs CmdCurrency(TEXT("DT.Meta.Currency"), TEXT("Set this session's balance and write the file (Tools/MetaCheck.ps1)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -233,6 +240,19 @@ EDTMetaNotice UDTMetaSubsystem::ReadNotice(const UObject* WorldContext, FString*
 		*OutFile = FPaths::GetCleanFilename(bStuck ? Found->Path : Found->AsidePath);
 	}
 	return Kind;
+}
+
+bool UDTMetaSubsystem::PlantLastPatron(FDTMetaProfile& Profile, const FString& Path)
+{
+	for (const EDTPath Keeper : DTOffers::AllKeepers())
+	{
+		if (Path == DTOffers::PathName(Keeper))
+		{
+			Profile.LastPatron = FName(DTOffers::PathName(Keeper)); // the form a bank writes (DTRunRecorder)
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 UDTMetaSubsystem::GetWins(const UObject* WorldContext)

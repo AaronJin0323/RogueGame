@@ -7,7 +7,7 @@ A run's log carries the counters its bank read, one line, `Meta: counters ... Be
 the Paths that run held at Tier 2. That is the run's own reading, not the save's `Best.*` after the fact and not the Discovery list.
   paths    prints "PATHS: <n>"; exit 1 with no counters line.
   verdict  `TwoPaths6` is earned when and only when the run held Tier 2 on two Paths (D-069). The earning run must read two or more,
-           the quiet run fewer than two, and a later run must have been offered a duo card. Whether each save then holds the door is
+           the quiet run exactly one (the case that could hide a bug: one Path at Tier 2 earning the row), and a later run must have been offered a duo card. Whether each save then holds the door is
            the hub scripts' to read (Hub/DTHubCheck.cpp `Doors`, `DuosShut`); this names the two runs and the seed of the duo card.
 Prints "DUOS: PASS (...)" or "DUOS: FAIL (...)" naming the side it could not bind; exit 0 / 1.
 """
@@ -48,8 +48,8 @@ def verdict(earning, quiet, duo_seed):
 		return False, f"no counters line in the {'earning' if when is None else 'quiet'} run's log: the side it stands for is unread"
 	if when < 2:
 		return False, f"the side 'when' is unbound: the earning run (seed {when_seed}) held {when} Paths at Tier 2"
-	if only >= 2:
-		return False, f"the side 'only when' is unbound: the quiet run (seed {only_seed}) held {only} Paths at Tier 2"
+	if only != 1:
+		return False, f"the side 'only when' is unbound: the quiet run (seed {only_seed}) held {only} Paths at Tier 2, not exactly one"
 	if not duo_seed:
 		return False, f"earned with {when} Paths at Tier 2 (seed {when_seed}), not earned with {only} (seed {only_seed}), but no later run was offered a duo card"
 	return True, f"earned with {when} Paths at Tier 2 (seed {when_seed}), not earned with {only} (seed {only_seed}), duo card on the next run (seed {duo_seed})"
