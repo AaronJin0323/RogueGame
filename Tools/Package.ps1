@@ -12,6 +12,7 @@ param(
 trap { Write-Host "PACKAGE: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$DTHeavy = Enter-DTHeavy -What "Package"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 # The cook RunUAT starts is an engine whose threads would widen a process mask: this script and all it starts are held in a job with the mask
 # as its affinity limit (Tools/HiddenLaunch.ps1).
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1"); $null = Hold-DTProcess
