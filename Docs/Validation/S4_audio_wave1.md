@@ -125,10 +125,10 @@ Audio never walks the bullet or enemy arrays. It reads counts, and at most `AUD.
 | Kill rate | What is heard |
 |---|---|
 | up to `C.PRE.DENSITY_LOD_KILLS_PER_S` (20) | one sound per kill |
-| above it, until `AUD.LOWEND_ON_KILLS_PER_S` 60 | the crowd loop fades in, reaching full at 60; single kills thin to `AUD.KILL_DENSE_VOICES_PER_S` 8 a second |
-| above 60 | crowd and the low-end loop; single kills stay at the thinned rate, so a kill is never silent |
+| the crowd tier: above it, until the flood tier at 60 kills a second | the crowd loop fades in, reaching full at 60; single kills thin to `AUD.KILL_DENSE_VOICES_PER_S` 8 a second |
+| the flood tier: above 60 | crowd and the low-end loop; single kills stay at the thinned rate, so a kill is never silent |
 
-Each layer leaves at a lower rate than it enters (`AUD.CROWD_OFF_KILLS_PER_S` 16, `AUD.LOWEND_OFF_KILLS_PER_S` 50, RogueHero's exits for its visual tiers) and slews at `AUD.LAYER_FADE_PER_S` 3. The rate is the sim's own counter; no sim number is added. Package E will need the same tiers for the eye. One reader should serve both: this plan reads the counter itself and moves to Visual's reader when it exists (§8.3 item 9).
+Ruled on 2026-11-11, the scheduler's answer to §8.3 item 9: there is one set of density numbers and it is Visual's. Audio defines no rate. The tiers are `C.PRE.DENSITY_LOD_KILLS_PER_S` and package E's three density keys (crowd off under 16, flood on above 60, off under 50), read through `UDTImpactSubsystem::GetDensityTier()` (PerKill, Crowd, Flood). Each layer slews at `AUD.LAYER_FADE_PER_S` 3. The kills family therefore lands after package E.
 
 ### 3.6 What is ported and what is not
 
@@ -331,6 +331,8 @@ Mixing itself is the engine's audio thread, bounded by `AUD.VOICES_MAX`; whether
 | 8 | `s4/audio-snd-pickups`, `s4/audio-pickups` | as 5 | pickups and hero actions | as 5 | the family's checks |
 | 9 | `s4/audio-snd-keepers`, `s4/audio-keepers` | as 5 | six picks, the stinger queue's wiring | as 5 | the six told apart pairwise |
 | 10 | `s4/audio-evidence` | developer | `Tools/audio/AudioRun.ps1`, `Validation/S4_audio_mix.md` | yes | a real run's voice log rendered off line and read as §5; the owner's audition files in `Saved\S4Report\Audio` |
+
+Order changed on 2026-11-11: job 6, kills and density, runs after package E has landed, so jobs 7 to 9 may come before it.
 
 ### 8.2 What runs side by side
 Jobs 1 and 2 need no engine and can run while the machine is held alone. Every recipe job (the session's, one at a time) needs no engine and overlaps any developer job. Jobs 3 and 4 own different files and take turns at the session's one heavy job; one built worktree serves both, and the same developer is kept for the wiring jobs. Each family adds one observer file and its own block of catalog rows, so two families do not edit one file.

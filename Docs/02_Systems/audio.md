@@ -18,7 +18,7 @@ The player hears danger before it lands, hears their own power as a texture that
 ### Scheduling
 - **R-AUD-06** A sound is asked for by id and count. Each id has its least interval, most voices and aggregation gain in `09_Catalog/sounds.csv`. A batch inside one interval is one voice, louder by the aggregation rule and never by more than `C.AUD.AGGREGATE_MAX`.
 - **R-AUD-07** Caps: at most `C.AUD.VOICES_MAX` voices, with `C.AUD.VOICES_DANGER` and `C.AUD.VOICES_UI` kept; at most `C.AUD.PLAYER_STARTS_PER_S_MAX` player-side starts a second and `C.AUD.STARTS_PER_FRAME_MAX` starts a frame, danger first; above `C.AUD.FIRE_DENSE_SHOTS_PER_S` shots a second a weapon sounds at most `C.AUD.FIRE_DENSE_VOICES_PER_S` times a second.
-- **R-AUD-08** Density, on the sim's own kill rate: up to `C.PRE.DENSITY_LOD_KILLS_PER_S` every kill sounds; above it the crowd layer fades in and single kills thin to `C.AUD.KILL_DENSE_VOICES_PER_S`; above `C.AUD.LOWEND_ON_KILLS_PER_S` the low-end layer joins. A layer leaves at a lower rate than it enters (`C.AUD.CROWD_OFF_KILLS_PER_S`, `C.AUD.LOWEND_OFF_KILLS_PER_S`) and slews at `C.AUD.LAYER_FADE_PER_S`. A kill is never silent.
+- **R-AUD-08** Density follows the one density tier that eye and ear share (`impact_art.md`, package E; D-056 as ruled). In the per-kill tier every kill sounds; in the crowd tier the crowd layer fades in and single kills thin to `C.AUD.KILL_DENSE_VOICES_PER_S`; in the flood tier the low-end layer joins. Audio holds no rate of its own: the first threshold is `C.PRE.DENSITY_LOD_KILLS_PER_S`, the others are package E's keys, and audio reads the tier from package E's reader. A layer slews at `C.AUD.LAYER_FADE_PER_S`. A kill is never silent.
 - **R-AUD-09** Player hit and fire voices wait for a grid of `C.AUD.GRID_STEPS` sim steps, so overlaps land together. Only the sound waits; play never does, and a danger sound never does.
 - **R-AUD-10** Variants play round robin with no repeat. A player-side voice draws a degree of the key and a small level change; a warning is always the same sound.
 - **R-AUD-11** Stingers queue: one per `C.AUD.STINGER_GAP_S`, dropped after `C.AUD.STINGER_EXPIRY_S`.
@@ -53,7 +53,7 @@ Values live in `08_Constants.md` (Audio); every key is presentation-only and `GA
 | Voices | C.AUD.VOICES_MAX, C.AUD.VOICES_DANGER, C.AUD.VOICES_UI | GATED(S4) | R-AUD-07 |
 | Start caps | C.AUD.PLAYER_STARTS_PER_S_MAX, C.AUD.STARTS_PER_FRAME_MAX, C.AUD.FIRE_DENSE_SHOTS_PER_S, C.AUD.FIRE_DENSE_VOICES_PER_S | GATED(S4) | R-AUD-07 |
 | Aggregation, scan | C.AUD.AGGREGATE_MAX, C.AUD.SCAN_MAX | GATED(S4) | R-AUD-06, R-AUD-02 |
-| Layers | C.AUD.CROWD_OFF_KILLS_PER_S, C.AUD.LOWEND_ON_KILLS_PER_S, C.AUD.LOWEND_OFF_KILLS_PER_S, C.AUD.LAYER_FADE_PER_S, C.AUD.KILL_DENSE_VOICES_PER_S | GATED(S4) | R-AUD-08 |
+| Layers | C.AUD.LAYER_FADE_PER_S, C.AUD.KILL_DENSE_VOICES_PER_S | GATED(S4) | R-AUD-08 |
 | Grid, warnings | C.AUD.GRID_STEPS, C.AUD.WARN_MIN_INTERVAL_MS | GATED(S4) | R-AUD-09, R-AUD-06 |
 | Duck | C.AUD.DUCK_DB, C.AUD.DUCK_ATTACK_MS, C.AUD.DUCK_RELEASE_MS, C.AUD.LOWHP_LOWEND_DUCK_DB | GATED(S4) | R-AUD-05 |
 | Stingers | C.AUD.STINGER_GAP_S, C.AUD.STINGER_EXPIRY_S | GATED(S4) | R-AUD-11 |
@@ -85,7 +85,7 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step. Every lin
 - T-AUD-05 PLANNED(S4) `Dusktracer.Audio.DangerFirst`: with every player limit full a warning starts in its own frame, no danger voice is stolen, and the duck follows its curve.
 - T-AUD-06 PLANNED(S4) `Dusktracer.Audio.Aggregate`: a second request inside the interval merges; a batch is louder and capped.
 - T-AUD-07 PLANNED(S4) `Dusktracer.Audio.Density`: a staged trace at `C.ENEMIES.CAP` enemies and `C.BULLETS.CAP` rounds holds every cap.
-- T-AUD-08 PLANNED(S4) `Dusktracer.Audio.Layers`: under the first threshold every kill sounds and no layer is on; each layer enters and leaves at its own rates, once.
+- T-AUD-08 PLANNED(S4) `Dusktracer.Audio.Layers`: in the per-kill tier every kill sounds and no layer is on; each layer follows the tier, entering and leaving once per change of tier.
 - T-AUD-09 PLANNED(S4) `Dusktracer.Audio.Grid`: player hit and fire voices start on the grid; a danger voice does not wait.
 - T-AUD-10 PLANNED(S4) `Dusktracer.Audio.Variation`: no variant repeats; drawn pitches are degrees of the key; a warning never varies.
 - T-AUD-11 PLANNED(S4) `Dusktracer.Audio.Stingers`: the gap, the expiry, and a stinger under full load.
@@ -115,5 +115,5 @@ A music bed and ambience; Keeper tier, passed-over and imbued sounds; per-hit po
 |---|---|
 | Do the audibility floors hold on the real worst mix? | the `audio` step once the fire and kill families exist |
 | Does a warning make a player look without wincing? | the owner's listening list; a kit question |
-| One density-tier reader for eye and ear | package E's reader, when it exists |
+| The kills family waits for package E's density-tier reader | package E merged on `dev/s4` |
 | Does the engine's off-line renderer write the real mix with no device? | a probe in the evidence job |
