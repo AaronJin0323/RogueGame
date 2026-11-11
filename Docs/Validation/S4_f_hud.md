@@ -57,6 +57,8 @@ Contrast, gate scene `contrast` (1280x720, en), need `C.PRE.CONTRAST_MIN` 3.0, w
 
 `WATCH: OK` both times; bare lit ground Y p5 to p95 0.1113 to 0.1156 both times. Every difference is inside the scene's run-to-run noise (`S4_p0.md` §6).
 
+> Replaced by `S4_perf_1080p.md` (2026-11-11): the readings below rendered 888x500 while recording 1920x1080, most on a busy machine; that note holds the reading of record at the real size, alone.
+
 Perf, `& Tools\Perf.ps1` (Caps, 1920x1080, RTX 4080, GPU p95 x 1.6), allowance + 0.1 ms proxied over today:
 
 | Build | Game thread p50 / p95 ms | GPU p95 ms | Proxied | What else ran |
