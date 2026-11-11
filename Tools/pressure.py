@@ -20,7 +20,8 @@ One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
   SOURCES: <run> p<n> rusher hits, whole run: arrival charging <a> not charging <b>; other charging <c> not charging <d>;
-                                                     killed drop-in band <e>[; unmarked contact <x> charge <y>]
+                                                     killed drop-in band <e>[; unmarked contact <x> charge <y>];
+                                                     out of <n> landed Rusher drop-ins (dir_block.dropins_landed_by_role)
                                                      (hero_damaged.arrival and .charging, D-045; then one such line per bot arm and one overall)
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
@@ -208,6 +209,29 @@ def rusher_hits_from_jsonl(path, owner=0):
 				part = ("arrival" if fields["arrival"] else "other", "charging" if fields["charging"] else "not charging")
 			out[part] = out.get(part, 0) + 1
 	return out
+
+
+def landed_dropins_from_jsonl(path, role="Rusher"):
+	"""Drop-ins of `role` that landed over the whole run: the sum of dir_block.dropins_landed_by_role (T-TEL-16), the arrivals
+	the hits above are out of. None for a run file from before the field."""
+	total, seen = 0, False
+	with open(path, encoding="utf-8") as f:
+		for line in f:
+			if '"dir_block"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=first_wins)
+			except ValueError:
+				continue
+			if rec.get("kind") == "dir_block" and "dropins_landed_by_role" in rec:
+				seen = True
+				total += int((rec["dropins_landed_by_role"] or {}).get(role, 0))
+	return total if seen else None
+
+
+def landed_detail(landed):
+	"""The denominator beside the hits: landed Rusher drop-ins, or why there is none."""
+	return f"out of {landed} landed Rusher drop-ins" if landed is not None else "landed drop-ins not in the file"
 
 
 def arrivals_detail(counts):
@@ -499,6 +523,7 @@ def main(argv):
 		return 1 if checks else 0
 	readings = []
 	arrival_totals = {}
+	arrival_landed = {}
 	for name, jsonl, csv_path in runs:
 		rates, source = window_rates(jsonl, csv_path, consts)
 		ttks = swarm_ttk(csv_path, jsonl, (lo, hi))
@@ -516,11 +541,17 @@ def main(argv):
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
 			if jsonl:
 				hits = rusher_hits_from_jsonl(jsonl, owner)
-				print(f"SOURCES: {name} p{owner} rusher hits, whole run: {arrivals_detail(hits)}")
+				landed = landed_dropins_from_jsonl(jsonl)
+				print(f"SOURCES: {name} p{owner} rusher hits, whole run: {arrivals_detail(hits)}; {landed_detail(landed)}")
 				for group in (arm_of(name), "overall"):
 					bucket = arrival_totals.setdefault(group, {})
 					for key, n in hits.items():
 						bucket[key] = bucket.get(key, 0) + n
+					# A group's denominator is read only while every run in it has the field.
+					if landed is None:
+						arrival_landed[group] = None
+					elif arrival_landed.get(group, 0) is not None:
+						arrival_landed[group] = arrival_landed.get(group, 0) + landed
 		for owner, (ttk, n) in sorted(ttks.items()):
 			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
 		print(slow_line(name, jsonl))
@@ -533,7 +564,7 @@ def main(argv):
 						for source, (n, share) in sorted(whole.items()))
 					print(f"RESTORES: {name} p{owner} {detail}")
 	for group in sorted(g for g in arrival_totals if g != "overall") + (["overall"] if "overall" in arrival_totals else []):
-		print(f"SOURCES: {group} rusher hits, whole run: {arrivals_detail(arrival_totals[group])}")
+		print(f"SOURCES: {group} rusher hits, whole run: {arrivals_detail(arrival_totals[group])}; {landed_detail(arrival_landed.get(group))}")
 	if checks:
 		lines, verdicts = judge(readings, validators, dmg_band, dash_band, ttk_max, (lo, hi), checks)
 		print("\n".join(lines))

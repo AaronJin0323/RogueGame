@@ -429,6 +429,7 @@ bool FDTTelRecDirector::RunTest(const FString& Parameters)
 	Block.SpawnedByRole[static_cast<int32>(EDTEnemyRole::Rusher)] = 6;
 	Block.SkippedAtCap = 2;
 	Block.DropIns = 3;
+	Block.DropInsLandedByRole[static_cast<int32>(EDTEnemyRole::Rusher)] = 2;
 	Block.ThreatActions = 9;
 	Block.Kills = 44;
 	Block.KillHorizonP50UU = 612.5f;
@@ -446,9 +447,9 @@ bool FDTTelRecDirector::RunTest(const FString& Parameters)
 	Finish(Core, Csv, Jsonl);
 	TestTrue(TEXT("dir_block line"), Jsonl.Contains(Head(TEXT("dir_block"), -1) + TEXT(",\"block\":3,\"phase\":\"Threat\",\"row_start_s\":120.0000,"
 		"\"start_s\":120.0000,\"end_s\":150.5000,\"ended_by\":\"cleared\",\"spawned_by_role\":{\"Swarm\":40,\"Rusher\":6},\"skipped_at_cap\":2,"
-		"\"dropins\":3,\"threat_actions\":9,\"kills\":44,\"kill_horizon_p50_uu\":612.5000,\"alive_peak\":31,"
+		"\"dropins\":3,\"dropins_landed_by_role\":{\"Rusher\":2},\"threat_actions\":9,\"kills\":44,\"kill_horizon_p50_uu\":612.5000,\"alive_peak\":31,"
 		"\"dmg_taken\":{\"0\":0.2500,\"1\":0.0000},\"dashes\":{\"0\":4,\"1\":1}}\n")));
-	TestTrue(TEXT("a block without kills has no horizon"), Jsonl.Contains(TEXT("\"spawned_by_role\":{},\"skipped_at_cap\":0,\"dropins\":0,"
+	TestTrue(TEXT("a block without kills has no horizon"), Jsonl.Contains(TEXT("\"spawned_by_role\":{},\"skipped_at_cap\":0,\"dropins\":0,\"dropins_landed_by_role\":{},"
 		"\"threat_actions\":0,\"kills\":0,\"kill_horizon_p50_uu\":null,\"alive_peak\":0,\"dmg_taken\":{},\"dashes\":{}}\n")));
 	return true;
 }

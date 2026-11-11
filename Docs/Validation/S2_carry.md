@@ -90,3 +90,17 @@ tests:      478 run of 478 found, 0 failed, floor 478, 0 crash marker(s)
 GATE: PASS (99dc843; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure.
+## Third carry: `main` d17458f into `dev/s2` 431cd40 (`carry3/s2`)
+`main` gained `dir_block.dropins_landed_by_role` (T-TEL-16) and the hold of a fast bot's decided run at its deciding step (T-TEL-17).
+- Conflicts: the scheduler's records take `main`'s side whole (`git diff d17458f -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty). `telemetry.md`: `main`'s `dir_block` row beside `dev/s2`'s `run_end` reasons. `number_change_log.csv`: every row of both sides. The floor and the generated header. `dev/s2` added no field to `dir_block`.
+- The bot: `dev/s2`'s bot v2 ends a decided run on the same path as v1, `UDTBotSubsystem::HandleStepEnd` (the fast loop `RunSteps` steps the sim and every step ends there), so `main`'s hold covers both; nothing added. T-TEL-17 passes. Bot v2 `Steered:Storm:Tempest` on seed 9107, run twice: `3b526497`, 57635 steps and `run_end.steps` 57635 both times.
+- Pinned values: none moved. No `dev/s2` test or tool check pins a fast bot's step count or closing record; RestartCheck reads 5400 / 5400.
+- Ids: T-TEL-16 and T-TEL-17 collide with nothing.
+- Counts: 480 found, 480 pass; `C.GATE.TEST_FLOOR` 478 to 480; `tools_test.py` 148.
+- Seed 9107, read on 431cd40 and on 8c4dd45: `input_hash` unchanged on all five (`00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`); the record's `steps` reads two lower on each (44139 to 44137, 59382 to 59380, 57751 to 57749, 60233 to 60231, 48600 to 48598), which is this fix.
+
+```
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+GATE: PASS (8c4dd45; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure.

@@ -37,7 +37,7 @@ namespace DTTelMarkTest
 	}
 
 	/** A game world with a run and a session; the hero stands where the sim put it. */
-	struct FScene
+	struct FMarkScene
 	{
 		UWorld* World = nullptr;
 		UDTSimSubsystem* Sim = nullptr;
@@ -46,7 +46,7 @@ namespace DTTelMarkTest
 		UDTHeroSubsystem* Heroes = nullptr;
 		UDTBotSubsystem* Bot = nullptr;
 
-		explicit FScene(const TCHAR* Name)
+		explicit FMarkScene(const TCHAR* Name)
 		{
 			FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Game);
 			World = UWorld::CreateWorld(EWorldType::Game, false, MakeUniqueObjectName(nullptr, UWorld::StaticClass(), Name));
@@ -91,7 +91,7 @@ namespace DTTelMarkTest
 	/** The first hero_damaged of a session in which one enemy of Role (an arrival or not) stands on the hero. */
 	static FString FirstHitBy(EDTEnemyRole Role, bool bArrival, const TCHAR* Name, int32 Seed)
 	{
-		FScene Scene(Name);
+		FMarkScene Scene(Name);
 		FString Jsonl;
 		if (Scene.Valid())
 		{
@@ -117,7 +117,7 @@ namespace DTTelMarkTest
 	/** run_start of a session started with the bot as given (Activate: on or off; Steps: its steps per frame). */
 	static FString RunStartWith(bool bActivate, int32 Steps, const TCHAR* Name, int32 Seed)
 	{
-		FScene Scene(Name);
+		FMarkScene Scene(Name);
 		FString Jsonl;
 		if (Scene.Valid())
 		{
@@ -283,6 +283,61 @@ bool FDTTelBotFastMark::RunTest(const FString& Parameters)
 	FString Jsonl;
 	Core.TakeOutput(Csv, Jsonl);
 	TestTrue(TEXT("the default config is a person's run"), Jsonl.Contains(TEXT("\"bot_fast\":0,")));
+	return true;
+}
+
+// T-TEL-17 (R-TEL-08): a fast bot's decided run closes on the same step however the frames fall after the decision. One seed is
+// played twice by a fast bot to a death; then frames of different lengths pass before the session closes, as wall time would
+// make them, and the two run_end records read the same steps.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTTelFastBotClose, "Dusktracer.Telemetry.Mark.FastBotClose", DTTelMarkTest::Flags) // T-TEL-17
+bool FDTTelFastBotClose::RunTest(const FString& Parameters)
+{
+	using namespace DTTelMarkTest;
+	const auto Play = [](float FrameSeconds, const TCHAR* Name, int32& OutSteps, FString& OutEnd)
+	{
+		FMarkScene Scene(Name);
+		if (!Scene.Valid())
+		{
+			Scene.Close();
+			return false;
+		}
+		Scene.Sim->StartRun(81, 1);
+		Scene.Bot->SetStepsPerFrame(DTTelMarkFastSteps);
+		FDTBotConfig Config;
+		Config.Policy = EDTBotPolicy::None;
+		Config.Seed = 81;
+		Scene.Bot->Activate(Config);
+		Scene.Telemetry->StartSession(81, 1);
+		Scene.Bot->RunSteps(1);
+		FDTEnemySpawn Lethal;
+		Lethal.Position = Scene.Sim->GetView().HeroPositions[0];
+		Lethal.DmgScale = static_cast<float>(DTConst::HERO_MAX_HP) * 10.0f;
+		Scene.Enemies->QueueSpawn(Lethal);
+		Scene.Bot->RunSteps(DTConst::SIM_FIXED_HZ);
+		const bool bDecided = Scene.Bot->IsRunFinished();
+		// The frames between the decision and the session's close: the clock owes steps by wall time.
+		for (int32 Frame = 0; Frame < 3; ++Frame)
+		{
+			Scene.Sim->AdvanceFrame(FrameSeconds);
+		}
+		OutSteps = static_cast<int32>(Scene.Sim->GetStepIndex());
+		const TArray<FString> End = OfKind(Scene.End(), TEXT("run_end"));
+		OutEnd = End.Num() > 0 ? End[0] : FString();
+		Scene.Bot->Deactivate();
+		Scene.Close();
+		return bDecided;
+	};
+	int32 StepsA = 0;
+	int32 StepsB = 0;
+	FString EndA;
+	FString EndB;
+	TestTrue(TEXT("first play decided"), Play(1.0f / static_cast<float>(DTConst::SIM_FIXED_HZ), TEXT("DTTelMarkCloseA"), StepsA, EndA));
+	TestTrue(TEXT("second play decided"), Play(3.5f / static_cast<float>(DTConst::SIM_FIXED_HZ), TEXT("DTTelMarkCloseB"), StepsB, EndB));
+	TestEqual(TEXT("the sim stops at the decision however the frames fall"), StepsA, StepsB);
+	const FString Field = TEXT("\"steps\":");
+	const auto Steps = [&Field](const FString& Line) { const int32 At = Line.Find(Field); return At != INDEX_NONE ? FCString::Atoi(*Line + At + Field.Len()) : -1; };
+	TestTrue(TEXT("run_end written"), Steps(EndA) > 0);
+	TestEqual(TEXT("run_end.steps is the same"), Steps(EndA), Steps(EndB));
 	return true;
 }
 
