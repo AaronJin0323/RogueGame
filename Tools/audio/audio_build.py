@@ -21,6 +21,7 @@ This module also reads and validates the catalog for audio_check.py and gen_soun
 
 import copy
 import csv
+import datetime
 import hashlib
 import importlib
 import importlib.abc
@@ -63,7 +64,7 @@ DTSYNTH = os.path.join(HERE, "dtsynth.py")
 OUT = os.path.join(ROOT, "Saved", "AudioGen")
 
 COLUMNS = ["id", "family", "side", "zone", "class", "recipe", "variants", "loop", "volume", "pitch", "interval_ms", "voices", "agg_gain", "grid",
-	"len_min_ms", "len_max_ms", "level_min_lk", "level_max_lk", "confuse"]
+	"len_min_ms", "len_max_ms", "level_min_lk", "level_max_lk", "confuse", "heard"]
 SIDES = ("player", "danger", "ui")
 ZONES = ("body", "warn", "low", "free")
 CLASSES = ("Player", "Danger", "UI", "Music")
@@ -75,6 +76,12 @@ MANIFEST_COLUMNS = ["name", "frames", "sha256"] + MANIFEST_NUMBERS
 ID = re.compile(r"^Snd\.([A-Z][A-Za-z0-9]*)\.([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)$")
 RECIPE = re.compile(r"^([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\.([a-z_][a-z0-9_]*)$")
 SET_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+# What the owner has heard (02_Systems/audio.md R-AUD-22): `no`, or a verdict and its ISO date. A row becomes an asset and can
+# play only when it reads `yes` (heard and accepted) or `delegated` (the owner left the choice to the scheduler, who accepted it).
+# NOTE for the import job (Tools/audio/import_audio.py, job 4): read this column with heard_verdict(row) and import only rows
+# whose verdict is in IMPORTABLE; refuse `no` and `rejected`, so a sound nobody accepted holds its id and never becomes an asset.
+HEARD = re.compile(r"^(no|(yes|delegated|rejected) (\d{4}-\d{2}-\d{2}))$")
+IMPORTABLE = ("yes", "delegated")
 INT = re.compile(r"^\d+$")
 NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
 
@@ -111,6 +118,18 @@ def read_catalog(path=CATALOG):
 		row["line"] = number
 		rows.append(row)
 	return rows, errors
+
+
+def heard_verdict(row):
+	"""`no`, `yes`, `delegated` or `rejected` from a row's heard cell (None when the cell is malformed)."""
+	m = HEARD.match(row.get("heard", ""))
+	return m.group(2) or m.group(1) if m else None
+
+
+def heard_counts(rows):
+	"""How many catalog rows the owner heard and accepted, left to the scheduler, rejected, and never heard (R-AUD-22)."""
+	verdicts = [heard_verdict(row) for row in rows]
+	return {"heard": verdicts.count("yes"), "delegated": verdicts.count("delegated"), "rejected": verdicts.count("rejected"), "not heard": verdicts.count("no")}
 
 
 def base_name(row):
@@ -162,6 +181,14 @@ def validate(rows, recipes=RECIPES):
 		if NUMBER.match(row["level_min_lk"]) and NUMBER.match(row["level_max_lk"]):
 			if not float(row["level_min_lk"]) <= float(row["level_max_lk"]) < 0.0:
 				bad.append(f"loudness window [{row['level_min_lk']}, {row['level_max_lk']}] LK is empty or not below zero")
+		hm = HEARD.match(row["heard"])
+		if not hm:
+			bad.append(f"heard '{row['heard']}' is not no, yes <date>, delegated <date> or rejected <date> (R-AUD-22)")
+		elif hm.group(3):
+			try:
+				datetime.date.fromisoformat(hm.group(3))
+			except ValueError:
+				bad.append(f"heard '{row['heard']}': {hm.group(3)} is not a date")
 		if row["confuse"] and not SET_NAME.match(row["confuse"]):
 			bad.append(f"confuse '{row['confuse']}' is not a set name (lower case, digits, '_')")
 		# the sides (02_Systems/audio.md R-AUD-05, R-AUD-09, R-AUD-15; Validation/S4_audio_wave1.md §4.2)

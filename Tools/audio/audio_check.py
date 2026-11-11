@@ -18,7 +18,8 @@ In order:
 Not active yet, and named so in the verdict, never passed: the mix checks (audio.md R-AUD-18, a later job's mix_model.py) and
 the generated C++ table (Source/Dusktracer/Audio/DTSoundsGen.h): it is held to gen_sounds.py as soon as it exists.
 
-Last line: AUDIO: PASS (<n> sounds, <m> files, <t> tool tests; <what is not active yet>) or AUDIO: FAIL (<k> error(s)).
+Last line: AUDIO: PASS (<n> sounds: <a> heard, <d> delegated, <r> rejected, <x> not heard; <m> files, <t> tool tests; <what is not
+active yet>) or AUDIO: FAIL (<k> error(s)). The counts are the catalog's heard column (R-AUD-22, T-AUD-22).
 Every error line starts with `error: `; whatever escapes the checks is one such line and a FAIL. Exit 0 / 1.
 """
 
@@ -324,7 +325,7 @@ def check(paths):
 	global KEYS
 	KEYS = M.aud_keys(paths.constants)
 	M.configure(KEYS)
-	summary = {"sounds": 0, "files": 0, "rebuilt": 0, "header": False}
+	summary = {"sounds": 0, "files": 0, "rebuilt": 0, "header": False, "heard": B.heard_counts([])}
 	if M.rate_problem():
 		return [M.rate_problem()], summary
 	errors = []
@@ -347,7 +348,16 @@ def check(paths):
 	errors += pair_errors(rows, files, measures)
 	header_active, found = header_errors(rows, paths.header, manifest)
 	errors += found
-	return errors, {"sounds": len(rows), "files": len(files), "rebuilt": sum(1 for f in files.values() if f["rebuilt"]), "header": header_active}
+	return errors, {"sounds": len(rows), "files": len(files), "rebuilt": sum(1 for f in files.values() if f["rebuilt"]), "header": header_active,
+		"heard": B.heard_counts(rows)}
+
+
+def pass_line(summary, count, seconds):
+	"""The step's verdict when nothing failed: the catalog's heard counts first (R-AUD-22), and what is not active yet, never passed."""
+	h = summary["heard"]
+	inactive = ["the mix checks (R-AUD-18)"] + ([] if summary["header"] else ["the generated C++ table DTSoundsGen.h"])
+	return (f"AUDIO: PASS ({summary['sounds']} sounds: {h['heard']} heard, {h['delegated']} delegated, {h['rejected']} rejected, {h['not heard']} not heard; "
+		f"{summary['files']} files, {count} tool tests; not active yet: {' and '.join(inactive)}; {summary['rebuilt']} rebuilt, {seconds:.1f} s)")
 
 
 def run_tool_tests():
@@ -379,9 +389,7 @@ def main(argv):
 	if errors:
 		print(f"AUDIO: FAIL ({len(errors)} error(s))")
 		return 1
-	inactive = ["the mix checks (R-AUD-18)"] + ([] if summary["header"] else ["the generated C++ table DTSoundsGen.h"])
-	print(f"AUDIO: PASS ({summary['sounds']} sounds, {summary['files']} files, {count} tool tests; not active yet: {' and '.join(inactive)}; "
-		f"{summary['rebuilt']} rebuilt, {time.time() - start:.1f} s)")
+	print(pass_line(summary, count, time.time() - start))
 	return 0
 
 

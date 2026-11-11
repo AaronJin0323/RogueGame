@@ -4,7 +4,7 @@ Job 2 of `Validation/S4_audio_wave1.md` §8.1 (D-056), branch `s4/audio-snd-ui` 
 
 ## 0. Heard, and rejected for style (2026-11-11)
 
-The owner heard these ten on 2026-11-11 and rejected all of them for style: "风格不对", "全部". The sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying (`Validation/S4_audio_world.md` §1). Every number below still holds; none of them measures style. Until the owner has chosen a direction, these recipes stay only as placeholders that give the runtime its ten ids: no asset is imported from them and nothing plays them. They are replaced, id for id, by the chosen direction's recipes.
+The owner heard these ten on 2026-11-11 and rejected all of them for style: "风格不对", "全部". The sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying (`Validation/S4_audio_world.md` §1). Every number below still holds; none of them measures style. Until the owner has chosen a direction, these recipes stay only as placeholders that give the runtime its ten ids: no asset is imported from them and nothing plays them. They are replaced, id for id, by the chosen direction's recipes. In the catalog their rows read `rejected 2026-11-11`.
 
 ## 1. The ten sounds
 

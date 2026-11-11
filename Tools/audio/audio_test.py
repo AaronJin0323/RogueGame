@@ -277,7 +277,7 @@ def kill_or_warn(v=0):
 
 ROW = {"id": "Snd.Kill.Pop", "family": "Kill", "side": "player", "zone": "body", "class": "Player", "recipe": "sketch.kill_pop", "variants": "2", "loop": "0",
 	"volume": "0.5", "pitch": "key", "interval_ms": "45", "voices": "5", "agg_gain": "0.25", "grid": "1", "len_min_ms": "50", "len_max_ms": "200",
-	"level_min_lk": "-40", "level_max_lk": "-10", "confuse": ""}
+	"level_min_lk": "-40", "level_max_lk": "-10", "confuse": "", "heard": "no"}
 WARN = dict(ROW, id="Snd.Danger.Warn", family="Danger", side="danger", zone="warn", **{"class": "Danger"}, recipe="sketch.telegraph_warn", variants="1",
 	volume="0.8", pitch="fixed", interval_ms="120", voices="2", grid="0", len_max_ms="250")
 HUM = dict(ROW, id="Snd.Kill.Hum", zone="free", recipe="fixture.hum", loop="1", pitch="fixed", grid="0", len_min_ms="100", len_max_ms="400",
@@ -478,6 +478,27 @@ class Catalog(unittest.TestCase):
 				(dict(WARN, **{"class": "Player"}), "the danger side is the Danger class")):
 			rows, _ = B.read_catalog(Tree([over], manifest=False).paths.catalog)
 			self.assertIn(what, "\n".join(B.validate(rows, os.path.join(HERE, "recipes"))), over)
+
+	def test_the_heard_column(self):
+		# T-AUD-22: four forms, each validated; anything else fails.
+		for heard in ("no", "yes 2026-11-12", "delegated 2026-11-12", "rejected 2026-11-11"):
+			rows, _ = B.read_catalog(Tree([dict(ROW, heard=heard)], manifest=False).paths.catalog)
+			self.assertNotIn("heard", "\n".join(B.validate(rows, os.path.join(HERE, "recipes"))), heard)
+		for heard, what in (("", "is not no, yes"), ("maybe", "is not no, yes"), ("yes", "is not no, yes"), ("accepted 2026-11-12", "is not no, yes"),
+				("yes 2026-13-01", "is not a date"), ("rejected 2026-02-30", "is not a date"), ("Yes 2026-11-12", "is not no, yes"), ("no 2026-11-12", "is not no, yes")):
+			rows, _ = B.read_catalog(Tree([dict(ROW, heard=heard)], manifest=False).paths.catalog)
+			self.assertIn(what, "\n".join(B.validate(rows, os.path.join(HERE, "recipes"))), heard)
+
+	def test_the_verdict_counts_what_the_owner_heard(self):
+		# T-AUD-22: the counts on the step's PASS line.
+		rows = [dict(ROW, id="Snd.Kill.A", heard="yes 2026-11-12"), dict(ROW, id="Snd.Kill.B", heard="delegated 2026-11-12"),
+			dict(ROW, id="Snd.Kill.C", heard="rejected 2026-11-11"), dict(ROW, id="Snd.Kill.D", heard="rejected 2026-11-11"), dict(ROW, id="Snd.Kill.E")]
+		text, summary = Tree(rows).check()
+		self.assertEqual(text, "")
+		self.assertEqual(summary["heard"], {"heard": 1, "delegated": 1, "rejected": 2, "not heard": 1})
+		line = audio_check.pass_line(summary, 7, 1.0)
+		self.assertTrue(line.startswith("AUDIO: PASS (5 sounds: 1 heard, 1 delegated, 2 rejected, 1 not heard; 10 files, 7 tool tests; not active yet: "), line)
+		self.assertEqual(B.heard_counts([]), {"heard": 0, "delegated": 0, "rejected": 0, "not heard": 0})
 
 	def test_a_family_with_no_licence_row_fails(self):
 		text, _ = Tree([ROW, WARN], licences=("Content/DT/Audio/SFX/SW_Kill_*",)).check()
