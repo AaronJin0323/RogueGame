@@ -189,6 +189,9 @@ void FDTEnemyPool::Reset(bool bResetCounters)
 	PendingChildren.Reset();
 	StepEliteDeaths.Reset();
 	StepThreats.Reset();
+	StepImpacts.Reset();
+	StepBurnFirst = 0;
+	StepBurnEnd = 0;
 	if (bResetCounters)
 	{
 		Rounds.Reset(true);
@@ -1323,7 +1326,9 @@ void FDTEnemyPool::StepEnemies(const FDTSimContext& Context)
 	}
 	View.StatusApplies.Reset();
 	ApplyDisplacements(View.Displacements);
+	StepBurnFirst = View.Hits.Num(); // the tap only (impact_art.md R-IMP-01): the Burn ticks this step appends
 	TickStatuses(SimDt, &View.Hits);
+	StepBurnEnd = View.Hits.Num();
 
 	ResolveInit(View.HeroPositions);
 	AssignTokens(View.HeroPositions, View.bThreatBlock);
@@ -1357,10 +1362,16 @@ void FDTEnemyPool::Publish(FDTWorldView& View) const
 
 int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TArray<FDTKill>* OutKills)
 {
+	return ApplyHitsTapped(Hits, Run, OutKills, 0, 0); // a caller's own list holds no Burn tick of the pool's
+}
+
+int32 FDTEnemyPool::ApplyHitsTapped(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TArray<FDTKill>* OutKills, int32 BurnFirst, int32 BurnEnd)
+{
 	const float FrontCos = FMath::Cos(FMath::DegreesToRadians(static_cast<float>(DTConst::ROLE_TANK_FRONT_HALF_ARC_DEG)));
 	int32 Kills = 0;
-	for (const FDTHit& Hit : Hits)
+	for (int32 HitIndex = 0; HitIndex < Hits.Num(); ++HitIndex)
 	{
+		const FDTHit& Hit = Hits[HitIndex];
 		if (!Pos.IsValidIndex(Hit.EnemyIndex) || Dead[Hit.EnemyIndex])
 		{
 			continue; // already killed by an earlier hit this step: one death, one Kill event
@@ -1371,6 +1382,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 			continue; // stale handle: the slot now holds another enemy (R-ENM-23)
 		}
 		const int32 Index = Hit.EnemyIndex;
+		uint8 ImpactFlags = 0; // the tap only (impact_art.md R-IMP-01)
 		float Damage = FMath::Max(0.0f, Hit.Damage);
 		if (Role[Index] == EDTEnemyRole::Tank && !Hit.bPierce)
 		{
@@ -1379,6 +1391,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 			if (Rel.SizeSquared() > UE_KINDA_SMALL_NUMBER && FVector2f::DotProduct(Rel.GetSafeNormal(), Facing[Index]) >= FrontCos)
 			{
 				Damage *= DTConst::ROLE_TANK_FRONT_DAMAGE_MULT;
+				ImpactFlags |= DTImpactFlags::Plate;
 			}
 		}
 		if ((Flags[Index] & DTEnemyFlags::Elite) != 0)
@@ -1390,6 +1403,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 				--Elite.ShieldHitsLeft;
 				++Elite.ShieldAbsorbed;
 				Damage = 0.0f;
+				ImpactFlags |= DTImpactFlags::Shield;
 			}
 			if (DTElite::Has(Elite.AffixMask, EDTAffix::Armored))
 			{
@@ -1412,6 +1426,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 		if (Hp[Index] <= 0.0f)
 		{
 			Dead[Index] = 1;
+			ImpactFlags |= DTImpactFlags::Kill;
 			++Kills;
 			Run.ApplyEvent({ EDTGameEventKind::Kill, Hit.OwnerId, 0 });
 			FDTEnemyDeath& Death = StepDeaths.AddDefaulted_GetRef();
@@ -1451,6 +1466,39 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 				Kill.BeatId = BeatId[Index];
 			}
 		}
+		// The tap (impact_art.md R-IMP-01): one record per applied hit, in order; nothing in the sim reads it.
+		if (Hit.bCrit)
+		{
+			ImpactFlags |= DTImpactFlags::Crit;
+		}
+		if (Hit.bPierce)
+		{
+			ImpactFlags |= DTImpactFlags::Pierce;
+		}
+		if (Hit.bFieldTick)
+		{
+			ImpactFlags |= DTImpactFlags::FieldTick;
+		}
+		if (HitIndex >= BurnFirst && HitIndex < BurnEnd)
+		{
+			ImpactFlags |= DTImpactFlags::StatusTick;
+		}
+		if ((Flags[Index] & DTEnemyFlags::Elite) != 0)
+		{
+			ImpactFlags |= DTImpactFlags::Elite;
+		}
+		FDTImpact& Impact = StepImpacts.AddDefaulted_GetRef();
+		Impact.Position = Hit.Position;
+		Impact.EnemyPosition = Pos[Index];
+		Impact.EnemyRadius = Radius[Index];
+		Impact.Dealt = Dealt;
+		Impact.MaxHp = MaxHp[Index];
+		Impact.EnemySerial = Serial[Index];
+		Impact.OwnerId = Hit.OwnerId;
+		Impact.SourceId = Hit.SourceId;
+		Impact.WeaponSlot = Hit.WeaponSlot;
+		Impact.Role = Role[Index];
+		Impact.Flags = ImpactFlags;
 	}
 	TotalKills += Kills;
 	return Kills;
@@ -1463,8 +1511,11 @@ int32 FDTEnemyPool::ResolveHits(const FDTSimContext& Context)
 	FDTWorldView& View = *Context.View;
 	View.Kills.Reset();
 	StepDeaths.Reset();
+	StepImpacts.Reset(); // the tap: storage kept between steps
 	StepEliteDeaths.Reset();
-	const int32 Kills = ApplyHits(View.Hits, *Context.Run, &View.Kills);
+	const int32 Kills = ApplyHitsTapped(View.Hits, *Context.Run, &View.Kills, StepBurnFirst, StepBurnEnd);
+	StepBurnFirst = 0;
+	StepBurnEnd = 0;
 	View.Hits.Reset();
 	Compact();
 	Publish(View); // indices changed: republish so Effects reads valid indices (R-ENM-07)
