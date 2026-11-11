@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 585 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 593 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -240,6 +240,54 @@ S4 wave 1 package D (D-043): presentation only, no reader in the sim.
 | C.TRC.MUZZLE_WIDTH_RATIO | 1.4 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (a fresh flash's half-width over the round's drawn radius) |
 | C.TRC.MUZZLE_EMISSIVE | 2.0 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (flash strength, times Pal.Enemy.Muzzle) |
 | C.TRC.MUZZLE_OPACITY | 0.8 | ratio | GATED(S4) | tracer_art.md R-TRC-07, T-TRC-07 (flash opacity at the muzzle) |
+
+## Impact art (02_Systems/impact_art.md)
+
+S4 wave 1 package E (D-043): presentation only, no reader in the sim.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.IMP.DEBRIS_Z_UU | 1.4 | uu | GATED(S4) | impact_art.md R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py (height of debris) |
+| C.IMP.FLASH_Z_UU | 1.45 | uu | GATED(S4) | impact_art.md R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py (height of sparks, flashes and the hero ring) |
+| C.IMP.SPARK_S | 0.10 | s | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark life) |
+| C.IMP.SPARK_LENGTH_UU | 70 | uu | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark length) |
+| C.IMP.SPARK_WIDTH_UU | 44 | uu | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark width) |
+| C.IMP.SPARK_STREAK_RATIO | 0.3 | ratio | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (streak width at the root, over the spark's width) |
+| C.IMP.SPARK_START_RATIO | 0.4 | ratio | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark size at birth) |
+| C.IMP.SPARK_EMISSIVE | 3.0 | ratio | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark strength at birth) |
+| C.IMP.SPARKS_PER_STEP_MAX | 32 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (sparks raised in a step in `PerKill`) |
+| C.IMP.SPARKS_DENSE_PER_STEP_MAX | 12 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (sparks raised in a step in `Crowd`) |
+| C.IMP.SPARK_LIVE_MAX | 192 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (live sparks) |
+| C.IMP.KILL_FLASH_S | 0.12 | s | GATED(S4) | impact_art.md R-IMP-06, T-IMP-06 (kill flash life) |
+| C.IMP.KILL_FLASH_START_RATIO | 0.8 | ratio | GATED(S4) | impact_art.md R-IMP-06, T-IMP-06 (kill flash radius at birth, drawn radii) |
+| C.IMP.KILL_FLASH_END_RATIO | 1.7 | ratio | GATED(S4) | impact_art.md R-IMP-06, T-IMP-06 (kill flash radius at its end, drawn radii) |
+| C.IMP.KILL_FLASH_EMISSIVE | 2.5 | ratio | GATED(S4) | impact_art.md R-IMP-06, T-IMP-06 (kill flash strength at birth) |
+| C.IMP.FLASH_RADIUS_MAX_UU | 260 | uu | GATED(S4) | impact_art.md R-IMP-06, R-IMP-08, T-IMP-06 (widest flash) |
+| C.IMP.FLASH_LIVE_MAX | 72 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (live flashes) |
+| C.IMP.AGG_CELL_UU | 400 | uu | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (aggregation cell) |
+| C.IMP.AGG_PER_STEP_MAX | 6 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (aggregated flashes raised in a step) |
+| C.IMP.DENSITY_CROWD_OFF_KILLS_PER_S | 16 | /s | GATED(S4) | impact_art.md R-IMP-08, R-IMP-11, T-IMP-08 (rate under which `Crowd` is left) |
+| C.IMP.DENSITY_FLOOD_KILLS_PER_S | 60 | /s | GATED(S4) | impact_art.md R-IMP-08, R-IMP-11, T-IMP-08 (rate above which `Flood` is entered) |
+| C.IMP.DENSITY_FLOOD_OFF_KILLS_PER_S | 50 | /s | GATED(S4) | impact_art.md R-IMP-08, R-IMP-11, T-IMP-08 (rate under which `Flood` is left) |
+| C.IMP.AGG_FLOOD_CELL_UU | 800 | uu | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (aggregation cell in `Flood`) |
+| C.IMP.AGG_FLOOD_PER_STEP_MAX | 2 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (aggregated flashes raised in a step in `Flood`) |
+| C.IMP.DEBRIS_S | 0.45 | s | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (debris life) |
+| C.IMP.DEBRIS_SIZE_UU | 28 | uu | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07, Tools/blender/debris.py (debris piece size) |
+| C.IMP.DEBRIS_RADIUS_PER_PIECE_UU | 11 | uu | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (drawn radius per piece) |
+| C.IMP.DEBRIS_PIECES_MIN | 3 | n | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (fewest pieces) |
+| C.IMP.DEBRIS_PIECES_MAX | 8 | n | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (most pieces) |
+| C.IMP.DEBRIS_SPEED_UU_S | 520 | uu/s | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (debris speed at birth) |
+| C.IMP.DEBRIS_SPEED_VARIATION | 0.4 | ratio | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (debris speed variation) |
+| C.IMP.DEBRIS_DRAG_S | 0.15 | s | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (debris slow-down time constant) |
+| C.IMP.DEBRIS_SPREAD_DEG | 70 | deg | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (debris spread to either side) |
+| C.IMP.DEBRIS_SHRINK_SHARE | 0.4 | ratio | GATED(S4) | impact_art.md R-IMP-07, T-IMP-07 (share of life a piece shrinks over) |
+| C.IMP.DEBRIS_LIVE_MAX | 160 | n | GATED(S4) | impact_art.md R-IMP-08, T-IMP-08 (live debris pieces) |
+| C.IMP.HERO_FLASH_S | 0.25 | s | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (hero ring life) |
+| C.IMP.HERO_FLASH_START_RATIO | 2.0 | ratio | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (hero ring radius at birth, hero radii) |
+| C.IMP.HERO_FLASH_END_RATIO | 3.0 | ratio | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (hero ring radius at its end, hero radii) |
+| C.IMP.HERO_FLASH_THICK_UU | 24 | uu | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (hero ring thickness) |
+| C.IMP.HERO_FLASH_EMISSIVE | 2.5 | ratio | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (hero ring strength at birth) |
+| C.IMP.REDUCED_EMISSIVE_RATIO | 0.4 | ratio | GATED(S4) | impact_art.md R-IMP-09, T-IMP-09 (strength with Screen flashes off) |
 
 ## Arena and measurement
 
