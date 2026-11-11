@@ -66,6 +66,7 @@
 - O-011 (two runs of the owner's own, talking aloud)
 - O-012 (the PC's CPU; tier hardware before S4 exits)
 - O-009 (name the AI service behind the RogueHero hero model and its terms)
+- O-016 (listen to the first ten sounds: about three minutes; the files are in the scheduler's `Saved\Scheduler\audio_ui`)
 - O-014 (danger on a mid-tone floor: a two-tone floor, or a hot core line in the telegraph)
 - O-013 (decided for you: a digest to read; nothing waits on it)
 ## Held items, each with a place to go (D-051 item 5; evidence read on 2026-11-11)

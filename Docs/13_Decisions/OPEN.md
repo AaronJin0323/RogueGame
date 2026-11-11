@@ -1,6 +1,6 @@
 # OPEN — for the owner (D-009: the scheduler decides everything else; D-051: what it decided in your classes is listed last)
 
-Nothing here blocks the agents. The first four items are things only a person can do. The fifth needs your eyes. The last is a list to read.
+Nothing here blocks the agents. The first five items are things only a person can do. The sixth needs your eyes. The last is a list to read.
 
 ## O-008 — Three people, two sittings  [GO-NOGO, human-only]
 - **Context:** the S1 exit is read in two sessions (D-048): session A reads the people and calibrates, a gate decision sets the pressure bands, session B confirms them. Each is three people who are not you, two runs each, about 40 minutes a person; at least one on a gamepad and one in Chinese. The same three can come back for B, and later for S2 and S3 on fresh saves (D-049). This has been the only thing between the game and its first exit since 2026-10-30.
@@ -23,6 +23,12 @@ Nothing here blocks the agents. The first four items are things only a person ca
 - **Context:** RogueHero's Reclaimer model came from an AI generation service, and this repository is public.
 - **Ask:** name the service and whether its terms allow redistribution in a public repo and a shipped game.
 - **Default if unanswered:** no AI-sourced mesh, texture or input enters the repo; the hero model is built in Blender from scratch. Nothing waits on this.
+
+## O-016 — Listen to the first ten sounds  [human-only]
+- **Context:** the game has its first sounds: ten for the interface (the cursor moving, a value changing, a screen opening and closing, a refusal, a hand of cards opening, a card taken, the three card tools). Every one is made by a script in the repo (D-056). The agents that made them cannot hear, so no one has heard them. Nothing plays in the game yet; these are files.
+- **Ask:** about three minutes. Play `00_all_ten_in_a_row.wav`, then any single file, at the volume you use for other programs; headphones once, laptop speakers once if you can. The files and a one-page guide are in `Saved\Scheduler\audio_ui` of the scheduler's worktree (the scheduler sent you the first two). Say: is any of them unpleasant or tiring when repeated; can you tell them apart with your eyes shut; is the level right; does the refusal sound like no and the pick like yes.
+- **Why now:** seventy-six more sounds follow the same method. If these ten are wrong in character, it is cheapest to hear that today.
+- **Default if unanswered:** the Sound session goes on by its numbers (level, spectrum, how far apart two sounds are), and you are asked again when sounds play in the game.
 
 ## O-014 — Danger on a mid-tone floor  [RULE, needs your eyes]
 - **Context:** the telegraph and the enemy round are each built from a bright part and a dark part, and today all seven readable elements clear 3:1 only where the floor is very dark (luminance at most 0.037) or in a lit band (0.106 to 0.16). On any mid-tone both parts of the telegraph fail (`Validation/plans_audit.md` 5.10). The grey-box floor has only those two tones, so the gate passes; real ground will not.
