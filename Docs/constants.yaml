@@ -521,3 +521,53 @@ enemy_art:
   EAR.LINEUP_SPACING_UU:         { value: 320, unit: uu, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
   EAR.LINEUP_ROWS:               { value: 3, unit: n, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
   EAR.FRAME_MASK_TOLERANCE:      { value: 0.06, unit: ratio, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Tools/enemy_art_check.py] }
+audio:
+  # S4 audio wave 1 (D-056, 02_Systems/audio.md): presentation only, no reader in the sim.
+  AUD.SAMPLE_RATE_HZ:            { value: 48000, unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/dtsynth.py] }
+  AUD.DANGER_BAND_HZ:            { value: [2000, 5000], unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_metrics.py] }
+  AUD.LOW_ZONE_HZ:               { value: [40, 300], unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.AIR_LINE_HZ:               { value: 6300, unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_metrics.py] }
+  AUD.SMALL_SPEAKER_HZ:          { value: 150, unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_metrics.py] }
+  AUD.PLAYER_BAND_SHARE_MAX_DB:  { value: -30, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.WARN_BAND_SHARE_MIN_DB:    { value: -3, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.AIR_SHARE_MAX_DB:          { value: -30, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.PLAYER_ATTACK_MIN_MS:      { value: 4, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.SPIKE_MAX_DB:              { value: 3, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.WARN_ATTACK_MAX_MS:        { value: 3, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.LEAD_MAX_MS:               { value: 2, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
+  AUD.PEAK_MAX_DBFS:             { value: -1, unit: dBFS, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
+  AUD.DC_MAX:                    { value: 0.002, unit: ratio, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
+  AUD.SMALL_SPEAKER_LOSS_MAX_DB: { value: 6, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
+  AUD.PAIR_DISTANCE_MIN_DB:      { value: 6, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-17, T-AUD-17, Tools/audio/audio_check.py] }
+  AUD.MASK_SPREAD_DB:            { value: 5, unit: dB_per_band, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18, Tools/audio/audio_metrics.py] }
+  AUD.MASK_WINDOW_MS:            { value: 100, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18, Tools/audio/audio_metrics.py] }
+  AUD.DANGER_SMR_MIN_DB:         { value: 12, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18] }
+  AUD.HEARTBEAT_SMR_MIN_DB:      { value: 9, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18] }
+  AUD.WARN_OVER_MIX_MIN_DB:      { value: 6, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18] }
+  AUD.MIX_CREST_MAX_DB:          { value: 14, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18] }
+  AUD.DENSITY_RISE_MAX_DB:       { value: 6, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-18, T-AUD-18] }
+  AUD.LIMIT_DBFS:                { value: -1, unit: dBFS, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-04, R-AUD-18, T-AUD-18] }
+  AUD.VOICES_MAX:                { value: 32, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
+  AUD.VOICES_DANGER:             { value: 6, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-05, R-AUD-07, T-AUD-05] }
+  AUD.VOICES_UI:                 { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
+  AUD.PLAYER_STARTS_PER_S_MAX:   { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
+  AUD.STARTS_PER_FRAME_MAX:      { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, R-AUD-21, T-AUD-07] }
+  AUD.FIRE_DENSE_SHOTS_PER_S:    { value: 8, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
+  AUD.FIRE_DENSE_VOICES_PER_S:   { value: 6, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
+  AUD.AGGREGATE_MAX:             { value: 1.6, unit: ratio, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-06, T-AUD-06] }
+  AUD.SCAN_MAX:                  { value: 64, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-02, T-AUD-02] }
+  AUD.CROWD_OFF_KILLS_PER_S:     { value: 16, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
+  AUD.LOWEND_ON_KILLS_PER_S:     { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
+  AUD.LOWEND_OFF_KILLS_PER_S:    { value: 50, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
+  AUD.LAYER_FADE_PER_S:          { value: 3, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
+  AUD.KILL_DENSE_VOICES_PER_S:   { value: 8, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
+  AUD.GRID_STEPS:                { value: 3, unit: steps, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-09, T-AUD-09] }
+  AUD.WARN_MIN_INTERVAL_MS:      { value: 120, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-06, T-AUD-06] }
+  AUD.DUCK_DB:                   { value: -6, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-05, T-AUD-05] }
+  AUD.DUCK_ATTACK_MS:            { value: 20, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-05, T-AUD-05] }
+  AUD.DUCK_RELEASE_MS:           { value: 250, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-05, T-AUD-05] }
+  AUD.LOWHP_LOWEND_DUCK_DB:      { value: -12, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-05, T-AUD-05] }
+  AUD.STINGER_GAP_S:             { value: 0.45, unit: s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-11, T-AUD-11] }
+  AUD.STINGER_EXPIRY_S:          { value: 1.5, unit: s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-11, T-AUD-11] }
+  AUD.GAME_THREAD_MS_MAX:        { value: 0.05, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-21, T-AUD-21] }
+  AUD.FRAME_MS_WATCH:            { value: 0.2, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-21, T-AUD-21] }
