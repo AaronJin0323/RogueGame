@@ -12,7 +12,6 @@ param(
 )
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
-$DTHeavy = Enter-DTHeavy -What "Gate"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 
 # Any script error is a gate failure, never a silent exit 0.
 trap { Write-Host "GATE: FAIL (script error: $_; mask $DTMask)"; exit 1 }
@@ -29,6 +28,14 @@ function Fail([string]$Step) { Write-Host "GATE: FAIL at $Step ($Head; mask $DTM
 function NotRun([string]$Step, [string]$Why) { Report $Step "NOT RUN ($Why)"; $script:NotRun++ }
 function Show($Lines, [string]$Pattern) { $Lines | Select-String -Pattern $Pattern | Select-Object -First 12 | ForEach-Object { "    " + $_.Line } }
 function Skipped([string]$Step) { if ($Skip -contains $Step) { NotRun $Step "skipped by -Skip"; return $true }; return $false }
+# D-055 item 7, R-TEC-18: every step below that is guarded by Start-HeavyStep starts a compiler, the engine, a commandlet or a package; the text steps
+# (Invoke-PyStep) start none. The run takes its one heavy-job slot right before the first heavy step that is not skipped, so a text-only run never
+# waits for a slot or for the alone hold; the steps' own scripts inherit the slot and take no second one.
+function Start-HeavyStep([string]$Step) {
+	if (Skipped $Step) { return $false }
+	if (-not $script:DTHeavy) { $script:DTHeavy = Enter-DTHeavy -What "Gate" }
+	return $true
+}
 
 function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string[]]$ScriptArgs = @()) {
 	if (Skipped $Step) { return }
@@ -63,13 +70,13 @@ Invoke-PyStep "loc" "Tools\loc_build.py" "LOC" @("--check")
 Invoke-PyStep "tools" "Tools\tools_test.py" "TOOLS"
 
 # --- C++ ---------------------------------------------------------------------------------------------------------
-if (-not (Skipped "build")) {
+if (Start-HeavyStep "build") {
 	$R = Ubt "build" "DusktracerEditor" "Development"
 	Report "build" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "build" }
 }
 
-if (-not (Skipped "locbuild")) {
+if (Start-HeavyStep "locbuild") {
 	# Generated text (Content/DT/Text/Generated, .locres) is git-ignored: rebuild it here so tests and smoke never read stale
 	# or missing tables in a fresh checkout or after a merge (R-TEC-08).
 	$Out = & cmd /c "`"$Root\Tools\Localize.bat`" 2>&1"
@@ -79,7 +86,7 @@ if (-not (Skipped "locbuild")) {
 	if ($Rc -ne 0) { Show $Out "^(LOCALIZE|Error)"; Fail "locbuild" }
 }
 
-if (-not (Skipped "nonunity")) {
+if (Start-HeavyStep "nonunity") {
 	# Every .cpp must compile alone (R-TEC-09): UBT -SingleFile per changed file (plus the .cpp of each changed .h).
 	if ($AllFiles) {
 		$Files = @(Get-ChildItem (Join-Path $Root "Source") -Recurse -Filter *.cpp | ForEach-Object { $_.FullName })
@@ -105,20 +112,20 @@ if (-not (Skipped "nonunity")) {
 	if ($Bad.Count -gt 0) { $Bad | ForEach-Object { "    " + $_.Substring($Root.Length + 1) }; Fail "nonunity" }
 }
 
-if (-not (Skipped "shipping")) {
+if (Start-HeavyStep "shipping") {
 	$R = Ubt "shipping" "Dusktracer" "Shipping"
 	Report "shipping" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "shipping" }
 }
 
-if (-not (Skipped "devgame")) {
+if (Start-HeavyStep "devgame") {
 	# The Development game target: an editor-only API inside WITH_DEV_AUTOMATION_TESTS compiles in the editor target and is compiled out of Shipping,
 	# so only this target sees it (the owner's scheduler brief of 2026-11-11).
 	$R = Ubt "devgame" "Dusktracer" "Development"
 	Report "devgame" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "devgame" }
 }
-if (-not (Skipped "tests")) {
+if (Start-HeavyStep "tests") {
 	$Floor = [int]((Select-String -Path (Join-Path $Root "Docs\constants.yaml") -Pattern "GATE\.TEST_FLOOR:\s*\{\s*value:\s*(\d+)").Matches[0].Groups[1].Value)
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\RunTests.ps1") -Log (Join-Path $LogDir "Gate_tests.log") -Floor $Floor 2>&1
 	$Rc = $LASTEXITCODE
@@ -127,7 +134,7 @@ if (-not (Skipped "tests")) {
 }
 
 # --- not built yet -------------------------------------------------------------------------------------------------
-if (-not (Skipped "smoke")) {
+if (Start-HeavyStep "smoke") {
 	foreach ($Culture in @("en", "zh-Hans")) {
 		$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Culture $Culture 2>&1
 		$Rc = $LASTEXITCODE
@@ -142,7 +149,7 @@ if (-not (Skipped "smoke")) {
 	Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 }
-if (-not (Skipped "seed")) {
+if (Start-HeavyStep "seed") {
 	# 07_Technical R-TEC-16: every launcher started as written, off-screen, reads back a fresh seed; tools and explicit seeds stay exact.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\SeedCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -150,7 +157,7 @@ if (-not (Skipped "seed")) {
 	Report "seed" ((($Out | Select-String "^SEEDCHECK:" | Select-Object -Last 1).Line) -replace "^SEEDCHECK:\s*", "")
 	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "seed" }
 }
-if (-not (Skipped "contrast")) {
+if (Start-HeavyStep "contrast") {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.
 	$Scene = "DT.God 1,DT.Dir.Time 700,DT.Gems.Drop 30 4 700,DT.Spawn.Role Swarm 6 elite,DT.Spawn.Role Turret 18,DT.Spawn.Role Rusher 8,DT.Bullets 800"
 	$Out = & (Join-Path $Root "Tools\Smoke.ps1") -Name contrast -Director -Contrast -Seconds 12 -Cmds $Scene *>&1
@@ -166,7 +173,7 @@ if (-not (Skipped "contrast")) {
 	Report "contrast" (($Out | Select-String "CONTRAST:" | Select-Object -Last 1).Line.Trim() -replace "^.*CONTRAST:", "CONTRAST:" -replace "\)\)$", ")")
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL|not found"; Fail "contrast" }
 }
-if (-not (Skipped "windows")) {
+if (Start-HeavyStep "windows") {
 	# The no-window rule (AGENTS.md): a bot, a smoke and a test run show nothing on this desktop; Tools\WindowCheck.ps1 holds its controls and its detection limit.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\WindowCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -174,7 +181,7 @@ if (-not (Skipped "windows")) {
 	Report "windows" ((($Out | Select-String "^WINDOWS:" | Select-Object -Last 1).Line) -replace "^WINDOWS:\s*", "")
 	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "windows" }
 }
-if (-not (Skipped "pad")) {
+if (Start-HeavyStep "pad") {
 	# package.md R-PKG-08/09: judges a clean, current package off-screen; a real pad needs a human, so this reads NOT RUN until a run shows one.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\PadCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
