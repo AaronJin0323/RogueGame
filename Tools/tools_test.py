@@ -2149,7 +2149,8 @@ class HeavyLocks(unittest.TestCase):
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
 		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
-			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1"):
+			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1",
+			"EnemyArt.ps1", os.path.join("blender", "Mesh.ps1")):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
@@ -2160,6 +2161,10 @@ class HeavyLocks(unittest.TestCase):
 		self.assertLess(machine.index("$null = Enter-DTHeavy -What (Split-Path -Leaf $Run.File)"), machine.index("& $Run.File @RunArgs"))
 		with open(os.path.join(TOOLS, "Play.bat"), encoding="utf-8") as f:
 			self.assertNotIn("Machine.ps1", f.read())
+		# The batch entries of dev/s4 take their slot in Machine.ps1 -DTRunFile, as Build.bat does.
+		for name in ("EditorPython.bat", os.path.join("blender", "CookMesh.bat")):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
 class GateMain(unittest.TestCase):
