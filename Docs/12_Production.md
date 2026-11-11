@@ -5,6 +5,7 @@
 ## 1. Roles
 - **Owner (human):** decides in `13_Decisions/OPEN.md`; plays every feel-changing build; books validators.
 - **Scheduler (agent):** keeps `STATE.md`, writes briefs, merges through `Tools/Gate.ps1`, runs the weekly dashboard.
+- **Module sessions (agents, D-055):** Mechanics, Visual and Sound. Each plans, designs and reviews its own module, sends out its own implementers and hands gated job branches to the scheduler, who alone merges. One heavy job at a time per session; none while the scheduler holds the machine for an alone reading.
 - **Implementers / reviewers (agents):** work from a brief (`Harness/templates/brief.md`) and `AGENTS.md`.
 - **Validators:** ≥ 3 non-owner humans per session (≥ 1 gamepad, ≥ 1 zh-Hans). The same three may return for later sessions and later stages; a stage that asks for fresh players means fresh saves (D-049).
 
