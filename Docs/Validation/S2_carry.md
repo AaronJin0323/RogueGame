@@ -76,3 +76,17 @@ Every other step passed: secrets, docs (0 errors, 7 warnings), constants, catalo
 
 ## Not resolved by the rules
 - `07_Technical.md` keeps `main`'s line "`Settings/` arrives with `dev/s2`": left as it is, nothing contradicts it in `Content/DT/`.
+
+## Second carry: `main` 7f75ada into `dev/s2` 432bedd (`carry2/s2`)
+`main` gained the telemetry marks (`hero_damaged` carries `arrival` and `charging`, `run_start` carries `bot_fast`; T-TEL-14, T-TEL-15) and the scheduler's records.
+- Conflicts: `Docs/13_Decisions`, `STATE.md`, `AGENTS.md` take `main`'s side whole (`git diff 7f75ada -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty). `DTEnemyPool.h`/`.cpp`: `main`'s telemetry-only `ContactStep` beside `dev/s2`'s enemy-time `StepRoles(Dt, LeadDt, ...)`, `StepElites`, `StepBlasts` and `PublishTelegraphs(Out, Heroes)`. `number_change_log.csv`: every row of both sides. `08_Constants.md`, `constants.yaml` and the generated header: the floor only, set after.
+- `dev/s2`'s other hero-hit writers, the Volatile blast and the Vampiric drain (`DTEnemyPool.cpp`), write `arrival` and `charging` false by `FDTHeroHit`'s defaults; no logic added. No `dev/s2` reader or test pins a whole `hero_damaged` or `run_start` line.
+- Ids: T-TEL-14 and T-TEL-15 collide with nothing.
+- Counts: 478 tests found, 478 pass; `C.GATE.TEST_FLOOR` 476 to 478; `tools_test.py` 147.
+- Seed 9107, five arms: `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848` before (read on b246064, whose code 432bedd holds unchanged) and after (99dc843): unchanged. RestartCheck `276faf8e` in the gate.
+
+```
+tests:      478 run of 478 found, 0 failed, floor 478, 0 crash marker(s)
+GATE: PASS (99dc843; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure.

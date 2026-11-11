@@ -361,7 +361,7 @@ void FDTTelemetryCore::RecordHeroDamaged(int32 Owner, const FDTHeroHit& Hit, flo
 	FDTTelJson Record(JsonHead(TEXT("hero_damaged"), Owner));
 	Record.Num(TEXT("amount"), Amount).Num(TEXT("hp_after"), HpAfter)
 		.Num(TEXT("max_hp"), MaxHp).Str(TEXT("hit_kind"), DTTelNames::HeroHitKind(Hit.Kind)).Str(TEXT("role"), DTTelNames::EnemyRole(Hit.SourceRole))
-		.Name(TEXT("attack"), Hit.AttackId).Int(TEXT("hero_x"), FMath::RoundToInt32(HeroPos.X)).Int(TEXT("hero_y"), FMath::RoundToInt32(HeroPos.Y))
+		.Name(TEXT("attack"), Hit.AttackId).Bool(TEXT("arrival"), Hit.bArrival).Bool(TEXT("charging"), Hit.bCharging).Int(TEXT("hero_x"), FMath::RoundToInt32(HeroPos.X)).Int(TEXT("hero_y"), FMath::RoundToInt32(HeroPos.Y))
 		.Int(TEXT("src_x"), FMath::RoundToInt32(Hit.Position.X)).Int(TEXT("src_y"), FMath::RoundToInt32(Hit.Position.Y));
 	if (Hit.Kind == EDTHeroHitKind::Bullet)
 	{

@@ -19,11 +19,15 @@ window. Kill time needs both files: the CSV holds the cells, the JSONL says the 
 One line per run and player:
   PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
+  SOURCES: <run> p<n> rusher hits, whole run: arrival charging <a> not charging <b>; other charging <c> not charging <d>;
+                                                     killed drop-in band <e>[; unmarked contact <x> charge <y>]
+                                                     (hero_damaged.arrival and .charging, D-045; then one such line per bot arm and one overall)
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
                                                      back, never taken off the damage reading; printed only when one exists)
   SLOW: <run> share <s> (<d> dropped of <n> steps)  (D-054, 10_Tuning section 2: run_end wall_dropped_steps over the steps run plus them;
-                                                     people's sessions only: a bot arm's run reads "not read", never zero; no threshold)
+                                                     people's sessions only: a run with run_start.bot_fast above zero reads "not read", never zero;
+                                                     a file with no bot_fast is told by its folder and says so; no threshold)
 
 With --check, the statistic: the median of the per-run values over the runs that count, per group. A group is a bot arm (a
 run folder's label, <arm>_s<seed>, Tools/BotRuns.ps1), judged on its own because a pooled figure hides builds that miss in
@@ -167,6 +171,54 @@ def sources_from_jsonl(path, lo, hi, owner=0):
 			out[key] = out.get(key, 0.0) + max(0.0, float(fields.get("amount", 0.0))) / max_hp
 	return out
 
+
+RUSHER_PARTS = (("arrival", "charging"), ("arrival", "not charging"), ("other", "charging"), ("other", "not charging"))
+
+
+def rusher_hits_from_jsonl(path, owner=0):
+	"""{part: count} of `owner`'s Rusher hits over the whole run (D-045: drop-ins start at 270 s, before the band window).
+	A part is ("band",) for the band of a drop-in killed in its wind-up (hit kind Charge), (mark, charging) for a body's hit (hit
+	kind Contact, a live charge included): mark "arrival" or "other" from hero_damaged.arrival, charging "charging" or "not
+	charging" from hero_damaged.charging; ("unmarked", <hit kind>) for a file from before the two fields."""
+	out = {}
+	with open(path, encoding="utf-8") as f:
+		for line in f:
+			if '"hero_damaged"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=lambda pairs: [*pairs])
+			except ValueError:
+				continue
+			fields = {}
+			for key, value in rec:
+				if key == "kind":
+					fields.setdefault("legacy_hit_kind", value) if "kind" in fields else fields.setdefault("kind", value)
+				else:
+					fields[key] = value
+			if fields.get("owner", -1) != owner or fields.get("role") != "Rusher":
+				continue
+			hit_kind = hero_hit_kind(fields)
+			if hit_kind not in ("Charge", "Contact"):
+				continue
+			if "arrival" not in fields or "charging" not in fields:
+				part = ("unmarked", hit_kind)
+			elif hit_kind == "Charge":
+				part = ("band",)
+			else:
+				part = ("arrival" if fields["arrival"] else "other", "charging" if fields["charging"] else "not charging")
+			out[part] = out.get(part, 0) + 1
+	return out
+
+
+def arrivals_detail(counts):
+	"""One reading of Rusher hits, five ways: arrival or not by charging or not, and the killed drop-in's band; old files apart."""
+	parts = []
+	for mark in ("arrival", "other"):
+		parts.append(f"{mark} " + " ".join(f"{c} {counts.get((mark, c), 0)}" for m, c in RUSHER_PARTS if m == mark))
+	parts.append(f"killed drop-in band {counts.get(('band',), 0)}")
+	if any(p[0] == "unmarked" for p in counts):
+		parts.append("unmarked " + " ".join(f"{k.lower()} {counts.get(('unmarked', k), 0)}" for k in ("Contact", "Charge")))
+	return "; ".join(parts)
 
 def restores_from_jsonl(path, lo, hi, owner=0):
 	"""{source: (restores, HP restored as a share of max HP)} of `owner` with lo <= t < hi, from `hero_healed` (D-046).
@@ -374,17 +426,41 @@ def slow_counts(jsonl_path):
 	return found
 
 
+def bot_fast(jsonl_path):
+	"""run_start.bot_fast (R-TEL-08): the steps per frame of a bot's -DTBotFast run, 0 for a person's run; None for a run file
+	from before the field."""
+	with open(jsonl_path, encoding="utf-8") as f:
+		for line in f:
+			if '"run_start"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=first_wins)
+			except ValueError:
+				continue
+			if rec.get("kind") == "run_start":
+				return int(rec["bot_fast"]) if "bot_fast" in rec else None
+	return None
+
+
 def slow_line(name, jsonl_path):
 	"""D-054: the slow share is wall_dropped_steps over the steps run plus wall_dropped_steps, beside the count. It is read on people's
-	sessions only: a bot arm's run steps past the clock at -DTBotFast, so it prints as not read, never as zero. No threshold, no verdict."""
+	sessions only: a run whose run_start.bot_fast is above zero steps past the clock, so it prints as not read, never as zero. A run file
+	with no bot_fast is told by its folder (a bot arm's, Tools/BotRuns.ps1, or a session's) and says so. No threshold, no verdict."""
 	counts = slow_counts(jsonl_path) if jsonl_path else None
 	if counts is None:
 		return f"SLOW: {name} not read (no wall_dropped_steps in run_end)"
 	dropped, steps = counts
+	fast = bot_fast(jsonl_path)
+	if fast is not None:
+		if fast > 0:
+			return f"SLOW: {name} not read (bot at -DTBotFast={fast}; {dropped} dropped steps)"
+		share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
+		return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
+	note = "no bot_fast in run_start, told by its folder"
 	if arm_of(name) != SESSION:
-		return f"SLOW: {name} not read (bot arm {arm_of(name)} at -DTBotFast; {dropped} dropped steps)"
+		return f"SLOW: {name} not read (bot arm {arm_of(name)} at -DTBotFast; {dropped} dropped steps; {note})"
 	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
-	return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
+	return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps; {note})"
 
 
 def parse_args(argv):
@@ -422,6 +498,7 @@ def main(argv):
 			print(f"{check}: NOT READ (no run)")
 		return 1 if checks else 0
 	readings = []
+	arrival_totals = {}
 	for name, jsonl, csv_path in runs:
 		rates, source = window_rates(jsonl, csv_path, consts)
 		ttks = swarm_ttk(csv_path, jsonl, (lo, hi))
@@ -437,6 +514,13 @@ def main(argv):
 					src = sources_from_jsonl(jsonl, lo, hi, owner)
 					detail = " ".join(f"{k} {v / alive:.3f}/min" for k, v in sorted(src.items(), key=lambda kv: -kv[1]))
 					print(f"SOURCES: {name} p{owner} {detail or 'none'}")
+			if jsonl:
+				hits = rusher_hits_from_jsonl(jsonl, owner)
+				print(f"SOURCES: {name} p{owner} rusher hits, whole run: {arrivals_detail(hits)}")
+				for group in (arm_of(name), "overall"):
+					bucket = arrival_totals.setdefault(group, {})
+					for key, n in hits.items():
+						bucket[key] = bucket.get(key, 0) + n
 		for owner, (ttk, n) in sorted(ttks.items()):
 			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
 		print(slow_line(name, jsonl))
@@ -448,6 +532,8 @@ def main(argv):
 					detail = " ".join(f"{source} {n} for {share:.3f} of max HP (in window {inside.get(source, (0, 0.0))[0]}, {inside.get(source, (0, 0.0))[1]:.3f})"
 						for source, (n, share) in sorted(whole.items()))
 					print(f"RESTORES: {name} p{owner} {detail}")
+	for group in sorted(g for g in arrival_totals if g != "overall") + (["overall"] if "overall" in arrival_totals else []):
+		print(f"SOURCES: {group} rusher hits, whole run: {arrivals_detail(arrival_totals[group])}")
 	if checks:
 		lines, verdicts = judge(readings, validators, dmg_band, dash_band, ttk_max, (lo, hi), checks)
 		print("\n".join(lines))

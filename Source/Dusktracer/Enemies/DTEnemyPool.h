@@ -58,6 +58,7 @@ struct FDTEnemyAux
 	bool bFacingSet = false;   // false until the first step (or a test) sets the facing
 	bool bArrivalAttack = false; // a drop-in Rusher starts its wind-up on its first step and charges through its hero (D-045)
 	int64 LastFireStep = -1;   // aim-token order (R-ENM-18); never fired = -1, arrivals first
+	int64 LastChargeStep = MIN_int64; // telemetry only: the last step a Rusher moved under its charge (hero_damaged.charging)
 
 	// Statuses (R-ENM-21, R-ENM-22).
 	float ShockLeft = 0.0f;
@@ -313,6 +314,8 @@ private:
 	void AssignTokens(TConstArrayView<FVector2f> Heroes, bool bThreatBlock);
 	/** Dt is enemy time, LeadDt sim time (keepers.md R-KEE-37); the same outside a Time Dilation. */
 	void StepRoles(float Dt, float LeadDt, int64 StepIndex, TConstArrayView<FVector2f> Heroes);
+	/** Telemetry only: the step of the StepEnemies in progress, read by AppendContacts against FDTEnemyAux::LastChargeStep. */
+	int64 ContactStep = MIN_int64;
 	void PublishTelegraphs(TArray<FDTTelegraph>& Out, TConstArrayView<FVector2f> Heroes) const;
 	void FireVolley(const FVector2f& From, const FVector2f& Aim, EDTFirePattern InPattern, bool bClose, int32 Volley,
 		int32 Target, float InDmgScale, uint32 InSerial);
