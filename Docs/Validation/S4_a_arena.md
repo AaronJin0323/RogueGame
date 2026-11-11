@@ -81,6 +81,8 @@ Goldens re-baselined: `arena_empty_en`, `arena_empty_zh-Hans` (the frame moved 0
 
 ## 6. Perf
 
+> Replaced by `S4_perf_1080p.md` (2026-11-11): the readings below rendered 888x500 while recording 1920x1080, most on a busy machine; that note holds the reading of record at the real size, alone.
+
 `Tools\Perf.ps1`, 1920x1080, RTX 4080, proxy x1.6. Every reading was taken while other agents built and ran their own games on the same GPU: one to four other editor or game processes at each start, CPU 16 to 80 percent. So "before" was read in the same sessions, on the same build with the map of 55a504c checked out, alternated with "after" run by run. A reading whose GPU p95 is several times its p50 is another process's frames, not this scene's; the median says more here than the p95, and both are given. All are bounds.
 
 | Scene | Map | Runs | Game thread p50 / p95 ms | GPU p50 ms | GPU p95 ms | Proxied GPU p95 ms |
