@@ -205,3 +205,13 @@ What the agent saw (`Saved\S4Report\E2\`, each crop beside its first-pass crop):
 The perf of record is the scheduler's (§3); this pass adds no work per frame (the same instance writes, one more parameter set once at start).
 
 The whole gate run on 4f3fd5e (the first pass merged with `dev/s4` a23a931) read `GATE: PASS (4f3fd5e; 3 not run; mask FFFFF3FC)`, 581 tests of 581. It is information only: `dev/s4` then moved with engine code, and the gate of record is the one on the second pass, merged.
+
+## 9. The gate of record
+
+On 9781b94 (the second pass merged with `dev/s4` a155ace), `Tools\Gate.ps1 -Base dev/s4`, whole: `GATE: PASS (9781b94; 3 not run; mask FFFFF3FC)`. The three not run are `pad` (no package), `scope` (no brief in flight) and `mac` (D-007).
+- `tests`: 581 run of 581 found, 0 failed, floor 581.
+- `restart`: seed 9107, `input_hash` 276faf8e / 276faf8e, steps 5400 / 5400, csv same. `meta`: `input_hash` ba2a3ac8 / ba2a3ac8, steps 1200 / 1200, csv same.
+- `contrast`: 7/7 on `contrast`, 7/7 on `impact_dense`, 2/2 on `tracer_crossing`; `WATCH: OK` on each (telegraph 3.29, 3.30, 3.32; enemy round 3.21, 3.21, 3.27).
+- `audio`: `AUDIO: PASS` (no sound yet; the step's tool tests pass).
+- Build, shipping and devgame: 0 warnings; nonunity 6 files, 0 failed.
+- Goldens' mean differences against their goldens (smoke step): arena_empty 0.35 and 0.33, combat_staged 0.43 (en) and 0.53 (zh-Hans), edge_corner 0.30 and 0.29, edge_corner_wide 0.27, enemy_lineup 0.30, hero_lineup 0.32, hud_boss 0.30, hud_staged 0.33 and 0.36, tracer_weapons 0.38; this package's impact_hit 0.34 and impact_kill 0.31.
