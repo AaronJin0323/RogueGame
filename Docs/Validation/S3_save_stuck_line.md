@@ -2,7 +2,7 @@
 
 Branch `s3/save-stuck-line`, from `dev/s3` at `81c638e`. Class BUG, layer the hub's root and the save's notice. It replaces nothing: two lines join the two `vigil.md` R-VIG-21 already had.
 
-Build: not built yet. Phase 1 holds the rules, the rows and the code, none of it compiled; the build and the gate (phase 2) fill in this note's last section.
+Build: `2129edf` (the branch with `dev/s3` at `0ed7439` merged in), gated with `-Base dev/s3`: `GATE: PASS (2129edf; 3 not run; mask FFFFF3FC)`. The commit after it changes this note only.
 
 ## The defect
 `meta.md` R-MET-12 has two cases where a session is stuck: the save cannot be read at all, or it is bad and the move aside fails. The session plays on an empty profile and writes nothing, and until now the hub said nothing of it. Shipping has no log, so a player played a whole launch that kept nothing and was told nowhere.
@@ -41,4 +41,8 @@ The signal is a new field of the bank's result, `FDTRunAward::bNotSaved`, set on
 `python -I Tools\loc_build.py --check` reads `LOC: PASS (13 tables, 863 rows)` with the row in.
 
 ## What phase 2 read
-Not run yet: the build, `Localize.bat`, the gate with `-Base dev/s3`, `VigilCheck.ps1` launch `Large` on the two longer hub lines in en and zh-Hans, and a look at `Summary.NotSaved` on the run-over screen.
+- `Tools\Build.bat`: built first time, no compile error (`Result: Succeeded`, 83 s). `Tools\Localize.bat`: `LOCALIZE: PASS`.
+- The gate, 2026-11-11, about 33 minutes: `tests: 547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)`, so `C.GATE.TEST_FLOOR` stays 547. `build`, `shipping` and `devgame` rc 0 with 0 warnings; `nonunity` 12 files, 0 failed. `pad`, `scope` and `mac` not run (no package, no brief in flight, D-007).
+- By filter, `Tools\RunTests.ps1 -Filter`: `Dusktracer.Hub.Notice` 1 of 1, `Dusktracer.Meta.BadFile` 2 of 2 (the filter takes `BadFileBranches` too), `Dusktracer.Meta.BadFileBranches` 1 of 1, `Dusktracer.Meta.SummaryLine` 1 of 1, `Dusktracer.Meta.Autosave` 1 of 1, each 0 failed.
+- `VIGIL: PASS`; launch `Large` reads `the root, a save that cannot be opened fits at the largest text, every row: ok` and `the root, a bad save that could not be set aside fits at the largest text, every row: ok`, in en and in zh-Hans. The two longer lines fit the detail pane at the largest text in both.
+- Not read: `Summary.NotSaved` drawn on a real run-over screen. No launch of the gate ends a run in a stuck session; the line is held by T-MET-06 and the `loc` step.
