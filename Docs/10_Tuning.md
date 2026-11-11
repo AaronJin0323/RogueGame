@@ -23,7 +23,7 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 
 ## 2. Pressure: the two bands, kill time and pause
 
-**Records.** JSONL `hero_damaged` (amount over max HP at that hit), `dash`, `hero_down`, `run_end`, and `hero_healed` (amount restored over max HP, by source; D-046). A restore is never taken off the damage reading: `Tools/pressure.py` prints it on a `RESTORES` line. `run_end.wall_dropped_steps` says whether the run was played in slow motion (`telemetry.md` R-TEL-08); how many dropped steps set a run aside is not decided, so a session note prints the count beside each run. Without a JSONL, the CSV columns `damage_taken_per_min`, `dashes_per_min` and `swarm_ttk_s`, weighted by their overlap with the window. Tool: `Tools/pressure.py`.
+**Records.** JSONL `hero_damaged` (amount over max HP at that hit), `dash`, `hero_down`, `run_end`, and `hero_healed` (amount restored over max HP, by source; D-046). A restore is never taken off the damage reading: `Tools/pressure.py` prints it on a `RESTORES` line. `run_end.wall_dropped_steps` says whether the run was played in slow motion (`telemetry.md` R-TEL-08). Without a JSONL, the CSV columns `damage_taken_per_min`, `dashes_per_min` and `swarm_ttk_s`, weighted by their overlap with the window. Tool: `Tools/pressure.py`.
 
 **Per run.** Damage taken per minute is the sum of applied damage, each hit as a share of max HP, inside `C.DIR.BAND_WINDOW_S`, over the minutes of the window. Dashes per minute is the count over the same minutes. Kill time is the median of the run's `swarm_ttk_s` cells inside the window.
 
@@ -32,6 +32,8 @@ A tool reading on a bot is a bound. Only a session with people gives a verdict o
 **Session statistic.** The median of the per-run values over the runs that count. Fewer than three such runs, or runs from fewer than two validators, read NOT READ. Human runs are never pooled into one rate. Telemetry holds no name, so the session sheet says who played each run: `Tools/pressure.py --check --validators <sheet.csv>`, one `run,validator` row per run; without the sheet a session reads NOT READ.
 
 **Bots.** Each arm is judged on its own, as today, and the reading is a bound. The tool applies the same statistic inside an arm, the three-run floor included.
+
+**Slow share (D-054).** A run's slow share is `wall_dropped_steps` over the steps the sim ran plus `wall_dropped_steps`: the part of unpaused time the sim did not simulate. Paused time is never counted. A session note prints it for every run beside the count. It is read on people's sessions only: a run at `-DTBotFast` steps past the clock, so it prints as not read, never as zero. No threshold exists: until the S1 gate decision sets one from session A's values, as a named constant with its row in the number log, a note lists the runs by slow share and sets none aside.
 
 **Pause.** Wall seconds with a hand open over sim minutes, per run, over the whole run, the Patron hand left out as it is left out of the decision count (D-013). Tool: `Tools/owner_read.py run`, which prints the figure with the Patron hand in and without it.
 
