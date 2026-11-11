@@ -56,6 +56,8 @@ struct DUSKTRACER_API FDTMetaSession
 	bool bWritable = false;
 	/** Where the bad file went, when Open kept one aside. */
 	FString AsidePath;
+	/** Why Open stuck the session (R-MET-12): SaveUnreadable or SaveNotMoved; None for a session that is not stuck. */
+	EDTMetaNotice StuckOn = EDTMetaNotice::None;
 	/** The file's bytes as this session last read or wrote them; another process's write shows as a difference (R-MET-11). */
 	TArray<uint8> Seen;
 	/** The profile in memory is newer than the file: a write failed or the lock was busy. The next save point carries it. */
@@ -70,7 +72,10 @@ struct DUSKTRACER_API FDTMetaSession
 
 	/** Empty InPath: no save. Never fails a launch. */
 	EDTMetaOpen Open(const FString& InPath);
-	/** Banks one run (R-MET-04, R-MET-05) and autosaves it (R-MET-13). With no file the profile stays as it was. */
+	/**
+	 * Banks one run (R-MET-04, R-MET-05) and autosaves it (R-MET-13). With no file the profile stays as it was. A stuck session
+	 * (R-MET-12) banks in memory and marks the award bNotSaved.
+	 */
 	FDTRunAward Bank(const FDTRunTally& Tally, EDTRunEnd End);
 	/**
 	 * One change to the save (R-MET-11): takes the lock, rereads the file if another launch wrote it, makes the edit, writes,

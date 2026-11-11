@@ -32,7 +32,10 @@ public:
 	static FDTPoolGrant GetRunGrant(const UObject* WorldContext);
 	/** The profile, read only (the hub, vigil.md R-VIG-14); nullptr with no session. */
 	static const FDTMetaProfile* ReadProfile(const UObject* WorldContext);
-	/** What the hub's root says of this launch's save (vigil.md R-VIG-21); OutFile: the name the bad save was kept under. */
+	/**
+	 * What the hub's root says of this launch's save (vigil.md R-VIG-21). OutFile, a file name and never a path: the save's own
+	 * for a stuck session (SaveUnreadable, SaveNotMoved), else the name the bad save was kept under, empty when there is none.
+	 */
 	static EDTMetaNotice ReadNotice(const UObject* WorldContext, FString* OutFile = nullptr);
 
 private:
