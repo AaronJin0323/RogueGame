@@ -3049,6 +3049,31 @@ class ReviewMinors(unittest.TestCase):
 		self.assertEqual(len(gen_catalog.door_order_faults([r for r in rows if r["id"] != "Survive10"])), 1)
 		self.assertEqual(set(gen_catalog.DOOR_ORDER_CELLS), gen_catalog.WITH_THE_FLAK_MORTAR)
 
+	# --- D-064: the first-run archetypes have no node, and every other Amp, Trait and Path row has one --------------------------------
+	def test_the_first_run_archetypes_are_open_and_the_rest_have_a_node(self):
+		nodes = self.catalog("tree.csv")
+		named = {i for r in nodes for i in r["unlocks"].split(";") if i}
+		first = gen_catalog.first_run_blessings()
+		self.assertEqual(len(first), 9)
+		self.assertEqual({".".join(b.split(".")[1:3]) for b in first}, {"Storm.ArcGrid", "Forge.Hammer", "Tide.Frost"})
+		self.assertEqual(first & named, set())
+		gated = named | first  # what gen_tree calls gated: every Amp, Trait and Path row
+		self.assertEqual(gen_catalog.tree_cover_faults(nodes, gated), [])
+		# Each S1 Keeper's first node opens one archetype, its second the last.
+		for path, one, last in (("Storm", "Tempest", "Downpour"), ("Forge", "Furnace", "Slam"), ("Tide", "Whirlpool", "Stillness")):
+			cells = {r["id"]: r["unlocks"].split(";") for r in nodes}
+			self.assertEqual(cells[f"Branch.{path}.Blessing4"], [f"Blessing.{path}.{one}.{c}" for c in ("Amp1", "Amp2", "Trait")])
+			self.assertEqual(cells[f"Branch.{path}.Blessing5"], [f"Blessing.{path}.{last}.{c}" for c in ("Amp1", "Amp2", "Trait")])
+		# A first-run card put back in a node, and a gated card no node names, each fail the generator.
+		moved = [dict(r, unlocks=r["unlocks"] + ";Blessing.Storm.ArcGrid.Amp1") if r["id"] == "Branch.Storm.Blessing4" else r for r in nodes]
+		self.assertEqual(len(gen_catalog.tree_cover_faults(moved, gated)), 1)
+		dropped = [dict(r, unlocks="Blessing.Storm.Tempest.Amp1;Blessing.Storm.Tempest.Amp2") if r["id"] == "Branch.Storm.Blessing4" else r for r in nodes]
+		self.assertEqual(len(gen_catalog.tree_cover_faults(dropped, gated)), 1)
+		# R-MET-25 names the same three.
+		rule = self.text("Docs", "02_Systems", "meta.md").split("**R-MET-25**")[1].split("**R-MET-26**")[0]
+		for archetype in ("Arc Grid", "Hammer", "Frost"):
+			self.assertIn(archetype, rule)
+
 	# --- #78: a Tree node's text rows ----------------------------------------------------------------------------------------------
 	def test_a_tree_node_without_its_text_fails_the_generator(self):
 		nodes = self.catalog("tree.csv")

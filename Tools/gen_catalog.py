@@ -482,6 +482,26 @@ def tree_text_faults(rows, keys):
 	return [(r["id"], f"{r['text_key']}.{suffix}") for r in rows for suffix in ("Name", "Desc") if f"{r['text_key']}.{suffix}" not in keys]
 
 
+# meta.md R-MET-25, D-064: the one archetype per S1 Keeper whose Amp1, Amp2 and Trait a fresh save holds. No node names them, so they
+# are never Tree-locked; every other Amp, Trait and Path row needs a node.
+FIRST_RUN_ARCHETYPES = {"Storm.ArcGrid", "Forge.Hammer", "Tide.Frost"}
+
+
+def first_run_blessings():
+	"""The nine blessing ids of FIRST_RUN_ARCHETYPES that a fresh save holds beside the Keys (R-MET-25)."""
+	return {f"Blessing.{a}.{c}" for a in FIRST_RUN_ARCHETYPES for c in ("Amp1", "Amp2", "Trait")}
+
+
+def tree_cover_faults(rows, gated):
+	"""R-MET-21, R-MET-25: every gated id has a node but the first-run archetypes' cards, and no node names one of those."""
+	named = {item for r in rows for item in r["unlocks"].split(";") if item}
+	first = first_run_blessings()
+	faults = [f"'{item}' has no node: it could never enter a person's pool" for item in sorted(gated - named - first)]
+	faults += [f"'{item}' is a first-run archetype's card (R-MET-25): a node naming it would shut it on a fresh save" for item in sorted(first & named)]
+	faults += [f"'{item}' is a first-run archetype's card that the catalog does not hold" for item in sorted(first - gated)]
+	return faults
+
+
 def gen_tree(ctx, expression, reforge_ids):
 	"""tree.csv (meta.md R-MET-20, R-MET-21): the node table, checked against the pillar and the catalogs it unlocks."""
 	cols = ["id", "class", "ranks", "cost", "grant", "grant_per_rank", "requires", "unlocks", "text_key"]
@@ -537,8 +557,8 @@ def gen_tree(ctx, expression, reforge_ids):
 		out.append(
 			f"\t\t{{ {cpp_str(r['id'])}, ETreeClass::{r['class'].capitalize()}, EDTPath::{path}, {ranks}, {cost}, ETreeGrant::{grant}, {per_rank}, "
 			f"{cpp_str(r['requires'])}, {cpp_str(r['unlocks'])}, {cpp_str(r['text_key'])} }},")
-	for item in sorted(gated - seen):
-		ctx.err("tree.csv", f"'{item}' has no node: it could never enter a person's pool")
+	for fault in tree_cover_faults(rows, gated):
+		ctx.err("tree.csv", fault)
 	for node, key in tree_text_faults(rows, {r["Key"] for r in read_text_table("ST_Tree.csv")}):
 		ctx.err(f"tree.csv:{node}:text_key", f"no {key} row in ST_Tree: the Contracts page would show the key")
 	return out, [f"\t\t{cpp_str(r['id'])}," for r in rows_locked]
@@ -687,7 +707,7 @@ def gen_discoveries(ctx):
 # meta.md R-MET-25: Discovery targets a first run keeps open, because shutting them fails R-OFF-15.
 FIRST_RUN_OPEN_TARGETS = {"Weapon.ArcBlade", "Weapon.RingEmitter"}
 # meta.md R-MET-27: rows that wait on a purchase, on a Keeper, or on no run at all. A Keeper's door is none of these.
-NOT_FIRST_RUN = {"Favor9", "TwoPaths6", "ScatterKills500", "RailKills300", "Crit500", "Elites10"}
+NOT_FIRST_RUN = {"Favor9", "ScatterKills500", "RailKills300", "Crit500", "Elites10"}
 # meta.md R-MET-27: rows stated out, because no run on arena 1 can meet them.
 STATED_OUT = {"Elites10"}
 # meta.md R-MET-28: Keepers over R-OFF-15's Reserve cap on the pool without the Flak Mortar, and the rows that land with it or after it.
