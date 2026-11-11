@@ -158,3 +158,34 @@ By hand: the en walk's Development run file (`PackageHub\en\user\Saved\Playtests
 5. **Perf in the package at the real size**: Caps 1.76 ms game thread p95 and 4.72 ms proxied GPU p95, S2 3.41 ms and 5.98 ms. The last reading (game p95 1.78 ms, GPU 3.60 ms proxied) was taken at 888x500.
 
 Logs: the carry agent's worktree, `Saved\Logs\s3pkg_package.txt`, `s3pkg_restart.txt` and `s3pkg_restart3.txt`, `s3pkg_hub.txt` and `s3pkg_hub_rerun.txt`, `s3pkg_export.txt`, `s3pkg_crash.txt` and `s3pkg_crash2.txt`, `s3pkg_perfcaps2.txt` and `s3pkg_perfs2_2.txt`, `s3pkg_pad.txt` and `s3pkg_pad2.txt`. Also `PkgRestart_*.log` and `PkgHub_*.log` there, `Saved\CrashExport\crash_launch.log`, and the crash folder under `Saved\CrashExport\account`.
+
+## The package checks fixed (2026-11-11, `s3/pkg-checks`)
+Branch `s3/pkg-checks`, from `dev/s3` 79117b5, with `s2/pkg-checks` merged into it (`S2_package.md`, "Package checks under the launch job's affinity limit"). This section covers the defects of the reread above. Class BUG; nothing in the game changed.
+
+**1. The affinity warning.** The cause was shown on one package before any check changed: 33 `SetThreadAffinity failed with: 0x1f` lines inside the launch job's limit, none outside it (`S2_package.md`). `Tools/PackageHubCheck.ps1` now sets aside exactly that line on a launch the limit held, with `Split-DTLimitWarnings` (`Tools/HiddenLaunch.ps1`), as `Tools/PackageRestartCheck.ps1` does. It counts the lines and prints the count in its verdict; every other warning still fails. R-PKG-13 in `02_Systems/package.md` now states the hub check's log rule with the exception and names D-052.
+
+**2. Step E's CSV comparison.** `Compare-RunCsv` compares whole intervals when both files have one. A run that ends inside the first interval has none, so both files are then compared by every row they have, and one file with whole intervals against one without is a mismatch. The line and the verdict say which comparison was made. The ReviewMinors case `test_step_e_compares_a_run_shorter_than_an_interval_by_its_rows` holds all four outcomes.
+
+**3. The crash launch that does not end: the game's, not the check's.** Six launches of the Development package with the check's own arguments (`-unattended -nosound -culture=en -DTSeed=770099 -ExecCmds="debug crash"`), on the hidden desktop, each in a fresh `-userdir`:
+
+| Run | Inside the launch job's limit (as the check launches) | Outside it (no limit) |
+|---|---|---|
+| 1 | ended in 2.5 s, `UEMinidump.dmp` 1,364,942 bytes | did not end, stopped by its PID at 120 s, `UEMinidump.dmp` 0 bytes |
+| 2 | did not end, stopped at 60 s, 0 bytes | ended in 1.7 s, 1,586,405 bytes |
+| 3 | ended in 1.6 s, 1,451,610 bytes | did not end, stopped at 60 s, 0 bytes |
+
+A hung launch: the stub has one thread waiting (UserRequest), and the game has about 100 threads, all but one Wait/Suspended and one Wait/Unknown. Its log ends on `appError called: Fatal error ... Crashing the gamethread at your request` and `Windows GetLastError ... (0)`, with no `StaticShutdownAfterError`. A run that ends logs the callstack, `StaticShutdownAfterError` and `RequestExit`. The hang comes about half the time with the limit and without it, so it is the game's crash exit, not the check's launch. It went to the Mechanics session as its own finding, to be read on `main`'s code and on Shipping. `Tools/CrashExportCheck.ps1` is unchanged, and **its FAIL stands until the game's crash exit is settled.** Logs: `Saved\Diag\crash_in*` and `crash_out*` in the carry agent's worktree.
+
+**4. "Access is denied" when one check follows another in one shell.** The cause and the fix are in `S2_package.md`, because the scripts are on `dev/s2`. The launch helper's desktop and jobs are static to the PowerShell process. A window watch then put the process in a job of its own, and Windows refused a new launch into the helper's older jobs. Under the mask that is not a processor fault (D-052 item 4): it is a handle that outlived its script. The watch now closes the helper's jobs before it starts. `tools_test.py` `WatchAfterLaunch` holds it.
+
+**Gates.** `& Tools\Gate.ps1 -Base dev/s2` on `s2/pkg-checks` 95f7878: `GATE: PASS (95f7878; 3 not run; mask FFFFF3FC)`, `TESTS` 480 of 480 against the floor of 480, `TOOLS: PASS (151 tests)`. `& Tools\Gate.ps1 -Base dev/s3` on `s3/pkg-checks` 22d462a: `GATE: PASS (22d462a; 3 not run; mask FFFFF3FC)`, `TESTS` 547 of 547 against the floor of 547, `TOOLS: PASS (284 tests)`. Not run, in both: pad (its machine half reads in the gate, a real pad needs a human), scope and mac.
+
+**Reading, 2026-11-11 19:34 to 19:47:** a fresh `Tools\Package.ps1` in the carry agent's worktree, then every check one after another in the same PowerShell process:
+- `PACKAGE: PASS (22d462a, Shipping+Development, 962 MB under ...\Saved\Package)`
+- `PKGRESTART: PASS (same cook=True, hash 276faf8e, csv same=True, shipping bridge=True, reloads ms 47 40 40, LoadMap s first 0.031225 reload 0.042603, limit warnings set aside 132 (D-052))`
+- `PKGHUB: PASS (package 22d462a, same cook=True, 13 tables read in en and zh-Hans, walks 1 en on seed 9107 + 1 zh-Hans, Shipping csv same as the walk=True (all rows, no whole interval), seed 9107 hash 276faf8e, owner's save unchanged=True, windows 0, limit warnings set aside 198 (D-052))`
+- `EXPORTCHECK: PASS (package 22d462a, zip 25 KB, 6 files, 6 scanned clean, raw log named the user 7 times, 0 game processes)`
+- `CRASHEXPORT: FAIL (the crash launch did not end in 180 s)`: the game's crash exit, above. Counting this reading, the check's crash launch has failed to end three times out of three: twice on 81c638e, once here.
+- `PADCHECK: NOT RUN (package 22d462a ok, en+zh-Hans, 0 windows; real pad needs a human, no run of this build reads input_device=pad)`, exit code 2: the machine half passes.
+
+No "Access is denied" appeared: PKGHUB and PadCheck each started their window watch after other checks in the same process. Log: `Saved\Logs\final_chain.txt` in the carry agent's worktree.
