@@ -125,7 +125,6 @@ Debug (not in Shipping, R-TEC-12): `DT.Spawn <N> [Role]`, `DT.Spawn.Keep <N>`, `
 
 ## Text
 - Prefix `ST_Enemies.Enemy.<Role>.Name` (one row per role: Scrapwing, Bulwark, Courser, Flare Pylon), en + zh-Hans; fiction never becomes a key. Status names live in the keyword table owned by `keepers.md`.
-- The `ST_Enemies` table is not on `main`: `Content/DT/Text/` holds no `ST_Enemies.csv` there (it is built on `dev/s2`), the `name_key` column of `enemies.csv` names rows that do not exist, and nothing reads the generated `NameKey`. The boss name is `ST_UI` `Hud.BossName` (`boss.md` Open).
 
 ## Out of scope
 - Elite affixes: `elites.md`. Bruiser and Support roles: S2.
