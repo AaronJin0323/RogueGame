@@ -4,6 +4,6 @@
 	"judge": "golden",
 	"cultures": ["en"],
 	"weather": "Dusk",
-	"seconds": 6,
-	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 8", "DT.Give Weapon.ScatterCannon 8", "DT.Give Weapon.RingEmitter 8", "DT.Give Weapon.SpiralProjector 8", "DT.Spawn.Role Tank 12", "DT.Impact.Stats hold"]
+	"seconds": 6.5,
+	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 8", "DT.Give Weapon.ScatterCannon 8", "DT.Give Weapon.RingEmitter 8", "DT.Give Weapon.SpiralProjector 8", "DT.Spawn.Role Tank 12 elite=Armored", "DT.Impact.Stats hold"]
 }
