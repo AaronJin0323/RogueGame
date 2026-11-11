@@ -109,7 +109,7 @@ Settings.Controls.Open,Remap,改键,Settings value on the Controls row (press to
 Settings.Hint.Volume,The game has no sound yet. This level applies when it does.,游戏尚无声音。声音加入后将使用此音量。,"Focus hint, Master volume row. [invented]",
 Settings.Hint.Graphics,Only Epic is measured so far.,目前只有「极高」经过测量。,"Focus hint, Graphics row. [invented]",
 Settings.Hint.Shake,Nothing shakes the screen yet. This choice is kept for when it does.,目前还没有屏幕震动。此选项会保留到它加入时生效。,"Focus hint, Screen shake and Motion rows. [invented]",
-Settings.Hint.Flash,Nothing flashes the screen yet. This choice is kept for when it does.,目前还没有屏幕闪光。此选项会保留到它加入时生效。,"Focus hint, Screen flashes row. [invented]",
+Settings.Hint.Flash,"Off turns the flash of a kill, and of a hit on you, into a steady mark. Nothing flashes the whole screen yet.",关闭后，击杀与受击时的闪光会变成稳定的标记。目前还没有全屏闪光。,"Focus hint, Screen flashes row: what Off does to the hero ring and kill flashes (impact_art.md R-IMP-09). [invented]",
 Settings.Hint.DangerOutline,White and dark outlines round enemy fire and red ground markings.,在敌方弹幕和红色地面标记周围加上白色与深色描边。,"Focus hint, Danger outlines row. [invented]",
 Menu.Hint.Pause,Accept: Enter or A    Back: Esc or B,确认：回车或 A    返回：Esc 或 B,Footer of the pause screen. [invented],
 Menu.Hint.RunOver,Accept: Enter or A,确认：回车或 A,Footer of the run-over screen. [invented],

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/DTRunState.h"
 
 /** What a stinger says. Precedence when several are due: Tier, then PassedOver, then Pick (wave 1 builds Pick only). */
 enum class EDTStinger : uint8 { Pick, PassedOver, Tier, Count };
@@ -24,7 +25,7 @@ struct DUSKTRACER_API FDTStingerQueue
 		double Time = 0.0;
 	};
 
-	static constexpr int32 NumPaths = 6;
+	static constexpr int32 NumPaths = static_cast<int32>(EDTPath::Count);
 	static constexpr int32 Capacity = NumPaths;
 
 	static int32 Precedence(EDTStinger Kind) { return Kind == EDTStinger::Tier ? 3 : (Kind == EDTStinger::PassedOver ? 2 : (Kind == EDTStinger::Pick ? 1 : 0)); }

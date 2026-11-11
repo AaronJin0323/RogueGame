@@ -8,6 +8,7 @@ namespace DTCat
 	enum class ESoundSide : uint8 { Player, Danger, UI };
 	enum class ESoundClass : uint8 { Player, Danger, UI, Music };
 	enum class ESoundPitch : uint8 { Fixed, Key, Ladder };
+	enum class ESoundNote : uint8 { None, A, C, D, E, G };
 
 	/** One id per sounds.csv row, in its order; Count is the number of rows. */
 	enum class ESoundId : uint16
@@ -35,25 +36,27 @@ namespace DTCat
 		bool bLoop;
 		float Volume;
 		ESoundPitch Pitch;
+		ESoundNote Note;       // the note a key sound is written on: its degrees are that note's own (R-AUD-10)
 		int32 IntervalMs;
 		int32 Voices;
 		float AggGain;
 		bool bGrid;
 		int32 LengthMs;        // the longest variant, from the manifest
+		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
 	inline constexpr int32 SoundCount = 10;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
-		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 332 },
-		{ TEXT("Snd.UI.Step"), TEXT("/Game/DT/Audio/SFX/SW_UI_Step"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.55f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 352 },
-		{ TEXT("Snd.UI.Open"), TEXT("/Game/DT/Audio/SFX/SW_UI_Open"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 564 },
-		{ TEXT("Snd.UI.Back"), TEXT("/Game/DT/Audio/SFX/SW_UI_Back"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 494 },
-		{ TEXT("Snd.UI.Refuse"), TEXT("/Game/DT/Audio/SFX/SW_UI_Refuse"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 474 },
-		{ TEXT("Snd.UI.HandOpen"), TEXT("/Game/DT/Audio/SFX/SW_UI_HandOpen"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 300, 1, 0.0f, false, 4836 },
-		{ TEXT("Snd.UI.Pick"), TEXT("/Game/DT/Audio/SFX/SW_UI_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.65f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 2806 },
-		{ TEXT("Snd.UI.Reroll"), TEXT("/Game/DT/Audio/SFX/SW_UI_Reroll"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 594 },
-		{ TEXT("Snd.UI.Banish"), TEXT("/Game/DT/Audio/SFX/SW_UI_Banish"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 654 },
-		{ TEXT("Snd.UI.Lock"), TEXT("/Game/DT/Audio/SFX/SW_UI_Lock"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 1014 },
+		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
+		{ TEXT("Snd.UI.Step"), TEXT("/Game/DT/Audio/SFX/SW_UI_Step"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.55f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 352, true },
+		{ TEXT("Snd.UI.Open"), TEXT("/Game/DT/Audio/SFX/SW_UI_Open"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 60, 2, 0.0f, false, 564, true },
+		{ TEXT("Snd.UI.Back"), TEXT("/Game/DT/Audio/SFX/SW_UI_Back"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 60, 2, 0.0f, false, 494, true },
+		{ TEXT("Snd.UI.Refuse"), TEXT("/Game/DT/Audio/SFX/SW_UI_Refuse"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 474, true },
+		{ TEXT("Snd.UI.HandOpen"), TEXT("/Game/DT/Audio/SFX/SW_UI_HandOpen"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 300, 1, 0.0f, false, 4836, true },
+		{ TEXT("Snd.UI.Pick"), TEXT("/Game/DT/Audio/SFX/SW_UI_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.65f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 2806, true },
+		{ TEXT("Snd.UI.Reroll"), TEXT("/Game/DT/Audio/SFX/SW_UI_Reroll"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 594, true },
+		{ TEXT("Snd.UI.Banish"), TEXT("/Game/DT/Audio/SFX/SW_UI_Banish"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 654, true },
+		{ TEXT("Snd.UI.Lock"), TEXT("/Game/DT/Audio/SFX/SW_UI_Lock"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 1014, true },
 	};
 }

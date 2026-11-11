@@ -206,6 +206,48 @@ namespace DTConst
 	inline constexpr float TRC_MUZZLE_WIDTH_RATIO = 1.4f; // ratio, GATED(S4)
 	inline constexpr float TRC_MUZZLE_EMISSIVE = 2.0f; // ratio, GATED(S4)
 	inline constexpr float TRC_MUZZLE_OPACITY = 0.8f; // ratio, GATED(S4)
+	// impact_art
+	inline constexpr float IMP_DEBRIS_Z_UU = 1.4f; // uu, GATED(S4)
+	inline constexpr float IMP_FLASH_Z_UU = 1.45f; // uu, GATED(S4)
+	inline constexpr float IMP_SPARK_S = 0.1f; // s, GATED(S4)
+	inline constexpr int32 IMP_SPARK_LENGTH_UU = 70; // uu, GATED(S4)
+	inline constexpr int32 IMP_SPARK_WIDTH_UU = 44; // uu, GATED(S4)
+	inline constexpr float IMP_SPARK_STREAK_RATIO = 0.3f; // ratio, GATED(S4)
+	inline constexpr float IMP_SPARK_START_RATIO = 0.4f; // ratio, GATED(S4)
+	inline constexpr float IMP_SPARK_EMISSIVE = 3.0f; // ratio, GATED(S4)
+	inline constexpr int32 IMP_SPARKS_PER_STEP_MAX = 32; // n, GATED(S4)
+	inline constexpr int32 IMP_SPARKS_DENSE_PER_STEP_MAX = 12; // n, GATED(S4)
+	inline constexpr int32 IMP_SPARK_LIVE_MAX = 192; // n, GATED(S4)
+	inline constexpr float IMP_KILL_FLASH_S = 0.12f; // s, GATED(S4)
+	inline constexpr float IMP_KILL_FLASH_START_RATIO = 0.8f; // ratio, GATED(S4)
+	inline constexpr float IMP_KILL_FLASH_END_RATIO = 1.7f; // ratio, GATED(S4)
+	inline constexpr float IMP_KILL_FLASH_EMISSIVE = 2.5f; // ratio, GATED(S4)
+	inline constexpr int32 IMP_FLASH_RADIUS_MAX_UU = 260; // uu, GATED(S4)
+	inline constexpr int32 IMP_FLASH_LIVE_MAX = 72; // n, GATED(S4)
+	inline constexpr int32 IMP_AGG_CELL_UU = 400; // uu, GATED(S4)
+	inline constexpr int32 IMP_AGG_PER_STEP_MAX = 6; // n, GATED(S4)
+	inline constexpr int32 IMP_DENSITY_CROWD_OFF_KILLS_PER_S = 16; // per_s, GATED(S4)
+	inline constexpr int32 IMP_DENSITY_FLOOD_KILLS_PER_S = 60; // per_s, GATED(S4)
+	inline constexpr int32 IMP_DENSITY_FLOOD_OFF_KILLS_PER_S = 50; // per_s, GATED(S4)
+	inline constexpr int32 IMP_AGG_FLOOD_CELL_UU = 800; // uu, GATED(S4)
+	inline constexpr int32 IMP_AGG_FLOOD_PER_STEP_MAX = 2; // n, GATED(S4)
+	inline constexpr float IMP_DEBRIS_S = 0.45f; // s, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_SIZE_UU = 28; // uu, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_RADIUS_PER_PIECE_UU = 11; // uu, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_PIECES_MIN = 3; // n, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_PIECES_MAX = 8; // n, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_SPEED_UU_S = 520; // uu_per_s, GATED(S4)
+	inline constexpr float IMP_DEBRIS_SPEED_VARIATION = 0.4f; // ratio, GATED(S4)
+	inline constexpr float IMP_DEBRIS_DRAG_S = 0.15f; // s, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_SPREAD_DEG = 70; // deg, GATED(S4)
+	inline constexpr float IMP_DEBRIS_SHRINK_SHARE = 0.4f; // ratio, GATED(S4)
+	inline constexpr int32 IMP_DEBRIS_LIVE_MAX = 160; // n, GATED(S4)
+	inline constexpr float IMP_HERO_FLASH_S = 0.25f; // s, GATED(S4)
+	inline constexpr float IMP_HERO_FLASH_START_RATIO = 2.0f; // ratio, GATED(S4)
+	inline constexpr float IMP_HERO_FLASH_END_RATIO = 3.0f; // ratio, GATED(S4)
+	inline constexpr int32 IMP_HERO_FLASH_THICK_UU = 24; // uu, GATED(S4)
+	inline constexpr float IMP_HERO_FLASH_EMISSIVE = 2.5f; // ratio, GATED(S4)
+	inline constexpr float IMP_REDUCED_EMISSIVE_RATIO = 0.4f; // ratio, GATED(S4)
 	// arena
 	inline constexpr int32 ARENA_SUN_ELEVATION_DEG = 20; // deg, GATED(S0)
 	inline constexpr int32 ARENA_SUN_YAW_DEG = -60; // deg, GATED(S0)
@@ -259,7 +301,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 584; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 593; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -571,7 +613,7 @@ namespace DTConst
 	inline constexpr float AUD_FRAME_MS_WATCH = 0.2f; // ms, GATED(S4)
 	inline constexpr int32 AUD_LOW_ZONE_SHARE_MIN_DB = -3; // dB, GATED(S4)
 	inline constexpr int32 AUD_PAIR_LENGTH_RATIO_MIN = 2; // x, GATED(S4)
-	inline constexpr int32 AUD_KEY_SEMIS_MAX = 4; // semitones, GATED(S4)
+	inline constexpr int32 AUD_KEY_SEMIS_MAX = 5; // semitones, GATED(S4)
 	inline constexpr int32 AUD_LADDER_SEMIS_MAX = 12; // semitones, GATED(S4)
 	inline constexpr int32 AUD_LOOP_SEAM_LEVEL_MAX_DB = 3; // dB, GATED(S4)
 	inline constexpr int32 AUD_LEVEL_JITTER_DB = 1; // dB, GATED(S4)

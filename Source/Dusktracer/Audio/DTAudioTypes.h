@@ -53,8 +53,35 @@ public:
 
 namespace DTAudio
 {
-	/** The degrees of the key a `key` voice draws, in semitones (R-AUD-10, R-AUD-14: A minor pentatonic around the written pitch). */
-	inline constexpr int32 KeyDegrees[] = { -5, -3, 0, 2, 4 };
+	/**
+	 * The degrees a `key` voice draws, in semitones from the note it is written on, per DTCat::ESoundNote (R-AUD-10, R-AUD-14): each
+	 * written note's own five, so every draw stays in A minor pentatonic (A C D E G). Row None is never drawn from.
+	 */
+	inline constexpr int32 NumDegrees = 5;
+	inline constexpr int32 NoteDegrees[6][NumDegrees] = {
+		{ 0, 0, 0, 0, 0 },     // None
+		{ -5, -2, 0, 3, 5 },   // A
+		{ -5, -3, 0, 2, 4 },   // C
+		{ -5, -2, 0, 2, 5 },   // D
+		{ -4, -2, 0, 3, 5 },   // E
+		{ -5, -3, 0, 2, 5 },   // G
+	};
+	/** Semitones of each written note above A, per DTCat::ESoundNote (None reads 0). */
+	inline constexpr int32 NoteFromA[6] = { 0, 0, 3, 5, 7, 10 };
+
+	/** The highest degree any note draws: C.AUD.KEY_SEMIS_MAX must be it. */
+	constexpr int32 HighestDegree()
+	{
+		int32 Highest = 0;
+		for (int32 Note = 1; Note < 6; ++Note)
+		{
+			for (int32 Degree = 0; Degree < NumDegrees; ++Degree)
+			{
+				Highest = NoteDegrees[Note][Degree] > Highest ? NoteDegrees[Note][Degree] : Highest;
+			}
+		}
+		return Highest;
+	}
 
 	/** The catalog the game uses: the generated table. */
 	inline TConstArrayView<DTCat::FSoundRow> Catalog() { return TConstArrayView<DTCat::FSoundRow>(DTCat::Sounds, DTCat::SoundCount); }

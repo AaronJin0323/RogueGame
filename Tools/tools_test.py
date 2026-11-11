@@ -1734,7 +1734,7 @@ class Machine(unittest.TestCase):
 	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
 		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 		"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "S3Exit.ps1", "TwoWindowsCheck.ps1",
-		"VigilCheck.ps1", "WinCheck.ps1", "EnemyArt.ps1", "Frames.ps1", os.path.join("blender", "Mesh.ps1"))
+		"VigilCheck.ps1", "WinCheck.ps1", "EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", os.path.join("blender", "Mesh.ps1"))
 	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat", "EditorPython.bat", os.path.join("blender", "CookMesh.bat"))
 	HELPER = os.path.join(TOOLS, "Machine.ps1")
 
@@ -2150,7 +2150,7 @@ class HeavyLocks(unittest.TestCase):
 		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1",
-			"EnemyArt.ps1", "Frames.ps1", os.path.join("blender", "Mesh.ps1")):
+			"EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", os.path.join("blender", "Mesh.ps1")):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)

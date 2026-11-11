@@ -63,12 +63,13 @@ RECIPES = os.path.join(HERE, "recipes")
 DTSYNTH = os.path.join(HERE, "dtsynth.py")
 OUT = os.path.join(ROOT, "Saved", "AudioGen")
 
-COLUMNS = ["id", "family", "side", "zone", "class", "recipe", "variants", "loop", "volume", "pitch", "interval_ms", "voices", "agg_gain", "grid",
+COLUMNS = ["id", "family", "side", "zone", "class", "recipe", "variants", "loop", "volume", "pitch", "note", "interval_ms", "voices", "agg_gain", "grid",
 	"len_min_ms", "len_max_ms", "level_min_lk", "level_max_lk", "confuse", "heard"]
 SIDES = ("player", "danger", "ui")
 ZONES = ("body", "warn", "low", "free")
 CLASSES = ("Player", "Danger", "UI", "Music")
 PITCHES = ("fixed", "key", "ladder")
+NOTES = ("A", "C", "D", "E", "G")   # the key, A minor pentatonic: the note a `key` sound is written on (R-AUD-10, R-AUD-14)
 MANIFEST_NUMBERS = ["active_ms", "lead_ms", "attack_ms", "spike_db", "peak_db", "crest_db", "lk100", "small_spk_loss_db", "centroid_hz",
 	"danger_share_db", "low_share_db", "air_share_db", "onsets"]
 MANIFEST_COLUMNS = ["name", "frames", "sha256"] + MANIFEST_NUMBERS
@@ -202,6 +203,10 @@ def validate(rows, recipes=RECIPES):
 			bad.append("a warning's pitch is fixed: it is learned")
 		if row["side"] in ("danger", "ui") and row["pitch"] in PITCHES and row["pitch"] != "fixed":
 			bad.append(f"a {row['side']} sound's pitch is fixed, not '{row['pitch']}'")
+		if row["pitch"] == "key" and row["note"] not in NOTES:
+			bad.append(f"note '{row['note']}': a key sound names the note it is written on, one of {list(NOTES)}")
+		if row["pitch"] != "key" and row["note"]:
+			bad.append(f"note '{row['note']}': only a key sound names a note")
 		if row["side"] == "danger" and row["grid"] == "1":
 			bad.append("a danger sound never waits for the grid")
 		rm = RECIPE.match(row["recipe"])
