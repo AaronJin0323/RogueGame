@@ -208,7 +208,7 @@ bool FDTWeaponSim::CanExecute(int32 Enemy, float Below) const
 	return Enemies->GetRoles()[Enemy] != EDTEnemyRole::Boss && Hp > 0.0f && Max > 0.0f && Hp <= Max * DuoExecuteBelow(Enemy, Below);
 }
 
-int32 FDTWeaponSim::ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId)
+int32 FDTWeaponSim::ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId, bool bPayday)
 {
 	FDTWorldView& View = *Context.View;
 	const int32 Num = FMath::Min(View.EnemySerials.Num(), View.EnemyPositions.Num());
@@ -218,6 +218,7 @@ int32 FDTWeaponSim::ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, f
 		if (IsMarked(OwnerId, View.EnemySerials[Enemy]) && CanExecute(Enemy, Below))
 		{
 			KeeperHit(View, Enemy, OwnerId, Enemies->GetHp()[Enemy], SourceId, View);
+			View.Hits.Last().bPayday = bPayday; // keepers.md R-KEE-29
 			++Count;
 		}
 	}
@@ -540,13 +541,14 @@ bool FDTWeaponSim::FirePayday(const FDTSimContext& Context, FDTBulletPool* Bulle
 	Shot.Life = PaydayLifeScale * Frame / Shot.Speed;
 	Shot.Motion.TurnDegS = PaydayTurnDegS;
 	Shot.Motion.SeekUu = Frame;
+	Shot.bPayday = true; // keepers.md R-KEE-29: its kills add no Debt
 	for (const int32 Enemy : Local)
 	{
 		FShot Round = Shot;
 		Round.Motion.TargetSerial = View.EnemySerials[Enemy];
 		SpawnRound(Context, Bullets, *Runtime, Round, Hero, SafeDir(View.EnemyPositions[Enemy] - Hero, FVector2f(1.0f, 0.0f)));
 	}
-	ExecuteMarked(Context, OwnerId, Player.PaydayExecute, Source);
+	ExecuteMarked(Context, OwnerId, Player.PaydayExecute, Source, true);
 	Player.PaydayMult = 0.0f;
 	Player.PaydayExecute = 0.0f;
 	Player.bPaydayNow = false;
@@ -578,7 +580,7 @@ void FDTWeaponSim::ReactKeeperKills(const FDTSimContext& Context, FDTBulletPool*
 		}
 		if (const FDTFlagEntry* Debt = KeeperEntry(Kill.OwnerId, DTCat::EFlag::Debt))
 		{
-			if (bMarked)
+			if (bMarked && !Kill.bPayday) // R-KEE-29: a payday's own kill adds no Debt
 			{
 				AddDebt(Kill.OwnerId, 1 + (Kill.bElite ? FMath::RoundToInt(Debt->Params.Get(ParamEliteDebt)) : 0));
 			}

@@ -148,7 +148,8 @@ public:
 	/** Marks every enemy within Radius of Center. */
 	void MarkCircle(const FDTSimContext& Context, int32 OwnerId, const FVector2f& Center, float Radius, uint16 SourceId);
 	/** Kills every non-boss enemy OwnerId marked at or below Below of its HP, as SourceId. Returns how many. */
-	int32 ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId);
+	/** bPayday: the execute a payday calls; its hits carry bPayday (keepers.md R-KEE-29). */
+	int32 ExecuteMarked(const FDTSimContext& Context, int32 OwnerId, float Below, uint16 SourceId, bool bPayday = false);
 	int32 GetLiveHunters(int32 OwnerId) const;
 	/** Collection's Shades alive (R-RFG-19). */
 	int32 GetLiveShades(int32 OwnerId) const;
@@ -440,6 +441,8 @@ private:
 		bool bCrit = false;
 		/** A reaction's round (Cremation's ember, Refraction's shard): its row; it runs no other reaction. */
 		int8 DuoRow = INDEX_NONE;
+		/** The hit or round was a payday's (keepers.md R-KEE-29): what this impact sets off is the payday's too. */
+		bool bPayday = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -466,6 +469,7 @@ private:
 		int32 Pierce = 1;
 		bool bBoomerang = false;
 		bool bReturning = false;
+		bool bPayday = false;
 	};
 
 	struct FField
@@ -506,6 +510,8 @@ private:
 		bool bScreen = false;
 		/** Draw the strike (Flechette, Carpet). */
 		bool bFlash = false;
+		/** Set off by a payday's impact: its hits are the payday's (keepers.md R-KEE-29). */
+		bool bPayday = false;
 	};
 
 	struct FArcFlash
@@ -538,6 +544,8 @@ private:
 		int8 Slot = INDEX_NONE;
 		uint16 SourceId = 0;
 		float Damage = 0.0f;
+		/** The arc came from a payday's impact: its forks are the payday's (keepers.md R-KEE-29). */
+		bool bPayday = false;
 	};
 
 	/** One firing context: who fires, from where, with what source. */
@@ -562,6 +570,8 @@ private:
 		/** A Charge shot: always a crit, or this much more chance. */
 		bool bForceCrit = false;
 		float CritBonus = 0.0f;
+		/** A payday's round (keepers.md R-KEE-29): its hits and kills carry bPayday. */
+		bool bPayday = false;
 		FDTBulletMotion Motion;
 	};
 
@@ -788,6 +798,8 @@ private:
 	TArray<FImpact> Impacts;
 	TArray<FPendingStatus> PendingStatuses;
 	TArray<FArcMark> ArcMarks;
+	/** True while a payday's impact reacts: every round it spawns is the payday's (keepers.md R-KEE-29). */
+	bool bPaydayScope = false;
 	TArray<FOverkill> Overkills;
 	TArray<FOverkill> NovaOverkills;
 	TArray<FHunter> Hunters;

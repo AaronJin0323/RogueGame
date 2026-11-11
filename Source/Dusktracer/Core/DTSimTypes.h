@@ -87,6 +87,8 @@ struct FDTHit
 	bool bPierce = false;
 	/** A field's tick: damage on the hit path, but not a hit to the rules (keepers.md R-KEE-16), so it rolls no enchantment. */
 	bool bFieldTick = false;
+	/** Made by a payday's round, what that round set off, or the payday's execute: its kill adds no Debt (keepers.md R-KEE-29, D-060). */
+	bool bPayday = false;
 };
 
 enum class EDTHeroHitKind : uint8
@@ -139,6 +141,8 @@ struct FDTKill
 	bool bElite = false;
 	bool bDirector = false;
 	int32 BeatId = INDEX_NONE;
+	/** The lethal hit's bPayday (keepers.md R-KEE-29): read only by the Debt rule. */
+	bool bPayday = false;
 };
 
 /** A position change applied by enemies next step, before movement. A stale serial is ignored; the boss hull ignores all. */

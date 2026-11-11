@@ -1446,6 +1446,7 @@ int32 FDTEnemyPool::ApplyHits(TConstArrayView<FDTHit> Hits, FDTRunState& Run, TA
 				Kill.bElite = (Flags[Index] & DTEnemyFlags::Elite) != 0;
 				Kill.bDirector = (Flags[Index] & DTEnemyFlags::Director) != 0;
 				Kill.BeatId = BeatId[Index];
+				Kill.bPayday = Hit.bPayday; // keepers.md R-KEE-29
 			}
 		}
 	}

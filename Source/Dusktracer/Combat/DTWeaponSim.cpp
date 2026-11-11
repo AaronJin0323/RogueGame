@@ -578,6 +578,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 	Spawn.SourceId = Shot.SourceId;
 	Spawn.WeaponSlot = static_cast<int8>(Shot.Slot);
 	Spawn.bCrit = bCrit;
+	Spawn.bPayday = Shot.bPayday || bPaydayScope; // keepers.md R-KEE-29
 	const bool bMoving = Shot.Motion.IsActive();
 	const uint32 RoundId = bMoving && Shot.bTrack ? ++NextRoundId : 0;
 	if (bMoving)
@@ -613,6 +614,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.RoundId = RoundId;
 		Round.Pierce = Spawn.Pierce;
 		Round.bBoomerang = Shot.Motion.bBoomerang;
+		Round.bPayday = Spawn.bPayday;
 	}
 }
 
@@ -2349,6 +2351,7 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 			++Index;
 			continue;
 		}
+		const int32 HitsBefore = Context.View->Hits.Num();
 		if (Echo.bScreen)
 		{
 			HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, DTWeaponSimLocal::HeroOf(*Context.View, Echo.OwnerId),
@@ -2357,6 +2360,10 @@ void FDTWeaponSim::StepDeferred(const FDTSimContext& Context)
 		else
 		{
 			HitCircle(Context, Echo.OwnerId, Echo.Slot, Echo.SourceId, Echo.Position, Echo.Radius, Echo.Damage, false, nullptr);
+		}
+		for (int32 Hit = HitsBefore; Echo.bPayday && Hit < Context.View->Hits.Num(); ++Hit)
+		{
+			Context.View->Hits[Hit].bPayday = true; // keepers.md R-KEE-29
 		}
 		if (Echo.bFlash)
 		{
@@ -2631,6 +2638,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Expiry.HitDamage = Round.BaseDamage;
 			Expiry.Area = Round.Radius;
 			Expiry.Generation = Round.Generation;
+			Expiry.bPayday = Round.bPayday;
 			Rounds.RemoveAtSwap(Index);
 			continue;
 		}
@@ -2681,6 +2689,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.StatusMask = StatusMaskOf(Hit.EnemyIndex, Hit.EnemySerial);
 		}
 		Impact.bCrit = Hit.bCrit;
+		Impact.bPayday = Hit.bPayday;
 		const FVector2f Hero = HeroOf(View, Hit.OwnerId);
 		Impact.Origin = Hero;
 		Impact.Dir = SafeDir(Hit.Position - Hero, FVector2f(1.0f, 0.0f));
@@ -2914,7 +2923,21 @@ void FDTWeaponSim::StepEffects(const FDTSimContext& Context, FDTBulletPool* Bull
 	Impacts.Reset();
 	for (const FImpact& Impact : Batch)
 	{
+		// keepers.md R-KEE-29: what a payday's impact sets off (hits, rounds, strikes, arcs, impacts) is the payday's too.
+		const int32 HitsBefore = View.Hits.Num();
+		const int32 EchoesBefore = Echoes.Num();
+		const int32 MarksBefore = ArcMarks.Num();
+		const int32 ImpactsBefore = Impacts.Num();
+		bPaydayScope = Impact.bPayday;
 		ReactToImpact(Context, Bullets, Impact);
+		bPaydayScope = false;
+		if (Impact.bPayday)
+		{
+			for (int32 Index = HitsBefore; Index < View.Hits.Num(); ++Index) { View.Hits[Index].bPayday = true; }
+			for (int32 Index = EchoesBefore; Index < Echoes.Num(); ++Index) { Echoes[Index].bPayday = true; }
+			for (int32 Index = MarksBefore; Index < ArcMarks.Num(); ++Index) { ArcMarks[Index].bPayday = true; }
+			for (int32 Index = ImpactsBefore; Index < Impacts.Num(); ++Index) { Impacts[Index].bPayday = true; }
+		}
 	}
 	for (int32 Owner = 0; Owner < Players.Num() && Owner < Run.GetNumPlayers(); ++Owner)
 	{
@@ -3453,7 +3476,12 @@ void FDTWeaponSim::ReactToKills(const FDTSimContext& Context, TConstArrayView<FA
 		{
 			if (Mark.Serial == Kill.EnemySerial && Mark.OwnerId == Kill.OwnerId)
 			{
+				const int32 HitsBefore = Context.View->Hits.Num();
 				ForkArcs(Context, Kill, Mark);
+				for (int32 Hit = HitsBefore; Mark.bPayday && Hit < Context.View->Hits.Num(); ++Hit)
+				{
+					Context.View->Hits[Hit].bPayday = true; // keepers.md R-KEE-29
+				}
 				break;
 			}
 		}

@@ -693,6 +693,111 @@ DT_S2_TEST(FDTKeeperS2EconomyTrait, "Card.Shade.Economy.Trait") // T-KEE-29
 	return true;
 }
 
+DT_S2_TEST(FDTKeeperS2EconomyPaydayKills, "Card.Shade.Economy.PaydayKills") // T-KEE-29, D-060: a payday's own kills add no Debt
+{
+	using namespace DTKeeperS2Test;
+	const uint16 Shade = Src(EDTPath::Shade);
+	{
+		// An ordinary Marked kill adds one; then a payday whose rounds kill five Marked enemies leaves Debt where it was.
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Storm, TEXT("Shade.Economy"), { TEXT("Key") });
+		const uint32 First = SerialOf(H, H.AddEnemy(FVector2f(300.0f, 0.0f), 1.0f));
+		H.StepOnce();
+		H.Weapons.ApplyMark(0, First, H.Step);
+		KillIt(H, First);
+		TestEqual(TEXT("an ordinary Marked kill adds one Debt"), H.Weapons.GetDebt(0), 1);
+		TArray<uint32> Marked;
+		for (int32 Index = 0; Index < 5; ++Index)
+		{
+			Marked.Add(SerialOf(H, H.AddEnemy(FVector2f(-500.0f, -200.0f + 100.0f * Index), 1.0f)));
+		}
+		H.StepOnce();
+		for (const uint32 Serial : Marked)
+		{
+			H.Weapons.ApplyMark(0, Serial, H.Step);
+		}
+		H.Weapons.ForcePayday(0, 2.5f, 0.0f);
+		const int32 HitsBefore = H.HitLog.Num();
+		int32 Guard = 0;
+		while (Marked.ContainsByPredicate([&H](uint32 Serial) { return IsAlive(H, Serial); }) && Guard++ < 3 * Second)
+		{
+			H.StepOnce();
+		}
+		H.StepOnce();
+		TestFalse(TEXT("the payday's rounds killed them"), Marked.ContainsByPredicate([&H](uint32 Serial) { return IsAlive(H, Serial); }));
+		int32 PaydayHits = 0;
+		for (int32 Index = HitsBefore; Index < H.HitLog.Num(); ++Index)
+		{
+			PaydayHits += H.HitLog[Index].SourceId == Shade && H.HitLog[Index].bPayday ? 1 : 0;
+		}
+		TestTrue(TEXT("its hits carry the payday"), PaydayHits >= Marked.Num());
+		TestEqual(TEXT("the payday's kills add no Debt"), H.Weapons.GetDebt(0), 1);
+		TestFalse(TEXT("and start no second payday"), H.Weapons.IsPaydayReady(0));
+	}
+	{
+		// The payday's execute (the audit) kills a Marked enemy at once and adds nothing.
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Storm, TEXT("Shade.Economy"), { TEXT("Key"), TEXT("Trait") });
+		const int32 Enemy = AddScaled(H, FVector2f(900.0f, 800.0f));
+		H.Enemies.SetHp(Enemy, H.Enemies.GetMaxHp()[Enemy] * 0.2f);
+		const uint32 Serial = SerialOf(H, Enemy);
+		H.StepOnce();
+		H.Weapons.ApplyMark(0, Serial, H.Step);
+		H.Weapons.AddDebt(0, 15);
+		H.StepMany(Second / 2);
+		TestFalse(TEXT("the audit executes it"), IsAlive(H, Serial));
+		TestEqual(TEXT("the execute adds no Debt"), H.Weapons.GetDebt(0), 0);
+	}
+	{
+		// A hunter's round is not a payday's: its Marked kill adds Debt (Collectors x Ledger).
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Storm, TEXT("Shade.Economy"), { TEXT("Key") });
+		H.Bless(Blessing(TEXT("Shade.Hunters"), TEXT("Key")));
+		H.Weapons.RaiseHunters(0, 1, FVector2f(-1500.0f, 0.0f), 3.0f, 1.0f);
+		const uint32 Serial = SerialOf(H, H.AddEnemy(FVector2f(-1650.0f, 0.0f), 1.0f));
+		H.StepOnce();
+		H.Weapons.ApplyMark(0, Serial, H.Step);
+		KillIt(H, Serial);
+		TestFalse(TEXT("the hunter kills it"), IsAlive(H, Serial));
+		TestEqual(TEXT("a hunter's Marked kill adds Debt"), H.Weapons.GetDebt(0), 1);
+	}
+	{
+		// Hound's own execute is not a payday's: its Marked kill adds Debt, as before D-060.
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Storm, TEXT("Shade.Hound"), { TEXT("Key"), TEXT("Trait") });
+		H.Bless(Blessing(TEXT("Shade.Economy"), TEXT("Key")));
+		const int32 Enemy = AddScaled(H, FVector2f(300.0f, 0.0f));
+		H.Enemies.SetHp(Enemy, H.Enemies.GetMaxHp()[Enemy] * 0.05f);
+		const uint32 Serial = SerialOf(H, Enemy);
+		H.StepOnce();
+		H.Weapons.ApplyMark(0, Serial, H.Step);
+		H.StepMany(Second);
+		TestFalse(TEXT("Hound executes it"), IsAlive(H, Serial));
+		TestEqual(TEXT("Hound's execute adds Debt"), H.Weapons.GetDebt(0), 1);
+	}
+	{
+		// With no Debt entry nothing is a payday's: every hit and kill of the run reads false.
+		FDTKeeperHarness H;
+		Own(H, EDTPath::Storm, TEXT("Storm.Tempest"), { TEXT("Key") });
+		for (int32 Index = 0; Index < 6; ++Index)
+		{
+			H.AddEnemy(FVector2f(300.0f + 30.0f * Index, -60.0f + 20.0f * Index), 1.0f);
+		}
+		int32 Kills = 0;
+		bool bAnyPayday = false;
+		for (int32 Step = 0; Step < 2 * Second; ++Step)
+		{
+			H.StepOnce();
+			Kills += H.View.Kills.Num();
+			bAnyPayday |= H.View.Kills.ContainsByPredicate([](const FDTKill& Kill) { return Kill.bPayday; });
+		}
+		bAnyPayday |= H.HitLog.ContainsByPredicate([](const FDTHit& Hit) { return Hit.bPayday; });
+		TestTrue(TEXT("the run made hits and kills"), H.HitLog.Num() > 0 && Kills > 0);
+		TestFalse(TEXT("no hit or kill is a payday's"), bAnyPayday);
+	}
+	return true;
+}
+
 // ---- crit and Lance (T-KEE-30, T-KEE-31) ---------------------------------------------------------------------------------------
 
 DT_S2_TEST(FDTKeeperS2Crit, "Crit") // T-KEE-30

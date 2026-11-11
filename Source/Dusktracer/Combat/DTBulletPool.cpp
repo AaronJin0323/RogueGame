@@ -91,7 +91,7 @@ int32 FDTBulletPool::Spawn(const FDTBulletSpawn& Params)
 	PierceLeft[Index] = FMath::Max(1, Params.Pierce);
 	SourceId[Index] = Params.SourceId;
 	WeaponSlot[Index] = Params.WeaponSlot;
-	Crit[Index] = Params.bCrit ? 1 : 0;
+	Crit[Index] = static_cast<uint8>((Params.bCrit ? 1 : 0) | (Params.bPayday ? 2 : 0));
 	Serial[Index] = NextSerial++;
 	HitCount[Index] = 0;
 	Moves[Index] = Params.Motion.IsActive() ? 1 : 0;
@@ -385,7 +385,8 @@ void FDTBulletPool::Step(float Dt, FDTWorldView& View)
 				Hit.Position = P;
 				Hit.SourceId = SourceId[Index];
 				Hit.WeaponSlot = WeaponSlot[Index];
-				Hit.bCrit = Crit[Index] != 0;
+				Hit.bCrit = (Crit[Index] & 1) != 0;
+				Hit.bPayday = (Crit[Index] & 2) != 0;
 				// Spawned pierce = what is left + what was used (PierceLeft drops by one per remembered hit).
 				Hit.bPierce = (Moves[Index] ? Motion[Index].Pierce : PierceLeft[Index] + HitCount[Index]) > 1;
 				++Counters.Hits;

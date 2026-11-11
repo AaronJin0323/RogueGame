@@ -70,6 +70,8 @@ struct FDTBulletSpawn
 	int8 WeaponSlot = INDEX_NONE;
 	/** Rolled crit, copied onto every hit (R-WPN-12); Damage already includes it. */
 	bool bCrit = false;
+	/** A payday's round or one it set off, copied onto every hit (keepers.md R-KEE-29). */
+	bool bPayday = false;
 };
 
 /** Monotonic counters; never reset except by Reset(). */
@@ -139,7 +141,7 @@ private:
 	TArray<int32> PierceLeft;
 	TArray<uint16> SourceId; // telemetry source of every hit this bullet makes (R-BUL-08)
 	TArray<int8> WeaponSlot; // copied onto every hit (R-WPN-12)
-	TArray<uint8> Crit;      // copied onto every hit as bCrit
+	TArray<uint8> Crit;      // bit 0 copied onto every hit as bCrit, bit 1 as bPayday (keepers.md R-KEE-29)
 	TArray<uint64> Serial;   // spawn order; the smallest is the oldest live bullet
 	TArray<int32> HitCount;  // enemies this bullet has hit; ring slot = HitCount % C.BULLETS.HIT_MEMORY
 	TArray<uint32> HitRing;  // C.BULLETS.HIT_MEMORY slots per bullet: serials of the last enemies it hit (R-BUL-04)
