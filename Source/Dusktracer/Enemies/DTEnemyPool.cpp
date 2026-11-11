@@ -971,10 +971,11 @@ void FDTEnemyPool::StepOrphans(float Dt, FDTWorldView& View)
 			O.bLanded = true;
 			if (O.Role == EDTEnemyRole::Rusher)
 			{
-				// The band resolves as a hazard at the step the charge would have started (R-ENM-13).
+				// The band resolves as a hazard at the step the charge would have started (R-ENM-13). A hero whose body only
+				// touches the band is not hit: the same strict overlap as contact (R-ENM-14, AppendContacts).
 				for (int32 Hero = 0; Hero < View.HeroPositions.Num(); ++Hero)
 				{
-					if (DistToSegment(View.HeroPositions[Hero], O.Origin, O.Dir, O.Length) <= 0.5f * O.Width + HeroRadius)
+					if (DistToSegment(View.HeroPositions[Hero], O.Origin, O.Dir, O.Length) < 0.5f * O.Width + HeroRadius)
 					{
 						FDTHeroHit& Hit = View.HeroHits.AddDefaulted_GetRef();
 						Hit.PlayerId = Hero;

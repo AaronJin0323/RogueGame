@@ -39,6 +39,7 @@ Do not explain Keepers, archetypes, flags, Intercession or the card kinds.
 3. "Was there a card you were glad to see?"
 4. "Did anything feel tiring or unfair?"
 5. "What would make you play again?"
+6. Only if they took Hammer Hand (锤手) while holding the Arc Blade or the Orbital Drones (note it on the sheet when you see the pick): "You took Hammer Hand with the blade (or the drones). What did you expect it to do to that weapon?" — do not say "cleave" or "横斩" first; record whether they say it seemed broken there (D-053 item 4 and its revert).
 
 ## After the session
 - Hand over: double-click `ExportTelemetry.bat`. It makes `Dusktracer_Telemetry_<time>.zip` on the desktop (one CSV + JSONL per run, from `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, and a `MANIFEST.txt`) and prints the path. Nothing leaves the PC by itself: you carry the zip. Send the scheduler the zip and this sheet; nothing else is needed: per-minute damage taken, dashes, decisions and the damage split by source are in the logs.

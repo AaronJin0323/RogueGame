@@ -1,5 +1,6 @@
 #include "Combat/DTWeaponSim.h"
 #include "Combat/DTBulletPool.h"
+#include "Combat/DTKnockback.h"
 #include "Core/DTConstantsGen.h"
 #include "Enemies/DTEnemyPool.h"
 #include "Telemetry/DTTelemetrySources.h"
@@ -538,6 +539,8 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 	int32 Hit = 0;
 	const FDTResolvedFlag* Melee = Runtime.Spec.FindFlag(DTCat::EFlag::ConvertMelee);
 	const bool bMarkKills = Melee && Melee->Entry.Params.Has(DTFlagParam::BurningExplodeOnDeathUu);
+	// Hard Blow: a cleave pushes what it strikes by knockback_uu, through the one knockback path (D-053 item 3).
+	const float Knockback = bCleave && Melee ? Melee->Entry.Params.Get(DTFlagParam::KnockbackUu) : 0.0f;
 	for (const int32 Enemy : Candidates)
 	{
 		if (Enemy < 0 || Enemy >= Num)
@@ -585,6 +588,7 @@ int32 FDTWeaponSim::EmitArc(const FDTSimContext& Context, FWeaponRuntime& Runtim
 		{
 			StepCleaved.Add(Out.EnemySerial);
 		}
+		DTKnockback::Push(View, Shot.OwnerId, Enemy, Shot.Origin, Dir, Knockback);
 		++Runtime.Counters.Impacts;
 		++Hit;
 	}
