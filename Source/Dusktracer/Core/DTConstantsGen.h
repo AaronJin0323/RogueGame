@@ -259,7 +259,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 573; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 584; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -574,4 +574,5 @@ namespace DTConst
 	inline constexpr int32 AUD_KEY_SEMIS_MAX = 4; // semitones, GATED(S4)
 	inline constexpr int32 AUD_LADDER_SEMIS_MAX = 12; // semitones, GATED(S4)
 	inline constexpr int32 AUD_LOOP_SEAM_LEVEL_MAX_DB = 3; // dB, GATED(S4)
+	inline constexpr int32 AUD_LEVEL_JITTER_DB = 1; // dB, GATED(S4)
 }

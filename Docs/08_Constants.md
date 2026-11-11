@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 573 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 584 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -650,4 +650,5 @@ S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no k
 | C.AUD.PAIR_LENGTH_RATIO_MIN | 2 | x | GATED(S4) | audio R-AUD-17, T-AUD-17, Tools/audio/audio_check.py (two sounds of a confusion set told apart by active length when one is this many times the other) |
 | C.AUD.KEY_SEMIS_MAX | 4 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest degree a `key` sound is drawn at: the band share is read there) |
 | C.AUD.LADDER_SEMIS_MAX | 12 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest step of a `ladder` sound, such as a gem streak) |
+| C.AUD.LEVEL_JITTER_DB | 1 | dB | GATED(S4) | audio R-AUD-10, T-AUD-10, Audio/DTAudioScheduler (a `key` voice's level is drawn within this many dB either side of its catalog volume) |
 | C.AUD.LOOP_SEAM_LEVEL_MAX_DB | 3 | dB | GATED(S4) | audio R-AUD-16, T-AUD-16, Tools/audio/audio_check.py (a loop's first and last 20 ms differ in level by at most this; the step rule stands beside it) |
