@@ -3,6 +3,7 @@
 #   $Proc = Start-DTHidden $Exe $ArgList   a [Diagnostics.Process], as Start-Process -PassThru gives, with its exit code held from the start
 #   Stop-DTHidden $Proc                    kills its tree by PID and waits; nothing if it has ended
 #   Get-DTHiddenWindows                    what is visible on the hidden desktop now: "<pid> <class> '<title>'"
+#   Hold-DTProcess                         this script and what it starts from now on, in a job that carries the mask's affinity limit
 #   Close-DTHidden                         ends whatever is left and closes the desktop. A script may leave this to its own exit: the OS does the same
 # $ArgList is joined with spaces, as Start-Process does, so a path with a space carries its own quotes. The editor needs the project path first.
 # Why a desktop: no launch flag is the rule. A launch that renders shows UnrealWindow, a flag can be forgotten, and -WindowStyle Hidden does not stop Unreal's own
@@ -109,6 +110,17 @@ public static class DTHiddenDesktop {
 			CloseHandle(pi.process);
 		}
 	}
+	// The calling process and every process it starts from now on, in a job of their own that carries the affinity limit: the form for work that is
+	// not one launch (a batch file's commandlet, the cook RunUAT starts). No kill on close and no breakaway: a daemon the work starts stays held and lives on.
+	static IntPtr HeldJob;
+	public static bool HoldSelf() {
+		if (Affinity == 0) { return false; }
+		if (HeldJob != IntPtr.Zero) { return true; }
+		IntPtr job = NewJob(0);
+		if (!AssignProcessToJobObject(job, Process.GetCurrentProcess().Handle)) { CloseHandle(job); throw new Win32Exception(); }
+		HeldJob = job;
+		return true;
+	}
 	public static string[] Visible() {
 		List<string> found = new List<string>();
 		if (Desktop == IntPtr.Zero) { return found.ToArray(); }
@@ -150,6 +162,9 @@ function Stop-DTHidden($Proc) {
 		$Proc.WaitForExit(30000) | Out-Null
 	}
 }
+
+# Holds this script and all it starts from now on inside the machine's mask, by the same job limit as a launch (no limit without a mask).
+function Hold-DTProcess { return [DTHiddenDesktop]::HoldSelf() }
 
 function Get-DTHiddenWindows { return [DTHiddenDesktop]::Visible() }
 

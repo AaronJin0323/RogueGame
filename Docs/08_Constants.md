@@ -218,7 +218,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.ARENA.CAMERA_FOV_DEG | 50 | deg (horizontal) | GATED(S1) | Game/DTCameraPawn |
 | C.ARENA.CAMERA_FRAME_RADIUS_UU | 1500 | uu | GATED(S0) | 06_UX.md R-UX-01, Game/DTCameraPawn (D-036: every attack starts on screen; the frame is fixed) |
 | C.SMOKE.SECONDS | 10 | s | CORE | Tools/Smoke.ps1 |
-| C.SMOKE.GOLDEN_MEAN_DIFF_MAX | 12.0 | 8-bit level | GATED(S0) | Tools/image_check.py, Tools/Smoke.ps1 |
+| C.SMOKE.GOLDEN_MEAN_DIFF_MAX | 12.0 | 8-bit level | GATED(S0) | Tools/image_check.py, Tools/Smoke.ps1, Tools/image_check.py --exposure (T-PRE-07) |
 | C.SMOKE.IMAGE_STDDEV_MIN | 4.0 | 8-bit level | CORE | Tools/image_check.py (not blank / uniform) |
 | C.PERF.WARMUP_S | 10 | s | CORE | Tools/Perf.ps1, T-TEC-10 |
 | C.PERF.CAPTURE_FRAMES | 1800 | n | CORE | Tools/Perf.ps1, T-TEC-10 |

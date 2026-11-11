@@ -105,7 +105,7 @@ Already set in `Config/DefaultEngine.ini`:
 | `r.DefaultFeature.AutoExposure` | False | fixed exposure |
 | `r.DefaultFeature.LensFlare` | False | no lens flare |
 
-Set by the arena post-process volume (unbound, built by `Tools/create_arena.py`): depth of field off in play; exposure fixed at `C.ARENA.EXPOSURE_EV100` (minimum = maximum) for the one weather built; bloom threshold `C.ARENA.BLOOM_THRESHOLD`. Both keys are GATED(S0); that only emissives bloom at that threshold is not measured, and T-PRE-07 is not built. The second weather has no exposure value. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
+Set by the arena post-process volume (unbound, built by `Tools/create_arena.py`): depth of field off in play; exposure fixed at `C.ARENA.EXPOSURE_EV100` (minimum = maximum) for the one weather built; bloom threshold `C.ARENA.BLOOM_THRESHOLD`. Both keys are GATED(S0); that only emissives bloom at that threshold is not measured. T-PRE-07 reads this volume and a burst frame's exposure in the gate's `smoke` step. The second weather has no exposure value. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
 
 ## 5. Asset sources and the licence log (binding)
 

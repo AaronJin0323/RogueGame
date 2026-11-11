@@ -53,6 +53,6 @@
 | D-049 | The S3 exit passes on the designer's two of three; fresh means a fresh save | GO-NOGO | applied; replaces D-034 (on `dev/s3`) | `main` |
 | D-050 | Until people have played: the S1 build first, S4 wave 1 continues, nothing further starts early | GO-NOGO | applied | `main` |
 | D-051 | The owner sees what was decided for them; decisions live on `main`; the number log's tags are named | RULE | applied; amends D-009 | `main` |
-| D-052 | Tool runs keep off logical processors 0 and 10 of this PC, and the gate proves the rest on every run | RULE | applied: compiler, Python and engine launches run inside the mask (`FFFFF3FC` on this PC); commandlets and the cook do not yet; one odd failure in the first eight of the twenty gates the hypothesis counts | `main` |
+| D-052 | Tool runs keep off logical processors 0 and 10 of this PC, and the gate proves the rest on every run | RULE | applied: compiler, Python, engine launches, commandlets and the cook run inside the mask (`FFFFF3FC` on this PC); one odd failure in the first ten of the twenty gates the hypothesis counts | `main` |
 | D-053 | Until people have played, Hammer's Key changes nothing on Orbital Drones or the Gravity Mine and says so; Hard Blow does what its card says | RULE | applied (`s1/forge-truth`); two questions go to the S1 gate | `main` |
 | D-054 | A slowed run is told by its slow share; the threshold is set at the S1 gate | RULE | applied: `10_Tuning §2` defines it and `Tools/pressure.py` prints it; the threshold waits for the S1 gate | `main` |

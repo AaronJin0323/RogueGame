@@ -12,6 +12,9 @@ param(
 trap { Write-Host "PACKAGE: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+# The cook RunUAT starts is an engine whose threads would widen a process mask: this script and all it starts are held in a job with the mask
+# as its affinity limit (Tools/HiddenLaunch.ps1).
+. (Join-Path $PSScriptRoot "HiddenLaunch.ps1"); $null = Hold-DTProcess
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
