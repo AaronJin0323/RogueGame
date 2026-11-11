@@ -1375,30 +1375,70 @@ class Pre07(unittest.TestCase):
 class SlowShare(unittest.TestCase):
 	"""D-054: pressure.py prints the slow share of a person's run beside the count; a bot arm's run reads not read, never zero."""
 
-	def run_file(self, folder, end):
+	def run_file(self, folder, end, start=None):
 		os.makedirs(folder, exist_ok=True)
 		path = os.path.join(folder, "9107_20261111_000000.jsonl")
 		with open(path, "w", encoding="utf-8") as f:
-			f.write('{"t":0.0,"kind":"run_start","owner":-1,"seed":9107,"players":1}\n')
+			f.write(json.dumps(dict({"t": 0.0, "kind": "run_start", "owner": -1, "seed": 9107, "players": 1}, **(start or {}))) + "\n")
 			f.write(json.dumps(dict({"t": 600.0, "kind": "run_end", "owner": -1, "reason": "quit"}, **end)) + "\n")
 		return path
 
 	def test_a_session_run_prints_its_share_beside_the_count(self):
 		with tempfile.TemporaryDirectory() as root:
 			path = self.run_file(os.path.join(root, "session"), {"steps": 36000, "wall_dropped_steps": 4000})
-			self.assertEqual(pressure.slow_line(path[:-6], path), f"SLOW: {path[:-6]} share 0.1000 (4000 dropped of 40000 steps)")
+			self.assertEqual(pressure.slow_line(path[:-6], path),
+				f"SLOW: {path[:-6]} share 0.1000 (4000 dropped of 40000 steps; no bot_fast in run_start, told by its folder)")
 
 	def test_a_bot_arm_run_is_not_read_never_zero(self):
 		with tempfile.TemporaryDirectory() as root:
 			path = self.run_file(os.path.join(root, "None_s9107"), {"steps": 38181, "wall_dropped_steps": 0})
 			line = pressure.slow_line(path[:-6], path)
-			self.assertIn("not read (bot arm None at -DTBotFast; 0 dropped steps)", line)
+			self.assertIn("not read (bot arm None at -DTBotFast; 0 dropped steps; no bot_fast in run_start, told by its folder)", line)
 			self.assertNotIn("share", line)
+
+	def test_run_start_bot_fast_wins_over_the_folder(self):
+		# T-TEL-15's reader: the run file says what it was, wherever it sits.
+		with tempfile.TemporaryDirectory() as root:
+			fast = self.run_file(os.path.join(root, "session"), {"steps": 38181, "wall_dropped_steps": 2}, {"bot_fast": 600})
+			line = pressure.slow_line(fast[:-6], fast)
+			self.assertIn("not read (bot at -DTBotFast=600; 2 dropped steps)", line)
+			self.assertNotIn("share", line)
+			person = self.run_file(os.path.join(root, "None_s9107"), {"steps": 36000, "wall_dropped_steps": 4000}, {"bot_fast": 0})
+			self.assertEqual(pressure.slow_line(person[:-6], person), f"SLOW: {person[:-6]} share 0.1000 (4000 dropped of 40000 steps)")
+
 
 	def test_a_run_from_before_the_field_is_not_read(self):
 		with tempfile.TemporaryDirectory() as root:
 			path = self.run_file(os.path.join(root, "session"), {"steps": 600})
 			self.assertIn("not read (no wall_dropped_steps", pressure.slow_line(path[:-6], path))
+
+
+class ArrivalHits(unittest.TestCase):
+	"""T-TEL-14's reader: pressure.py splits Rusher hits five ways by hero_damaged.arrival and .charging, the killed drop-in's band
+	apart; files from before the fields read unmarked."""
+
+	LINES = [
+		'{"t":300.0,"step":1,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}',
+		'{"t":301.0,"step":2,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":false}',
+		'{"t":302.0,"step":3,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":true}',
+		'{"t":303.0,"step":4,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":false}',
+		'{"t":304.0,"step":5,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Charge","role":"Rusher","arrival":true,"charging":false}',
+		'{"t":305.0,"step":6,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Swarm","arrival":false,"charging":false}',
+		'{"t":306.0,"step":7,"kind":"hero_damaged","owner":0,"amount":20,"max_hp":100,"hit_kind":"Contact","role":"Rusher"}',
+	]
+
+	def test_five_ways_and_unmarked(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = os.path.join(root, "9107_20261111_000000.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(self.LINES) + "\n")
+			hits = pressure.rusher_hits_from_jsonl(path)
+			self.assertEqual(hits, {("arrival", "charging"): 1, ("arrival", "not charging"): 1, ("other", "charging"): 1,
+				("other", "not charging"): 1, ("band",): 1, ("unmarked", "Contact"): 1})
+			self.assertEqual(pressure.arrivals_detail(hits), "arrival charging 1 not charging 1; other charging 1 not charging 1; "
+				"killed drop-in band 1; unmarked contact 1 charge 0")
+			self.assertEqual(pressure.arrivals_detail({}),
+				"arrival charging 0 not charging 0; other charging 0 not charging 0; killed drop-in band 0")
 
 
 class GateMain(unittest.TestCase):

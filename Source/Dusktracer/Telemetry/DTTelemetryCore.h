@@ -20,6 +20,8 @@ struct FDTTelemetryConfig
 	float HeroPosSeconds = DTConst::TEL_HERO_POS_INTERVAL_S;
 	/** Wall-clock start in UTC (ISO 8601); JSONL run_start only, never in the CSV (R-TEL-08). */
 	FString WallStart;
+	/** Steps per frame a bot runs past the clock (-DTBotFast, UDTBotSubsystem::GetStepsPerFrame); 0 for a person's run or a bot at real speed. */
+	int32 BotFastSteps = 0;
 };
 
 /** World state at the end of one step, read by the subsystem from the bullet and enemy systems and the view. */

@@ -35,7 +35,7 @@
 | D-031 | `FDTRunSeed` reads the `-DTSeed=` switch alone on every branch | RULE | applied | `main` |
 | D-032 | A gated Patron hand draws its last seat over every Keeper not yet seated | RULE | applied | `dev/s3` |
 | D-033 | `run_start` says what made the run: `config` and `driver` | RULE | applied | `dev/s3` |
-| D-034 | The S3 exit's "pass 2 of 3" is two of three validators on each of the two Vision rows written that way | GO-NOGO | applied | `dev/s3` |
+| D-034 | The S3 exit's "pass 2 of 3" is two of three validators on each of the two Vision rows written that way | GO-NOGO | replaced by D-049 | `dev/s3` |
 | D-035 | On a save the duos' door opens the duo card; the reactions start when that card is taken | RULE | applied | `dev/s3` |
 | D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied | `main` |
 | D-037 | A gate check reads every run it launches, and a pool check has to be able to tell the pools apart | RULE | applied | `dev/s3` |
@@ -46,7 +46,7 @@
 | D-042 | One change to the save at a time: reread, change and write under a lock held for that change | BUG | applied on `fix/d042-save-lock` | `dev/s3` |
 | D-043 | S4 Presentation starts on `dev/s4` before the S1, S2 and S3 exit tests, limited to a first wave | GO-NOGO | applied | `dev/s4` |
 | D-044 | The doors of R-MET-28 are decided, and `Crit500` is reachable through them | RULE | applied | `dev/s3` |
-| D-045 | An arriving Rusher charges through where the hero stood | RULE | applied (the nineteen-arm reading and session A are open) | `main` |
+| D-045 | An arriving Rusher charges through where the hero stood | RULE | applied; the nineteen-arm reading shows no move in Rusher damage on bots and cannot count arrivals' charges yet; session A is open | `main` |
 | D-046 | A chest restores health; the two pressure bands are set at the S1 gate | RULE, SHAPE | the restore applied, its hypothesis pending session A; the bands open until the S1 gate | `main` |
 | D-047 | Keeper share is the power a build loses without its blessings | RULE | applied on `main`; read 2026-11-11 (`Validation/S1_d047_reread.md`), it stands | `main` |
 | D-048 | The S1 exit is read in two sessions | GO-NOGO | applied | `main` |
