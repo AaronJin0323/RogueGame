@@ -65,6 +65,7 @@ if (Test-Path $WorkRoot) { Remove-Item $WorkRoot -Recurse -Force }
 New-Item -ItemType Directory -Force $WorkRoot | Out-Null
 
 $script:Failures = @()
+$script:LimitSetAside = 0
 $script:ShownWindows = 0
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
 
@@ -130,6 +131,19 @@ function Get-WholeIntervals([string]$Csv) {
 	return ($Lines[0..($Lines.Count - 2)] -join "`n")
 }
 
+# Two run CSVs, compared by their whole intervals when both have one. A run that ends inside the first interval has none: then both files are compared by
+# every row they have, the header and the one partial row, and the result says which comparison it made. One file with whole intervals and the other with
+# none is a mismatch (S3_package.md, 2026-11-11: two byte-identical files had read as different, because nothing was left to compare).
+function Compare-RunCsv([string]$CsvA, [string]$CsvB) {
+	$A = Get-WholeIntervals $CsvA
+	$B = Get-WholeIntervals $CsvB
+	if ($A.Length -gt 0 -and $B.Length -gt 0) { return @{ Same = ($A -ceq $B); How = "whole intervals" } }
+	if ($A.Length -gt 0 -or $B.Length -gt 0) { return @{ Same = $false; How = "whole intervals in one file only" } }
+	$RowsA = (@($CsvA -split "`r?`n" | Where-Object { $_ }) -join "`n")
+	$RowsB = (@($CsvB -split "`r?`n" | Where-Object { $_ }) -join "`n")
+	return @{ Same = ($RowsA.Length -gt 0) -and ($RowsA -ceq $RowsB); How = "all rows, no whole interval" }
+}
+
 function Get-SavePath([string]$UserDir) { return Join-Path $UserDir "Saved\SaveGames\DTMeta.sav" }
 
 function Get-Field([string]$Text, [string]$Pattern) { if ($Text -match $Pattern) { return $Matches[1] }; return "" }
@@ -149,7 +163,10 @@ function Read-Log([string]$Tag, [string]$Log) {
 	}
 	$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
 	if ($Crash.Count) { Note-Fail "$Tag crash marker: $($Crash[0])" }
-	$Noise = @($Lines | Where-Object { $_ -cmatch ": (Warning|Error): " })
+	# The one line the launch job's affinity limit makes the engine write is set aside and counted (D-052, R-PKG-13, Split-DTLimitWarnings).
+	$Split = Split-DTLimitWarnings @($Lines | Where-Object { $_ -cmatch ": (Warning|Error): " })
+	$script:LimitSetAside += $Split.SetAside
+	$Noise = $Split.Kept
 	if ($Noise.Count) { Note-Fail "$Tag log warning or error ($($Noise.Count)): $($Noise[0])" }
 	$Lines | Where-Object { $_ -match "PATHCHECK .*: WRONG" } | ForEach-Object { Note-Fail "$Tag $($_ -replace '^.*LogDT: ', '')" }
 	$Verdict = @($Lines | Where-Object { $_ -match "PATHCHECK: " } | ForEach-Object { $_ -replace "^.*LogDT: ", "" })
@@ -373,16 +390,17 @@ function Invoke-ShippingRun([string]$Tag, [string]$Culture, [string]$UserDir, [i
 }
 
 $CsvOk = $false
+$CsvHow = "not compared"
 $EnSeed = if ($Walked["en"]) { [int]$Walked["en"].First.Seed } else { $Seed }
 $Fresh = Invoke-ShippingRun "E" "en" $ShipUser $EnSeed
 if ($Fresh) {
 	if ($Walked["en"]) {
-		# Both runs ended in a death, so the last row of each is the frame's (Get-WholeIntervals); the rows before it must be equal.
-		$A = Get-WholeIntervals ([IO.File]::ReadAllText($Walked["en"].Csv.FullName))
-		$B = Get-WholeIntervals ([IO.File]::ReadAllText((Get-RunFiles $ShipUser "csv" | Select-Object -Last 1).FullName))
-		$CsvOk = ($A.Length -gt 0) -and ($A -ceq $B)
-		if (-not $CsvOk) { Note-Fail "E Shipping's run is not the en walk's first run: steps $($Walked['en'].First.Steps) / $($Fresh.Steps), retained $($Walked['en'].First.Retained) / $($Fresh.Retained)" }
-		Write-Host "    E csv same as the en walk's first run=$CsvOk"
+		# Both runs ended in a death, so the last row of each is the frame's (Get-WholeIntervals); the rows before it must be equal (Compare-RunCsv).
+		$Cmp = Compare-RunCsv ([IO.File]::ReadAllText($Walked["en"].Csv.FullName)) ([IO.File]::ReadAllText((Get-RunFiles $ShipUser "csv" | Select-Object -Last 1).FullName))
+		$CsvOk = $Cmp.Same
+		$CsvHow = $Cmp.How
+		if (-not $CsvOk) { Note-Fail "E Shipping's run is not the en walk's first run ($CsvHow): steps $($Walked['en'].First.Steps) / $($Fresh.Steps), retained $($Walked['en'].First.Retained) / $($Fresh.Retained)" }
+		Write-Host "    E csv same as the en walk's first run=$CsvOk ($CsvHow)"
 	}
 	$Read = Invoke-Script "read_shipping" "Reboot" "en" $ShipUser (Join-Path $WorkRoot "shipping\shots") @()
 	if ($Read.Opens.Count -eq 1) { Expect-Open "F Development reading Shipping's save" $Read.Opens[0] $Fresh.Retained 1 $Fresh.Patron } else { Note-Fail "F hub opened $($Read.Opens.Count) time(s)" }
@@ -430,7 +448,7 @@ Close-DTHidden
 $script:ShownWindows = $Seen.Windows.Count
 foreach ($Window in $Seen.Windows) { Note-Fail "shown on this desktop: $Window" }
 
-$Summary = "package {0}, same cook={1}, {2} tables read in en and zh-Hans, walks {3} en on seed {4} + {5} zh-Hans, Shipping csv same as the walk={6}, seed {7} hash {8}, owner's save unchanged={9}, windows {10}" -f $Stamp.commit, $SameCook, $Truth.Count, $Walks["en"], $EnSeed, $Walks["zh-Hans"], $CsvOk, $Seed, $Hashes.Development, ($OwnerAfter -ceq $OwnerBefore), $script:ShownWindows
+$Summary = "package {0}, same cook={1}, {2} tables read in en and zh-Hans, walks {3} en on seed {4} + {5} zh-Hans, Shipping csv same as the walk={6} ({11}), seed {7} hash {8}, owner's save unchanged={9}, windows {10}, limit warnings set aside {12} (D-052)" -f $Stamp.commit, $SameCook, $Truth.Count, $Walks["en"], $EnSeed, $Walks["zh-Hans"], $CsvOk, $Seed, $Hashes.Development, ($OwnerAfter -ceq $OwnerBefore), $script:ShownWindows, $CsvHow, $script:LimitSetAside
 if ($script:Failures.Count) {
 	Write-Host "PKGHUB: FAIL ($($script:Failures.Count) failure(s), first: $($script:Failures[0]); $Summary)"
 	exit 1

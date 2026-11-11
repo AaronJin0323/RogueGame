@@ -293,6 +293,25 @@ bool FDTMetSummaryLine::RunTest(const FString& Parameters)
 	FInternationalization::Get().SetCurrentCulture(Culture);
 	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
 	TestTrue(TEXT("the waiting row carries both languages"), Csv.Contains(TEXT("Summary.Waiting,Save in use by another game. This run is saved at the next save or on quit.,尚未保存：存档正被另一个游戏使用。本局会在下次保存或退出时存入。,")));
+
+	// A run that ends in a session stuck on its save (R-MET-12): one line that nothing was kept, and no amount, balance or toast.
+	TestTrue(TEXT("the not-saved line is listed with the menu's keys"), DTMenuText::AllKeys().Contains(TEXT("Summary.NotSaved")));
+	TestTrue(TEXT("the not-saved row carries both languages"), Csv.Contains(TEXT("Summary.NotSaved,Nothing from this run was saved. The save cannot be written.,这一局的内容没有保存。存档无法写入。,")));
+	const FName Found[] = { FName(TEXT("Win")) };
+	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
+	FText Said;
+	FText Under;
+	DTMenuText::RunOverLines(/*bNotSaved*/ true, /*bDeferred*/ false, 12, 345, Found, Said, Under);
+	TestEqual(TEXT("stuck: the screen says nothing was saved"), Said.ToString(), FString(TEXT("Nothing from this run was saved. The save cannot be written.")));
+	TestTrue(TEXT("stuck: no toast"), Under.IsEmpty());
+	TestFalse(TEXT("stuck: no amount and no balance"), Said.ToString().Contains(TEXT("12")) || Said.ToString().Contains(TEXT("345")));
+	DTMenuText::RunOverLines(/*bNotSaved*/ false, /*bDeferred*/ false, 12, 345, Found, Said, Under);
+	TestEqual(TEXT("not stuck: Summary.Line as before"), Said.ToString(), FString(TEXT("Ichor retained 12 · Balance 345")));
+	TestEqual(TEXT("not stuck: the Discovery toast as before"), Under.ToString(), DTMenuText::DiscoveryToast(Found).ToString());
+	DTMenuText::RunOverLines(/*bNotSaved*/ false, /*bDeferred*/ true, 12, 345, Found, Said, Under);
+	TestTrue(TEXT("a busy save: Summary.Line and Summary.Waiting as before"),
+		Said.ToString() == TEXT("Ichor retained 12 · Balance 345") && Under.ToString() == DTMenuText::SaveWaiting().ToString());
+	FInternationalization::Get().SetCurrentCulture(Culture);
 	return true;
 }
 

@@ -119,3 +119,22 @@ tools:      TOOLS: PASS (155 tests)
 GATE: PASS (a65b7a7; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s2_gate.txt` in the carrying worktree.
+
+## Fifth carry: `main` 75acd0d into `dev/s2` a132539 (`carry6/s2`)
+`main` brought D-057 to D-064 and its records, the gate's slot taken at its first heavy step (`Start-HeavyStep`), the same window-watch fix, and session A's reading tools (`Tools/session_read.py`, `pressure.py`, `owner_read.py`, `power_split.py`, the export manifest).
+- Conflicts and resolutions:
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff 75acd0d -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+  - `Tools/Gate.ps1`: `dev/s2`'s own heavy step, `restart`, now takes `Start-HeavyStep` like `main`'s; the old `Enter-DTHeavy` line at the gate's start is gone. `matrix` stays a text step (`Invoke-PyStep`, it launches nothing).
+  - `Tools/WindowWatch.ps1`: `main`'s copy of the same fix (its comment names `dev/s2`).
+  - `Validation/S1_kit.md`: `main`'s session A text. The kit describes `main`'s package, and `dev/s2`'s "Between runs" line about Restart run described the S2 build.
+  - `Tools/tools_test.py`: `session_read` beside `dev/s2`'s matrix and `LimitWarnings` cases. The heavy-entry list takes `main`'s form without `Gate.ps1` and keeps `dev/s2`'s `S2Exit.ps1`, `RestartCheck.ps1` and `PackageRestartCheck.ps1`. `GateSlot`'s stand-in gate stubs `dev/s2`'s `gen_matrix.py`, as `GateMain`'s does.
+- Scripts changed beyond `main`'s: `Tools/Gate.ps1` (the restart guard) and `Tools/tools_test.py` (the stub). No test pins behaviour that differs by branch.
+- Counts: 480 tests, floor 480; `tools_test.py` 193.
+- Seed 9107 on 460ba97, unchanged: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`; RestartCheck `276faf8e`.
+
+```
+tools:      TOOLS: PASS (193 tests)
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+GATE: PASS (460ba97; 3 not run; mask FFFFF3FC)
+```
+`dev/s2` had not moved when the leg was gated. Log: `Saved\Logs\c6s2_gate.txt` in the carry agent's worktree.

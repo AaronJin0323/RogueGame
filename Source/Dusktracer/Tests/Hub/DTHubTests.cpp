@@ -5,12 +5,14 @@
 #include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTRunSeed.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "Hub/DTHubData.h"
 #include "Hub/DTHubFlow.h"
 #include "Hub/DTHubScreen.h"
 #include "Hub/DTHubState.h"
 #include "Hub/DTHubTab.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/StringTable.h"
@@ -24,6 +26,7 @@
 #include "Misc/Paths.h"
 #include "Offers/DTOfferGenerator.h"
 #include "Settings/DTMenuScreen.h"
+#include "Templates/UniquePtr.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -940,15 +943,24 @@ bool FDTVigNotice::RunTest(const FString& Parameters)
 	FInternationalization::Get().SetCurrentCulture(TEXT("en"));
 	const FText Aside = DTHubText::Notice(EDTMetaNotice::KeptAside, TEXT("DTMeta.sav.bad.1"));
 	const FText Lost = DTHubText::Notice(EDTMetaNotice::RunLost, FString());
+	const FText Unreadable = DTHubText::Notice(EDTMetaNotice::SaveUnreadable, TEXT("DTMeta.sav"));
+	const FText NotMoved = DTHubText::Notice(EDTMetaNotice::SaveNotMoved, TEXT("DTMeta.sav"));
 	TestEqual(TEXT("a save set aside names the file it is kept as"), Aside.ToString(), FString(TEXT("The save could not be read. It is kept as DTMeta.sav.bad.1, and a new one starts empty.")));
 	TestEqual(TEXT("a run the last launch could not write"), Lost.ToString(), FString(TEXT("The last run could not be saved. Nothing from it is in this save.")));
+	TestEqual(TEXT("a save that cannot be opened names the save"), Unreadable.ToString(),
+		FString(TEXT("The save DTMeta.sav could not be opened. This session starts empty and saves nothing; the file is left as it is.")));
+	TestEqual(TEXT("a bad save that could not be set aside names the save"), NotMoved.ToString(),
+		FString(TEXT("The save DTMeta.sav could not be read and could not be set aside. This session starts empty and saves nothing; the file is left as it is.")));
 	FInternationalization::Get().SetCurrentCulture(Culture);
 	TestTrue(TEXT("both keys are the hub's"), DTHubText::AllKeys().Contains(TEXT("Hub.Notice.SaveAside")) && DTHubText::AllKeys().Contains(TEXT("Hub.Notice.RunLost")));
+	TestTrue(TEXT("both stuck keys are the hub's"), DTHubText::AllKeys().Contains(TEXT("Hub.Notice.SaveUnreadable")) && DTHubText::AllKeys().Contains(TEXT("Hub.Notice.SaveNotMoved")));
 	// The editor process does not swap the game's text with the culture, so the two languages are read where they are written.
 	FString Csv;
 	FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv")), FFileHelper::EHashOptions::None);
 	TestTrue(TEXT("the set-aside row carries both languages"), Csv.Contains(TEXT("Hub.Notice.SaveAside,\"The save could not be read. It is kept as {0}, and a new one starts empty.\",存档无法读取，已保留为 {0}。现在用的是一份空白的新存档。,")));
 	TestTrue(TEXT("the lost-run row carries both languages"), Csv.Contains(TEXT("Hub.Notice.RunLost,The last run could not be saved. Nothing from it is in this save.,上一局没能保存。这份存档里没有那一局的记录。,")));
+	TestTrue(TEXT("the unreadable row carries both languages"), Csv.Contains(TEXT("Hub.Notice.SaveUnreadable,The save {0} could not be opened. This session starts empty and saves nothing; the file is left as it is.,存档 {0} 打不开。这次用的是一份空白存档，不会保存任何内容；原文件保持不动。,")));
+	TestTrue(TEXT("the not-moved row carries both languages"), Csv.Contains(TEXT("Hub.Notice.SaveNotMoved,The save {0} could not be read and could not be set aside. This session starts empty and saves nothing; the file is left as it is.,存档 {0} 无法读取，也没能另行保留。这次用的是一份空白存档，不会保存任何内容；原文件保持不动。,")));
 
 	// Where it is drawn: the root's detail, on every row, and only there. What Begin lacks comes first on Begin.
 	const TArray<FDTCodexRow> Book;
@@ -1002,6 +1014,53 @@ bool FDTVigNotice::RunTest(const FString& Parameters)
 	FDTMetaSession Next;
 	Next.Open(Path);
 	TestEqual(TEXT("the launch after that says neither"), Next.Notice(), EDTMetaNotice::None);
+
+#if PLATFORM_WINDOWS
+	// A stuck session's line comes before the rest, and a save still stuck says so again (the seams of T-MET-12).
+	IPlatformFile& Platform = FPlatformFileManager::Get().GetPlatformFile();
+	const FString Locked = TempSave(TEXT("NoticeUnreadable.sav"));
+	IFileManager::Get().Delete(*DTMeta::LostPath(Locked), false, true, true);
+	IFileManager::Get().Delete(*(Locked + TEXT(".bad.1")), false, true, true);
+	FDTMetaSession Writer;
+	Writer.Open(Locked);
+	TestTrue(TEXT("a good save lands"), Writer.Write() && FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Locked)));
+	{
+		TUniquePtr<IFileHandle> Hold(Platform.OpenWrite(*Locked, /*bAppend*/ true, /*bAllowRead*/ false));
+		TestTrue(TEXT("held with no reader allowed"), Hold.IsValid());
+		FDTMetaSession Stuck;
+		TestEqual(TEXT("a file that cannot be read sticks the session"), Stuck.Open(Locked), EDTMetaOpen::Stuck);
+		TestTrue(TEXT("a marker and a file it cannot read: the stuck line, nothing set aside, the marker read"),
+			Stuck.Notice() == EDTMetaNotice::SaveUnreadable && Stuck.AsidePath.IsEmpty() && Stuck.LostRuns == 1);
+		TestTrue(TEXT("the line names the save"), DTHubText::Notice(Stuck.Notice(), FPaths::GetCleanFilename(Stuck.Path)).ToString().Contains(TEXT("NoticeUnreadable.sav")));
+		FDTMetaSession Again;
+		Again.Open(Locked);
+		TestEqual(TEXT("the launch after, still stuck, says so again"), Again.Notice(), EDTMetaNotice::SaveUnreadable);
+	}
+	FDTMetaSession Freed;
+	TestTrue(TEXT("once it can be read, the launch after says neither"), Freed.Open(Locked) == EDTMetaOpen::Read && Freed.Notice() == EDTMetaNotice::None);
+
+	const FString Held = TempSave(TEXT("NoticeHeld.sav"));
+	IFileManager::Get().Delete(*DTMeta::LostPath(Held), false, true, true);
+	IFileManager::Get().Delete(*(Held + TEXT(".bad.1")), false, true, true);
+	TestTrue(TEXT("a marker and a bad save"), FFileHelper::SaveStringToFile(TEXT("1"), *DTMeta::LostPath(Held)) && FFileHelper::SaveStringToFile(TEXT("not a save"), *Held));
+	{
+		TUniquePtr<IFileHandle> Hold(Platform.OpenRead(*Held));
+		TestTrue(TEXT("held open"), Hold.IsValid());
+		FDTMetaSession Stuck;
+		TestEqual(TEXT("held open it cannot move"), Stuck.Open(Held), EDTMetaOpen::Stuck);
+		TestTrue(TEXT("a marker and a bad file it cannot move: the stuck line, nothing set aside, the marker read"),
+			Stuck.Notice() == EDTMetaNotice::SaveNotMoved && Stuck.AsidePath.IsEmpty() && Stuck.LostRuns == 1 && !IFileManager::Get().FileExists(*(Held + TEXT(".bad.1"))));
+		TestTrue(TEXT("the line names the save"), DTHubText::Notice(Stuck.Notice(), FPaths::GetCleanFilename(Stuck.Path)).ToString().Contains(TEXT("NoticeHeld.sav")));
+		FDTMetaSession Again;
+		Again.Open(Held);
+		TestEqual(TEXT("the launch after, still stuck, says so again"), Again.Notice(), EDTMetaNotice::SaveNotMoved);
+	}
+	FDTMetaSession Moved;
+	TestTrue(TEXT("once it can move, the launch after sets it aside"), Moved.Open(Held) == EDTMetaOpen::KeptAside && Moved.Notice() == EDTMetaNotice::KeptAside);
+	FDTMetaSession Quiet;
+	Quiet.Open(Held);
+	TestEqual(TEXT("and the launch after that says neither"), Quiet.Notice(), EDTMetaNotice::None);
+#endif
 	return true;
 }
 
