@@ -13,7 +13,10 @@
 # -Contrast judges the shot with Tools/contrast_check.py (T-PRE-05) instead of a golden; the hero is read from the arena_empty
 # shot of the same culture, where nothing stands on it. -DormantLine judges it with contrast_check.py --dormant-line instead:
 # the HUD's dormant line on its panel, as rendered (R-MOD-08); pass -Cmds that stage one.
+# -Burst is the rest of T-PRE-07: first Tools/render_settings_check.py reads the arena's post-process volume in a headless commandlet (RENDER: line),
+# then the shot of -Cmds (a burst of fire) is judged by Tools/image_check.py --exposure against the arena_empty shot of the same culture: no exposure change.
 # Before the launch, T-PRE-07's config half: the render settings 04_Presentation s4 lists hold their values in Config/DefaultEngine.ini.
+# The game's process mask is sampled about every 0.2 s for its whole life and must stay inside the machine's mask (D-052).
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -26,7 +29,8 @@ param(
 	[switch]$Director,
 	[switch]$Update,
 	[switch]$Contrast,
-	[switch]$DormantLine
+	[switch]$DormantLine,
+	[switch]$Burst
 )
 
 trap { Write-Host "SMOKE: FAIL (script error: $_)"; exit 1 }
@@ -76,6 +80,24 @@ if ($Settings.Count -eq 0) { $Pre07 += "no setting read from 04_Presentation s4"
 if ($Pre07.Count -gt 0) { $Pre07 | ForEach-Object { "  ! T-PRE-07 $_" }; Write-Host ("SMOKE: FAIL (T-PRE-07: {0} of {1} render setting(s) wrong in Config/DefaultEngine.ini)" -f $Pre07.Count, $Settings.Count); exit 1 }
 Write-Host ("smoke: T-PRE-07 config half, {0} render settings as 04_Presentation s4 says" -f $Settings.Count)
 
+# --- T-PRE-07, the volume half (-Burst): the arena's post-process volume, read by the editor in a commandlet that saves nothing -------------
+$Render = ""
+if ($Burst) {
+	$CmdExe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+	$RenderLog = Join-Path $LogDir "Smoke_render_settings.log"
+	if (Test-Path $RenderLog) { Remove-Item $RenderLog -Force }
+	$RenderProc = Start-DTHidden $CmdExe @("`"$Project`"", "-run=pythonscript", "-script=`"$(Join-Path $Root "Tools\render_settings_check.py")`"", "-unattended", "-nopause",
+		"-nullrhi", "-nosplash", "-LiveCoding=false", "-ABSLOG=`"$RenderLog`"")
+	if (-not $RenderProc.WaitForExit($LoadTimeout * 1000)) { Stop-DTHidden $RenderProc }
+	$RenderLines = @(if (Test-Path $RenderLog) { Get-Content $RenderLog -Encoding UTF8 } else { @() })
+	$RenderLines | Where-Object { $_ -match "render_settings: " } | ForEach-Object { "    " + ($_ -replace "^.*render_settings: ", "render_settings: ") }
+	$Render = (($RenderLines | Where-Object { $_ -match "RENDER: (PASS|FAIL)" } | Select-Object -Last 1) -replace "^.*RENDER:", "RENDER:")
+	if ($Render -notmatch "^RENDER: PASS") {
+		Write-Host ("SMOKE: FAIL (T-PRE-07 volume: {0}; log {1})" -f $(if ($Render) { $Render } else { "no RENDER line" }), $RenderLog)
+		exit 1
+	}
+}
+
 # --- text: generated string table + compiled .locres must be current (R-TEC-08) --------------------------------------
 $LocOut = & python -I (Join-Path $Root "Tools\loc_build.py") --build 2>&1
 if ($LASTEXITCODE -ne 0) { $LocOut | ForEach-Object { "    $_" }; Write-Host "SMOKE: FAIL (loc_build)"; exit 1 }
@@ -99,13 +121,33 @@ Write-Host ("smoke: {0} culture={1} cmds='{2}' shot after {3} s (PID {4})" -f $M
 
 function Read-Log { if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { "" } }
 
+# D-052: the game's process mask is sampled about every 0.2 s for its whole life; one sample outside the machine's mask fails the run
+# (Tools/HiddenLaunch.ps1 holds the launch in a job whose affinity limit is that mask).
+$MaskBits = if ($DTMask -and $DTMask -ne "none") { [Convert]::ToUInt64($DTMask, 16) } else { [UInt64]0 }
+$Samples = 0
+$Outside = @()
+function Wait-Sampled([double]$Seconds) {
+	$Until = (Get-Date).AddSeconds($Seconds)
+	do {
+		if ($script:MaskBits -ne 0 -and -not $Proc.HasExited) {
+			try {
+				$Got = [UInt64][Int64]$Proc.ProcessorAffinity
+				$script:Samples++
+				if (($Got -band (-bnot $script:MaskBits)) -ne 0) { $script:Outside += ("{0:X}" -f $Got) }
+			}
+			catch { }  # the process ended between the check and the read
+		}
+		Start-Sleep -Milliseconds 200
+	} while ((Get-Date) -lt $Until -and -not $Proc.HasExited)
+}
+
 $Killed = $false
 try {
 	$Deadline = (Get-Date).AddSeconds($LoadTimeout)
-	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and (Read-Log) -notmatch "LogDT: Run start") { Start-Sleep -Seconds 1 }
+	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and (Read-Log) -notmatch "LogDT: Run start") { Wait-Sampled 1 }
 	# After the run starts the game shoots and quits on its own; allow the shot delay plus a margin for slow frames.
 	$Deadline = (Get-Date).AddSeconds($Seconds + 120)
-	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1 }
+	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Wait-Sampled 1 }
 }
 finally {
 	if (-not $Proc.HasExited) {
@@ -186,6 +228,12 @@ if (Test-Path $Shot) {
 		$Judged.Out | ForEach-Object { "    $_" }
 		$Image = (($Judged.Out | Select-String "^CONTRAST:" | Select-Object -Last 1).Line)
 	}
+	elseif ($Burst) {
+		$Judged = Invoke-Judge @((Join-Path $Root "Tools\image_check.py"), $Shot, "--exposure", (Join-Path $ShotDir "arena_empty_$Culture.png"))
+		$ImageOk = ($Judged.Rc -eq 0)
+		$Image = (($Judged.Out | Select-String "^IMAGE:" | Select-Object -Last 1).Line) -replace "^IMAGE:\s*", "image "
+		if ($Render) { $Image = "$Render, $Image" }
+	}
 	elseif ($DormantLine) {
 		$Judged = Invoke-Judge @((Join-Path $Root "Tools\contrast_check.py"), $Shot, "--dormant-line")
 		$ImageOk = ($Judged.Rc -eq 0)
@@ -204,8 +252,11 @@ if (Test-Path $Shot) {
 Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"
 
-$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}, {8}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Keys, $Image
-if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $KeysOk -and $ImageOk) {
+$Affinity = if ($MaskBits -eq 0) { "mask none" } else { "mask $DTMask, {0} sample(s), {1} outside" -f $Samples, $Outside.Count }
+if ($Outside.Count) { $Outside | Sort-Object -Unique | ForEach-Object { "  ! the game's process mask read $_, outside $DTMask" } }
+$MaskOk = ($MaskBits -eq 0) -or ($Samples -gt 0 -and $Outside.Count -eq 0)
+$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}, {8}, {9}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Keys, $Image, $Affinity
+if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $KeysOk -and $ImageOk -and $MaskOk) {
 	Write-Host "SMOKE: PASS ($Summary)"
 	exit 0
 }
