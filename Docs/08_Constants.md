@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 593 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 594 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -219,6 +219,7 @@ S4 wave 1 package D (D-043): presentation only, no reader in the sim.
 |---|---|---|---|---|
 | C.TRC.HEAD_WIDTH_RATIO | 0.85 | ratio | GATED(S4) | tracer_art.md R-TRC-01, T-TRC-01 (a player head's drawn half-width over the round's hit radius) |
 | C.TRC.HEAD_STRETCH | 1.8 | ratio | GATED(S4) | tracer_art.md R-TRC-01, T-TRC-01 (a moving head's half-length over its half-width, along the flight) |
+| C.TRC.CLEAR_ZONE_RATIO | 2.5 | ratio | GATED(S4) | tracer_art.md R-TRC-01, R-TRC-02, T-TRC-01, Presentation/DTTracerArt (the hero's clear zone: no head or tail of the player's own within this many hero radii of the hero; 0 draws every round, D-068) |
 | C.TRC.TAIL_S | 0.08 | s | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (a player tail is the path of this many seconds of flight) |
 | C.TRC.TAIL_MIN_RATIO | 6.0 | ratio | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (shortest tail, in drawn head half-widths, so a slow round still reads as trailed) |
 | C.TRC.TAIL_MAX_UU | 150 | uu | GATED(S4) | tracer_art.md R-TRC-02, T-TRC-02 (longest tail) |

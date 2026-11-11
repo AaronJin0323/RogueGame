@@ -6,6 +6,7 @@
 #include "Core/DTRunState.h"
 
 class UInstancedStaticMeshComponent;
+class UWorld;
 
 namespace DTTracerArt
 {
@@ -57,6 +58,56 @@ namespace DTTracerArt
 	DUSKTRACER_API float RoundAge(const FVector2f& Origin, const FVector2f& At, const FVector2f& Velocity);
 	/** The flash of a round just fired: from the firing hull's edge (C.ROLE.TURRET_RADIUS_UU down the flight from the firing point), pointing down the flight and shrinking over C.TRC.MUZZLE_S. False once it is over. */
 	DUSKTRACER_API bool MuzzleFlash(const FVector2f& Origin, const FVector2f& At, const FVector2f& Velocity, float HitRadius, float InvPlane, double Z, FTransform& Out);
+
+	// ---- the hero's clear zone (R-TRC-01, R-TRC-02, D-068) ------------------------------------------------------------------
+
+	/**
+	 * Where a switch outside Shipping keeps its value: negative uses C.TRC.CLEAR_ZONE_RATIO (the default). Set by dt.Tracer.ClearZone and,
+	 * at start, by the environment variable DT_TRACER_CLEAR_ZONE (Debug/DTDebugTracer.cpp); nothing in Shipping sets it.
+	 */
+	DUSKTRACER_API float& ClearZoneSetting();
+	/** The ratio in force, in hero radii: the switch's value when it is zero or more, else C.TRC.CLEAR_ZONE_RATIO. Zero draws every round. */
+	DUSKTRACER_API float ClearZoneRatio();
+
+	/**
+	 * The hero's clear zone for one frame: a disc of the ratio times C.HERO.RADIUS_UU round each hero's drawn position. A writer builds it
+	 * once per frame and asks Hides for each round inside the loop that already writes its instance: one squared distance per round.
+	 * Draw only: it reads the heroes and writes nothing.
+	 */
+	struct DUSKTRACER_API FClearZone
+	{
+		FClearZone() = default;
+		/** Heroes by player index, as drawn; Ratio in hero radii (zero or less: the zone is off). */
+		FClearZone(TConstArrayView<FVector2f> Heroes, float Ratio);
+		/** The zone of World's heroes at the interpolation Alpha, at ClearZoneRatio(). Off when the world has no hero system. */
+		static FClearZone OfWorld(const UWorld* World, float Alpha);
+
+		bool IsOn() const { return RadiusSq > 0.0f && Heroes.Num() > 0; }
+		/** True for a round of Owner drawn at At inside its hero's zone; a round whose owner is no hero is inside any hero's zone. Stress fire is player 0's, so the hero's. */
+		bool Hides(int32 Owner, const FVector2f& At) const
+		{
+			if (RadiusSq <= 0.0f)
+			{
+				return false;
+			}
+			if (Heroes.IsValidIndex(Owner))
+			{
+				return FVector2f::DistSquared(At, Heroes[Owner]) < RadiusSq;
+			}
+			for (const FVector2f& Hero : Heroes)
+			{
+				if (FVector2f::DistSquared(At, Hero) < RadiusSq)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+	private:
+		float RadiusSq = 0.0f;
+		TArray<FVector2f, TInlineAllocator<4>> Heroes;
+	};
 
 	// ---- instances ----------------------------------------------------------------------------------------------------------
 

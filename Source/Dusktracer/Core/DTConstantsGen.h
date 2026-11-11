@@ -185,6 +185,7 @@ namespace DTConst
 	// tracer_art
 	inline constexpr float TRC_HEAD_WIDTH_RATIO = 0.85f; // ratio, GATED(S4)
 	inline constexpr float TRC_HEAD_STRETCH = 1.8f; // ratio, GATED(S4)
+	inline constexpr float TRC_CLEAR_ZONE_RATIO = 2.5f; // ratio, GATED(S4)
 	inline constexpr float TRC_TAIL_S = 0.08f; // s, GATED(S4)
 	inline constexpr float TRC_TAIL_MIN_RATIO = 6.0f; // ratio, GATED(S4)
 	inline constexpr int32 TRC_TAIL_MAX_UU = 150; // uu, GATED(S4)
@@ -301,7 +302,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 593; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 594; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
