@@ -14,6 +14,7 @@
 # shot of the same culture, where nothing stands on it. -DormantLine judges it with contrast_check.py --dormant-line instead:
 # the HUD's dormant line on its panel, as rendered (R-MOD-08); pass -Cmds that stage one.
 # Before the launch, T-PRE-07's config half: the render settings 04_Presentation s4 lists hold their values in Config/DefaultEngine.ini.
+# The game's process mask is sampled about every 0.2 s for its whole life and must stay inside the machine's mask (D-052).
 # Prints "SMOKE: PASS (...)" or "SMOKE: FAIL (...)"; exit 0 / 1. Log: Saved\Logs\Smoke_<Name>_<Culture>.log.
 param(
 	[ValidateSet("en", "zh-Hans")]
@@ -99,13 +100,33 @@ Write-Host ("smoke: {0} culture={1} cmds='{2}' shot after {3} s (PID {4})" -f $M
 
 function Read-Log { if (Test-Path $Log) { Get-Content $Log -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { "" } }
 
+# D-052: the game's process mask is sampled about every 0.2 s for its whole life; one sample outside the machine's mask fails the run
+# (Tools/HiddenLaunch.ps1 holds the launch in a job whose affinity limit is that mask).
+$MaskBits = if ($DTMask -and $DTMask -ne "none") { [Convert]::ToUInt64($DTMask, 16) } else { [UInt64]0 }
+$Samples = 0
+$Outside = @()
+function Wait-Sampled([double]$Seconds) {
+	$Until = (Get-Date).AddSeconds($Seconds)
+	do {
+		if ($script:MaskBits -ne 0 -and -not $Proc.HasExited) {
+			try {
+				$Got = [UInt64][Int64]$Proc.ProcessorAffinity
+				$script:Samples++
+				if (($Got -band (-bnot $script:MaskBits)) -ne 0) { $script:Outside += ("{0:X}" -f $Got) }
+			}
+			catch { }  # the process ended between the check and the read
+		}
+		Start-Sleep -Milliseconds 200
+	} while ((Get-Date) -lt $Until -and -not $Proc.HasExited)
+}
+
 $Killed = $false
 try {
 	$Deadline = (Get-Date).AddSeconds($LoadTimeout)
-	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and (Read-Log) -notmatch "LogDT: Run start") { Start-Sleep -Seconds 1 }
+	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline -and (Read-Log) -notmatch "LogDT: Run start") { Wait-Sampled 1 }
 	# After the run starts the game shoots and quits on its own; allow the shot delay plus a margin for slow frames.
 	$Deadline = (Get-Date).AddSeconds($Seconds + 120)
-	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Start-Sleep -Seconds 1 }
+	while (-not $Proc.HasExited -and (Get-Date) -lt $Deadline) { Wait-Sampled 1 }
 }
 finally {
 	if (-not $Proc.HasExited) {
@@ -204,8 +225,11 @@ if (Test-Path $Shot) {
 Write-Host "    log: $Log"
 Write-Host "    shot: $Shot"
 
-$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}, {8}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Keys, $Image
-if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $KeysOk -and $ImageOk) {
+$Affinity = if ($MaskBits -eq 0) { "mask none" } else { "mask $DTMask, {0} sample(s), {1} outside" -f $Samples, $Outside.Count }
+if ($Outside.Count) { $Outside | Sort-Object -Unique | ForEach-Object { "  ! the game's process mask read $_, outside $DTMask" } }
+$MaskOk = ($MaskBits -eq 0) -or ($Samples -gt 0 -and $Outside.Count -eq 0)
+$Summary = "{0}, run start={1}, crash={2}, ensure={3}, LogDT errors={4}, killed={5}, {6}, {7}, {8}, {9}" -f $Tag, $Started, $Crash.Count, $Ensure.Count, $DTErr.Count, $Killed, $Loc, $Keys, $Image, $Affinity
+if ($Started -and $Crash.Count -eq 0 -and $Ensure.Count -eq 0 -and $DTErr.Count -eq 0 -and $LocOk -and $KeysOk -and $ImageOk -and $MaskOk) {
 	Write-Host "SMOKE: PASS ($Summary)"
 	exit 0
 }

@@ -1054,6 +1054,66 @@ class Machine(unittest.TestCase):
 		self.assertRegex(out, r"CPU: PASS \(1 processors, mask [0-9A-F]+, 2 rounds\)")
 
 
+WIDEN_CHILD = '''import ctypes, sys
+from ctypes import wintypes
+k = ctypes.WinDLL("kernel32", use_last_error=True)
+k.GetCurrentProcess.restype = ctypes.c_void_p
+k.GetCurrentThread.restype = ctypes.c_void_p
+k.GetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+class GA(ctypes.Structure):
+	_fields_ = [("Mask", ctypes.c_size_t), ("Group", wintypes.WORD), ("Reserved", wintypes.WORD * 3)]
+k.SetThreadGroupAffinity.argtypes = [ctypes.c_void_p, ctypes.POINTER(GA), ctypes.POINTER(GA)]
+def proc():
+	p, s = ctypes.c_size_t(), ctypes.c_size_t()
+	k.GetProcessAffinityMask(k.GetCurrentProcess(), ctypes.byref(p), ctypes.byref(s))
+	return p.value
+before = proc()
+ok = k.SetThreadGroupAffinity(k.GetCurrentThread(), ctypes.byref(GA(int(sys.argv[2], 16), 0)), None)
+open(sys.argv[1], "w").write("%X %d %X" % (before, ok, proc()))
+'''
+
+
+class EngineMask(unittest.TestCase):
+	"""D-052: the launch job of Tools/HiddenLaunch.ps1 carries the machine's mask as its affinity limit, because the engine's threads ask for every
+	processor (FRunnableThreadWin::SetThreadAffinity) and a process mask alone lets Windows widen the process to match."""
+
+	HELPER = os.path.join(TOOLS, "HiddenLaunch.ps1")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.own = cpu_canary.affinity()[0]
+		self.one = 1 << cpu_canary.bits(self.own)[-1]
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def helper(self, script, mask_text=None):
+		path = os.path.join(self.tmp.name, "affinity.txt")
+		if mask_text is not None:
+			with open(path, "w", encoding="ascii") as f:
+				f.write(mask_text + "\n")
+		return powershell(f". {ps_quote(self.HELPER)}; {script}", {"DT_AFFINITY_FILE": path})
+
+	def test_the_limit_is_the_helpers_mask(self):
+		rc, out = self.helper("'{0:X} {1:X} {2:X}' -f [DTHiddenDesktop]::Affinity, [DTHiddenDesktop]::JobFlags(0x2000, [DTHiddenDesktop]::Affinity), [DTHiddenDesktop]::JobFlags(0x2000, 0)", f"{self.one:X}")
+		self.assertIn(f"{self.one:X} 2010 2000", out)
+
+	def test_no_mask_is_no_limit(self):
+		rc, out = self.helper("'{0:X} {1:X}' -f [DTHiddenDesktop]::Affinity, [DTHiddenDesktop]::JobFlags(0x2000, [DTHiddenDesktop]::Affinity)")
+		self.assertIn("0 2000", out)
+
+	def test_a_launched_thread_cannot_widen_the_process(self):
+		child = os.path.join(self.tmp.name, "widen.py")
+		result = os.path.join(self.tmp.name, "widen.txt")
+		with open(child, "w", encoding="utf-8") as f:
+			f.write(WIDEN_CHILD)
+		launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"', '\"{result}\"', '{self.own:X}'); $null = $P.WaitForExit(60000); Close-DTHidden"
+		rc, out = self.helper(launch, f"{self.one:X}")
+		with open(result, encoding="ascii") as f:
+			before, ok, after = f.read().split()
+		self.assertEqual((before, ok, after), (f"{self.one:X}", "0", f"{self.one:X}"), out)
+
+
 class GateMain(unittest.TestCase):
 	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
 	a private canvas link, and one GPU lock for every worktree."""
