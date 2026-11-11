@@ -9,7 +9,9 @@
 # The launch is EnemyArt.ps1's and Smoke.ps1's: UnrealEditor -game -RenderOffScreen on the hidden desktop of Tools\HiddenLaunch.ps1 (Start-DTHidden),
 # -ForceRes with -ResX/-ResY (without it the engine shrinks a frame larger than 1280x720 on this desktop), -DTShot/-DTShotAfter (the sim is held on
 # that step and shot once the still frame has settled, so the frame rate moves nothing), the director off unless the scene turns it on, seed 0
-# unless the scene names one. It holds the GPU semaphore (Tools\GpuLock.ps1) for the launch and refuses to start while another process holds it.
+# unless the scene names one. Right after the mask it takes one machine-wide heavy-job slot (Enter-DTHeavy, Tools\Machine.ps1), waiting while none is
+# free or the machine is held alone, and keeps it until the script ends. It holds the GPU semaphore (Tools\GpuLock.ps1) for the launch and refuses to
+# start while another process holds it.
 # The game's process mask is sampled about every 0.2 s for its whole life and must stay inside the machine's mask (D-052; Wait-Sampled mirrors Smoke.ps1).
 # A game still alive after the timeout is killed by its own PID only, and the run fails.
 # Verdict, and nothing more: "Run start" seen; no crash, no ensure, no Error/Fatal line from LogDT (as Smoke.ps1 reads them); the PNG exists and is
@@ -33,6 +35,8 @@ param(
 trap { Write-Host "FRAMES: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$DTHeavy = Enter-DTHeavy -What "Frames"  # D-055 item 7: one machine-wide heavy-job slot for this run, none for a run started by one that holds one
+Write-Host "frames: heavy slot $DTHeavy"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
