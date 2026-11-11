@@ -67,6 +67,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 - **D-064** A new save offers each of the first three Keepers one whole build to grow (Arc Grid, Hammer, Frost), not only its first card. Otherwise a first run could not show the thing the playtest asks a player to name.
 - Waiting for the S1 gate, not decided: giving the Tide cast a hit of its own, and letting a Freeze the boss refuses weaken it instead. Tide is the weakest Keeper by bots; nothing is changed on bot results before people have played.
 
+- **D-065** If the game crashes, it now closes by itself. Before, a crash at a busy moment left a frozen full-screen window about half the time, because the engine stalled while writing its crash dump. The game you hand to testers no longer writes that dump or a crash folder, which could also name the Windows user. The cost: a tester's crash leaves nothing to study but the run file. No crash is known in this build.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.

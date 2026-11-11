@@ -66,3 +66,4 @@
 | D-062 | The L8 hand is drawn unweighted, and a person's all-Keepers run reserves no seat | text, RULE | accepted; the text on `main` now, the seats on `dev/s2` with the S2 kit | `main`, `dev/s2` |
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
 | D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
+| D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
