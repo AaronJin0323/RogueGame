@@ -525,11 +525,74 @@ class PressureStatistic(unittest.TestCase):
 			with open(os.path.join(folder, name + ".csv"), "w", encoding="utf-8") as f:
 				f.write("interval,run_time_s,player,swarm_ttk_s\n" + "".join(f"{i},{t},0,{v}\n" for i, (t, v) in enumerate(sorted(cells.items()))))
 
-	def check(self, *args):
+	def check(self, *args, drafts=()):
+		"""pressure.main's exit code and output. The verdict cases judge as after the S1 gate decision (DRAFT_BANDS empty);
+		drafts=pressure.DRAFT_BANDS reads as today."""
 		out = io.StringIO()
-		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), contextlib.redirect_stdout(out):
+		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), mock.patch.object(pressure, "DRAFT_BANDS", drafts), \
+				contextlib.redirect_stdout(out):
 			rc = pressure.main(["pressure.py", *args])
 		return rc, out.getvalue()
+
+	def test_draft_bands_print_not_set_with_the_same_medians(self):
+		"""G10, D-046: while the bands are drafts T-DIR-02 prints NOT SET, for a bot arm and a session alike, never PASS or FAIL."""
+		with tempfile.TemporaryDirectory() as tmp:
+			root = os.path.join(tmp, "runs")
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=610.0)
+			session, sheet = os.path.join(root, "sessionA"), os.path.join(tmp, "sheet.csv")
+			for seed in (5, 6, 7):
+				self.write(session, f"{seed}_x", 0.1)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n5_x,V1\n6_x,V2\n7_x,V2\n")
+			rc, text = self.check(root, "--check", "T-DIR-02", "--validators", sheet, drafts=pressure.DRAFT_BANDS)
+		self.assertIn("T-DIR-02 Steered-A: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; median over 3 run(s) alive "
+			"through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: damage taken 0.400/min, dashes 8.00/min)", text)
+		self.assertIn("T-DIR-02 session: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; median over 3 run(s) alive "
+			"through 600-780 s: damage taken 0.100/min, dashes 8.00/min)", text)
+		self.assertIn("T-DIR-02: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; 2/2 group(s) read)", text)
+		self.assertIn("4_x p0 dmg 6.000/min [HIGH, draft band] dashes 0.00/min [LOW, draft band] alive 0.17 min", text)
+		self.assertNotIn("PASS", text)
+		self.assertNotIn("FAIL", text)
+		self.assertEqual(rc, 1, "NOT SET is not a pass")
+
+	def test_kill_time_is_judged_while_the_bands_are_drafts(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.1, 720: 0.1, 780: 0.1})
+			rc, text = self.check(root, "--check", "T-DIR-18", drafts=pressure.DRAFT_BANDS)
+		self.assertIn("T-DIR-18 Steered-A: PASS", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_the_draft_list_follows_the_tuning_table(self):
+		"""The tool and 10_Tuning.md section 1 say the same: T-DIR-02 is a draft exactly while the damage band's row says so."""
+		with open(os.path.join(TOOLS, "..", "Docs", "10_Tuning.md"), encoding="utf-8") as f:
+			row = next(line for line in f if line.startswith("|") and "C.DMG_TAKEN.BAND_MIN10_13" in line)
+		self.assertEqual("draft" in row.split("|")[-2], "T-DIR-02" in pressure.DRAFT_BANDS, row)
+
+	def test_an_unknown_flag_is_an_error_not_a_run(self):
+		rc, text = self.check("--chek", "T-DIR-02")
+		self.assertEqual(rc, 2)
+		self.assertIn("PRESSURE: unknown flag --chek", text)
+
+	def test_a_group_reads_the_landed_count_over_the_runs_that_carry_it(self):
+		"""G4: one run without dir_block landed counts leaves the group's line read over the others, hits from the same runs."""
+		with tempfile.TemporaryDirectory() as root:
+			session = os.path.join(root, "sessionA")
+			hit = '{"t":300.0,"step":1,"kind":"hero_damaged","owner":0,"amount":10,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}'
+			for seed, block in ((1, '{"t":330.0,"kind":"dir_block","owner":-1,"dropins_landed_by_role":{"Rusher":4}}'),
+					(2, '{"t":330.0,"kind":"dir_block","owner":-1,"dropins_landed_by_role":{"Rusher":2}}'), (3, None)):
+				os.makedirs(session, exist_ok=True)
+				with open(os.path.join(session, f"{seed}_x.jsonl"), "w", encoding="utf-8") as f:
+					f.write("\n".join(l for l in ('{"t":0.0,"kind":"run_start","owner":-1,"players":1}', hit, block,
+						'{"t":400.0,"kind":"run_end","owner":-1}') if l) + "\n")
+			rc, text = self.check(session)
+		self.assertIn("SOURCES: all rusher hits, whole run: arrival charging 2 not charging 0; other charging 0 not charging 0; killed drop-in band 0; "
+			"out of 6 landed Rusher drop-ins over 2 run(s); 1 run(s) with no landed count left out of both", text)
+		self.assertIn("SOURCES: overall rusher hits, whole run: arrival charging 2", text)
+		hits, landed, with_count, without = pressure.group_arrivals([({("band",): 1}, None)])
+		self.assertEqual((hits, landed, with_count, without), ({("band",): 1}, None, 0, 1))
 
 	def test_a_restore_is_printed_and_moves_no_verdict(self):
 		"""D-046: `hero_healed` inside the window prints a RESTORES line; the statistic reads the same damage with and without it."""
