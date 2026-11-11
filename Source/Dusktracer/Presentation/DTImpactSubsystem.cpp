@@ -120,7 +120,15 @@ void UDTImpactSubsystem::SimStep(const FDTSimContext& Context)
 	PeakKillsPerSecond = FMath::Max(PeakKillsPerSecond, KillsPerSecond);
 
 	const FDTWorldView* View = Context.View;
-	HeroPrev = HeroNow.Num() > 0 ? HeroNow : (View ? View->HeroPositions : TArray<FVector2f>());
+	// Copies into kept storage: no allocation in the steady state.
+	if (HeroNow.Num() > 0)
+	{
+		HeroPrev = HeroNow;
+	}
+	else if (View)
+	{
+		HeroPrev = View->HeroPositions;
+	}
 	if (View)
 	{
 		HeroNow = View->HeroPositions;

@@ -4,6 +4,6 @@
 	"judge": "golden",
 	"cultures": ["en"],
 	"weather": "Dusk",
-	"seconds": 5.95,
-	"cmds": ["DT.Spawn.Role Swarm 30", "DT.Impact.Stats hold"]
+	"seconds": 9,
+	"cmds": ["DT.Spawn.Role Rusher 6", "DT.Impact.Stats hold"]
 }

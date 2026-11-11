@@ -2,7 +2,8 @@
 // DT.Impact.Stats prints the live effects, the density tier and its rate, hits and kills over the last second and the effects a cap refused;
 // "hold" prints it once more when the sim is held for a shot, so a tool run reads what its held frame holds.
 // dt.Impact.Draw 0 raises and draws no effect (the tier still advances, R-IMP-11); outside Shipping it starts from the environment variable
-// DT_IMPACT_DRAW when that is set, so a script that cannot pass a console variable can still run both ways.
+// DT_IMPACT_DRAW when that is set, so a script that cannot pass a console variable can still run both ways. DT_IMPACT_STATS_S prints the
+// stats line every that many seconds, for the same scripts.
 
 #include "CoreMinimal.h"
 
@@ -15,6 +16,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Presentation/DTImpactSubsystem.h"
 
 namespace DTDebugImpact
@@ -73,6 +75,34 @@ namespace DTDebugImpact
 			return false;
 		}));
 	}
+
+	/**
+	 * DT_IMPACT_STATS_S, when set to a number of seconds: DT.Impact.Stats is printed that often (wall time) for every game world, so a
+	 * script that passes no console command (Tools\Perf.ps1) still leaves the scene's hit and kill rates and live counts in its log.
+	 */
+	static FDelayedAutoRegisterHelper PeriodicStats(EDelayedRegisterRunPhase::EndOfEngineInit, []()
+	{
+		const float Every = FCString::Atof(*FPlatformMisc::GetEnvironmentVariable(TEXT("DT_IMPACT_STATS_S")));
+		if (Every <= 0.0f)
+		{
+			return;
+		}
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float)
+		{
+			if (GEngine)
+			{
+				for (const FWorldContext& Context : GEngine->GetWorldContexts())
+				{
+					UWorld* World = Context.World();
+					if (World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE))
+					{
+						Print(World);
+					}
+				}
+			}
+			return true;
+		}), Every);
+	});
 
 	static FAutoConsoleCommandWithWorldAndArgs StatsCmd(TEXT("DT.Impact.Stats"),
 		TEXT("DT.Impact.Stats [hold]: live sparks, flashes, pieces and hero rings, the density tier and its rate, hits and kills over the last second, effects refused by a cap since run start; hold prints it again on the held step of a shot"),
