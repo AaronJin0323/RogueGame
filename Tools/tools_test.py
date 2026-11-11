@@ -27,6 +27,7 @@ import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
 import cpu_canary  # noqa: E402
 import crash_exit  # noqa: E402
+import crash_export  # noqa: E402
 import duo_read  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
@@ -2858,6 +2859,158 @@ class CrashExit(unittest.TestCase):
 		self.assertIn('-userdir=`"$UserDir`"', text)
 		for flag in ("-RenderOffScreen", "-unattended", "-nosound", "-culture=en", "-DTSeed=770099"):
 			self.assertIn(flag, text)
+
+
+class CrashExport(unittest.TestCase):
+	"""T-PKG-15 survives the engine's crash hang (D-065): Tools/CrashExportCheck.ps1's launch decisions and lines (Tools/crash_export.py) from canned
+	launch records, ended or hung, with a crash context that is whole, partial or absent."""
+
+	WHOLE = '<?xml version="1.0" encoding="UTF-8"?>\r\n<FGenericCrashContext>\r\n<RuntimeProperties>\r\n<CrashType>Crash</CrashType>\r\n</RuntimeProperties>\r\n</FGenericCrashContext>\r\n'
+	SUMMARY = "a real crash, 3 file(s) in its folder, 3 id value(s) read from it [EpicAccountId LoginId MachineId], 5 file(s) in the zip, 0 leak(s)"
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.addCleanup(self.tmp.cleanup)
+
+	def context(self, name, text, encoding="utf-8"):
+		path = os.path.join(self.tmp.name, name)
+		with open(path, "w", encoding=encoding, newline="") as f:
+			f.write(text)
+		return path
+
+	def ended(self, n, context=None, closed=True):
+		return {"n": n, "ended": True, "seconds": 6.24, "exit_code": 3, "context": context, "context_closed": closed}
+
+	def hung(self, n, context=None, closed=True):
+		return {"n": n, "ended": False, "seconds": 60.0, "exit_code": None, "context": context, "context_closed": closed}
+
+	def test_the_first_launch_ends_with_a_context(self):
+		recs = [self.ended(1, self.context("a.xml", self.WHOLE))]
+		self.assertEqual(crash_export.next_step(recs, 3), "read")
+		self.assertEqual(crash_export.launch_line(recs[0]), "crashexport: launch 1 ended in 6.2 s, exit 3; context whole")
+		self.assertEqual(crash_export.result_line(recs, self.SUMMARY), f"CRASHEXPORT: PASS ({self.SUMMARY}; 1 launch(es), 0 hung and ended by PID)")
+
+	def test_the_first_hangs_with_a_whole_context(self):
+		recs = [self.hung(1, self.context("a.xml", self.WHOLE))]
+		self.assertEqual(crash_export.next_step(recs, 3), "read")
+		self.assertEqual(crash_export.launch_line(recs[0]), "crashexport: launch 1 hung at 60.0 s and was ended by its PID; context whole")
+		self.assertEqual(crash_export.result_line(recs, self.SUMMARY), f"CRASHEXPORT: PASS ({self.SUMMARY}; 1 launch(es), 1 hung and ended by PID)")
+
+	def test_the_first_hangs_with_none_and_the_second_ends_with_one(self):
+		recs = [self.hung(1)]
+		self.assertEqual(crash_export.next_step(recs, 3), "launch")
+		self.assertEqual(crash_export.launch_line(recs[0]), "crashexport: launch 1 hung at 60.0 s and was ended by its PID; context absent")
+		recs.append(self.ended(2, self.context("b.xml", self.WHOLE)))
+		self.assertEqual(crash_export.next_step(recs, 3), "read")
+		self.assertEqual(crash_export.chosen(recs)["n"], 2)
+		self.assertEqual(crash_export.result_line(recs, self.SUMMARY), f"CRASHEXPORT: PASS ({self.SUMMARY}; 2 launch(es), 1 hung and ended by PID)")
+
+	def test_three_launches_and_no_context(self):
+		torn = self.context("torn.xml", self.WHOLE[:90])
+		recs = [self.hung(1), self.hung(2, torn), self.ended(3)]
+		self.assertEqual(crash_export.next_step(recs[:2], 3), "launch")
+		self.assertEqual(crash_export.next_step(recs, 3), "fail")
+		line = "CRASHEXPORT: FAIL (no launch of 3 gave a whole CrashContext.runtime-xml: 2 hung, 1 ended without one)"
+		self.assertEqual(crash_export.result_line(recs, self.SUMMARY), line)
+		self.assertEqual(crash_export.result_line([], self.SUMMARY), "CRASHEXPORT: FAIL (no launch of 0 gave a whole CrashContext.runtime-xml: 0 hung, 0 ended without one)")
+		self.assertEqual(crash_export.next_step([], 3), "launch")
+
+	def test_a_partial_context_is_not_read_as_whole(self):
+		cut = self.context("cut.xml", self.WHOLE[:self.WHOLE.rindex("</FGenericCrashContext>")])
+		self.assertEqual(crash_export.context_state(self.hung(1, cut))[0], "partial")
+		self.assertIn("context partial (not whole XML:", crash_export.launch_line(self.hung(1, cut)))
+		self.assertEqual(crash_export.context_state(self.hung(1, self.context("empty.xml", ""))), ("partial", "empty"))
+		held = self.hung(1, self.context("held.xml", self.WHOLE), closed=False)
+		self.assertEqual(crash_export.context_state(held), ("partial", "still held open"))
+		self.assertEqual(crash_export.next_step([held], 3), "launch")
+		self.assertEqual(crash_export.context_state(self.hung(1, os.path.join(self.tmp.name, "gone.xml"))), ("absent", ""))
+		# The engine's AutoDetect save: UTF-16 with its BOM, or 8-bit, under a declaration that says UTF-8; either is whole when it is all there.
+		wide = self.context("wide.xml", self.WHOLE.replace("Crash</", "Crash é曳</"), encoding="utf-16")
+		self.assertEqual(crash_export.context_state(self.ended(1, wide)), ("whole", ""))
+		ansi = self.context("ansi.xml", self.WHOLE.replace("Crash</", "Crash é</"), encoding="cp1252")
+		self.assertEqual(crash_export.context_state(self.ended(1, ansi)), ("whole", ""))
+
+	def test_a_hung_launch_alone_never_fails(self):
+		whole = self.context("a.xml", self.WHOLE)
+		for recs in ([self.hung(1, whole)], [self.hung(1), self.hung(2, whole)], [self.hung(1), self.hung(2), self.hung(3, whole)]):
+			line = crash_export.result_line(recs, self.SUMMARY)
+			self.assertTrue(line.startswith("CRASHEXPORT: PASS"), line)
+			self.assertIn(f"{len(recs)} hung and ended by PID", line)
+		# FAIL stays for the redaction, and keeps the launches in its line.
+		self.assertEqual(crash_export.result_line([self.hung(1, whole)], self.SUMMARY, "a.log still holds the MachineId value"),
+			f"CRASHEXPORT: FAIL ({self.SUMMARY}; 1 launch(es), 1 hung and ended by PID; first: a.log still holds the MachineId value)")
+
+	def test_the_steps_and_the_result_read_the_work_folder(self):
+		work = os.path.join(self.tmp.name, "work")
+		def put(rec):
+			os.makedirs(os.path.join(work, str(rec["n"])))
+			with open(os.path.join(work, str(rec["n"]), "record.json"), "w", encoding="utf-8") as f:
+				json.dump(rec, f)
+		def run(*args):
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = crash_export.main(["crash_export.py", *args])
+			return rc, out.getvalue().strip().splitlines()
+		put(self.hung(1))
+		self.assertEqual(run("step", work, "3"), (10, ["crashexport: launch 1 hung at 60.0 s and was ended by its PID; context absent"]))
+		put(self.hung(2, self.context("a.xml", self.WHOLE)))
+		self.assertEqual(run("step", work, "3")[0], 0)
+		self.assertEqual(run("result", work, self.SUMMARY), (0, [f"CRASHEXPORT: PASS ({self.SUMMARY}; 2 launch(es), 2 hung and ended by PID)"]))
+		self.assertEqual(run("result", work, self.SUMMARY, "the zip carries a dump")[0], crash_export.VERDICT_FAIL)
+		put(self.ended(3))
+		os.remove(os.path.join(work, "2", "record.json"))
+		self.assertEqual(run("step", work, "3")[0], 10, "two records, neither whole: a third launch")
+		put(self.hung(4))
+		self.assertEqual(run("step", work, "3"), (crash_export.VERDICT_FAIL, ["crashexport: launch 4 hung at 60.0 s and was ended by its PID; context absent",
+			"CRASHEXPORT: FAIL (no launch of 3 gave a whole CrashContext.runtime-xml: 2 hung, 1 ended without one)"]))
+
+	def test_the_check_launches_on_the_quiet_line_and_ends_a_hung_launch_by_pid(self):
+		with open(os.path.join(TOOLS, "CrashExportCheck.ps1"), encoding="utf-8") as f:
+			code = "\n".join(ps_code(f.read().splitlines()))
+		start = code.index("$ArgList = @(")
+		args = code[start:code.index(")", code.index('"-ExecCmds=', start))]
+		for kept in ('"-unattended"', '"-nosound"', '"-userdir=`"$UserDir`""', '"-ExecCmds=`"debug crash`""'):
+			self.assertIn(kept, args)
+		for dropped in ("/Game/DT/Maps", "-nopause"):
+			self.assertNotIn(dropped, args, "S1_crash_exit.md: the map first and -nopause bring the hang back")
+		self.assertEqual(code.count("$ArgList = @("), 1)
+		self.assertIn("[int]$Timeout = 60", code)
+		self.assertIn("else { Stop-DTHidden $Proc }", code)
+		self.assertIn("Use-Launch $N", code[:start])
+		self.assertIn("& python -I $Reader step $WorkDir $MaxLaunches", code)
+		self.assertNotIn("did not end in", code, "a hung launch is not a failure of its own")
+
+	def test_a_work_folder_with_glob_characters_reads_its_records(self):
+		work = os.path.join(self.tmp.name, "Saved [x]", "CrashExport")  # [ ] is the glob character a Windows folder name can hold
+		for rec in (self.hung(1), self.ended(2, self.context("a.xml", self.WHOLE))):
+			os.makedirs(os.path.join(work, str(rec["n"])))
+			with open(os.path.join(work, str(rec["n"]), "record.json"), "w", encoding="utf-8") as f:
+				json.dump(rec, f)
+		os.makedirs(os.path.join(work, "out"))  # the export's folder holds no record and is not a launch
+		self.assertEqual([r["n"] for r in crash_export.read_records(work)], [1, 2])
+		out = io.StringIO()
+		with contextlib.redirect_stdout(out):
+			self.assertEqual(crash_export.main(["crash_export.py", "step", work, "3"]), 0)
+
+	def test_the_script_holds_the_cap_and_tells_a_dead_reader_from_a_verdict(self):
+		"""Three launches at most holds in the script that launches, whatever the reader answers; its one source is $MaxLaunches there."""
+		with open(os.path.join(TOOLS, "CrashExportCheck.ps1"), encoding="utf-8") as f:
+			code = "\n".join(ps_code(f.read().splitlines()))
+		self.assertEqual(len(re.findall(r"^\$MaxLaunches = \d+", code, re.M)), 1)
+		self.assertIn("$MaxLaunches = 3", code)
+		self.assertIn("while ($Step -eq 10 -and $N -lt $MaxLaunches) {", code)
+		self.assertIn("if ($Step -eq 10) { Write-Host \"CRASHEXPORT: FAIL (crash_export.py asked for launch", code)
+		self.assertFalse(hasattr(crash_export, "MAX_LAUNCHES"), "the reader takes the cap from the script, it holds none of its own")
+		# The reader's FAIL exit is neither Python's own 1 (a traceback) nor 2 (usage), and the script names the same number.
+		self.assertNotIn(crash_export.VERDICT_FAIL, (0, 1, 2, 10))
+		self.assertIn(f"$VerdictFail = {crash_export.VERDICT_FAIL}", code)
+		self.assertIn("if ($Step -eq $VerdictFail) { exit 1 }", code)
+		self.assertIn("step died with exit $Step and gave no verdict", code)
+		self.assertIn("if ($Said -ne $VerdictFail) { Write-Host \"CRASHEXPORT: FAIL (crash_export.py result died", code)
+		died = subprocess.run([sys.executable, "-I", os.path.join(TOOLS, "crash_export.py"), "step", os.path.join(self.tmp.name, "missing"), "3"],
+			capture_output=True, encoding="utf-8", errors="replace")
+		self.assertEqual(died.returncode, 1, "a work folder that is gone is a reader that dies with Python's own exit")
+		self.assertNotIn("CRASHEXPORT:", died.stdout)
 
 
 SLOT_PROBE = '''import os, sys
