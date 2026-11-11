@@ -134,6 +134,12 @@ if (-not (Skipped "smoke")) {
 		Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
 		if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 	}
+	# T-PRE-07: the arena's post-process volume, then a burst of fire against the calm arena_empty shot above: no exposure change.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Name burst -Burst -Cmds "DT.Bullets 6000" 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_smoke_burst.log") -Encoding utf8
+	Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 }
 if (-not (Skipped "seed")) {
 	# 07_Technical R-TEC-16: every launcher started as written, off-screen, reads back a fresh seed; tools and explicit seeds stay exact.

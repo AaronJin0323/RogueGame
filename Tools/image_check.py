@@ -7,8 +7,11 @@ Checks:
   2. with --golden: same size as the golden, and the mean absolute difference over all RGB channels is at most
      C.SMOKE.GOLDEN_MEAN_DIFF_MAX (8-bit levels). A missing golden is a FAIL unless --update is given.
   --update copies the image over the golden (re-baseline) after check 1 passes.
+  3. with --exposure <calm.png> (T-PRE-07, a burst frame shows no exposure change): the shot and a calm frame of the same scene, same size. A change of
+     exposure moves every pixel the same way, a burst moves only the pixels it covers; so the median over all pixels of the luma difference
+     (shot minus calm, signed, 8-bit levels) must stay within C.SMOKE.GOLDEN_MEAN_DIFF_MAX, the tolerance a frame keeps against its reference.
 
-Usage:  python -I Tools/image_check.py <shot.png> [--golden <golden.png>] [--update]
+Usage:  python -I Tools/image_check.py <shot.png> [--golden <golden.png>] [--update] [--exposure <calm.png>]
 Prints `IMAGE: PASS (...)` or `IMAGE: FAIL (...)`; exit 0 / 1 (2 on bad arguments).
 PNG support: 8-bit grey, grey+alpha, RGB, RGBA; non-interlaced (what UE screenshots write).
 """
@@ -104,13 +107,28 @@ def luma_stddev(rgb):
     return (sum((v - mean) ** 2 for v in lum) / n) ** 0.5
 
 
+def lumas(rgb):
+    return [0.2126 * x + 0.7152 * y + 0.0722 * z for x, y, z in zip(rgb[0::3], rgb[1::3], rgb[2::3])]
+
+
+def exposure_shift(rgb, calm_rgb):
+    """Median over pixels of the signed luma difference shot - calm (8-bit levels): near 0 when only what the burst covers changed."""
+    diffs = sorted(a - b for a, b in zip(lumas(rgb), lumas(calm_rgb)))
+    if not diffs:
+        return 0.0
+    mid = len(diffs) // 2
+    return diffs[mid] if len(diffs) % 2 else (diffs[mid - 1] + diffs[mid]) / 2.0
+
+
 def main(argv):
     args = list(argv)
-    shot, golden, update = None, None, False
+    shot, golden, update, calm = None, None, False, None
     while args:
         a = args.pop(0)
         if a == "--golden" and args:
             golden = args.pop(0)
+        elif a == "--exposure" and args:
+            calm = args.pop(0)
         elif a == "--update":
             update = True
         elif a in ("-h", "--help"):
@@ -138,6 +156,19 @@ def main(argv):
     if std < std_min:
         print(f"IMAGE: FAIL ({w}x{h}, luma stddev {std:.2f} < {std_min} : blank or uniform)")
         return 1
+    if calm is not None:
+        try:
+            cw, chh, cch, cpx = decode_png(calm)
+        except (OSError, ValueError, zlib.error) as exc:
+            print(f"IMAGE: FAIL (calm frame {calm}: {exc})")
+            return 1
+        if (cw, chh) != (w, h):
+            print(f"IMAGE: FAIL (size {w}x{h} != calm frame {cw}x{chh})")
+            return 1
+        shift = exposure_shift(rgb, rgb_of(cw, chh, cch, cpx))
+        verdict = "PASS" if abs(shift) <= diff_max else "FAIL"
+        print(f"IMAGE: {verdict} ({w}x{h}, luma stddev {std:.2f}, exposure shift {shift:+.2f} levels against the calm frame (max {diff_max}))")
+        return 0 if verdict == "PASS" else 1
     if golden is None:
         print(f"IMAGE: PASS ({w}x{h}, luma stddev {std:.2f})")
         return 0

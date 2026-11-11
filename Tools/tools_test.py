@@ -1114,6 +1114,30 @@ class EngineMask(unittest.TestCase):
 		self.assertEqual((before, ok, after), (f"{self.one:X}", "0", f"{self.one:X}"), out)
 
 
+class Pre07(unittest.TestCase):
+	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
+
+	@staticmethod
+	def frame(level, blobs=0, size=40):
+		# A grey frame; `blobs` rows at the top drawn white, as a burst covers part of a frame.
+		rows = [bytes([255, 255, 255] * size) if y < blobs else bytes([level] * 3 * size) for y in range(size)]
+		return b"".join(rows)
+
+	def test_a_burst_over_part_of_the_frame_is_no_exposure_change(self):
+		import image_check
+		self.assertAlmostEqual(image_check.exposure_shift(self.frame(100, blobs=15), self.frame(100)), 0.0)
+
+	def test_a_frame_that_shifts_all_over_is_one(self):
+		import image_check
+		self.assertAlmostEqual(image_check.exposure_shift(self.frame(60, blobs=15), self.frame(100)), -40.0)
+
+	def test_planned_for_a_passed_stage_is_an_error(self):
+		import docs_lint
+		self.assertEqual(len(docs_lint.passed_stage_errors("x.md", 1, "- T-ABC-01 PLANNED(S0) a check")), 1)
+		self.assertEqual(docs_lint.passed_stage_errors("x.md", 1, "- T-ABC-01 PLANNED(S2) a check"), [])
+		self.assertEqual(docs_lint.passed_stage_errors("x.md", 1, "the marker `PLANNED(S0)` is named, not used"), [])
+
+
 class GateMain(unittest.TestCase):
 	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
 	a private canvas link, and one GPU lock for every worktree."""
