@@ -21,7 +21,9 @@ import dtconst  # noqa: E402
 import probe  # noqa: E402
 
 KEEPERS = ("Storm", "Forge", "Tide", "Shade", "Radiance", "Quicksilver")
-T18 = re.compile(r"T-KEE-18: \w+ \((\d+) arms: share below \S+ on (\d+), gain outside the band on (\d+), outside the archetype band on (\d+); mean share ([\d.]+)\)")
+# D-047: T-KEE-18 judges loss (the DPS a build loses without its blessings); share is printed beside it and never judged.
+T18 = re.compile(r"T-KEE-18: \w+ \((\d+) arms: loss below \S+ on (\d+), gain outside the band on (\d+), outside the archetype band on (\d+); "
+	r"mean loss ([\d.]+); share, printed and never judged, mean ([\d.]+)\)")
 T15 = re.compile(r"T-KEE-15: (\w+) \((\d+)/(\d+) combinations")
 
 
@@ -31,11 +33,11 @@ def verdict(fails):
 
 
 def read_t18(line):
-	"""{arms, share_fails, gain_fails, band_fails, mean} of a T-KEE-18 line, or None."""
+	"""{arms, loss_fails, gain_fails, band_fails, mean, share_mean} of a T-KEE-18 line, or None; mean is the mean loss."""
 	m = T18.search(line or "")
 	if not m:
 		return None
-	return {"arms": int(m[1]), "share_fails": int(m[2]), "gain_fails": int(m[3]), "band_fails": int(m[4]), "mean": float(m[5])}
+	return {"arms": int(m[1]), "loss_fails": int(m[2]), "gain_fails": int(m[3]), "band_fails": int(m[4]), "mean": float(m[5]), "share_mean": float(m[6])}
 
 
 def read_t15(line):
@@ -100,7 +102,8 @@ def exit_lines(t18, t15, bots, consts):
 	cast = consts["INTERCESSION.BAND"]["value"]
 	out = []
 	if t18:
-		out.append(("Keeper share", verdict(t18["share_fails"]), f"{t18['arms'] - t18['share_fails']}/{t18['arms']} arms >= {need}, mean {t18['mean']:.3f}, T-KEE-18, bot"))
+		out.append(("Keeper share", verdict(t18["loss_fails"]), f"{t18['arms'] - t18['loss_fails']}/{t18['arms']} arms lose >= {need} without blessings, "
+			f"mean loss {t18['mean']:.3f} (share, never judged, mean {t18['share_mean']:.3f}), T-KEE-18, bot"))
 		out.append(("Build bands", verdict(t18["band_fails"]), f"{t18['arms'] - t18['band_fails']}/{t18['arms']} arms within +-{arch} of the mean, T-KEE-18, bot"))
 	else:
 		out += [("Keeper share", "NOT READ", "no T-KEE-18 reading"), ("Build bands", "NOT READ", "no T-KEE-18 reading")]

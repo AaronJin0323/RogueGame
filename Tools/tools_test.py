@@ -550,7 +550,8 @@ class S2Exit(unittest.TestCase):
 	"""T-BOT-17: the probe lines parse; human readings stay NOT READ whatever the bots do; no data is NOT READ."""
 
 	CONSTS = {k: {"value": v} for k, v in {"POWER.KEEPER_SHARE_L16": 0.6, "POWER.ARCHETYPE_BAND": 0.15, "INTERCESSION.BAND": 0.2}.items()}
-	T18 = "T-KEE-18: FAIL (18 arms: share below 0.6 on 3, gain outside the band on 9, outside the archetype band on 0; mean share 0.701)"
+	T18 = ("T-KEE-18: FAIL (18 arms: loss below 0.6 on 3, gain outside the band on 9, outside the archetype band on 0; mean loss 0.701; "
+		"share, printed and never judged, mean 0.555)")
 	T15 = "T-KEE-15: FAIL (21/144 combinations within +-0.2 of their Keeper's mean; Shade mean 1)"
 
 	@staticmethod
@@ -564,7 +565,7 @@ class S2Exit(unittest.TestCase):
 		return {name: v for name, v, _ in s2_exit.exit_lines(t18, t15, bots, self.CONSTS)}
 
 	def test_probe_lines(self):
-		self.assertEqual(s2_exit.read_t18(self.T18), {"arms": 18, "share_fails": 3, "gain_fails": 9, "band_fails": 0, "mean": 0.701})
+		self.assertEqual(s2_exit.read_t18(self.T18), {"arms": 18, "loss_fails": 3, "gain_fails": 9, "band_fails": 0, "mean": 0.701, "share_mean": 0.555})
 		self.assertEqual(s2_exit.read_t15(self.T15), (21, 144))
 		self.assertIsNone(s2_exit.read_t18("T-KEE-18: n/a (no complete build)"))
 		self.assertIsNone(s2_exit.read_t15(None))
@@ -574,7 +575,7 @@ class S2Exit(unittest.TestCase):
 		with tempfile.TemporaryDirectory() as root:
 			self.assertIsNone(probe.read_ablation(root, lines))
 		self.assertIn("T-KEE-18: n/a", lines[-1])
-		self.assertIn("share below {need} on {fails['share']}, gain outside the band on {fails['gain']}", open(probe.__file__, encoding="utf-8").read())
+		self.assertIn("loss below {need} on {fails['loss']}, gain outside the band on {fails['gain']}", open(probe.__file__, encoding="utf-8").read())
 
 	def test_verdicts(self):
 		v = self.verdicts(s2_exit.read_t18(self.T18), s2_exit.read_t15(self.T15), [("1.0", self.rows())])
@@ -586,7 +587,7 @@ class S2Exit(unittest.TestCase):
 		self.assertEqual(self.verdicts(None, None, [("1.0", rows)])["Bots win a full run"], "FAIL")
 
 	def test_humans_are_never_read(self):
-		perfect = {"arms": 18, "share_fails": 0, "gain_fails": 0, "band_fails": 0, "mean": 0.8}
+		perfect = {"arms": 18, "loss_fails": 0, "gain_fails": 0, "band_fails": 0, "mean": 0.8, "share_mean": 0.7}
 		v = self.verdicts(perfect, (144, 144), [("1.0", self.rows())])
 		self.assertEqual((v["Humans win a full run"], v["Death histogram"]), ("NOT READ", "NOT READ"))
 
