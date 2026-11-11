@@ -109,8 +109,11 @@ try {
 
 	$Lines = @("Dusktracer run data, exported $Stamp. Nothing was sent anywhere by this tool.",
 		"Playtests: gameplay numbers only: seed, build hash and build type, who drove the run (a person, a tool or a bot), culture, last input device, combat numbers per interval,",
-		"where the hero was every few seconds and where each hit on the hero came from, cards offered and picked, Keeper and weapon choices, how long each card took to pick and their total per run,",
-		"and the start time, UTC inside each file and local in its name, so the two show the time zone. No name, account, machine name, path or hardware.",
+		"where the hero was every few seconds and where each hit on the hero came from, every hit the hero took (what dealt it, where both stood, whether it had dropped in or was charging),",
+		"health restored, how many enemies dropped in, cards offered and picked, Keeper and weapon choices, how long each card took to pick and their total per run,",
+		"whether a test bot ran the run at fast speed, and five clock readings: the start time (UTC inside each file and local in its name, so the two show the time zone),",
+		"the seconds each hand of cards took, the seconds the run was paused, the run's length on the clock, and the steps this PC could not keep up with.",
+		"Every run in this PC's run folder is included, earlier ones too. No name, account, machine name, path or hardware.",
 		([regex]::Unescape("\u5bf9\u5c40\u6587\u4ef6\u8fd8\u8bb0\u6709\u6bcf\u5f20\u724c\u7684\u9009\u62e9\u7528\u65f6\uff0c\u4ee5\u53ca\u6bcf\u5c40\u7684\u5408\u8ba1\u7528\u65f6\u3002")),
 		"The save and the settings file stay on this PC.",
 		"Logs and Crashes: the engine's own text, which names the graphics card, the CPU and the Windows version. The Windows user name and the",

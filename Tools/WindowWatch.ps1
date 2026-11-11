@@ -201,7 +201,7 @@ public static class DTWindowWatch {
 
 # The watch puts this process in a job (the tree). Launch jobs that Tools/HiddenLaunch.ps1 made earlier in the same process, for an earlier script run
 # in the same shell, lie outside that job, and Windows refuses to put a new launch into them: "Access is denied" at the next launch
-# (Validation/S2_package.md). So the helper's jobs and desktop are closed first, and its next launch makes new ones inside the tree. Nothing of an
+# (dev/s2, Validation/S2_package.md). So the helper's jobs and desktop are closed first, and its next launch makes new ones inside the tree. Nothing of an
 # earlier script is still running at this point; anything that were would be ended by the close, as at that script's own exit.
 function Start-DTWindowWatch {
 	if ("DTHiddenDesktop" -as [type]) { [DTHiddenDesktop]::Close() }
