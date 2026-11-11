@@ -50,7 +50,7 @@ namespace DTHubCheckLocal
 	};
 	const FDoorNode DoorNodes[] = {
 		{ StormNode, StormCard },
-		{ TEXT("Branch.Forge.Blessing4"), TEXT("Blessing.Forge.Hammer.Amp1") },
+		{ TEXT("Branch.Forge.Blessing4"), TEXT("Blessing.Forge.Furnace.Amp1") }, // a fresh save holds Hammer (meta.md R-MET-25, D-064)
 		{ SealedNode, TEXT("Blessing.Shade.Hound.Amp1") },
 		{ TEXT("Branch.Radiance.Blessing4"), TEXT("Blessing.Radiance.Lance.Amp1") },
 		{ TEXT("Branch.Quicksilver.Blessing4"), TEXT("Blessing.Quicksilver.Vector.Amp1") },
