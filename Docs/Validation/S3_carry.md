@@ -97,3 +97,17 @@ tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
 GATE: PASS (054a7d2; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure.
+## Fourth carry: `carry4/s2` (`main` 9b2917f) into `dev/s3` 79117b5 (`carry4/s3`)
+What came: the heavy-job slots and the alone hold (`Tools/Machine.ps1` `Enter-DTHeavy`, `Tools/Alone.ps1`, R-TEC-18 and T-TEC-18, `HeavyLocks`), D-055 and D-056 with today's records, the `12_Production.md §1` line, and `dev/s2`'s slot lines.
+- Conflict: `Tools/BotRuns.ps1`, the line after the mask: the slot line goes right after `Set-DTAffinity`, then `dev/s3`'s `-ReadAll` check (`-ReadAll` still launches, so it takes the slot). Everything else merged by itself. `git diff 9b2917f -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+- Scripts changed (one `Enter-DTHeavy` line right after `Set-DTAffinity`, and the names in `test_every_heavy_entry_takes_a_slot_and_play_does_not`): `CrashExportCheck.ps1`, `EarnedCheck.ps1`, `ExportLogsCheck.ps1`, `MetaCheck.ps1`, `PackageHubCheck.ps1`, `TwoWindowsCheck.ps1` (its two games are one job), `VigilCheck.ps1`, `WinCheck.ps1`.
+- Left alone: `S3Exit.ps1` (its header: "Starts no game and writes nothing"; it runs `s3_exit.py` on the validators' logs), `s3_exit.py` and the other readers (Python, no heavy job). The `firstrun` gate step is a `BotRuns.ps1` call inside the gate, so it runs on the gate's slot.
+- Counts: 547 found, 547 pass, `C.GATE.TEST_FLOOR` 547 (unchanged); `tools_test.py` 287.
+- Seed 9107, on ede45e6: v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`; in the gate RestartCheck `276faf8e / 276faf8e` and MetaCheck `ba2a3ac8 / ba2a3ac8`. All as before.
+
+```
+tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
+tools:      TOOLS: PASS (287 tests)
+GATE: PASS (ede45e6; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s3_gate.txt` in the carrying worktree.
