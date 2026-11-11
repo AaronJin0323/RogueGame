@@ -3201,9 +3201,9 @@ class MeshPipeline(unittest.TestCase):
 
 
 SOURCE = os.path.join(TOOLS, "..", "Source", "Dusktracer")
-# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/, and every renderer. A package's
-# new presentation header is one or the other.
-PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?Presentation/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
+# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/ and Audio/ (audio.md R-AUD-01, D-056),
+# and every renderer. A package's new presentation header is one or the other.
+PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?(?:Presentation|Audio)/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
 # The world subsystems that spawn a renderer and hand it the step's state: the only code outside presentation that names one today.
 # DTDirector.cpp reads a telegraph's instance count for its own tell. A new name here is a sim file reaching into presentation: do not add one.
 RENDERER_OWNERS = {
@@ -3219,7 +3219,7 @@ RENDERER_OWNERS = {
 
 
 def is_presentation_file(relative):
-	return relative.startswith("Presentation/") or bool(re.search(r"Renderer\.(h|cpp)$", relative))
+	return relative.startswith(("Presentation/", "Audio/")) or bool(re.search(r"Renderer\.(h|cpp)$", relative))
 
 
 def presentation_includes(relative, text):
@@ -3236,6 +3236,11 @@ class PresentationReadsOnly(unittest.TestCase):
 		self.assertEqual(presentation_includes("Enemies/DTEnemyPool.cpp", '#include "Enemies/DTEnemyPool.h"\n#include "Presentation/DTImpactSubsystem.h"\n'), ["Presentation/DTImpactSubsystem.h"])
 		self.assertEqual(presentation_includes("Combat/DTWeaponSim.cpp", '#include "Combat/DTBulletRenderer.h"\n'), ["Combat/DTBulletRenderer.h"])
 		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimTypes.h"\n// #include of Presentation/ would fail\n'), [])
+
+	def test_a_sim_file_that_includes_audio_is_found(self):
+		# audio.md R-AUD-01 (D-056): audio reads the sim and never writes it, so no sim file includes an Audio/ header.
+		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimSubsystem.h"\n#include "Audio/DTAudioSubsystem.h"\n'), ["Audio/DTAudioSubsystem.h"])
+		self.assertEqual(presentation_includes("Audio/DTAudioObserver.cpp", '#include "Audio/DTAudioScheduler.h"\n#include "Core/DTSimSubsystem.h"\n'), [])
 
 	def test_presentation_tests_and_debug_may(self):
 		for relative in ("Presentation/DTImpactRenderer.cpp", "Enemies/DTEnemyRenderer.cpp", "Tests/Enemies/DTEnemyTests.cpp", "Debug/DTDebugPerfScene.cpp"):
