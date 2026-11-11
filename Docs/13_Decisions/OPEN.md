@@ -56,6 +56,8 @@ Decided on 2026-11-11, on your three messages about working in parallel:
 
 - **D-056** The first sounds. Every sound is made by a script in this repo, none is downloaded or recorded, and all of them sit in one musical key so that no combination clashes, as you ruled for the earlier game. Warnings get a pitch range of their own that your own fire is kept out of, and a warning turns your fire down while it sounds. There is no music in this first wave. Each Keeper gets a short signature when you pick its blessing. Tool runs stay silent; only a game you start yourself makes sound. Nobody has heard any of it: when the first sounds exist you get about ten minutes of listening, as its own item here.
 
+- **D-057** The plan for the next round of art, which is not started: it draws what the game knows and the screen does not yet show (the statuses on enemies, the weapons that are not plain rounds, gems and chests, elite parts sitting on their hulls, a hero that strides) before any surface detail. In it: the menus and cards stay on the drawing code they use today through this stage; Burn is drawn on an enemy in Forge's amber and Blind in Radiance's gold, with a check that neither can be taken for enemy fire. It opens after session A is read. Say so if you want it opened sooner.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.
