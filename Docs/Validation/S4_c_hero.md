@@ -72,6 +72,8 @@ Gate scene `contrast` (1280x720, en), need `C.PRE.CONTRAST_MIN` 3.0, watch floor
 
 ## 5. Perf
 
+> Replaced by `S4_perf_1080p.md` (2026-11-11): the readings below rendered 888x500 while recording 1920x1080, most on a busy machine; that note holds the reading of record at the real size, alone.
+
 Caps scene, 1920x1080. No clean pair was possible: other agents' games were rendering during every run, and `Saved/gpu.lock` cannot see them.
 
 | When | Game thread p95 ms | GPU p50 / p95 ms | What else ran |
