@@ -61,8 +61,8 @@
 | D-057 | S4's second visual wave draws state at silhouette grade, and opens only on session A's reading | GO-NOGO | accepted as the plan of record; held until session A is read | `dev/s4` |
 | D-058 | Draw code is the Visual module's by name, wherever it sits | PROCESS | applied; amends D-055 item 1 | `main` |
 | D-059 | The Forge and Quicksilver trails keep their colours, and a colour-vision debt is read on the drawn frame | RULE | applied on the owner's word; closes O-015; evidence: `Validation/S4_o015.md` and `Tools/cvd_frame.py` on `dev/s4` | `main` |
-| D-060 | A payday's own kills add no Debt | RULE | accepted; the job is on `dev/s2` | `dev/s2` |
-| D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | accepted; amends D-020; the job is on `dev/s2` | `dev/s2` |
+| D-060 | A payday's own kills add no Debt | RULE | applied on `dev/s2`; hypothesis met (the cast row 1 940 801 to 146 580) | `dev/s2` |
+| D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | read: the number is not the cause, the cell stays at 2; a RULE on the band is the next draft | `dev/s2` |
 | D-062 | The L8 hand is drawn unweighted, and a person's all-Keepers run reserves no seat | text, RULE | accepted; the text on `main` now, the seats on `dev/s2` with the S2 kit | `main`, `dev/s2` |
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
 | D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
