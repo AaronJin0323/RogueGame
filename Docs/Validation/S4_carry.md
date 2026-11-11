@@ -114,7 +114,9 @@ tests:      572 run of 572 found, 0 failed, floor 572, 0 crash marker(s)
 tools:      TOOLS: PASS (355 tests)
 GATE: PASS (554c696; 3 not run; mask FFFFF3FC)
 ```
-Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s4_gate.txt` in the carrying worktree.## Fifth and sixth carry: `main` 75acd0d, then d23b7ef, through `dev/s2` and `dev/s3` into `dev/s4` 3cb9534 (`carry6/s4`, then `carry7/s4`)
+Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s4_gate.txt` in the carrying worktree.
+
+## Fifth and sixth carry: `main` 75acd0d, then d23b7ef, through `dev/s2` and `dev/s3` into `dev/s4` 3cb9534 (`carry6/s4`, then `carry7/s4`)
 The fifth carry (`carry6/s4`, 97593a2: `carry6/s3` into `dev/s4` a155ace) was gated whole, but the owner's stop came before it was reported, so it counts as not run. `carry7/s4` is cut from `dev/s4` 3cb9534 (package E landed), takes `carry6/s4` and its resolutions as they were (a merge with no conflict), then `carry7/s3` (`main` d23b7ef through `dev/s2` 63c4e51 and `dev/s3` 00332f5), and is gated whole on that tree, 5031804.
 What came: the gate's slot taken at its first heavy step (`Start-HeavyStep`) and the window-watch fix; session A's reading tools; D-057 to D-066 and their records; `main`'s crash-exit fix (R-PKG-16 and T-PKG-16, `Source/Dusktracer/Dusktracer.cpp`, `Tools/CrashExitCheck.ps1`, `crash_exit.py`); the alone take that claims the machine at once (`Tools/Alone.ps1`, `Machine.ps1`); `offers.md` saying what the code does (D-062, D-063); and `dev/s3`'s save-stuck line (`s3/save-stuck-line`: `Hub/`, `Meta/`, `Settings/DTMenuScreen.*`, `DTMenuSubsystem.cpp`, `ST_UI` rows).
 - Conflicts and resolutions, all in the fifth carry's merge (the sixth's two merges into `dev/s4` had none):
