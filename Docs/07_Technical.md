@@ -141,9 +141,9 @@ Step order (one fixed step, `EDTSimPhase`): **Input** (latched `FDTHeroInput`; t
 | `bRunWon` | boss (Input or Effects, `boss.md` R-BOS-13) | hero (Hero): a won run takes no hit | set once per run, cleared at run start |
 
 Shared structs (`Core/DTSimTypes.h`); an enemy is named across steps by `Serial` (`enemies.md` R-ENM-23), within the step by index:
-- `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce bFieldTick}`: `Damage` is final (crit, load and stats applied by the emitter); `SourceId` names the dealer for telemetry only; `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits and stress fire; `bFieldTick` = a field's tick, damage that rolls no enchantment (`keepers.md` R-KEE-16).
+- `FDTHit{EnemyIndex EnemySerial OwnerId Damage Position SourceId WeaponSlot bCrit bPierce bFieldTick bPayday}`: `Damage` is final (crit, load and stats applied by the emitter); `SourceId` names the dealer for telemetry only; `bPierce` = spawned with pierce above one (Tank plate); `WeaponSlot` = the owner's weapon that caused it, none for Keeper-only hits and stress fire; `bFieldTick` = a field's tick, damage that rolls no enchantment (`keepers.md` R-KEE-16); `bPayday` = made by a payday's round, by what that round's impact set off, or by the payday's execute (`keepers.md` R-KEE-29), read only by the Debt rule.
 - `FDTHeroHit{PlayerId Damage Kind(Contact Bullet HazardRing Charge Sweep DashCharge) SourceRole AttackId EnemySerial Position RoundVelocity RoundFlightSeconds}`: damage already scaled by the enemy's `DmgScale`; `Position` is where the hit came from, a round's firing point for a round, and the last three are read by telemetry only (`telemetry.md` R-TEL-10).
-- `FDTKill{EnemySerial Role Position OwnerId SourceId WeaponSlot bElite bDirector BeatId}`.
+- `FDTKill{EnemySerial Role Position OwnerId SourceId WeaponSlot bElite bDirector BeatId bPayday}`: `bPayday` is the lethal hit's.
 - `FDTDisplacement{EnemyIndex EnemySerial Delta OwnerId}`: a stale serial is ignored; the boss hull ignores every displacement (`boss.md`).
 
 ## 5. Budgets
