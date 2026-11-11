@@ -9,7 +9,8 @@ Outputs (committed, like DTConstantsGen.h, so the C++ build needs no Python step
                                           Enemy Weapon Mod roots)
 Rules: a cell that is exactly a C.<KEY> resolves to DTConst::<KEY> (never a copied number); ids stay string ids in
 their tag spelling. Fails on: an unknown C. key (also inside text cells), a C. key that is not a number, a duplicate
-id, an unknown or missing column, a colour literal, an unknown Flag./Status./Path name, non-ASCII text.
+id, an unknown or missing column, a colour literal, an unknown Flag./Status./Path name, non-ASCII text, an archetype whose
+Path no weapon or no modifier of its stage's pool fits (offers.md T-OFF-19).
 Empty numeric cells are 0 (not applicable); columns marked doc-only are validated but not emitted.
 """
 
@@ -463,6 +464,33 @@ def gen_expression(ctx, flags):
 	return out, s1_rows
 
 
+def fit_paths(cell):
+	"""The Paths a fits cell names: weapons.csv holds 'Storm;Forge', modifiers.csv 'Storm: note; Forge: note'."""
+	return {seg.partition(":")[0].strip() for seg in cell.split(";") if seg.strip()}
+
+
+def fit_gaps(catalog):
+	"""offers.md T-OFF-19: every archetype of expression.csv has at least one weapon and one modifier whose fits name its
+	Path, among the rows of its stage or earlier (fit is read per Path, R-OFF-02). Returns (where, text) per gap."""
+	def rows(name):
+		with open(os.path.join(catalog, name), encoding="utf-8", newline="") as f:
+			return list(csv.DictReader(f))
+
+	def stage_no(cell):
+		m = re.fullmatch(r"S(\d)", cell or "")
+		return int(m.group(1)) if m else 0
+
+	pools = {name: [(stage_no(r["stage"]), fit_paths(r["fits"])) for r in rows(name)] for name in ("weapons.csv", "modifiers.csv")}
+	gaps = []
+	for n, r in enumerate(rows("expression.csv"), start=2):
+		path = r["Path"].partition(".")[2]
+		stage = stage_no(r["Stage"])
+		for name, kind in (("weapons.csv", "weapon"), ("modifiers.csv", "modifier")):
+			if not any(s <= stage and path in paths for s, paths in pools[name]):
+				gaps.append((f"expression.csv:{n}", f"{r['Archetype']}: no {kind} of stage S{stage} or earlier names {path} in {name} fits (T-OFF-19)"))
+	return gaps
+
+
 def spec_pairs(ctx, where, text, limit):
 	"""`name=value;...` -> C++ param initialisers, padded to limit. Numbers only (reactions.md Data)."""
 	params = []
@@ -656,6 +684,8 @@ def render(ctx):
 		if w not in reforge_ids:
 			ctx.err("weapons.csv:evolution", f"'{w}' has no row in reforging.csv")
 	expression, s1_archetypes = gen_expression(ctx, flags)
+	for where, text in fit_gaps(CATALOG):
+		ctx.err(where, text)
 	reactions, reaction_names = gen_reactions(ctx)
 	enemies = gen_enemies(ctx)
 	affixes = gen_elites(ctx)

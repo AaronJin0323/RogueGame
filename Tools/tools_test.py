@@ -5,6 +5,7 @@ Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 """
 
 import contextlib
+import csv
 import io
 import json
 import os
@@ -21,6 +22,7 @@ import bot_compare  # noqa: E402
 import bot_summary  # noqa: E402
 import contrast_check  # noqa: E402
 import evolve_read  # noqa: E402
+import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
 import cpu_canary  # noqa: E402
 import loc_build  # noqa: E402
@@ -54,6 +56,68 @@ class Matrix(unittest.TestCase):
 
 	def test_a_hand_edit_is_caught(self):
 		self.assertNotEqual(gen_matrix.render().replace("yes", "no", 1), gen_matrix.render())
+
+
+class CatalogFit(unittest.TestCase):
+	"""offers.md T-OFF-19: every archetype's Path is fitted by a weapon and a modifier of its stage's pool (gate step `catalog`)."""
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		for name in os.listdir(gen_catalog.CATALOG):
+			if name.endswith(".csv"):
+				shutil.copy(os.path.join(gen_catalog.CATALOG, name), self.tmp.name)
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def drop(self, name, path):
+		"""Removes one Path from every fits cell of a catalog copy."""
+		file = os.path.join(self.tmp.name, name)
+		with open(file, encoding="utf-8", newline="") as f:
+			rows = list(csv.reader(f))
+		col = rows[0].index("fits")
+		for r in rows[1:]:
+			r[col] = "; ".join(s for s in r[col].split(";") if s.strip() and s.partition(":")[0].strip() != path)
+		with open(file, "w", encoding="utf-8", newline="") as f:
+			csv.writer(f, lineterminator="\n").writerows(rows)
+
+	def test_the_real_catalog_has_no_gap(self):
+		self.assertEqual(gen_catalog.fit_gaps(gen_catalog.CATALOG), [])
+
+	def test_a_path_left_out_of_the_weapons_is_a_gap_on_each_of_its_archetypes(self):
+		self.drop("weapons.csv", "Quicksilver")
+		gaps = gen_catalog.fit_gaps(self.tmp.name)
+		self.assertEqual(len(gaps), 3, gaps)
+		self.assertTrue(all("Archetype.Quicksilver." in text and "no weapon" in text for _, text in gaps), gaps)
+
+	def test_a_path_left_out_of_the_modifiers_is_a_gap(self):
+		self.drop("modifiers.csv", "Shade")
+		gaps = gen_catalog.fit_gaps(self.tmp.name)
+		self.assertEqual(sorted(t.split(":")[0] for _, t in gaps), ["Archetype.Shade.Economy", "Archetype.Shade.Hound", "Archetype.Shade.Hunters"])
+
+	def test_a_later_stage_row_does_not_cover_an_earlier_archetype(self):
+		# Storm keeps only its S2 fits: the S1 archetypes of Storm have none in their pool.
+		file = os.path.join(self.tmp.name, "weapons.csv")
+		with open(file, encoding="utf-8", newline="") as f:
+			rows = list(csv.reader(f))
+		col, stage = rows[0].index("fits"), rows[0].index("stage")
+		for r in rows[1:]:
+			if r[stage] == "S1":
+				r[col] = ";".join(p for p in r[col].split(";") if p != "Storm")
+		with open(file, "w", encoding="utf-8", newline="") as f:
+			csv.writer(f, lineterminator="\n").writerows(rows)
+		gaps = gen_catalog.fit_gaps(self.tmp.name)
+		self.assertEqual(len(gaps), 3, gaps)
+		self.assertTrue(all("Archetype.Storm." in text and "stage S1" in text for _, text in gaps), gaps)
+
+	def test_the_check_fails_the_catalog_step(self):
+		self.drop("modifiers.csv", "Radiance")
+		out = io.StringIO()
+		with mock.patch.object(gen_catalog, "CATALOG", self.tmp.name), contextlib.redirect_stdout(out):
+			rc = gen_catalog.main(["--check"])
+		self.assertEqual(rc, 1)
+		self.assertIn("T-OFF-19", out.getvalue())
+		self.assertIn("CATALOG: FAIL", out.getvalue())
 
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
