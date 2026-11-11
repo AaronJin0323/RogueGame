@@ -420,6 +420,7 @@ FDTRunAward FDTMetaSession::Bank(const FDTRunTally& Tally, EDTRunEnd End)
 	if (!bWritable)
 	{
 		Run(*this); // a stuck session (R-MET-12) plays on in memory and writes nothing
+		Award.bNotSaved = true; // and the run-over screen says so (R-MET-06)
 	}
 	else
 	{

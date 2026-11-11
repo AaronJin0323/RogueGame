@@ -58,6 +58,8 @@ struct FDTRunAward
 	bool bDeferred = false;
 	/** Changes this session still owes the file after this bank. */
 	int32 Waiting = 0;
+	/** The session is stuck on its save (R-MET-12): the run is counted in memory only, and no save point will ever write it. */
+	bool bNotSaved = false;
 };
 
 /**

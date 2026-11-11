@@ -72,7 +72,10 @@ struct DUSKTRACER_API FDTMetaSession
 
 	/** Empty InPath: no save. Never fails a launch. */
 	EDTMetaOpen Open(const FString& InPath);
-	/** Banks one run (R-MET-04, R-MET-05) and autosaves it (R-MET-13). With no file the profile stays as it was. */
+	/**
+	 * Banks one run (R-MET-04, R-MET-05) and autosaves it (R-MET-13). With no file the profile stays as it was. A stuck session
+	 * (R-MET-12) banks in memory and marks the award bNotSaved.
+	 */
 	FDTRunAward Bank(const FDTRunTally& Tally, EDTRunEnd End);
 	/**
 	 * One change to the save (R-MET-11): takes the lock, rereads the file if another launch wrote it, makes the edit, writes,
