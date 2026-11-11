@@ -1,0 +1,77 @@
+# S4 carry: `dev/s3` (with `dev/s2` and `main`) into `dev/s4` (Queue item 6, leg 3)
+
+Branch `carry/s4`, cut from `dev/s4` 92ce1a5; `carry/s3b` merged at dd6a868 (`dev/s3` a92bc32 plus D-049's last rows in `findings_S3.md`), which holds `dev/s2` 432bedd and `main` 8f2579e (`S2_carry.md`, `S3_carry.md`). D-050 item 3. Every command ran under the mask `FFFFF3FC` (the shell's affinity before the merge brought `Tools/Machine.ps1`, the helper after). No art, number or rule was changed here.
+
+## Commits
+| Commit | What |
+|---|---|
+| 4748285 | merge of `carry/s3b` dd6a868 |
+| e1ee2ec | T-ENM-24 says what it counts |
+| d7f8117 | `C.GATE.TEST_FLOOR` 568 |
+| c4a4a44 | `Dusktracer.EnemyArt`'s Nanite check compiles in the editor only |
+
+## Conflicts and how each was resolved
+- `Docs/13_Decisions/**` (with `INDEX.md`, `OPEN.md`), `Docs/STATE.md`, `AGENTS.md`: the incoming side, whole; `git diff carry/s3b -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty. `dev/s4` held no decision file the incoming side lacks. Two `dev/s4` lines are gone with it: D-003's Mac line named the Mac's account and its LAN address where `main` keeps them out of the repository, and D-024's status read only "applied" where `main` adds that D-044 replaced its last clause. Its `AGENTS.md` lines were older wording of `main`'s.
+- `ST_UI.csv`: `main`'s `Hud.KeyLabel` row beside package F's contexts of the XP block rows.
+- `combat_core.md`: package F's line (the Intercession meter is a ring since the HUD pass).
+- `04_Presentation.md`, T-PRE-07: both checks exist and read different things, so both stay live and the one line names both: `Tools/palette_lint.py --settings` (gate step `settings`: the settings in the config and in the volume's generator, and the ground's exposure between the empty arena and the contrast frame) and the `smoke` step (the config on every smoke run, the built map's volume through `Tools/render_settings_check.py`, a burst frame against the calm frame through `image_check.py --exposure`).
+- `07_Technical.md`, T-TEC-06: `dev/s4`'s line, since `Tools/catalog_lint.py` exists here.
+- `08_Constants.md`, `constants.yaml`: package C's `HERO_ART.*` keys beside `main`'s T-DIR-18 dependent; the floor in d7f8117. `number_change_log.csv`: every row of both sides, none twice.
+- `11_Quality.md`: `dev/s4`'s licence, palette, tools, contrast and settings rows; `main`'s build, locbuild, nonunity, shipping, devgame and tests rows; the smoke row names the scenes of `Tools/Scenes`, the key labels, the mask samples and the burst half. A second, older contrast row the merge left is removed.
+- `DTConstantsGen.h`: regenerated.
+- `Game/DTHUD.h`, `DTHUD.cpp`: package F's `DrawRun` and layout stand; the Dash and Intercession texts it lays out are now `main`'s key labels (`KeyLabel`, `Hud.KeyLabel`, the device in use), and `HudKeys` is logged once for `Tools/Smoke.ps1` outside Shipping. Both are on screen in package F's places (frames below).
+- `Tools/Gate.ps1`: `main`'s header and steps with `dev/s4`'s named (licence, palette, settings, the scene-driven smoke and contrast). `dev/s4` keeps every staged command in a scene file (`Scenes` in `tools_test.py`), so the burst frame's fire moved from the script to `Tools/Scenes/burst.json`, gate `none`; the gate reads its `cmds`.
+- `Tools/Perf.ps1`: `-Scene S4` beside `main`'s size from `C.BUDGET.RES` and `GpuLock.ps1`.
+- `Tools/tools_test.py`: both sides' cases; the stand-in gate of `GateMain` stubs `catalog_lint.py` and `palette_lint.py`.
+- The mask helper is the first statement of `Tools/EnemyArt.ps1` and `Tools/blender/Mesh.ps1`; `Tools/EditorPython.bat` and `Tools/blender/CookMesh.bat` take the batch form (`Machine.ps1 -DTRunFile`, which holds itself in the job). All four are listed in `Machine.ENTRY_PS` and `ENTRY_BAT`, whose check now accepts a helper one folder up. `Mesh.ps1` starts Blender and editor commandlets itself, so it calls `Hold-DTProcess`. `EnemyArt.ps1` starts the game through `Start-DTHidden` and Blender only through `Mesh.ps1`.
+- `PLANNED(S0)`: none left on `dev/s4` outside a code span; the docs lint reads 0 errors.
+
+## Fixed, because the carried gate found it
+`main`'s `devgame` step compiles the Development game target, which `dev/s4` never built. It failed on `Dusktracer.EnemyArt`'s mesh test: `UStaticMesh::IsNaniteEnabled` is an editor API (C2039 at `DTEnemyArtTests.cpp` 249). c4a4a44 puts that one assertion inside `#if WITH_EDITOR`; the suite runs in the editor, so the check still runs there. First gate: `GATE: FAIL at devgame (d7f8117; mask FFFFF3FC)`, log `Saved\Logs\s4_gate_1_d7f8117.txt`.
+
+## T-ENM-24
+Its line now says it counts the sim's grey box, cubes hidden in play, and that the drawn role hulls are T-EAR-01's. The test's code is unchanged.
+
+## Ids
+No `R-` or `T-` id has two definition lines, and no new collision.
+
+## Counts and floor
+- Before (`dev/s4` 92ce1a5): 556 tests, 556 pass, floor 549; `tools_test.py` 279.
+- After: 568 found, 568 pass; `C.GATE.TEST_FLOOR` 568 (`08_Constants.md` row, one `number_change_log.csv` row); `tools_test.py` 345.
+
+## Seed 9107 (`Tools\BotRuns.ps1 -Arms None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost -FirstSeed 9107 -Seeds 1`, `S4_p0.md` §8)
+| Arm | `dev/s4` 92ce1a5 | carry/s4 c4a4a44 |
+|---|---|---|
+| None | `7bd32faf` | `00e0d4ec` |
+| Random | `f5270196` | `51369747` |
+| Steered:Forge:Hammer | `c6573c69` | `e3293942` |
+| Steered:Storm:Tempest | `d7c8b43c` | `b046559b` |
+| Steered:Tide:Frost | `209a3446` | `def51848` |
+| RestartCheck launch A | `276faf8e` | `276faf8e` |
+| MetaCheck | `ba2a3ac8` | `ba2a3ac8` |
+
+The old ones equal `S4_p0.md`'s. The new ones equal `dev/s2`'s and `dev/s3`'s after their carries: wave 1 moves no sim number, as `S4_wave1.md` (b) requires. The arms moved with D-045, D-046 and Hard Blow.
+
+## Gate (`& Tools\Gate.ps1 -Base dev/s4`, `tools` live)
+First run, on d7f8117: `GATE: FAIL at devgame (d7f8117; mask FFFFF3FC)` (above; log `Saved\Logs\s4_gate_1_d7f8117.txt`). Not an odd failure: a compile error that fails every time. After c4a4a44, once from start to end:
+```
+cpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+tools:      TOOLS: PASS (345 tests)
+devgame:    rc 0, 0 warning(s)
+tests:      568 run of 568 found, 0 failed, floor 568, 0 crash marker(s)
+smoke:      SMOKE: PASS (hud_staged_en, ... keys ok (Dash  [Space] | Intercession  [Q]), image PASS (1280x720, luma stddev 10.80, mean diff vs golden 0.35 (max 12.0)), mask FFFFF3FC, 64 sample(s), 0 outside)
+smoke:      SMOKE: PASS (burst_en, ... RENDER: PASS (PostProcess_Presentation: 5 settings as 04_Presentation s4 says), image PASS (1280x720, luma stddev 35.82, exposure shift -0.79 levels against the calm frame (max 12.0)), ...)
+settings:   SETTINGS: PASS (14 config and 9 volume settings; lit ground median Y 0.1119 empty, 0.1119 under fire, drift 0.000 (max 0.05))
+GATE: PASS (c4a4a44; 3 not run; mask FFFFF3FC)
+```
+Every other step passed: secrets, docs, constants, catalog, matrix, loc, licence, palette, build, locbuild, nonunity (45 files), shipping, every smoke scene in its cultures (the key labels drawn and read in each, the mask held in every sample), restart, seed, meta, vigil, firstrun (6/6 at the boss), win, earned, contrast (7/7, the dormant line, the tracer crossing; WATCH OK), windows. Not run: pad, scope, mac. No golden failed and none was re-shot: package F's goldens read 0.30 to 0.36 mean difference with the key labels drawn, against a limit of 12. No odd failure.
+
+## Frames for the scheduler (`Saved\S4Report\carry\` of this worktree, 1280x720, off screen through `Tools/Smoke.ps1`)
+- `hud_run_keylabels_clock_hp_en.png`, `hud_run_keylabels_clock_hp_zh-Hans.png`: the gate's `hud_staged` shots; HP top left, clock, level and XP top right, the ring with `Intercession  [Q]` / `神临  [Q]` and `Dash  [Space]` / `冲刺  [空格键]`, tools, a Keeper meter and a dormant line bottom left, in package F's places.
+- `hud_boss_bar_keylabels_en.png` (the gate's `hud_boss`), `hud_boss_bar_keylabels_zh-Hans.png` (taken after the gate, `-Name carry_hud_boss -Cmds "DT.God 1,DT.Boss" -Seconds 14`; it reads FAIL only for want of a golden): the Warden's bar top centre with HP, clock and the key labels in view.
+- `crowd_tracers_crossing_en.png`: the contrast step's `tracer_crossing`, a crowd with player tracers, enemy rounds and telegraphs crossing.
+
+## Readings this carry makes stale on `dev/s4`
+- The five bot arms read on each package (P0, A, B, C, D, F notes): every hash moved, as above.
+- Every perf reading on `dev/s4`: taken at 888x500 with other agents rendering; `Tools/Perf.ps1` now renders at `C.BUDGET.RES` and fails on another size, so no package's perf allowance is read until a reading is taken alone at the real size.
+- The frames in `Saved\S4Report\A` to `F` of the main checkout that show the HUD: the Dash and Intercession labels now carry their keys. The goldens still pass and were not re-shot.
