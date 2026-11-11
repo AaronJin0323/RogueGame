@@ -2,7 +2,7 @@
 
 For the scheduler, from the Mechanics module session (D-055 item 4). Written on `plan/mechanics-rules` from `main` at 4d17faf. Nothing in it is in force: each draft is accepted and numbered by the scheduler, changed, or returned. Nothing was built, launched or measured for it.
 
-Build: none read. Every number is quoted from a note or a file at `main` 4d17faf, `dev/s2` 146af0a or `dev/s3` 81c638e; the note is named beside it. "Source" is `Handoff_Dusktracer/game/reference/`, input only (`AGENTS.md`, precedence).
+Build: none read. Every number is quoted from a note or a file at `main` 4d17faf, `dev/s2` a7137b4 (the S2 exit reread of 146af0a) or `dev/s3` 81c638e; the note is named beside it. "Source" is `Handoff_Dusktracer/game/reference/`, input only (`AGENTS.md`, precedence).
 
 A constant that exists only on a later branch, or is proposed here, is written without its `C.` prefix, so the lint on `main` does not look for it.
 
@@ -31,8 +31,8 @@ A constant that exists only on a later branch, or is proposed here, is written w
 ### Context
 - R-KEE-15, the same on `main` and `dev/s2`: each variant and layer combination of a Keeper deals marginal damage (with the cast minus without, on a refilled field) within `C.INTERCESSION.BAND` of that Keeper's own mean; a part outside it is retuned toward the mean by at most `C.INTERCESSION.RETUNE_STEP_MAX` a pass. T-KEE-15 is a reading, not a gate step.
 - The Tide cast displaces and freezes and emits no hit (`Keepers/DTKeeperSim.cpp`, `TidePull`). `Tools/probe.py` puts every row out of band when a Keeper's mean is at or under zero.
-- Readings. S1: 15 of 57 in band, before D-019 and after it (Storm 8 of 19, Forge 7 of 18, Tide 0 of 20). Tide's mean: −3 004, then 1 083 after D-019 "set by one row with SD 31 555" (`Validation/S1_tide_rule.md`), then −2 126 in the `dev/s2` reread. S2 exit: 46 of 282 (Tide 1 of 47, Shade 0 of 48, Quicksilver 1 of 48; `dev/s2` `Validation/S2_exit.md`).
-- Shade and Quicksilver do not belong to this question. Shade's cast executes, and its mean (597 933) is Economy's payday loop: draft 3. Quicksilver's cast fires a volley on every dash, and its reading is the probe route and a neutral time scale: plan P1 and the S2 kit. Only Tide's cast strikes nothing.
+- Readings. S1: 15 of 57 in band, before D-019 and after it (Storm 8 of 19, Forge 7 of 18, Tide 0 of 20). Tide's mean: −3 004, then 1 083 after D-019 "set by one row with SD 31 555" (`Validation/S1_tide_rule.md`), then −2 126 in the `dev/s2` reread. S2 exit, reread at 146af0a on 2026-11-11: 45 of 282 (Tide 2 of 47 on a mean of 911, Shade 0 of 48, Quicksilver 2 of 48; `dev/s2` `Validation/S2_exit.md`).
+- Shade and Quicksilver do not belong to this question. Shade's cast executes, and its mean (600 282) is Economy's payday loop: draft 3. Quicksilver's cast fires a volley on every dash, and its reading is the probe route and a neutral time scale: plan P1 and the S2 kit. Only Tide's cast strikes nothing.
 - The source keeps the damage measure for control casts and bands inside a Keeper for that reason: "Burst and control Intercessions cannot be compared by damage across Keepers", and "amplifier variants are valued by what they add to the hero's own damage (the with-cast minus no-cast metric stays)" (`specs/intercession_variants_spec.md`). Its own Tide cast had hit paths (`balance/intercession_strength.md`: a damage multiplier on "the three Begin Hit paths"). The port's cast has none.
 - `Validation/S1_keeper_power.md` §6 listed three candidates. D-019 took the first (Frost and Stillness drop the line). Left: "a Tide cast deals damage of its own" and "R-KEE-15 judges Tide on something other than marginal damage".
 - `10_Tuning.md §4`: a probe field cannot credit control.
@@ -69,7 +69,9 @@ Session B's reading of the Tide rows.
 
 ### Context
 - Bots at skill 1.0, 15 seeds, reach and wins (`Validation/S1_keeper_power.md` §5, final column): Tide-Frost 10 and 8, Tide-Frost-Storm 11 and 9, Tide-Stillness 6 and 3, Tide-Stillness-Storm 5 and 4, Tide-Whirlpool 6 and 3, Tide-Whirlpool-Storm 5 and 2. Forge-Hammer 14 and 13. So Tide arms die before the boss in 4 to 10 runs of 15 and lose at it in 1 to 3.
-- Why, on `dev/s2` (`Validation/S2_trace.md` §3): "Other Keys add damage early, Tide's do not: minute 1 damage 2278 against 2566 ... Held enemies then stay alive, and 2 to 3 times the crowd stands at half the distance. 32 of 45 die before the boss." At the boss, damage per second 164 against Quicksilver's 623.
+- That table is older than the chest restore (D-046). The nineteen arms have been run since (`Validation/S1_d045_sources.md`: 231 of 270 steered runs at the boss, 192 wins), and that note gives no figure per arm here; the reading planned as `S1_d045_sources_3.md` prints reach and wins per arm on the session build.
+- Why, on `dev/s2` before the restore (`Validation/S2_trace.md` §3): "Other Keys add damage early, Tide's do not: minute 1 damage 2278 against 2566 ... Held enemies then stay alive, and 2 to 3 times the crowd stands at half the distance. 32 of 45 die before the boss." At the boss, damage per second 164 against Quicksilver's 623.
+- With the restore, on `dev/s2` at 146af0a (`Validation/S2_exit.md`, 45 runs a Keeper): Tide wins 15 and reaches the boss in 34 at skill 1.0, up from 5 wins, and is still last (Storm 30, Radiance 35, Forge 42, Shade 42, Quicksilver 45). At skill 0.6 Tide wins 5 of 26 that reach it. Tide lost 19 of 34 boss fights at skill 1.0; Storm lost 1 of 31.
 - The boss refuses the kit. R-BOS-11: Freeze is refused and Chill stops at `C.STATUS.BOSS_CHILL_STACK_MAX`. R-BOS-03: every displacement naming the boss is ignored. Card by card, only Stillness's charged-volley multiplier and a shatter of nearby adds reach it (read from the catalog, not measured).
 - The source's answer is D-60: control on a control-immune target is "not refused"; it converts to Cracked, 20 % more damage taken for 2 s, with boss time across the showcase builds kept within 20 %. `boss.md` Out of scope puts it in S2, and `dev/s2` did not build it.
 - The source's per-archetype answers are numbers this port set lower: Whirlpool's crush at 15 % "its own damage source when played alone" (here 0.10, and 0.05 more on an Amp); Stillness's charged volley at 2.5 (here 2.0).
@@ -112,7 +114,7 @@ The S1 gate decision.
 ### Context
 - R-KEE-29: "each kill of a Marked enemy adds one Debt"; at `debt_max` the next volley is a payday, one homing round at every enemy in the screen scope. The rule excludes no kill, and the code tests none (`Combat/DTWeaponSimKeepers.cpp`, `ReactKeeperKills`).
 - `dev/s2` `Validation/S2_trace.md` §1, the cast scene, two seeds: with the cast 1 948 998 and 1 948 952; with "a payday's kills pay no Debt (a temporary switch, not committed)" 152 441 and 157 067. "The self-pay is 12.7x ... the reading measures the refill, not the cast." At field HP scaled down forty times: 68 927 with the loop, 40 687 without.
-- Shade's combination mean on the S2 exit is 597 933, its largest row 3 954 879, and it reads 0 of 48 in band.
+- Shade's combination mean on the S2 exit is 600 282 at 146af0a (597 933 before), it reads 0 of 48 in band, and Economy's row with a Vector layer still reads 1 991 364. Its largest row was 3 954 879.
 - In bot runs Economy is no outlier: 321 damage a second at minutes 10 to 14 against 261 to 308 for the others.
 - The source is silent on whether a payday's kills add Debt. The neighbouring rules are not: R-KEE-33 and R-MOD-13 say their bursts start no reaction.
 - What is left without the loop, about 150 000, is still 1.9 times Slam's 77 526: one round at every enemy, each piercing 99 more with the Amp, grows with the square of the crowd.
@@ -129,7 +131,7 @@ Option 1. R-KEE-29 gains one sentence: a kill made by a payday's own round or by
 Not 2: the loop also runs in play whenever the screen is Marked, and the scene found it honestly. Not 4: a number would hide a loop. Option 3 is the larger change and is looked at again only if Economy's row still tops Shade's band after this.
 
 ### Hypothesis
-We believe excluding a payday's own kills from Debt moves Economy's no-layer cast on the cast scene from 1 948 998 to about 150 000 and Shade's combination mean from 597 933 toward the range of the other Keepers' (8 052 to 57 469), because the reading measured a loop on a field that refills; measured by `Tools/probe.py read --check` on `dev/s2`, with Economy's damage per second at minutes 10 to 14 printed beside it and judged nowhere; reverted if the cast row does not fall by at least half.
+We believe excluding a payday's own kills from Debt moves Economy's no-layer cast on the cast scene from 1 948 998 to about 150 000 and Shade's combination mean from 600 282 toward the range of the other Keepers' (7 985 to 56 413), because the reading measured a loop on a field that refills; measured by `Tools/probe.py read --check` on `dev/s2`, with Economy's damage per second at minutes 10 to 14 printed beside it and judged nowhere; reverted if the cast row does not fall by at least half.
 
 ### Impact (dependency sweep)
 - Rules replaced: R-KEE-29 gains the sentence; its card tests gain the case. The duo Pyre Debt is untouched: an ember is not a payday round.
