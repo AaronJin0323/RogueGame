@@ -19,37 +19,73 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 import dtconst  # noqa: E402
 
-_C = dtconst.load()
-
-
-def key(name):
-	return _C["AUD." + name]["value"]
-
-
-SR = key("SAMPLE_RATE_HZ")
 BANDS = [25.0 * 2.0 ** (i / 3.0) for i in range(30)]          # third-octave centres, 25 Hz to about 20 kHz
-DANGER = tuple(float(v) for v in key("DANGER_BAND_HZ"))       # the band kept for warnings
-LOWZONE = tuple(float(v) for v in key("LOW_ZONE_HZ"))         # the heartbeat's band
-AIR = (float(key("AIR_LINE_HZ")), SR / 2.0)                    # no hiss above the air line
-SMALL_SPEAKER_HZ = float(key("SMALL_SPEAKER_HZ"))
+KWEIGHT_RATE_HZ = 48000                                         # the only rate the BS.1770 coefficients below are for
 LK_WINDOW_S = 0.1                                               # the ear's ~100 ms integration (lk100)
-FULL_SCALE = 32768.0
+FULL_SCALE = 32768.0                                            # 16-bit full scale
+# The constants that define a measure (02_Systems/audio.md Data): not limits, so not keys.
+ACTIVE_LINE_DB = -40.0                                          # a sample is active over this level against the peak
+ATTACK_POINT = 0.9                                              # attack ends at the first sample over this share of the peak
+SPIKE_HEAD_S = 0.006                                            # onset spike: the peak of the first 6 ms after the onset ...
+SPIKE_BODY_S = 0.04                                             # ... over the peak from there to 40 ms
+SEAM_WINDOW_S = 0.02                                            # a loop's level seam: RMS of its first and of its last 20 ms
+ONSET_WINDOW_S = 0.02                                           # onset count: a 20 ms RMS envelope ...
+ONSET_HOP_S = 0.005                                             # ... read every 5 ms ...
+ONSET_LOOKBACK = 6                                              # ... rising over the least of the 6 hops before it (30 ms) ...
+ONSET_RISE = 2.0                                                # ... by this factor (6 dB) ...
+ONSET_FLOOR = 0.25                                              # ... to over this share of the envelope's peak (-12 dB)
+DISTANCE_FLOOR_DB = -40.0                                       # spectral distance: each spectrum floored this far under its top band ...
+DISTANCE_USED_DB = -30.0                                        # ... over the bands where either one is above this
+
+KEYS = {}
+SR = DANGER = LOWZONE = AIR = SMALL_SPEAKER_HZ = MASK_SPREAD_DB = MASK_WINDOW_S = None
+
+
+def configure(keys):
+	"""Reads the band edges and lines from a {NAME: value} dict of the C.AUD.* keys (default: Docs/constants.yaml)."""
+	global KEYS, SR, DANGER, LOWZONE, AIR, SMALL_SPEAKER_HZ, MASK_SPREAD_DB, MASK_WINDOW_S
+	KEYS = dict(keys)
+	SR = keys["SAMPLE_RATE_HZ"]
+	DANGER = tuple(float(v) for v in keys["DANGER_BAND_HZ"])          # the band kept for warnings
+	LOWZONE = tuple(float(v) for v in keys["LOW_ZONE_HZ"])            # the heartbeat's band
+	AIR = (float(keys["AIR_LINE_HZ"]), SR / 2.0)                      # no hiss above the air line
+	SMALL_SPEAKER_HZ = float(keys["SMALL_SPEAKER_HZ"])
+	MASK_SPREAD_DB = float(keys["MASK_SPREAD_DB"])
+	MASK_WINDOW_S = keys["MASK_WINDOW_MS"] / 1000.0
+
+
+def aud_keys(path=dtconst.CONSTANTS_YAML):
+	"""{NAME: value} of every C.AUD.* key in a constants file."""
+	return {k[4:]: c["value"] for k, c in dtconst.load(path).items() if k.startswith("AUD.")}
+
+
+def rate_problem():
+	"""None, or why the measures cannot run: the K-weighting coefficients are the standard's for 48 kHz only."""
+	if SR != KWEIGHT_RATE_HZ:
+		return f"C.AUD.SAMPLE_RATE_HZ is {SR}: the K-weighting coefficients of audio_metrics.py are ITU-R BS.1770's for {KWEIGHT_RATE_HZ} Hz only"
+	return None
+
+
+configure(aud_keys())
 
 
 # ---- files -----------------------------------------------------------------------------------------
 
 def read_wav(path):
-	"""(samples as floats in [-1, 1), {channels, width, rate, frames}, raw int samples) of a 16-bit PCM WAV."""
+	"""(samples of the first channel as floats in [-1, 1), {channels, width, rate, frames}, raw int samples at 16-bit scale).
+	8-bit (unsigned) and 16-bit PCM are read; any other width reads as no samples."""
 	with wave.open(path, "rb") as w:
 		info = {"channels": w.getnchannels(), "width": w.getsampwidth(), "rate": w.getframerate(), "frames": w.getnframes()}
 		data = w.readframes(info["frames"])
-	if info["width"] != 2:
+	if info["width"] == 2:
+		ints = [int.from_bytes(data[i:i + 2], "little", signed=True) for i in range(0, len(data), 2)]
+	elif info["width"] == 1:
+		ints = [(b - 128) * 256 for b in data]
+	else:
 		return [], info, []
-	ints = [int.from_bytes(data[i:i + 2], "little", signed=True) for i in range(0, len(data), 2)]
 	if info["channels"] > 1:
 		ints = ints[::info["channels"]]
 	return [v / FULL_SCALE for v in ints], info, ints
-
 
 # ---- spectra ---------------------------------------------------------------------------------------
 
@@ -155,7 +191,9 @@ def _run(x, b, a):
 
 
 def kweight(x):
-	"""ITU-R BS.1770 K-weighting at 48 kHz (the standard's own coefficients)."""
+	"""ITU-R BS.1770 K-weighting at 48 kHz (the standard's own coefficients). Refuses any other rate."""
+	if rate_problem():
+		raise ValueError(rate_problem())
 	x = _run(x, (1.53512485958697, -2.69169618940638, 1.19839281085285), (-1.69065929318241, 0.73248077421585))
 	return _run(x, (1.0, -2.0, 1.0), (-1.99004745483398, 0.99007225036621))
 
@@ -201,14 +239,15 @@ def metrics(x):
 	if pk <= 0.0:
 		return {"silent": True, "len_ms": 1000.0 * len(x) / SR, "active_ms": 0.0, "lead_ms": 0.0, "attack_ms": 0.0, "spike_db": 0.0,
 			"peak_db": -140.0, "crest_db": 0.0, "lk100": -140.0, "small_spk_loss_db": 0.0, "centroid_hz": 0.0, "danger_share_db": -140.0,
-			"low_share": 0.0, "low_share_db": -140.0, "air_share_db": -140.0, "dc": 0.0, "ends": 0.0, "clipped": 0, "onsets": 0, "bands": bands}
-	thr = pk * 10 ** (-40 / 20.0)
+			"low_share": 0.0, "low_share_db": -140.0, "air_share_db": -140.0, "dc": 0.0, "ends": 0.0, "clipped": 0, "onsets": 0, "seam_level_db": 0.0,
+			"bands": bands}
+	thr = pk * 10 ** (ACTIVE_LINE_DB / 20.0)
 	first = next(i for i, s in enumerate(x) if abs(s) >= thr)
 	last = len(x) - 1 - next(i for i, s in enumerate(reversed(x)) if abs(s) >= thr)
-	# attack: from the first sample over -40 dB to the first sample over 90 % of the peak
-	hit = next(i for i, s in enumerate(x) if abs(s) >= 0.9 * pk)
-	a6 = max(abs(s) for s in x[first:first + int(SR * 0.006)]) or 1e-12
-	b40 = max(abs(s) for s in x[first + int(SR * 0.006):first + int(SR * 0.04)] or [1e-12]) or 1e-12
+	# attack: from the first active sample to the first sample over ATTACK_POINT of the peak
+	hit = next(i for i, s in enumerate(x) if abs(s) >= ATTACK_POINT * pk)
+	a6 = max(abs(s) for s in x[first:first + int(SR * SPIKE_HEAD_S)]) or 1e-12
+	b40 = max(abs(s) for s in x[first + int(SR * SPIKE_HEAD_S):first + int(SR * SPIKE_BODY_S)] or [1e-12]) or 1e-12
 	rms = math.sqrt(sum(s * s for s in x) / len(x))
 	lk = lk_window(x)
 	return {
@@ -231,8 +270,17 @@ def metrics(x):
 		"ends": max(abs(x[0]), abs(x[-1])),
 		"clipped": sum(1 for s in x if abs(s) >= 32767.0 / FULL_SCALE),
 		"onsets": onsets(x),
+		"seam_level_db": seam_level_db(x),
 		"bands": bands,
 	}
+
+
+def seam_level_db(x):
+	"""How far apart, in dB, the RMS levels of the first and the last SEAM_WINDOW_S of a file are (a loop's level seam)."""
+	w = max(1, min(len(x), int(SR * SEAM_WINDOW_S)))
+	head = math.sqrt(sum(s * s for s in x[:w]) / w)
+	tail = math.sqrt(sum(s * s for s in x[-w:]) / w)
+	return abs(20.0 * math.log10(max(head, 1e-9) / max(tail, 1e-9)))
 
 
 def resample(x, rate):
@@ -257,9 +305,9 @@ def spectral_distance(ba, bb):
 	da = [dbp(p) for p in ba]
 	dbb = [dbp(p) for p in bb]
 	ma, mb = max(da), max(dbb)
-	da = [max(v - ma, -40.0) for v in da]
-	dbb = [max(v - mb, -40.0) for v in dbb]
-	used = [(u, v) for u, v in zip(da, dbb) if u > -30.0 or v > -30.0]
+	da = [max(v - ma, DISTANCE_FLOOR_DB) for v in da]
+	dbb = [max(v - mb, DISTANCE_FLOOR_DB) for v in dbb]
+	used = [(u, v) for u, v in zip(da, dbb) if u > DISTANCE_USED_DB or v > DISTANCE_USED_DB]
 	return sum(abs(u - v) for u, v in used) / max(1, len(used))
 
 
@@ -270,13 +318,13 @@ def envelope(x, step_ms=5.0):
 
 def onsets(x):
 	"""Count of separate attacks: rises of a 20 ms RMS envelope (5 ms hop) by 6 dB within 30 ms, to within 12 dB of the peak."""
-	w, h = int(SR * 0.02), int(SR * 0.005)
+	w, h = int(SR * ONSET_WINDOW_S), int(SR * ONSET_HOP_S)
 	e = [math.sqrt(sum(s * s for s in x[i:i + w]) / w) for i in range(0, max(1, len(x) - w // 2), h)]
 	pk = max(e) or 1e-12
 	n, armed = 0, True
 	for i in range(len(e)):
-		base = min(e[max(0, i - 6):i] or [0.0])
-		rising = e[i] > pk * 0.25 and e[i] > max(base, 1e-9) * 2.0
+		base = min(e[max(0, i - ONSET_LOOKBACK):i] or [0.0])
+		rising = e[i] > pk * ONSET_FLOOR and e[i] > max(base, 1e-9) * ONSET_RISE
 		if rising and armed:
 			n += 1
 			armed = False
@@ -287,19 +335,21 @@ def onsets(x):
 
 # ---- masking ---------------------------------------------------------------------------------------
 
-def spread(bands, db_per_band=float(key("MASK_SPREAD_DB"))):
+def spread(bands, db_per_band=None):
 	"""Upward spread of masking, taken wide: a band masks each band above it, C.AUD.MASK_SPREAD_DB less per third octave."""
 	out = list(bands)
-	k = 10 ** (-db_per_band / 10.0)
+	k = 10 ** (-(MASK_SPREAD_DB if db_per_band is None else db_per_band) / 10.0)
 	for i in range(1, len(out)):
 		out[i] = max(out[i], out[i - 1] * k)
 	return out
 
 
-def audibility(cue, masker, lo, hi, win_s=key("MASK_WINDOW_MS") / 1000.0, step_s=key("MASK_WINDOW_MS") / 1000.0):
+def audibility(cue, masker, lo, hi, win_s=None, step_s=None):
 	"""Signal-to-masker ratio of a cue against a long masker, band by band, at every alignment `step_s` apart.
 	A cue counts as heard through a window when it leads the masker in two third-octave bands of its zone, so the
 	figure for a window is the second-best band. Returns (worst window, median window, per-band worst)."""
+	win_s = MASK_WINDOW_S if win_s is None else win_s
+	step_s = MASK_WINDOW_S if step_s is None else step_s
 	w = int(SR * win_s)
 	cb = band_powers((cue + [0.0] * w)[:w])
 	idx = [i for i, fc in enumerate(BANDS) if lo <= fc <= hi]

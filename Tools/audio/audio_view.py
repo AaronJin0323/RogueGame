@@ -171,10 +171,10 @@ SERIES_COLOURS = [(156, 210, 255), (255, 70, 70), (255, 160, 60), (120, 220, 150
 # ---- what to draw ----------------------------------------------------------------------------------
 
 def family_files(family):
-	"""[(stem, path, row)] of every file of a family, built or reused through audio_build."""
+	"""[(stem, path, row)] of every file of a family (all families for None), built or reused through audio_build, which leaves its stamp alone."""
 	rows, errors = B.read_catalog()
 	errors += B.validate(rows)
-	files, build_errors = B.build([r for r in rows if r["family"] == family or family is None], B.Paths())
+	files, build_errors = B.build([r for r in rows if r["family"] == family or family is None], B.Paths(), write_stamp=False)   # never the stamp: it stands for the whole catalog
 	for e in errors + build_errors:
 		print(f"warning: {e}")
 	return [(stem, f["path"], f["row"]) for stem, f in files.items()]
