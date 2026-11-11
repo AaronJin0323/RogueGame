@@ -1906,6 +1906,51 @@ class EngineMask(unittest.TestCase):
 				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
+class LimitWarnings(unittest.TestCase):
+	"""D-052 and package.md R-PKG-10: a package check sets aside the one warning the launch job's affinity limit makes the engine write, only when
+	the limit held the launch, and counts it; every other warning still counts."""
+
+	LINES = ["[2026.11.11-07.43.12:183][  0]LogThreadingWindows: Warning: Runnable thread Foreground Worker #0 call to SetThreadAffinity failed with: 0x1f",
+		"LogThreadingWindows: Warning: Runnable thread Background Worker #3 call to SetThreadAffinity failed with: 0x1f",
+		"[2026.11.11-07.43.12:183][  0]LogThreadingWindows: Warning: Runnable thread Foreground Worker #0 call to SetThreadAffinity failed with: 0x57",
+		"[2026.11.11-07.43.12:183][  0]LogStreaming: Warning: Failed to read file '/Game/DT/Missing'"]
+
+	def split(self, mask_text):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "affinity.txt")
+			if mask_text:
+				with open(path, "w", encoding="ascii") as f:
+					f.write(mask_text + "\n")
+			lines = ", ".join("'" + line.replace("'", "''") + "'" for line in self.LINES)
+			script = f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; $R = Split-DTLimitWarnings @({lines}); \"SET $($R.SetAside) KEPT $($R.Kept.Count) HELD $($R.Held)\""
+			return powershell(script, {"DT_AFFINITY_FILE": path})
+
+	def test_held_launch_sets_aside_only_the_limit_line(self):
+		rc, out = self.split(f"{1 << cpu_canary.bits(cpu_canary.affinity()[0])[-1]:X}")
+		self.assertIn("SET 2 KEPT 2 HELD True", out)
+
+	def test_no_limit_sets_nothing_aside(self):
+		rc, out = self.split(None)
+		self.assertIn("SET 0 KEPT 4 HELD False", out)
+
+
+class WatchAfterLaunch(unittest.TestCase):
+	"""Two check scripts in one shell (Validation/S2_package.md): a launch, then a window watch and a launch in the same process. The watch's job held the
+	shell, the earlier launch job lay outside it, and Start-DTHidden failed with "Access is denied"."""
+
+	def test_a_launch_after_a_watch_in_the_same_process(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			child = os.path.join(tmp, "quit.py")
+			with open(child, "w", encoding="ascii") as f:
+				f.write("print('ok')\n")
+			launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"'); $null = $P.WaitForExit(60000)"
+			script = (f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; . {ps_quote(os.path.join(TOOLS, 'WindowWatch.ps1'))}; "
+				f"try {{ {launch}; Start-DTWindowWatch; {launch}; $null = Stop-DTWindowWatch; 'LAUNCHED BOTH' }} catch {{ \"THREW $_\" }}")
+			rc, out = powershell(script, {"DT_AFFINITY_FILE": os.path.join(tmp, "absent.txt")})
+			self.assertIn("LAUNCHED BOTH", out)
+			self.assertNotIn("THREW", out)
+
+
 class Pre07(unittest.TestCase):
 	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
 
@@ -3150,7 +3195,22 @@ class ReviewMinors(unittest.TestCase):
 		self.assertIn("MIDROW: False", run.stdout)
 		self.assertIn("SHORT: []", run.stdout)
 		step = self.text("Tools", "PackageHubCheck.ps1").split("$Fresh = Invoke-ShippingRun")[1].split("$CsvOk = ")[0]
-		self.assertEqual(step.count("= Get-WholeIntervals ("), 2)
+		self.assertEqual(step.count("= Compare-RunCsv ("), 1)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_step_e_compares_a_run_shorter_than_an_interval_by_its_rows(self):
+		# S3_package.md, 2026-11-11: two byte-identical one-row files read as different, because no whole interval was left to compare.
+		script = (self.hub_function("Get-WholeIntervals") + "\n" + self.hub_function("Compare-RunCsv") + "\n"
+			"$One = \"t,kills`r`n25.2,45`r`n\"\n$Long = \"t,kills`r`n10,5`r`n20,9`r`n23.4,2`r`n\"\n"
+			"$R = Compare-RunCsv $One $One\nWrite-Host ('SAME: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One \"t,kills`r`n25.2,46`r`n\"\nWrite-Host ('DIFF: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $Long $Long\nWrite-Host ('WHOLE: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One $Long\nWrite-Host ('MIXED: ' + $R.Same + ' / ' + $R.How)\n")
+		run = self.run_ps(script)
+		self.assertIn("SAME: True / all rows, no whole interval", run.stdout, run.stdout + run.stderr)
+		self.assertIn("DIFF: False / all rows, no whole interval", run.stdout)
+		self.assertIn("WHOLE: True / whole intervals", run.stdout)
+		self.assertIn("MIXED: False / whole intervals in one file only", run.stdout)
 
 
 if __name__ == "__main__":
