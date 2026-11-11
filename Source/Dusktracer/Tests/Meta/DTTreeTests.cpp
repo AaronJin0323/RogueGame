@@ -159,7 +159,8 @@ bool FDTTreeBuy::RunTest(const FString& Parameters)
 	TestEqual(TEXT("a rank is bought"), DTTree::Buy(Session, StormAmps), EDTTreeBuy::Ok);
 	TestEqual(TEXT("the price is spent"), Session.Profile.Currency, 0LL);
 	TestEqual(TEXT("the rank is kept"), Session.Profile.TreeRanks.FindRef(StormAmps), 1);
-	TestTrue(TEXT("the unlocks land"), Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.Tempest.Amp1")) && Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.ArcGrid.Trait")));
+	TestTrue(TEXT("the unlocks land"), Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.Tempest.Amp1")) && Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.Tempest.Trait")));
+	TestFalse(TEXT("a fresh save's archetype is no node's to write (R-MET-25)"), Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.ArcGrid.Amp1")));
 	TestFalse(TEXT("the third archetype stays shut"), Session.Profile.Unlocked.Contains(TEXT("Blessing.Storm.Downpour.Amp1")));
 	TestEqual(TEXT("maxed"), DTTree::Buy(Session, StormAmps), EDTTreeBuy::Maxed);
 	TestEqual(TEXT("short"), DTTree::Buy(Session, StormLast), EDTTreeBuy::Short);
@@ -201,20 +202,65 @@ bool FDTTreePoolGate::RunTest(const FString& Parameters)
 
 	FDTMetaProfile Empty;
 	const FDTOfferPool Fresh = GatedPool(Empty);
-	TestEqual(TEXT("a fresh gated pool has no Storm card left"), BlessingCandidates(Player, Fresh).Num(), 0);
-	TestTrue(TEXT("the same run ungated has them"), BlessingCandidates(Player, FDTOfferPool()).Num() > 0);
+	// With every Storm Key held, a fresh pool still offers Arc Grid's amplifiers (R-MET-25, D-064); its Trait waits for its cards.
+	const int32 FreshCards = 2 + (DTConst::KEEPER_TRAIT_PREREQ_CARDS <= 1 ? 1 : 0);
+	const TArray<FName> FreshStorm = BlessingCandidates(Player, Fresh);
+	TestEqual(TEXT("a fresh gated pool has the first-run archetype's cards left"), FreshStorm.Num(), FreshCards);
+	TestFalse(TEXT("and only Arc Grid's"), FreshStorm.ContainsByPredicate([](const FName& Id) { return !Id.ToString().StartsWith(TEXT("Blessing.Storm.ArcGrid.")); }));
+	TestTrue(TEXT("the same run ungated has more"), BlessingCandidates(Player, FDTOfferPool()).Num() > FreshCards);
 
 	FDTMetaProfile Two;
 	Two.Unlocked.Add(TEXT("Blessing.Storm.Tempest.Amp1"));
 	TArray<FName> One = BlessingCandidates(Player, GatedPool(Two));
-	TestEqual(TEXT("one unlocked id is one card"), One.Num(), 1);
-	TestEqual(TEXT("that card"), One[0], FName(TEXT("Blessing.Storm.Tempest.Amp1")));
+	TestEqual(TEXT("one unlocked id is one more card"), One.Num(), FreshCards + 1);
+	TestTrue(TEXT("that card"), One.Contains(FName(TEXT("Blessing.Storm.Tempest.Amp1"))));
+
+	// A fresh save's Trait still needs C.KEEPER.TRAIT_PREREQ_CARDS owned cards of its archetype, the Key counted (R-KEE-04).
+	{
+		FDTRunState TraitRun;
+		StartRun(TraitRun, EDTPath::Storm);
+		FDTPlayerRunState& Holder = TraitRun.GetPlayer(0);
+		const FName ArcTrait(TEXT("Blessing.Storm.ArcGrid.Trait"));
+		const TCHAR* const ArcCards[] = { TEXT("Blessing.Storm.ArcGrid.Key"), TEXT("Blessing.Storm.ArcGrid.Amp1"), TEXT("Blessing.Storm.ArcGrid.Amp2") };
+		for (int32 Owned = 1; Owned <= 3; ++Owned)
+		{
+			DTOffers::AddBlessing(Holder.Keepers, FName(ArcCards[Owned - 1]));
+			TestEqual(FString::Printf(TEXT("a fresh save's Trait with %d owned card(s) of its archetype"), Owned), BlessingCandidates(Holder, Fresh).Contains(ArcTrait),
+				Owned >= DTConst::KEEPER_TRAIT_PREREQ_CARDS);
+		}
+	}
+
+	// Each S1 Keeper's first node writes exactly its one archetype's three ids, shut before and open after.
+	{
+		FDTMetaSession Each;
+		OpenRich(Each, TEXT("gate_each.sav"), 1000000);
+		for (const TCHAR* const Archetype : { TEXT("Storm.Tempest"), TEXT("Forge.Furnace"), TEXT("Tide.Whirlpool") })
+		{
+			const FString Label(Archetype);
+			const FString Node = FString::Printf(TEXT("Branch.%s.Blessing4"), *Label.Left(Label.Find(TEXT("."))));
+			TArray<FName> Want;
+			for (const TCHAR* Column : { TEXT("Amp1"), TEXT("Amp2"), TEXT("Trait") })
+			{
+				Want.Add(FName(*FString::Printf(TEXT("Blessing.%s.%s"), Archetype, Column)));
+			}
+			const TSet<FName> Before = Each.Profile.Unlocked;
+			TestEqual(Node, DTTree::Buy(Each, FName(*Node)), EDTTreeBuy::Ok);
+			TArray<FName> Added = Each.Profile.Unlocked.Difference(Before).Array();
+			Added.Sort(FNameLexicalLess());
+			Want.Sort(FNameLexicalLess());
+			TestTrue(FString::Printf(TEXT("%s writes exactly %s's three"), *Node, Archetype), Added == Want);
+			for (const FName& Id : Want)
+			{
+				TestTrue(FString::Printf(TEXT("%s: shut fresh, open after"), *Id.ToString()), !DTOffers::IsOpen(Id, Fresh) && DTOffers::IsOpen(Id, GatedPool(Each.Profile)));
+			}
+		}
+	}
 
 	FDTMetaSession Session;
 	OpenRich(Session, TEXT("gate.sav"), 1000000);
 	TestEqual(TEXT("Blessing4"), DTTree::Buy(Session, StormAmps), EDTTreeBuy::Ok);
 	const TArray<FName> Amps = BlessingCandidates(Player, GatedPool(Session.Profile));
-	TestEqual(TEXT("two archetypes' amplifiers (traits wait for their prerequisite cards)"), Amps.Num(), 4);
+	TestEqual(TEXT("the first-run archetype's and the bought one's amplifiers (traits wait for their prerequisite cards)"), Amps.Num(), 4);
 	TestFalse(TEXT("the third archetype stays out"), Amps.ContainsByPredicate([](const FName& Id) { return Id.ToString().Contains(TEXT("Downpour")); }));
 	TestEqual(TEXT("Blessing5"), DTTree::Buy(Session, StormLast), EDTTreeBuy::Ok);
 	TestEqual(TEXT("then all six"), BlessingCandidates(Player, GatedPool(Session.Profile)).Num(), 6);
@@ -264,17 +310,37 @@ bool FDTTreeFirstRun::RunTest(const FString& Parameters)
 	using namespace DTTreeTest;
 	const FDTOfferPool Fresh = GatedPool(FDTMetaProfile());
 	TestTrue(TEXT("a fresh pool is gated"), Fresh.bMetaGate);
+	// Every Key is in, and of the other cards only the first-run archetype's of each S1 Keeper (R-MET-25, D-064).
+	const TCHAR* const FirstRunKeys[] = { TEXT("Blessing.Storm.ArcGrid.Key"), TEXT("Blessing.Forge.Hammer.Key"), TEXT("Blessing.Tide.Frost.Key") };
 	int32 Locked = 0;
+	int32 S1Open = 0;
+	int32 S1Shut = 0;
+	int32 FirstRunRows = 0;
 	for (int32 Row = 0; Row < DTCat::NumAllArchetypes; ++Row)
 	{
+		const FString Key(DTCat::Archetypes[Row].BlessingIds[0]);
+		bool bFirstRun = false;
+		for (const TCHAR* const FirstKey : FirstRunKeys)
+		{
+			bFirstRun |= Key == FirstKey;
+		}
+		const EDTPath Path = DTCat::Archetypes[Row].Path;
+		const bool bS1 = Path == EDTPath::Storm || Path == EDTPath::Forge || Path == EDTPath::Tide;
+		FirstRunRows += bFirstRun ? 1 : 0;
 		for (int32 Column = 0; Column < 4; ++Column)
 		{
 			const FName Id(DTCat::Archetypes[Row].BlessingIds[Column]);
-			TestEqual(*FString::Printf(TEXT("%s: only a Key is in"), *Id.ToString()), DTOffers::IsOpen(Id, Fresh), Column == 0);
-			Locked += Column > 0 ? 1 : 0;
+			const bool bOpen = DTOffers::IsOpen(Id, Fresh);
+			TestEqual(*FString::Printf(TEXT("%s: a Key, or a card of a first-run archetype"), *Id.ToString()), bOpen, Column == 0 || bFirstRun);
+			Locked += bOpen ? 0 : 1;
+			S1Open += bS1 && bOpen ? 1 : 0;
+			S1Shut += bS1 && !bOpen ? 1 : 0;
 		}
 	}
-	TestEqual(TEXT("three locked cards per archetype"), Locked, DTCat::NumAllArchetypes * 3);
+	TestEqual(TEXT("one first-run archetype per S1 Keeper"), FirstRunRows, 3);
+	TestEqual(TEXT("an S1 Keeper's fresh pool: nine Keys and nine cards of the first-run archetypes"), S1Open, 18);
+	TestEqual(TEXT("and none of the other eighteen"), S1Shut, 18);
+	TestEqual(TEXT("three locked cards per archetype, but the first-run ones"), Locked, (DTCat::NumAllArchetypes - FirstRunRows) * 3);
 	for (int32 Row = 0; Row < DTCat::NumReforges; ++Row)
 	{
 		TestEqual(FString::Printf(TEXT("%s: an evolution is in, a Path row is out"), DTCat::Reforges[Row].Id), DTOffers::IsOpen(DTReforge::RowId(Row), Fresh), DTCat::Reforges[Row].bEvolve);
