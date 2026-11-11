@@ -131,7 +131,10 @@ function Read-L8([string]$Hands) {
 	return @([regex]::Matches($Hand, '"id":"Keeper\.([A-Za-z]+)"') | ForEach-Object { $_.Groups[1].Value }) -join " "
 }
 
-$Bound = '"id":"Blessing\.[A-Za-z]+\.[A-Za-z]+\.(Amp1|Amp2|Trait)"'
+# The cards a node opens: every Amp and Trait but those of the one archetype per S1 Keeper a fresh save holds (meta.md R-MET-25, D-064;
+# FIRST_RUN_ARCHETYPES in Tools/gen_catalog.py).
+$FirstRunOpen = '(?!Storm\.ArcGrid\.|Forge\.Hammer\.|Tide\.Frost\.)'
+$Bound = '"id":"Blessing\.' + $FirstRunOpen + '[A-Za-z]+\.[A-Za-z]+\.(Amp1|Amp2|Trait)"'
 $Doors = @("ReachL10", "WeaponL8", "Survive10")
 
 # --- part one: Ichor earned in a run, spent on the page, the pool changed on the next run ---------------------------------
@@ -165,7 +168,7 @@ $LogNext = Wait-Launch (Start-Bot "next" $RunSeed $Earned "Storm" "Tempest" $Run
 $HandsAfter = Read-SeedHands "next" $RunSeed
 $Second = Read-Bank $LogNext 2
 $null = Read-Unlocked $LogNext # stops on a run that was not gated; the count itself proves nothing, since earn's bank alone raises it, and only a bought card in a hand needs the purchase
-$NextOk = ($HandsBefore.Length -gt 0) -and ($HandsBefore -notmatch $Bound) -and ($HandsAfter -match '"id":"Blessing\.Storm\.[A-Za-z]+\.(Amp1|Amp2|Trait)"') -and -not ($HandsAfter -match '"id":"Blessing\.(Forge|Tide)\.[A-Za-z]+\.(Amp1|Amp2|Trait)"') -and
+$NextOk = ($HandsBefore.Length -gt 0) -and ($HandsBefore -notmatch $Bound) -and ($HandsAfter -match ('"id":"Blessing\.' + $FirstRunOpen + 'Storm\.[A-Za-z]+\.(Amp1|Amp2|Trait)"')) -and -not ($HandsAfter -match ('"id":"Blessing\.' + $FirstRunOpen + '(Forge|Tide)\.[A-Za-z]+\.(Amp1|Amp2|Trait)"')) -and
 	($Second.Balance -eq ($Spent + $Second.Award))
 if (-not ($PageOk -and $ReadOk -and $NextOk)) { Stop-Check "the loop on seed $RunSeed`: page=$PageOk read=$ReadOk next=$NextOk, banked $($First.Award)" }
 

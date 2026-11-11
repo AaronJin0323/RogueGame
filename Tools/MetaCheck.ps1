@@ -179,16 +179,18 @@ $JsonG = Keep-Jsonl "g2"
 $CsvG = Take-Csv
 $G = Read-Record "g2"
 $SameHands = Read-Pool @("same", $JsonP, $JsonG, "--hands", $PoolHands)
-$TreeOk = (Find-Log $LogG1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogG2 "Offers: pool gated, 34 unlocked, tools \+1 \+1 \+1") -and (Find-Log $LogP "Meta: opened \(0\) no save") -and
+$TreeOk = (Find-Log $LogG1 "DT.Tree.Buy ToolPool: 12 bought") -and (Find-Log $LogG2 "Offers: pool gated, 25 unlocked, tools \+1 \+1 \+1") -and (Find-Log $LogP "Meta: opened \(0\) no save") -and
 	($P["outcome"] -eq "timeout") -and ($G["outcome"] -eq "timeout") -and $P["input_hash"] -and ($G["input_hash"] -eq $P["input_hash"]) -and $P["steps"] -and ($G["steps"] -eq $P["steps"]) -and
 	($CsvP.Length -gt 0) -and ($CsvG -ceq $CsvP) -and $SameHands
 
 # H: a tool asks for a person's first pool: no file, no unlock, and no locked card in a hand.
+# A fresh save holds the Amps and Trait of one archetype per S1 Keeper (meta.md R-MET-25, D-064; FIRST_RUN_ARCHETYPES in Tools/gen_catalog.py): no locked card.
+$FirstRunOpen = '(?!Storm\.ArcGrid\.|Forge\.Hammer\.|Tide\.Frost\.)'
 $LogH = Invoke-Run "h" @("-DTPoolGate") -Pool
 $Hands = Read-Jsonl
 $JsonH = Keep-Jsonl "h"
 $null = Take-Csv
-$FirstOk = (Read-Pool @("first", $JsonP, $JsonH, "--hands", $PoolHands)) -and (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match '"id":"(Blessing\.[^"]*\.(Amp1|Amp2|Trait)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"')
+$FirstOk = (Read-Pool @("first", $JsonP, $JsonH, "--hands", $PoolHands)) -and (Find-Log $LogH "Offers: pool gated, 0 unlocked, tools \+0 \+0 \+0") -and (Find-Log $LogH "Meta: opened \(0\) no save") -and ($Hands -match '"id":"Blessing\.[^"]*\.Key"') -and -not ($Hands -match ('"id":"(Blessing\.' + $FirstRunOpen + '[^"]*\.(Amp1|Amp2|Trait)|Mod\.(ScatterShell|ChainTrigger|Conduit|LingeringField))"'))
 
 # I (T-MET-28): the doors on real launches. A planted row writes a Keeper and the duos into a file; a gated launch that chooses that Keeper meets it. With it last played a Restart, which names nobody, reads it first and then Path order, with the last seat drawn (keepers.md R-KEE-23). A Patron chosen at the hub leads the same way, and the met Keeper has no kept seat beside it.
 $DoorSave = Join-Path $OutDir "Door.sav"
