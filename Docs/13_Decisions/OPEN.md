@@ -66,6 +66,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 
 - **D-066** (it was O-016, and you said to choose what fits the setting): the game's sounds are made of stone and bronze, things struck in a great stone hall. The low choir is kept for the six Keepers themselves, and the old machine's sounds for the Keep's own acts and your weapons. The ten interface sounds are being made again this way; when they exist as files they are sent to you to hear when you like, and nothing waits on it. No one has heard them: if a family sounds wrong to you, say so and it is redone.
 
+- **D-067** The Pulse Wall's card says its rings push enemies out. In the game the growing ring passed through them and the crowd ended up standing on the hero, which is why taking the card cost a run. Now the ring carries out what it crosses, as the card says. No number changed. Whether a wall that works makes the game too safe is for the first people who play that content.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.
