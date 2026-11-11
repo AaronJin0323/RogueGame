@@ -54,6 +54,8 @@ Decided on 2026-11-11, after the reread and the open calls of the handover:
 Decided on 2026-11-11, on your three messages about working in parallel:
 - **D-055** Three module sessions (Mechanics, Visual, Sound) now plan and design their own module on Fable 5.2 extra-high and send out their own Opus 5.5 medium developers; the scheduler alone merges. Sound starts with a plan of its own decisions and a first wave on `dev/s4`. Still held until people have played: a second visual wave, any later stage, new gameplay content, and tuning on bot survival. Say so if you want any of those opened too. One risk is yours to know: four Fable sessions at once can reach the account's Fable limit, and that stops all of them until it resets.
 
+- **D-056** The first sounds. Every sound is made by a script in this repo, none is downloaded or recorded, and all of them sit in one musical key so that no combination clashes, as you ruled for the earlier game. Warnings get a pitch range of their own that your own fire is kept out of, and a warning turns your fire down while it sounds. There is no music in this first wave. Each Keeper gets a short signature when you pick its blessing. Tool runs stay silent; only a game you start yourself makes sound. Nobody has heard any of it: when the first sounds exist you get about ten minutes of listening, as its own item here.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.

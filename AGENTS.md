@@ -26,7 +26,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 
 ## Conventions (`Handoff_Dusktracer/game/G01_Name.md`)
 - Module `Dusktracer`; C++ prefix `DT` (`ADTHero`, `UDTBulletSubsystem`); content root `/Game/DT/`; console `DT.*`, cvars `dt.*`, experiments `dt.Exp.*` with expiry.
-- Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
+- Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`; audio `SW_` (wave), `SC_` (class), `SMX_` (mix and submix) (D-056).
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
 - A new `R-` or `T-` id takes the next number free on every branch (`git grep` it on `main`, `dev/s2`, `dev/s3` and `dev/s4`), not only on yours: an id means one rule or one test everywhere.
@@ -73,5 +73,5 @@ What class (BUG / TUNE / PRESENT / RULE / SYSTEM)? What layer? What does it repl
 ## Module sessions (D-055)
 - Three sessions each run one module under the scheduler: Mechanics (the sim and its rules, on `main`, `dev/s2`, `dev/s3`), Visual and Sound (S4 Presentation seen and heard, on `dev/s4`). A session plans, designs and reviews; its subagents develop. D-055 item 1 names each module's files; you edit your own module's and no other's.
 - Only the scheduler merges into `main` or a `dev/` branch, pushes, numbers a decision or edits `STATE.md`, `OPEN.md`, `INDEX.md`, `AGENTS.md`. You commit on a job branch and hand it over with its base tip and its `GATE:` line, gated on top of that base.
-- One heavy job at a time for a session and all its subagents together: a compiler run, an engine or game launch, a package, a Blender render. Before each one, look for `<git common dir>\dt-locks\alone.txt`: while that file exists the machine is held for a reading, and you start no heavy job.
+- One heavy job at a time for a session and all its subagents together: a compiler run, an engine or game launch, a package, a Blender render. A heavy job runs only through a Tools script, which takes one of the machine's heavy-job slots itself (`Enter-DTHeavy`, R-TEC-18) and waits, printing who holds them, while none is free or the machine is held alone. The scheduler holds the machine with `Tools\Alone.ps1 -Take "<what>"` and frees it with `-Release`; a hand-written `alone.txt` with no token blocks everyone. On a branch the lock has not reached yet, look for `<git common dir>\dt-locks\alone.txt` yourself before each heavy job.
 - Shared files take new rows only, in your own block (`constants.yaml`, `08_Constants.md`, `number_change_log.csv`, `09_Catalog/licenses.csv`); generated files are regenerated, never merged; the gate and launch scripts change only by a job the scheduler dispatches.
