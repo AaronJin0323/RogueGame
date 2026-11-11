@@ -2133,21 +2133,84 @@ class HeavyLocks(unittest.TestCase):
 		blocked = self.taker("any", DT_HEAVY_WAIT_MAX_S="4", DT_ALONE_TOKEN="anything")
 		self.assertIn("HEAVY: FAIL", self.line(blocked, "ERR", 30) or "")
 
-	def test_take_waits_for_busy_slots_then_writes_the_hold(self):
+	def alone_file(self):
+		path = os.path.join(self.locks, "alone.txt")
+		if not os.path.exists(path):
+			return ""
+		with open(path, encoding="ascii") as f:
+			return f.read()
+
+	def take(self, **extra):
+		return self.start(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'a test reading'", **extra)
+
+	def test_take_claims_at_once_waits_for_busy_slots_then_holds(self):
 		self.slots(1)
 		holder = self.taker("holder")
 		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
-		take = self.start(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'a test reading'")
-		self.assertIsNotNone(self.line(take, "alone: waits for the heavy slots", 30))
-		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+		take = self.take()
+		pending = self.line(take, "alone: pending", 30)
+		self.assertIsNotNone(pending)
+		token = pending.split()[2]
+		self.assertIn("state: pending", self.alone_file())
+		self.assertIn("token: " + token, self.alone_file())
+		# A new heavy job without the token waits while the take is pending, even before the busy slot ends.
+		late = self.taker("late", DT_HEAVY_WAIT_MAX_S="4")
+		self.assertIn("held alone", self.line(late, "ERR", 30) or "")
+		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Status", self.env())
+		self.assertIn("ALONE: PENDING", out)
+		self.assertIsNone(self.line(take, "ALONE: TAKEN", 3))
 		self.release(holder)
 		taken = self.line(take, "ALONE: TAKEN", 30)
 		self.assertIsNotNone(taken)
-		with open(os.path.join(self.locks, "alone.txt"), encoding="ascii") as f:
-			self.assertIn("token: " + taken.split()[2], f.read())
+		self.assertEqual(taken.split()[2], token)
+		self.assertIn("state: taken", self.alone_file())
+		after = self.taker("with_token", DT_ALONE_TOKEN=token)
+		self.assertIsNotNone(self.line(after, "GOT slot", 60))
 		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Release", self.env())
 		self.assertIn("ALONE: RELEASED", out)
-		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+		self.assertEqual(self.alone_file(), "")
+
+	def test_a_holder_of_the_token_passes_while_the_take_is_pending(self):
+		self.slots(2)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		token = (self.line(take, "alone: pending", 30) or "x x x").split()[2]
+		reading = self.taker("reading", DT_ALONE_TOKEN=token)
+		self.assertIsNotNone(self.line(reading, "GOT slot", 60))
+
+	def test_a_second_take_fails_at_once_while_one_is_pending(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'another'", self.env())
+		self.assertEqual(rc, 1, out)
+		self.assertIn("already held", out)
+
+	def test_a_take_that_times_out_leaves_no_hold(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take(DT_HEAVY_WAIT_MAX_S="4")
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		self.assertIsNotNone(self.line(take, "ALONE: FAIL", 60))
+		take.wait(timeout=30)
+		self.assertEqual(self.alone_file(), "")
+
+	def test_a_take_stopped_hard_leaves_no_hold_for_the_next_taker(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		take.kill()
+		take.wait()
+		self.release(holder)
+		after = self.taker("after")
+		self.assertIsNotNone(self.line(after, "GOT slot", 60))
+		self.assertEqual(self.alone_file(), "")
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
 		# Gate.ps1 takes its slot right before its first heavy step instead (GateSlot below).
