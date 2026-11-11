@@ -195,7 +195,7 @@ bool FDTImpactTap::RunTest(const FString& Parameters)
 		const FExpected& Want = Expected[Index];
 		const FDTHit& Hit = Hits[Want.HitIndex];
 		const int32 Slot = Hit.EnemyIndex;
-		const FString At = FString::Printf(TEXT("record %d"), Index);
+		const auto At = [Index](const TCHAR* Field) { return FString::Printf(TEXT("record %d: %s"), Index, Field); };
 		TestEqual(*At(TEXT("contact point")), Impact.Position, Hit.Position);
 		TestEqual(*At(TEXT("hull centre")), Impact.EnemyPosition, Positions[Slot]);
 		TestEqual(*At(TEXT("radius")), Impact.EnemyRadius, Radii[Slot], Tolerance);
