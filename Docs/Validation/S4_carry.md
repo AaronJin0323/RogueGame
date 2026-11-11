@@ -75,3 +75,16 @@ Every other step passed: secrets, docs, constants, catalog, matrix, loc, licence
 - The five bot arms read on each package (P0, A, B, C, D, F notes): every hash moved, as above.
 - Every perf reading on `dev/s4`: taken at 888x500 with other agents rendering; `Tools/Perf.ps1` now renders at `C.BUDGET.RES` and fails on another size, so no package's perf allowance is read until a reading is taken alone at the real size.
 - The frames in `Saved\S4Report\A` to `F` of the main checkout that show the HUD: the Dash and Intercession labels now carry their keys. The goldens still pass and were not re-shot.
+
+## Second carry: `carry2/s3` (`main` 7f75ada through `dev/s2` and `dev/s3`) into `dev/s4` a19c925 (`carry2/s4`)
+- Conflicts: the scheduler's records take `main`'s side whole (`git diff 7f75ada -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty); `number_change_log.csv`, every row of both sides; the floor and the generated header. Nothing else conflicted: the telemetry marks and `run_start`'s three fields came in from `carry2/s3` as they are there, and package F's HUD and the wave's tools touch none of it.
+- No `dev/s4` reader or test pins a whole `hero_damaged` or `run_start` line: the suite passed with no change to one. The hero hits of the Volatile blast and the Vampiric drain carry `arrival` and `charging` false by default, as on `dev/s2`.
+- Ids: T-TEL-14 and T-TEL-15 collide with nothing.
+- Counts: 570 found, 570 pass; `C.GATE.TEST_FLOOR` 568 to 570; `tools_test.py` 347.
+- Seed 9107, five arms, unchanged before (c4a4a44, whose code a19c925 holds unchanged) and after (5980687): `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; RestartCheck `276faf8e` and MetaCheck `ba2a3ac8` in the gate.
+
+```
+tests:      570 run of 570 found, 0 failed, floor 570, 0 crash marker(s)
+GATE: PASS (5980687; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run): every smoke scene against its golden with the key labels, firstrun 6/6 at the boss, settings, contrast with WATCH OK. No golden re-shot; no odd failure.
