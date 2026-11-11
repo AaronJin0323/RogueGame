@@ -121,6 +121,8 @@ void FDTTelemetryCore::Start(const FDTTelemetryConfig& InConfig)
 	GemsSpawned = 0;
 	GemsCollected = 0;
 	GemsLive = 0;
+	WallDroppedSteps = 0;
+	WallDurationSeconds = 0.0;
 	CsvOut.Reset();
 	JsonlOut.Reset();
 	bHeaderWritten = false;

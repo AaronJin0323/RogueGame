@@ -71,6 +71,23 @@ void UDTHeroSubsystem::SimStep(const FDTSimContext& Context)
 	}
 }
 
+void UDTHeroSubsystem::Heal(int32 OwnerId, float Amount, const TCHAR* Source)
+{
+	const FDTHeroState* State = GetState(OwnerId);
+	if (!State || State->bDown)
+	{
+		return;
+	}
+	FDTHeroEvent Event;
+	Event.Kind = EDTHeroEventKind::HeroHealed;
+	Event.OwnerId = OwnerId;
+	Event.Amount = Hero.Heal(OwnerId, Amount);
+	Event.HpAfter = State->Hp;
+	Event.MaxHp = State->MaxHp;
+	Event.HealSource = FName(Source);
+	OnHeroEvent.Broadcast(Event);
+}
+
 void UDTHeroSubsystem::AnnounceAllDown()
 {
 	if (Hero.IsRunOver() && !bRunOverBroadcast)
@@ -110,4 +127,17 @@ void UDTHeroSubsystem::RegisterPawn(ADTHero* Pawn)
 void UDTHeroSubsystem::UnregisterPawn(ADTHero* Pawn)
 {
 	Pawns.Remove(Pawn);
+}
+
+const UDTInputSet* UDTHeroSubsystem::GetInputSet(int32 OwnerId) const
+{
+	for (const TWeakObjectPtr<ADTHero>& Entry : Pawns)
+	{
+		const ADTHero* const Pawn = Entry.Get();
+		if (Pawn && Pawn->GetPlayerIndex() == OwnerId)
+		{
+			return Pawn->GetInputSet();
+		}
+	}
+	return nullptr;
 }

@@ -5,6 +5,7 @@
 #include "Dusktracer.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Engine/World.h"
+#include "HAL/PlatformTime.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/DateTime.h"
@@ -74,6 +75,9 @@ void UDTTelemetrySubsystem::HandleHeroEvent(const FDTHeroEvent& Event)
 	case EDTHeroEventKind::HeroDown:
 		Core.RecordHeroDown(Event.OwnerId);
 		break;
+	case EDTHeroEventKind::HeroHealed:
+		Core.RecordHeroHealed(Event.OwnerId, Event.Amount, Event.HpAfter, Event.MaxHp, Event.HealSource);
+		break;
 	case EDTHeroEventKind::IntercessionDenied:
 		Core.RecordIntercessionDenied(Event.OwnerId);
 		break;
@@ -131,10 +135,13 @@ void UDTTelemetrySubsystem::StartSession(int32 RunSeed, int32 NumPlayers)
 	FDTTelemetryConfig Config;
 	Config.Seed = RunSeed;
 	Config.NumPlayers = NumPlayers;
+	DroppedStepsAtStart = 0;
 	if (const UDTSimSubsystem* SimSystem = Sim.Get())
 	{
 		Config.StepSeconds = static_cast<float>(SimSystem->GetClock().GetStepSeconds());
+		DroppedStepsAtStart = SimSystem->GetClock().GetDroppedSteps();
 	}
+	WallSecondsAtStart = FPlatformTime::Seconds();
 	Config.Build = GetBuildHash();
 	Config.Culture = FInternationalization::Get().GetCurrentCulture()->GetName();
 	Config.WallStart = FDateTime::UtcNow().ToIso8601(); // the trailing Z says UTC; the file name keeps the local time (R-TEL-07)
@@ -152,6 +159,9 @@ void UDTTelemetrySubsystem::EndSession(const FString& Reason)
 		return;
 	}
 	OnSessionEnding.Broadcast(Reason);
+	// What the machine did to this run, in wall fields (R-TEL-08): steps the clock dropped and the wall time it took.
+	const UDTSimSubsystem* SimSystem = Sim.Get();
+	Core.SetRunWall(SimSystem ? SimSystem->GetClock().GetDroppedSteps() - DroppedStepsAtStart : 0, FPlatformTime::Seconds() - WallSecondsAtStart);
 	Core.End(Reason);
 	Flush();
 	Writer.Wait();

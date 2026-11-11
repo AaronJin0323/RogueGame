@@ -181,7 +181,7 @@ Realism costs are front-loaded into VFX, which v0.1 needs anyway, and back-loade
 
 ## 12. The art book — binding visual reference (designer decision 2026-10-19)
 
-**Source:** the designer's art book **RogueHero 美术集 v0.3** (claude.ai/artifact/F4xyLbiWMG8UnfqsbcWbNc), 29 artboards. Quoting the designer: the art book is the art direction, and **the finished in-game version must be more detailed than the art book**.
+**Source:** the designer's art book **RogueHero 美术集 v0.3** (a private canvas; its link is kept out of this repository), 29 artboards. Quoting the designer: the art book is the art direction, and **the finished in-game version must be more detailed than the art book**.
 
 **Rules**
 1. **In-game ≥ art book detail.** Each artboard sets the *floor* for the asset or effect it governs. A4 says the illustrations are references for proportion, shape, colour and light, not final assets; the in-game result must be at least that detailed.
@@ -225,7 +225,7 @@ Realism costs are front-loaded into VFX, which v0.1 needs anyway, and back-loade
 
 ### 12.1 Cast-off volume — 弃物卷 (designer decision 2026-10-19)
 
-**Source:** **RogueHero 美术集 · 弃物卷** (claude.ai/artifact/TvpEZdPW4CSsmqEtSs8qYk), 18 boards. It is the **binding reference for the Cast-offs and the Warden** (Art §4, GDD §6), under the same rules as §12: in-game ≥ art book detail; §3 wins conflicts; GDD for mechanics and numbers; string tables for text; Narrative for fiction.
+**Source:** **RogueHero 美术集 · 弃物卷** (a private canvas; its link is kept out of this repository), 18 boards. It is the **binding reference for the Cast-offs and the Warden** (Art §4, GDD §6), under the same rules as §12: in-game ≥ art book detail; §3 wins conflicts; GDD for mechanics and numbers; string tables for text; Narrative for fiction.
 
 | Board | Governs | Binding content |
 |---|---|---|

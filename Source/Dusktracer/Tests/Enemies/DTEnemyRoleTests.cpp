@@ -446,6 +446,99 @@ bool FDTEnmTelegraphLead::RunTest(const FString& Parameters)
 		TestTrue(TEXT("both telegraphs show"), H.View.Telegraphs.Num() >= 2);
 	}
 
+	// An arriving Rusher charges through where its hero stood (D-045): from every landing point on the director's threat ring
+	// the band covers the hero's position at the start of the wind-up, a hero who stands still is hit, and one who steps more
+	// than one hero width off the line before the charge (the body clear of the band) is not. One hero width is exactly where
+	// the two circles touch (both radii are half of it), and touching is no contact (R-ENM-14 reads overlap): on the four axis
+	// landings the arithmetic is exact and a step of exactly one hero width is a touch; on the others rounding decides a touch,
+	// so the step is one hero width plus TouchSlackUU.
+	{
+		constexpr int32 RingAngles = 16;
+		constexpr float TouchSlackUU = 0.01f; // float rounding of a tangent pass, not a tuned number
+		const float HeroWidth = 2.0f * static_cast<float>(DTConst::HERO_RADIUS_UU);
+		const float Overshoot = static_cast<float>(DTConst::ROLE_RUSHER_ARRIVAL_OVERSHOOT_UU);
+		const float ChargeStep = static_cast<float>(DTConst::ROLE_RUSHER_CHARGE_SPEED_UU_S) / Hz;
+		const int32 WindUpSteps = Steps(DTConst::ROLE_RUSHER_WINDUP_S);
+		const FVector2f HeroAt = FVector2f::ZeroVector;
+		const float RingMin = static_cast<float>(DTConst::DIR_THREAT_RING_MIN_UU);
+		const float RingMax = static_cast<float>(DTConst::DIR_THREAT_RING_MAX_UU);
+		int32 Landings = 0;
+		int32 Covered = 0;
+		int32 StoodAndHit = 0;
+		int32 SteppedAndHit = 0;
+		int32 BandMissing = 0;
+		for (int32 AngleIndex = 0; AngleIndex < RingAngles; ++AngleIndex)
+		{
+			const float Angle = 2.0f * PI * static_cast<float>(AngleIndex) / static_cast<float>(RingAngles);
+			const bool bAxis = AngleIndex % (RingAngles / 4) == 0;
+			const FVector2f Out = bAxis
+				? FVector2f(FMath::RoundToFloat(FMath::Cos(Angle)), FMath::RoundToFloat(FMath::Sin(Angle)))
+				: FVector2f(FMath::Cos(Angle), FMath::Sin(Angle));
+			const float StepOff = HeroWidth + (bAxis ? 0.0f : TouchSlackUU);
+			for (const float RingRadius : { RingMin, 0.5f * (RingMin + RingMax), RingMax })
+			{
+				++Landings;
+				for (const bool bStepsOff : { false, true })
+				{
+					FHarness H({ HeroAt });
+					FDTEnemyPool Pool;
+					FDTEnemySpawn Spec;
+					Spec.Role = EDTEnemyRole::Rusher;
+					Spec.bArrival = true;
+					Spec.Position = HeroAt + Out * RingRadius;
+					Pool.Spawn(Spec, nullptr, true);
+					const int32 LastStep = WindUpSteps + FMath::CeilToInt32((RingRadius + Overshoot) / ChargeStep) + 5;
+					int32 Hits = 0;
+					for (int32 Step = 0; Step < LastStep; ++Step)
+					{
+						if (bStepsOff && Step == WindUpSteps / 2)
+						{
+							H.View.HeroPositions[0] = HeroAt + FVector2f(-Out.Y, Out.X) * StepOff; // off the line, mid wind-up
+						}
+						H.Tick(Pool);
+						Hits += H.View.HeroHits.Num();
+						if (Step < WindUpSteps)
+						{
+							BandMissing += H.View.Telegraphs.Num() == 1 ? 0 : 1;
+						}
+						if (Step == 0 && !bStepsOff && H.View.Telegraphs.Num() == 1)
+						{
+							const FDTTelegraph& Band = H.View.Telegraphs[0];
+							const FVector2f ToHero = HeroAt - Band.Origin;
+							const float Along = FVector2f::DotProduct(ToHero, Band.Dir);
+							const float Across = FMath::Abs(ToHero.X * Band.Dir.Y - ToHero.Y * Band.Dir.X);
+							const bool bCovers = Along >= 0.0f && Along <= Band.Length && Across <= 0.5f * Band.Width;
+							const bool bShape = FMath::IsNearlyEqual(Band.Length, RingRadius + Overshoot, 0.5f)
+								&& Band.Width == 2.0f * static_cast<float>(DTConst::ROLE_RUSHER_RADIUS_UU);
+							Covered += bCovers && bShape ? 1 : 0;
+						}
+					}
+					(bStepsOff ? SteppedAndHit : StoodAndHit) += Hits > 0 ? 1 : 0;
+				}
+			}
+		}
+		TestEqual(TEXT("arrival: the band is drawn for the whole wind-up"), BandMissing, 0);
+		TestEqual(TEXT("arrival: from every landing on the threat ring the band covers where the hero stood, overshoot beyond"), Covered, Landings);
+		TestEqual(TEXT("arrival: a hero who stands still is hit from every landing"), StoodAndHit, Landings);
+		TestEqual(TEXT("arrival: a hero who steps more than one hero width off the line is hit from none"), SteppedAndHit, 0);
+	}
+
+	// An arrival's charge is clipped by the arena as any charge is.
+	{
+		const float Limit = static_cast<float>(DTConst::ARENA_HALF_EXTENT_UU - DTConst::ROLE_RUSHER_RADIUS_UU);
+		const float RingMin = static_cast<float>(DTConst::DIR_THREAT_RING_MIN_UU);
+		const float ToWall = 0.5f * static_cast<float>(DTConst::ROLE_RUSHER_ARRIVAL_OVERSHOOT_UU);
+		FHarness H({ FVector2f(Limit - ToWall, 0.0f) });
+		FDTEnemyPool Pool;
+		FDTEnemySpawn Spec;
+		Spec.Role = EDTEnemyRole::Rusher;
+		Spec.bArrival = true;
+		Spec.Position = FVector2f(Limit - ToWall - RingMin, 0.0f);
+		Pool.Spawn(Spec, nullptr, true);
+		H.Tick(Pool);
+		TestTrue(TEXT("arrival: the band stops at the wall"), H.View.Telegraphs.Num() == 1 && FMath::IsNearlyEqual(H.View.Telegraphs[0].Length, RingMin + ToWall, 0.5f));
+	}
+
 	// Killed mid-telegraph, an arrival still lands its attack.
 	{
 		FHarness H({ FVector2f(500.0f, 0.0f) });
@@ -530,6 +623,50 @@ bool FDTEnmContact::RunTest(const FString& Parameters)
 			TestEqual(TEXT("role contact damage x DmgScale"), Hit.Damage, DTConst::ROLE_TURRET_CONTACT_DAMAGE * 1.5f);
 			TestEqual(TEXT("source role"), Hit.SourceRole, EDTEnemyRole::Turret);
 			TestEqual(TEXT("source serial"), Hit.EnemySerial, Pool.GetSerials()[0]);
+		}
+	}
+
+	// A touch is no hit on either path: a body exactly at the reach (the two radii) is clear, one uu inside is hit. Contact
+	// (R-ENM-14) and a killed arrival's charge band (R-ENM-13, the hazard) take the same strict comparison.
+	constexpr float InsideUU = 1.0f; // one uu of overlap, not a tuned number
+	for (const bool bTouch : { true, false })
+	{
+		const FString Tag = bTouch ? TEXT("touch: ") : TEXT("one uu inside: ");
+		{
+			FHarness C({ FVector2f::ZeroVector });
+			FDTEnemyPool Still;
+			Still.SetFireEnabled(false);
+			Still.Spawn(EDTEnemyRole::Turret, FVector2f(1000.0f, 0.0f));
+			const float Reach = Still.GetRadii()[0] + static_cast<float>(DTConst::HERO_RADIUS_UU);
+			Still.SetPosition(0, FVector2f(Reach - (bTouch ? 0.0f : InsideUU), 0.0f));
+			C.Tick(Still);
+			TestEqual(Tag + TEXT("contact"), C.CountHeroHits(EDTHeroHitKind::Contact), bTouch ? 0 : 1);
+		}
+		{
+			FHarness R({ FVector2f(500.0f, 0.0f) });
+			FDTEnemyPool Band;
+			FDTEnemySpawn Arrival;
+			Arrival.Role = EDTEnemyRole::Rusher;
+			Arrival.bArrival = true;
+			Band.Spawn(Arrival, nullptr, true);
+			const float Reach = Band.GetRadii()[0] + static_cast<float>(DTConst::HERO_RADIUS_UU); // half the band's width + the hero's
+			const int32 KillAt = 10;
+			int32 Hazards = 0;
+			for (int32 Step = 0; Step < Steps(2.0f); ++Step)
+			{
+				if (Step == KillAt)
+				{
+					R.View.Hits.Add(MakeHit(Band, 0, 0, 1.0e6f, Band.GetPositions()[0]));
+				}
+				if (Step == KillAt + 1)
+				{
+					R.View.HeroPositions[0] = FVector2f(500.0f, Reach - (bTouch ? 0.0f : InsideUU)); // beside the band's line
+				}
+				R.Tick(Band);
+				Hazards += R.CountHeroHits(EDTHeroHitKind::Charge);
+			}
+			TestEqual(Tag + TEXT("the Rusher died before its band landed"), Band.Num(), 0);
+			TestEqual(Tag + TEXT("killed arrival's band"), Hazards, bTouch ? 0 : 1);
 		}
 	}
 	return true;

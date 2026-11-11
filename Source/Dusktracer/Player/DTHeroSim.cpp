@@ -201,13 +201,16 @@ void FDTHeroSim::SetStats(int32 OwnerId, const FDTHeroStats& Stats)
 	}
 }
 
-void FDTHeroSim::Heal(int32 OwnerId, float Amount)
+float FDTHeroSim::Heal(int32 OwnerId, float Amount)
 {
-	if (States.IsValidIndex(OwnerId) && !States[OwnerId].bDown)
+	if (!States.IsValidIndex(OwnerId) || States[OwnerId].bDown)
 	{
-		FDTHeroState& S = States[OwnerId];
-		S.Hp = FMath::Min(S.Hp + FMath::Max(0.0f, Amount), S.MaxHp);
+		return 0.0f;
 	}
+	FDTHeroState& S = States[OwnerId];
+	const float Before = S.Hp;
+	S.Hp = FMath::Min(S.Hp + FMath::Max(0.0f, Amount), S.MaxHp);
+	return S.Hp - Before;
 }
 
 void FDTHeroSim::RefundDash(int32 OwnerId, float Seconds)

@@ -6,7 +6,7 @@
 
 - An **eroded white megastructure at dusk**: fitted white stone slabs worn grey at the joints, moss, standing water, half-buried Founder machines; the Keepers' infrastructure glows dimly in the seams in the six Path colours.
 - **Realistic hard-surface rendering**: PBR stone and ceramic, Lumen GI, soft overcast or low-sun light; enemies are machines, so no skin, hair or cloth.
-- Two dusk weathers, both built and both held to this contract: **overcast** (soft, short shadows) and **low sun** (volumetric cloud, light shafts, long shadows).
+- Two dusk weathers, both held to this contract: **overcast** (soft, short shadows) and **low sun** (volumetric cloud, light shafts, long shadows). One is built: the low sun of the grey-box arena (`Tools/create_arena.py`, `C.ARENA.SUN_*`), with no cloud and no light shafts. Overcast is not built; the S4 exit reads both (`12_Production §2`).
 - **Readability beats realism.** The hero, every bullet, every telegraph and every enemy must be found in one glance at `C.BULLETS.CAP` live bullets.
 
 ## 2. Readability contract (binding)
@@ -29,7 +29,7 @@ Every rule is checked on the rendered frame at gameplay camera, not on swatches.
 - **R-PRE-06** Density LOD: above `C.PRE.DENSITY_LOD_KILLS_PER_S` kills per second, per-kill effects aggregate (individual sparks and debris are culled; smoke pools into one ground-level haze). Player tracer emissive and trail width scale down with the live player-bullet count so that enemy fire and telegraphs stay the brightest things in frame. Density LOD never dims enemy rounds, telegraphs or optics.
   - T-PRE-06 PLANNED(S1) `Dusktracer.Pre.DensityLod`: at a kill rate above the threshold the live kill-effect count is bounded and aggregated; enemy-side emissive is unchanged at every density.
 - **R-PRE-07** Nothing smears or hides a bullet: no motion blur, no chromatic aberration, no depth of field in play, no lens flare, fixed exposure per weather (no eye adaptation). Bloom is thresholded so that only emissives bloom. Ground and sky are desaturated so that nothing on the floor competes with fire.
-  - T-PRE-07 PLANNED(S0) `smoke` gate settings step: the render settings of §4 are present in `Config/DefaultEngine.ini` and in the arena post-process volume; a captured burst frame shows no exposure change.
+  - T-PRE-07 `smoke` gate settings step: the render settings of §4 are present in `Config/DefaultEngine.ini` (`Tools/Smoke.ps1`, every smoke run) and in the arena post-process volume (`Tools/render_settings_check.py`, a headless commandlet started by `Tools/Smoke.ps1 -Burst`); a captured burst frame shows no exposure change (`Tools/image_check.py --exposure`: the median luma shift against the calm `arena_empty` frame stays within `C.SMOKE.GOLDEN_MEAN_DIFF_MAX`).
 - **R-PRE-08** UI card kinds are distinguishable by **border, icon, label and rarity independently**: each of the four channels alone identifies the kind (or the rarity, for the rarity channel), so no channel — colour least of all — is the only carrier. `Pal.Enemy.*` and `Pal.Telegraph` never appear in UI.
   - T-PRE-08 PLANNED(S1) `Dusktracer.Pre.CardIdentity`: for every card kind × rarity, border, icon and label keys are unique per kind and the rarity marker is unique per rarity; no UI style reads an enemy or telegraph token.
 - **R-PRE-09** Colour comes only from the tokens of §3: code, materials and UI styles read a token by name; a literal colour outside the token source is a lint error. Changing a token value is a PRESENT change with a before/after capture.
@@ -105,7 +105,7 @@ Already set in `Config/DefaultEngine.ini`:
 | `r.DefaultFeature.AutoExposure` | False | fixed exposure |
 | `r.DefaultFeature.LensFlare` | False | no lens flare |
 
-Binding but not yet set (owned by the arena post-process volume, S0): depth of field off in play; exposure fixed per weather; bloom threshold so that only emissives bloom. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
+Set by the arena post-process volume (unbound, built by `Tools/create_arena.py`): depth of field off in play; exposure fixed at `C.ARENA.EXPOSURE_EV100` (minimum = maximum) for the one weather built; bloom threshold `C.ARENA.BLOOM_THRESHOLD`. Both keys are GATED(S0); that only emissives bloom at that threshold is not measured, and T-PRE-07 is not built. The second weather has no exposure value. Enemies, bullets and other instanced or animated meshes never use Nanite. Lighting stays dynamic (no baked lighting) so the two weathers can blend.
 
 ## 5. Asset sources and the licence log (binding)
 
@@ -138,6 +138,6 @@ Binding but not yet set (owned by the arena post-process volume, S0): depth of f
 | Question | Data that resolves it |
 |---|---|
 | Enemy optic `#FF3B9E` and enemy round `#FF2D8A` are two near-identical hues; unify into one danger hue? | side-by-side capture at gameplay camera |
-| Exposure value per weather, bloom threshold | first S0 stress-arena captures; become `C.PRE.*` keys when measured |
+| Exposure of the second weather; whether `C.ARENA.EXPOSURE_EV100` and `C.ARENA.BLOOM_THRESHOLD`, set for the one weather built and GATED(S0), are right | captures of both weathers once the second is built |
 | Per-weapon hue variation inside the cool range, or one core for all weapons | S1 playtest: can players tell weapons apart by shape alone |
 | `Pal.Keeper.Tide` renders at its hue (182, token 183) but paler (saturation 0.34, token 0.52): the tonemapper desaturates, and a lower emissive darkens it below the cue contrast of T-PRE-11. Accept, or grade the tonemapper for all colours? | T-PRE-05 and a human reading; a grade changes every token |

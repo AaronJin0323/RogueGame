@@ -17,6 +17,8 @@
 # The packaged game's job (Dusktracer*.exe) holds the whole tree: the stub's real game is its child, and a package ships no shared daemon.
 # tools_test.py fails on a Start-Process or a direct call of an engine binary anywhere else in Tools.
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 if (-not ("DTHiddenDesktop" -as [type])) {
 	Add-Type -TypeDefinition @"
 using System;
@@ -52,16 +54,22 @@ public static class DTHiddenDesktop {
 	const uint CreateNoWindow = 0x08000000;
 	const uint KillOnJobClose = 0x2000;
 	const uint SilentBreakawayOk = 0x1000;
+	const uint LimitAffinity = 0x10;
 	const int ExtendedLimitInformation = 9;
 	static IntPtr Desktop;
 	static IntPtr EditorJob;
 	static IntPtr GameJob;
 	static string Name;
+	// D-052: the machine's processor mask as the jobs' affinity limit (0: no limit). A process mask alone does not hold the engine: its threads ask for
+	// every processor (FRunnableThreadWin::SetThreadAffinity) and Windows 11 widens the process to match. A job's limit refuses that request.
+	public static ulong Affinity;
+	public static uint JobFlags(uint flags, ulong affinity) { return affinity != 0 ? flags | LimitAffinity : flags; }
 	static IntPtr NewJob(uint flags) {
 		IntPtr job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
 		if (job == IntPtr.Zero) { throw new Win32Exception(); }
 		JobLimits limits = new JobLimits();
-		limits.flags = flags;
+		limits.flags = JobFlags(flags, Affinity);
+		limits.affinity = new UIntPtr(Affinity);
 		if (!SetInformationJobObject(job, ExtendedLimitInformation, ref limits, Marshal.SizeOf(typeof(JobLimits)))) { CloseHandle(job); throw new Win32Exception(); }
 		return job;
 	}
@@ -130,6 +138,9 @@ public static class DTHiddenDesktop {
 }
 "@
 }
+
+# The jobs take the helper's mask as their affinity limit, so the engine and everything in its job stay inside it; none when the helper returns none.
+[DTHiddenDesktop]::Affinity = if ($DTMask -and $DTMask -ne "none") { [Convert]::ToUInt64($DTMask, 16) } else { [UInt64]0 }
 
 function Start-DTHidden([string]$Exe, [string[]]$ArgList) { return [DTHiddenDesktop]::Start($Exe, ($ArgList -join " ")) }
 

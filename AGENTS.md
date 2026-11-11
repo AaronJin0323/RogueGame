@@ -13,9 +13,9 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 
 ## Non-negotiables (rule IDs assigned when each spec is written; until then cite the doc §)
 1. Power with teeth: threats are skill checks, never HP walls (`00_Vision §2.1`).
-2. Bullets are data: struct-of-arrays, fixed `C.SIM.FIXED_HZ`, spatial hash, ISM render; never an Actor per bullet (`07_Technical §5`).
-3. No GAS: stats are `FDTStatSet`, effects are `UDTEffect` on batched events.
-4. Tuned values are data assets + gameplay tags, generated from `Docs/09_Catalog/*.csv` and `Docs/constants.yaml`. No magic numbers in code. C++ fallbacks are named `Fallback_*` and registered in the catalog.
+2. Bullets are data: struct-of-arrays, fixed `C.SIM.FIXED_HZ`, spatial hash, ISM render; never an Actor per bullet (`07_Technical` R-TEC-03, R-TEC-11, R-TEC-13).
+3. No GAS: stats are plain structs owned by their systems (`FDTHeroStats`, `FDTWeaponHeroStats`, `FDTProgressionStats`); Keeper flags and modifiers are applied by sim systems on batched events (`07_Technical §4`).
+4. Tuned values are C++ tables (`DTCat::*`), native gameplay tags and `DTConst` constants, all generated from `Docs/09_Catalog/*.csv` and `Docs/constants.yaml` (D-014); no data asset holds one. No magic numbers in code. C++ fallbacks are named `Fallback_*` and registered in the catalog.
 5. The offer system is sacred (`02_Systems/offers.md`).
 6. Fiction is never a key: keys are the Path (`Storm Forge Tide Shade Radiance Quicksilver`) and enemy role. Tag roots `Keeper.* Enemy.* Cap.* Flag.* Status.*`; never `God.*`.
 7. All user-facing text is FText from string tables, en + zh-Hans from the first string; the per-table CSV is the source of truth, `.po`/`.locres` are generated and never union-merged. "god" never appears in fiction.
@@ -29,6 +29,7 @@ Owner (via `D-nnn`) > `Docs/Harness/` > `Docs/` specs > code. `Handoff_Dusktrace
 - Assets `BP_ DA_ NS_ M_/MI_ WBP_ IA_/IMC_ ST_ SM_ T_ L_`.
 - Branches `dev/<topic>`, `release/<ver>`. Commit prefixes `feat: fix: content: data: perf: docs: chore:`.
 - Code comments and docs in English; player-facing text bilingual via string tables.
+- A new `R-` or `T-` id takes the next number free on every branch (`git grep` it on `main`, `dev/s2`, `dev/s3` and `dev/s4`), not only on yours: an id means one rule or one test everywhere.
 - Platforms: Win64 now; macOS deferred (D-007, amends D-003). Keep code portable; no Windows-only APIs outside `#if PLATFORM_WINDOWS`. A Mac gate that was not run is reported `not run`, never passed.
 - The repo is public (D-006): never commit keys, tokens, or assets whose licence forbids redistribution.
 - Build: `Tools/Build.bat`. Models: Blender 5.2.2, headless only (path in `Docs/STATE.md`).
@@ -51,6 +52,7 @@ A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the p
 - Kill stray processes by PID, never by image name.
 - In a fresh git worktree run `git lfs checkout` before the gate: `.uasset`/`.umap` files start as LFS pointer text and tests fail on missing materials.
 - Never union-merge generated files (`.po`, `.locres`, matrices, constants headers): regenerate them.
+- This PC has processors that fault in plain code (D-052, `Docs/Validation/S4_py_fault.md`), and every tool run keeps off them. The Tools scripts apply the mask themselves (`Tools/Machine.ps1`): it is the one line of `<git common dir>\dt-locks\affinity.txt`, and a machine without that file runs unmasked. A command of your own that is not a Tools script (a bare `python`, a loop in a shell) starts, in PowerShell, with `. Tools\Machine.ps1; $null = Set-DTAffinity;`. The gate's `cpu` step tests every processor the mask leaves in; if it names one, stop and report it.
 
 ## Brief tolerances (`Docs/Harness/H06 §5`)
 - Missing wiring inside allowed files → build it and say so.
@@ -60,3 +62,10 @@ A tool run shows nothing on the owner's desktop. Only `Tools/Play.bat` and the p
 
 ## Every change answers three questions (`Docs/Harness/H04`)
 What class (BUG / TUNE / PRESENT / RULE / SYSTEM)? What layer? What does it replace? Legal outcomes are replace, tune, revert — never stack.
+
+## Until people have played (D-050, D-051)
+- The S1 build comes first: the list in `Docs/STATE.md` Queue outranks S4 work for merge and gate slots. No new content, second S4 wave or later stage starts before session A of the S1 exit (D-048).
+- A fix lands on the lowest branch that has the defect and is carried forward by merge: `main`, `dev/s2`, `dev/s3`, `dev/s4`.
+- No number is tuned on a bot survival clause (boss reach, wins, median end). How each target is measured is `Docs/10_Tuning.md`: a measurement is defined there before the job that takes it.
+- One RULE record per spec at a time. A RULE or SYSTEM record carries a hypothesis line with its measure and its revert. Decision files are committed on `main` first and numbered from `Docs/STATE.md`; a call in an owner class also gets a line in `OPEN.md` O-013.
+- A package for people, an exit battery and a perf reading run with no other engine or compiler process alive on this PC.

@@ -4,7 +4,8 @@ Usage:  python -I Tools/docs_lint.py      exit 1 on any error; warnings never fa
 
 Checks (Docs/ except Harness/ and 13_Decisions/, which are method and history):
   1  every R-<SYS>-nn defined in a spec has a T-<SYS>-nn with the same number
-  2  every T-<SYS>-nn named in a spec exists in Source/ or Tools/, unless its line says PLANNED(<stage>) -> warning
+  2  every T-<SYS>-nn named in a spec exists in Source/ or Tools/, unless its line says PLANNED(<stage>) -> warning;
+     PLANNED(<stage>) outside a code span, for a stage that has passed (PASSED_STAGES), is an error
   3  every C.<KEY> referenced exists in constants.yaml (C.<GROUP>.* matches any key of that group)
   4  08_Constants.md and constants.yaml list the same keys; every constant has >= 1 dependent
   5  no stale markers in body text
@@ -27,6 +28,9 @@ SKIP_DIRS = {"Harness", "13_Decisions"}
 STALE = ["superseded", "where they differ", "TODO(old)", "pre-redesign"]
 CONTRACT = ["Intent", "Rules", "Numbers", "Data", "Acceptance", "Telemetry", "Text", "Out of scope", "Open"]
 MUSTREAD_TOKENS = 20000
+# Stages that have passed, with the decision that passed them: nothing can still be planned for them.
+PASSED_STAGES = {"S0": "D-012"}
+PLANNED_MARK = re.compile(r"PLANNED\((S\d+)\)")
 
 R_DEF = re.compile(r"\*\*(R-[A-Z]{2,5}-\d{2})\*\*")
 T_REF = re.compile(r"\bT-[A-Z]{2,5}-\d{2}\b")
@@ -65,6 +69,12 @@ def strip_code_spans(line):
 	return re.sub(r"`[^`]*`", "", line)
 
 
+def passed_stage_errors(rel, n, line):
+	"""A PLANNED(<stage>) marker outside a code span for a stage that has passed: an error, never a warning."""
+	return [f"{rel}:{n}: PLANNED({stage}), but {stage} passed ({PASSED_STAGES[stage]}): build it or re-stage it"
+		for stage in PLANNED_MARK.findall(strip_code_spans(line)) if stage in PASSED_STAGES]
+
+
 def main():
 	errors, warnings = [], []
 	consts = dtconst.load()
@@ -88,6 +98,7 @@ def main():
 						errors.append(f"{rel}:{n}: C.{c} matches no constant")
 				elif c not in keys:
 					errors.append(f"{rel}:{n}: C.{c} is not in constants.yaml")
+			errors.extend(passed_stage_errors(rel, n, line))
 			for marker in STALE:
 				if marker.lower() in line.lower():
 					errors.append(f"{rel}:{n}: stale marker '{marker}'")
