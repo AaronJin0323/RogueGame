@@ -19,3 +19,5 @@ Content/DT/Materials/M_EnemyRound_*,material,procedural,Tools/assets/tracer_*.py
 SourceArt/Fx/*,mesh,procedural,Tools/blender/debris*.py,Dusktracer,own,,2026-11-10,wave 1 package E: debris as exported from Blender,P0 (D-043)
 Content/DT/Meshes/SM_Fx_*,mesh,procedural,Tools/blender/debris*.py,Dusktracer,own,,2026-11-10,wave 1 package E: debris meshes,P0 (D-043)
 Content/DT/Materials/M_Fx_*,material,procedural,Tools/assets/fx_*.py,Dusktracer,own,,2026-11-10,wave 1 package E: sparks and kill flash,P0 (D-043)
+Content/DT/Audio/SFX/SW_*,audio,procedural,Tools/audio/recipes/*.py;Tools/audio/dtsynth.py;Tools/audio/audio_build.py,Dusktracer,own,,2026-11-11,audio wave 1: SoundWaves generated from recipes in this repo,D-056
+Content/DT/Audio/Mix/*,audio,in_engine,Tools/audio/import_audio.py,Dusktracer,own,,2026-11-11,audio wave 1: sound classes; the mix; the Player submix and its presets,D-056

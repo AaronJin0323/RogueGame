@@ -50,7 +50,7 @@ ROOTS_NEEDING_A_ROW = ("Content/", "SourceArt/")
 BINARY_EXT = (".uasset", ".umap", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tga", ".exr", ".hdr", ".psd", ".webp", ".ico", ".wav", ".ogg", ".mp3", ".flac",
 	".mp4", ".webm", ".fbx", ".glb", ".gltf", ".obj", ".blend", ".ttf", ".otf", ".woff", ".woff2", ".pdf", ".zip", ".7z", ".bin", ".exe", ".dll", ".pak")
 # Names an AI image, mesh or audio service: a row that carries one is AI-sourced (D-043 point 8, O-009).
-AI_SOURCED = re.compile(r"midjourney|stable.?diffusion|sdxl|dall.?e|firefly|meshy|tripo|rodin|luma.?ai|suno|udio|elevenlabs|\bai[- ]generated\b|\bgenai\b", re.IGNORECASE)
+AI_SOURCED = re.compile(r"midjourney|stable.?diffusion|sdxl|dall.?e|firefly|meshy|tripo|rodin|luma.?ai|suno|\budio\b|elevenlabs|\bai[- ]generated\b|\bgenai\b", re.IGNORECASE)
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 

@@ -1,0 +1,73 @@
+# S4 audio tools: the generator's tools and the gate step `audio`
+
+Job 1 of `Validation/S4_audio_wave1.md` §8.1 (D-056), branch `s4/audio-tools` from `dev/s4` at 0f8a973. Python standard library only; no C++, no engine code, no sound played. Nothing here makes a sound for the game yet: the catalog and the manifest are header-only, and the Sound session writes the recipes (job 2).
+
+## 1. What landed, and what proves it
+
+| Item | Files | Proof |
+|---|---|---|
+| The generator core, ported from the session's S2 sketch with the same names and signatures; the sample rate's one source is `C.AUD.SAMPLE_RATE_HZ` | `Tools/audio/dtsynth.py` | **Port proof** (`audio_test.py` `PortProof`): the sketch's `recipes.py`, kept as a fixture inside the test with its code unchanged, run on this core, writes the twelve files of the sketch's `out\SW_*.wav` byte for byte (SHA-256 of each, read from the sketch's folder on 2026-11-11). Two processes write the same bytes |
+| Exact operations only (D-056 item 3): an AST lint over the core and every recipe: no `random`, `cmath`, numpy, scipy, `statistics`, `decimal`, `fractions`; no `math` function but `floor sqrt frexp ldexp`; no `**` or `**=`; no `pow() round() hash()`; no `import math as`. In a recipe: no bare number (or expression of numbers alone) as an oscillator frequency, and no `hz()` note outside A C D E G | `Tools/audio/audio_check.py` (`lint_source`) | `Lint` tests: the core, the sketch recipes and the fixture recipes pass; ten planted operations and five planted pitches fail, each with one error; a planted `math.sin` in a recipe file fails the step |
+| The measures of the sketch's `analyze.py`: third-octave bands, share, centroid, `lk100` (BS.1770 K-weighting), active length, lead, attack, onset spike, peak, crest, DC, small-speaker loss, onset count, spectral distance, upward spread, audibility. Band edges, the air line, the small-speaker line and the masking spread and window come from `C.AUD.*` | `Tools/audio/audio_metrics.py` | `test_the_measures_read_a_planted_signal`; the per-file fault tests below read through it. The fixture's kill sound reads the sketch's figures (attack 4.8 and 6.4 ms, `lk100` -19.3, band share at +4 semitones -40.8 dB for variant 1) |
+| The catalog `sounds.csv` (header only), every cell validated | `Docs/09_Catalog/sounds.csv`, `audio_build.py` (`validate`) | `Catalog` tests: eleven planted bad cells, a duplicate id, a warning with a drawn pitch, a danger sound on the grid, a danger sound outside the Danger class; a recipe or recipe module that does not exist |
+| Build into `Saved/AudioGen/` with a stamp (the hash of `dtsynth.py`, `audio_build.py`, every recipe module and the sample rate, plus each file's hash): an unchanged file is reused. `--update` rewrites the manifest (name, frames, SHA-256, thirteen measures rounded to 0.1). Measures are cached by file hash in `measures.json` | `Tools/audio/audio_build.py`, `Tools/audio/sound_manifest.csv` (header only) | `test_the_fixture_catalog_passes` runs the step twice: the second run rebuilds nothing; `test_a_changed_byte_against_the_manifest_fails`; catalog and manifest naming different files fails both ways |
+| The gate step: tool tests, lint, catalog, licence rows, manifest names, build and hashes, per-file rules, variants, confusion sets; the generated table once it exists | `Tools/audio/audio_check.py`, `Tools/Gate.ps1` | `Files` tests, each fault planted alone in a fixture tree that otherwise passes: a clipped file; a body file with energy in the band at +4 semitones; a warning with a slow attack; a loop seam; byte-identical variants; a confusion pair too close (and the same pair against a warning passes); a family with no licence row |
+| `DTSoundsGen.h` text: namespace `DTCat`, enums of side, class and pitch, an enum of ids, a constexpr table, zero rows handled | `Tools/audio/gen_sounds.py` | `Header` tests on fixtures: no rows, two rows, `--check` and `--write`, a hand edit fails both `--check` and the step. The header is not written into `Source/` in this job |
+| The pictures and the audition files | `Tools/audio/audio_view.py` | Run by hand on the sketch's twelve files (a sheet of six and a third-octave chart, read as images) and an audition of two families; no automated test |
+| 48 keys `C.AUD.*` as the brief listed them, 45 after the density ruling below, `GATED(S4)`, presentation only, each with `02_Systems/audio.md` and its test id as dependents | `Docs/constants.yaml`, `08_Constants.md` (Audio), `number_change_log.csv`, `Core/DTConstantsGen.h` regenerated | `gen_constants.py --check`, `docs_lint.py` |
+| The licence lint's AI-service pattern: `udio` becomes `\budio\b` (D-056 ruling 3) | `Tools/catalog_lint.py`, `Tools/tools_test.py` | `test_a_row_naming_the_audio_tools_passes`, `test_a_row_naming_the_audio_service_fails` |
+| Two licence rows, before any binary (R-PRE-10): `Content/DT/Audio/SFX/SW_*` (procedural) and `Content/DT/Audio/Mix/*` (in engine) | `Docs/09_Catalog/licenses.csv` | `catalog_lint.py` passes; the step requires a matching audio row for every file a catalog row writes |
+| The R-PRE-11 include check treats `Audio/` as presentation (R-AUD-01) | `Tools/tools_test.py` | `test_a_sim_file_that_includes_audio_is_found`; the tree scan still finds only the known renderer owners |
+
+## 2. The per-file rules of the step
+
+All files: mono 16-bit at `C.AUD.SAMPLE_RATE_HZ`; peak at most `C.AUD.PEAK_MAX_DBFS`; no sample at plus or minus 32767; mean offset under `C.AUD.DC_MAX`; share above `C.AUD.AIR_LINE_HZ` at most `C.AUD.AIR_SHARE_MAX_DB`; `lk100` plus 20 log10 of the catalog volume inside the row's loudness window; active length (first to last sample over -40 dB of the peak) inside the row's length window. One-shots: first and last sample zero, lead at most `C.AUD.LEAD_MAX_MS`. Loops: the seam step (last sample to first) no larger than the 99th percentile of the file's own sample steps, and the RMS levels of the first and last 20 ms within `C.AUD.LOOP_SEAM_LEVEL_MAX_DB`. Zone `body`: share in `C.AUD.DANGER_BAND_HZ` at most `C.AUD.PLAYER_BAND_SHARE_MAX_DB`, read after resampling `C.AUD.KEY_SEMIS_MAX` semitones up for pitch `key`, `C.AUD.LADDER_SEMIS_MAX` for `ladder`, none for `fixed`; attack at least `C.AUD.PLAYER_ATTACK_MIN_MS`; spike at most `C.AUD.SPIKE_MAX_DB`. Zone `warn`: share at least `C.AUD.WARN_BAND_SHARE_MIN_DB`, attack at most `C.AUD.WARN_ATTACK_MAX_MS`, pitch `fixed` (a catalog rule). Zone `low`: at least `C.AUD.LOW_ZONE_SHARE_MIN_DB` of its energy in `C.AUD.LOW_ZONE_HZ`. Zones `warn` and `low` and side `ui`: small-speaker loss at most `C.AUD.SMALL_SPEAKER_LOSS_MAX_DB`. Variants of one row are not byte-identical. Every pair of sounds inside a confusion set, every variant against every variant: spectral distance at least `C.AUD.PAIR_DISTANCE_MIN_DB`, or a different onset count, or active lengths `C.AUD.PAIR_LENGTH_RATIO_MIN` apart. The constants that define a measure (activity line, attack point, spike windows, onset detector, level-seam window, distance floors) are named in `audio_metrics.py`. The measures run at 48 kHz only: the K-weighting coefficients are BS.1770's for that rate, and any other `C.AUD.SAMPLE_RATE_HZ` fails the step with that reason.
+
+Catalog rules beyond the schema, from the plan's §4.2 and `audio.md` R-AUD-05 and R-AUD-09: the danger side is the Danger class and only it; an interface sound is in the UI class; a `warn` zone sound is on the danger side; danger and interface sounds have pitch `fixed`; a danger sound has grid 0.
+
+## 3. Commands
+
+```
+. Tools\Machine.ps1; $null = Set-DTAffinity; python -I Tools\audio\audio_check.py      # the gate step
+python -I Tools\audio\audio_test.py                                                       # the tool tests alone
+python -I Tools\audio\audio_build.py [--update] [--force]                                 # build; --update rewrites the manifest
+python -I Tools\audio\gen_sounds.py --check | --write                                     # the runtime job writes the header
+python -I Tools\audio\audio_view.py --family UI | <a.wav ...> | --bands <a.wav ...> | --audition [--out <dir>]
+```
+
+Readings on this PC, 2026-11-11: before the review, `AUDIO: PASS (0 sounds, 0 files, 22 tool tests; ...)` in 2.6 to 2.9 s; after it, 50 tool tests and the step in 4.3 s with the fixtures' measures cached (`Saved/AudioGen/test_measures.json`, keyed like the step's own cache), about 7 s with that cache empty. The twelve sketch files built, measured and written to a manifest from nothing in 1.3 s, and checked again unchanged in under 0.1 s. `tools_test.py` 351 tests pass; `docs_lint`, `secret_scan`, `catalog_lint` and `gen_constants --check` pass. The whole gate on `dev/s4`: §6.
+
+## 4. The Sound session's review (ten fixes, on the same branch)
+
+| # | Fix | Why | Proof |
+|---|---|---|---|
+| 1 | `dtsynth.total()`, a left-to-right sum; `rms` uses it. The fixture copy of the sketch recipes uses it in `low_end`, as the sketch now does | the built-in `sum()` changed its float algorithm in Python 3.12: bytes must not depend on the Python version | the port proof: the twelve reference hashes did not move (`out\reference_sha256.txt` of the sketch) |
+| 2 | The lint gains an import allow-list (recipes: names of dtsynth, the four math functions, modules under `recipes/`; the core: math, struct, wave, dtconst), bans by name (`sum pow round hash id eval exec getattr setattr __import__ complex set frozenset globals locals vars open input`, and `compile delattr` beside them), set literals and comprehensions, `__` attributes, `math` reached through another module; subfolders are linted | an operation that is not exact could enter by a door the first lint left open | `Lint` tests: every banned call in a recipe and in the core, each import kind, sets, dunders, `dtsynth.math.sin`, a fault in `recipes/sub/` |
+| 3 | `audio_build.Snapshot`: the core and every recipe module are read once, hashed, and executed from those bytes into fresh module objects; the stamp covers `Tools/dtconst.py` and subfolders | the old import could run a module already in `sys.modules` or a `.pyc`, not the bytes it hashed | `test_a_module_already_imported_is_not_run`, `test_a_changed_recipe_runs_its_new_code`, `test_the_stamp_covers_subfolders` |
+| 4 | The measures cache key covers `audio_metrics.py`, `audio_build.py` and the value of every `C.AUD.*` key | a changed band key left stale shares in `measures.json` | `test_a_changed_key_is_not_read_from_the_cache` |
+| 5 | A rate other than 48 kHz fails with its reason | the K-weighting coefficients are the standard's for 48 kHz | `test_only_48_khz_is_measured` |
+| 6 | Five keys: `C.AUD.LOW_ZONE_SHARE_MIN_DB`, `C.AUD.PAIR_LENGTH_RATIO_MIN`, `C.AUD.KEY_SEMIS_MAX`, `C.AUD.LADDER_SEMIS_MAX`, `C.AUD.LOOP_SEAM_LEVEL_MAX_DB` (a new second leg of the loop rule); the measure-defining constants named in `audio_metrics.py`; `audio.md` Data gains their row | no limit stays a literal | `gen_constants --check`, `docs_lint`; `test_the_loop_level_seam`, `test_the_low_zone` |
+| 7 | Confusion sets compare every variant against every variant | variant 0 alone let a close variant through | `test_every_variant_pair_of_a_confusion_set` |
+| 8 | One planted fault per rule, each alone in a tree that otherwise passes | a rule with no test can be deleted unseen | `Rules`: format (stereo, wrong rate, 8-bit), silent, offset, air, loudness below and above, length, end at zero, lead, body attack, spike, warning band, low zone, small speaker, level seam |
+| 9 | Every path ends in a verdict: a recipe not UTF-8, one that raises at import (SystemExit included), any other exception is one `error:` line and `AUDIO: FAIL`; a malformed stamp or cache reads as absent | the step could stop with a traceback and no verdict | `Verdict` tests, `test_a_recipe_that_is_not_utf8_fails_with_a_verdict`, `test_malformed_caches_read_as_absent` |
+| 10 | `audio_view.py` builds with `write_stamp=False` | a sheet of one family left a stamp for that family alone, and the next gate rebuilt everything | `test_the_pictures_leave_the_stamp_alone` |
+
+Beside them, for speed: `audio_build` remembers `dtconst.load` per file state (path, modification time, size) inside one process; every fresh snapshot of the core read the whole constants file again, which was most of the step's time.
+
+## 5. What is not verified
+
+- No sound of the game exists: the step passes on an empty catalog. Its rules are proved on fixtures only, built from the sketch's recipes.
+- The port proof holds on one PC and one Python (3.14.4). That the bytes hold on another machine follows from the construction (exact operations, integer random source) and was not tried.
+- The mix checks (R-AUD-18: audibility floors, density readings) are not active and are named so in the verdict; `audio_metrics.audibility` and `spread` are ported but nothing calls them yet. The generated table check activates by itself once `Source/Dusktracer/Audio/DTSoundsGen.h` exists.
+- The measures are read from the 16-bit file, not the floats before quantisation as the sketch did: the air share of the sketch's kill reads -80 dB here against -110 there (the quantisation floor); the figures compared by hand (attack, `lk100`, active length, band share) agree with the sketch's report to its rounding.
+- `audio_view.py`'s pictures have no automated test (they were read by eye); that it leaves the build stamp alone is tested.
+- No sound was heard by anyone.
+
+## 6. The gate
+
+- Before the review, on 707b70e (`dev/s4` at 0f8a973): `GATE: PASS (707b70e; 3 not run; mask FFFFF3FC)`, with `AUDIO: PASS (0 sounds, 0 files, 22 tool tests; not active yet: the mix checks (R-AUD-18) and the generated C++ table DTSoundsGen.h; 0 rebuilt, 2.7 s)`. Not run: pad (no package), scope (no brief in flight), mac (deferred, D-007).
+- After the review, on f28fbe8 (`dev/s4` still at 0f8a973): `GATE: PASS (f28fbe8; 3 not run; mask FFFFF3FC)`, with `AUDIO: PASS (0 sounds, 0 files, 50 tool tests; not active yet: the mix checks (R-AUD-18) and the generated C++ table DTSoundsGen.h; 0 rebuilt, 4.5 s)`. It does not count for the handover: `dev/s4` had moved.
+
+## 7. Density holds no audio rate
+
+The scheduler ruled on 2026-11-11 that there is one set of density numbers, Visual's (package E). The three audio keys of the layers' entry and exit rates (crowd off, low end on, low end off) left `constants.yaml`, `08_Constants.md` and the change-log row (48 keys became 45); `audio.md` R-AUD-08 and T-AUD-08 read the shared tier; the plan's §3.5 and §8.1 record the ruling and the new order (the kills family after package E). `C.AUD.LAYER_FADE_PER_S` and `C.AUD.KILL_DENSE_VOICES_PER_S` stay.

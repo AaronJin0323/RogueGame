@@ -2173,7 +2173,7 @@ class GateMain(unittest.TestCase):
 
 	PY_STEPS = (("cpu_canary.py", "CPU"), ("secret_scan.py", "SECRETS"), ("docs_lint.py", "DOCS"), ("gen_constants.py", "CONSTANTS"),
 		("gen_catalog.py", "CATALOG"), ("gen_matrix.py", "MATRIX"), ("loc_build.py", "LOC"), ("catalog_lint.py", "LICENCE"),
-		("palette_lint.py", "PALETTE"), ("tools_test.py", "TOOLS"))
+		("palette_lint.py", "PALETTE"), ("audio/audio_check.py", "AUDIO"), ("tools_test.py", "TOOLS"))
 
 	def setUp(self):
 		self.tmp = tempfile.TemporaryDirectory()
@@ -2190,6 +2190,7 @@ class GateMain(unittest.TestCase):
 			shutil.copy(os.path.join(TOOLS, name), tools)
 		for name, verdict in self.PY_STEPS:
 			if name in stubs:
+				os.makedirs(os.path.dirname(os.path.join(tools, name)), exist_ok=True)
 				with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
 					f.write(f"print('{verdict}: PASS (stub)')\n")
 		return os.path.join(tools, "Gate.ps1")
@@ -2936,6 +2937,16 @@ class Licence(unittest.TestCase):
 			self.assertEqual(len(found), 1, source)
 			self.assertIn("O-009", found[0])
 
+	def test_a_row_naming_the_audio_tools_passes(self):
+		# D-056 ruling 3: the AI-service pattern names the service, not every word that holds its letters.
+		row = self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="audio wave 1")
+		self.assertEqual(self.errors([row], []), [])
+
+	def test_a_row_naming_the_audio_service_fails(self):
+		found = self.errors([self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="stems from Udio")], [])
+		self.assertEqual(len(found), 1)
+		self.assertIn("O-009", found[0])
+
 	def test_an_asset_kind_nobody_owns_fails(self):
 		rows = [self.row("Content/DT/*", kind="vfx")]
 		for name in ("Content/DT/UI/WBP_Card.uasset", "Content/DT/Fx/NS_Bullet_Trail.uasset", "Content/DT/Hero/SK_Hero.uasset"):
@@ -3334,9 +3345,9 @@ class MeshPipeline(unittest.TestCase):
 
 
 SOURCE = os.path.join(TOOLS, "..", "Source", "Dusktracer")
-# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/, and every renderer. A package's
-# new presentation header is one or the other.
-PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?Presentation/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
+# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/ and Audio/ (audio.md R-AUD-01, D-056),
+# and every renderer. A package's new presentation header is one or the other.
+PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?(?:Presentation|Audio)/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
 # The world subsystems that spawn a renderer and hand it the step's state: the only code outside presentation that names one today.
 # DTDirector.cpp reads a telegraph's instance count for its own tell. A new name here is a sim file reaching into presentation: do not add one.
 RENDERER_OWNERS = {
@@ -3352,7 +3363,7 @@ RENDERER_OWNERS = {
 
 
 def is_presentation_file(relative):
-	return relative.startswith("Presentation/") or bool(re.search(r"Renderer\.(h|cpp)$", relative))
+	return relative.startswith(("Presentation/", "Audio/")) or bool(re.search(r"Renderer\.(h|cpp)$", relative))
 
 
 def presentation_includes(relative, text):
@@ -3369,6 +3380,11 @@ class PresentationReadsOnly(unittest.TestCase):
 		self.assertEqual(presentation_includes("Enemies/DTEnemyPool.cpp", '#include "Enemies/DTEnemyPool.h"\n#include "Presentation/DTImpactSubsystem.h"\n'), ["Presentation/DTImpactSubsystem.h"])
 		self.assertEqual(presentation_includes("Combat/DTWeaponSim.cpp", '#include "Combat/DTBulletRenderer.h"\n'), ["Combat/DTBulletRenderer.h"])
 		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimTypes.h"\n// #include of Presentation/ would fail\n'), [])
+
+	def test_a_sim_file_that_includes_audio_is_found(self):
+		# audio.md R-AUD-01 (D-056): audio reads the sim and never writes it, so no sim file includes an Audio/ header.
+		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimSubsystem.h"\n#include "Audio/DTAudioSubsystem.h"\n'), ["Audio/DTAudioSubsystem.h"])
+		self.assertEqual(presentation_includes("Audio/DTAudioObserver.cpp", '#include "Audio/DTAudioScheduler.h"\n#include "Core/DTSimSubsystem.h"\n'), [])
 
 	def test_presentation_tests_and_debug_may(self):
 		for relative in ("Presentation/DTImpactRenderer.cpp", "Enemies/DTEnemyRenderer.cpp", "Tests/Enemies/DTEnemyTests.cpp", "Debug/DTDebugPerfScene.cpp"):
