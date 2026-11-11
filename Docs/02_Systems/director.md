@@ -103,7 +103,7 @@ Code: `UDTDirector` (`Director/`, a world subsystem idle until `ADTGameMode` cal
 - HUMAN: a validator can say, unprompted, when a Threat started and when it ended; they see a red marker before every drop-in lands.
 
 ## Telemetry
-- `dir_block{block phase row_start_s start_s end_s ended_by spawned_by_role{} skipped_at_cap dropins threat_actions kills kill_horizon_p50_uu alive_peak}` per block (R-DIR-15); `kill_horizon_p50_uu` is the median distance from the killing player's hero at each kill; per player inside the record: `dmg_taken{owner: share_of_max_hp}`, `dashes{owner: n}`.
+- `dir_block{block phase row_start_s start_s end_s ended_by spawned_by_role{} skipped_at_cap dropins dropins_landed_by_role{} threat_actions kills kill_horizon_p50_uu alive_peak}` per block (R-DIR-15); `dropins` counts the markers published in the block, `dropins_landed_by_role` the drop-ins that landed there, by role (definition: `telemetry.md` §Data, T-TEL-16); `kill_horizon_p50_uu` is the median distance from the killing player's hero at each kill; per player inside the record: `dmg_taken{owner: share_of_max_hp}`, `dashes{owner: n}`.
 - CSV column `threat_actions_per_min` (`telemetry.md`) fed from threat actions that start within the threat ring of that player's hero; `nearest_enemy_uu` already exists.
 - `run_end` gains nothing; the boss request is a `dir_block` with phase `Boss`.
 
