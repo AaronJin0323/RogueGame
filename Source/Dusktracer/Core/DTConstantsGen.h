@@ -572,4 +572,9 @@ namespace DTConst
 	inline constexpr float AUD_STINGER_EXPIRY_S = 1.5f; // s, GATED(S4)
 	inline constexpr float AUD_GAME_THREAD_MS_MAX = 0.05f; // ms, GATED(S4)
 	inline constexpr float AUD_FRAME_MS_WATCH = 0.2f; // ms, GATED(S4)
+	inline constexpr int32 AUD_LOW_ZONE_SHARE_MIN_DB = -3; // dB, GATED(S4)
+	inline constexpr int32 AUD_PAIR_LENGTH_RATIO_MIN = 2; // x, GATED(S4)
+	inline constexpr int32 AUD_KEY_SEMIS_MAX = 4; // semitones, GATED(S4)
+	inline constexpr int32 AUD_LADDER_SEMIS_MAX = 12; // semitones, GATED(S4)
+	inline constexpr int32 AUD_LOOP_SEAM_LEVEL_MAX_DB = 3; // dB, GATED(S4)
 }

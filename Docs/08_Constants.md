@@ -649,3 +649,8 @@ S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no k
 | C.AUD.STINGER_EXPIRY_S | 1.5 | s | GATED(S4) | audio R-AUD-11, T-AUD-11 |
 | C.AUD.GAME_THREAD_MS_MAX | 0.05 | ms | GATED(S4) | audio R-AUD-21, T-AUD-21 (audio's share of the S4 scene's game thread p95, D-056 ruling 6) |
 | C.AUD.FRAME_MS_WATCH | 0.2 | ms | GATED(S4) | audio R-AUD-21, T-AUD-21 (audio's worst frame is watched against it) |
+| C.AUD.LOW_ZONE_SHARE_MIN_DB | -3 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (a low-zone file's share in C.AUD.LOW_ZONE_HZ: about half its energy) |
+| C.AUD.PAIR_LENGTH_RATIO_MIN | 2 | x | GATED(S4) | audio R-AUD-17, T-AUD-17, Tools/audio/audio_check.py (two sounds of a confusion set told apart by active length when one is this many times the other) |
+| C.AUD.KEY_SEMIS_MAX | 4 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest degree a `key` sound is drawn at: the band share is read there) |
+| C.AUD.LADDER_SEMIS_MAX | 12 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest step of a `ladder` sound, such as a gem streak) |
+| C.AUD.LOOP_SEAM_LEVEL_MAX_DB | 3 | dB | GATED(S4) | audio R-AUD-16, T-AUD-16, Tools/audio/audio_check.py (a loop's first and last 20 ms differ in level by at most this; the step rule stands beside it) |

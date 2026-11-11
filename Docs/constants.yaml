@@ -571,3 +571,8 @@ audio:
   AUD.STINGER_EXPIRY_S:          { value: 1.5, unit: s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-11, T-AUD-11] }
   AUD.GAME_THREAD_MS_MAX:        { value: 0.05, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-21, T-AUD-21] }
   AUD.FRAME_MS_WATCH:            { value: 0.2, unit: ms, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-21, T-AUD-21] }
+  AUD.LOW_ZONE_SHARE_MIN_DB:     { value: -3, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.PAIR_LENGTH_RATIO_MIN:     { value: 2, unit: x, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-17, T-AUD-17, Tools/audio/audio_check.py] }
+  AUD.KEY_SEMIS_MAX:             { value: 4, unit: semitones, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.LADDER_SEMIS_MAX:          { value: 12, unit: semitones, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
+  AUD.LOOP_SEAM_LEVEL_MAX_DB:    { value: 3, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
