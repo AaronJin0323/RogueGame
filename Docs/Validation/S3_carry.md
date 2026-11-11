@@ -131,3 +131,23 @@ tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
 GATE: PASS (fdc10f1; 3 not run; mask FFFFF3FC)
 ```
 `dev/s3` then moved by one documents-only commit (d1dfec0, `S3_kit.md`). It was merged (403e732), and the text steps reran with every heavy step skipped, taking no slot: `GATE: PASS (403e732; 19 not run; mask FFFFF3FC)`, `TOOLS: PASS (326 tests)`. Logs: `Saved\Logs\c6s3_gate.txt` and `c6s3_text.txt` in the carry agent's worktree.
+## Sixth carry: `carry7/s2` (`main` d23b7ef through `dev/s2`) into `dev/s3` 892c617 (`carry7/s3`)
+What came: `main`'s crash-exit fix (R-PKG-16 and T-PKG-16, `Source/Dusktracer/Dusktracer.cpp`, `Tools/CrashExitCheck.ps1`, `crash_exit.py`), the alone take that claims the machine at once (`Tools/Alone.ps1`, `Machine.ps1`), D-059 to D-066 and their records, `offers.md` saying what the code does (D-062, D-063), and `dev/s2`'s side of the same merge.
+- Conflicts and resolutions:
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff d23b7ef -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+  - `offers.md`: R-OFF-07 and T-OFF-07 keep `dev/s3`'s Tree and gated-pool text with `main`'s trait count (R-KEE-04, `C.KEEPER.TRAIT_PREREQ_CARDS`); R-OFF-08 keeps `dev/s3`'s seat and hub text with `main`'s unweighted L8 hand (D-062, a text correction that holds on every branch); T-OFF-14 is `main`'s Reserve line, T-OFF-15 `dev/s3`'s with `-ReadAll`.
+  - `package.md`: R-PKG-02 takes `main`'s crash-folder clause; R-PKG-03 and R-PKG-04 are `dev/s3`'s; R-PKG-11 to R-PKG-14 and T-PKG-11 to T-PKG-15 stand beside R-PKG-16 and T-PKG-16; the HUMAN line is `dev/s3`'s; the Open line keeps `dev/s3`'s Shipping-log sentence and says a Shipping crash leaves no dump.
+  - `Source/Dusktracer/Dusktracer.cpp`: both sides' includes (`Meta/DTTreeTab.h` and `main`'s `Misc/CommandLine.h`, `Misc/Parse.h`); the crash-exit block and `DTTreeTab::Register()` both stand.
+  - `Tools/tools_test.py`: both entry lists hold `CrashExitCheck.ps1` beside `dev/s3`'s scripts.
+  - `constants.yaml` did not change on either side; the gate's `constants` step reads the header as generated.
+- Scripts changed beyond the two sides: none. No test pins behaviour that differs by branch.
+- Left as it is, by the scheduler's word: `Tools/CrashExportCheck.ps1` (T-PKG-15) crashes the Development proof build, which keeps the engine's crash path (R-PKG-16), so it can still meet the hang `Validation/S1_crash_exit.md` counts. A carry does not change the check.
+- Counts: 547 tests, floor 547 (crash-exit adds no engine test); `tools_test.py` 326 to 336.
+- Seed 9107 on 5fe90ae, unchanged: v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`; RestartCheck `276faf8e`; MetaCheck `ba2a3ac8`; firstrun 6/6 at the boss.
+
+```
+tools:      TOOLS: PASS (336 tests)
+tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
+GATE: PASS (5fe90ae; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no golden re-shot, no odd failure. `dev/s3` and `main` had not moved when the leg was gated. Log: `Saved\Logs\c7s3_gate.txt` in the carry agent's worktree.
