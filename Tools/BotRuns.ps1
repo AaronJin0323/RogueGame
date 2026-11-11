@@ -47,6 +47,9 @@ param(
 	[switch]$CarryHold,
 	# meta.md R-MET-23: reads the fresh-save pool, a person's first run, instead of the full pool (-DTPoolGate, no save).
 	[switch]$FreshPool,
+	# D-069: with -FreshPool, each run reads its own copy of a planted save (Tools/PlantSave.ps1) through -DTMetaFile, as a person's run reads theirs: a file is
+	# copied for every run; a folder gives each run <folder>\<its arm's Keeper>.sav, whose last Patron takes the run's first Patron seat (keepers.md R-KEE-23).
+	[string]$SaveFrom = "",
 	# D-037: -Check T-OFF-15 has to read every launched run at the boss; a run that is lost or ends short fails the check instead of dropping out of it.
 	[switch]$ReadAll,
 	[ValidateSet("All", "BlessingsOnly")][string]$Policy = "All"
@@ -58,6 +61,7 @@ trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
 $DTHeavy = Enter-DTHeavy -What "BotRuns"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 # Without the check the switch would judge nothing and the line would still read PASS.
 if ($ReadAll -and ($Check -notmatch "T-OFF-15" -or $Jobs)) { throw "-ReadAll reads -Check T-OFF-15 on arms" }
+if ($SaveFrom -and (-not $FreshPool -or $Jobs)) { throw "-SaveFrom reads a planted save on a gated pool: it needs -FreshPool and arms" }
 
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -202,6 +206,15 @@ foreach ($Arm in $Arms) {
 				$Unlocks += $Weapon
 				$Extra += "-DTBotCarry=$Weapon"
 				if ($CarryHold) { $Extra += "-DTBotCarryHold" }
+			}
+			if ($SaveFrom) {
+				# The save holds what its doors wrote, Keepers included: no -DTUnlock stands in for a met Keeper here.
+				$Unlocks = @($Unlocks | Where-Object { $_ -notlike "Keeper.*" })
+				$From = if (Test-Path -LiteralPath $SaveFrom -PathType Container) { Join-Path $SaveFrom "$($Parts[1]).sav" } else { $SaveFrom }
+				if (-not (Test-Path -LiteralPath $From -PathType Leaf)) { throw "-SaveFrom has no save for $Arm`: $From" }
+				$RunSave = Join-Path (New-Item -ItemType Directory -Force (Join-Path $Out ("{0}_s{1}" -f $Label, $Seed))).FullName "profile.sav"
+				Copy-Item -LiteralPath $From $RunSave -Force
+				$Extra += "-DTMetaFile=`"$RunSave`""
 			}
 			if ($Unlocks.Count) { $Extra += "-DTUnlock=" + ($Unlocks -join ',') }
 			$null = Start-Run $Label $Seed $Extra

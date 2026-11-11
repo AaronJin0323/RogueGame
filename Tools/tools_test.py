@@ -1867,7 +1867,7 @@ class Machine(unittest.TestCase):
 	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 		"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "S3Exit.ps1", "TwoWindowsCheck.ps1",
-		"VigilCheck.ps1", "WinCheck.ps1")
+		"VigilCheck.ps1", "WinCheck.ps1", "PlantSave.ps1")
 	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat")
 	HELPER = os.path.join(TOOLS, "Machine.ps1")
 
@@ -2775,7 +2775,7 @@ class HeavyLocks(unittest.TestCase):
 		# Gate.ps1 takes its slot right before its first heavy step instead (GateSlot below).
 		for name in ("RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
-			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1"):
+			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1", "PlantSave.ps1"):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
@@ -3600,6 +3600,26 @@ class DuoRead(unittest.TestCase):
 			with contextlib.redirect_stdout(io.StringIO()) as out:
 				self.assertEqual(duo_read.main(["paths", quiet]), 0)
 			self.assertEqual(out.getvalue().strip(), "PATHS: 1")
+
+	def test_a_battery_reads_a_planted_save_of_its_own(self):
+		tools = os.path.dirname(os.path.abspath(__file__))
+		with open(os.path.join(tools, "BotRuns.ps1"), encoding="utf-8") as f:
+			bot = "\n".join(ps_code(f.read().splitlines()))
+		# A gated pool only, a copy per run, the arm's Keeper's save from a folder, and no -DTUnlock standing in for a met Keeper.
+		self.assertIn('if ($SaveFrom -and (-not $FreshPool -or $Jobs)) { throw', bot)
+		self.assertIn('Join-Path $SaveFrom "$($Parts[1]).sav"', bot)
+		self.assertIn('"profile.sav"', bot)
+		self.assertIn('$Extra += "-DTMetaFile=`"$RunSave`""', bot)
+		self.assertIn('$Unlocks = @($Unlocks | Where-Object { $_ -notlike "Keeper.*" })', bot)
+		self.assertLess(bot.index('-notlike "Keeper.*"'), bot.index('if ($Unlocks.Count) { $Extra += "-DTUnlock="'))
+		with open(os.path.join(tools, "PlantSave.ps1"), encoding="utf-8") as f:
+			plant = "\n".join(ps_code(f.read().splitlines()))
+		# The doors' own writer: counters are planted and banked, and Unlocked is never written by hand; the last Patron is set on a launch with no bot.
+		self.assertIn('"DT.Meta.Plant $_"', plant)
+		self.assertNotRegex(plant, r"DT\.Unlock|-DTUnlock|DTPatron")
+		self.assertIn("DT.Meta.LastPatron $Patron,DT.Meta.Dump,quit", plant)
+		self.assertIn('"Meta: banked" -Quiet) { Stop-Plant', plant)
+		self.assertIn('"-userdir=`"$UserDir`""', plant)
 
 	def test_earned_check_reads_both_sides(self):
 		with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "EarnedCheck.ps1"), encoding="utf-8") as f:

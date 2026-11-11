@@ -164,8 +164,8 @@ namespace DTMetaSubsystemLocal
 					Unlocked.Add(Id.ToString());
 				}
 				Unlocked.Sort();
-				UE_LOG(LogDT, Log, TEXT("Meta: profile balance %lld, runs %d, wins %d, ranks [%s], unlocked [%s]"), Session->Profile.Currency, Session->Profile.Runs, Session->Profile.Wins,
-					*FString::Join(Ranks, TEXT(" ")), *FString::Join(Unlocked, TEXT(" ")));
+				UE_LOG(LogDT, Log, TEXT("Meta: profile balance %lld, runs %d, wins %d, ranks [%s], unlocked [%s], last patron '%s'"), Session->Profile.Currency, Session->Profile.Runs, Session->Profile.Wins,
+					*FString::Join(Ranks, TEXT(" ")), *FString::Join(Unlocked, TEXT(" ")), *Session->Profile.LastPatron.ToString());
 			}
 		}));
 	static FAutoConsoleCommandWithWorldAndArgs CmdPlant(TEXT("DT.Meta.Plant"), TEXT("Add to a counter of this run's tally (Tools/MetaCheck.ps1): DT.Meta.Plant <key> <amount>."),
