@@ -1,43 +1,49 @@
-# S4 audio: the interface family
+# S4 audio: the interface family, in stone and bronze
 
-Job 2 of `Validation/S4_audio_wave1.md` §8.1 (D-056), branch `s4/audio-snd-ui` on `s4/audio-tools` at 8792462. Recipes, catalog rows and manifest lines only: no engine code, no asset, and nothing in the game plays them yet. The Sound session wrote the recipes and judged them from numbers and pictures. The owner has heard them: §0.
+Branch `s4/audio-snd-ui-stone`, on `s4/audio-runtime` at 55399f9. It replaces the ten placeholder recipes id for id: recipes, catalog rows, manifest lines and the generated table's data. No asset and no engine code of its own; nothing in the game plays these yet (the import is the next job). The Sound session wrote the recipes and judged them from numbers and pictures.
 
-## 0. Heard, and rejected for style (2026-11-11)
+## 0. What was heard, and what was decided
 
-The owner heard these ten on 2026-11-11 and rejected all of them for style: "风格不对", "全部". The sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying (`Validation/S4_audio_world.md` §1). Every number below still holds; none of them measures style. Until the owner has chosen a direction, these recipes stay only as placeholders that give the runtime its ten ids: no asset is imported from them and nothing plays them. They are replaced, id for id, by the chosen direction's recipes. In the catalog their rows read `rejected 2026-11-11`.
+- 2026-11-11: the owner heard the first ten interface sounds (soft sine tones) and rejected all of them for style: "风格不对", "全部"; the sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying. Those recipes are gone from this branch.
+- 2026-11-12, D-066: given three directions, the owner left the choice to the scheduler, who chose stone and bronze as the base and the whole interface family (`Validation/S4_audio_world.md`, top).
+- So the ten rows of this family read `delegated 2026-11-11` in the catalog's `heard` column: accepted by the scheduler on the owner's word, the files sent to the owner, not yet answered by ear. If the owner speaks about one, its row becomes `yes` or `rejected`.
+- The audition files are in `Saved\S4Report\Audio\2026-11-11_ui_stone_bronze\` of the session's worktree; nothing waits on them.
 
 ## 1. The ten sounds
 
-All are in the UI class, zone body, fixed pitch, in A minor pentatonic, with attacks of 6 ms or slower and a low-pass under the danger band. Each has its own gesture, so any two differ in spectrum, in their count of onsets or in length.
+Stone for what is small, frequent or refused; bronze for what is granted; the hall only on the two rare ones. All are in the UI class, zone body, fixed pitch, in A minor pentatonic, with padded attacks, and end under the danger band. The sources are in `Tools/audio/recipes/world.py`: a dull stone knock, a bronze bell whose eight partials are all notes of the key, a scrape of air, and a hall baked into the file.
 
-| Id | Gesture | Meant for | Active ms | Attack ms | Loudest 100 ms, LK | Played, LK | Share in the danger band, dB | Small-speaker loss, dB | Onsets |
+| Id | What it is | Meant for | Active ms | Attack ms | Loudest 100 ms, LK | Played, LK | Share in the danger band, dB | Small-speaker loss, dB | Onsets |
 |---|---|---|---|---|---|---|---|---|---|
-| `Snd.UI.Focus` | one small tick on A5 | the cursor moved | 37.2 | 5.2 | -24.9 | -30.9 | -46.1 | 0.0 | 1 |
-| `Snd.UI.Step` | one lower tick on E5 with a soft click | a value moved; on the volume row it plays at the new level | 47.4 | 5.4 | -24.6 | -29.8 | -40.4 | 0.0 | 1 |
-| `Snd.UI.Open` | two notes up a fifth, A4 then E5 | a screen opened | 207.5 | 5.9 | -20.3 | -24.7 | -39.9 | 0.0 | 2 |
-| `Snd.UI.Back` | one glide down, E5 to A4 | a screen closed | 127.6 | 5.5 | -21.5 | -25.9 | -42.1 | 0.0 | 1 |
-| `Snd.UI.Refuse` | two low thuds on A3 with C4 over them | not allowed | 177.5 | 4.7 | -20.6 | -25.0 | -60.2 | 0.9 | 2 |
-| `Snd.UI.HandOpen` | a rolled open chord, A3 E4 A4 C5 | an offer hand opens | 897.1 | 84.8 | -21.8 | -26.2 | -50.6 | 0.2 | 1 |
-| `Snd.UI.Pick` | a fourth up and held, E4 then A4 | a card taken | 372.0 | 80.7 | -20.4 | -24.1 | -56.1 | 0.1 | 2 |
-| `Snd.UI.Reroll` | three quick notes up, D5 E5 G5 | the hand is dealt again | 156.5 | 5.3 | -21.2 | -25.6 | -38.1 | 0.0 | 3 |
-| `Snd.UI.Banish` | a falling breath and a low note on D4 | a card sent away | 157.0 | 66.2 | -22.6 | -27.0 | -57.2 | 0.3 | 1 |
-| `Snd.UI.Lock` | a low clunk on C4 and a tick on A5 | a card held | 111.2 | 5.8 | -22.5 | -26.9 | -49.1 | 0.4 | 2 |
+| `Snd.UI.Focus` | a pebble set on a slab | the cursor moved | 91.4 | 4.9 | -26.0 | -32.0 | -52.0 | 0.1 | 1 |
+| `Snd.UI.Step` | a heavier stone moved a notch | a value moved; on the volume row it plays at the new level | 118.3 | 5.5 | -24.2 | -29.4 | -68.5 | 0.3 | 1 |
+| `Snd.UI.Open` | a slab drawn aside, and it comes to rest | a screen opened | 339.6 | 114.8 | -21.7 | -26.1 | -35.6 | 0.2 | 1 |
+| `Snd.UI.Back` | a slab set back in its place | a screen closed | 197.1 | 5.0 | -21.8 | -26.2 | -68.8 | 0.8 | 1 |
+| `Snd.UI.Refuse` | a slab that does not move, the scrape of its return | not allowed | 151.6 | 9.9 | -22.5 | -26.9 | -63.6 | 5.1 | 1 |
+| `Snd.UI.HandOpen` | a great bronze bowl struck softly; the hall answers | an offer hand opens | 2394.1 | 54.5 | -21.8 | -26.2 | -78.5 | 3.8 | 1 |
+| `Snd.UI.Pick` | a tablet set down, then a smaller bell | a card taken | 1178.0 | 62.2 | -20.4 | -24.1 | -79.1 | 0.9 | 2 |
+| `Snd.UI.Reroll` | three tablets dealt out again | the hand is dealt again | 355.8 | 4.9 | -20.8 | -25.2 | -37.9 | 0.0 | 3 |
+| `Snd.UI.Banish` | a tablet slid away and laid face down | a card sent away | 383.0 | 177.3 | -23.1 | -27.5 | -59.8 | 2.8 | 1 |
+| `Snd.UI.Lock` | a seal pressed into bronze | a card held | 430.5 | 7.0 | -21.8 | -26.2 | -75.8 | 1.3 | 1 |
 
-The figures are the manifest's (`Tools/audio/sound_manifest.csv`); "played" adds the catalog volume. The limits they are read against: `C.AUD.PLAYER_BAND_SHARE_MAX_DB`, `C.AUD.PLAYER_ATTACK_MIN_MS`, `C.AUD.SPIKE_MAX_DB`, `C.AUD.SMALL_SPEAKER_LOSS_MAX_DB`, `C.AUD.PEAK_MAX_DBFS`, `C.AUD.LEAD_MAX_MS`, and each row's own length and loudness windows. Focus is the quietest on purpose: it is the sound heard most.
+The figures are the manifest's (`Tools/audio/sound_manifest.csv`); "played" adds the catalog volume. The limits: `C.AUD.PLAYER_BAND_SHARE_MAX_DB`, `C.AUD.PLAYER_ATTACK_MIN_MS`, `C.AUD.SPIKE_MAX_DB`, `C.AUD.SMALL_SPEAKER_LOSS_MAX_DB`, `C.AUD.PEAK_MAX_DBFS`, `C.AUD.LEAD_MAX_MS`, and each row's own windows.
+
+**The catalog's windows grew for the rare sounds**, as `S4_audio_world.md` §5 said they would: a hand opening may be active for up to 4.5 s and a card taken for up to 3 s, because their tails are the hall. The frequent ones stay short: the cursor's file is active for under a tenth of a second.
 
 ## 2. Told apart
 
-The ten are one confusion set, `ui`: 45 pairs. Every pair holds by spectral distance alone, against `C.AUD.PAIR_DISTANCE_MIN_DB`; the closest is HandOpen against Banish at 10.5 dB, and that pair also differs by more than a factor of five in length. Thirty-nine of the 45 pairs differ in onset count or length as well. The distances are the sketch's reading of the same bytes: the ten files this branch builds are byte-identical to the sketch's.
+The ten are one confusion set, `ui`: 45 pairs. Every pair holds by spectral distance alone against `C.AUD.PAIR_DISTANCE_MIN_DB`; the closest is Open against Step at 11.6 dB, and that pair also differs by more than a factor of two in length. The distances are the sketch's reading of the same bytes: the ten files this branch builds are byte-identical to the ones the session judged.
 
 ## 3. What proves it
 
-- `python -I Tools\audio\audio_check.py`: `AUDIO: PASS (10 sounds, 10 files, 50 tool tests; not active yet: the mix checks (R-AUD-18) and the generated C++ table DTSoundsGen.h; 0 rebuilt, 3.5 s)`.
-- `python -I Tools\audio\audio_view.py --family UI` draws the family's sheet into `Saved\AudioGen\sheets\sheet_UI.png`: the session read it and it shows the ten gestures as the table names them. The picture is build output and is not committed.
-- Two margins are thin and are watched: Refuse's attack reads 4.7 ms against a floor of 4, and Banish's lead 1.3 ms against a ceiling of 2.
+- `python -I Tools\audio\audio_check.py`: `AUDIO: PASS (10 sounds: 0 heard, 10 delegated, 0 rejected, 0 not heard; 10 files, 52 tool tests; not active yet: the mix checks (R-AUD-18); 0 rebuilt, 3.8 s)`.
+- `Source/Dusktracer/Audio/DTSoundsGen.h` is regenerated by `Tools/audio/gen_sounds.py --write`: ten rows changed, in one cell each, the length in milliseconds. No type, field or id moved.
+- `python -I Tools\audio\audio_view.py --family UI` draws the family's sheet; the session read the sketch's sheet of the same bytes.
 
 ## 4. What is not verified
 
-- The owner's hearing is §0: the style is wrong. What replaces them is not written yet.
-- The band rule is proved per file. The mix checks are not active: no danger sound and no player mix exist yet.
-- Nothing plays them: the runtime and the import are the next two jobs. The events they are meant for are named in the plan's §7.1 and are wired in job 4.
+- Nobody has heard these. The first ten passed every number too; a number cannot say whether a knock reads as stone or a ring as bronze, or whether the hall reads as a great stone room.
+- Thin margins, watched: Open's share in the danger band reads -35.6 dB and Reroll's -37.9 dB against a limit of -30; Refuse loses 5.1 dB on a small speaker against 6; the cursor's attack reads 4.9 ms against a floor of 4.
+- The mix checks are not active: no danger sound and no player mix exist yet. Baked tails were not tried under density.
+- Nothing plays them. The events are wired by the runtime's interface observer; the assets come with the import job, which accepts a row only when it is `yes` or `delegated`.
 - The catalog's intervals and voice counts are RogueHero's starting values and have no reading here.

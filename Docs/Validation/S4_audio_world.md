@@ -2,6 +2,12 @@
 
 For the scheduler and the owner. Written by the Sound module session on `plan/s4-audio-world` from `dev/s4` at 2edf5b7, after the first hearing any sound of this game has had. It changes no rule of D-056: the method stands (generated from recipes, one key, the danger band, the checks). It says what the sounds are made of, which the first ten did not ask.
 
+**Chosen (D-066, 2026-11-12).** The owner was given the three directions of §4 and answered "你来选择最适合游戏背景的" (you choose the one that best fits the game's setting), so the scheduler chose. The three are not rivals: they are three materials of one world, and each means something.
+- **A, stone and bronze, is the base, and the whole interface family is made in it.** Stone for what is small, frequent or refused; bronze for what is granted; the hall only on the rare ones. It is the direction whose four sounds stand furthest apart, and its most frequent sound is the driest.
+- **B, the voices, is kept for the Six themselves:** a Keeper chosen, a blessing's signature, an Intercession. A choir on every cursor move would spend the one sound that should mean a Keeper is acting.
+- **C, the old machine, is the Keep's own acts and the Reclaimer's tools:** weapons, the dash, mechanisms waking, and a warning's material where iron fits better than bronze.
+- Kills stay ceramic breaking. The card tools are dealings over tablets, so they are stone and bronze too.
+
 ## 1. The hearing
 
 On 2026-11-11 the owner heard the ten interface sounds of `s4/audio-snd-ui` and answered: "风格不对" (the style is wrong), "全部" (all ten), and "音效应该符合游戏的故事背景和设定，具有史诗感宏大感的同时尽量简单，不刺耳，不惹人厌烦" (the sounds should fit the game's story and setting, feel epic and grand while staying as simple as possible, not harsh, not annoying).
@@ -48,9 +54,9 @@ The Keep is a vast old structure of fitted white stone at dusk, whose six system
 **The danger band survives.** Everything of this world ends in a low-pass at or under 1.8 kHz, tails included; the twelve sketch files read -48 dB or lower in the band against a limit of `C.AUD.PLAYER_BAND_SHARE_MAX_DB`. A warning then belongs to the same world by its material and stands apart by its size: a small bronze or iron thing struck hard is high and urgent, and the 2 to 5 kHz band is where it rings. The danger draft is redone on that idea once a direction is chosen.
 **The key survives.** Every pitched source above takes its notes from the key, and the in-key bell is the proof that a struck sound need not leave it.
 
-## 4. Three directions for the owner to choose from
+## 4. Chosen: A as the base, B for the Six, C for the Keep's acts
 
-The same four sounds in each: the cursor moves, a hand of cards opens, a card is taken, a refusal. Twelve files and three that play a direction's four in a row, in `Saved\S4Report\Audio\2026-11-11_ui_v2\` of the session's worktree, at the level the game would play them. No tool played them.
+The three directions as they were offered, kept as the record of the choice at the top of this page. The same four sounds in each: the cursor moves, a hand of cards opens, a card is taken, a refusal. Twelve files and three that play a direction's four in a row, in `Saved\S4Report\Audio\2026-11-11_ui_v2\` of the session's worktree, at the level the game would play them. No tool played them.
 
 | | A. Stone and bronze | B. The voices | C. The old machine |
 |---|---|---|---|

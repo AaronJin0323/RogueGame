@@ -1,99 +1,77 @@
-"""Interface family (UI class, zone body; 02_Systems/audio.md R-AUD-13 to R-AUD-17): ten sounds a menu, a hand or the hub answers with.
+"""Interface family (UI class, zone body; 02_Systems/audio.md R-AUD-13 to R-AUD-17), in stone and bronze (D-066).
 
-All in the key, all soft (6 ms attacks or slower), all low-passed under the danger band. Each has its own gesture, so
-any two differ in spectrum, in their count of onsets or in length:
-  Focus     one small tick on A5                     the cursor moved
-  Step      one lower tick on E5 with a soft click   a value moved (on the volume row it plays at the new level)
-  Open      two notes up a fifth, A4 then E5         a screen opened
-  Back      one glide down, E5 to A4                 a screen closed
-  Refuse    two low thuds on A3 with C4 over them    not allowed
-  HandOpen  a rolled open chord, A3 E4 A4 C5         an offer hand opens
-  Pick      a fourth up and held, E4 then A4         a card taken
-  Reroll    three quick notes up, D5 E5 G5           the hand is dealt again
-  Banish    a falling breath and a low note on D4    a card sent away
-  Lock      a low clunk on C4 and a tick on A5       a card held
+Stone for what is small, frequent or refused; bronze for what is granted; the hall only on the rare ones.
+  Focus     a pebble set on a slab                               the cursor moved
+  Step      a heavier stone moved one notch                      a value moved
+  Open      a slab drawn aside, and it comes to rest             a screen opened
+  Back      a slab set back in its place                         a screen closed
+  Refuse    a slab that does not move, the scrape of its return  not allowed
+  HandOpen  a great bronze bowl struck softly                    an offer hand opens
+  Pick      a tablet set down, then a smaller bell               a card taken
+  Reroll    three tablets dealt out again                        the hand is dealt again
+  Banish    a tablet slid away and laid face down                a card sent away
+  Lock      a seal pressed into bronze                           a card held
 """
 
-from dtsynth import (Rng, add_at, biquad, env_ad, finish, gain, hp4, hz, lp4, mul, n_of, noise, osc, saturate)
-
-
-def note(name, sec, tau_ms, amp=1.0, tri=0.2, attack_ms=6.0):
-	f = hz(name)
-	return gain(mul(osc(sec, f, f, tri, 1.0), env_ad(n_of(sec), attack_ms, tau_ms)), amp)
-
-
-def breath(sec, seed, centre_hz, attack_ms, tau_ms, amp):
-	x = mul(noise(sec, Rng(seed)), env_ad(n_of(sec), attack_ms, tau_ms))
-	return gain(biquad(biquad(x, "bp", centre_hz, 2.0), "bp", centre_hz, 2.0), amp)
-
-
-def soft(x, cutoff):
-	"""DC block, a dip at 3.2 kHz, a gentle clip, and the low-pass last so nothing reaches the danger band."""
-	x = biquad(hp4(x, 60.0), "peak", 3200.0, 0.9, -9.0)
-	return lp4(saturate(x, 1.1), cutoff)
+from dtsynth import add_at, finish, hz
+from recipes.world import bell, breath, hall, stone, struck, world
 
 
 def focus(v=0):
-	return finish(soft(note("A5", 0.04, 9.0, 0.8, 0.1), 1900.0), 0.065, 0.5)
+	return finish(world(hall(stone("A4", 0.07, 16.0, 1.0, 11), 0.5, -22.0, 12.0, 0.4, 0.25)), 0.06, 0.6, 0.5, 30.0)
 
 
 def step(v=0):
-	x = note("E5", 0.05, 12.0, 0.8, 0.3)
-	click = lp4(mul(noise(0.01, Rng(11)), env_ad(n_of(0.01), 4.0, 2.0)), 1400.0)
-	add_at(x, click, 0.0, 0.25)
-	return finish(soft(x, 1900.0), 0.07, 0.6)
+	return finish(world(hall(stone("D4", 0.09, 24.0, 1.0, 15), 0.5, -22.0, 12.0, 0.4, 0.25)), 0.075, 0.65, 0.5, 30.0)
 
 
 def open_screen(v=0):
-	x = note("A4", 0.09, 30.0, 0.6)
-	add_at(x, note("E5", 0.14, 40.0, 0.6), 0.07)
-	return finish(soft(x, 1900.0), 0.10, 0.7)
+	x = stone("E4", 0.05, 10.0, 0.3, 22)
+	add_at(x, breath(0.14, 41, 700.0, 8.0, 50.0, 0.5, 1.5), 0.0)
+	add_at(x, stone("E4", 0.09, 22.0, 1.0, 16), 0.11)
+	return finish(world(hall(x, 0.7, -17.0, 14.0, 0.45, 0.35)), 0.10, 0.75, 0.5, 40.0)
 
 
 def back(v=0):
-	sec = 0.13
-	x = mul(osc(sec, hz("E5"), hz("A4"), 0.2, 0.8), env_ad(n_of(sec), 6.0, 38.0))
-	return finish(soft(x, 1900.0), 0.10, 0.7)
+	x = stone("A3", 0.12, 30.0, 1.0, 17)
+	add_at(x, breath(0.08, 42, 350.0, 12.0, 22.0, 0.3, 1.5), 0.05)
+	return finish(world(hall(x, 0.7, -17.0, 14.0, 0.45, 0.35), 1500.0), 0.10, 0.75, 0.5, 40.0)
 
 
 def refuse(v=0):
-	def thud(sec, tau):
-		x = note("A3", sec, tau, 0.9, 0.35, 7.0)
-		return add_at(x, note("C4", sec, tau * 0.8, 0.45, 0.35, 7.0), 0.0)
-	x = thud(0.08, 22.0)
-	add_at(x, thud(0.09, 26.0), 0.09, 0.9)
-	return finish(soft(x, 1500.0), 0.10, 0.7)
+	x = stone("A2", 0.14, 34.0, 1.0, 13)
+	add_at(x, breath(0.09, 14, 480.0, 14.0, 26.0, 0.35, 1.5), 0.07)
+	return finish(world(hall(x, 0.6, -18.0, 14.0, 0.45, 0.3), 1500.0), 0.10, 0.75, 0.5, 30.0)
 
 
 def hand_open(v=0):
-	x = []
-	for i, n in enumerate(("A3", "E4", "A4", "C5")):
-		add_at(x, note(n, 0.8, 300.0, 0.45, 0.15, 10.0), i * 0.035)
-	return finish(soft(x, 1900.0), 0.09, 0.8, 1.0, 30.0)
+	x = bell("A2", 2.6, 1100.0, 1.0, 9.0)
+	add_at(x, breath(0.5, 21, 300.0, 180.0, 160.0, 0.25), 0.0)
+	return finish(world(hall(x, 2.6, -9.0)), 0.10, 0.8, 1.0, 120.0)
 
 
 def pick(v=0):
-	x = note("E4", 0.12, 45.0, 0.7)
-	add_at(x, note("A4", 0.30, 110.0, 0.7), 0.075)
-	return finish(soft(x, 1900.0), 0.11, 0.8, 0.5, 20.0)
+	x = stone("A3", 0.08, 18.0, 0.7, 12)
+	add_at(x, bell("A3", 1.3, 520.0, 1.0, 6.0), 0.035)
+	return finish(world(hall(x, 1.7, -12.0)), 0.11, 0.8, 0.5, 80.0)
 
 
 def reroll(v=0):
-	x = []
-	for i, n in enumerate(("D5", "E5", "G5")):
-		add_at(x, note(n, 0.07, 16.0, 0.7), i * 0.045)
-	return finish(soft(x, 1900.0), 0.09, 0.7)
+	x = stone("A4", 0.07, 16.0, 0.9, 18)
+	add_at(x, stone("G4", 0.07, 16.0, 0.8, 19), 0.075)
+	add_at(x, stone("C5", 0.08, 18.0, 1.0, 20), 0.15)
+	return finish(world(hall(x, 0.7, -17.0, 14.0, 0.45, 0.35)), 0.09, 0.75, 0.5, 40.0)
 
 
 def banish(v=0):
-	x = breath(0.09, 21, 1100.0, 5.0, 25.0, 1.0)
-	add_at(x, breath(0.12, 22, 500.0, 15.0, 35.0, 1.0), 0.04)
-	add_at(x, note("D4", 0.10, 30.0, 0.5, 0.3), 0.06)
-	return finish(soft(x, 1400.0), 0.09, 0.7)
+	x = stone("D4", 0.05, 10.0, 0.3, 23)
+	add_at(x, breath(0.18, 43, 520.0, 8.0, 65.0, 0.55, 1.2), 0.0)
+	add_at(x, stone("D3", 0.12, 30.0, 1.0, 21), 0.17)
+	return finish(world(hall(x, 0.7, -17.0, 14.0, 0.45, 0.35), 1500.0), 0.09, 0.75, 0.5, 40.0)
 
 
 def lock(v=0):
-	x = note("C4", 0.07, 20.0, 0.9, 0.35)
-	add_at(x, note("A5", 0.05, 12.0, 0.5, 0.1), 0.065)
-	return finish(soft(x, 1900.0), 0.09, 0.7)
-
+	"""A damped bronze: the seal is pressed, and only its upper partials ring on for a moment."""
+	f = hz("D3")
+	x = struck(f, 0.5, ((1.0, 1.0, 45.0), (2.0, 0.6, 70.0), (3.0, 0.4, 150.0), (4.0, 0.25, 190.0)), 6.0, 1.0)
+	return finish(world(hall(x, 0.9, -15.0, 14.0, 0.45, 0.5)), 0.10, 0.75, 0.5, 60.0)

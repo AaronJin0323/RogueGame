@@ -45,15 +45,15 @@ namespace DTCat
 	inline constexpr int32 SoundCount = 10;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
-		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 40 },
-		{ TEXT("Snd.UI.Step"), TEXT("/Game/DT/Audio/SFX/SW_UI_Step"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.55f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 50 },
-		{ TEXT("Snd.UI.Open"), TEXT("/Game/DT/Audio/SFX/SW_UI_Open"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 210 },
-		{ TEXT("Snd.UI.Back"), TEXT("/Game/DT/Audio/SFX/SW_UI_Back"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 130 },
-		{ TEXT("Snd.UI.Refuse"), TEXT("/Game/DT/Audio/SFX/SW_UI_Refuse"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 180 },
-		{ TEXT("Snd.UI.HandOpen"), TEXT("/Game/DT/Audio/SFX/SW_UI_HandOpen"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 300, 1, 0.0f, false, 905 },
-		{ TEXT("Snd.UI.Pick"), TEXT("/Game/DT/Audio/SFX/SW_UI_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.65f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 375 },
-		{ TEXT("Snd.UI.Reroll"), TEXT("/Game/DT/Audio/SFX/SW_UI_Reroll"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 160 },
-		{ TEXT("Snd.UI.Banish"), TEXT("/Game/DT/Audio/SFX/SW_UI_Banish"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 160 },
-		{ TEXT("Snd.UI.Lock"), TEXT("/Game/DT/Audio/SFX/SW_UI_Lock"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 115 },
+		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 332 },
+		{ TEXT("Snd.UI.Step"), TEXT("/Game/DT/Audio/SFX/SW_UI_Step"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.55f, ESoundPitch::Fixed, 40, 2, 0.0f, false, 352 },
+		{ TEXT("Snd.UI.Open"), TEXT("/Game/DT/Audio/SFX/SW_UI_Open"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 564 },
+		{ TEXT("Snd.UI.Back"), TEXT("/Game/DT/Audio/SFX/SW_UI_Back"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 60, 2, 0.0f, false, 494 },
+		{ TEXT("Snd.UI.Refuse"), TEXT("/Game/DT/Audio/SFX/SW_UI_Refuse"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 474 },
+		{ TEXT("Snd.UI.HandOpen"), TEXT("/Game/DT/Audio/SFX/SW_UI_HandOpen"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 300, 1, 0.0f, false, 4836 },
+		{ TEXT("Snd.UI.Pick"), TEXT("/Game/DT/Audio/SFX/SW_UI_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.65f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 2806 },
+		{ TEXT("Snd.UI.Reroll"), TEXT("/Game/DT/Audio/SFX/SW_UI_Reroll"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 594 },
+		{ TEXT("Snd.UI.Banish"), TEXT("/Game/DT/Audio/SFX/SW_UI_Banish"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 654 },
+		{ TEXT("Snd.UI.Lock"), TEXT("/Game/DT/Audio/SFX/SW_UI_Lock"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, 150, 1, 0.0f, false, 1014 },
 	};
 }
