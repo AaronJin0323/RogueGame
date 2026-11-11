@@ -1,7 +1,8 @@
 #include "Audio/DTAudioScheduler.h"
 #include "Core/DTConstantsGen.h"
 
-static_assert(DTAudio::KeyDegrees[UE_ARRAY_COUNT(DTAudio::KeyDegrees) - 1] == DTConst::AUD_KEY_SEMIS_MAX, "the key's top degree is C.AUD.KEY_SEMIS_MAX");
+static_assert(DTAudio::HighestDegree() == DTConst::AUD_KEY_SEMIS_MAX, "the highest degree any written note draws is C.AUD.KEY_SEMIS_MAX");
+static_assert(static_cast<int32>(DTCat::ESoundNote::G) == 5, "DTAudio::NoteDegrees is indexed by DTCat::ESoundNote");
 
 namespace DTAudioSchedulerLocal
 {
@@ -45,6 +46,36 @@ void FDTAudioScheduler::Reset(uint64 Seed)
 	Alive.Reset();
 	PlayerStarts.Reset();
 	StartsThisFrame = 0;
+	Stream = Seed;
+	DuckStart = -1.0e9;
+	DuckHoldUntil = -1.0e9;
+	DuckFrom = 0.0f;
+	DuckDb = 0.0f;
+}
+
+void FDTAudioScheduler::ResetRun(uint64 Seed)
+{
+	using namespace DTAudioSchedulerLocal;
+	// Only the run side: the interface's voices, interval times and waiting batches belong to the world, not to the run.
+	for (int32 Sound = 0; Sound < Rows.Num(); ++Sound)
+	{
+		if (!IsUi(Sound))
+		{
+			LastStartStep[Sound] = DTAudNever;
+			LastVariant[Sound] = INDEX_NONE;
+		}
+	}
+	for (TArray<FBatch>* Left : { &Pending, &Waiting })
+	{
+		Left->RemoveAll([this](const FBatch& Batch)
+		{
+			const bool bRun = !IsUi(Batch.Sound);
+			Counts[Batch.Sound].Dropped += bRun ? Batch.Count : 0;
+			return bRun;
+		});
+	}
+	Alive.RemoveAll([](const FLive& Live) { return !Live.bRealTime; });
+	PlayerStarts.Reset();
 	Stream = Seed;
 	DuckStart = -1.0e9;
 	DuckHoldUntil = -1.0e9;
@@ -122,8 +153,10 @@ void FDTAudioScheduler::Frame(double Now, int64 Step, TArray<FDTAudioVoice>& Out
 	StartsThisFrame = 0;
 	Expire(Now, Step);
 
-	// One batch per id and step (per id for the interface: one frame), in the order asked.
-	TArray<FBatch> Batches = MoveTemp(Waiting);
+	// One batch per id and step (per id for the interface: one frame), in the order asked. Member arrays: nothing is allocated
+	// per frame once they have grown to the busiest frame.
+	Batches.Reset();
+	Batches.Append(Waiting);
 	Waiting.Reset();
 	for (const FBatch& Asked : Pending)
 	{
@@ -245,10 +278,10 @@ void FDTAudioScheduler::Start(const FBatch& Batch, double Now, int64 Step, TArra
 	Voice.Variant = (LastVariant[Batch.Sound] + 1) % Variants;
 	LastVariant[Batch.Sound] = Voice.Variant;
 	float JitterDb = 0.0f;
-	if (!bDanger && Row.Pitch == DTCat::ESoundPitch::Key)
+	if (!bDanger && Row.Pitch == DTCat::ESoundPitch::Key && Row.Note != DTCat::ESoundNote::None)
 	{
-		constexpr int32 NumDegrees = static_cast<int32>(UE_ARRAY_COUNT(DTAudio::KeyDegrees));
-		const int32 Degree = DTAudio::KeyDegrees[FMath::Min(NumDegrees - 1, static_cast<int32>(NextUnit() * NumDegrees))];
+		const int32* Degrees = DTAudio::NoteDegrees[static_cast<int32>(Row.Note)];
+		const int32 Degree = Degrees[FMath::Min(DTAudio::NumDegrees - 1, static_cast<int32>(NextUnit() * DTAudio::NumDegrees))];
 		Voice.Pitch = FMath::Pow(2.0f, Degree / 12.0f);
 		JitterDb = (NextUnit() * 2.0f - 1.0f) * DTConst::AUD_LEVEL_JITTER_DB;
 	}

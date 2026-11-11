@@ -28,8 +28,11 @@ class DUSKTRACER_API FDTAudioScheduler
 public:
 	/** The rows this scheduler serves (the generated table, or a test's own) and its stream's seed. */
 	void Configure(TConstArrayView<DTCat::FSoundRow> InRows, uint64 Seed);
-	/** A new run: forgets voices, waits, starts and the duck, reseeds the stream; the counts stay. */
+	/** Forgets everything but the counts, and reseeds the stream (a new world's start). */
 	void Reset(uint64 Seed);
+	/** A new run in the same world: only the run side is forgotten (its voices, intervals, waits, starts per second, the duck) and
+	 *  the stream reseeded; the interface's voices, interval times and waiting batches stay. What the run left waiting is dropped. */
+	void ResetRun(uint64 Seed);
 
 	/** A run sound: Count events of Sound at sim step Step (an observer calls it at OnStepEnd). */
 	void Request(int32 Sound, int32 Count, int64 Step);
@@ -98,6 +101,7 @@ private:
 	TArray<int32> LastVariant;
 	TArray<FBatch> Pending;
 	TArray<FBatch> Waiting;
+	TArray<FBatch> Batches;
 	TArray<FLive> Alive;
 	/** Sim steps of the player starts of the last second (R-AUD-07). */
 	TArray<int64> PlayerStarts;
