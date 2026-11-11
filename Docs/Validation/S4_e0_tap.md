@@ -50,6 +50,8 @@ Tests: `RunTests.ps1 -Filter Dusktracer.Impact` 1 run of 1, 0 failed; `-Filter D
 
 Gate: `GATE: PASS (08a4724; 3 not run; mask FFFFF3FC)`. The three not run are `pad` (no package), `scope` (no brief in flight) and `mac` (D-007). Build, shipping and devgame have 0 warnings.
 
+The whole gate read `GATE: PASS (08a4724; 3 not run; mask FFFFF3FC)` on `dev/s4` bc59250. `dev/s4` 0f8a973 (documents only: `audio.md` and the audio plan note) was merged afterwards (cc58c16) and the gate's text steps were rerun on the merged tip: `GATE: PASS (cc58c16; 19 not run; mask FFFFF3FC)`.
+
 The docs step failed on the first gate, on the spec's form. It was fixed in form only (08a4724): the decision item on line 3 went into a code span, the second step's constants are named as a new `IMP` group and not as a `C.` key that does not exist yet, and R-IMP-02's test is listed as T-IMP-02 PLANNED(S4) for the second step to build with its first reader.
 
 ## 5. Not verified
