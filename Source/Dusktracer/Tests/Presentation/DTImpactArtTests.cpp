@@ -16,7 +16,11 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Engine/Font.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/Csv/CsvParser.h"
 #include "Presentation/DTImpactArt.h"
 #include "Presentation/DTImpactRenderer.h"
 #include "Presentation/DTImpactSubsystem.h"
@@ -29,6 +33,9 @@ namespace DTImpactArtTest
 	constexpr EAutomationTestFlags Flags = EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter;
 	constexpr float Hz = static_cast<float>(DTConst::SIM_FIXED_HZ);
 	constexpr float Tolerance = 1.0e-3f;
+	/** The settings screen's panel width and hint scale on its 1080-line reference canvas (Settings/DTMenuScreen.cpp PanelW, HintScale). */
+	constexpr float MenuPanelWidth = 1120.0f;
+	constexpr float MenuHintScale = 1.25f;
 
 	/** A headless game world with every world subsystem up and begun (as Tests/Presentation/DTTracerArtTests.cpp builds it). */
 	struct FTestWorld
@@ -814,6 +821,32 @@ bool FDTImpactHeroRing::RunTest(const FString& Parameters)
 		bSamePieces &= On.Pieces.Items[Slot].Piece.Dir == Off.Pieces.Items[Slot].Piece.Dir && On.Pieces.Items[Slot].Piece.Speed == Off.Pieces.Items[Slot].Piece.Speed;
 	}
 	TestTrue(TEXT("the same pieces"), bSamePieces);
+
+	// The Screen flashes row's focus hint says what Off now does (settings.md R-SET-09); drawn on one line, it must fit the settings panel
+	// at the largest text size in both languages: the hint's scale times the text size times its width at scale 1, against the panel.
+	FString Csv;
+	const FString CsvPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_UI.csv"));
+	if (TestTrue(TEXT("ST_UI.csv is readable"), FFileHelper::LoadFileToString(Csv, *CsvPath)) && TestNotNull(TEXT("the menu font"), GEngine->GetLargeFont()))
+	{
+		const FCsvParser Parser(Csv);
+		bool bFound = false;
+		for (const TArray<const TCHAR*>& Row : Parser.GetRows())
+		{
+			if (Row.Num() < 3 || FCString::Strcmp(Row[0], TEXT("Settings.Hint.Flash")) != 0)
+			{
+				continue;
+			}
+			bFound = true;
+			const float Largest = static_cast<float>(DTConst::SETTINGS_TEXT_MAX_PCT) / static_cast<float>(DTConst::SETTINGS_TEXT_MIN_PCT);
+			for (int32 Column = 1; Column <= 2; ++Column)
+			{
+				const float Width = static_cast<float>(GEngine->GetLargeFont()->GetStringSize(Row[Column])) * DTImpactArtTest::MenuHintScale * Largest;
+				TestTrue(FString::Printf(TEXT("the flash hint fits the panel at the largest text (%s: %.0f of %.0f)"), Column == 1 ? TEXT("en") : TEXT("zh-Hans"), Width, DTImpactArtTest::MenuPanelWidth),
+					Width <= DTImpactArtTest::MenuPanelWidth);
+			}
+		}
+		TestTrue(TEXT("the row Settings.Hint.Flash is there"), bFound);
+	}
 	return true;
 }
 
