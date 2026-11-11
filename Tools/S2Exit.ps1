@@ -3,6 +3,7 @@
 # Run by hand. The S2 row says nightly: nothing schedules this.
 # Steps: the 18 showcase arms at each skill on bot v2 (<Out>\bots_<skill>), T-KEE-18 on the first skill's L16 builds up to seed -Builds
 # (<Out>\ab; judged by loss with share printed beside it, and the no-second-Keeper control scenes, D-047), T-KEE-15 on every Keeper (<Out>\ik), then the reader. -ReadOnly only reads. -Unlock "" reads the starter pool.
+# -Unlock S2, the default, goes to every BotRuns call: the S2 arsenal, the S1 non-starters and Reaction.Duos (BotRuns.ps1 Expand-Unlock).
 # Every launch goes through Tools/BotRuns.ps1: -game -nullrhi -nosplash, hidden, killed by PID.
 # Prints the reader's EXIT lines and "S2EXIT: ..."; exit 0 when it ran, whatever the verdicts, 1 on a script error.
 param(

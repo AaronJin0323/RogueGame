@@ -1227,6 +1227,118 @@ def first_statement(name, text):
 	return code[i].strip() if i < len(code) else ""
 
 
+def ps_function(path, name):
+	"""The text of one `function <name> ... { ... }` of a PowerShell file, by brace depth (no brace inside its strings)."""
+	with open(path, encoding="utf-8") as f:
+		text = f.read()
+	start = text.index(f"function {name}")
+	depth, i = 0, text.index("{", start)
+	while True:
+		depth += {"{": 1, "}": -1}.get(text[i], 0)
+		i += 1
+		if depth == 0:
+			return text[start:i]
+
+
+# Catalogs whose S2 rows -Unlock S2 leaves out on purpose, and why.
+UNLOCK_LEFT_OUT = {"expression.csv": "S2 Keepers: each arm unlocks its own (keepers.md R-KEE-23 seats an unlocked Keeper first)"}
+# Catalogs -Unlock S2 expands row by row (their `id` column).
+UNLOCK_BY_ROW = ("weapons.csv", "modifiers.csv")
+
+
+def s2_rows(catalog):
+	"""{catalog file: [ids of its S2 rows]} for every catalog with a stage column."""
+	out = {}
+	for name in sorted(os.listdir(catalog)):
+		if not name.endswith(".csv"):
+			continue
+		with open(os.path.join(catalog, name), encoding="utf-8", newline="") as f:
+			rows = list(csv.DictReader(f))
+		col = next((c for c in ("stage", "Stage") if rows and c in rows[0]), None)
+		if col:
+			key = "id" if "id" in rows[0] else next(iter(rows[0]))
+			out[name] = [r.get("Archetype", r[key]) for r in rows if r[col] == "S2"]
+	return out
+
+
+def unlock_misses(catalog, expansion):
+	"""S2 rows the expansion does not name: rows of a by-row catalog missing from it, and any staged catalog nobody handles."""
+	misses = []
+	for name, ids in s2_rows(catalog).items():
+		if name in UNLOCK_LEFT_OUT:
+			continue
+		if name not in UNLOCK_BY_ROW:
+			misses += [f"{name}:{i}" for i in ids]
+			continue
+		misses += [f"{name}:{i}" for i in ids if i not in expansion]
+	return misses
+
+
+class UnlockExpansion(unittest.TestCase):
+	"""BotRuns.ps1 -Unlock S2: every S2 row of weapons.csv and modifiers.csv, the S1 non-starters and Reaction.Duos; no Keeper."""
+
+	def setUp(self):
+		self.func = ps_function(os.path.join(TOOLS, "BotRuns.ps1"), "Expand-Unlock")
+		self.tmp = tempfile.TemporaryDirectory()
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def expand(self, ids, root=None):
+		root = root or os.path.dirname(TOOLS)
+		arg = ", ".join(ps_quote(i) for i in ids)
+		script = os.path.join(self.tmp.name, "expand.ps1")
+		with open(script, "w", encoding="utf-8") as f:
+			f.write(f"$ErrorActionPreference = 'Stop'\n$Root = {ps_quote(root)}\n{self.func}\n'UNLOCK=' + ((Expand-Unlock @({arg})) -join ',')\n")
+		rc, out = powershell(f"& {ps_quote(script)}")
+		self.assertEqual(rc, 0, out)
+		line = [x for x in out.splitlines() if x.startswith("UNLOCK=")][-1]
+		return [x for x in line[len("UNLOCK="):].split(",") if x]
+
+	def copy_catalog(self):
+		dest = os.path.join(self.tmp.name, "Docs", "09_Catalog")
+		shutil.copytree(gen_catalog.CATALOG, dest)
+		return dest
+
+	def test_s2_names_every_s2_row_and_nothing_else(self):
+		got = self.expand(["S2"])
+		self.assertEqual(unlock_misses(gen_catalog.CATALOG, got), [])
+		self.assertEqual(len(got), len(set(got)))
+		want = []
+		for name in UNLOCK_BY_ROW:
+			with open(os.path.join(gen_catalog.CATALOG, name), encoding="utf-8", newline="") as f:
+				want += sorted({r["id"] for r in csv.DictReader(f) if r["stage"] == "S2" or (r["stage"] == "S1" and r["starter"] == "no")})
+		self.assertEqual(got, want + ["Reaction.Duos"])
+		self.assertIn("Weapon.GravityMine", got)
+		self.assertFalse([i for i in got if i.startswith("Keeper.")])
+
+	def test_a_catalog_row_added_at_s2_joins_the_expansion(self):
+		cat = self.copy_catalog()
+		file = os.path.join(cat, "modifiers.csv")
+		with open(file, encoding="utf-8", newline="") as f:
+			rows = list(csv.reader(f))
+		extra = list(rows[-1])
+		extra[0], extra[rows[0].index("stage")] = "Mod.UnlockProbe", "S2"
+		with open(file, "a", encoding="utf-8", newline="") as f:
+			csv.writer(f, lineterminator="\n").writerow(extra)
+		# The expansion reads the catalogs, so the new row is named; a list that lacks it is what the case catches.
+		self.assertEqual(unlock_misses(cat, self.expand(["S2"], root=self.tmp.name)), [])
+		self.assertEqual(unlock_misses(cat, self.expand(["S2"])), ["modifiers.csv:Mod.UnlockProbe"])
+
+	def test_a_new_staged_catalog_fails_until_it_is_handled(self):
+		cat = self.copy_catalog()
+		with open(os.path.join(cat, "traps.csv"), "w", encoding="utf-8", newline="") as f:
+			f.write("id,stage\nTrap.Probe,S2\nTrap.Old,S1\n")
+		self.assertEqual(unlock_misses(cat, self.expand(["S2"], root=self.tmp.name)), ["traps.csv:Trap.Probe"])
+
+	def test_other_ids_pass_and_nothing_stays_nothing(self):
+		self.assertEqual(self.expand(["Weapon.GravityMine", "Keeper.Shade"]), ["Weapon.GravityMine", "Keeper.Shade"])
+		self.assertEqual(self.expand([]), [])
+		got = self.expand(["Keeper.Shade", "S2"])
+		self.assertEqual(got[0], "Keeper.Shade")
+		self.assertIn("Reaction.Duos", got)
+
+
 class Machine(unittest.TestCase):
 	"""D-052: every Tools entry script applies the machine's processor mask first (Tools/Machine.ps1), and the gate's `cpu` step catches a bad processor."""
 

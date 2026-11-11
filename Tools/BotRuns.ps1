@@ -4,7 +4,9 @@
 #                       [-Jobs <jobs.csv>] [-Stagger 1.5] [-Policy All|BlessingsOnly]
 # -BotVersion 1 is the S1 bot and stays the default, so every S1 command reads as it did (R-BOT-01); 2 is bot v2.
 # Arms: None | Random | Steered:<Path>:<Archetype>[:<SecondPath>[:<SecondArchetype>]]. An arm naming an S2 Keeper unlocks it for that run (-DTUnlock, keepers.md
-# R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. Each run launches the game headless
+# R-KEE-23); -ArmSet S2Keepers adds the nine S2 archetypes, each with a second Keeper. -Unlock S2 (DT.Unlock per id) puts every
+# S2 weapon and modifier, the S1 non-starters and Reaction.Duos (duo reactions and duo cards, reactions.md R-REA-02) in the pool;
+# it unlocks no Keeper, and elites, Reforging and evolutions are on in every run (Expand-Unlock). Each run launches the game headless
 # (UnrealEditor-Cmd -game -nullrhi -unattended, on the hidden desktop of Tools/HiddenLaunch.ps1: no flag is the no-window rule, AGENTS.md)
 # with -DTSeed=<seed> -DTBot=... -DTBotFast=<Steps> -DTBotQuit, so the bot
 # drives player 0, answers every hand and quits when the run is over (death, boss victory or -MaxSeconds of sim time).
@@ -35,7 +37,7 @@ param(
 	[string]$Map = "/Game/DT/Maps/L_Arena_Test",
 	[string]$Jobs = "",
 	[double]$Stagger = 1.5,
-	# Non-starter ids to put in the run pool (DT.Unlock, D-013), comma-separated; "S2" = every S2 row of the catalogs plus the S1 non-starters.
+	# Non-starter ids to put in the run pool (DT.Unlock, D-013), comma-separated; "S2" expands as Expand-Unlock says.
 	[string[]]$Unlock = @(),
 	# R-BOT-16: the measuring arm that takes the primary weapon's upgrades first until it can evolve.
 	[switch]$PrimaryFirst,
@@ -79,18 +81,32 @@ if ($Policy -ne "All") {
 	# The filter sits in v1's card score (DTBotBrain CardScore): v2 would ignore it and the reading would claim it had run.
 	if ($BotVersion -ne 1) { throw "-Policy $Policy reads bot v1, not -BotVersion $BotVersion" }
 }
+function Expand-Unlock([string[]]$Ids) {
+	# "S2" = every S2 row of weapons.csv and modifiers.csv and the S1 non-starters (D-013), each catalog's ids sorted, then
+	# Reaction.Duos, the one pool id of the duo reactions and duo cards (reactions.md R-REA-02). Other ids pass as given.
+	# Not Keeper.<Path>: an arm unlocks its own S2 Keepers (-DTUnlock below), because an unlocked Keeper takes a seat first
+	# in the Patron hand (keepers.md R-KEE-23) and three of them would leave an S1 arm no seat for its Patron.
+	# Elites, the Reforging hand and evolutions need no id: the director's EliteWave rows and the L16 hand are always on.
+	# Tools/tools_test.py runs this function alone (UnlockExpansion): keep it self-contained, reading only $Root.
+	$List = foreach ($Id in $Ids) {
+		if ($Id -ne "S2") { $Id; continue }
+		foreach ($Csv in @("weapons.csv", "modifiers.csv")) {
+			Import-Csv (Join-Path $Root "Docs\09_Catalog\$Csv") | Where-Object { $_.stage -eq "S2" -or ($_.stage -eq "S1" -and $_.starter -eq "no") } |
+				ForEach-Object { $_.id } | Sort-Object -Unique
+		}
+		"Reaction.Duos"
+	}
+	if (-not $List) { return @() }
+	return @($List | Select-Object -Unique)
+}
+$Unlock = @(Expand-Unlock @($Unlock | ForEach-Object { $_ -split ',' } | Where-Object { $_ }))
+
 if ($Seeds -le 0) { $Seeds = if ($Check -match "T-DIR-01") { [int](Get-Constant "DIR.BOT_RUNS") } else { 1 } }
 if (-not $Out) { $Out = Join-Path $Root ("Saved\BotRuns\" + (Get-Date -Format "yyyyMMdd_HHmmss")) }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path # the game resolves -ABSLOG / -DTBotOut against its own working directory, not this shell's
 Write-Host ("botruns: arms {0}, seeds {1}..{2}, version {3}, skill {4}, policy {5}, {6} steps/frame -> {7}" -f ($Arms -join ' '), $FirstSeed, ($FirstSeed + $Seeds - 1), $BotVersion, $Skill, $Policy, $Steps, $Out)
 
-$Unlock = @($Unlock | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
-if ($Unlock -contains "S2") {
-	$Unlock = @(foreach ($Csv in @("weapons.csv", "modifiers.csv")) {
-		Import-Csv (Join-Path $Root "Docs\09_Catalog\$Csv") | Where-Object { $_.starter -eq "no" } | ForEach-Object { $_.id } | Sort-Object -Unique
-	})
-}
 $UnlockArg = if ($Unlock.Count) { @("-ExecCmds=`"" + (($Unlock | ForEach-Object { "DT.Unlock $_" }) -join ',') + "`"") } else { @() }
 
 $Missing = 0
