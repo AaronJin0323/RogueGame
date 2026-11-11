@@ -111,3 +111,23 @@ tools:      TOOLS: PASS (287 tests)
 GATE: PASS (ede45e6; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s3_gate.txt` in the carrying worktree.
+
+## Fifth carry: `carry6/s2` (`main` 75acd0d in `dev/s2`) into `dev/s3` ac106f4 (`carry6/s3`)
+- Conflicts and resolutions:
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff 75acd0d -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+  - `Tools/Gate.ps1`: `dev/s3`'s heavy steps (`restart`, `meta`, `vigil`, `firstrun`, `win`, `earned`) take `Start-HeavyStep`. `matrix` is a text step. No `Skipped` guard is left on a step that launches.
+  - `Tools/PackageFiles/ExportTelemetry.ps1`: `main` changed its manifest text, and `dev/s3` had deleted it for `Export_Logs.ps1`. It stays deleted, and `main`'s new manifest facts go into `Export_Logs.ps1`'s manifest in `main`'s words: every hit with its source and both positions, a drop-in or a charging Rusher, health restored, enemies dropped in, a bot at fast speed, five clock readings, and that the export takes every run in the folder. `dev/s3`'s own lines and its zh line are kept.
+  - `Docs/02_Systems/package.md`: `main`'s list of what a run file holds, with `dev/s3`'s `config`, `driver` and its line on the save and `DTSettings.ini`; `main`'s line on PadCheck's human half beside `dev/s3`'s Shipping-log line.
+  - `Validation/S1_kit.md`: `main`'s session A text, as on `dev/s2`; the kit is `main`'s package.
+  - `Tools/tools_test.py`: the heavy-entry list without `Gate.ps1`, with `dev/s3`'s scripts kept.
+- Tests that pin behaviour differing by branch: `main`'s `Manifest` case read `ExportTelemetry.ps1`, which `dev/s3` does not ship. It now reads `Export_Logs.ps1`'s manifest block, with every one of its phrases. `dev/s3`'s `ReadAll.test_the_gate_step_asks_for_it` pinned the old guard text of the firstrun step; its pin follows `Start-HeavyStep`, and the check is unchanged.
+- Scripts changed beyond `main`'s: `Tools/Gate.ps1`, `Tools/PackageFiles/Export_Logs.ps1` (the manifest lines) and `Tools/tools_test.py`.
+- Counts: 547 tests, floor 547; `tools_test.py` 326.
+- Seed 9107 on fdc10f1, unchanged: v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`; RestartCheck `276faf8e`; MetaCheck `ba2a3ac8`; firstrun 6/6 at the boss.
+
+```
+tools:      TOOLS: PASS (326 tests)
+tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
+GATE: PASS (fdc10f1; 3 not run; mask FFFFF3FC)
+```
+`dev/s3` then moved by one documents-only commit (d1dfec0, `S3_kit.md`). It was merged (403e732), and the text steps reran with every heavy step skipped, taking no slot: `GATE: PASS (403e732; 19 not run; mask FFFFF3FC)`, `TOOLS: PASS (326 tests)`. Logs: `Saved\Logs\c6s3_gate.txt` and `c6s3_text.txt` in the carry agent's worktree.

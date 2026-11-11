@@ -177,12 +177,14 @@ bool FDTMetBadFileBranches::RunTest(const FString& Parameters)
 		TestEqual(TEXT("a file that cannot be read sticks the session"), Session.Open(Locked), EDTMetaOpen::Stuck);
 		TestTrue(TEXT("on an empty profile"), DTMeta::IsEmpty(Session.Profile));
 		TestTrue(TEXT("with nothing set aside"), Session.AsidePath.IsEmpty() && !IFileManager::Get().FileExists(*(Locked + TEXT(".bad.1"))));
+		TestEqual(TEXT("and the hub's line says it cannot be opened (vigil.md R-VIG-21)"), Session.Notice(), EDTMetaNotice::SaveUnreadable);
 		Session.Profile.Currency = 7;
 		TestFalse(TEXT("and it writes nothing"), Session.Write());
 	}
 	TestTrue(TEXT("the file is untouched"), ReadFile(Locked) == Good);
 	FDTMetaSession Later;
 	TestTrue(TEXT("and reads again once it can be"), Later.Open(Locked) == EDTMetaOpen::Read && Later.Profile.Currency == 40);
+	TestEqual(TEXT("with nothing to say"), Later.Notice(), EDTMetaNotice::None);
 #endif
 	return true;
 }

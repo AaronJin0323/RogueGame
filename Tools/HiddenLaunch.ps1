@@ -166,6 +166,16 @@ function Stop-DTHidden($Proc) {
 # Holds this script and all it starts from now on inside the machine's mask, by the same job limit as a launch (no limit without a mask).
 function Hold-DTProcess { return [DTHiddenDesktop]::HoldSelf() }
 
+# The one log line the launch job's affinity limit makes the engine write (D-052): a worker thread asks for a processor the limit leaves out
+# and Windows refuses it with ERROR_GEN_FAILURE (0x1f). Shown with and without the limit on one package (Validation/S2_package.md). A check that fails on
+# any log warning sets aside exactly these lines, and only for a launch the limit held; it counts them and says so. Every other warning still counts.
+$DTLimitWarning = '^(\[[^\]]*\]\[[^\]]*\])?LogThreadingWindows: Warning: Runnable thread .+ call to SetThreadAffinity failed with: 0x1f$'
+function Split-DTLimitWarnings([string[]]$Lines) {
+	$Held = [DTHiddenDesktop]::Affinity -ne 0
+	$Kept = @($Lines | Where-Object { -not ($Held -and $_ -cmatch $DTLimitWarning) })
+	return @{ Kept = $Kept; SetAside = @($Lines).Count - $Kept.Count; Held = $Held }
+}
+
 function Get-DTHiddenWindows { return [DTHiddenDesktop]::Visible() }
 
 function Close-DTHidden { [DTHiddenDesktop]::Close() }

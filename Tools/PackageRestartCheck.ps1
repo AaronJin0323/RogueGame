@@ -58,6 +58,7 @@ New-Item -ItemType Directory -Force $LogDir, $WorkDir | Out-Null
 if (Test-Path $UserDirs) { Remove-Item $UserDirs -Recurse -Force }
 
 $script:Failures = @()
+$script:LimitSetAside = 0
 function Note-Fail([string]$Text) { Write-Host "  ! $Text"; $script:Failures += $Text }
 
 function Remove-Runs {
@@ -121,8 +122,11 @@ function Read-Log([string]$Tag, [string]$Log) {
 	$Result = @{ ReloadMs = -1.0; ColdS = ""; ReloadS = ""; Starts = @($Lines | Where-Object { $_ -match "LogDT: Run start seed=[1-9]" }).Count; SettingsReads = @($Lines | Where-Object { $_ -match "LogDT: Settings: " }).Count }
 	$Crash = @($Lines | Where-Object { $_ -match "Fatal error|=== Critical error:? ===|Unhandled Exception|Ensure condition failed|LogDT: (Error|Fatal)" })
 	if ($Crash.Count) { Note-Fail "$Tag crash marker: $($Crash[0])" }
-	# A missing asset, table or shader is a warning or an error in a Development log; a clean log has none at all.
-	$Cook = @($Lines | Where-Object { $_ -cmatch ": (Warning|Error): " })
+	# A missing asset, table or shader is a warning or an error in a Development log; a clean log has none at all, but for the one line the launch
+	# job's affinity limit makes the engine write (D-052, Split-DTLimitWarnings in Tools/HiddenLaunch.ps1), set aside and counted (R-PKG-10).
+	$Split = Split-DTLimitWarnings @($Lines | Where-Object { $_ -cmatch ": (Warning|Error): " })
+	$script:LimitSetAside += $Split.SetAside
+	$Cook = $Split.Kept
 	if ($Cook.Count) { Note-Fail "$Tag log warning or error ($($Cook.Count)): $($Cook[0])" }
 	$Maps = @($Lines | ForEach-Object { if ($_ -match "Took ([0-9.]+) seconds to LoadMap") { $Matches[1] } })
 	if ($Maps.Count) { $Result.ColdS = $Maps[0]; $Result.ReloadS = $Maps[$Maps.Count - 1] }
@@ -265,7 +269,7 @@ Remove-Runs
 
 $Reloads = @($B.ReloadMs, $C.ReloadMs, $D.ReloadMs) | Where-Object { $_ -ge 0 }
 if ($Reloads.Count -ne 3) { Note-Fail "only $($Reloads.Count) of 3 reloads timed" }
-$Summary = "same cook={0}, hash {1}, csv same={2}, shipping bridge={3}, reloads ms {4}, LoadMap s first {5} reload {6}" -f $SameCook, $Restarted["input_hash"], $CsvOk, $BridgeOk, (($Reloads | ForEach-Object { "{0:n0}" -f $_ }) -join " "), $B.ColdS, $B.ReloadS
+$Summary = "same cook={0}, hash {1}, csv same={2}, shipping bridge={3}, reloads ms {4}, LoadMap s first {5} reload {6}, limit warnings set aside {7} (D-052)" -f $SameCook, $Restarted["input_hash"], $CsvOk, $BridgeOk, (($Reloads | ForEach-Object { "{0:n0}" -f $_ }) -join " "), $B.ColdS, $B.ReloadS, $script:LimitSetAside
 if ($script:Failures.Count) {
 	Write-Host "PKGRESTART: FAIL ($($script:Failures.Count) failure(s), first: $($script:Failures[0]); $Summary)"
 	exit 1
