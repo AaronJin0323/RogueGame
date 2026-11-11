@@ -47,7 +47,7 @@ Write the Ledger-stone reading in `findings_S3.md` before the first run. A save 
 After the session the zip checks it again:
 - It holds that validator's runs and no others. More files than runs played means the account was shared.
 - `S3Exit` refuses any run in two validators' zips (`under two validators`): they shared a folder, so they shared a save.
-- `S3Exit` reads `Fresh` as FAIL when a validator's first run showed a card no fresh save of that build can hold. It only works one way: a clean hand proves nothing.
+- `S3Exit` reads `Fresh` as FAIL when a validator's first run showed a card no fresh save of that build can hold. It only works one way: a clean hand proves nothing. From D-064 a fresh save holds the Amps and Trait of Arc Grid, Hammer and Frost beside the nine Keys (`meta.md` R-MET-25), so one of those in a first hand proves nothing either; `S3Exit` reads the build's own list and leaves them out.
 
 The owner's own runs read differently too: `Tools\Play.bat` runs say `config` `Development`, and anything from before this kit has no `driver`. Both are refused.
 
@@ -109,6 +109,8 @@ Pause (`Esc`, pad Menu) offers Restart run, Abandon run and Quit to desktop, eac
 
 The zh wording is a first draft; the host may reword it and writes down what was asked.
 
+Question 2 is also asked once after the validator's first run, before anything is bought (D-064 reads it); write the answer beside "run 1".
+
 ## What they send back
 With the game closed, the validator double-clicks `Export_Logs.bat` in the package folder. It makes one file on the desktop, `Dusktracer_Logs_<date>_<time>.zip`, and prints where. Nothing leaves the PC by itself: they hand that one file to the host. A second export is fine: it holds every run so far.
 
@@ -166,7 +168,7 @@ Then triage every finding (class, layer, owner) in `findings_S3.md`.
 - A real pad through `S3Exit`, and a first hand from a real fresh save through `Fresh`: both are held on fixtures only.
 - The real path of the save and the run files under `%LOCALAPPDATA%` on Shipping: no check aims there, on purpose (`S3_package.md`). `PadCheck` last read a run there on package `53d3547` (`S3_logs.md`), before it took a `-userdir`, so the first zip is the next reading. The Ledger-stone is what the host trusts.
 - That a person reads this sheet as written: nobody has hosted from it.
-- **Fresh against full.** The kit plays fresh saves only, so it cannot say whether opening the pool makes a run stronger or weaker for a person (the bot won 69 of 90 on the first-run pool against 47 on the full pool, `S3_tree.md`). That is read in the owner's rehearsal of the kit, one run on a fresh save and one on a full profile, with the owner's word on which felt stronger.
+- **Fresh against full.** The kit plays fresh saves only, so it cannot say whether opening the pool makes a run stronger or weaker for a person (the bot won 69 of 90 on the first-run pool against 47 on the full pool, `S3_tree.md`, read before D-064 opened one archetype per S1 Keeper). That is read in the owner's rehearsal of the kit, one run on a fresh save and one on a full profile, with the owner's word on which felt stronger.
 
 ## Readings of the kit
 Class **SYSTEM**, layer the measuring tools. It replaces `S1_kit.md` as the kit the package's `README.txt` names on S3 builds, sorting runs by a noted start time with a zip per validator, and `PadCheck`'s shared folder and PID bookkeeping with a `-userdir` of its own. No rule of play moved and no number was tuned.
