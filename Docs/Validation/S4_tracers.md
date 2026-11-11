@@ -60,6 +60,8 @@ Where this differs from the plan's text or the brief:
 
 ## 3. Perf, before and after
 
+> Replaced by `S4_perf_1080p.md` (2026-11-11): the readings below rendered 888x500 while recording 1920x1080, most on a busy machine; that note holds the reading of record at the real size, alone.
+
 `Tools/Perf.ps1`, 1920x1080, RTX 4080, GPU p95 times `C.PERF.GPU_PROXY_4080_TO_4070`. Four other agents were building and launching on this machine throughout, so every line names what a process list and a CPU reading showed just before the run; `Saved/gpu.lock` sees none of it. A reading is a bound, and the scheduler's on the merged tree is the verdict (`S4_wave1.md` §2 rule 6).
 
 The machine was never quiet for a whole pass, so the readings were taken two ways: alone, whenever a run could start, and **paired**: the module built from `dev/s4` at 55a504c and the module of 20c8fd3 swapped into the same build tree and read one after the other on the same scene, so both sides of a pair meet about the same outside load. A reading is void, and listed apart, when its GPU p95 is over one and a half times its own p50 or its p50 is over 1.2 times the scene's lowest: both are another process on the card.
