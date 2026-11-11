@@ -26,12 +26,12 @@ The owner's taste is on record from RogueHero's playtest of 2026-10-20, after tw
 
 In the form of `13_Decisions/`. The scheduler numbers it or returns it.
 
-### D-nnn — Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger
+### D-056 — Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger
 
 - **Date:** 2026-11-11
 - **Decider:** scheduler (delegated, D-009), on a draft by the Sound module session (D-055 item 4)
 - **Class:** SYSTEM (presentation; no sim rule or number moves), with the scope calls of the wave
-- **Status:** open
+- **Status:** accepted (D-056, with the scheduler's rulings, 2026-11-11)
 
 #### Context
 D-055 item 8 opens audio with a first wave on `dev/s4` and asks for these decisions first. The gap note sizes audio at three rows (§2.3: the runtime, the density layers, the 24 signatures) and the heartbeat of §2.4, and leaves two calls open in its §6.3: whether RogueHero's Art §11 is what "audio signatures" means, and whether a music bed is in scope. The source's rule for density is one sound per kill, a crowd layer fading in from 20 to 60 kills a second, crowd plus low end above 60. The source's rule for sides is that enemy fire and telegraphs get the sharp sounds and player fire is soft, "so danger is heard first" (`reference/original_docs/05_ArtDirection.md` §11). Wave 1's four limits bind (D-043 Option C). §1 above holds the facts found.
@@ -125,10 +125,10 @@ Audio never walks the bullet or enemy arrays. It reads counts, and at most `AUD.
 | Kill rate | What is heard |
 |---|---|
 | up to `C.PRE.DENSITY_LOD_KILLS_PER_S` (20) | one sound per kill |
-| above it, until `AUD.LOWEND_ON_KILLS_PER_S` 60 | the crowd loop fades in, reaching full at 60; single kills thin to `AUD.KILL_DENSE_VOICES_PER_S` 8 a second |
-| above 60 | crowd and the low-end loop; single kills stay at the thinned rate, so a kill is never silent |
+| the crowd tier: above it, until the flood tier at 60 kills a second | the crowd loop fades in, reaching full at 60; single kills thin to `AUD.KILL_DENSE_VOICES_PER_S` 8 a second |
+| the flood tier: above 60 | crowd and the low-end loop; single kills stay at the thinned rate, so a kill is never silent |
 
-Each layer leaves at a lower rate than it enters (`AUD.CROWD_OFF_KILLS_PER_S` 16, `AUD.LOWEND_OFF_KILLS_PER_S` 50, RogueHero's exits for its visual tiers) and slews at `AUD.LAYER_FADE_PER_S` 3. The rate is the sim's own counter; no sim number is added. Package E will need the same tiers for the eye. One reader should serve both: this plan reads the counter itself and moves to Visual's reader when it exists (§8.3 item 9).
+Ruled on 2026-11-11, the scheduler's answer to §8.3 item 9: there is one set of density numbers and it is Visual's. Audio defines no rate. The tiers are `C.PRE.DENSITY_LOD_KILLS_PER_S` and package E's three density keys (crowd off under 16, flood on above 60, off under 50), read through `UDTImpactSubsystem::GetDensityTier()` (PerKill, Crowd, Flood). Each layer slews at `AUD.LAYER_FADE_PER_S` 3. The kills family therefore lands after package E.
 
 ### 3.6 What is ported and what is not
 
@@ -331,6 +331,8 @@ Mixing itself is the engine's audio thread, bounded by `AUD.VOICES_MAX`; whether
 | 8 | `s4/audio-snd-pickups`, `s4/audio-pickups` | as 5 | pickups and hero actions | as 5 | the family's checks |
 | 9 | `s4/audio-snd-keepers`, `s4/audio-keepers` | as 5 | six picks, the stinger queue's wiring | as 5 | the six told apart pairwise |
 | 10 | `s4/audio-evidence` | developer | `Tools/audio/AudioRun.ps1`, `Validation/S4_audio_mix.md` | yes | a real run's voice log rendered off line and read as §5; the owner's audition files in `Saved\S4Report\Audio` |
+
+Order changed on 2026-11-11: job 6, kills and density, runs after package E has landed, so jobs 7 to 9 may come before it.
 
 ### 8.2 What runs side by side
 Jobs 1 and 2 need no engine and can run while the machine is held alone. Every recipe job (the session's, one at a time) needs no engine and overlaps any developer job. Jobs 3 and 4 own different files and take turns at the session's one heavy job; one built worktree serves both, and the same developer is kept for the wiring jobs. Each family adds one observer file and its own block of catalog rows, so two families do not edit one file.

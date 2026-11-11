@@ -642,3 +642,60 @@ Presentation only (S4 wave 1 package B, D-043): no key here has a reader in the 
 | C.EAR.LINEUP_SPACING_UU | 320 | uu | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (slot size of `DT.Enemies.LineUp`) |
 | C.EAR.LINEUP_ROWS | 3 | n | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (facings per role in the line-up) |
 | C.EAR.FRAME_MASK_TOLERANCE | 0.06 | ratio | GATED(S4) | enemy_art T-EAR-07, Tools/enemy_art_check.py (how far a pixel's channel must sit from the slot's floor to count as drawn) |
+
+## Audio (02_Systems/audio.md)
+
+S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no key here has a reader in the sim. The file limits are read by the gate step `audio` (`Tools/audio/audio_check.py`); the runtime keys wait for the runtime job.
+
+| Key | Value | Unit | Tag | Dependents |
+|---|---|---|---|---|
+| C.AUD.SAMPLE_RATE_HZ | 48000 | Hz | GATED(S4) | audio R-AUD-16, T-AUD-16, Tools/audio/dtsynth.py (the one source of the generator's rate) |
+| C.AUD.DANGER_BAND_HZ | [2000, 5000] | Hz | GATED(S4) | audio R-AUD-15, T-AUD-15 (the band kept for warnings, as the enemy hue band is kept for enemy fire) |
+| C.AUD.LOW_ZONE_HZ | [40, 300] | Hz | GATED(S4) | audio R-AUD-15, T-AUD-15 (the heartbeat's band: at least half a low-zone file's energy) |
+| C.AUD.AIR_LINE_HZ | 6300 | Hz | GATED(S4) | audio R-AUD-15, T-AUD-15 (no hiss above it) |
+| C.AUD.SMALL_SPEAKER_HZ | 150 | Hz | GATED(S4) | audio R-AUD-16, T-AUD-16 (the second-order high-pass that stands in for a small speaker) |
+| C.AUD.PLAYER_BAND_SHARE_MAX_DB | -30 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15 (a player-side or interface file's share in the danger band, at its highest drawn pitch) |
+| C.AUD.WARN_BAND_SHARE_MIN_DB | -3 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15 (a warning's share in the danger band) |
+| C.AUD.AIR_SHARE_MAX_DB | -30 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15 (any file's share above the air line) |
+| C.AUD.PLAYER_ATTACK_MIN_MS | 4 | ms | GATED(S4) | audio R-AUD-15, T-AUD-15 (a soft start: -40 dB to 90 % of the peak) |
+| C.AUD.SPIKE_MAX_DB | 3 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15 (the first 6 ms over the next 34 ms) |
+| C.AUD.WARN_ATTACK_MAX_MS | 3 | ms | GATED(S4) | audio R-AUD-15, T-AUD-15 (a warning's hard start) |
+| C.AUD.LEAD_MAX_MS | 2 | ms | GATED(S4) | audio R-AUD-16, T-AUD-16 (a one-shot's silence before its onset) |
+| C.AUD.PEAK_MAX_DBFS | -1 | dBFS | GATED(S4) | audio R-AUD-16, T-AUD-16 |
+| C.AUD.DC_MAX | 0.002 | ratio | GATED(S4) | audio R-AUD-16, T-AUD-16 (mean offset of full scale) |
+| C.AUD.SMALL_SPEAKER_LOSS_MAX_DB | 6 | dB | GATED(S4) | audio R-AUD-16, T-AUD-16 (loudness a warning, a low-zone file or an interface file may lose through the small-speaker high-pass) |
+| C.AUD.PAIR_DISTANCE_MIN_DB | 6 | dB | GATED(S4) | audio R-AUD-17, T-AUD-17 (spectral distance of two sounds of one confusion set) |
+| C.AUD.MASK_SPREAD_DB | 5 | dB_per_band | GATED(S4) | audio R-AUD-18, T-AUD-18 (upward spread of masking per third octave, taken wider than the ear's) |
+| C.AUD.MASK_WINDOW_MS | 100 | ms | GATED(S4) | audio R-AUD-18, T-AUD-18 (window and step of the audibility reading) |
+| C.AUD.DANGER_SMR_MIN_DB | 12 | dB | GATED(S4) | audio R-AUD-18, T-AUD-18 (a warning over the worst player mix, second-best band of its zone) |
+| C.AUD.HEARTBEAT_SMR_MIN_DB | 9 | dB | GATED(S4) | audio R-AUD-18, T-AUD-18 (the heartbeat over the worst player mix in the low zone) |
+| C.AUD.WARN_OVER_MIX_MIN_DB | 6 | dB | GATED(S4) | audio R-AUD-18, T-AUD-18 (a warning's played loudness over the worst player mix) |
+| C.AUD.MIX_CREST_MAX_DB | 14 | dB | GATED(S4) | audio R-AUD-18, T-AUD-18 |
+| C.AUD.DENSITY_RISE_MAX_DB | 6 | dB | GATED(S4) | audio R-AUD-18, T-AUD-18 (loudness rise from the sparsest to the densest mix) |
+| C.AUD.LIMIT_DBFS | -1 | dBFS | GATED(S4) | audio R-AUD-04, R-AUD-18, T-AUD-18 (the Master limiter, which the gate expects to stay idle) |
+| C.AUD.VOICES_MAX | 32 | n | GATED(S4) | audio R-AUD-07, T-AUD-07 |
+| C.AUD.VOICES_DANGER | 6 | n | GATED(S4) | audio R-AUD-05, R-AUD-07, T-AUD-05 (kept for danger) |
+| C.AUD.VOICES_UI | 4 | n | GATED(S4) | audio R-AUD-07, T-AUD-07 (kept for the interface) |
+| C.AUD.PLAYER_STARTS_PER_S_MAX | 60 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
+| C.AUD.STARTS_PER_FRAME_MAX | 4 | n | GATED(S4) | audio R-AUD-07, R-AUD-21, T-AUD-07 (danger first; a player voice past it waits a frame) |
+| C.AUD.FIRE_DENSE_SHOTS_PER_S | 8 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
+| C.AUD.FIRE_DENSE_VOICES_PER_S | 6 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
+| C.AUD.AGGREGATE_MAX | 1.6 | ratio | GATED(S4) | audio R-AUD-06, T-AUD-06 (most gain a merged batch takes) |
+| C.AUD.SCAN_MAX | 64 | n | GATED(S4) | audio R-AUD-02, T-AUD-02 (entries of a step buffer audio may read) |
+| C.AUD.LAYER_FADE_PER_S | 3 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 (slew of a layer's gain) |
+| C.AUD.KILL_DENSE_VOICES_PER_S | 8 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 |
+| C.AUD.GRID_STEPS | 3 | steps | GATED(S4) | audio R-AUD-09, T-AUD-09 (sim steps; 50 ms at the fixed step) |
+| C.AUD.WARN_MIN_INTERVAL_MS | 120 | ms | GATED(S4) | audio R-AUD-06, T-AUD-06 (one warning per shape per interval) |
+| C.AUD.DUCK_DB | -6 | dB | GATED(S4) | audio R-AUD-05, T-AUD-05 |
+| C.AUD.DUCK_ATTACK_MS | 20 | ms | GATED(S4) | audio R-AUD-05, T-AUD-05 |
+| C.AUD.DUCK_RELEASE_MS | 250 | ms | GATED(S4) | audio R-AUD-05, T-AUD-05 |
+| C.AUD.LOWHP_LOWEND_DUCK_DB | -12 | dB | GATED(S4) | audio R-AUD-05, T-AUD-05 (the low-end layer under the heartbeat) |
+| C.AUD.STINGER_GAP_S | 0.45 | s | GATED(S4) | audio R-AUD-11, T-AUD-11 |
+| C.AUD.STINGER_EXPIRY_S | 1.5 | s | GATED(S4) | audio R-AUD-11, T-AUD-11 |
+| C.AUD.GAME_THREAD_MS_MAX | 0.05 | ms | GATED(S4) | audio R-AUD-21, T-AUD-21 (audio's share of the S4 scene's game thread p95, D-056 ruling 6) |
+| C.AUD.FRAME_MS_WATCH | 0.2 | ms | GATED(S4) | audio R-AUD-21, T-AUD-21 (audio's worst frame is watched against it) |
+| C.AUD.LOW_ZONE_SHARE_MIN_DB | -3 | dB | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (a low-zone file's share in C.AUD.LOW_ZONE_HZ: about half its energy) |
+| C.AUD.PAIR_LENGTH_RATIO_MIN | 2 | x | GATED(S4) | audio R-AUD-17, T-AUD-17, Tools/audio/audio_check.py (two sounds of a confusion set told apart by active length when one is this many times the other) |
+| C.AUD.KEY_SEMIS_MAX | 4 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest degree a `key` sound is drawn at: the band share is read there) |
+| C.AUD.LADDER_SEMIS_MAX | 12 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest step of a `ladder` sound, such as a gem streak) |
+| C.AUD.LOOP_SEAM_LEVEL_MAX_DB | 3 | dB | GATED(S4) | audio R-AUD-16, T-AUD-16, Tools/audio/audio_check.py (a loop's first and last 20 ms differ in level by at most this; the step rule stands beside it) |

@@ -1,0 +1,10 @@
+{
+	"note": "O-015 and D-059 (Validation/S4_o015.md): tracer_crossing with Radiance unlocked and taken as the Patron and the Radiance Lance Key (every fifth round is charged and pierces, still a round), so the tails take Pal.Keeper.Radiance across Rusher bands, enemy rings and Turret muzzle flashes, held at 5.6 s (step 336), the step of the Forge and Quicksilver frames: here the top Turrets still aim, since the Lance Key changes what is hit. Its use is the tail against the Forge tail. Shot with Tools/Frames.ps1 and read with Tools/cvd_frame.py; run by hand, not by the gate.",
+	"gate": "none",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"map": "/Game/DT/Maps/L_Arena_Test?DTPatron=Radiance?DTUnlock=Keeper.Radiance",
+	"seconds": 5.6,
+	"cmds": ["DT.God 1", "DT.Hero.Walk 450 0", "DT.Give Weapon.PulseRifle 8", "DT.Give Weapon.SpiralProjector 8", "DT.Give Weapon.RingEmitter 8", "DT.Give Weapon.ScatterCannon 8", "DT.Spawn.Role Turret 48", "DT.Spawn.Role Rusher 12 elite=Armored", "DT.EnemyFire.Ring 40 520 0.04 30", "DT.Bless Blessing.Radiance.Lance.Key", "DT.Keeper.Stats"]
+}

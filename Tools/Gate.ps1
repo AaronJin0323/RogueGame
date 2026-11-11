@@ -2,7 +2,7 @@
 #   & Tools\Gate.ps1 [-AllFiles] [-Base origin/main] [-Skip build,shipping,...]     (from PowerShell)
 # Ends with "GATE: PASS (<commit>; <n> not run; mask <mask>)" or "GATE: FAIL at <step> (<commit>; mask <mask>)": the processor mask of D-052 (Tools\Machine.ps1) it ran under. A step that cannot run yet prints NOT RUN and is
 # never counted as passed; a Python step whose script is missing fails. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
-# Steps: cpu (Tools/cpu_canary.py: each processor the mask leaves in runs the fault loop of Validation/S4_py_fault.md), secrets, docs, constants, catalog, matrix, loc, licence (Tools/catalog_lint.py, T-PRE-10, T-TEC-06), palette (Tools/palette_lint.py, T-PRE-02),
+# Steps: cpu (Tools/cpu_canary.py: each processor the mask leaves in runs the fault loop of Validation/S4_py_fault.md), secrets, docs, constants, catalog, matrix, loc, licence (Tools/catalog_lint.py, T-PRE-10, T-TEC-06), palette (Tools/palette_lint.py, T-PRE-02), audio (Tools/audio/audio_check.py, T-AUD-13 to T-AUD-17),
 # tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
 # shipping (T-TEC-12), devgame (the Development game target, 0 warnings), tests (Tools/RunTests.ps1, count = C.GATE.TEST_FLOOR), smoke (every scene of Tools/Scenes with "gate": "smoke", in each of its cultures, then the burst frame of T-PRE-07), restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
 # firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), earned (Tools/EarnedCheck.ps1, T-MET-30),
@@ -76,6 +76,7 @@ Invoke-PyStep "matrix" "Tools\gen_matrix.py" "MATRIX" @("--check")
 Invoke-PyStep "loc" "Tools\loc_build.py" "LOC" @("--check")
 Invoke-PyStep "licence" "Tools\catalog_lint.py" "LICENCE"
 Invoke-PyStep "palette" "Tools\palette_lint.py" "PALETTE"
+Invoke-PyStep "audio" "Tools\audio\audio_check.py" "AUDIO"
 Invoke-PyStep "tools" "Tools\tools_test.py" "TOOLS"
 
 # --- C++ ---------------------------------------------------------------------------------------------------------

@@ -2173,7 +2173,7 @@ class GateMain(unittest.TestCase):
 
 	PY_STEPS = (("cpu_canary.py", "CPU"), ("secret_scan.py", "SECRETS"), ("docs_lint.py", "DOCS"), ("gen_constants.py", "CONSTANTS"),
 		("gen_catalog.py", "CATALOG"), ("gen_matrix.py", "MATRIX"), ("loc_build.py", "LOC"), ("catalog_lint.py", "LICENCE"),
-		("palette_lint.py", "PALETTE"), ("tools_test.py", "TOOLS"))
+		("palette_lint.py", "PALETTE"), ("audio/audio_check.py", "AUDIO"), ("tools_test.py", "TOOLS"))
 
 	def setUp(self):
 		self.tmp = tempfile.TemporaryDirectory()
@@ -2190,6 +2190,7 @@ class GateMain(unittest.TestCase):
 			shutil.copy(os.path.join(TOOLS, name), tools)
 		for name, verdict in self.PY_STEPS:
 			if name in stubs:
+				os.makedirs(os.path.dirname(os.path.join(tools, name)), exist_ok=True)
 				with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
 					f.write(f"print('{verdict}: PASS (stub)')\n")
 		return os.path.join(tools, "Gate.ps1")
@@ -2936,6 +2937,16 @@ class Licence(unittest.TestCase):
 			self.assertEqual(len(found), 1, source)
 			self.assertIn("O-009", found[0])
 
+	def test_a_row_naming_the_audio_tools_passes(self):
+		# D-056 ruling 3: the AI-service pattern names the service, not every word that holds its letters.
+		row = self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="audio wave 1")
+		self.assertEqual(self.errors([row], []), [])
+
+	def test_a_row_naming_the_audio_service_fails(self):
+		found = self.errors([self.row("Content/DT/Audio/SFX/SW_*", kind="audio", source="Tools/audio/x.py", used_for="stems from Udio")], [])
+		self.assertEqual(len(found), 1)
+		self.assertIn("O-009", found[0])
+
 	def test_an_asset_kind_nobody_owns_fails(self):
 		rows = [self.row("Content/DT/*", kind="vfx")]
 		for name in ("Content/DT/UI/WBP_Card.uasset", "Content/DT/Fx/NS_Bullet_Trail.uasset", "Content/DT/Hero/SK_Hero.uasset"):
@@ -3334,9 +3345,9 @@ class MeshPipeline(unittest.TestCase):
 
 
 SOURCE = os.path.join(TOOLS, "..", "Source", "Dusktracer")
-# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/, and every renderer. A package's
-# new presentation header is one or the other.
-PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?Presentation/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
+# Presentation headers (04_Presentation R-PRE-11, S4_wave1.md §2 rule 2): everything under Presentation/ and Audio/ (audio.md R-AUD-01, D-056),
+# and every renderer. A package's new presentation header is one or the other.
+PRESENTATION_HEADER = re.compile(r'#include\s+"((?:[\w/]*/)?(?:Presentation|Audio)/[\w/]+\.h|(?:[\w/]*/)?\w*Renderer\.h)"')
 # The world subsystems that spawn a renderer and hand it the step's state: the only code outside presentation that names one today.
 # DTDirector.cpp reads a telegraph's instance count for its own tell. A new name here is a sim file reaching into presentation: do not add one.
 RENDERER_OWNERS = {
@@ -3352,7 +3363,7 @@ RENDERER_OWNERS = {
 
 
 def is_presentation_file(relative):
-	return relative.startswith("Presentation/") or bool(re.search(r"Renderer\.(h|cpp)$", relative))
+	return relative.startswith(("Presentation/", "Audio/")) or bool(re.search(r"Renderer\.(h|cpp)$", relative))
 
 
 def presentation_includes(relative, text):
@@ -3369,6 +3380,11 @@ class PresentationReadsOnly(unittest.TestCase):
 		self.assertEqual(presentation_includes("Enemies/DTEnemyPool.cpp", '#include "Enemies/DTEnemyPool.h"\n#include "Presentation/DTImpactSubsystem.h"\n'), ["Presentation/DTImpactSubsystem.h"])
 		self.assertEqual(presentation_includes("Combat/DTWeaponSim.cpp", '#include "Combat/DTBulletRenderer.h"\n'), ["Combat/DTBulletRenderer.h"])
 		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimTypes.h"\n// #include of Presentation/ would fail\n'), [])
+
+	def test_a_sim_file_that_includes_audio_is_found(self):
+		# audio.md R-AUD-01 (D-056): audio reads the sim and never writes it, so no sim file includes an Audio/ header.
+		self.assertEqual(presentation_includes("Core/DTSimSubsystem.cpp", '#include "Core/DTSimSubsystem.h"\n#include "Audio/DTAudioSubsystem.h"\n'), ["Audio/DTAudioSubsystem.h"])
+		self.assertEqual(presentation_includes("Audio/DTAudioObserver.cpp", '#include "Audio/DTAudioScheduler.h"\n#include "Core/DTSimSubsystem.h"\n'), [])
 
 	def test_presentation_tests_and_debug_may(self):
 		for relative in ("Presentation/DTImpactRenderer.cpp", "Enemies/DTEnemyRenderer.cpp", "Tests/Enemies/DTEnemyTests.cpp", "Debug/DTDebugPerfScene.cpp"):
@@ -3989,6 +4005,71 @@ class ReviewMinors(unittest.TestCase):
 		self.assertIn("SHORT: []", run.stdout)
 		step = self.text("Tools", "PackageHubCheck.ps1").split("$Fresh = Invoke-ShippingRun")[1].split("$CsvOk = ")[0]
 		self.assertEqual(step.count("= Get-WholeIntervals ("), 2)
+
+
+class CvdFrame(unittest.TestCase):
+	"""D-059, settings.md R-SET-11: Tools/cvd_frame.py reads colour-vision distances on the palette and on a drawn frame by the method of T-SET-11."""
+
+	def setUp(self):
+		import cvd_frame
+		self.cvd = cvd_frame
+
+	def test_the_matrices_are_the_tests(self):
+		path = os.path.join(TOOLS, "..", "Source", "Dusktracer", "Tests", "Settings", "DTSettingsTests.cpp")
+		with open(path, encoding="utf-8", errors="replace") as f:
+			text = f.read()
+		for vision, name in (("protan", "ProtanM"), ("deutan", "DeutanM"), ("tritan", "TritanM")):
+			body = re.search(r"static const double " + name + r"\[3\]\[3\] = \{(.*?)\};", text).group(1)
+			numbers = [float(n) for n in re.findall(r"-?\d+\.\d+", body)]
+			self.assertEqual(numbers, [v for row in self.cvd.MATRICES[vision] for v in row], vision)
+
+	def test_the_source_figure_from_the_palette(self):
+		muzzle = self.cvd.hex8(dtpalette.hex_of("Pal.Enemy.Muzzle"))
+		forge = self.cvd.hex8(dtpalette.hex_of("Pal.Keeper.Forge"))
+		self.assertAlmostEqual(self.cvd.delta_e(muzzle, forge, "deutan"), 8.5, delta=0.1)
+		under = [(p, e, v) for p, _, e, _, need, d in self.cvd.palette_rows() for v in self.cvd.VISIONS if d[v] < need]
+		self.assertEqual(sorted(under), [("Pal.Keeper.Forge", "Pal.Enemy.Muzzle", "deutan"), ("Pal.Keeper.Forge", "Pal.Telegraph", "deutan")])
+
+	def test_a_grey_frame_is_unchanged(self):
+		grey = bytes(v for g in range(256) for v in (g, g, g))
+		for vision in self.cvd.MATRICES:
+			self.assertEqual(self.cvd.simulate_rgb(grey, vision), grey, vision)
+
+	def frame(self, w, h, blocks, ground=(128, 128, 128)):
+		rgb = bytearray(bytes(ground) * (w * h))
+		for (x0, y0, x1, y1), colour in blocks:
+			for y in range(y0, y1):
+				for x in range(x0, x1):
+					rgb[3 * (y * w + x):3 * (y * w + x) + 3] = bytes(colour)
+		return bytes(rgb)
+
+	def test_a_synthetic_frame_reads_its_sets_medians_and_distances(self):
+		tail, muzzle, telegraph, rnd = (200, 150, 90), (220, 110, 85), (230, 40, 40), (255, 130, 215)
+		blocks = [((2, 2, 7, 7), tail), ((30, 30, 33, 33), muzzle), ((8, 2, 9, 3), muzzle), ((20, 2, 24, 6), telegraph), ((2, 30, 6, 32), rnd)]
+		first = self.frame(40, 40, blocks)
+		second = self.frame(40, 40, [((2, 2, 7, 7), (210, 190, 140))] + blocks[1:])
+		sizes, medians, dist = self.cvd.measure([("a", 40, 40, first), ("b", 40, 40, second)], self.cvd.TRAIL_WINDOWS["forge"], exclude=())
+		# the muzzle pixel at (8, 2) lies within the guard of the tail block and is left out
+		self.assertEqual(sizes, {"tail": 25, "muzzle": 9, "telegraph": 16, "round": 8})
+		self.assertEqual((medians[("tail", "a")], medians[("tail", "b")], medians[("muzzle", "b")]), (tail, (210, 190, 140), muzzle))
+		self.assertAlmostEqual(dist[("muzzle", "a", "deutan")], self.cvd.delta_e(tail, muzzle, "deutan"))
+		self.assertAlmostEqual(dist[("round", "b", "normal")], self.cvd.delta_e((210, 190, 140), rnd, "normal"))
+		sizes, _, _ = self.cvd.measure([("a", 40, 40, first)], self.cvd.TRAIL_WINDOWS["forge"], exclude=((0, 0, 40, 10),))
+		self.assertEqual(sizes, {"tail": 0, "muzzle": 9, "telegraph": 0, "round": 8})
+		self.assertEqual(self.cvd.median3([(1, 2, 3), (3, 4, 6)]), (2, 3, 4))
+
+	def test_it_runs_under_isolated_python(self):
+		with tempfile.TemporaryDirectory() as folder:
+			src, dst = os.path.join(folder, "in.png"), os.path.join(folder, "out.png")
+			self.cvd.write_rgb(src, 4, 2, self.frame(4, 2, [((0, 0, 2, 2), (255, 159, 58))]))
+			tool = os.path.join(TOOLS, "cvd_frame.py")
+			for args, line in ((["palette"], "CVD: PALETTE (96 pair(s) read, 2 under the limit"), (["sim", src, dst], "CVD: SIM (deutan, 4x2"),
+				(["measure", "--trail", "forge", src, "--exclude", "0,0,0,0"], "CVD: MEASURE (1 frame(s), sets 4 tail")):
+				done = subprocess.run([sys.executable, "-I", tool] + args, capture_output=True, text=True, timeout=120)
+				self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+				self.assertIn(line, done.stdout)
+			w, h, rgb = self.cvd.read_rgb(dst)
+			self.assertEqual((w, h, rgb[:3]), (4, 2, bytes(self.cvd.to_srgb8(self.cvd.simulate_linear(self.cvd.linear((255, 159, 58)), "deutan")))))
 
 
 if __name__ == "__main__":
