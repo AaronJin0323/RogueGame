@@ -72,6 +72,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 
 - **D-069** A new save now starts with one whole archetype for each of the three first Keepers (D-064). A side effect showed up while building it: a run that takes all six cards of two Keepers now opens the duo cards and Spread Wave by play, where it used to take two purchases. I kept it: that door is named for building two Paths, and now that is how it opens. The first people who play this content are asked at which run their duos opened and what the first duo card did; if they call it noise, the door moves deeper, which is one cell.
 
+- **D-070** The Pulse Wall again. Split at the boss, the runs showed where the card loses: against the boss, who stands inside the ring where the wall struck nothing (the build fell to under a third of its strength there). I then read the earlier game's code: its wall strikes and pushes everything inside the whole ring four times a second; ours only did so in a thin band at the edge. So the wall becomes what the earlier game had, with its damage and its gentler push. It is measured in two parts, before the boss and against the boss, and comes out again if either misses. The first people who play this content say whether a wall that works is too safe.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.
