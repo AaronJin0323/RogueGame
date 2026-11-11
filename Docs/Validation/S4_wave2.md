@@ -25,7 +25,7 @@ Session A reads `main`, the S1 build, which has none of wave 1's art. So a row p
 
 ## 3. The packages
 
-Seven packages after a foundations package: 21 rows opened or finished, 26 with W2-H, about 38 session-days. Sixteen of the rows are new (the 159 rows `S4_wave1.md` §4 left become 143); the rest finish rows wave 1 opened. W2-0 lands first and alone. The rest are ordered by what a player gains per unit of risk; A, B, C and G touch different files and can run side by side, one heavy job at a time (D-055 item 7).
+Seven packages after a foundations package: 21 rows opened or finished, 26 with W2-H, about 38.5 session-days. Sixteen of the rows are new (the 159 rows `S4_wave1.md` §4 left become 143); the rest finish rows wave 1 opened. W2-0 lands first and alone. The rest are ordered by what a player gains per unit of risk; A, B, C and G touch different files and can run side by side, one heavy job at a time (D-055 item 7).
 
 | | Package | Gap rows | Gap-note size | Wave 2 share (estimate) |
 |---|---|---|---|---|
@@ -37,7 +37,7 @@ Seven packages after a foundations package: 21 rows opened or finished, 26 with 
 | W2-E | The hero's stride | 1 (leftover) | 4 d | 1.5 d |
 | W2-D | Impact, second pass | 2 | 8 d | 6.5 d |
 | W2-H | Offer screen pass (only on the call of §5 item 3) | 5 | 4.5 d | 5 d |
-| | Total | 26 with H | 57.5 d | about 38 d |
+| | Total | 26 with H | 57.5 d | about 38.5 d |
 
 ### W2-0. Foundations and checks (first, alone)
 
@@ -102,7 +102,7 @@ Gems and chests stop being cubes.
 
 ### W2-D. Impact, second pass (after the owner has played package E)
 
-- **Rows:** §2.3 r32 per-reaction effects, 15 rows (L); §2.3 r34 leftover: smoke and the ground haze R-PRE-06 names. The rest of §2.3 r33, a second threshold and exits below the entries, is no longer left: D-056 ruling 5 (on `main`) has package E build one density reader for the eye and the ear, with the source's three tiers.
+- **Rows:** §2.3 r32 per-reaction effects, 15 rows (L); §2.3 r34 leftover: smoke and the ground haze R-PRE-06 names. The rest of §2.3 r33, a second threshold and exits below the entries, is no longer left: D-056 ruling 5 (on `main`) has package E build one density reader for the eye and the ear, and E builds it with the gap row's own tiers (up to 20, 20 to 60 and over 60 kills a second, left at 16 and 50).
 - **Why it waits:** package E is feel-changing and the owner plays it first (H03 §4). Whether debris helps, whether the tiers' exits suit the eye, and whether a kill needs more than a flash are that look's answers; this package is built on them.
 - **Tap needed:** whether a reaction can be told from `FDTImpact::SourceId` or needs its own read-only list is the package's first question.
 - **Files:** `Presentation/DTImpactArt.*`, `DTImpactSubsystem.*`, `DTImpactRenderer.*`, `Tools/assets/fx_*.py`, `Docs/02_Systems/impact_art.md`.
