@@ -25,9 +25,11 @@ import contrast_check  # noqa: E402
 import evolve_read  # noqa: E402
 import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
+import cpu_canary  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
 import pool_read  # noqa: E402
+import power_split  # noqa: E402
 import pressure  # noqa: E402
 import probe  # noqa: E402
 import s2_exit  # noqa: E402
@@ -223,6 +225,46 @@ class Casts(unittest.TestCase):
 
 	def test_a_record_from_before_the_window_counts_as_a_cast_and_reads_no_damage(self):
 		self.assertEqual(self.read(['{"kind":"intercession","owner":0,"variant":"V","damage":100.0}']), (1, None, None, "V"))
+
+
+class PressureRestores(unittest.TestCase):
+	"""pressure.py reads `hero_healed` (D-046): what each run got back, by source, whole run and band window."""
+
+	RUN = [
+		'{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}',
+		'{"t":100.0,"step":1,"kind":"hero_damaged","owner":0,"amount":40,"hp_after":60,"max_hp":100,"hit_kind":"Contact","role":"Tank"}',
+		'{"t":200.0,"step":2,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}',
+		'{"t":650.0,"step":3,"kind":"hero_healed","owner":0,"amount":0,"hp_after":100,"max_hp":100,"source":"Pickup.Chest"}',
+		'{"t":700.0,"step":4,"kind":"hero_healed","owner":0,"amount":10,"hp_after":85,"max_hp":100,"source":"Reserve.Restore"}',
+		'{"t":900.0,"step":5,"kind":"run_end","owner":-1,"reason":"death","steps":5}',
+	]
+
+	def test_restores_by_source(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(self.RUN) + "\n")
+			whole = pressure.restores_from_jsonl(path, 0.0, float("inf"))
+			window = pressure.restores_from_jsonl(path, 600.0, 780.0)
+			old = os.path.join(tmp, "old.jsonl")
+			with open(old, "w", encoding="utf-8") as f:
+				f.write(self.RUN[0] + "\n" + self.RUN[1] + "\n")
+			none = pressure.restores_from_jsonl(old, 0.0, float("inf"))
+		self.assertEqual(whole["Pickup.Chest"][0], 2)
+		self.assertAlmostEqual(whole["Pickup.Chest"][1], 0.15)
+		self.assertEqual(whole["Reserve.Restore"][0], 1)
+		self.assertAlmostEqual(whole["Reserve.Restore"][1], 0.10)
+		self.assertEqual(window["Pickup.Chest"][0], 1)
+		self.assertAlmostEqual(window["Pickup.Chest"][1], 0.0)
+		self.assertEqual(none, {})
+
+	def test_damage_reading_is_unchanged_by_a_restore(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "run.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(self.RUN) + "\n")
+			rates = pressure.window_from_jsonl(path, 0.0, 300.0)
+		self.assertAlmostEqual(rates[0][0], 0.40 / 5.0)
 
 
 class OwnerRead(unittest.TestCase):
@@ -515,7 +557,8 @@ class S2Exit(unittest.TestCase):
 	"""T-BOT-17: the probe lines parse; human readings stay NOT READ whatever the bots do; no data is NOT READ."""
 
 	CONSTS = {k: {"value": v} for k, v in {"POWER.KEEPER_SHARE_L16": 0.6, "POWER.ARCHETYPE_BAND": 0.15, "INTERCESSION.BAND": 0.2}.items()}
-	T18 = "T-KEE-18: FAIL (18 arms: share below 0.6 on 3, gain outside the band on 9, outside the archetype band on 0; mean share 0.701)"
+	T18 = ("T-KEE-18: FAIL (18 arms: loss below 0.6 on 3, gain outside the band on 9, outside the archetype band on 0; mean loss 0.701; "
+		"share, printed and never judged, mean 0.555)")
 	T15 = "T-KEE-15: FAIL (21/144 combinations within +-0.2 of their Keeper's mean; Shade mean 1)"
 
 	@staticmethod
@@ -529,7 +572,7 @@ class S2Exit(unittest.TestCase):
 		return {name: v for name, v, _ in s2_exit.exit_lines(t18, t15, bots, self.CONSTS)}
 
 	def test_probe_lines(self):
-		self.assertEqual(s2_exit.read_t18(self.T18), {"arms": 18, "share_fails": 3, "gain_fails": 9, "band_fails": 0, "mean": 0.701})
+		self.assertEqual(s2_exit.read_t18(self.T18), {"arms": 18, "loss_fails": 3, "gain_fails": 9, "band_fails": 0, "mean": 0.701, "share_mean": 0.555})
 		self.assertEqual(s2_exit.read_t15(self.T15), (21, 144))
 		self.assertIsNone(s2_exit.read_t18("T-KEE-18: n/a (no complete build)"))
 		self.assertIsNone(s2_exit.read_t15(None))
@@ -539,7 +582,7 @@ class S2Exit(unittest.TestCase):
 		with tempfile.TemporaryDirectory() as root:
 			self.assertIsNone(probe.read_ablation(root, lines))
 		self.assertIn("T-KEE-18: n/a", lines[-1])
-		self.assertIn("share below {need} on {fails['share']}, gain outside the band on {fails['gain']}", open(probe.__file__, encoding="utf-8").read())
+		self.assertIn("loss below {need} on {fails['loss']}, gain outside the band on {fails['gain']}", open(probe.__file__, encoding="utf-8").read())
 
 	def test_verdicts(self):
 		v = self.verdicts(s2_exit.read_t18(self.T18), s2_exit.read_t15(self.T15), [("1.0", self.rows())])
@@ -551,7 +594,7 @@ class S2Exit(unittest.TestCase):
 		self.assertEqual(self.verdicts(None, None, [("1.0", rows)])["Bots win a full run"], "FAIL")
 
 	def test_humans_are_never_read(self):
-		perfect = {"arms": 18, "share_fails": 0, "gain_fails": 0, "band_fails": 0, "mean": 0.8}
+		perfect = {"arms": 18, "loss_fails": 0, "gain_fails": 0, "band_fails": 0, "mean": 0.8, "share_mean": 0.7}
 		v = self.verdicts(perfect, (144, 144), [("1.0", self.rows())])
 		self.assertEqual((v["Humans win a full run"], v["Death histogram"]), ("NOT READ", "NOT READ"))
 
@@ -976,7 +1019,7 @@ class S3Exit(unittest.TestCase):
 		os.makedirs(tools)
 		os.makedirs(os.path.dirname(stamp))
 		os.makedirs(os.path.dirname(kept))
-		for name in ("PadCheck.ps1", HIDDEN_LAUNCH, "WindowWatch.ps1"):  # PadCheck loads both helpers before it reads the stamp
+		for name in ("PadCheck.ps1", HIDDEN_LAUNCH, "WindowWatch.ps1", "Machine.ps1"):  # PadCheck loads the helpers (and the mask helper, D-052) before it reads the stamp
 			shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), tools)
 		with open(kept, "w", encoding="utf-8") as f:
 			f.write("kept\n")
@@ -1034,6 +1077,242 @@ class Ablation(unittest.TestCase):
 	def test_a_drop_below_zero_is_noise(self):
 		dps = {"full": 100.0, "no_keepers": 50.0, "no_package": 50.0, "no_mods": 120.0, "no_levels": 100.0, "no_extra": 100.0}
 		self.assertAlmostEqual(probe.share_of(dps)["share"], 1.0)
+
+	def test_loss_is_one_minus_the_ratio_even_below_zero(self):
+		dps = {"full": 100.0, "no_keepers": 120.0, "no_package": 50.0, "no_mods": 100.0, "no_levels": 100.0, "no_extra": 100.0}
+		self.assertAlmostEqual(probe.share_of(dps)["loss"], -0.2)
+
+	def test_the_control_takes_the_second_keeper_off_both_sides(self):
+		ab = lambda c: probe.ablate(self.BUILD, c, "Storm", "Tempest")
+		self.assertEqual(ab("no_second"), (None, ["Blessing.Storm.Tempest.Key"], self.BUILD[3]))
+		self.assertEqual(ab("no_second_no_package"), (None, [], self.BUILD[3]))
+		dps = {"full": 100.0, "no_keepers": 40.0, "no_package": 90.0, "no_mods": 100.0, "no_levels": 80.0, "no_extra": 80.0}
+		self.assertIsNone(probe.share_of(dps)["control"], "a folder from before the control still reads")
+		self.assertAlmostEqual(probe.share_of(dps | {"no_second": 60.0, "no_second_no_package": 30.0})["control"], 2.0)
+
+
+class KeeperLoss(unittest.TestCase):
+	"""T-KEE-18 judges loss (D-047). The fixture is a multiplying Keeper: its weapon groups drop with it, so its share reads
+	0.37 while removing its blessings costs 0.70 of the build's DPS."""
+	CONSTS = {"POWER.KEEPER_SHARE_L16": {"value": 0.6}, "POWER.ARCHETYPE_BAND": {"value": 0.15}, "KEEPER.PACKAGE_GAIN_BAND": {"value": [2.0, 2.4]}}
+	MULTIPLIER = {"full": 1000, "no_keepers": 300, "no_package": 450, "no_mods": 900, "no_levels": 400, "no_extra": 500}
+
+	def read(self, arms):
+		"""The printed reading of {"Path-Name": {config: window damage}}; the window is ten seconds, so DPS is a tenth."""
+		with tempfile.TemporaryDirectory() as folder:
+			for index, (arm, configs) in enumerate(arms.items()):
+				for config, damage in configs.items():
+					run = os.path.join(folder, f"AB-{arm}-b1-{config}_s{index + 1}01")
+					os.makedirs(run)
+					with open(os.path.join(run, "scene.txt"), "w", encoding="utf-8") as f:
+						f.write("warmup_s 8\nwindow_s 10\n")
+					with open(os.path.join(run, "1.jsonl"), "w", encoding="utf-8") as f:
+						f.write('{"t":2.0,"step":1,"kind":"hit","owner":0,"hits":1,"damage":999}\n')  # warm-up: outside the window
+						f.write('{"t":9.0,"step":2,"kind":"hit","owner":0,"hits":1,"damage":%d}\n' % damage)
+						f.write('{"t":18.0,"step":3,"kind":"run_end","owner":-1}\n')
+			lines = []
+			with mock.patch.object(probe.dtconst, "load", return_value=self.CONSTS):
+				ok = probe.read_ablation(folder, lines)
+		return ok, "\n".join(lines)
+
+	def test_a_multiplying_keeper_passes_on_loss_with_its_share_printed(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER, "Forge-Hammer": self.MULTIPLIER | {"no_keepers": 250}})
+		self.assertTrue(ok, text)
+		self.assertIn("| Storm/Downpour | 1 | 100 | 0.700 | 2.22 | - | 0.368 | PASS | PASS | IN |", text)
+		self.assertIn("T-KEE-18: PASS (2 arms: loss below 0.6 on 0, gain outside the band on 0, outside the archetype band on 0; mean loss 0.725; share, printed and never judged, mean 0.377)", text)
+
+	def test_an_arm_below_the_floor_fails_on_loss(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER, "Storm-Tempest": self.MULTIPLIER | {"no_keepers": 430}})
+		self.assertFalse(ok, text)
+		self.assertIn("| Storm/Tempest | 1 | 100 | 0.570 | 2.22 | - | 0.322 | FAIL | PASS | IN |", text)
+		self.assertIn("loss below 0.6 on 1", text)
+
+	def test_the_archetype_band_is_around_the_mean_loss(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER | {"no_keepers": 390}, "Forge-Slam": self.MULTIPLIER | {"no_keepers": 50}})
+		self.assertFalse(ok, text)  # losses 0.61 and 0.95: the mean is 0.78 and both sit 0.17 from it
+		self.assertIn("loss below 0.6 on 0, gain outside the band on 0, outside the archetype band on 2; mean loss 0.780", text)
+
+	def test_the_control_is_printed_beside_the_gain_and_never_judged(self):
+		ok, text = self.read({"Storm-Downpour": self.MULTIPLIER | {"no_second": 800, "no_second_no_package": 800}})
+		self.assertTrue(ok, "a control of 1.00 is outside the gain band and fails nothing: " + text)
+		self.assertIn("| Storm/Downpour | 1 | 100 | 0.700 | 2.22 | 1.00 (1) | 0.368 | PASS | PASS | IN |", text)
+
+
+class PressureStatistic(unittest.TestCase):
+	"""10_Tuning.md section 2: per run over the minutes of the window, only runs alive through it, the median over those runs."""
+	CONSTS = {"DMG_TAKEN.BAND_MIN10_13": {"value": [0.3, 0.5]}, "DASHES.BAND_MIN10_13": {"value": [6, 10]}, "TTK.SWARM_STEERED_MAX": {"value": 0.3},
+		"DIR.BAND_WINDOW_S": {"value": [600, 780]}, "TEL.INTERVAL_S": {"value": 60.0}}
+
+	@staticmethod
+	def write(folder, name, dmg_per_min, dashes_per_min=8, end=900.0, cells=None):
+		"""One run pair: damage as a share of max HP per window minute, dashes per window minute, the run's end, and
+		{interval end: swarm_ttk_s}. A run that ends inside the window takes one hit of the whole bar."""
+		os.makedirs(folder, exist_ok=True)
+		lines = ['{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}']
+		if end < 780.0:
+			lines.append('{"t":%.1f,"step":1,"kind":"hero_damaged","owner":0,"amount":100,"max_hp":100,"hit_kind":"Contact","role":"Swarm"}' % (end - 1.0))
+			lines.append('{"t":%.1f,"step":1,"kind":"hero_down","owner":0}' % end)
+		else:
+			for minute in range(3):
+				lines.append('{"t":%.1f,"step":1,"kind":"hero_damaged","owner":0,"amount":%s,"max_hp":100,"hit_kind":"Contact","role":"Swarm"}' % (630.0 + 60 * minute, dmg_per_min * 100))
+				lines += ['{"t":%.1f,"step":1,"kind":"dash","owner":0}' % (601.0 + 60 * minute + i) for i in range(dashes_per_min)]
+		lines.append('{"t":%.1f,"step":2,"kind":"run_end","owner":-1}' % end)
+		with open(os.path.join(folder, name + ".jsonl"), "w", encoding="utf-8") as f:
+			f.write("\n".join(lines) + "\n")
+		if cells:
+			with open(os.path.join(folder, name + ".csv"), "w", encoding="utf-8") as f:
+				f.write("interval,run_time_s,player,swarm_ttk_s\n" + "".join(f"{i},{t},0,{v}\n" for i, (t, v) in enumerate(sorted(cells.items()))))
+
+	def check(self, *args):
+		out = io.StringIO()
+		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), contextlib.redirect_stdout(out):
+			rc = pressure.main(["pressure.py", *args])
+		return rc, out.getvalue()
+
+	def test_a_restore_is_printed_and_moves_no_verdict(self):
+		"""D-046: `hero_healed` inside the window prints a RESTORES line; the statistic reads the same damage with and without it."""
+		heal = '{"t":700.0,"step":1,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}'
+		outs = []
+		for healed in (False, True):
+			with tempfile.TemporaryDirectory() as tmp:
+				for seed in (1, 2, 3):
+					folder = os.path.join(tmp, f"Arm_s{seed}")
+					self.write(folder, f"{seed}_run", 0.4)
+					if healed:
+						path = os.path.join(folder, f"{seed}_run.jsonl")
+						with open(path, encoding="utf-8") as f:
+							lines = f.read().splitlines()
+						with open(path, "w", encoding="utf-8") as f:
+							f.write("\n".join(lines[:-1] + [heal, lines[-1]]) + "\n")
+				outs.append(self.check(tmp, "--check", "T-DIR-02"))
+		(rc_plain, plain), (rc_healed, healed_out) = outs
+		self.assertEqual(rc_plain, rc_healed)
+		self.assertEqual([line for line in plain.splitlines() if line.startswith("T-DIR-02")],
+			[line for line in healed_out.splitlines() if line.startswith("T-DIR-02")])
+		self.assertIn("T-DIR-02 Arm: PASS", plain)
+		self.assertNotIn("RESTORES:", plain)
+		self.assertEqual(healed_out.count("RESTORES:"), 3)
+		self.assertIn("Pickup.Chest 1 for 0.150 of max HP (in window 1, 0.150)", healed_out)
+
+	def test_a_run_that_ends_in_the_window_is_printed_and_never_judged(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=610.0)  # the bar in ten seconds: 6.0 per minute alive
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("4_x p0 dmg 6.000/min [HIGH] dashes 0.00/min [LOW] alive 0.17 min (jsonl); ended in the window, not judged", text)
+		self.assertIn("T-DIR-02 Steered-A: PASS (median over 3 run(s) alive through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: "
+			"damage taken 0.400/min [IN] band 0.3-0.5, dashes 8.00/min [IN] band 6-10)", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_the_statistic_is_the_median_over_runs_not_the_mean(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed, dmg in ((1, 0.35), (2, 0.4), (3, 1.5)):  # the mean is 0.75, out of the band
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", dmg)
+			for seed, dmg in ((1, 0.1), (2, 0.2), (3, 0.9)):
+				self.write(os.path.join(root, f"Steered-B_s{seed}"), f"{seed}_x", dmg)
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("T-DIR-02 Steered-A: PASS", text)
+		self.assertIn("T-DIR-02 Steered-B: FAIL (median over 3 run(s) alive through 600-780 s; a bot reading is a bound: damage taken 0.200/min [LOW]", text)
+		self.assertIn("T-DIR-02: FAIL (1/2 group(s) pass; fail: Steered-B)", text)
+		self.assertEqual(rc, 1)
+
+	def test_fewer_than_three_runs_that_count_read_not_read(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s3"), "3_x", 0.0, end=700.0)
+			rc, text = self.check(root, "--check", "T-DIR-02")
+		self.assertIn("T-DIR-02 Steered-A: NOT READ (2 run(s) alive through 600-780 s, need 3)", text)
+		self.assertIn("T-DIR-02: NOT READ (0/1 group(s) pass; not read: Steered-A)", text)
+		self.assertEqual(rc, 1)
+
+	def test_a_session_needs_two_validators_named_on_a_sheet(self):
+		with tempfile.TemporaryDirectory() as root:
+			session, sheet = os.path.join(root, "sessionB"), os.path.join(root, "sheet.csv")
+			for seed in (1, 2, 3):
+				self.write(session, f"{seed}_x", 0.4)
+			rc, text = self.check(session, "--check", "T-DIR-02")
+			self.assertIn("T-DIR-02 session: NOT READ (3 runs count, but no --validators sheet says who played them", text)
+			self.assertEqual(rc, 1)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V1\n3_x,V1\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+			self.assertIn("T-DIR-02 session: NOT READ (the 3 runs that count come from 1 validator(s), need 2)", text)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V2\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+			self.assertIn("T-DIR-02 session: NOT READ (not on the validators sheet: 3_x)", text)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n1_x,V1\n2_x.jsonl,V2\n3_x,V2\n")
+			rc, text = self.check(session, "--check", "T-DIR-02", "--validators", sheet)
+		self.assertIn("T-DIR-02 session: PASS (median over 3 run(s) alive through 600-780 s: damage taken 0.400/min [IN]", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_kill_time_is_the_median_of_the_cells_inside_the_window(self):
+		early = {540: 5.0, 600: 5.0, 840: 9.0}  # the cell that ends at 600 s covers 540-600 s: outside
+		with tempfile.TemporaryDirectory() as root:
+			for seed, cells in ((1, {660: 0.1, 720: 0.2, 780: 0.3}), (2, {660: 0.3, 720: 0.3, 780: 0.2}), (3, {660: 0.9, 720: 0.25})):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells=early | cells)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=700.0, cells={660: 0.01, 700: 0.01})
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-B_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.2, 720: 0.5, 780: 0.6})
+			rc, text = self.check(root, "--check", "T-DIR-18")
+		self.assertIn("1_x p0 swarm 0.200 s [IN] over 3 cells in the window", text)
+		self.assertIn("T-DIR-18 Steered-A: PASS (median over 3 run(s) alive through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: "
+			"swarm kill time 0.300 s [IN] max 0.3)", text)  # per run 0.2, 0.3 and 0.575; the run that died reads 0.01 and is left out
+		self.assertIn("T-DIR-18 Steered-B: FAIL (median over 3 run(s) alive through 600-780 s; a bot reading is a bound: swarm kill time 0.500 s [HIGH] max 0.3)", text)
+		self.assertNotIn("T-DIR-02", text)
+		self.assertEqual(rc, 1)
+
+	def test_a_run_with_no_cell_in_the_window_is_no_kill_time_run(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.1})
+			self.write(os.path.join(root, "Steered-A_s3"), "3_x", 0.4, cells={540: 0.1})
+			rc, text = self.check(root, "--check")
+		self.assertIn("T-DIR-02 Steered-A: PASS", text)
+		self.assertIn("T-DIR-18 Steered-A: NOT READ (2 run(s) alive through 600-780 s with a kill-time cell in it, need 3)", text)
+		self.assertEqual(rc, 1)
+
+
+class Attribution(unittest.TestCase):
+	"""Tools/power_split.py is a view of one session log (D-047): it prints a share and judges nothing."""
+	LINES = ['{"t":0.0,"step":0,"kind":"run_start","owner":-1,"players":1}',
+		'{"t":60.0,"step":1,"kind":"sources","owner":0,"interval":0,"damage":{"Weapon.PulseRifle":90,"Keeper.Storm":10},"kills":{"Keeper.Storm":1}}',
+		'{"t":60.0,"step":1,"kind":"run_end","owner":-1,"reason":"death"}']
+
+	def run_tool(self, level):
+		with tempfile.TemporaryDirectory() as folder:
+			with open(os.path.join(folder, "1_x.jsonl"), "w", encoding="utf-8") as f:
+				f.write("\n".join(self.LINES) + "\n")
+			with open(os.path.join(folder, "1_x.csv"), "w", encoding="utf-8") as f:
+				f.write(f"interval,run_time_s,player,level\n0,60,0,{level}\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = power_split.main(["power_split.py", os.path.join(folder, "1_x.jsonl")])
+			missing = io.StringIO()
+			with contextlib.redirect_stdout(missing):
+				rc_missing = power_split.main(["power_split.py", os.path.join(folder, "none.jsonl")])
+		return rc, out.getvalue(), rc_missing
+
+	def test_a_low_keeper_share_is_printed_and_never_judged(self):
+		level = power_split.dtconst.load()["TEL.POWER_CHECK_LEVEL"]["value"]
+		rc, text, rc_missing = self.run_tool(level)
+		last = text.strip().splitlines()[-1]
+		self.assertTrue(last.startswith("POWER: attribution (P0 Keeper 10.0 % of the damage landed"), last)
+		for word in ("PASS", "FAIL", "stub", "need"):
+			self.assertNotIn(word, text)
+		self.assertEqual((rc, rc_missing), (0, 1), "a run that was read exits 0, a run that was not found exits 1")
+
+	def test_below_the_check_level_reads_nothing(self):
+		rc, text, _ = self.run_tool(2)
+		self.assertTrue(text.strip().splitlines()[-1].startswith("POWER: n/a (no player reached L"), text)
+		self.assertEqual(rc, 0)
+
+	def test_the_tool_holds_no_stub(self):
+		with open(os.path.join(TOOLS, "power_split.py"), encoding="utf-8") as f:
+			self.assertNotIn("stub", f.read())
 
 
 class Contrast(unittest.TestCase):
@@ -1407,6 +1686,390 @@ class Story(unittest.TestCase):
 		text = loc_build.ue_string_table_csv([self.row(layer="3", unlock="Win")])
 		self.assertTrue(text.startswith("Key,SourceString,Comment,Kw,Layer,Unlock\n"))
 		self.assertIn('"3","Win"', text)
+def powershell(script, env=None, timeout=120):
+	"""Runs PowerShell code in a child (no profile), returns (exit code, output)."""
+	full = dict(os.environ)
+	full.update(env or {})
+	done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], capture_output=True, env=full, timeout=timeout)
+	return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
+
+
+def ps_quote(path):
+	return "'" + path.replace("'", "''") + "'"
+
+
+def first_statement(name, text):
+	"""The first statement of an entry script: after a .ps1's param block and its trap line; after a .bat's @echo off, setlocal and rem lines."""
+	if name.endswith(".bat"):
+		for line in text.splitlines():
+			if line.strip() and not re.match(r"\s*(@echo off|setlocal|rem\b|::)", line, re.IGNORECASE):
+				return line.strip()
+		return ""
+	code = [line for line in ps_code(text.splitlines()) if line.strip()]
+	i = 0
+	if code and re.match(r"\s*param\s*\(", code[0], re.IGNORECASE):
+		depth = 0
+		while i < len(code):
+			depth += code[i].count("(") - code[i].count(")")
+			i += 1
+			if depth <= 0:
+				break
+	if i < len(code) and code[i].lstrip().startswith("trap"):
+		i += 1
+	return code[i].strip() if i < len(code) else ""
+
+
+class Machine(unittest.TestCase):
+	"""D-052: every Tools entry script applies the machine's processor mask first (Tools/Machine.ps1), and the gate's `cpu` step catches a bad processor."""
+
+	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
+		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
+		"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "S3Exit.ps1", "TwoWindowsCheck.ps1",
+		"VigilCheck.ps1", "WinCheck.ps1")
+	ENTRY_BAT = ("Build.bat", "Localize.bat", "CreateArena.bat")
+	HELPER = os.path.join(TOOLS, "Machine.ps1")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.own = cpu_canary.affinity()[0]
+		# One processor this process may already use: the test never moves work onto a processor the machine's mask leaves out.
+		self.one = cpu_canary.bits(self.own)[-1]
+		self.child = os.path.join(self.tmp.name, "child.py")
+		with open(self.child, "w", encoding="utf-8") as f:
+			f.write(f"import sys\nsys.path.insert(0, {TOOLS!r})\nimport cpu_canary\nprint('CHILD %X' % cpu_canary.affinity()[0])\n")
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def mask_file(self, text):
+		path = os.path.join(self.tmp.name, "affinity.txt")
+		with open(path, "w", encoding="ascii") as f:
+			f.write(text + "\n")
+		return path
+
+	def run_helper(self, mask_path):
+		script = f". {ps_quote(self.HELPER)}; try {{ $M = Set-DTAffinity; \"MASK $M\" }} catch {{ \"THREW $_\" }}; & python -I {ps_quote(self.child)}"
+		return powershell(script, {"DT_AFFINITY_FILE": mask_path})
+
+	def test_a_child_started_after_the_helper_sees_the_mask(self):
+		rc, out = self.run_helper(self.mask_file(f"{1 << self.one:X}"))
+		self.assertEqual(rc, 0, out)
+		self.assertIn(f"MASK {1 << self.one:X}", out)
+		self.assertIn(f"CHILD {1 << self.one:X}", out)
+
+	def test_no_file_changes_nothing(self):
+		rc, out = self.run_helper(os.path.join(self.tmp.name, "absent.txt"))
+		self.assertIn("MASK none", out)
+		self.assertIn(f"CHILD {self.own:X}", out)
+
+	def test_a_bad_file_fails(self):
+		for text in ("zz", "FFFF\nFFFF", "0"):
+			rc, out = self.run_helper(self.mask_file(text))
+			self.assertIn("THREW", out, text)
+
+	def test_a_batch_entry_point_runs_under_the_mask(self):
+		for name in ("Machine.ps1", "HiddenLaunch.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tmp.name)
+		with open(os.path.join(TOOLS, "Build.bat"), encoding="utf-8") as f:
+			head = [line for line in f.read().splitlines()[:12]]
+		cut = next(i for i, line in enumerate(head) if line.startswith('set "DT_MASKED_BAT="')) + 1
+		bat = os.path.join(self.tmp.name, "t.bat")
+		with open(bat, "w", encoding="ascii") as f:
+			f.write("\r\n".join(head[:cut] + [f'python -I "{self.child}"', "exit /b 7", ""]))
+		done = subprocess.run(["cmd", "/c", bat], capture_output=True, env=dict(os.environ, DT_AFFINITY_FILE=self.mask_file(f"{1 << self.one:X}")), timeout=120)
+		self.assertEqual(done.returncode, 7)
+		self.assertIn(f"CHILD {1 << self.one:X}", done.stdout.decode("utf-8", "replace"))
+
+	def test_every_entry_script_calls_the_helper_first(self):
+		for name in self.ENTRY_PS + self.ENTRY_BAT:
+			with open(os.path.join(TOOLS, name), encoding="utf-8", errors="replace") as f:
+				first = first_statement(name, f.read())
+			if name.endswith(".bat"):
+				self.assertTrue(first.startswith('if /i "%DT_MASKED_BAT%"=="%~f0"'), name)
+			else:
+				self.assertTrue(first.startswith('. (Join-Path $PSScriptRoot "Machine.ps1")') and "Set-DTAffinity" in first, f"{name}: {first}")
+		with open(os.path.join(TOOLS, "Build.bat"), encoding="utf-8") as f:
+			self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read())
+
+	def test_launchers_for_people_stay_unmasked(self):
+		for folder, _, names in os.walk(TOOLS):
+			for name in names:
+				if name in HUMAN_LAUNCHERS:
+					with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+						self.assertNotIn("Machine.ps1", f.read(), name)
+
+	def canary(self, *args):
+		out = io.StringIO()
+		with contextlib.redirect_stdout(out):
+			rc = cpu_canary.main(["--processors", str(self.one), "--rounds", "2", *args])
+		return rc, out.getvalue()
+
+	def test_the_canary_fails_on_a_wrong_sum_and_names_the_processor(self):
+		rc, out = self.canary("--force-wrong")
+		self.assertEqual(rc, 1)
+		self.assertIn(f"CPU: FAIL (processor {self.one})", out)
+		rc, out = self.canary()
+		self.assertEqual(rc, 0, out)
+		self.assertRegex(out, r"CPU: PASS \(1 processors, mask [0-9A-F]+, 2 rounds\)")
+
+
+WIDEN_CHILD = '''import ctypes, sys
+from ctypes import wintypes
+k = ctypes.WinDLL("kernel32", use_last_error=True)
+k.GetCurrentProcess.restype = ctypes.c_void_p
+k.GetCurrentThread.restype = ctypes.c_void_p
+k.GetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+class GA(ctypes.Structure):
+	_fields_ = [("Mask", ctypes.c_size_t), ("Group", wintypes.WORD), ("Reserved", wintypes.WORD * 3)]
+k.SetThreadGroupAffinity.argtypes = [ctypes.c_void_p, ctypes.POINTER(GA), ctypes.POINTER(GA)]
+def proc():
+	p, s = ctypes.c_size_t(), ctypes.c_size_t()
+	k.GetProcessAffinityMask(k.GetCurrentProcess(), ctypes.byref(p), ctypes.byref(s))
+	return p.value
+before = proc()
+ok = k.SetThreadGroupAffinity(k.GetCurrentThread(), ctypes.byref(GA(int(sys.argv[2], 16), 0)), None)
+open(sys.argv[1], "w").write("%X %d %X" % (before, ok, proc()))
+'''
+
+
+class EngineMask(unittest.TestCase):
+	"""D-052: the launch job of Tools/HiddenLaunch.ps1 carries the machine's mask as its affinity limit, because the engine's threads ask for every
+	processor (FRunnableThreadWin::SetThreadAffinity) and a process mask alone lets Windows widen the process to match."""
+
+	HELPER = os.path.join(TOOLS, "HiddenLaunch.ps1")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.own = cpu_canary.affinity()[0]
+		self.one = 1 << cpu_canary.bits(self.own)[-1]
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def helper(self, script, mask_text=None):
+		path = os.path.join(self.tmp.name, "affinity.txt")
+		if mask_text is not None:
+			with open(path, "w", encoding="ascii") as f:
+				f.write(mask_text + "\n")
+		return powershell(f". {ps_quote(self.HELPER)}; {script}", {"DT_AFFINITY_FILE": path})
+
+	def test_the_limit_is_the_helpers_mask(self):
+		rc, out = self.helper("'{0:X} {1:X} {2:X}' -f [DTHiddenDesktop]::Affinity, [DTHiddenDesktop]::JobFlags(0x2000, [DTHiddenDesktop]::Affinity), [DTHiddenDesktop]::JobFlags(0x2000, 0)", f"{self.one:X}")
+		self.assertIn(f"{self.one:X} 2010 2000", out)
+
+	def test_no_mask_is_no_limit(self):
+		rc, out = self.helper("'{0:X} {1:X}' -f [DTHiddenDesktop]::Affinity, [DTHiddenDesktop]::JobFlags(0x2000, [DTHiddenDesktop]::Affinity)")
+		self.assertIn("0 2000", out)
+
+	def test_a_launched_thread_cannot_widen_the_process(self):
+		child = os.path.join(self.tmp.name, "widen.py")
+		result = os.path.join(self.tmp.name, "widen.txt")
+		with open(child, "w", encoding="utf-8") as f:
+			f.write(WIDEN_CHILD)
+		launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"', '\"{result}\"', '{self.own:X}'); $null = $P.WaitForExit(60000); Close-DTHidden"
+		rc, out = self.helper(launch, f"{self.one:X}")
+		with open(result, encoding="ascii") as f:
+			before, ok, after = f.read().split()
+		self.assertEqual((before, ok, after), (f"{self.one:X}", "0", f"{self.one:X}"), out)
+
+	def test_a_batch_files_commandlet_is_held_by_the_same_job(self):
+		# Localize.bat and CreateArena.bat run through Machine.ps1 -DTRunFile, which joins the job of Hold-DTProcess: what the batch file starts is born in it.
+		for name in ("Machine.ps1", "HiddenLaunch.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tmp.name)
+		child = os.path.join(self.tmp.name, "widen.py")
+		result = os.path.join(self.tmp.name, "widen.txt")
+		with open(child, "w", encoding="utf-8") as f:
+			f.write(WIDEN_CHILD)
+		with open(os.path.join(TOOLS, "Localize.bat"), encoding="utf-8") as f:
+			head = f.read().splitlines()
+		cut = next(i for i, line in enumerate(head) if line.startswith('set "DT_MASKED_BAT="')) + 1
+		bat = os.path.join(self.tmp.name, "t.bat")
+		with open(bat, "w", encoding="ascii") as f:
+			f.write("\r\n".join(head[:cut] + [f'python -I "{child}" "{result}" {self.own:X}', "exit /b 0", ""]))
+		mask = os.path.join(self.tmp.name, "affinity.txt")
+		with open(mask, "w", encoding="ascii") as f:
+			f.write(f"{self.one:X}\n")
+		done = subprocess.run(["cmd", "/c", bat], capture_output=True, env=dict(os.environ, DT_AFFINITY_FILE=mask), timeout=120)
+		self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+		with open(result, encoding="ascii") as f:
+			self.assertEqual(f.read().split(), [f"{self.one:X}", "0", f"{self.one:X}"])
+
+	def test_the_cook_is_held_and_the_batch_files_run_through_the_holder(self):
+		with open(os.path.join(TOOLS, "Package.ps1"), encoding="utf-8") as f:
+			package = f.read()
+		self.assertLess(package.index("Hold-DTProcess"), package.index("RunUAT.bat"))
+		with open(os.path.join(TOOLS, "Machine.ps1"), encoding="utf-8") as f:
+			machine = f.read()
+		self.assertLess(machine.index("Hold-DTProcess"), machine.index("& $Run.File"))
+		for name in ("Localize.bat", "CreateArena.bat"):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
+
+
+class Pre07(unittest.TestCase):
+	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
+
+	@staticmethod
+	def frame(level, blobs=0, size=40):
+		# A grey frame; `blobs` rows at the top drawn white, as a burst covers part of a frame.
+		rows = [bytes([255, 255, 255] * size) if y < blobs else bytes([level] * 3 * size) for y in range(size)]
+		return b"".join(rows)
+
+	def test_a_burst_over_part_of_the_frame_is_no_exposure_change(self):
+		import image_check
+		self.assertAlmostEqual(image_check.exposure_shift(self.frame(100, blobs=15), self.frame(100)), 0.0)
+
+	def test_a_frame_that_shifts_all_over_is_one(self):
+		import image_check
+		self.assertAlmostEqual(image_check.exposure_shift(self.frame(60, blobs=15), self.frame(100)), -40.0)
+
+	def test_planned_for_a_passed_stage_is_an_error(self):
+		import docs_lint
+		self.assertEqual(len(docs_lint.passed_stage_errors("x.md", 1, "- T-ABC-01 PLANNED(S0) a check")), 1)
+		self.assertEqual(docs_lint.passed_stage_errors("x.md", 1, "- T-ABC-01 PLANNED(S2) a check"), [])
+		self.assertEqual(docs_lint.passed_stage_errors("x.md", 1, "the marker `PLANNED(S0)` is named, not used"), [])
+
+
+class SlowShare(unittest.TestCase):
+	"""D-054: pressure.py prints the slow share of a person's run beside the count; a bot arm's run reads not read, never zero."""
+
+	def run_file(self, folder, end):
+		os.makedirs(folder, exist_ok=True)
+		path = os.path.join(folder, "9107_20261111_000000.jsonl")
+		with open(path, "w", encoding="utf-8") as f:
+			f.write('{"t":0.0,"kind":"run_start","owner":-1,"seed":9107,"players":1}\n')
+			f.write(json.dumps(dict({"t": 600.0, "kind": "run_end", "owner": -1, "reason": "quit"}, **end)) + "\n")
+		return path
+
+	def test_a_session_run_prints_its_share_beside_the_count(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "session"), {"steps": 36000, "wall_dropped_steps": 4000})
+			self.assertEqual(pressure.slow_line(path[:-6], path), f"SLOW: {path[:-6]} share 0.1000 (4000 dropped of 40000 steps)")
+
+	def test_a_bot_arm_run_is_not_read_never_zero(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "None_s9107"), {"steps": 38181, "wall_dropped_steps": 0})
+			line = pressure.slow_line(path[:-6], path)
+			self.assertIn("not read (bot arm None at -DTBotFast; 0 dropped steps)", line)
+			self.assertNotIn("share", line)
+
+	def test_a_run_from_before_the_field_is_not_read(self):
+		with tempfile.TemporaryDirectory() as root:
+			path = self.run_file(os.path.join(root, "session"), {"steps": 600})
+			self.assertIn("not read (no wall_dropped_steps", pressure.slow_line(path[:-6], path))
+
+
+class GateMain(unittest.TestCase):
+	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
+	a private canvas link, and one GPU lock for every worktree."""
+
+	PY_STEPS = (("cpu_canary.py", "CPU"), ("secret_scan.py", "SECRETS"), ("docs_lint.py", "DOCS"), ("gen_constants.py", "CONSTANTS"),
+		("gen_catalog.py", "CATALOG"), ("gen_matrix.py", "MATRIX"), ("loc_build.py", "LOC"), ("tools_test.py", "TOOLS"))
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.env = {"DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")}
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def gate_tree(self, stubs):
+		"""A stand-in tree outside any git checkout: Gate.ps1 and Machine.ps1, plus a stub that passes for each Python step named."""
+		tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), tools)
+		for name, verdict in self.PY_STEPS:
+			if name in stubs:
+				with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
+					f.write(f"print('{verdict}: PASS (stub)')\n")
+		return os.path.join(tools, "Gate.ps1")
+
+	def test_a_missing_python_step_fails(self):
+		gate = self.gate_tree(stubs=())
+		rc, out = powershell(f"& {ps_quote(gate)}; exit $LASTEXITCODE", self.env)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("cpu_canary.py missing", out)
+		self.assertIn("GATE: FAIL at cpu", out)
+		self.assertNotIn("NOT RUN (Tools", out)
+
+	def test_a_base_that_does_not_resolve_fails_nonunity(self):
+		gate = self.gate_tree(stubs=[name for name, _ in self.PY_STEPS])
+		rc, out = powershell(f"& {ps_quote(gate)} -Skip build,locbuild -Base no/such/ref; exit $LASTEXITCODE", self.env)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("FAIL (base 'no/such/ref' does not resolve)", out)
+		self.assertIn("GATE: FAIL at nonunity", out)
+
+	def write_tests_log(self, found, run):
+		log = os.path.join(self.tmp.name, f"tests_{found}_{run}.log")
+		with open(log, "w", encoding="utf-8") as f:
+			f.write(f"LogAutomationCommandLine: Display: Found {found} automation tests based on 'Dusktracer'\n")
+			f.write("".join("LogAutomationController: Display: Test Completed. Result={Success} Name={T%d}\n" % i for i in range(run)))
+		return log
+
+	def run_tests(self, log, floor):
+		script = os.path.join(TOOLS, "RunTests.ps1")
+		return powershell(f"& {ps_quote(script)} -ReadLog {ps_quote(log)} -Floor {floor}; exit $LASTEXITCODE", self.env)
+
+	def test_the_test_count_must_equal_the_floor(self):
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 5)
+		self.assertEqual(rc, 0, out)
+		self.assertIn("TESTS: PASS (5 run of 5 found", out)
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 6)
+		self.assertEqual(rc, 1, out)
+		rc, out = self.run_tests(self.write_tests_log(5, 5), 4)
+		self.assertEqual(rc, 1, out)
+		self.assertIn("set C.GATE.TEST_FLOOR to 5", out)
+
+	def test_the_gate_reads_the_floor_from_constants(self):
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			gate = f.read()
+		self.assertIn("GATE\\.TEST_FLOOR", gate)
+		self.assertIsNone(re.search(r"-Floor\s+\d", gate))
+
+	def test_a_private_canvas_link_is_a_secret(self):
+		import secret_scan
+		links = [pattern for name, pattern in secret_scan.PATTERNS if "claude.ai" in name]
+		self.assertEqual(len(links), 1)
+		host = "claude" + ".ai/"
+		for path in ("artifact/", "code/artifact/", "public/artifacts/", "share/", "chat/", "project/"):
+			self.assertTrue(links[0].search("see https://" + host + path + "0f3a9c2e-1b7d-4e55-9a10-made0up"), path)
+		self.assertIsNone(links[0].search("https://" + host + "artifact/{id}"))
+		self.assertIsNone(links[0].search("https://" + host + "code"))
+
+	def test_two_worktrees_cannot_both_hold_the_gpu_lock(self):
+		repo = os.path.join(self.tmp.name, "repo")
+		other = os.path.join(self.tmp.name, "other")
+		git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=NUL"]
+		subprocess.run(["git", "init", "-q", repo], check=True, capture_output=True)
+		subprocess.run(git + ["-C", repo, "commit", "-q", "--allow-empty", "-m", "x"], check=True, capture_output=True)
+		subprocess.run(git + ["-C", repo, "worktree", "add", "-q", other], check=True, capture_output=True)
+		helper = ps_quote(os.path.join(TOOLS, "GpuLock.ps1"))
+		hold = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			f". {helper}; $L = Open-DTGpuLock {ps_quote(repo)}; if ($L) {{ 'HELD ' + (Get-DTGpuLockPath {ps_quote(repo)}) }} else {{ 'BUSY' }}; [Console]::Out.Flush(); $null = [Console]::In.ReadLine()"],
+			stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		try:
+			first = hold.stdout.readline().decode("utf-8", "replace").strip()
+			self.assertTrue(first.startswith("HELD "), first)
+			self.assertTrue(first.endswith(os.path.join("dt-locks", "gpu.lock")), first)
+			rc, out = powershell(f". {helper}; $L = Open-DTGpuLock {ps_quote(other)}; if ($L) {{ 'HELD ' + (Get-DTGpuLockPath {ps_quote(other)}) }} else {{ 'BUSY' }}")
+			self.assertIn("BUSY", out)
+		finally:
+			hold.communicate(b"\n", timeout=60)
+		rc, out = powershell(f". {helper}; $L = Open-DTGpuLock {ps_quote(other)}; if ($L) {{ 'HELD' }} else {{ 'BUSY' }}")
+		self.assertIn("HELD", out)
+
+	def test_a_tree_outside_git_locks_its_own_saved(self):
+		tree = os.path.join(self.tmp.name, "plain")
+		os.makedirs(tree)
+		rc, out = powershell(f". {ps_quote(os.path.join(TOOLS, 'GpuLock.ps1'))}; Get-DTGpuLockPath {ps_quote(tree)}")
+		self.assertIn(os.path.join(tree, "Saved", "gpu.lock"), out)
+
+	def test_perf_takes_the_one_lock(self):
+		with open(os.path.join(TOOLS, "Perf.ps1"), encoding="utf-8") as f:
+			perf = f.read()
+		self.assertIn("Open-DTGpuLock $Root", perf)
+		self.assertNotIn('Join-Path $Saved "gpu.lock"', perf)
 
 
 class Loc(unittest.TestCase):
@@ -1821,7 +2484,7 @@ public static class StandIn {
 		cls.bin = os.path.join(cls.root, "Engine", "Binaries", "Win64")
 		os.makedirs(cls.bin)
 		os.makedirs(os.path.join(cls.root, "Repo", "Tools"))
-		for name in ("WinCheck.ps1", HIDDEN_LAUNCH):
+		for name in ("WinCheck.ps1", HIDDEN_LAUNCH, "Machine.ps1"):  # both load the mask helper first (D-052)
 			shutil.copy(os.path.join(TOOLS, name), os.path.join(cls.root, "Repo", "Tools", name))
 		source = os.path.join(cls.root, "StandIn.cs")
 		with open(source, "w", encoding="utf-8") as f:

@@ -90,3 +90,36 @@ TArray<UInputMappingContext*> UDTInputSet::GetContexts() const
 {
 	return { Kbm.Get(), Pad.Get() };
 }
+
+FKey UDTInputSet::GetBoundKey(const UInputAction* Action, EDTInputDevice Device) const
+{
+	const UInputMappingContext* const Context = Device == EDTInputDevice::Pad ? Pad.Get() : Kbm.Get();
+	if (Context && Action)
+	{
+		for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
+		{
+			if (Mapping.Action.Get() == Action)
+			{
+				return Mapping.Key;
+			}
+		}
+	}
+	return FKey();
+}
+
+FText UDTInputSet::KeyGlyph(const FKey& Key)
+{
+	// Short pad names, the same in every culture (no glyph art before the HUD pass, combat_core.md Out of scope).
+	static const TMap<FKey, FString> PadNames = {
+		{ EKeys::Gamepad_FaceButton_Bottom, TEXT("A") }, { EKeys::Gamepad_FaceButton_Right, TEXT("B") },
+		{ EKeys::Gamepad_FaceButton_Left, TEXT("X") }, { EKeys::Gamepad_FaceButton_Top, TEXT("Y") },
+		{ EKeys::Gamepad_LeftShoulder, TEXT("LB") }, { EKeys::Gamepad_RightShoulder, TEXT("RB") },
+		{ EKeys::Gamepad_LeftTrigger, TEXT("LT") }, { EKeys::Gamepad_RightTrigger, TEXT("RT") },
+		{ EKeys::Gamepad_LeftThumbstick, TEXT("L3") }, { EKeys::Gamepad_RightThumbstick, TEXT("R3") },
+		{ EKeys::Gamepad_Special_Left, TEXT("View") }, { EKeys::Gamepad_Special_Right, TEXT("Menu") } };
+	if (const FString* Short = PadNames.Find(Key))
+	{
+		return FText::AsCultureInvariant(*Short);
+	}
+	return Key.GetDisplayName(/*bLongDisplayName*/ false);
+}

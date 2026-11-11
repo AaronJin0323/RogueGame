@@ -108,8 +108,16 @@ enum class EDTHeroEventKind : uint8
 	HeroDamaged,
 	HeroDown,
 	Intercession,
-	IntercessionDenied
+	IntercessionDenied,
+	HeroHealed
 };
+
+/** What restored the HP of a HeroHealed event: the `source` of a hero_healed record (combat_core.md Telemetry). */
+namespace DTHealSource
+{
+	inline const TCHAR* const Chest = TEXT("Pickup.Chest");              // progression.md R-PRG-09
+	inline const TCHAR* const ReserveRestore = TEXT("Reserve.Restore"); // offers.md R-OFF-12
+}
 
 /** A hero event (combat_core.md Data), always with its OwnerId. Fields not used by a kind keep their defaults. */
 struct FDTHeroEvent
@@ -121,10 +129,12 @@ struct FDTHeroEvent
 	FVector2f Dir = FVector2f::ZeroVector;
 	/** Dash: charges left after it. */
 	int32 ChargesAfter = 0;
-	/** HeroDamaged. */
+	/** HeroDamaged: the damage applied. HeroHealed: the HP really restored (zero at full health). */
 	float Amount = 0.0f;
 	float HpAfter = 0.0f;
 	float MaxHp = 0.0f;
+	/** HeroHealed: a DTHealSource name. */
+	FName HealSource;
 	EDTHeroHitKind HitKind = EDTHeroHitKind::Contact;
 	EDTEnemyRole SourceRole = EDTEnemyRole::Swarm;
 	FName AttackId;

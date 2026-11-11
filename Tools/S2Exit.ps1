@@ -2,7 +2,7 @@
 #   & Tools\S2Exit.ps1 [-Out Saved\BotRuns\s2_exit] [-Seeds 15] [-Skills 1.0,0.6] [-Parallel 12] [-Stagger 0.4] [-Builds 5] [-Unlock S2] [-ReadOnly]
 # Run by hand. The S2 row says nightly: nothing schedules this.
 # Steps: the 18 showcase arms at each skill on bot v2 (<Out>\bots_<skill>), T-KEE-18 on the first skill's L16 builds up to seed -Builds
-# (<Out>\ab), T-KEE-15 on every Keeper (<Out>\ik), then the reader. -ReadOnly only reads. -Unlock "" reads the starter pool.
+# (<Out>\ab; judged by loss with share printed beside it, and the no-second-Keeper control scenes, D-047), T-KEE-15 on every Keeper (<Out>\ik), then the reader. -ReadOnly only reads. -Unlock "" reads the starter pool.
 # Every launch goes through Tools/BotRuns.ps1: -game -nullrhi -nosplash, hidden, killed by PID.
 # Prints the reader's EXIT lines and "S2EXIT: ..."; exit 0 when it ran, whatever the verdicts, 1 on a script error.
 param(
@@ -17,6 +17,8 @@ param(
 )
 
 trap { Write-Host "S2EXIT: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if (-not $Out) { $Out = Join-Path $Root "Saved\BotRuns\s2_exit" }

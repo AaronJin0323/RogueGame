@@ -1,20 +1,22 @@
 # Merge gate (11_Quality §1): runs every gate step on the current tree, one line per step.
 #   & Tools\Gate.ps1 [-AllFiles] [-Base origin/main] [-Skip build,shipping,...]     (from PowerShell)
-# Ends with "GATE: PASS (<n> not run)" or "GATE: FAIL at <step>". A step that cannot run yet prints NOT RUN and is
-# never counted as passed. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
-# Steps: secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), tests (Tools/RunTests.ps1), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
+# Ends with "GATE: PASS (<commit>; <n> not run; mask <mask>)" or "GATE: FAIL at <step> (<commit>; mask <mask>)": the processor mask of D-052 (Tools\Machine.ps1) it ran under. A step that cannot run yet prints NOT RUN and is
+# never counted as passed; a Python step whose script is missing fails. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
+# Steps: cpu (Tools/cpu_canary.py: each processor the mask leaves in runs the fault loop of Validation/S4_py_fault.md), secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
+# shipping (T-TEC-12), devgame (the Development game target, 0 warnings), tests (Tools/RunTests.ps1, count = C.GATE.TEST_FLOOR), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), meta (Tools/MetaCheck.ps1, meta.md), vigil (Tools/VigilCheck.ps1, vigil.md),
 # firstrun (R-OFF-15 on a -FreshPool battery, Tools/BotRuns.ps1), win (Tools/WinCheck.ps1, T-MET-29), earned (Tools/EarnedCheck.ps1, T-MET-30),
-# contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame),
-# windows (Tools/WindowCheck.ps1), pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
+# contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame), windows (Tools/WindowCheck.ps1),
+# pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
 	[string]$Base = "origin/main",
 	[string[]]$Skip = @()
 )
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 # Any script error is a gate failure, never a silent exit 0.
-trap { Write-Host "GATE: FAIL (script error: $_)"; exit 1 }
+trap { Write-Host "GATE: FAIL (script error: $_; mask $DTMask)"; exit 1 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $LogDir = Join-Path $Root "Saved\Logs"
@@ -24,7 +26,7 @@ $Skip = @($Skip | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $NotRun = 0
 
 function Report([string]$Step, [string]$Text) { Write-Host ("{0,-11} {1}" -f "${Step}:", $Text) }
-function Fail([string]$Step) { Write-Host "GATE: FAIL at $Step ($Head)"; exit 1 }
+function Fail([string]$Step) { Write-Host "GATE: FAIL at $Step ($Head; mask $DTMask)"; exit 1 }
 function NotRun([string]$Step, [string]$Why) { Report $Step "NOT RUN ($Why)"; $script:NotRun++ }
 function Show($Lines, [string]$Pattern) { $Lines | Select-String -Pattern $Pattern | Select-Object -First 12 | ForEach-Object { "    " + $_.Line } }
 function Skipped([string]$Step) { if ($Skip -contains $Step) { NotRun $Step "skipped by -Skip"; return $true }; return $false }
@@ -37,7 +39,7 @@ function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string
 	$Rc = $LASTEXITCODE
 	$Out | Set-Content (Join-Path $LogDir "Gate_$Step.log") -Encoding utf8
 	Report $Step (($Out | Select-String "^${Verdict}:" | Select-Object -Last 1).Line)
-	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX|  ST_|  Source/)"; Fail $Step }
+	if ($Rc -ne 0) { Show $Out "^(error|secret|LOC|CONSTANTS|CATALOG|MATRIX|  ST_|  Source/|  ! )"; Fail $Step }
 }
 
 function Ubt([string]$Step, [string]$Target, [string]$Config, [string]$Extra = "") {
@@ -49,6 +51,9 @@ function Ubt([string]$Step, [string]$Target, [string]$Config, [string]$Extra = "
 	$Out | Set-Content $Log -Encoding utf8
 	return @{ Rc = $Rc; Out = $Out; Warn = @($Out | Select-String -Pattern "warning C\d+|: warning ").Count }
 }
+
+# --- the machine (D-052): a processor that faults in plain code would make every later step a guess -----------------------------
+Invoke-PyStep "cpu" "Tools\cpu_canary.py" "CPU" @("--mask", $DTMask)
 
 # --- text and data -----------------------------------------------------------------------------------------------
 Invoke-PyStep "secrets" "Tools\secret_scan.py" "SECRETS"
@@ -108,6 +113,13 @@ if (-not (Skipped "shipping")) {
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "shipping" }
 }
 
+if (-not (Skipped "devgame")) {
+	# The Development game target: an editor-only API inside WITH_DEV_AUTOMATION_TESTS compiles in the editor target and is compiled out of Shipping,
+	# so only this target sees it (the owner's scheduler brief of 2026-11-11).
+	$R = Ubt "devgame" "Dusktracer" "Development"
+	Report "devgame" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
+	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "devgame" }
+}
 if (-not (Skipped "tests")) {
 	$Floor = [int]((Select-String -Path (Join-Path $Root "Docs\constants.yaml") -Pattern "GATE\.TEST_FLOOR:\s*\{\s*value:\s*(\d+)").Matches[0].Groups[1].Value)
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\RunTests.ps1") -Log (Join-Path $LogDir "Gate_tests.log") -Floor $Floor 2>&1
@@ -125,6 +137,12 @@ if (-not (Skipped "smoke")) {
 		Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
 		if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 	}
+	# T-PRE-07: the arena's post-process volume, then a burst of fire against the calm arena_empty shot above: no exposure change.
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\Smoke.ps1") -Name burst -Burst -Cmds "DT.Bullets 6000" 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_smoke_burst.log") -Encoding utf8
+	Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
+	if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 }
 if (-not (Skipped "restart")) {
 	# T-SET-28: a real map reload against a fresh launch by input hash, and real keys through a pause and a reload; headless.
@@ -224,5 +242,5 @@ if (-not (Skipped "pad")) {
 NotRun "scope" "no brief in flight"
 NotRun "mac" "deferred, D-007"
 
-Write-Host "GATE: PASS ($Head; $NotRun not run)"
+Write-Host "GATE: PASS ($Head; $NotRun not run; mask $DTMask)"
 exit 0

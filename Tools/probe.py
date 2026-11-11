@@ -14,11 +14,14 @@ T-KEE-15 (R-KEE-15, C.INTERCESSION.BAND): for every variant x layer combination 
 cast (with-cast minus no-cast, same build, seed and field) lies within +-band of that Keeper's combination mean. The build of a
 combination is the variant archetype's four cards, the layer archetype's Key and first Amp, and one fixed LOADOUT for all.
 
-T-KEE-18 (R-KEE-18): each snapshot is rebuilt per configuration and ablated (the Handoff's method, balance/power_split.md):
-  share   = drop without blessings / sum of the drops of blessings, modifiers, weapon levels and extra weapons
-  loss    = 1 - DPS without blessings / full DPS (reads high on multipliers, so it is printed beside the share)
+T-KEE-18 (R-KEE-18, D-047; method in Docs/10_Tuning.md section 3): each snapshot is rebuilt per configuration, one group removed:
+  loss    = 1 - DPS without blessings / full DPS; an arm's loss is the mean over its builds
   gain    = full DPS / DPS without the archetype's own cards, against C.KEEPER.PACKAGE_GAIN_BAND
-Share against C.POWER.KEEPER_SHARE_L16; each arm's share within +-C.POWER.ARCHETYPE_BAND of the arm mean.
+  control = the same gain with the second Keeper's cards removed from both sides; printed beside the gain, never judged
+  share   = drop without blessings / sum of the drops of blessings, modifiers, weapon levels and extra weapons; printed and
+  never judged, because its denominator rises with a multiplying Keeper's own power
+Judged: every arm's loss at least C.POWER.KEEPER_SHARE_L16; every arm's loss within +-C.POWER.ARCHETYPE_BAND of the mean of
+the arms; every arm's gain inside its band. A run folder from before the control (six configurations) still reads.
 
 --stage picks the primaries (expression.csv Stage; default S1, the S1 commands read as they did): S2 is Shade, Radiance and
 Quicksilver as primaries, with every R-KEE-16 layer of all six Keepers.
@@ -61,7 +64,8 @@ SHOWCASE_S2 = {
 	"Steered-Quicksilver-Vector-Forge": ("Quicksilver", "Vector"), "Steered-Quicksilver-Momentum-Storm": ("Quicksilver", "Momentum"), "Steered-Quicksilver-Rebound-Storm": ("Quicksilver", "Rebound"),
 }
 PICK = re.compile(r"Offer p0: picked slot \d+ Keeper\.(\w+)")
-CONFIGS = ("full", "no_keepers","no_package", "no_mods", "no_levels", "no_extra")
+CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra")
+CONTROL = ("no_second", "no_second_no_package")  # the package gain again, the second Keeper's cards off both sides
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")
 
 
@@ -131,6 +135,10 @@ def ablate(build, config, path, name):
 		return None, [], weapons
 	if config == "no_package":
 		return second, [b for b in blessings if not b.startswith(f"Blessing.{path}.{name}.")], weapons
+	if config == "no_second":  # only the arm's own Path keeps its cards
+		return None, [b for b in blessings if b.startswith(f"Blessing.{path}.")], weapons
+	if config == "no_second_no_package":
+		return None, [b for b in blessings if b.startswith(f"Blessing.{path}.") and not b.startswith(f"Blessing.{path}.{name}.")], weapons
 	if config == "no_mods":
 		return second, blessings, [(w, lvl, []) for w, lvl, _ in weapons]
 	if config == "no_levels":
@@ -181,7 +189,7 @@ def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1", ma
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	hp = field_hp(consts, mult)
-	by_config = {c: [] for c in CONFIGS}
+	by_config = {c: [] for c in CONFIGS + CONTROL}
 	count = 0
 	arms = {"S1": SHOWCASE, "S2": SHOWCASE_S2}.get(stage, {**SHOWCASE, **SHOWCASE_S2})
 	for label, (path, name) in arms.items():
@@ -195,7 +203,7 @@ def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1", ma
 			if max_build is not None and build_seed > max_build:
 				continue
 			count += 1
-			for config in CONFIGS:
+			for config in CONFIGS + CONTROL:
 				second, blessings, weapons = ablate(build, config, path, name)
 				tag = f"AB-{path}-{name}-b{build_seed}-{config}"
 				script = os.path.join(out_dir, tag + ".txt")
@@ -203,7 +211,7 @@ def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1", ma
 					f.write(scene(path, second, blessings, weapons, FIELD, hp, ABLATE_WARMUP_S, ABLATE_WINDOW_S))
 				for seed in range(1, seeds + 1):
 					by_config[config].append([tag, count * 100 + seed, os.path.abspath(script)])
-	write_jobs(out_dir, [job for config in CONFIGS for job in by_config[config]])
+	write_jobs(out_dir, [job for config in CONFIGS + CONTROL for job in by_config[config]])
 
 
 def read_run(folder):
@@ -271,15 +279,30 @@ def band_check(values, band):
 
 
 def share_of(dps):
-	"""Keeper share, loss and package gain from {config: DPS}; drops below zero (noise) count as zero."""
+	"""Loss, package gain, its control and the share from {config: DPS}.
+	loss is one minus the ratio, as 10_Tuning.md section 3 writes it: below zero when a build is stronger without its blessings.
+	control is None for a build read without the two CONTROL configurations.
+	share (printed, never judged): a drop below zero is noise and counts as zero."""
 	full = dps["full"]
 	drops = {c: max(0.0, full - dps[c]) for c in DROPS}
 	total = sum(drops.values())
+	control = None
+	if all(c in dps for c in CONTROL):
+		control = dps["no_second"] / dps["no_second_no_package"] if dps["no_second_no_package"] > 0 else float("inf")
 	return {
-		"share": drops["no_keepers"] / total if total > 0 else 0.0,
-		"loss": drops["no_keepers"] / full if full > 0 else 0.0,
+		"loss": 1.0 - dps["no_keepers"] / full if full > 0 else 0.0,
 		"gain": full / dps["no_package"] if dps["no_package"] > 0 else float("inf"),
+		"control": control,
+		"share": drops["no_keepers"] / total if total > 0 else 0.0,
 	}
+
+
+def judge_arms(arms, need, arch_band, gain_band):
+	"""T-KEE-18 on {arm: {"loss", "gain", ...}}: ({arm: (loss ok, gain ok, in the archetype band)}, the mean loss of the arms).
+	Loss is the judged reading of Keeper share (D-047); the band is +-arch_band around the mean of the arms' losses."""
+	mean = sum(v["loss"] for v in arms.values()) / len(arms)
+	return {arm: (v["loss"] >= need, gain_band[0] <= v["gain"] <= gain_band[1], abs(v["loss"] - mean) <= arch_band + 1e-9)
+		for arm, v in arms.items()}, mean
 
 
 def read_intercession(root, lines):
@@ -343,28 +366,30 @@ def read_ablation(root, lines):
 	for arm, per_build in builds.items():
 		rows = [share_of(b) | {"full": b["full"]} for b in per_build.values() if all(c in b for c in CONFIGS)]
 		if rows:
-			arms[arm] = {k: statistics.mean(r[k] for r in rows) for k in ("share", "loss", "gain", "full")} | {"n": len(rows)}
+			controls = [r["control"] for r in rows if r["control"] is not None]
+			arms[arm] = {k: statistics.mean(r[k] for r in rows) for k in ("share", "loss", "gain", "full")} | {"n": len(rows),
+				"control": statistics.mean(controls) if controls else None, "control_n": len(controls)}
 	if not arms:
 		lines.append("T-KEE-18: n/a (no complete build)")
 		return None
-	checked, mean = band_check({k: v["share"] for k, v in arms.items()}, arch_band / statistics.mean(v["share"] for v in arms.values()))
-	lines += ["", f"## T-KEE-18 ablation at L16 (share >= {need}, gain {gain_band[0]}-{gain_band[1]}, share within +-{arch_band} of {mean:.3f})", "",
-		"| Arm | Builds | Full DPS | Keeper share | Loss without blessings | Package gain | Share | Gain | Band |", "|---|---|---|---|---|---|---|---|---|"]
-	fails = {"share": 0, "gain": 0, "band": 0}
+	judged, mean = judge_arms(arms, need, arch_band, gain_band)
+	lines += ["", f"## T-KEE-18 ablation at L16 (loss >= {need}, gain {gain_band[0]}-{gain_band[1]}, loss within +-{arch_band} of {mean:.3f})", "",
+		"| Arm | Builds | Full DPS | Loss without blessings | Package gain | Gain with no second Keeper (builds) | Share, not judged | Loss | Gain | Band |",
+		"|---|---|---|---|---|---|---|---|---|---|"]
+	fails = {"loss": 0, "gain": 0, "band": 0}
 	for arm in sorted(arms):
 		v = arms[arm]
-		ok_share = v["share"] >= need
-		ok_gain = gain_band[0] <= v["gain"] <= gain_band[1]
-		ok_band = checked[arm][1]
-		fails["share"] += not ok_share
+		ok_loss, ok_gain, ok_band = judged[arm]
+		fails["loss"] += not ok_loss
 		fails["gain"] += not ok_gain
 		fails["band"] += not ok_band
-		lines.append(f"| {arm[0]}/{arm[1]} | {v['n']} | {v['full']:.0f} | {v['share']:.3f} | {v['loss']:.3f} | {v['gain']:.2f} | "
-			f"{'PASS' if ok_share else 'FAIL'} | {'PASS' if ok_gain else 'FAIL'} | {'IN' if ok_band else 'OUT'} |")
+		control = "-" if v["control"] is None else f"{v['control']:.2f} ({v['control_n']})"
+		lines.append(f"| {arm[0]}/{arm[1]} | {v['n']} | {v['full']:.0f} | {v['loss']:.3f} | {v['gain']:.2f} | {control} | {v['share']:.3f} | "
+			f"{'PASS' if ok_loss else 'FAIL'} | {'PASS' if ok_gain else 'FAIL'} | {'IN' if ok_band else 'OUT'} |")
 	ok = not any(fails.values())
 	lines.append("")
-	lines.append(f"T-KEE-18: {'PASS' if ok else 'FAIL'} ({len(arms)} arms: share below {need} on {fails['share']}, gain outside the band on {fails['gain']}, "
-		f"outside the archetype band on {fails['band']}; mean share {mean:.3f})")
+	lines.append(f"T-KEE-18: {'PASS' if ok else 'FAIL'} ({len(arms)} arms: loss below {need} on {fails['loss']}, gain outside the band on {fails['gain']}, "
+		f"outside the archetype band on {fails['band']}; mean loss {mean:.3f}; share, printed and never judged, mean {statistics.mean(v['share'] for v in arms.values()):.3f})")
 	return ok
 
 

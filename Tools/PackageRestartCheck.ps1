@@ -24,6 +24,8 @@ param(
 
 trap { Write-Host "PKGRESTART: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $PackageRoot = Join-Path $Root "Saved\Package"
 $DevExe = Join-Path $PackageRoot "Development\Windows\Dusktracer\Binaries\Win64\Dusktracer.exe"

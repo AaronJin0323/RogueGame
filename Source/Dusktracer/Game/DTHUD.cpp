@@ -26,6 +26,7 @@
 #include "Offers/DTOfferStyle.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHeroSubsystem.h"
+#include "Player/DTInputSet.h"
 #include "Progression/DTXPBar.h"
 #include "Settings/DTMenuSubsystem.h"
 #include "Settings/DTUserSettings.h"
@@ -89,6 +90,19 @@ void ADTHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	FrameTimes.Reset();
 	Super::EndPlay(EndPlayReason);
+}
+
+FText ADTHUD::KeyLabel(const FText& Label, const UDTInputSet* Set, const UInputAction* Action, EDTInputDevice Device)
+{
+	const FKey Key = Set ? Set->GetBoundKey(Action, Device) : FKey();
+	if (!Key.IsValid())
+	{
+		return Label;
+	}
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Name"), Label);
+	Args.Add(TEXT("Keys"), UDTInputSet::KeyGlyph(Key));
+	return FText::Format(FText::FromStringTable(TEXT("ST_UI"), TEXT("Hud.KeyLabel")), Args);
 }
 
 void ADTHUD::DrawHeroes()
@@ -188,7 +202,11 @@ void ADTHUD::DrawHeroes()
 		Bar(X, Y, BarWidthPx, S.MaxHp > 0.0f ? S.Hp / S.MaxHp : 0.0f, BarFill);
 		Y += BarHeightPx + LineGapPx;
 
-		Text(DashLabel, X, Y, TextScale);
+		// The key or pad button of the device this player used last, beside each label (R-CMB-13).
+		const UDTInputSet* const Keys = Hero->GetInputSet(OwnerId);
+		const EDTInputDevice Device = Hero->GetLastInputDevice(OwnerId);
+		const FText DashLine = KeyLabel(DashLabel, Keys, Keys ? Keys->Dash.Get() : nullptr, Device);
+		Text(DashLine, X, Y, TextScale);
 		Y += LineH + LineGapPx;
 		const int32 MaxCharges = FDTHeroSim::ComputeMaxCharges(S.Stats);
 		const float Cooldown = DTConst::DASH_COOLDOWN_S * S.Stats.DashCooldownMul;
@@ -210,7 +228,16 @@ void ADTHUD::DrawHeroes()
 		Y += PipSizePx + LineGapPx;
 
 		const bool bReady = S.Intercession01 >= 1.0f;
-		Text(bReady ? MeterReady : MeterLabel, X, Y, TextScale);
+		const FText MeterLine = KeyLabel(bReady ? MeterReady : MeterLabel, Keys, Keys ? Keys->Intercession.Get() : nullptr, Device);
+		Text(MeterLine, X, Y, TextScale);
+#if !UE_BUILD_SHIPPING
+		if (OwnerId == 0 && !bLoggedKeyLabels)
+		{
+			bLoggedKeyLabels = true;
+			UE_LOG(LogDT, Log, TEXT("HudKeys culture=%s dash=%s | intercession=%s"), *FInternationalization::Get().GetCurrentCulture()->GetName(),
+				*DashLine.ToString(), *MeterLine.ToString());
+		}
+#endif // !UE_BUILD_SHIPPING
 		Y += LineH + LineGapPx;
 		Bar(X, Y, BarWidthPx, S.Intercession01, bReady ? BarReady : BarFill);
 		Y += BarHeightPx + LineGapPx;

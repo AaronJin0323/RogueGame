@@ -20,6 +20,8 @@ param(
 
 trap { Write-Host "PADCHECK: FAIL (script error: $_)"; exit 1 }
 
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 . (Join-Path $PSScriptRoot "WindowWatch.ps1")

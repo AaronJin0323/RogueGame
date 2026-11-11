@@ -53,8 +53,11 @@ param(
 )
 
 trap { Write-Host "BOTRUNS: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 # Without the check the switch would judge nothing and the line would still read PASS.
 if ($ReadAll -and ($Check -notmatch "T-OFF-15" -or $Jobs)) { throw "-ReadAll reads -Check T-OFF-15 on arms" }
+
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }

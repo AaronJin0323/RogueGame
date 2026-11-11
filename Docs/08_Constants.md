@@ -16,17 +16,17 @@
 | C.POOL.STARTER_WEAPONS | 4 | n | CORE | offers.md §3 |
 | C.POOL.STARTER_MODIFIERS | 8 | n | CORE | offers.md §3 |
 | C.POOL.STARTER_BLESSINGS | 18 | n | CORE | offers.md §3, keepers.md |
-| C.BULLETS.CAP | 6000 | n | CORE | 07_Technical §budgets, T-PERF-01 |
-| C.ENEMIES.CAP | 400 | n | CORE | 07_Technical §budgets, T-PERF-01 |
+| C.BULLETS.CAP | 6000 | n | CORE | 07_Technical §budgets, T-TEC-10 |
+| C.ENEMIES.CAP | 400 | n | CORE | 07_Technical §budgets, T-TEC-10 |
 | C.OFFER.CARDS | 5 | n | CORE | offers.md §1 |
 | C.OFFER.REROLLS | 2 | n | CORE | offers.md §6 |
 | C.OFFER.BANISH | 1 | n | CORE | offers.md §6 |
 | C.OFFER.LOCK | 1 | n | CORE | offers.md §6 |
-| C.TTK.SWARM_STEERED_MAX | 0.3 | s | CORE | 10_Tuning §1 |
-| C.DMG_TAKEN.BAND_MIN10_13 | 30–50 | %/min | CORE | director.md, T-DIR-02 |
-| C.DASHES.BAND_MIN10_13 | 6–10 | /min | CORE | combat_core.md |
-| C.POWER.KEEPER_SHARE_L16 | ≥ 0.60 | ratio | CORE | 10_Tuning §3, T-BAL-01 |
-| C.POWER.ARCHETYPE_BAND | ±0.15 | ratio | CORE | 10_Tuning §3 |
+| C.TTK.SWARM_STEERED_MAX | 0.3 | s | CORE | 10_Tuning §1 and §2, director.md R-DIR-18, T-DIR-18, S1_kit row 5 |
+| C.DMG_TAKEN.BAND_MIN10_13 | 30–50 | %/min | CORE (a draft; set at the S1 gate, D-046) | director.md, T-DIR-02, 10_Tuning §2 |
+| C.DASHES.BAND_MIN10_13 | 6–10 | /min | CORE (a draft; set at the S1 gate, D-046) | combat_core.md, director.md, 10_Tuning §2 |
+| C.POWER.KEEPER_SHARE_L16 | ≥ 0.60 | ratio | CORE | 10_Tuning §3, T-KEE-18 (loss, D-047) |
+| C.POWER.ARCHETYPE_BAND | ±0.15 | ratio | CORE | 10_Tuning §3, T-KEE-18 (loss, D-047) |
 | C.INTERCESSION.BAND | ±0.20 of mean | ratio | CORE | keepers.md §7 |
 
 ## 2. Simulation (07_Technical §4)
@@ -88,7 +88,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 532 | n | CORE (rises only) | 11_Quality §1, Tools/Gate.ps1 |
+| C.GATE.TEST_FLOOR | 476 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -104,7 +104,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ENM.STEER_ACCEL_UU_S2 | 2400 | uu/s² | GATED(S1) | enemies.md |
 | C.ENM.SEPARATION_RADIUS_UU | 72 | uu | GATED(S0) | enemies.md, T-ENM-03 |
 | C.ENM.SEPARATION_STRENGTH | 1.5 | ratio | GATED(S0) | enemies.md, T-ENM-03 |
-| C.ENM.MAX_NEIGHBOURS | 8 | n | GATED(S0) | enemies.md, T-PERF-01 |
+| C.ENM.MAX_NEIGHBOURS | 8 | n | GATED(S0) | enemies.md, T-TEC-10 |
 | C.ENM.SPAWN_RING_RADIUS_UU | 1600 | uu | GATED(S1) | enemies.md, Debug/DTDebugEnemies |
 | C.ENM.KILL_RATE_WINDOW_S | 1.0 | s | GATED(S0) | enemies.md, C.PRE.DENSITY_LOD_KILLS_PER_S |
 | C.ENEMIES.OPTIC_EMISSIVE | 14.0 | ratio | GATED(S1) | enemies.md, R-ENM-24, T-ENM-24 |
@@ -130,6 +130,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ROLE.RUSHER_CHARGE_S | 0.65 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_RECOVER_S | 0.8 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
 | C.ROLE.RUSHER_COOLDOWN_S | 2.0 | s | GATED(S1) | enemies.md, R-ENM-11, T-ENM-11 |
+| C.ROLE.RUSHER_ARRIVAL_OVERSHOOT_UU | 200 | uu | GATED(S1) | enemies.md, R-ENM-13, T-ENM-13 |
 | C.ROLE.TURRET_HP | 40 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-09 |
 | C.ROLE.TURRET_RADIUS_UU | 48 | uu | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-12 |
 | C.ROLE.TURRET_CONTACT_DAMAGE | 6 | hp | GATED(S1) | enemies.md, 09_Catalog/enemies.csv, R-ENM-14 |
@@ -160,7 +161,7 @@ Everything else (HP scaling k, XP table, weapon damage, aim tokens) starts from 
 | C.ELITE.PART_RATIO | 0.35 | ratio | GATED(S2) | elites.md, R-ELT-11, T-ELT-11 |
 | C.ELITE.SHIELD_ORBIT_DEG_S | 90 | deg_per_s | GATED(S2) | elites.md, R-ELT-11 |
 | C.ELITE.LABELS_MAX | 12 | n | GATED(S2) | elites.md, R-ELT-12, T-ELT-12 |
-| C.ENEMY_FIRE.CAP | 1024 | n | GATED(S1) | enemies.md, R-ENM-15, T-ENM-15, T-PERF-01 |
+| C.ENEMY_FIRE.CAP | 1024 | n | GATED(S1) | enemies.md, R-ENM-15, T-ENM-15, T-TEC-10 |
 | C.ENEMY_FIRE.SHOT_SPEED_UU_S | 650 | uu/s | GATED(S1) | enemies.md, R-ENM-12 |
 | C.ENEMY_FIRE.SHOT_RADIUS_UU | 16 | uu | GATED(S1) | enemies.md, R-ENM-16, T-ENM-20 |
 | C.ENEMY_FIRE.SHOT_DAMAGE | 5 | hp | GATED(S1) | enemies.md, R-ENM-16 |
@@ -219,7 +220,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.ARENA.CAMERA_FOV_DEG | 50 | deg (horizontal) | GATED(S1) | Game/DTCameraPawn |
 | C.ARENA.CAMERA_FRAME_RADIUS_UU | 1500 | uu | GATED(S0) | 06_UX.md R-UX-01, Game/DTCameraPawn (D-036: every attack starts on screen; the frame is fixed) |
 | C.SMOKE.SECONDS | 10 | s | CORE | Tools/Smoke.ps1 |
-| C.SMOKE.GOLDEN_MEAN_DIFF_MAX | 12.0 | 8-bit level | GATED(S0) | Tools/image_check.py, Tools/Smoke.ps1 |
+| C.SMOKE.GOLDEN_MEAN_DIFF_MAX | 12.0 | 8-bit level | GATED(S0) | Tools/image_check.py, Tools/Smoke.ps1, Tools/image_check.py --exposure (T-PRE-07) |
 | C.SMOKE.IMAGE_STDDEV_MIN | 4.0 | 8-bit level | CORE | Tools/image_check.py (not blank / uniform) |
 | C.PERF.WARMUP_S | 10 | s | CORE | Tools/Perf.ps1, T-TEC-10 |
 | C.PERF.CAPTURE_FRAMES | 1800 | n | CORE | Tools/Perf.ps1, T-TEC-10 |
@@ -244,7 +245,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.TEL.TTK_PERCENTILE | 0.50 | ratio | CORE | telemetry.md (`swarm_ttk_s` column), C.TTK.SWARM_STEERED_MAX |
 | C.TEL.NEAREST_PERCENTILE | 0.10 | ratio | CORE | telemetry.md (`nearest_enemy_p10_uu` column) |
 | C.TEL.HERO_POS_INTERVAL_S | 2.5 | s (sim time) | CORE | telemetry.md (`hero_pos` record), Telemetry/DTTelemetryCore, T-TEL-10 |
-| C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-BAL-01 |
+| C.TEL.POWER_CHECK_LEVEL | 16 | level | CORE | Tools/probe.py, Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-KEE-18 |
 
 ## Keepers (02_Systems/keepers.md)
 
@@ -346,6 +347,7 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.PICKUP.GEM_SIZE_UU | 24 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.CHEST_SIZE_UU | 70 | uu | GATED(S1) | 02_Systems/progression.md, Progression/DTPickupRenderer |
 | C.PICKUP.EMISSIVE | 3.0 | ratio | GATED(S1) | 02_Systems/progression.md, 04_Presentation.md |
+| C.PICKUP.CHEST_RESTORE_HP_RATIO | 0.15 | ratio | GATED(S1) | 02_Systems/progression.md, R-PRG-09, T-PRG-09 |
 
 ## Combat and director (02_Systems/combat_core.md, director.md)
 
@@ -365,7 +367,7 @@ Sources: `01_GameDesign` §3.5, §4 and §7 (the 15-minute values after D-71), `
 | C.DASH.DISTANCE_UU | 450 | uu | GATED(S1) | combat_core.md, T-CMB-06 |
 | C.DASH.COOLDOWN_S | 3.0 | s | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
 | C.DASH.CHARGES | 1 | n | GATED(S1) | combat_core.md, T-CMB-06, T-CMB-07 |
-| C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09 |
+| C.DIR.BAND_WINDOW_S | 600–780 | s | GATED(S1) | director.md, T-DIR-02, T-DIR-09, T-DIR-18 |
 | C.DIR.NOPICK_DEATH_BAND_S | 480–720 | s | GATED(S1) | director.md, T-DIR-01 |
 | C.DIR.BOT_RUNS | 10 | n | GATED(S1) | director.md, T-DIR-01 |
 | C.DEATH.FIRST_ATTEMPT_CUTOFF_S | 600 | s | GATED(S2) | bot.md, R-BOT-17, T-BOT-17 |
