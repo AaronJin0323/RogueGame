@@ -397,6 +397,7 @@ FDTImpactStepCounts FDTImpactEffects::Feed(const FDTImpactStepInput& Input)
 	const EDTDensityTier Tier = Input.Tier;
 	const int32 SparkCap = Tier == EDTDensityTier::PerKill ? DTConst::IMP_SPARKS_PER_STEP_MAX
 		: (Tier == EDTDensityTier::Crowd ? DTConst::IMP_SPARKS_DENSE_PER_STEP_MAX : 0);
+	bool bSparksFull = false;
 	SparkSerials.Reset();
 	KillPositions.Reset();
 	KillDrawn.Reset();
@@ -436,7 +437,7 @@ FDTImpactStepCounts FDTImpactEffects::Feed(const FDTImpactStepInput& Input)
 			continue; // a tick is damage, not a blow (R-IMP-03)
 		}
 		++Counts.CountedHits;
-		if (Counts.Sparks >= SparkCap)
+		if (bSparksFull || Counts.Sparks >= SparkCap)
 		{
 			continue;
 		}
@@ -455,7 +456,8 @@ FDTImpactStepCounts FDTImpactEffects::Feed(const FDTImpactStepInput& Input)
 		Spark.Born = Input.Step;
 		if (Sparks.Add(Spark) == INDEX_NONE)
 		{
-			++RefusedSparks;
+			RefusedSparks += SparkCap - Counts.Sparks; // the rest of the step's allowance: the live cap is full
+			bSparksFull = true;
 			continue;
 		}
 		++Counts.Sparks;
