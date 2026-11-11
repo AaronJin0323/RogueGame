@@ -3,7 +3,7 @@
 #   . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity
 #   Set-DTAffinity [-Path <mask file>]       sets this process's affinity to the mask; returns it as text ("FFFFFBFE"), or "none"
 #   Get-DTCommonDir <root>                   the git common dir of a tree (shared by every worktree), or $null when the tree is not a git checkout
-#   & Tools\Machine.ps1 -DTRunFile <file> [args]   runs a batch file (or any command) under the mask: the form the .bat entry points use
+#   & Tools\Machine.ps1 -DTRunFile <file> [args]   runs a batch file (or any command) under the mask and inside a job that holds it: the form the .bat entry points use
 # The mask file is <git common dir>\dt-locks\affinity.txt: one hexadecimal mask on one line. It is a fact about one machine and is not in the repository.
 # No file, or a tree that is not a git checkout: nothing changes and the mask reads "none". A file that does not parse, or a mask that leaves no
 # processor of this machine in: a terminating error, which the caller's trap turns into its FAIL line.
@@ -47,8 +47,14 @@ if ($DTRunFile) {
 	# A batch file cannot set its own affinity: it runs again as a child of this process, which holds the mask. DT_MASKED_BAT tells the batch file it is the
 	# masked run, so it does not come back here.
 	trap { Write-Host "MACHINE: FAIL ($_)"; exit 1 }
-	$null = Set-DTAffinity
-	$env:DT_MASKED_BAT = (Resolve-Path -LiteralPath $DTRunFile).Path
-	& $DTRunFile @DTRunArgs
+	# The batch file's commandlet starts engine threads that ask for every processor, which a process mask alone lets them have (S1_gate_main.md s5):
+	# this process joins a job that carries the mask as its affinity limit (Tools/HiddenLaunch.ps1, Hold-DTProcess), and the batch file and all it
+	# starts are born in it. Dot-sourcing the helper runs this file again with no arguments, so the run is kept first.
+	$Run = @{ File = $DTRunFile; Args = @($DTRunArgs) }
+	. (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
+	$null = Hold-DTProcess
+	$env:DT_MASKED_BAT = (Resolve-Path -LiteralPath $Run.File).Path
+	$RunArgs = $Run.Args
+	& $Run.File @RunArgs
 	exit $LASTEXITCODE
 }

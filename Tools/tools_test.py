@@ -1010,7 +1010,8 @@ class Machine(unittest.TestCase):
 			self.assertIn("THREW", out, text)
 
 	def test_a_batch_entry_point_runs_under_the_mask(self):
-		shutil.copy(self.HELPER, self.tmp.name)
+		for name in ("Machine.ps1", "HiddenLaunch.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tmp.name)
 		with open(os.path.join(TOOLS, "Build.bat"), encoding="utf-8") as f:
 			head = [line for line in f.read().splitlines()[:12]]
 		cut = next(i for i, line in enumerate(head) if line.startswith('set "DT_MASKED_BAT="')) + 1
@@ -1112,6 +1113,39 @@ class EngineMask(unittest.TestCase):
 		with open(result, encoding="ascii") as f:
 			before, ok, after = f.read().split()
 		self.assertEqual((before, ok, after), (f"{self.one:X}", "0", f"{self.one:X}"), out)
+
+	def test_a_batch_files_commandlet_is_held_by_the_same_job(self):
+		# Localize.bat and CreateArena.bat run through Machine.ps1 -DTRunFile, which joins the job of Hold-DTProcess: what the batch file starts is born in it.
+		for name in ("Machine.ps1", "HiddenLaunch.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tmp.name)
+		child = os.path.join(self.tmp.name, "widen.py")
+		result = os.path.join(self.tmp.name, "widen.txt")
+		with open(child, "w", encoding="utf-8") as f:
+			f.write(WIDEN_CHILD)
+		with open(os.path.join(TOOLS, "Localize.bat"), encoding="utf-8") as f:
+			head = f.read().splitlines()
+		cut = next(i for i, line in enumerate(head) if line.startswith('set "DT_MASKED_BAT="')) + 1
+		bat = os.path.join(self.tmp.name, "t.bat")
+		with open(bat, "w", encoding="ascii") as f:
+			f.write("\r\n".join(head[:cut] + [f'python -I "{child}" "{result}" {self.own:X}', "exit /b 0", ""]))
+		mask = os.path.join(self.tmp.name, "affinity.txt")
+		with open(mask, "w", encoding="ascii") as f:
+			f.write(f"{self.one:X}\n")
+		done = subprocess.run(["cmd", "/c", bat], capture_output=True, env=dict(os.environ, DT_AFFINITY_FILE=mask), timeout=120)
+		self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+		with open(result, encoding="ascii") as f:
+			self.assertEqual(f.read().split(), [f"{self.one:X}", "0", f"{self.one:X}"])
+
+	def test_the_cook_is_held_and_the_batch_files_run_through_the_holder(self):
+		with open(os.path.join(TOOLS, "Package.ps1"), encoding="utf-8") as f:
+			package = f.read()
+		self.assertLess(package.index("Hold-DTProcess"), package.index("RunUAT.bat"))
+		with open(os.path.join(TOOLS, "Machine.ps1"), encoding="utf-8") as f:
+			machine = f.read()
+		self.assertLess(machine.index("Hold-DTProcess"), machine.index("& $Run.File"))
+		for name in ("Localize.bat", "CreateArena.bat"):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
 class Pre07(unittest.TestCase):
