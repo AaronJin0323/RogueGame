@@ -114,4 +114,31 @@ tests:      572 run of 572 found, 0 failed, floor 572, 0 crash marker(s)
 tools:      TOOLS: PASS (355 tests)
 GATE: PASS (554c696; 3 not run; mask FFFFF3FC)
 ```
-Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s4_gate.txt` in the carrying worktree.
+Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s4_gate.txt` in the carrying worktree.## Fifth and sixth carry: `main` 75acd0d, then d23b7ef, through `dev/s2` and `dev/s3` into `dev/s4` 3cb9534 (`carry6/s4`, then `carry7/s4`)
+The fifth carry (`carry6/s4`, 97593a2: `carry6/s3` into `dev/s4` a155ace) was gated whole, but the owner's stop came before it was reported, so it counts as not run. `carry7/s4` is cut from `dev/s4` 3cb9534 (package E landed), takes `carry6/s4` and its resolutions as they were (a merge with no conflict), then `carry7/s3` (`main` d23b7ef through `dev/s2` 63c4e51 and `dev/s3` 00332f5), and is gated whole on that tree, 5031804.
+What came: the gate's slot taken at its first heavy step (`Start-HeavyStep`) and the window-watch fix; session A's reading tools; D-057 to D-066 and their records; `main`'s crash-exit fix (R-PKG-16 and T-PKG-16, `Source/Dusktracer/Dusktracer.cpp`, `Tools/CrashExitCheck.ps1`, `crash_exit.py`); the alone take that claims the machine at once (`Tools/Alone.ps1`, `Machine.ps1`); `offers.md` saying what the code does (D-062, D-063); and `dev/s3`'s save-stuck line (`s3/save-stuck-line`: `Hub/`, `Meta/`, `Settings/DTMenuScreen.*`, `DTMenuSubsystem.cpp`, `ST_UI` rows).
+- Conflicts and resolutions, all in the fifth carry's merge (the sixth's two merges into `dev/s4` had none):
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff d23b7ef -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty on b6468df.
+  - `Tools/Gate.ps1`: `dev/s4`'s scene-driven `smoke` body and its `contrast` body stay as they are, with `if (Start-HeavyStep "smoke") {` and `if (Start-HeavyStep "contrast") {` for guards. `settings` is a text step (`palette_lint.py` launches nothing), so its old `Skipped` guard is gone and `Invoke-PyStep` honours `-Skip` itself; `test_the_gate_knows_its_heavy_steps` allows no `Skipped` guard. `licence`, `palette`, `audio` and `tools` stay text steps; `burst.json` is still read as `dev/s4` reads it.
+  - `Tools/tools_test.py`: `GateSlot`'s stand-in gate stubs `dev/s4`'s text-step scripts too (`loc_build.py`, `catalog_lint.py`, `palette_lint.py`, `audio\audio_check.py`, with its subfolder made); both entry lists hold `main`'s, `dev/s2`'s, `dev/s3`'s and `dev/s4`'s scripts. `ImpactArt.ps1` (package E) takes its slot (`Enter-DTHeavy` right after `Set-DTAffinity`) and is in both lists.
+  - Draw code: none conflicted. The save-stuck line and package E merged with no conflict in `*Renderer`, `Game/DTHUD.*`, `DTHudLayout.*`, `DTUIStyle.*` or `SimRender`, so no HUD or menu frame is owed for a conflict; every smoke scene passed against its golden anyway.
+  - `Enemies/DTEnemyPool.cpp`: only `dev/s4` changed it (the hit and kill tap, R-IMP-01, 71452cf); nothing from `main`, `dev/s2` or `dev/s3` in these carries touches it, so the tap is `dev/s4`'s, unmerged.
+  - `Dusktracer.cpp` came in as `dev/s3` resolved it (both sides' includes, the crash block and `DTTreeTab::Register()`). `constants.yaml` changed on no carried side; the header `Tools/gen_constants.py` writes from the merged file equals `dev/s4`'s, byte for byte.
+- No test pins behaviour that differs by branch.
+- Counts: 581 tests, floor 581 (`dev/s4`'s package E count; the carried side adds no engine test); `tools_test.py` 412.
+- Seed 9107 on 5031804, unchanged: v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`; RestartCheck `276faf8e / 276faf8e` (5400 / 5400); MetaCheck `ba2a3ac8 / ba2a3ac8` (1200 / 1200); firstrun 6/6 at the boss, mean decisions 29.167. Every smoke scene passed against its golden, `impact_hit` and `impact_kill` among them (largest mean diff 0.55 of 12); contrast WATCH OK in all three scenes; no golden re-shot.
+
+```
+tools:      TOOLS: PASS (412 tests)
+tests:      581 run of 581 found, 0 failed, floor 581, 0 crash marker(s)
+GATE: PASS (5031804; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\c7s4_gate.txt` in the carry agent's worktree.
+
+`dev/s4` then moved to 2c4555b by two documents (`S4_e_feedback.md` section 10, a pointer line in `S4_perf_1080p.md`). It merged clean as b6468df, and the text steps ran again with every heavy step skipped:
+
+```
+tools:      TOOLS: PASS (412 tests)
+GATE: PASS (b6468df; 20 not run; mask FFFFF3FC)
+```
+Log: `Saved\Logs\c7s4_text.txt`.
