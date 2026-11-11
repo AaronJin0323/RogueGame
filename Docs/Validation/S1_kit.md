@@ -7,6 +7,7 @@ Exit test (`12_Production §2`, S1; D-048): **3 validators × 2 runs, at each of
 - Build: the package the scheduler gives, a folder from `Tools\Package.ps1` (`Saved\Package\Shipping\Windows`, Shipping, en + zh-Hans). Copy that folder to the PC; no editor or engine is needed. If the game reports a missing runtime, run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from it once.
 - Launch: double-click `Play_en.bat` or `Play_zh-Hans.bat` (full-screen arena, director on, bot off, a fresh seed each launch). Pad: plug it in before launch; keyboard/mouse and pad both work at any time. The session must have one tester who plays on a pad.
 - Between runs: the game has no restart. After the death or victory screen press Alt+F4 (the host does it for a pad tester), then launch again. Alt+F4 mid-run is safe; the run file closes with reason `quit`.
+- If the game freezes (the picture stops and no key or button does anything): wait fifteen seconds. If it has not closed by itself, press Ctrl+Alt+Delete, choose Task Manager, select Dusktracer and press End task. What the run wrote up to that moment is kept and is exported with the other runs. Write the run and the clock time in the Bugs row, then launch again. A run cut short by a freeze or a crash keeps its row in the run table with how it ended; if there is time, give the tester another run and write it as a new row.
 - Have this sheet and a clock. Write the clock time each time you launch, and the run timer (HUD) at each key moment.
 
 ### Only if the session is on the development PC
@@ -35,6 +36,8 @@ The files hold no names. The clock time you write here is the only thing that ti
 | 4 | | | | | | | |
 | 5 | | | | | | | |
 | 6 | | | | | | | |
+
+Add rows if a run is started again.
 
 The seed is not shown in the game. After the export each run's two files are named `<seed>_<date>_<time>`, in the PC's local time: find the file whose time matches the row and copy its seed.
 
@@ -114,7 +117,7 @@ What each answer is for (the scheduler's use):
 - Export: double-click `ExportTelemetry.bat`. It makes `Dusktracer_Telemetry_<time>.zip` on the desktop (one CSV + JSONL per run, from `%LOCALAPPDATA%\Dusktracer\Saved\Playtests`, and a `MANIFEST.txt`) and prints the path. Nothing leaves the PC by itself: you carry the zip. Export after each tester or once at the end; a later zip holds the earlier runs too.
 - Hand over: the host gives the zip and the filled sheet (the paper, or a photo of every page) to the owner. The owner puts them in `E:\Dusktracer\Saved\Sessions\A\<tester>\` on the development PC, one folder per tester named `T1`, `T2`, `T3` as on this sheet and never by a person's name, and says so in the scheduler's session. Session B goes to `Saved\Sessions\B\` the same way. Nothing else is needed.
 - What the zip holds: gameplay only (seed, build hash, culture, last input device, combat numbers, every hit the hero took with its source and where both stood, whether that source dropped in or was charging, health restored, how many drop-ins landed, hero positions on the arena, cards offered and picked, Keeper and weapon choices, whether a test bot ran the run at fast speed, and the clock: the start time, UTC inside each file and local in its name, so the two show the time zone, the seconds each hand took, the seconds paused, the run's length on the clock and the steps the PC could not keep up with). No name, account, machine name, path or hardware. This build writes no engine log; `-IncludeLogs` adds log and crash folders if any exist, and those can name the Windows user, so it is off by default.
-- Crash: note the run and the time on the sheet. The run's file has no `run_end`, so its pause, its slow share and its end are not read; the seed in its file name replays the start on the proof build.
+- Crash or freeze: note the run and the time on the sheet. The run's file has no `run_end`, so its pause, its slow share and its end are not read; the seed in its file name replays the start on the proof build.
 - A returned zip is data. The reading tool copies it into its own folder (`Saved\SessionRead\`) before it opens it, takes only run files and the manifest out of it, and runs nothing from it.
 - Reading: the scheduler types the run table into `Saved\Sessions\A\validators.csv` (`python -I Tools\session_read.py Saved\Sessions\A --list` prints the rows to fill, one per run found, with each file's start time) and runs `python -I Tools\session_read.py Saved\Sessions\A --validators Saved\Sessions\A\validators.csv`. It prints every reading the pass rule and the decisions above name, or `NOT READ` with the reason. What only this sheet holds is printed as `SHEET:` with the question's number.
 - The scheduler fills `Harness/templates/validation_note.md` as `Docs/Validation/S1_session_A.md`, then `S1_session_B.md`, each with a `Build:` line, and triages every finding (class, layer, owner).
