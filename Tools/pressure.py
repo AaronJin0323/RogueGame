@@ -17,12 +17,15 @@ Source: the JSONL `hero_damaged` (amount / max_hp), `dash`, `hero_down` and `run
 exactly, and `hero_healed` for the RESTORES line; without a JSONL, the CSV `damage_taken_per_min` / `dashes_per_min` rows weighted by their overlap with the
 window. Kill time needs both files: the CSV holds the cells, the JSONL says the run stamps the first hit (R-TEL-03).
 One line per run and player:
-  PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH] dashes <y>/min [LOW|IN|HIGH] alive <m> min (jsonl|csv)[; ended in the window, not judged]
+  PRESSURE: <run> p<n> dmg <x>/min [LOW|IN|HIGH, draft band] dashes <y>/min [LOW|IN|HIGH, draft band] alive <m> min (jsonl|csv)
+                                                     [; ended in the window, not judged]   (", draft band" while DRAFT_BANDS holds T-DIR-02)
   SOURCES: <run> p<n> <kind>/<role> <x>/min ...         (JSONL only: damage taken by hit kind and enemy role)
   SOURCES: <run> p<n> rusher hits, whole run: arrival charging <a> not charging <b>; other charging <c> not charging <d>;
                                                      killed drop-in band <e>[; unmarked contact <x> charge <y>];
                                                      out of <n> landed Rusher drop-ins (dir_block.dropins_landed_by_role)
-                                                     (hero_damaged.arrival and .charging, D-045; then one such line per bot arm and one overall)
+                                                     (hero_damaged.arrival and .charging, D-045; then one such line per bot arm and one overall,
+                                                     whose hits and landed count come from the same runs: a run whose file holds
+                                                     no landed count is left out of both and counted, never nulling the group)
   TTK: <run> p<n> swarm <x> s [IN|HIGH] over <k> cells in the window
   RESTORES: <run> p<n> <source> <k> for <x> of max HP (in window <k>, <x>) ...   (JSONL `hero_healed`, D-046: what the run got
                                                      back, never taken off the damage reading; printed only when one exists)
@@ -38,9 +41,13 @@ a session names its validators on a sheet: --validators <sheet.csv>, with a head
 (run = the file's base name, <seed>_<time>). Human runs are never pooled into one rate.
   T-DIR-02 <group>: PASS|FAIL|NOT READ (...)      both medians inside their bands
   T-DIR-02: PASS|FAIL|NOT READ (...)              PASS only when every group passes
+  T-DIR-02 <group>: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; median ...: damage taken x/min,
+                    dashes y/min)                 while DRAFT_BANDS holds T-DIR-02 (D-046): the medians, never PASS or FAIL
+  T-DIR-02: NOT SET (...)
   T-DIR-18 <group>: PASS|FAIL|NOT READ (...)      the median kill time within C.TTK.SWARM_STEERED_MAX
   T-DIR-18: PASS|FAIL|NOT READ (...)
-Exit 1 with --check unless every requested check reads PASS (both when none is named), else 0.
+Exit 1 with --check unless every requested check reads PASS (both when none is named), else 0; NOT SET is not a pass.
+Exit 2 for an unknown check or an unknown --flag.
 """
 
 import csv
@@ -60,6 +67,10 @@ MIN_RUNS = 3
 MIN_VALIDATORS = 2
 SESSION = "all"  # the group of runs outside a bot arm's folder: one session of people
 CHECKS = ("T-DIR-02", "T-DIR-18")
+# Checks whose bands are drafts (D-046): they print NOT SET with their medians, never PASS or FAIL, for a session and a bot arm
+# alike. The S1 gate decision's job empties this in the commit that writes the two bands (Docs/10_Tuning.md section 1 and 2).
+DRAFT_BANDS = ("T-DIR-02",)
+NOT_SET = "the bands are drafts until the S1 gate decision sets them, D-046"
 
 
 def first_wins(pairs):
@@ -307,6 +318,11 @@ def alive_through(alive_min, lo, hi):
 	return alive_min >= (hi - lo) / 60.0 - 1e-9
 
 
+def run_base(text):
+	"""A sheet's run cell as a run's base name: no folder, no extension."""
+	return os.path.splitext(os.path.basename(text.strip().replace("\\", "/")))[0]
+
+
 def read_validators(path):
 	"""{run base name: validator} from a sheet with a header and `run,validator` rows; an extension on the run is dropped."""
 	out = {}
@@ -314,7 +330,7 @@ def read_validators(path):
 		for row in csv.DictReader(f):
 			run, who = (row.get("run") or "").strip(), (row.get("validator") or "").strip()
 			if run and who:
-				out[os.path.splitext(os.path.basename(run.replace("\\", "/")))[0]] = who
+				out[run_base(run)] = who
 	return out
 
 
@@ -335,6 +351,8 @@ def not_read(rows, session, validators, lo, hi, what=""):
 
 
 def overall(verdicts):
+	if "NOT SET" in verdicts:
+		return "NOT SET"
 	return "FAIL" if "FAIL" in verdicts else "NOT READ" if "NOT READ" in verdicts or not verdicts else "PASS"
 
 
@@ -360,6 +378,12 @@ def judge(readings, validators, dmg_band, dash_band, ttk_max, window, checks=CHE
 				continue
 			tail = f"over {len(rows)} run(s) alive through {lo}-{hi} s" + (f", {left_out} that ended inside or before it left out" if left_out else "") \
 				+ ("" if session else "; a bot reading is a bound")
+			if check == "T-DIR-02" and check in DRAFT_BANDS:
+				d = statistics.median(r["dmg"] for r in rows)
+				s = statistics.median(r["dashes"] for r in rows)
+				lines.append(f"{check} {name}: NOT SET ({NOT_SET}; median {tail}: damage taken {d:.3f}/min, dashes {s:.2f}/min)")
+				verdicts[group] = "NOT SET"
+				continue
 			if check == "T-DIR-02":
 				d = statistics.median(r["dmg"] for r in rows)
 				s = statistics.median(r["dashes"] for r in rows)
@@ -376,6 +400,10 @@ def judge(readings, validators, dmg_band, dash_band, ttk_max, window, checks=CHE
 			lines.append(f"{check}: NOT READ (no hero alive in {lo}-{hi} s)")
 			continue
 		named = lambda v: ", ".join("session" if g == SESSION else g for g in sorted(verdicts) if verdicts[g] == v)
+		if out[check] == "NOT SET":
+			lines.append(f"{check}: NOT SET ({NOT_SET}; {sum(v == 'NOT SET' for v in verdicts.values())}/{len(verdicts)} group(s) read"
+				+ (f"; not read: {named('NOT READ')}" if named("NOT READ") else "") + ")")
+			continue
 		lines.append(f"{check}: {out[check]} ({sum(v == 'PASS' for v in verdicts.values())}/{len(verdicts)} group(s) pass"
 			+ (f"; fail: {named('FAIL')}" if named("FAIL") else "") + (f"; not read: {named('NOT READ')}" if named("NOT READ") else "") + ")")
 	return lines, out
@@ -396,6 +424,33 @@ def grade(value, band):
 	if value is None:
 		return "-"
 	return "LOW" if value < band[0] else "HIGH" if value > band[1] else "IN"
+
+
+def band_grade(value, band):
+	"""A per-run grade against a T-DIR-02 band, marked as against a draft while DRAFT_BANDS holds the check."""
+	g = grade(value, band)
+	return f"{g}, draft band" if value is not None and "T-DIR-02" in DRAFT_BANDS else g
+
+
+def group_arrivals(per_run):
+	"""Audit G4: a group's Rusher hits and landed Rusher drop-ins from the same runs. per_run is [(hits, landed or None)]; a run
+	whose file holds no landed count is left out of both sides, never nulling the rest. Returns (hits, landed or None, runs with
+	the count, runs without it); with no run that holds the count, every run's hits and None."""
+	counted = [(h, n) for h, n in per_run if n is not None]
+	use = counted or per_run
+	hits = {}
+	for h, _ in use:
+		for key, n in h.items():
+			hits[key] = hits.get(key, 0) + n
+	return hits, (sum(n for _, n in counted) if counted else None), len(counted), len(per_run) - len(counted)
+
+
+def group_landed_detail(landed, with_count, without):
+	"""The denominator of a group line: over the runs that carry the count, and how many runs carry none."""
+	if landed is None:
+		return f"landed drop-ins not in the file of any of {without} run(s)"
+	tail = f"; {without} run(s) with no landed count left out of both" if without else ""
+	return f"out of {landed} landed Rusher drop-ins over {with_count} run(s){tail}"
 
 
 def resolve(args):
@@ -466,30 +521,36 @@ def bot_fast(jsonl_path):
 	return None
 
 
+def slow_share(jsonl_path, arm=SESSION):
+	"""(share or None, the reading's text without the run's name): D-054's slow share, or why it is not read. `arm` is the run's
+	group when its file has no bot_fast: a bot arm's folder says the run was fast."""
+	counts = slow_counts(jsonl_path) if jsonl_path else None
+	if counts is None:
+		return None, "not read (no wall_dropped_steps in run_end)"
+	dropped, steps = counts
+	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
+	fast = bot_fast(jsonl_path)
+	if fast is not None:
+		if fast > 0:
+			return None, f"not read (bot at -DTBotFast={fast}; {dropped} dropped steps)"
+		return share, f"share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
+	note = "no bot_fast in run_start, told by its folder"
+	if arm != SESSION:
+		return None, f"not read (bot arm {arm} at -DTBotFast; {dropped} dropped steps; {note})"
+	return share, f"share {share:.4f} ({dropped} dropped of {steps + dropped} steps; {note})"
+
+
 def slow_line(name, jsonl_path):
 	"""D-054: the slow share is wall_dropped_steps over the steps run plus wall_dropped_steps, beside the count. It is read on people's
 	sessions only: a run whose run_start.bot_fast is above zero steps past the clock, so it prints as not read, never as zero. A run file
 	with no bot_fast is told by its folder (a bot arm's, Tools/BotRuns.ps1, or a session's) and says so. No threshold, no verdict."""
-	counts = slow_counts(jsonl_path) if jsonl_path else None
-	if counts is None:
-		return f"SLOW: {name} not read (no wall_dropped_steps in run_end)"
-	dropped, steps = counts
-	fast = bot_fast(jsonl_path)
-	if fast is not None:
-		if fast > 0:
-			return f"SLOW: {name} not read (bot at -DTBotFast={fast}; {dropped} dropped steps)"
-		share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
-		return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps)"
-	note = "no bot_fast in run_start, told by its folder"
-	if arm_of(name) != SESSION:
-		return f"SLOW: {name} not read (bot arm {arm_of(name)} at -DTBotFast; {dropped} dropped steps; {note})"
-	share = dropped / (steps + dropped) if steps + dropped > 0 else 0.0
-	return f"SLOW: {name} share {share:.4f} ({dropped} dropped of {steps + dropped} steps; {note})"
+	return f"SLOW: {name} {slow_share(jsonl_path, arm_of(name))[1]}"
 
 
 def parse_args(argv):
-	"""(run arguments, checks or None, validators sheet or None)."""
-	args, checks, sheet = [], None, None
+	"""(run arguments, checks or None, validators sheet or None, unknown flags). An argument that starts with `--` and is no known
+	flag is never a run path."""
+	args, checks, sheet, unknown = [], None, None, []
 	rest = list(argv[1:])
 	while rest:
 		a = rest.pop(0)
@@ -499,13 +560,18 @@ def parse_args(argv):
 				checks = tuple(c for c in rest.pop(0).split(",") if c)
 		elif a == "--validators":
 			sheet = rest.pop(0) if rest else ""
+		elif a.startswith("--"):
+			unknown.append(a)
 		else:
 			args.append(a)
-	return args, checks, sheet
+	return args, checks, sheet, unknown
 
 
 def main(argv):
-	args, checks, sheet = parse_args(argv)
+	args, checks, sheet, unknown = parse_args(argv)
+	if unknown:
+		print(f"PRESSURE: unknown flag {', '.join(unknown)}; known: --check, --validators")
+		return 2
 	if checks and any(c not in CHECKS for c in checks):
 		print(f"PRESSURE: unknown check in {','.join(checks)}; known: {', '.join(CHECKS)}")
 		return 2
@@ -522,16 +588,15 @@ def main(argv):
 			print(f"{check}: NOT READ (no run)")
 		return 1 if checks else 0
 	readings = []
-	arrival_totals = {}
-	arrival_landed = {}
+	arrival_runs = {}
 	for name, jsonl, csv_path in runs:
 		rates, source = window_rates(jsonl, csv_path, consts)
 		ttks = swarm_ttk(csv_path, jsonl, (lo, hi))
 		for owner in sorted(rates):
 			dmg, dashes, alive = rates[owner]
 			counts = dmg is not None and alive_through(alive, lo, hi)
-			print(f"PRESSURE: {name} p{owner} dmg {fmt(dmg, 3)}/min [{grade(dmg, dmg_band)}] dashes {fmt(dashes, 2)}/min "
-				f"[{grade(dashes, dash_band)}] alive {alive:.2f} min ({source})" + ("" if counts or dmg is None else "; ended in the window, not judged"))
+			print(f"PRESSURE: {name} p{owner} dmg {fmt(dmg, 3)}/min [{band_grade(dmg, dmg_band)}] dashes {fmt(dashes, 2)}/min "
+				f"[{band_grade(dashes, dash_band)}] alive {alive:.2f} min ({source})" + ("" if counts or dmg is None else "; ended in the window, not judged"))
 			if dmg is not None:
 				readings.append({"group": arm_of(name), "run": os.path.basename(name.replace("\\", "/")), "dmg": dmg, "dashes": dashes,
 					"counts": counts, "ttk": ttks[owner][0] if owner in ttks else None})
@@ -544,14 +609,7 @@ def main(argv):
 				landed = landed_dropins_from_jsonl(jsonl)
 				print(f"SOURCES: {name} p{owner} rusher hits, whole run: {arrivals_detail(hits)}; {landed_detail(landed)}")
 				for group in (arm_of(name), "overall"):
-					bucket = arrival_totals.setdefault(group, {})
-					for key, n in hits.items():
-						bucket[key] = bucket.get(key, 0) + n
-					# A group's denominator is read only while every run in it has the field.
-					if landed is None:
-						arrival_landed[group] = None
-					elif arrival_landed.get(group, 0) is not None:
-						arrival_landed[group] = arrival_landed.get(group, 0) + landed
+					arrival_runs.setdefault(group, []).append((hits, landed))
 		for owner, (ttk, n) in sorted(ttks.items()):
 			print(f"TTK: {name} p{owner} swarm {ttk:.3f} s [{grade(ttk, (0.0, ttk_max))}] over {n} cells in the window")
 		print(slow_line(name, jsonl))
@@ -563,8 +621,9 @@ def main(argv):
 					detail = " ".join(f"{source} {n} for {share:.3f} of max HP (in window {inside.get(source, (0, 0.0))[0]}, {inside.get(source, (0, 0.0))[1]:.3f})"
 						for source, (n, share) in sorted(whole.items()))
 					print(f"RESTORES: {name} p{owner} {detail}")
-	for group in sorted(g for g in arrival_totals if g != "overall") + (["overall"] if "overall" in arrival_totals else []):
-		print(f"SOURCES: {group} rusher hits, whole run: {arrivals_detail(arrival_totals[group])}; {landed_detail(arrival_landed.get(group))}")
+	for group in sorted(g for g in arrival_runs if g != "overall") + (["overall"] if "overall" in arrival_runs else []):
+		hits, landed, with_count, without = group_arrivals(arrival_runs[group])
+		print(f"SOURCES: {group} rusher hits, whole run: {arrivals_detail(hits)}; {group_landed_detail(landed, with_count, without)}")
 	if checks:
 		lines, verdicts = judge(readings, validators, dmg_band, dash_band, ttk_max, (lo, hi), checks)
 		print("\n".join(lines))

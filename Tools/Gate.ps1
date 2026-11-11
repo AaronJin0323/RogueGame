@@ -16,7 +16,6 @@ param(
 )
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
-$DTHeavy = Enter-DTHeavy -What "Gate"  # D-055 item 7: one heavy-job slot for this run, none for a step of a run that holds one
 
 # Any script error is a gate failure, never a silent exit 0.
 trap { Write-Host "GATE: FAIL (script error: $_; mask $DTMask)"; exit 1 }
@@ -33,6 +32,14 @@ function Fail([string]$Step) { Write-Host "GATE: FAIL at $Step ($Head; mask $DTM
 function NotRun([string]$Step, [string]$Why) { Report $Step "NOT RUN ($Why)"; $script:NotRun++ }
 function Show($Lines, [string]$Pattern) { $Lines | Select-String -Pattern $Pattern | Select-Object -First 12 | ForEach-Object { "    " + $_.Line } }
 function Skipped([string]$Step) { if ($Skip -contains $Step) { NotRun $Step "skipped by -Skip"; return $true }; return $false }
+# D-055 item 7, R-TEC-18: every step below that is guarded by Start-HeavyStep starts a compiler, the engine, a commandlet or a package; the text steps
+# (Invoke-PyStep) start none. The run takes its one heavy-job slot right before the first heavy step that is not skipped, so a text-only run never
+# waits for a slot or for the alone hold; the steps' own scripts inherit the slot and take no second one.
+function Start-HeavyStep([string]$Step) {
+	if (Skipped $Step) { return $false }
+	if (-not $script:DTHeavy) { $script:DTHeavy = Enter-DTHeavy -What "Gate" }
+	return $true
+}
 
 function Invoke-PyStep([string]$Step, [string]$Script, [string]$Verdict, [string[]]$ScriptArgs = @()) {
 	if (Skipped $Step) { return }
@@ -80,13 +87,13 @@ Invoke-PyStep "audio" "Tools\audio\audio_check.py" "AUDIO"
 Invoke-PyStep "tools" "Tools\tools_test.py" "TOOLS"
 
 # --- C++ ---------------------------------------------------------------------------------------------------------
-if (-not (Skipped "build")) {
+if (Start-HeavyStep "build") {
 	$R = Ubt "build" "DusktracerEditor" "Development"
 	Report "build" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "build" }
 }
 
-if (-not (Skipped "locbuild")) {
+if (Start-HeavyStep "locbuild") {
 	# Generated text (Content/DT/Text/Generated, .locres) is git-ignored: rebuild it here so tests and smoke never read stale
 	# or missing tables in a fresh checkout or after a merge (R-TEC-08).
 	$Out = & cmd /c "`"$Root\Tools\Localize.bat`" 2>&1"
@@ -96,7 +103,7 @@ if (-not (Skipped "locbuild")) {
 	if ($Rc -ne 0) { Show $Out "^(LOCALIZE|Error)"; Fail "locbuild" }
 }
 
-if (-not (Skipped "nonunity")) {
+if (Start-HeavyStep "nonunity") {
 	# Every .cpp must compile alone (R-TEC-09): UBT -SingleFile per changed file (plus the .cpp of each changed .h).
 	if ($AllFiles) {
 		$Files = @(Get-ChildItem (Join-Path $Root "Source") -Recurse -Filter *.cpp | ForEach-Object { $_.FullName })
@@ -122,20 +129,20 @@ if (-not (Skipped "nonunity")) {
 	if ($Bad.Count -gt 0) { $Bad | ForEach-Object { "    " + $_.Substring($Root.Length + 1) }; Fail "nonunity" }
 }
 
-if (-not (Skipped "shipping")) {
+if (Start-HeavyStep "shipping") {
 	$R = Ubt "shipping" "Dusktracer" "Shipping"
 	Report "shipping" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "shipping" }
 }
 
-if (-not (Skipped "devgame")) {
+if (Start-HeavyStep "devgame") {
 	# The Development game target: an editor-only API inside WITH_DEV_AUTOMATION_TESTS compiles in the editor target and is compiled out of Shipping,
 	# so only this target sees it (the owner's scheduler brief of 2026-11-11).
 	$R = Ubt "devgame" "Dusktracer" "Development"
 	Report "devgame" ("rc {0}, {1} warning(s)" -f $R.Rc, $R.Warn)
 	if ($R.Rc -ne 0 -or $R.Warn -gt 0) { Show $R.Out "error|warning"; Fail "devgame" }
 }
-if (-not (Skipped "tests")) {
+if (Start-HeavyStep "tests") {
 	$Floor = [int]((Select-String -Path (Join-Path $Root "Docs\constants.yaml") -Pattern "GATE\.TEST_FLOOR:\s*\{\s*value:\s*(\d+)").Matches[0].Groups[1].Value)
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\RunTests.ps1") -Log (Join-Path $LogDir "Gate_tests.log") -Floor $Floor 2>&1
 	$Rc = $LASTEXITCODE
@@ -144,7 +151,7 @@ if (-not (Skipped "tests")) {
 }
 
 # --- not built yet -------------------------------------------------------------------------------------------------
-if (-not (Skipped "smoke")) {
+if (Start-HeavyStep "smoke") {
 	$Scenes = Get-Scenes "smoke"
 	if ($Scenes.Count -eq 0 -or $Scenes[0].Name -ne "arena_empty") { Report "smoke" "FAIL (Tools\Scenes holds no arena_empty scene for this step)"; Fail "smoke" }
 	foreach ($S in $Scenes) {
@@ -165,7 +172,7 @@ if (-not (Skipped "smoke")) {
 	Report "smoke" (($Out | Select-String "^SMOKE:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "^  ! |FAIL"; Fail "smoke" }
 }
-if (-not (Skipped "restart")) {
+if (Start-HeavyStep "restart") {
 	# T-SET-28: a real map reload against a fresh launch by input hash, and real keys through a pause and a reload; headless.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\RestartCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -173,7 +180,7 @@ if (-not (Skipped "restart")) {
 	Report "restart" (($Out | Select-String "^RESTART:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "INPUTCHECK|RESTART: FAIL"; Fail "restart" }
 }
-if (-not (Skipped "seed")) {
+if (Start-HeavyStep "seed") {
 	# 07_Technical R-TEC-16: every launcher started as written, off-screen, reads back a fresh seed; tools and explicit seeds stay exact.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\SeedCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -181,7 +188,7 @@ if (-not (Skipped "seed")) {
 	Report "seed" ((($Out | Select-String "^SEEDCHECK:" | Select-Object -Last 1).Line) -replace "^SEEDCHECK:\s*", "")
 	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "seed" }
 }
-if (-not (Skipped "meta")) {
+if (Start-HeavyStep "meta") {
 	# meta.md: the save on real launches, headless: no tool run touches it, a run banks it, a bad file goes aside, a win reaches a fight.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\MetaCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -189,7 +196,7 @@ if (-not (Skipped "meta")) {
 	Report "meta" (($Out | Select-String "^META:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "^  ! |META: FAIL"; Fail "meta" }
 }
-if (-not (Skipped "vigil")) {
+if (Start-HeavyStep "vigil") {
 	# vigil.md T-VIG-17: boot to a run and back on real keys, off-screen, en and zh-Hans, with shots of every page.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\VigilCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -197,7 +204,7 @@ if (-not (Skipped "vigil")) {
 	Report "vigil" (($Out | Select-String "^VIGIL:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "WRONG|VIGIL: FAIL"; Fail "vigil" }
 }
-if (-not (Skipped "firstrun")) {
+if (Start-HeavyStep "firstrun") {
 	# R-OFF-15 on a person's first pool: the `tests` step's T-OFF-15 reads the tool pool, so first_run_locked.csv could thin the real one unseen (meta.md R-MET-25).
 	$Battery = Join-Path $Root "Saved\BotRuns\gate_firstrun"
 	if (Test-Path $Battery) { Remove-Item $Battery -Recurse -Force }
@@ -210,7 +217,7 @@ if (-not (Skipped "firstrun")) {
 	Report "firstrun" $Verdict
 	if ($Rc -ne 0 -or $Verdict -notmatch "T-OFF-15: PASS") { Fail "firstrun" }
 }
-if (-not (Skipped "win")) {
+if (Start-HeavyStep "win") {
 	# meta.md T-MET-29: a win on a real gated save, on one launch: the toast, the file, the Shrine, the bestiary and the Recollections, off-screen.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\WinCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -218,7 +225,7 @@ if (-not (Skipped "win")) {
 	Report "win" (($Out | Select-String "^WIN:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "WRONG|WIN: FAIL"; Fail "win" }
 }
-if (-not (Skipped "earned")) {
+if (Start-HeavyStep "earned") {
 	# meta.md T-MET-30: a person's loop from an empty save: Ichor a run earned, spent by a real key, read by a new process, offered on the next run; then the doors' rows bought on the page, off-screen.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\EarnedCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -226,7 +233,7 @@ if (-not (Skipped "earned")) {
 	Report "earned" (($Out | Select-String "^EARNED:" | Select-Object -Last 1).Line)
 	if ($Rc -ne 0) { Show $Out "WRONG|EARNED: FAIL"; Fail "earned" }
 }
-if (-not (Skipped "contrast")) {
+if (Start-HeavyStep "contrast") {
 	# T-PRE-05: a staged late frame (one weather exists), then R-MOD-08's dormant line on its own frame, then any frame a package staged.
 	# Each needs the arena_empty shot the smoke step left, for the hero and the bare floor.
 	$Scenes = Get-Scenes "contrast"
@@ -242,14 +249,13 @@ if (-not (Skipped "contrast")) {
 		}
 	}
 }
-if (-not (Skipped "settings")) {
-	# T-PRE-07 (R-PRE-07): the render settings of 04_Presentation §4 in the config and in the arena volume's generator, and no exposure
-	# change between the empty arena and the contrast frame the two steps above left. Without those frames the settings alone are held.
-	$Frames = @((Join-Path $Root "Saved\Smoke\arena_empty_en.png"), (Join-Path $Root "Saved\Smoke\contrast_en.png"))
-	$Fresh = (@($Frames | Where-Object { Test-Path $_ }).Count -eq 2) -and -not ($Skip -contains "smoke") -and -not ($Skip -contains "contrast")
-	Invoke-PyStep "settings" "Tools\palette_lint.py" "SETTINGS" $(if ($Fresh) { @("--settings") + $Frames } else { @("--settings") })
-}
-if (-not (Skipped "windows")) {
+# A text step: palette_lint.py launches nothing, so the step takes no heavy slot, and Invoke-PyStep honours -Skip itself.
+# T-PRE-07 (R-PRE-07): the render settings of 04_Presentation §4 in the config and in the arena volume's generator, and no exposure
+# change between the empty arena and the contrast frame the two steps above left. Without those frames the settings alone are held.
+$Frames = @((Join-Path $Root "Saved\Smoke\arena_empty_en.png"), (Join-Path $Root "Saved\Smoke\contrast_en.png"))
+$Fresh = (@($Frames | Where-Object { Test-Path $_ }).Count -eq 2) -and -not ($Skip -contains "smoke") -and -not ($Skip -contains "contrast")
+Invoke-PyStep "settings" "Tools\palette_lint.py" "SETTINGS" $(if ($Fresh) { @("--settings") + $Frames } else { @("--settings") })
+if (Start-HeavyStep "windows") {
 	# The no-window rule (AGENTS.md): a bot, a smoke and a test run show nothing on this desktop; Tools\WindowCheck.ps1 holds its controls and its detection limit.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\WindowCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE
@@ -257,7 +263,7 @@ if (-not (Skipped "windows")) {
 	Report "windows" ((($Out | Select-String "^WINDOWS:" | Select-Object -Last 1).Line) -replace "^WINDOWS:\s*", "")
 	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "windows" }
 }
-if (-not (Skipped "pad")) {
+if (Start-HeavyStep "pad") {
 	# package.md R-PKG-08/09: judges a clean, current package off-screen; a real pad needs a human, so this reads NOT RUN until a run shows one.
 	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\PadCheck.ps1") 2>&1
 	$Rc = $LASTEXITCODE

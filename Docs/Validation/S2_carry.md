@@ -119,3 +119,48 @@ tools:      TOOLS: PASS (155 tests)
 GATE: PASS (a65b7a7; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no odd failure. Log: `Saved\Logs\carry4_s2_gate.txt` in the carrying worktree.
+
+## Fifth carry: `main` 75acd0d into `dev/s2` a132539 (`carry6/s2`)
+`main` brought D-057 to D-064 and its records, the gate's slot taken at its first heavy step (`Start-HeavyStep`), the same window-watch fix, and session A's reading tools (`Tools/session_read.py`, `pressure.py`, `owner_read.py`, `power_split.py`, the export manifest).
+- Conflicts and resolutions:
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff 75acd0d -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+  - `Tools/Gate.ps1`: `dev/s2`'s own heavy step, `restart`, now takes `Start-HeavyStep` like `main`'s; the old `Enter-DTHeavy` line at the gate's start is gone. `matrix` stays a text step (`Invoke-PyStep`, it launches nothing).
+  - `Tools/WindowWatch.ps1`: `main`'s copy of the same fix (its comment names `dev/s2`).
+  - `Validation/S1_kit.md`: `main`'s session A text. The kit describes `main`'s package, and `dev/s2`'s "Between runs" line about Restart run described the S2 build.
+  - `Tools/tools_test.py`: `session_read` beside `dev/s2`'s matrix and `LimitWarnings` cases. The heavy-entry list takes `main`'s form without `Gate.ps1` and keeps `dev/s2`'s `S2Exit.ps1`, `RestartCheck.ps1` and `PackageRestartCheck.ps1`. `GateSlot`'s stand-in gate stubs `dev/s2`'s `gen_matrix.py`, as `GateMain`'s does.
+- Scripts changed beyond `main`'s: `Tools/Gate.ps1` (the restart guard) and `Tools/tools_test.py` (the stub). No test pins behaviour that differs by branch.
+- Counts: 480 tests, floor 480; `tools_test.py` 193.
+- Seed 9107 on 460ba97, unchanged: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`; RestartCheck `276faf8e`.
+
+```
+tools:      TOOLS: PASS (193 tests)
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+GATE: PASS (460ba97; 3 not run; mask FFFFF3FC)
+```
+`dev/s2` had not moved when the leg was gated. Log: `Saved\Logs\c6s2_gate.txt` in the carry agent's worktree.
+## Sixth carry: `main` 842259e into `dev/s2` fe107d7 (`carry7/s2`)
+`main` brought `s1/crash-exit` (R-PKG-16 and T-PKG-16: a packaged Shipping game that crashes ends, set in `Source/Dusktracer/Dusktracer.cpp`; `Tools/CrashExitCheck.ps1`, `crash_exit.py`, their tools tests, `Validation/S1_crash_exit.md`), D-059 to D-065 and their records, and `offers.md` saying what the code does (D-062, D-063).
+- Conflicts and resolutions:
+  - `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff 842259e -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+  - `offers.md` R-OFF-08: `main`'s unweighted L8 hand (D-062) with `dev/s2`'s line that an unlocked S2 Keeper keeps a seat in both hands (R-KEE-23).
+  - `package.md`: `dev/s2`'s R-PKG-10 and T-PKG-10 beside `main`'s R-PKG-16 and T-PKG-16; the HUMAN line is `dev/s2`'s, which keeps the Restart run check in Shipping.
+  - `Tools/tools_test.py`: both entry lists (`Machine.ENTRY_PS` and the heavy-entry list) hold `main`'s `CrashExitCheck.ps1` and `dev/s2`'s `S2Exit.ps1`, `RestartCheck.ps1` and `PackageRestartCheck.ps1`.
+  - `Dusktracer.cpp` merged clean. `constants.yaml` did not change on either side, so the generated header is as the gate's `constants` step reads it.
+- Scripts changed beyond `main`'s: none. No test pins behaviour that differs by branch.
+- Counts: 480 tests, floor 480 (crash-exit adds no engine test); `tools_test.py` 193 to 199, the crash-exit cases.
+- Seed 9107 on 46ed31b, unchanged: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`; RestartCheck `276faf8e`.
+
+```
+tools:      TOOLS: PASS (199 tests)
+tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
+GATE: PASS (46ed31b; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no golden re-shot, no odd failure. `dev/s2` had not moved when the leg was gated. Log: `Saved\Logs\c7s2_gate.txt` in the carry agent's worktree.
+
+`main` moved by tools and documents while the leg was gated (842259e to d23b7ef: the alone take claims the machine at once, `Tools/Alone.ps1` and `Machine.ps1` with their tools tests; D-066; the kit's crash-dump line). It merged clean as 4c53ad4, and `git diff d23b7ef -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty; no engine or content file changed, so the text steps ran again with every heavy step skipped:
+
+```
+tools:      TOOLS: PASS (203 tests)
+GATE: PASS (4c53ad4; 14 not run; mask FFFFF3FC)
+```
+Log: `Saved\Logs\c7s2_text.txt`.

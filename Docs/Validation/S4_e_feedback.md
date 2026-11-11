@@ -147,7 +147,7 @@ The frames, with 3x crops and before/after pairs of `combat_staged` and `tracer_
 
 ## 7. Not verified
 
-- **Perf of record.** Every reading in §3 was taken with other sessions' compiles and editors running. The S4 stop line of the brief is crossed with and without effects. The scheduler's quiet reading of the tap and package E together decides.
+- **Perf of record.** Every reading in §3 was taken with other sessions' compiles and editors running, and the S4 stop line of the brief is crossed with and without effects there. The scheduler's reading of the tap and package E together, alone, is taken: §10.
 - `combat_staged` and every other golden but this package's two: the gate's smoke step prints their mean differences against their goldens; `combat_staged_en` read 0.50 after against 0.54 before. None was re-shot.
 - The hero ring later in its life: no held frame shows it grown. At its birth it is mostly under the hero.
 - Whether the bounds fix (`SetBoundsScale` 2 on every effect component) holds every effect at the screen's edge: no frame was staged at the edge.
@@ -202,7 +202,7 @@ What the agent saw (`Saved\S4Report\E2\`, each crop beside its first-pass crop):
 - **Sparks** read as short bright splashes at a hull's edge in the 3x crop. At full frame in `impact_hit` they share the frame with the player's own pale rounds and tails at four weapons of level 8, and are hard to tell from them; a person should judge whether a spark reads as a hit.
 - No effect over a hull, a round, a telegraph or the hero.
 
-The perf of record is the scheduler's (§3); this pass adds no work per frame (the same instance writes, one more parameter set once at start).
+The perf of record is the scheduler's, taken alone (§10); this pass adds no work per frame (the same instance writes, one more parameter set once at start).
 
 The whole gate run on 4f3fd5e (the first pass merged with `dev/s4` a23a931) read `GATE: PASS (4f3fd5e; 3 not run; mask FFFFF3FC)`, 581 tests of 581. It is information only: `dev/s4` then moved with engine code, and the gate of record is the one on the second pass, merged.
 
@@ -215,3 +215,67 @@ On 9781b94 (the second pass merged with `dev/s4` a155ace), `Tools\Gate.ps1 -Base
 - `audio`: `AUDIO: PASS` (no sound yet; the step's tool tests pass).
 - Build, shipping and devgame: 0 warnings; nonunity 6 files, 0 failed.
 - Goldens' mean differences against their goldens (smoke step): arena_empty 0.35 and 0.33, combat_staged 0.43 (en) and 0.53 (zh-Hans), edge_corner 0.30 and 0.29, edge_corner_wide 0.27, enemy_lineup 0.30, hero_lineup 0.32, hud_boss 0.30, hud_staged 0.33 and 0.36, tracer_weapons 0.38; this package's impact_hit 0.34 and impact_kill 0.31.
+
+## 10. The perf reading of record (the scheduler's, alone)
+
+**Conditions.** `dev/s4` at 3cb9534 (this package as landed, with the tap of `s4/e0-tap`), read in this worktree by the scheduler on 2026-11-12: the machine held alone (D-050 item 4; `ALONE: TAKEN` at 02:21:49 once the last running gate had ended); the nine runs were logged from 02:22:16 to 02:27:26, each time a run's end, and the hold was released as the last one ended. `Tools\Perf.ps1` at its defaults (Caps: `DT.Spawn.Keep 400,DT.Bullets 6000`, warmup 10 s), then `-Scene S4` and `-Scene S2` (warmup 20 s), 1800 frames each, three runs a scene. Every run rendered 1920x1080 and asked 1920x1080. Adapter, as the tool prints it: `GameViewer Virtual Display Adapter + OrayIddDriver Device + NVIDIA GeForce RTX 4080`. The tool prints no processor mask and no commit column; the commit is the one the reading names.
+
+| Logged (the run's end) | Scene | Frame p50 / p95 ms | Game thread p50 / p95 ms | GPU p50 / p95 ms | Proxied GPU p95 ms | Load | Verdict |
+|---|---|---|---|---|---|---|---|
+| 02:22:16 | Caps | 3.81 / 4.21 | 2.10 / 2.55 | 3.05 / 3.11 | 4.98 | 5975 bullets / 388 enemies | PASS |
+| 02:22:42 | Caps | 3.84 / 4.24 | 2.10 / 2.57 | 3.05 / 3.11 | 4.98 | 5975 / 388 | PASS |
+| 02:23:09 | Caps | 3.85 / 4.28 | 2.09 / 2.56 | 3.05 / 3.11 | 4.97 | 5975 / 388 | PASS |
+| 02:23:52 | S4 | 4.89 / 5.81 | 3.37 / 4.89 | 3.46 / 3.75 | 6.00 | 5818 / 400; 12 telegraphs, 5818 rounds trailed | PASS |
+| 02:24:35 | S4 | 4.79 / 5.80 | 3.32 / 4.83 | 3.47 / 3.74 | 5.98 | 5817 / 400; 12 telegraphs, 5817 trailed | PASS |
+| 02:25:18 | S4 | 4.79 / 5.75 | 3.30 / 4.80 | 3.47 / 3.74 | 5.99 | 5816 / 400; 12 telegraphs, 5816 trailed | PASS |
+| 02:26:00 | S2 | 4.98 / 6.29 | 2.88 / 4.38 | 3.39 / 3.71 | 5.94 | 5806 / 400 | PASS |
+| 02:26:43 | S2 | 5.01 / 6.30 | 2.89 / 4.35 | 3.39 / 3.70 | 5.92 | 5807 / 400 | PASS |
+| 02:27:26 | S2 | 4.82 / 6.13 | 2.85 / 4.30 | 3.40 / 3.70 | 5.93 | 5809 / 399 | PASS |
+
+```
+PERF: PASS (1920x1080, game p50 2.10 / p95 2.55 ms, GPU p95 3.11 ms, load 5975.00 bullets / 388.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 2.10 / p95 2.57 ms, GPU p95 3.11 ms, load 5975.00 bullets / 388.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 2.09 / p95 2.56 ms, GPU p95 3.11 ms, load 5975.00 bullets / 388.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 3.37 / p95 4.89 ms, GPU p95 3.75 ms, load 5818.00 bullets / 400.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 3.32 / p95 4.83 ms, GPU p95 3.74 ms, load 5817.00 bullets / 400.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 3.30 / p95 4.80 ms, GPU p95 3.74 ms, load 5816.00 bullets / 400.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 2.88 / p95 4.38 ms, GPU p95 3.71 ms, load 5806.00 bullets / 400.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 2.89 / p95 4.35 ms, GPU p95 3.70 ms, load 5807.00 bullets / 400.00 enemies, 1800 frames)
+PERF: PASS (1920x1080, game p50 2.85 / p95 4.30 ms, GPU p95 3.70 ms, load 5809.00 bullets / 399.00 enemies, 1800 frames)
+```
+
+**Before and after.** Before is `S4_perf_1080p.md` (`dev/s4` fc5000b, alone, the same tool and size, neither the tap nor package E). A move between two ranges is taken low end against low end and high end against high end; where a side has one run, that run stands against both ends of the other.
+
+| Scene | Game thread p95, fc5000b | 3cb9534 | Move | Proxied GPU p95, fc5000b | 3cb9534 | Move |
+|---|---|---|---|---|---|---|
+| Caps | 2.45 to 2.53 | 2.55 to 2.57 | +0.10 at the low end, +0.04 at the high end | 4.82 to 4.83 | 4.97 to 4.98 | +0.15 |
+| S4 scene | 4.76 to 4.78 | 4.80 to 4.89 | +0.04 to +0.11 | 5.94 to 5.95 | 5.98 to 6.00 | +0.04 to +0.05 |
+| S2 scene | 4.20 (one run) | 4.30 to 4.38 | +0.10 to +0.18 | 5.87 (one run) | 5.92 to 5.94 | +0.05 to +0.07 |
+
+**Where the game thread's move sits.** The tool prints profile rows (the `DT/GameThread/*` scopes of the CSV) for the S4 and S2 scenes; Caps prints none. Before is the raw output of the fc5000b reading (`E:\Dusktracer\.claude\worktrees\agent-aa7a88e9be0750f6a\Saved\Logs\perf_devs4_1080p.txt`, the scheduler's), after this reading's.
+
+| Scope | S4 before | S4 after | S2 before (one run) | S2 after |
+|---|---|---|---|---|
+| `DT/GameThread/SimRender` mean | 0.58 | 0.60 to 0.62 | 0.45 | 0.47 to 0.49 |
+| `DT/GameThread/SimRender` p95 | 0.63 | 0.66 to 0.76 | 0.50 | 0.54 to 0.57 |
+| `DT/GameThread/SimTick` mean | 0.96 to 0.97 | 0.99 to 1.03 | 0.80 | 0.85 to 0.89 |
+| `DT/GameThread/SimTick` p95 | 2.08 to 2.09 | 2.12 to 2.17 | 1.81 | 1.87 to 1.91 |
+| `DT/GameThread/ImpactStep` p95 | (no such scope) | 0.00, 0.00, 0.00 | (no such scope) | 0.01, 0.00, 0.00 |
+
+The package's own step scope reads nothing. The draw scope (where every renderer writes, the impact renderer among them) and the step (which now carries the tap) each move by a few hundredths. The code opens `SimRender` inside `SimTick` (`UDTSimSubsystem::Tick` opens both scopes in one function body, `SimRender` after the steps), so `SimTick` includes `SimRender`. A scope's p95 does not add up to the frame's p95, so this places the move and does not split it exactly.
+
+**What it shows.**
+- All nine runs are inside the budgets: game thread p50 at most 3.37 ms against `C.BUDGET.GAME_THREAD_P50_MS` 8, p95 at most 4.89 against `C.BUDGET.GAME_THREAD_P95_MS` 10, proxied GPU p95 at most 6.00 against `C.BUDGET.GPU_MS_4070` 12.
+- Against package E's allowance of 0.5 ms of proxied GPU: the S2 scene, where the allowance is written, moves by 0.05 to 0.07; the S4 scene by 0.04 to 0.05; Caps by 0.15, the most of the three and still under a third of the allowance.
+- Against the wave's ceiling of 5.0 ms game thread p95 on the S4 scene: 4.80 to 4.89, inside, with 0.11 left at the worst run, of which 0.05 is the audio's (D-056 ruling 6). The three S4 runs spread by 0.09, more than the low end of the move, so the game thread's move is read as 0.04 to 0.11, inside the spread at its low end. Wave 1 has no game thread left to spend after the audio.
+- This reading is the tap (`s4/e0-tap`) and package E together against a tree that had neither; it does not split the two.
+
+**What it does not show.**
+- One GPU and a proxy factor (D-011): no 3060-class or Steam Deck reading (O-012).
+- The editor's Development build, not the Shipping package.
+- Three runs a scene, and the S2 scene's before is one run.
+- No render-thread reading and no hitch measure.
+- The perf scenes raise no debris and no hero ring (§3), so the one per-frame transform write of the package is not exercised.
+- The scenes' kill rates sit in `Crowd`: the files count 41.1 to 42.2 kills a second in the S4 scene and 44.7 to 45.7 in the S2 scene, inside `Crowd`'s band, so `PerKill` and `Flood` are not measured at load.
+
+**Where the files are.** `E:\Dusktracer\.claude\worktrees\agent-a76c15a416b3c6fea\Saved\Logs\cps_perf_e_feedback_3cb9534.txt` (one line per run) and `E:\Dusktracer\.claude\worktrees\agent-a76c15a416b3c6fea\Saved\Logs\cps_perf_e_feedback_3cb9534.raw.txt` (the whole output); the CSV captures are under that worktree's `Saved\Profiling\CSV\`.

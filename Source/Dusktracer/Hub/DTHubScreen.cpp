@@ -24,8 +24,8 @@ namespace DTHubScreenLocal
 	constexpr float HintAlpha = 0.75f;
 	constexpr float SealedAlpha = 0.5f;
 
-	const TCHAR* const UiKeys[] = { TEXT("Hub.Balance"), TEXT("Hub.Begin.NeedPatron"), TEXT("Hub.Notice.SaveAside"), TEXT("Hub.Notice.RunLost"), TEXT("Hub.Tree.Empty"), TEXT("Hub.Hint.Read"), TEXT("Hub.Stats.Balance"),
-		TEXT("Hub.Stats.Earned"), TEXT("Hub.Stats.Runs"), TEXT("Hub.Stats.Wins"), TEXT("Hub.Stats.Repairs"), TEXT("Hub.Stats.Kills"), TEXT("Hub.Stats.Elites"),
+	const TCHAR* const UiKeys[] = { TEXT("Hub.Balance"), TEXT("Hub.Begin.NeedPatron"), TEXT("Hub.Notice.SaveUnreadable"), TEXT("Hub.Notice.SaveNotMoved"), TEXT("Hub.Notice.SaveAside"),
+		TEXT("Hub.Notice.RunLost"), TEXT("Hub.Tree.Empty"), TEXT("Hub.Hint.Read"), TEXT("Hub.Stats.Balance"), TEXT("Hub.Stats.Earned"), TEXT("Hub.Stats.Runs"), TEXT("Hub.Stats.Wins"), TEXT("Hub.Stats.Repairs"), TEXT("Hub.Stats.Kills"), TEXT("Hub.Stats.Elites"),
 		TEXT("Hub.Stats.Bosses"), TEXT("RunSummary.Time"), TEXT("Codex.Count"), TEXT("Codex.Locked"), TEXT("Menu.Hint.Pause"), TEXT("Pause.Quit") };
 
 	FText Ui(const TCHAR* Key)
@@ -195,11 +195,13 @@ FText DTHubText::KeeperName(EDTPath Path)
 	return FText::FromStringTable(FName(TEXT("ST_Keepers")), FString(DTOffers::PathName(Path)) + TEXT(".Name"));
 }
 
-FText DTHubText::Notice(EDTMetaNotice Kind, const FString& AsideFile)
+FText DTHubText::Notice(EDTMetaNotice Kind, const FString& File)
 {
 	switch (Kind)
 	{
-	case EDTMetaNotice::KeptAside: return FText::Format(DTHubScreenLocal::Ui(TEXT("Hub.Notice.SaveAside")), FText::FromString(AsideFile));
+	case EDTMetaNotice::SaveUnreadable: return FText::Format(DTHubScreenLocal::Ui(TEXT("Hub.Notice.SaveUnreadable")), FText::FromString(File));
+	case EDTMetaNotice::SaveNotMoved: return FText::Format(DTHubScreenLocal::Ui(TEXT("Hub.Notice.SaveNotMoved")), FText::FromString(File));
+	case EDTMetaNotice::KeptAside: return FText::Format(DTHubScreenLocal::Ui(TEXT("Hub.Notice.SaveAside")), FText::FromString(File));
 	case EDTMetaNotice::RunLost: return DTHubScreenLocal::Ui(TEXT("Hub.Notice.RunLost"));
 	default: return FText::GetEmpty();
 	}
