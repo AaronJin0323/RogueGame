@@ -1,4 +1,3 @@
-. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 # Impact art acceptance (02_Systems/impact_art.md, S4 wave 1 package E): the four staged frames at both densities, one line each.
 #   & Tools\ImpactArt.ps1 [-NoMeshCheck] [-Scenes impact_hit,impact_kill,impact_dense,impact_hero] [-LoadTimeout 900]
 # 1. meshes   Tools\blender\Mesh.ps1 -Check on Tools\blender\debris.py: the committed SourceArt shards are what the generator builds
@@ -6,7 +5,7 @@
 # 2. frames   each scene of Tools\Scenes (its commands, seconds, director and seed, as Tools\Smoke.ps1 reads them) shot by the game at each of
 #             C.EAR.SILHOUETTE_PX_PER_M: today's framing (C.ARENA.CAMERA_FRAME_RADIUS_UU) at 36 px/m is 1920x1080, at 27 px/m 1440x810. Each scene
 #             runs DT.Impact.Stats hold, so its log names what the held frame holds; a frame whose line shows no effect of the kind its scene
-#             is for fails: impact_hit sparks and no flash in PerKill, impact_kill flashes and debris in PerKill, impact_dense flashes in Crowd,
+#             is for fails: impact_hit sparks and no flash in PerKill, impact_kill flashes and debris in PerKill with the rate never over C.PRE.DENSITY_LOD_KILLS_PER_S, impact_dense flashes in Crowd,
 #             impact_hero a hero ring.
 # The game is launched as Tools\EnemyArt.ps1 launches it (UnrealEditor -game -RenderOffScreen, on the hidden desktop of Tools\HiddenLaunch.ps1,
 # -DTShot, -ForceRes). Shots: Saved\ImpactArt\<scene>_<px per m>.png; logs Saved\Logs\ImpactArt_<scene>_<px per m>.log.
@@ -21,6 +20,8 @@ param(
 )
 
 trap { Write-Host "IMPACT ART ACCEPTANCE: FAIL (script error: $_)"; exit 1 }
+
+. (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
@@ -41,7 +42,7 @@ function Get-ConstantText([string]$Key) {
 function Test-Held([string]$Scene, [hashtable]$S) {
 	switch ($Scene) {
 		"impact_hit" { return ($S.tier -eq "PerKill" -and $S.sparks -gt 0 -and $S.flashes -eq 0) }
-		"impact_kill" { return ($S.tier -eq "PerKill" -and $S.flashes -gt 0 -and $S.pieces -gt 0) }
+		"impact_kill" { return ($S.tier -eq "PerKill" -and $S.peak -le [double](Get-ConstantText "PRE.DENSITY_LOD_KILLS_PER_S") -and $S.flashes -gt 0 -and $S.pieces -gt 0) }
 		"impact_dense" { return ($S.tier -eq "Crowd" -and $S.flashes -gt 0) }
 		"impact_hero" { return ($S.rings -gt 0) }
 		default { return ($S.sparks + $S.flashes + $S.pieces + $S.rings -gt 0) }
@@ -93,7 +94,7 @@ foreach ($Scene in $Scenes) {
 		if (-not $Held) { $Failed += $Tag; Write-Host "    ! no DT.Impact.Stats held line; see $Log"; continue }
 		$Line = $Held -replace "^.*DT\.Impact\.Stats held: ", ""
 		$S = @{}
-		if ($Line -match "tier (\w+) rate ([0-9.]+)") { $S.tier = $Matches[1]; $S.rate = [double]$Matches[2] }
+		if ($Line -match "tier (\w+) rate ([0-9.]+) kills/s \(peak ([0-9.]+)\)") { $S.tier = $Matches[1]; $S.rate = [double]$Matches[2]; $S.peak = [double]$Matches[3] }
 		if ($Line -match "live sparks (\d+) flashes (\d+) pieces (\d+) rings (\d+)") { $S.sparks = [int]$Matches[1]; $S.flashes = [int]$Matches[2]; $S.pieces = [int]$Matches[3]; $S.rings = [int]$Matches[4] }
 		$Ok = $S.ContainsKey("tier") -and $S.ContainsKey("sparks") -and (Test-Held $Scene $S)
 		if (-not $Ok) { $Failed += $Tag }

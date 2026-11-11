@@ -4,6 +4,6 @@
 	"judge": "golden",
 	"cultures": ["en"],
 	"weather": "Dusk",
-	"seconds": 6,
-	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 4", "DT.Give Weapon.ScatterCannon 4", "DT.Spawn.Role Swarm 16", "DT.Spawn.Role Rusher 6", "DT.Impact.Stats hold"]
+	"seconds": 8,
+	"cmds": ["DT.God 1", "DT.Give Weapon.PulseRifle 4", "DT.Give Weapon.ScatterCannon 4", "DT.Give Weapon.RingEmitter 4", "DT.Spawn.Keep 40", "DT.Spawn.Role Rusher 8", "DT.Impact.Stats hold"]
 }

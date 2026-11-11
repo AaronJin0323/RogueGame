@@ -84,6 +84,8 @@ void UDTImpactSubsystem::ResetRun()
 	KillsPerSecond = 0.0f;
 	DensityStep = -1;
 	LastStep = -1;
+	PeakKillsPerSecond = 0.0f;
+	LastHurtStep = -1;
 	HeroPrev.Reset();
 	HeroNow.Reset();
 	for (int32& Count : HitWindow)
@@ -115,6 +117,7 @@ void UDTImpactSubsystem::SimStep(const FDTSimContext& Context)
 	KillsPerSecond = RateOverride >= 0.0f ? RateOverride : (Pool ? Pool->GetKillRate().GetKillsPerSecond() : 0.0f);
 	Tier = DTImpactArt::NextTier(Tier, KillsPerSecond);
 	DensityStep = Context.StepIndex;
+	PeakKillsPerSecond = FMath::Max(PeakKillsPerSecond, KillsPerSecond);
 
 	const FDTWorldView* View = Context.View;
 	HeroPrev = HeroNow.Num() > 0 ? HeroNow : (View ? View->HeroPositions : TArray<FVector2f>());
@@ -130,6 +133,10 @@ void UDTImpactSubsystem::SimStep(const FDTSimContext& Context)
 	Input.HeroPositions = HeroNow;
 	Input.Tier = Tier;
 	Input.bAllowFlash = DTSettings::AllowFlash();
+	for (const bool bHurt : Input.HeroHurt)
+	{
+		LastHurtStep = bHurt ? Context.StepIndex : LastHurtStep;
+	}
 
 	int32 Hits = 0;
 	int32 Kills = 0;
@@ -176,7 +183,7 @@ void UDTImpactSubsystem::SimRender(float Alpha)
 
 FString UDTImpactSubsystem::DescribeStats() const
 {
-	return FString::Printf(TEXT("DT.Impact.Stats: step %lld tier %s rate %.1f kills/s; live sparks %d flashes %d pieces %d rings %d; last second hits %d kills %d; refused by cap sparks %lld flashes %lld pieces %lld; draw %d"),
-		DensityStep, DTImpactArt::TierName(Tier), KillsPerSecond, Effects.Sparks.NumLive, Effects.Flashes.NumLive, Effects.Pieces.NumLive, Effects.NumRingsLive(),
+	return FString::Printf(TEXT("DT.Impact.Stats: step %lld tier %s rate %.1f kills/s (peak %.1f); last hero hurt step %lld; live sparks %d flashes %d pieces %d rings %d; last second hits %d kills %d; refused by cap sparks %lld flashes %lld pieces %lld; draw %d"),
+		DensityStep, DTImpactArt::TierName(Tier), KillsPerSecond, PeakKillsPerSecond, LastHurtStep, Effects.Sparks.NumLive, Effects.Flashes.NumLive, Effects.Pieces.NumLive, Effects.NumRingsLive(),
 		HitsInWindow, KillsInWindow, Effects.RefusedSparks, Effects.RefusedFlashes, Effects.RefusedPieces, DrawSetting());
 }

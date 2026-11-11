@@ -74,6 +74,9 @@ private:
 	int64 DensityStep = -1;
 	int64 LastStep = -1;
 	float RateOverride = -1.0f;
+	/** For DT.Impact.Stats: the highest rate since the run started and the last step a hero lost health. */
+	float PeakKillsPerSecond = 0.0f;
+	int64 LastHurtStep = -1;
 
 	/** Hero positions at the end of the last two steps: a ring is drawn at the hero's interpolated place. */
 	TArray<FVector2f> HeroPrev;
