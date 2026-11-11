@@ -208,7 +208,7 @@ namespace DTConst
 	inline constexpr float TRC_MUZZLE_OPACITY = 0.8f; // ratio, GATED(S4)
 	// impact_art
 	inline constexpr float IMP_DEBRIS_Z_UU = 1.4f; // uu, GATED(S4)
-	inline constexpr float IMP_FLASH_Z_UU = 1.6f; // uu, GATED(S4)
+	inline constexpr float IMP_FLASH_Z_UU = 1.45f; // uu, GATED(S4)
 	inline constexpr float IMP_SPARK_S = 0.1f; // s, GATED(S4)
 	inline constexpr int32 IMP_SPARK_LENGTH_UU = 70; // uu, GATED(S4)
 	inline constexpr int32 IMP_SPARK_WIDTH_UU = 44; // uu, GATED(S4)
@@ -300,7 +300,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 573; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 581; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

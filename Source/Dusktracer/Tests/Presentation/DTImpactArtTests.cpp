@@ -332,9 +332,9 @@ bool FDTImpactFeed::RunTest(const FString& Parameters)
 	TestEqual(TEXT("both steps' flashes are live"), Effects.Flashes.NumLive, 4);
 
 	// Age: the step index and the alpha, nothing else.
-	const double AtBirth = DTImpactArt::NowSeconds(101, 1.0f);
+	const double AtBirth = DTImpactArt::NowSeconds(101, 1.0f); // 101 steps run: step 100 is the last, drawn whole at alpha 1
 	TestEqual(TEXT("a held step draws its own effects at age 0"), DTImpactArt::AgeSeconds(100, AtBirth), 0.0f, Tolerance);
-	TestEqual(TEXT("half a step on, half a step older"), DTImpactArt::AgeSeconds(100, DTImpactArt::NowSeconds(102, 0.5f)), 1.5f / Hz, Tolerance);
+	TestEqual(TEXT("half way into the next step, half a step older"), DTImpactArt::AgeSeconds(100, DTImpactArt::NowSeconds(102, 0.5f)), 0.5f / Hz, Tolerance);
 	TestEqual(TEXT("no step, no age: the same alpha draws the same age"), DTImpactArt::AgeSeconds(100, DTImpactArt::NowSeconds(102, 0.5f)), DTImpactArt::AgeSeconds(100, DTImpactArt::NowSeconds(102, 0.5f)));
 	TestEqual(TEXT("never younger than its birth"), DTImpactArt::AgeSeconds(100, DTImpactArt::NowSeconds(100, 0.0f)), 0.0f);
 	const int32 SparkSteps = FMath::CeilToInt32(static_cast<float>(DTConst::IMP_SPARK_S) * Hz) + 2;
@@ -718,7 +718,7 @@ bool FDTImpactDensity::RunTest(const FString& Parameters)
 }
 
 // T-PRE-06, the kill half: above C.PRE.DENSITY_LOD_KILLS_PER_S per-kill effects aggregate and their live count stays bounded.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPreDensityLodKill, "Dusktracer.Pre.DensityLod.Kill", DTImpactArtTest::Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTPreDensityLodKill, "Dusktracer.Pre.DensityLodKill", DTImpactArtTest::Flags)
 bool FDTPreDensityLodKill::RunTest(const FString& Parameters)
 {
 	using namespace DTImpactArtTest;

@@ -95,7 +95,8 @@ float DTImpactArt::Hash01(uint32 Serial, int64 Step, int32 Index)
 
 double DTImpactArt::NowSeconds(int64 StepsRun, float Alpha)
 {
-	return (static_cast<double>(StepsRun - 1) + static_cast<double>(Alpha)) / static_cast<double>(DTConst::SIM_FIXED_HZ);
+	// StepsRun - 1 is the last step run; a frame at Alpha lies Alpha of the way from the step before it to it (FDTFixedStep interpolation).
+	return (static_cast<double>(StepsRun - 2) + static_cast<double>(Alpha)) / static_cast<double>(DTConst::SIM_FIXED_HZ);
 }
 
 float DTImpactArt::AgeSeconds(int64 Born, double Now)

@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 573 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 581 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -248,7 +248,7 @@ S4 wave 1 package E (D-043): presentation only, no reader in the sim.
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.IMP.DEBRIS_Z_UU | 1.4 | uu | GATED(S4) | impact_art.md R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py (height of debris) |
-| C.IMP.FLASH_Z_UU | 1.6 | uu | GATED(S4) | impact_art.md R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py (height of sparks, flashes and the hero ring) |
+| C.IMP.FLASH_Z_UU | 1.45 | uu | GATED(S4) | impact_art.md R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py (height of sparks, flashes and the hero ring) |
 | C.IMP.SPARK_S | 0.10 | s | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark life) |
 | C.IMP.SPARK_LENGTH_UU | 70 | uu | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark length) |
 | C.IMP.SPARK_WIDTH_UU | 44 | uu | GATED(S4) | impact_art.md R-IMP-05, T-IMP-05 (spark width) |
