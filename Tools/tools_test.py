@@ -1444,6 +1444,17 @@ class CrashExit(unittest.TestCase):
 			line = crash_exit.record_line(dict(self.HUNG, last_line="C:/Users/tester7/AppData on BOX9"))
 		self.assertTrue(line.endswith("log ends: C:/Users/<user>/AppData on <machine>"), line)
 
+	def test_a_packaged_crash_ends_shipping_by_default(self):
+		"""T-PKG-16, R-PKG-16: the game module takes Shipping off the in-process minidump unless -DTCrashDump, and any other packaged
+		build keeps the engine's path unless -DTCrashNoDump; Windows only, never an editor."""
+		with open(os.path.join(TOOLS, "..", "Source", "Dusktracer", "Dusktracer.cpp"), encoding="utf-8") as f:
+			code = f.read()
+		guard = code.index("#if PLATFORM_WINDOWS && !WITH_EDITOR")
+		block = code[guard:code.index("#endif", guard)]
+		self.assertIn('UE_BUILD_SHIPPING ? !FParse::Param(FCommandLine::Get(), TEXT("DTCrashDump")) : FParse::Param(FCommandLine::Get(), TEXT("DTCrashNoDump"))', block)
+		self.assertIn("GUseCrashReportClient = false;", block)
+		self.assertIn("MiniDumpFilenameW[0] = TEXT('\\0');", block)
+
 	def test_the_script_refuses_the_session_build_and_keeps_its_launches_hidden(self):
 		with open(os.path.join(TOOLS, "CrashExitCheck.ps1"), encoding="utf-8") as f:
 			text = f.read()
