@@ -39,4 +39,23 @@ The stop rule (two or more assertions under the limit, none without) was not met
 
 ## 4. Gate run
 
-GATE_RUN_PLACEHOLDER
+`& Tools\Gate.ps1 -Base main` at c992422 (`main` 4a9f803), mask `FFFFF3FC`, one run from start to end, no step rerun, no odd failure:
+
+```
+cpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+tools:      TOOLS: PASS (122 tests)
+locbuild:   LOCALIZE: PASS (Content\Localization\Game\<culture>\Game.locres)
+devgame:    rc 0, 0 warning(s)
+tests:      261 run of 261 found, 0 failed, floor 261, 0 crash marker(s)
+smoke:      SMOKE: PASS (arena_empty_en, ..., mask FFFFF3FC, 84 sample(s), 0 outside)
+smoke:      SMOKE: PASS (arena_empty_zh-Hans, ..., mask FFFFF3FC, 84 sample(s), 0 outside)
+smoke:      SMOKE: PASS (burst_en, ..., RENDER: PASS (...), image PASS (... exposure shift +1.72 levels ...), mask FFFFF3FC, 84 sample(s), 0 outside)
+seed:       PASS (4 human launches on fresh seeds, 4 exact, 2 rejected)
+windows:    PASS (0 shown by bot, smoke and test runs across 97 processes; probe caught; bypass caught; 4 lost; 38 s)
+pad:        NOT RUN (package 49b6e56 came from a dirty tree)
+GATE: PASS (c992422; 3 not run; mask FFFFF3FC)
+```
+
+Every other step passed (full output in `Saved\Logs\S1gm3_gate_run.txt`). The `pad` step now names the package of section 2 instead of "no package"; it still reads NOT RUN.
+
+**`locbuild` sampled from outside the gate** (scratchpad `sample_cmdlet.ps1`, about every 0.2 s): the `GatherText` commandlet (PID 49004) read `FFFFF3FC` on 23 samples and 0 on 2 as it ended; none outside the mask. The last job's gate read the same step at `FFFFFFFF`.
