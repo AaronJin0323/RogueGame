@@ -55,8 +55,39 @@ Cases: `SlowShare` (a session run's share beside its count; a bot arm's run "not
 
 ## 4. Gate run (one run, start to end, no step rerun)
 
-GATE_RUN_PLACEHOLDER
+**First full run, at 3d29de9 (before `main` was merged): `GATE: FAIL at seed (3d29de9; mask FFFFF3FC)`.** Every step before `seed` passed (the three smoke runs with 89, 85 and 81 samples, 0 outside). In `seed`, the launch "explicit 0" (the editor started with `-DTSeed=0`, through `Start-DTHidden`, so inside the job's limit `FFFFF3FC`) died during engine start, before any run file: `appError called: Assertion failed: RefCount.load(std::memory_order_relaxed) == 0 [...\Core\Private\Async\InheritedContext.cpp] [Line: 130]`, on a thread whose stack is in `UnrealEditor_Core` and `UnrealEditor_DevHttp`, exit code 3 (`Saved\SeedCheck\editor\1\Saved\Crashes\UECC-Windows-8EA6552A4C691D54878B009E16ADE260_0000`, with a minidump). No crash folder in any worktree on this PC holds that assertion before this one. `Tools\SeedCheck.ps1` alone, right after: `SEEDCHECK: PASS (4 human launches on fresh seeds, 4 exact, 2 rejected)`. Both results are reported as D-052 item 4 asks. The launch ran on processors 2 to 9 and 12 to 31 (the job's limit; this launch was not sampled). Whether the job limit takes part in it is not known: the refused thread affinities are the one difference from earlier launches, the assertion is about a task context's reference count on an HTTP thread, and it came once in about 30 engine launches under the limit in this job. It goes to STATE as an odd failure.
+
+**The run of record, at 8a21af2 (`main` 0d3fcd3 merged), one run from start to end, no step rerun:**
+
+```
+cpu:        CPU: PASS (28 processors, mask FFFFF3FC, 600 rounds)
+secrets:    SECRETS: PASS (475 files, 0 hit(s))
+docs:       DOCS: PASS (0 error(s), 9 warning(s), 196 rules, must-read ~16083 tokens)
+constants:  CONSTANTS: PASS (constants + palette)
+catalog:    CATALOG: PASS (8 catalogs, 18 C. cells resolved, 70 tags)
+loc:        LOC: PASS (5 tables, 268 rows)
+tools:      TOOLS: PASS (120 tests)
+build:      rc 0, 0 warning(s)
+locbuild:   LOCALIZE: PASS (Content\Localization\Game\<culture>\Game.locres)
+nonunity:   0 file(s), 0 failed
+shipping:   rc 0, 0 warning(s)
+devgame:    rc 0, 0 warning(s)
+tests:      261 run of 261 found, 0 failed, floor 261, 0 crash marker(s)
+smoke:      SMOKE: PASS (arena_empty_en, ..., image PASS (1280x720, luma stddev 11.75, mean diff vs golden 0.31 (max 12.0)), mask FFFFF3FC, 149 sample(s), 0 outside)
+smoke:      SMOKE: PASS (arena_empty_zh-Hans, ..., image PASS (1280x720, luma stddev 11.52, mean diff vs golden 0.31 (max 12.0)), mask FFFFF3FC, 271 sample(s), 0 outside)
+smoke:      SMOKE: PASS (burst_en, ..., RENDER: PASS (PostProcess_Presentation: 5 settings as 04_Presentation s4 says), image PASS (1280x720, luma stddev 36.51, exposure shift +1.64 levels against the calm frame (max 12.0)), mask FFFFF3FC, 81 sample(s), 0 outside)
+seed:       PASS (4 human launches on fresh seeds, 4 exact, 2 rejected)
+contrast:   CONTRAST: PASS (7/7 elements at or above 3.0), mask FFFFF3FC, 93 sample(s), 0 outside)
+contrast:   CONTRAST: PASS (dormant_line 13.62 on its panel, need 3.0), mask FFFFF3FC, 57 sample(s), 0 outside)
+windows:    PASS (0 shown by bot, smoke and test runs across 95 processes; probe caught; bypass caught; 7 lost; 38 s)
+pad:        NOT RUN (no package; Tools\Package.ps1)
+scope:      NOT RUN (no brief in flight)
+mac:        NOT RUN (deferred, D-007)
+GATE: PASS (8a21af2; 3 not run; mask FFFFF3FC)
+```
+
+While this gate ran, `UnrealEditor-Cmd` processes were read every 2 s: 16 reads at `FFFFF3FC` (the test run, in the job) and 10 at `FFFFFFFF` (the `locbuild` commandlet of `Tools/Localize.bat`, outside the job: section 1's table). Every sample of the five smoke and contrast games stayed inside the mask (731 samples).
 
 ## 5. Blocked
 
-Nothing in items 1 to 3. Open items are listed in their sections: the engine launches outside the job (section 1), the stale sentence of `04_Presentation §4` and the dependents row (section 2), the telemetry field (section 3).
+Nothing in items 1 to 3. One odd failure (section 4, the seed step's engine assertion) is evidence for STATE. Open items are listed in their sections: the engine launches outside the job (section 1), the stale sentence of `04_Presentation §4` and the dependents row (section 2), the telemetry field (section 3).
