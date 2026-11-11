@@ -382,6 +382,54 @@ class OwnerRead(unittest.TestCase):
 		run["mods"] = [(20.0, "Mod.Pierce", "Weapon.PulseRifle")]
 		self.assertFalse(owner_read.chain_under_key(run))
 
+	def main_out(self, lines, *args, csv_arg=False):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "7_20261111_120000.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(lines) + "\n")
+			with open(path[:-6] + ".csv", "w", encoding="utf-8") as f:
+				f.write("interval,run_time_s,player,live_bullets\n0,60,0,3\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = owner_read.main(["owner_read.py", "run", path[:-6] + ".csv" if csv_arg else path, *args])
+		return rc, out.getvalue()
+
+	def test_run_honours_t_with_the_lower_bound_of_a_run_that_ended_before(self):
+		"""G3: `run --t 600` prints HP lost by 600 s; this run died at 240 s, so its value is its whole loss and a lower bound."""
+		heal = '{"t":200.0,"step":4,"kind":"hero_healed","owner":0,"amount":15,"hp_after":85,"max_hp":100,"source":"Pickup.Chest"}'
+		lines = self.LINES[:8] + [heal] + self.LINES[8:]
+		rc, text = self.main_out(lines, "--t", "600")
+		self.assertEqual(rc, 0)
+		self.assertIn("HP lost by 600 s: 110.0 % of max HP, restored by then 15.0 % (never subtracted); ended at 240.0 s (death): a lower bound", text)
+		rc, text = self.main_out(lines, "--t", "180")
+		self.assertIn("HP lost by 180 s: 30.0 % of max HP, restored by then 0.0 % (never subtracted)\n", text)
+		rc, text = self.main_out(lines)
+		self.assertNotIn("HP lost by", text, "without --t the line is not printed")
+
+	def test_the_pickup_ratio_of_a_run_that_ended_before_300_s_is_unread(self):
+		"""G5: the run ended at 240 s, before XP_CHECK_S."""
+		rc, text = self.main_out(self.LINES)
+		self.assertIn("XP of model at 300 s: unread (ended at 240.0 s, before 300 s)", text)
+
+	def test_the_timeline_marks_drop_ins_charges_and_restores(self):
+		"""G6: a hit line carries [drop-in] and [charging]; a hero_healed line appears."""
+		lines = self.LINES[:-3] + [
+			'{"t":230.0,"step":5,"kind":"hero_damaged","owner":0,"amount":5,"hp_after":65,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}',
+			'{"t":231.0,"step":5,"kind":"hero_damaged","owner":0,"amount":5,"hp_after":60,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":true}',
+			'{"t":232.0,"step":5,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}'] + self.LINES[-3:]
+		rc, text = self.main_out(lines)
+		self.assertIn("3:50.00 230.0 hit Rusher Contact -5.0 HP, 65.0 left [drop-in, charging]", text)
+		self.assertIn("3:51.00 231.0 hit Rusher Contact -5.0 HP, 60.0 left [charging]", text)
+		self.assertIn("3:52.00 232.0 healed Pickup.Chest +15.0 HP, 75.0 left", text)
+		self.assertIn("3:00.00 180.0 hit Turret Bullet -20.0 HP, 70.0 left\n", text, "an unmarked hit carries no mark")
+
+	def test_run_reads_a_csv_argument(self):
+		rc, text = self.main_out(self.LINES, csv_arg=True)
+		self.assertEqual(rc, 0)
+		self.assertIn("run: 7_20261111_120000.jsonl build abc seed 7", text)
+		self.assertIn("live bullets from interval 6: []", text)
+		self.assertIn("HP lost: 110.0 % of max HP in 3 hits", text)
+
 	def test_the_floor_takes_the_source_off_the_keeper_side_and_keeps_the_total(self):
 		self.assertEqual(owner_read.share_without([], "Keeper.Forge"), (None, None))
 		rows = [{"damage": {"Keeper.Forge": 25, "Keeper.Storm": 25, "Weapon.PulseRifle": 50}}]
@@ -738,6 +786,34 @@ class Attribution(unittest.TestCase):
 	def test_the_tool_holds_no_stub(self):
 		with open(os.path.join(TOOLS, "power_split.py"), encoding="utf-8") as f:
 			self.assertNotIn("stub", f.read())
+
+	def test_a_folder_reads_every_run_and_one_file_as_before(self):
+		"""G9: a folder reads every run under it, each POWER line after its run; one file prints one bare POWER line."""
+		level = power_split.dtconst.load()["TEL.POWER_CHECK_LEVEL"]["value"]
+		with tempfile.TemporaryDirectory() as root:
+			for sub, seed, lv in (("T1", 1, level), ("T2/Playtests", 2, 3)):
+				folder = os.path.join(root, *sub.split("/"))
+				os.makedirs(folder)
+				with open(os.path.join(folder, f"{seed}_x.jsonl"), "w", encoding="utf-8") as f:
+					f.write("\n".join(self.LINES) + "\n")
+				with open(os.path.join(folder, f"{seed}_x.csv"), "w", encoding="utf-8") as f:
+					f.write(f"interval,run_time_s,player,level\n0,60,0,{lv}\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = power_split.main(["power_split.py", root])
+			one = io.StringIO()
+			with contextlib.redirect_stdout(one):
+				rc_one = power_split.main(["power_split.py", os.path.join(root, "T1", "1_x.jsonl")])
+			empty = os.path.join(root, "empty")
+			os.makedirs(empty)
+			with contextlib.redirect_stdout(io.StringIO()):
+				rc_empty = power_split.main(["power_split.py", empty])
+		text = out.getvalue()
+		self.assertIn(os.path.join("T1", "1_x") + ": POWER: attribution (P0 Keeper 10.0 %", text)
+		self.assertIn(os.path.join("Playtests", "2_x") + ": POWER: n/a (no player reached L", text)
+		self.assertEqual(rc, 0)
+		self.assertTrue(one.getvalue().strip().splitlines()[-1].startswith("POWER: attribution (P0 Keeper 10.0 %"))
+		self.assertEqual((rc_one, rc_empty), (0, 1))
 
 
 class Contrast(unittest.TestCase):
