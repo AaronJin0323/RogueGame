@@ -1,17 +1,24 @@
 # A person's loop on real launches (gate step `earned`, meta.md R-MET-30, T-MET-30), off-screen, no window.
-#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-DuoSeeds 9130,9131,9132] [-DuoRunSeeds 9230,9231,9232] [-HandSeconds 300] [-Timeout 300]
+#   & Tools\EarnedCheck.ps1 [-Seeds 9100,9101,9102] [-BranchSeed 9120] [-QuietSeed 9100] [-QuietSeconds 240] [-DuoRunSeeds 9230,9231,9232] [-HandSeconds 300] [-Timeout 300]
 # Part one, nothing planted, on one save from empty. `earn`: a bot plays a gated run and banks what it earned. `Earned`: a second process opens Contracts and a
 # real key buys a node that run can afford. `EarnedRead`: a third reads the purchase. `next`: the same seed, gated: a hand now holds what the node opened, which `earn`'s hands could not.
-# Part two, on a copy of the save `earn` left, with only a balance planted, so its three Keepers are doors a run opened. `Doors`: keys buy Reaction.Duos' two prerequisites and
-# one node of each new branch, then choose Keepers 4 to 6 at the Shrine, begin a gated run on each, and take a real Restart. Then bots on that save: each new Keeper's run holds its
-# bought card, the last with nobody named, as on a Restart; a run on Storm reads an L8 hand holding a met Keeper and earns TwoPaths6; the run after it holds a duo card, which that one could not.
-# A bot stands in for the hands; the keys, the file and the pool are real. A seed that leaves a door shut, or a duo card out of its hands, goes to the next, as in Tools/WinCheck.ps1.
+# The duos' door from both sides (D-069): `TwoPaths6` is earned when and only when a run held Tier 2 on two Paths, read from that run's own counters line (Tools/duo_read.py).
+# "When": `earn` held two Paths at Tier 2, its own hands held no duo card, and the save it left holds TwoPaths6, Reaction.Duos and Mod.SpreadWave (`Doors`); a later gated run on
+# that save is offered a duo card. "Only when": `quiet`, a gated run from another empty save that ends before the L8 commitment, so by keepers.md R-KEE-05 it holds one Keeper's
+# cards and at most one Path at Tier 2 (it takes blessings only, BlessingsOnly, to reach as high as one Path can); the save it left holds none of the door (`DuosShut`).
+# Part two, on a copy of the save `earn` left, with only a balance planted, so its three Keepers and the duos are doors a run opened. `Doors`: keys buy one node of each new branch,
+# then choose Keepers 4 to 6 at the Shrine, begin a gated run on each, and take a real Restart. Then bots on that save: each new Keeper's run holds its bought card, the last with
+# nobody named, as on a Restart; a run on Storm reads an L8 hand holding a met Keeper and is offered a duo card, which `earn` could not be.
+# A bot stands in for the hands; the keys, the file and the pool are real. A seed that leaves a door shut or holds Tier 2 on fewer than two Paths, or a duo card out of its hands,
+# goes to the next, as in Tools/WinCheck.ps1; with no seed left the line says which side it could not bind.
 # -DTHub is what lets these -unattended launches see the hub, as in Tools/VigilCheck.ps1.
 # Prints "EARNED: PASS (...)" or "EARNED: FAIL (...)"; exit 0 / 1. Logs: Saved\Logs\EarnedCheck_<tag>.log. Saves and shots: Saved\EarnedCheck.
 param(
 	[int[]]$Seeds = @(9100, 9101, 9102),
 	[int]$BranchSeed = 9120,
-	[int[]]$DuoSeeds = @(9130, 9131, 9132),
+	[int]$QuietSeed = 9100,
+	# Sim seconds of `quiet`: under the L8 hand of a fresh Storm run (about 270 s on the D-064 batteries); the check fails if that run met it.
+	[int]$QuietSeconds = 240,
 	[int[]]$DuoRunSeeds = @(9230, 9231, 9232),
 	[int]$HandSeconds = 300,
 	[int]$Timeout = 300
@@ -74,12 +81,13 @@ function Invoke-Hub([string]$Script, [string]$Save, [string[]]$Extra = @()) {
 }
 
 # A gated bot run on the named save. With -Named the map names the Patron, as Begin does; without it nobody does, as on a Restart. Nothing else reaches the run: no -ExecCmds, no -DTUnlock.
-function Start-Bot([string]$Tag, [int]$Seed, [string]$Save, [string]$Patron, [string]$Archetype, [int]$Seconds, [switch]$Named, [string]$Second = "") {
+function Start-Bot([string]$Tag, [int]$Seed, [string]$Save, [string]$Patron, [string]$Archetype, [int]$Seconds, [switch]$Named, [string]$Second = "", [string]$Pick = "") {
 	Get-ChildItem $Playtests -Filter "${Seed}_*" -ErrorAction SilentlyContinue | Remove-Item -Force
 	$Url = if ($Named) { "${Map}?DTSeed=${Seed}?DTPatron=$Patron" } else { $Map }
 	$Extra = @("-DTPoolGate", "-DTMetaFile=`"$Save`"", "-DTSeed=$Seed", "-DTBot=Steered", "-DTBotVersion=2", "-DTBotSkill=1.0", "-DTBotPath=$Patron", "-DTBotArchetype=$Archetype",
 		"-DTBotFast=120", "-DTBotQuit", "-DTBotMaxSeconds=$Seconds")
 	if ($Second) { $Extra += "-DTBotSecond=$Second" }
+	if ($Pick) { $Extra += "-DTBotPick=$Pick" }
 	return Start-Launch $Tag $Url $Extra
 }
 
@@ -117,6 +125,13 @@ function Read-New([string]$Log) {
 	return @($Line.Matches[0].Groups[1].Value -split " " | Where-Object { $_ })
 }
 
+# The Paths a run held at Tier 2, from its own counters line (Tools/duo_read.py), never from the save or the Discovery list.
+function Read-Paths([string]$Log) {
+	$Line = (& python -I (Join-Path $PSScriptRoot "duo_read.py") paths $Log 2>&1 | Select-String "^PATHS:" | Select-Object -Last 1).Line
+	if ($Line -notmatch "^PATHS: (\d+)$") { Stop-Check "no counters line in $Log" }
+	return [int]$Matches[1]
+}
+
 function Read-Unlocked([string]$Log) {
 	$Line = Select-String -Path $Log -Pattern "Offers: pool gated, (\d+) unlocked" | Select-Object -Last 1
 	if (-not $Line) { Stop-Check "no gated pool in $Log" }
@@ -144,17 +159,31 @@ foreach ($Seed in $Seeds) {
 	if (Test-Path $Earned) { Remove-Item $Earned -Force }
 	$LogEarn = Wait-Launch (Start-Bot "earn" $Seed $Earned "Storm" "Tempest" $RunSeconds -Named)
 	$New = Read-New $LogEarn
-	if (@($Doors | Where-Object { $New -notcontains $_ }).Count -eq 0) {
+	$EarnPaths = Read-Paths $LogEarn
+	# The side "when" of the duos' door stands on this run too (D-069): it has to have held Tier 2 on two Paths by its own counters.
+	if (@($Doors | Where-Object { $New -notcontains $_ }).Count -eq 0 -and $EarnPaths -ge 2) {
 		$RunSeed = $Seed
 		break
 	}
-	Write-Host "    seed $Seed earned [$($New -join ' ')], no three doors; next seed"
+	Write-Host "    seed $Seed earned [$($New -join ' ')] with $EarnPaths Paths at Tier 2, not three doors and two Paths; next seed"
 }
-if ($null -eq $RunSeed) { Stop-Check "no seed of $($Seeds -join ' ') opened $($Doors -join ' ')" }
+if ($null -eq $RunSeed) { Stop-Check "no seed of $($Seeds -join ' ') opened $($Doors -join ' ') and held Tier 2 on two Paths: the side 'when' of the duos' door is unbound" }
 if (-not (Select-String -Path $LogEarn -Pattern "Meta: opened \(\d+\) .*, balance 0, wins 0, discoveries 0" -Quiet)) { Stop-Check "earn did not start from an empty save" }
 $First = Read-Bank $LogEarn 1
 $HandsBefore = Read-SeedHands "earn" $RunSeed
 if ((Read-Unlocked $LogEarn) -ne 0) { Stop-Check "earn's pool was not a first run's" }
+if ($HandsBefore -match '"id":"Blessing\.Duo\.') { Stop-Check "earn's own hands held a duo card, before any run had earned the duos" }
+
+# The side "only when": another empty save, a run that ends before the L8 commitment, so it holds one Keeper's cards (keepers.md R-KEE-05).
+$Quiet = Join-Path $OutDir "Quiet.sav"
+if (Test-Path $Quiet) { Remove-Item $Quiet -Force }
+$LogQuiet = Wait-Launch (Start-Bot "quiet" $QuietSeed $Quiet "Storm" "ArcGrid" $QuietSeconds -Named -Pick "BlessingsOnly")
+$null = Read-Bank $LogQuiet 1
+if ((Read-Unlocked $LogQuiet) -ne 0) { Stop-Check "quiet's pool was not a first run's" }
+$QuietHands = Read-SeedHands "quiet" $QuietSeed
+if ($QuietHands -match '"hand_kind":"Keeper"') { Stop-Check "quiet reached the L8 hand inside $QuietSeconds s, so it is no run of one Keeper: the side 'only when' is unbound" }
+$QuietPaths = Read-Paths $LogQuiet
+$null = Invoke-Hub "DuosShut" $Quiet
 $Planted = Join-Path $OutDir "Planted.sav"
 Copy-Item $Earned $Planted -Force
 
@@ -201,22 +230,10 @@ foreach ($Run in $Started) {
 	if (-not ($Picked -and $Led -and $Card)) { $BranchBad += "$Path picked=$Picked led=$Led card=$Card" }
 }
 
-# TwoPaths6 on the two bought Blessing4s, then the duo card it opens. The L8 hand has three seats and five Keepers left, so this hand must hold a met one.
+# The run after the earning one, on that save: it is offered a duo card, which `earn` could not be. The card goes with whichever pair the run commits, and
+# it is one card in a drawn hand: a seed that never deals it goes to the next, on a fresh copy of the same save. The L8 hand has three seats and five
+# Keepers left, so it holds a met one.
 $L8Ok = $false
-$DuosOpen = $false
-$DuoIndex = 0
-$TwoHands = ""
-while ($DuoIndex -lt $DuoSeeds.Count -and -not $DuosOpen) {
-	$Seed = $DuoSeeds[$DuoIndex]
-	$DuoIndex++
-	$LogTwo = Wait-Launch (Start-Bot "twopaths" $Seed $Planted "Storm" "Tempest" $RunSeconds -Named -Second "Forge")
-	$TwoHands = Read-SeedHands "twopaths" $Seed
-	$L8Ok = $L8Ok -or ($TwoHands -match '"hand_kind":"Keeper"[^\n]*"id":"Keeper\.(Shade|Radiance|Quicksilver)"')
-	$DuosOpen = (Read-New $LogTwo) -contains "TwoPaths6"
-}
-if (-not $DuosOpen) { Stop-Check "no seed of $($DuoSeeds -join ' ') earned TwoPaths6 on the two bought nodes" }
-
-# The run after it, which TwoPaths6's run could not be. The card goes with whichever pair the run commits, so a Forge that misses the L8 hand only changes the pair, but it is one card in a drawn hand: a seed that never deals it goes to the next, on a fresh copy of the same save.
 $DuoSeed = $null
 $DuoMissed = @()
 foreach ($Seed in $DuoRunSeeds) {
@@ -225,6 +242,7 @@ foreach ($Seed in $DuoRunSeeds) {
 	$LogDuo = Wait-Launch (Start-Bot "duo" $Seed $Copy "Storm" "Tempest" $RunSeconds -Named -Second "Forge")
 	$null = Read-Unlocked $LogDuo # stops on a run that was not gated
 	$DuoHands = Read-SeedHands "duo" $Seed
+	$L8Ok = $L8Ok -or ($DuoHands -match '"hand_kind":"Keeper"[^\n]*"id":"Keeper\.(Shade|Radiance|Quicksilver)"')
 	if ($DuoHands -match '"id":"Blessing\.Duo\.') {
 		$DuoSeed = $Seed
 		break
@@ -232,11 +250,14 @@ foreach ($Seed in $DuoRunSeeds) {
 	$DuoMissed += "seed $Seed L8 [$(Read-L8 $DuoHands)]"
 	Write-Host "    seed $Seed held no duo card, L8 [$(Read-L8 $DuoHands)]; next seed"
 }
-$DuoOk = (-not ($TwoHands -match '"id":"Blessing\.Duo\.')) -and ($null -ne $DuoSeed)
-$DuoRead = if ($DuoSeed) { "on seed $DuoSeed" } else { "on no seed of $($DuoRunSeeds -join ' ')" }
+$DuoRead = if ($DuoSeed) { "" } else { " on no seed of $($DuoRunSeeds -join ' ')" }
 if ($DuoMissed.Count) { $DuoRead += ", missed $($DuoMissed -join ', ')" }
+# Both sides, from the two runs' own counters lines; the saves were read by `Doors` and `DuosShut` above.
+$DuoLine = (& python -I (Join-Path $PSScriptRoot "duo_read.py") verdict $LogEarn $LogQuiet $(if ($DuoSeed) { "$DuoSeed" } else { "-" }) 2>&1 | Select-String "^DUOS:" | Select-Object -Last 1).Line
+$DuoOk = ($LASTEXITCODE -eq 0) -and ($DuoLine -match "^DUOS: PASS")
+$DuoText = if ($DuoLine -match "^DUOS: (PASS|FAIL) \((.*)\)$") { $Matches[2] } else { "no verdict from duo_read.py" }
 
-$Summary = "seed $RunSeed banked $($First.Award), [$($New -join ' ')], key spent it to $Spent, new process read it, next run's hands hold the bought cards; keys bought five nodes on a planted balance; Shrine chain=$ChainOk, branch cards=$($BranchBad.Count -eq 0), L8 holds a met Keeper=$L8Ok, TwoPaths6 on seed $($DuoSeeds[$DuoIndex - 1]), duo card=$DuoOk $DuoRead; $([int]$Clock.Elapsed.TotalSeconds) s"
+$Summary = "seed $RunSeed banked $($First.Award), [$($New -join ' ')], key spent it to $Spent, new process read it, next run's hands hold the bought cards; keys bought three nodes on a planted balance; Shrine chain=$ChainOk, branch cards=$($BranchBad.Count -eq 0), L8 holds a met Keeper=$L8Ok; duos: $DuoText$DuoRead; $([int]$Clock.Elapsed.TotalSeconds) s"
 if ($ChainOk -and $BranchBad.Count -eq 0 -and $L8Ok -and $DuoOk) {
 	Write-Host "EARNED: PASS ($Summary)"
 	exit 0

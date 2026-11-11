@@ -42,15 +42,16 @@ namespace DTHubCheckLocal
 	const TCHAR* const FirstNode = TEXT("Trunk.Reroll");
 	const TCHAR* const StormCard = TEXT("Blessing.Storm.Tempest.Amp1");
 
-	/** What Tools/EarnedCheck.ps1 buys by key on the planted save, in catalog order: a Blessing4 on two Paths is TwoPaths6's door, and the last three are the new branches. */
+	/**
+	 * What Tools/EarnedCheck.ps1 buys by key on the planted save, in catalog order: one node of each branch the doors added. The duos need no
+	 * purchase: the run that left this save earned them by play (meta.md R-MET-28, D-069).
+	 */
 	struct FDoorNode
 	{
 		const TCHAR* Node;
 		const TCHAR* Card;
 	};
 	const FDoorNode DoorNodes[] = {
-		{ StormNode, StormCard },
-		{ TEXT("Branch.Forge.Blessing4"), TEXT("Blessing.Forge.Furnace.Amp1") }, // a fresh save holds Hammer (meta.md R-MET-25, D-064)
 		{ SealedNode, TEXT("Blessing.Shade.Hound.Amp1") },
 		{ TEXT("Branch.Radiance.Blessing4"), TEXT("Blessing.Radiance.Lance.Amp1") },
 		{ TEXT("Branch.Quicksilver.Blessing4"), TEXT("Blessing.Quicksilver.Vector.Amp1") },
@@ -607,13 +608,32 @@ namespace DTHubCheckLocal
 		Shot(TEXT("earned_after"));
 	}
 
-	/** On a planted save: a real win's doors and a set balance. Every node is bought by key at exact money; the two Paths are TwoPaths6's door, the rest the new branches. */
+	/** Whether a save holds the duos' door and all it writes: the Discovery, its key form, and both targets (meta.md R-MET-28, R-MET-43). */
+	static bool HoldsDuos(UDTHubSubsystem* Hub)
+	{
+		const FDTMetaProfile& Read = Profile(Hub);
+		return Read.Discoveries.Contains(TEXT("TwoPaths6")) && Read.Unlocked.Contains(TEXT("Discovery.TwoPaths6")) && Read.Unlocked.Contains(TEXT("Reaction.Duos"))
+			&& Read.Unlocked.Contains(TEXT("Mod.SpreadWave"));
+	}
+
+	/** Whether a save holds any of it. */
+	static bool HoldsAnyDuo(UDTHubSubsystem* Hub)
+	{
+		const FDTMetaProfile& Read = Profile(Hub);
+		return Read.Discoveries.Contains(TEXT("TwoPaths6")) || Read.Unlocked.Contains(TEXT("Discovery.TwoPaths6")) || Read.Unlocked.Contains(TEXT("Reaction.Duos"))
+			|| Read.Unlocked.Contains(TEXT("Mod.SpreadWave"));
+	}
+
+	/**
+	 * On a planted save, a copy of the save the first played run left, which held Tier 2 on two Paths: its doors, the duos it earned by
+	 * play (D-069) and a set balance. Every node is bought by key at exact money: one of each new branch.
+	 */
 	static void BuildDoors()
 	{
-		Is(TEXT("the three Keepers are met, and the duos are not earned"), [](UDTHubSubsystem* Hub)
+		Is(TEXT("the three Keepers are met, and the run that held Tier 2 on two Paths left the duos, TwoPaths6 and Spread Wave"), [](UDTHubSubsystem* Hub)
 		{
 			const TSet<FName>& Unlocked = Profile(Hub).Unlocked;
-			return Unlocked.Contains(TEXT("Keeper.Shade")) && Unlocked.Contains(TEXT("Keeper.Radiance")) && Unlocked.Contains(TEXT("Keeper.Quicksilver")) && !Unlocked.Contains(TEXT("Reaction.Duos"));
+			return Unlocked.Contains(TEXT("Keeper.Shade")) && Unlocked.Contains(TEXT("Keeper.Radiance")) && Unlocked.Contains(TEXT("Keeper.Quicksilver")) && HoldsDuos(Hub);
 		});
 		Fund(UE_ARRAY_COUNT(DoorNodes) * DTConst::TREE_COST_BLESSING4);
 		OpenContracts();
@@ -628,6 +648,13 @@ namespace DTHubCheckLocal
 		Is(TEXT("exact money leaves nothing"), [](UDTHubSubsystem* Hub) { return Profile(Hub).Currency == 0; });
 		Shot(TEXT("doors_bought"));
 		Press(EKeys::Escape);
+	}
+
+	/** On the save a run with fewer than two Paths at Tier 2 left, from empty: the duos' door stays shut, and nothing it writes is there (D-069). */
+	static void BuildDuosShut()
+	{
+		Is(TEXT("the save holds the run that was banked"), [](UDTHubSubsystem* Hub) { return Profile(Hub).Runs == 1; });
+		Is(TEXT("a run with fewer than two Paths at Tier 2 left neither the duos, TwoPaths6 nor Spread Wave"), [](UDTHubSubsystem* Hub) { return !HoldsAnyDuo(Hub); });
 	}
 
 	/** Each Keeper a door opened, straight after Contracts: chosen at the Shrine by keys, a gated run begun from the hub, abandoned, and back. */
@@ -737,6 +764,10 @@ void DTHubCheck::Tick(UDTHubSubsystem* Hub)
 		{
 			BuildDoors();
 			BuildKeepers();
+		}
+		else if (Script == TEXT("DuosShut"))
+		{
+			BuildDuosShut();
 		}
 		else
 		{

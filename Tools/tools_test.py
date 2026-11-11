@@ -27,6 +27,7 @@ import gen_catalog  # noqa: E402
 import gen_matrix  # noqa: E402
 import cpu_canary  # noqa: E402
 import crash_exit  # noqa: E402
+import duo_read  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
 import pool_read  # noqa: E402
@@ -3548,6 +3549,61 @@ public static class StandIn {
 		self.assertIn("WIN: FAIL (en, no win on seeds 71 72)", run.stdout)
 		self.assertEqual(launched, ["71", "72"])
 		self.assertEqual([n for n in os.listdir(logs) if "crash" in n], [])
+
+
+class DuoRead(unittest.TestCase):
+	"""D-069: EarnedCheck binds the duos' door from both sides, reading each run's own counters line (Tools/duo_read.py)."""
+
+	LINE = "[2026.11.12-03.00.00:000][ 91]LogDT: Meta: counters Best.Crit=0 Best.Level=20 Best.PathsAtTier2=%d Best.Tier=2 Dashes=93 Kills.Role.Swarm=2730\n"
+	CMD = "LogInit: Command Line: /Game/DT/Maps/L_Arena_Test?DTSeed=%d?DTPatron=Storm -game -DTSeed=%d -DTPoolGate\n"
+
+	def log(self, paths, seed=9100):
+		return [self.CMD % (seed, seed), "LogDT: Meta: opened (1) x.sav, balance 0, wins 0, discoveries 0\n", self.LINE % paths,
+			"LogDT: Meta: discoveries met 7 of 15 [ReachL10 TwoPaths6], new [ReachL10 TwoPaths6]\n"]
+
+	def test_paths_are_the_runs_own_counter(self):
+		self.assertEqual(duo_read.paths_at_tier2(self.log(2)), 2)
+		self.assertEqual(duo_read.paths_at_tier2(self.log(0)), 0)
+		# The last counters line is the bank's; a line without the key reads 0, as the recorder always writes it; no line reads None.
+		self.assertEqual(duo_read.paths_at_tier2(self.log(1) + [self.LINE % 2]), 2)
+		self.assertEqual(duo_read.paths_at_tier2(["LogDT: Meta: counters Dashes=3\n"]), 0)
+		self.assertIsNone(duo_read.paths_at_tier2(["LogDT: Meta: discoveries met 1 of 15 [TwoPaths6], new [TwoPaths6]\n"]))
+		self.assertEqual(duo_read.seed_of(self.log(2, 9101)), "9101")
+
+	def test_the_verdict_binds_both_sides(self):
+		ok, text = duo_read.verdict((2, "9100"), (1, "9100"), "9230")
+		self.assertTrue(ok)
+		self.assertEqual(text, "earned with 2 Paths at Tier 2 (seed 9100), not earned with 1 (seed 9100), duo card on the next run (seed 9230)")
+		self.assertIn("'when' is unbound", duo_read.verdict((1, "9100"), (0, "9100"), "9230")[1])
+		self.assertFalse(duo_read.verdict((1, "9100"), (0, "9100"), "9230")[0])
+		self.assertIn("'only when' is unbound", duo_read.verdict((2, "9100"), (2, "9100"), "9230")[1])
+		self.assertFalse(duo_read.verdict((2, "9100"), (2, "9100"), "9230")[0])
+		self.assertFalse(duo_read.verdict((2, "9100"), (1, "9100"), None)[0])
+		self.assertFalse(duo_read.verdict((None, "?"), (1, "9100"), "9230")[0])
+
+	def test_the_script_prints_one_line_and_exits_by_it(self):
+		with tempfile.TemporaryDirectory() as root:
+			earn, quiet = os.path.join(root, "earn.log"), os.path.join(root, "quiet.log")
+			with open(earn, "w", encoding="utf-8") as f:
+				f.writelines(self.log(2, 9100))
+			with open(quiet, "w", encoding="utf-8") as f:
+				f.writelines(self.log(1, 9100))
+			with contextlib.redirect_stdout(io.StringIO()) as out:
+				self.assertEqual(duo_read.main(["verdict", earn, quiet, "9230"]), 0)
+			self.assertEqual(out.getvalue().strip(), "DUOS: PASS (earned with 2 Paths at Tier 2 (seed 9100), not earned with 1 (seed 9100), duo card on the next run (seed 9230))")
+			with contextlib.redirect_stdout(io.StringIO()) as out:
+				self.assertEqual(duo_read.main(["verdict", earn, earn, "-"]), 1)
+			self.assertTrue(out.getvalue().startswith("DUOS: FAIL (the side 'only when' is unbound"))
+			with contextlib.redirect_stdout(io.StringIO()) as out:
+				self.assertEqual(duo_read.main(["paths", quiet]), 0)
+			self.assertEqual(out.getvalue().strip(), "PATHS: 1")
+
+	def test_earned_check_reads_both_sides(self):
+		with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "EarnedCheck.ps1"), encoding="utf-8") as f:
+			code = f.read()
+		for held in ('duo_read.py") paths', 'duo_read.py") verdict', '"DuosShut"', "-Pick \"BlessingsOnly\"", "the side 'only when' is unbound", "the side 'when' of the duos' door is unbound"):
+			self.assertIn(held, code)
+		self.assertNotIn("two bought nodes", code)
 
 
 class PoolRead(unittest.TestCase):
