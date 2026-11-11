@@ -1227,6 +1227,11 @@ def first_statement(name, text):
 	return code[i].strip() if i < len(code) else ""
 
 
+import csv  # noqa: E402  (also above; here so this block stands without the CatalogFit commit)
+
+CATALOG_DIR = os.path.join(os.path.dirname(TOOLS), "Docs", "09_Catalog")
+
+
 def ps_function(path, name):
 	"""The text of one `function <name> ... { ... }` of a PowerShell file, by brace depth (no brace inside its strings)."""
 	with open(path, encoding="utf-8") as f:
@@ -1297,16 +1302,16 @@ class UnlockExpansion(unittest.TestCase):
 
 	def copy_catalog(self):
 		dest = os.path.join(self.tmp.name, "Docs", "09_Catalog")
-		shutil.copytree(gen_catalog.CATALOG, dest)
+		shutil.copytree(CATALOG_DIR, dest)
 		return dest
 
 	def test_s2_names_every_s2_row_and_nothing_else(self):
 		got = self.expand(["S2"])
-		self.assertEqual(unlock_misses(gen_catalog.CATALOG, got), [])
+		self.assertEqual(unlock_misses(CATALOG_DIR, got), [])
 		self.assertEqual(len(got), len(set(got)))
 		want = []
 		for name in UNLOCK_BY_ROW:
-			with open(os.path.join(gen_catalog.CATALOG, name), encoding="utf-8", newline="") as f:
+			with open(os.path.join(CATALOG_DIR, name), encoding="utf-8", newline="") as f:
 				want += sorted({r["id"] for r in csv.DictReader(f) if r["stage"] == "S2" or (r["stage"] == "S1" and r["starter"] == "no")})
 		self.assertEqual(got, want + ["Reaction.Duos"])
 		self.assertIn("Weapon.GravityMine", got)
