@@ -556,9 +556,6 @@ audio:
   AUD.FIRE_DENSE_VOICES_PER_S:   { value: 6, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.AGGREGATE_MAX:             { value: 1.6, unit: ratio, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-06, T-AUD-06] }
   AUD.SCAN_MAX:                  { value: 64, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-02, T-AUD-02] }
-  AUD.CROWD_OFF_KILLS_PER_S:     { value: 16, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
-  AUD.LOWEND_ON_KILLS_PER_S:     { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
-  AUD.LOWEND_OFF_KILLS_PER_S:    { value: 50, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
   AUD.LAYER_FADE_PER_S:          { value: 3, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
   AUD.KILL_DENSE_VOICES_PER_S:   { value: 8, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-08, T-AUD-08] }
   AUD.GRID_STEPS:                { value: 3, unit: steps, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-09, T-AUD-09] }

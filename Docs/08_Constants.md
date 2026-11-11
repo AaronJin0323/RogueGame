@@ -634,9 +634,6 @@ S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no k
 | C.AUD.FIRE_DENSE_VOICES_PER_S | 6 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
 | C.AUD.AGGREGATE_MAX | 1.6 | ratio | GATED(S4) | audio R-AUD-06, T-AUD-06 (most gain a merged batch takes) |
 | C.AUD.SCAN_MAX | 64 | n | GATED(S4) | audio R-AUD-02, T-AUD-02 (entries of a step buffer audio may read) |
-| C.AUD.CROWD_OFF_KILLS_PER_S | 16 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 (the crowd layer enters at C.PRE.DENSITY_LOD_KILLS_PER_S) |
-| C.AUD.LOWEND_ON_KILLS_PER_S | 60 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 |
-| C.AUD.LOWEND_OFF_KILLS_PER_S | 50 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 |
 | C.AUD.LAYER_FADE_PER_S | 3 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 (slew of a layer's gain) |
 | C.AUD.KILL_DENSE_VOICES_PER_S | 8 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 |
 | C.AUD.GRID_STEPS | 3 | steps | GATED(S4) | audio R-AUD-09, T-AUD-09 (sim steps; 50 ms at the fixed step) |
