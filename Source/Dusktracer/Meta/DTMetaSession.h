@@ -56,6 +56,8 @@ struct DUSKTRACER_API FDTMetaSession
 	bool bWritable = false;
 	/** Where the bad file went, when Open kept one aside. */
 	FString AsidePath;
+	/** Why Open stuck the session (R-MET-12): SaveUnreadable or SaveNotMoved; None for a session that is not stuck. */
+	EDTMetaNotice StuckOn = EDTMetaNotice::None;
 	/** The file's bytes as this session last read or wrote them; another process's write shows as a difference (R-MET-11). */
 	TArray<uint8> Seen;
 	/** The profile in memory is newer than the file: a write failed or the lock was busy. The next save point carries it. */

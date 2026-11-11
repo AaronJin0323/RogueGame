@@ -61,10 +61,12 @@ struct FDTRunAward
 };
 
 /**
- * What a launch has to tell the player about its save, one line at a time on the hub's root (R-MET-12, R-MET-11). KeptAside wins
- * over RunLost when both hold: it is why the balance in front of the player is empty.
+ * What a launch has to tell the player about its save, one line at a time on the hub's root (vigil.md R-VIG-21, R-MET-12,
+ * R-MET-11). A stuck session's line comes first, SaveUnreadable (the file cannot be read at all) or SaveNotMoved (it is bad and
+ * could not be moved aside): it is why nothing this launch does is kept. KeptAside comes next, since it is why the balance in
+ * front of the player is empty, then RunLost. A stuck session set no file aside, so a stuck line never meets KeptAside.
  */
-enum class EDTMetaNotice : uint8 { None, RunLost, KeptAside };
+enum class EDTMetaNotice : uint8 { None, RunLost, KeptAside, SaveUnreadable, SaveNotMoved };
 
 namespace DTMeta
 {

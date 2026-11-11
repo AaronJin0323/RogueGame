@@ -156,6 +156,7 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	Profile = FDTMetaProfile();
 	Path = InPath;
 	AsidePath.Reset();
+	StuckOn = EDTMetaNotice::None;
 	Seen.Reset();
 	bUnsaved = false;
 	Pending.Reset();
@@ -187,6 +188,7 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	if (!FFileHelper::LoadFileToArray(Bytes, *Path, FILEREAD_Silent))
 	{
 		UE_LOG(LogDT, Warning, TEXT("Meta: cannot read %s; this session writes nothing"), *Path);
+		StuckOn = EDTMetaNotice::SaveUnreadable;
 		return EDTMetaOpen::Stuck;
 	}
 	TArray<uint8> Payload;
@@ -205,6 +207,7 @@ EDTMetaOpen FDTMetaSession::Open(const FString& InPath)
 	if (!Files.Move(*Aside, *Path, /*bReplace*/ false, /*bEvenIfReadOnly*/ false, /*bAttributes*/ false, /*bDoNotRetryOrError*/ true))
 	{
 		UE_LOG(LogDT, Warning, TEXT("Meta: bad save %s could not be kept aside; this session writes nothing"), *Path);
+		StuckOn = EDTMetaNotice::SaveNotMoved;
 		return EDTMetaOpen::Stuck;
 	}
 	AsidePath = Aside;
@@ -275,6 +278,11 @@ bool FDTMetaSession::Close()
 
 EDTMetaNotice FDTMetaSession::Notice() const
 {
+	// One line, the first that holds (vigil.md R-VIG-21): a stuck session is why nothing this launch does is kept.
+	if (StuckOn != EDTMetaNotice::None)
+	{
+		return StuckOn;
+	}
 	if (!AsidePath.IsEmpty())
 	{
 		return EDTMetaNotice::KeptAside;
