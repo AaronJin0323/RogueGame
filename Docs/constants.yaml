@@ -202,6 +202,48 @@ tracer_art:
   TRC.MUZZLE_WIDTH_RATIO:      { value: 1.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-07, T-TRC-07] }
   TRC.MUZZLE_EMISSIVE:         { value: 2.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-07, T-TRC-07] }
   TRC.MUZZLE_OPACITY:          { value: 0.8, unit: ratio, tag: GATED(S4), dependents: [02_Systems/tracer_art.md, R-TRC-07, T-TRC-07] }
+impact_art:
+  # S4 wave 1 package E (D-043, 02_Systems/impact_art.md): presentation only, no reader in the sim.
+  IMP.DEBRIS_Z_UU:                    { value: 1.4, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py] }
+  IMP.FLASH_Z_UU:                     { value: 1.6, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-04, T-IMP-04, Tools/assets/fx_materials.py] }
+  IMP.SPARK_S:                        { value: 0.10, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARK_LENGTH_UU:                { value: 70, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARK_WIDTH_UU:                 { value: 44, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARK_START_RATIO:              { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARK_EMISSIVE:                 { value: 3.0, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-05, T-IMP-05] }
+  IMP.SPARKS_PER_STEP_MAX:            { value: 32, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.SPARKS_DENSE_PER_STEP_MAX:      { value: 12, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.SPARK_LIVE_MAX:                 { value: 192, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.KILL_FLASH_S:                   { value: 0.12, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-06, T-IMP-06] }
+  IMP.KILL_FLASH_START_RATIO:         { value: 0.8, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-06, T-IMP-06] }
+  IMP.KILL_FLASH_END_RATIO:           { value: 1.7, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-06, T-IMP-06] }
+  IMP.KILL_FLASH_EMISSIVE:            { value: 2.5, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-06, T-IMP-06] }
+  IMP.FLASH_RADIUS_MAX_UU:            { value: 260, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-06, R-IMP-08, T-IMP-06] }
+  IMP.FLASH_LIVE_MAX:                 { value: 72, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.AGG_CELL_UU:                    { value: 400, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.AGG_PER_STEP_MAX:               { value: 6, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.DENSITY_CROWD_OFF_KILLS_PER_S:  { value: 16, unit: per_s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, R-IMP-11, T-IMP-08] }
+  IMP.DENSITY_FLOOD_KILLS_PER_S:      { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, R-IMP-11, T-IMP-08] }
+  IMP.DENSITY_FLOOD_OFF_KILLS_PER_S:  { value: 50, unit: per_s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, R-IMP-11, T-IMP-08] }
+  IMP.AGG_FLOOD_CELL_UU:              { value: 800, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.AGG_FLOOD_PER_STEP_MAX:         { value: 2, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.DEBRIS_S:                       { value: 0.45, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_SIZE_UU:                 { value: 22, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07, Tools/blender/debris.py] }
+  IMP.DEBRIS_RADIUS_PER_PIECE_UU:     { value: 11, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_PIECES_MIN:              { value: 3, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_PIECES_MAX:              { value: 8, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_SPEED_UU_S:              { value: 520, unit: uu_per_s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_SPEED_VARIATION:         { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_DRAG_S:                  { value: 0.15, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_SPREAD_DEG:              { value: 70, unit: deg, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_SHRINK_SHARE:            { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-07, T-IMP-07] }
+  IMP.DEBRIS_LIVE_MAX:                { value: 160, unit: n, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-08, T-IMP-08] }
+  IMP.HERO_FLASH_S:                   { value: 0.20, unit: s, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_START_RATIO:         { value: 1.3, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_END_RATIO:           { value: 2.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_THICK_UU:            { value: 20, unit: uu, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.HERO_FLASH_EMISSIVE:            { value: 2.5, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
+  IMP.REDUCED_EMISSIVE_RATIO:         { value: 0.4, unit: ratio, tag: GATED(S4), dependents: [02_Systems/impact_art.md, R-IMP-09, T-IMP-09] }
 arena:
   ARENA.SUN_ELEVATION_DEG:     { value: 20,   unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py, 04_Presentation.md] }
   ARENA.SUN_YAW_DEG:           { value: -60,  unit: deg,   tag: GATED(S0),  dependents: [Tools/create_arena.py] }
