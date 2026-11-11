@@ -71,3 +71,16 @@ Every other step passed: secrets, docs (0 errors, 8 warnings), constants, catalo
 - The package checks read at 00c270c (PKGRESTART, PKGHUB, EXPORTCHECK, PERF, PADCHECK's machine half): no package of this tree exists; they must be reread on a new package.
 - MetaCheck and firstrun (D-037): read again by this gate on the merged tree and passing (lines above). The figures `S3_tree.md` quotes from MetaCheck's 600 s pool window (19 and 21 hands, hash `b55324a1`) play long enough for D-045, D-046 and Hard Blow to act and were not printed again here: treat them as stale until reread. `S3_verify.md`'s package hash on seed 9107 and the `STATE.md` package lines read at 00c270c are stale with the package checks above.
 - The S3 exit tooling's fixtures are not readings and do not move.
+
+## Second carry: `carry2/s2` (`main` 7f75ada in `dev/s2`) into `dev/s3` dd6a868 (`carry2/s3`)
+- Conflicts: the scheduler's records take `main`'s side whole (`git diff 7f75ada -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty). `run_start` carries both sides' fields in one record, `config` and `driver` (R-TEL-13, `dev/s3`) and `bot_fast` (R-TEL-08, `main`): `DTTelemetryCore.cpp` writes all three and `DTTelemetrySubsystem.cpp` sets all three; `telemetry.md`'s record row and test list (T-TEL-13 to T-TEL-15) and `package.md`'s list of what a run file holds say both. `number_change_log.csv`: every row of both sides. Generated files regenerated.
+- No `dev/s3` reader or test pins a whole `hero_damaged` or `run_start` line: the suite passed with no change to one. `dev/s3`'s tools read `run_start` by key, so a new key changes nothing for them.
+- Ids: T-TEL-14 and T-TEL-15 collide with nothing.
+- Counts: 545 found, 545 pass; `C.GATE.TEST_FLOOR` 543 to 545; `tools_test.py` 279.
+- Seed 9107, unchanged before (76774c2, whose code dd6a868 holds unchanged) and after (8dbb124): v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`; RestartCheck `276faf8e` and MetaCheck `ba2a3ac8` in the gate.
+
+```
+tests:      545 run of 545 found, 0 failed, floor 545, 0 crash marker(s)
+GATE: PASS (8dbb124; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run), firstrun 6/6 at the boss; no odd failure.
