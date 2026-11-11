@@ -1,6 +1,6 @@
 # S3 validation kit — the external test
 
-Exit test (`12_Production §2`, S3): **3 fresh validators × 3 runs**, none of them the owner, ≥ 1 on a gamepad and ≥ 1 in zh-Hans (`§1`); **pass 2 of 3**; a packaged pad pass; `findings_S3.md` written. The scheduler prepares the build; the owner hosts and watches. **Watch, don't explain.**
+Exit test (`12_Production §2`, S3): **3 validators on fresh saves × 3 runs**, none of them the owner; a validator who played an earlier build may return, and the sheet records what they played (D-049); ≥ 1 on a gamepad and ≥ 1 in zh-Hans (`§1`); **passes when two of three hold**: ≥ 2 ask for another run unprompted, ≥ 2 name their build, the owner still wants to play (D-049); a packaged pad pass; `findings_S3.md` written. The scheduler prepares the build; the owner hosts and watches. **Watch, don't explain.**
 
 No session has been played. "Pass 2 of 3", "fresh", what counts as a run and how much play makes a gamepad or a zh-Hans validator have no definition in the docs yet, and `Harness/H07 §4` wants the pass rule written before the session: settle calls 1 to 3 in `findings_S3.md` first. Book one validator for a whole session in zh-Hans and one for a whole session on a pad: those read `PASS` however call 8 lands.
 
@@ -144,7 +144,7 @@ Of the accepted runs, one ended by a death or a win is **counted**. `quit`, `res
 | `Fresh` | a human | never: only the host knows | the first run of a folder shows a card no fresh save of that build can | otherwise, and whenever a refused or torn file in that folder could be older |
 | `zh-Hans` | the logs | a validator with ≥ 3 counted runs, all started in zh-Hans | `Validators` passed and no accepted run in zh-Hans | otherwise: call 8 |
 | `Packaged pad pass` | the logs and `Tools\PadCheck.ps1` | a validator with ≥ 3 counted runs, each reading `pad` and no interval `kbm`, and PadCheck's line passes this package | `Validators` passed and no accepted run reads `pad` | otherwise: call 8, or the line is missing or names another package |
-| `Pass rule` | a human, from `findings_S3.md` (D-034) | never here | never here | always: a person reads ≥ 2 of 3 on each of the two Vision rows |
+| `Pass rule` | a human, from `findings_S3.md` (D-049) | never here | never here | always: a person reads whether two of the three hold (another run asked for by ≥ 2, a build named by ≥ 2, the owner still wants to play) |
 | `findings_S3.md` | the file | every row read, each with a name | never | otherwise; `NOT READ` with a reason behind it, in any case, is no reading |
 
 **A verdict on an open call** comes only where every reading of the call agrees: `PASS` on its strict side, `FAIL` where even its loosest reading misses, and `NOT READ` between.
