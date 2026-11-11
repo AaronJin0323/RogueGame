@@ -3056,7 +3056,22 @@ class ReviewMinors(unittest.TestCase):
 		self.assertIn("MIDROW: False", run.stdout)
 		self.assertIn("SHORT: []", run.stdout)
 		step = self.text("Tools", "PackageHubCheck.ps1").split("$Fresh = Invoke-ShippingRun")[1].split("$CsvOk = ")[0]
-		self.assertEqual(step.count("= Get-WholeIntervals ("), 2)
+		self.assertEqual(step.count("= Compare-RunCsv ("), 1)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_step_e_compares_a_run_shorter_than_an_interval_by_its_rows(self):
+		# S3_package.md, 2026-11-11: two byte-identical one-row files read as different, because no whole interval was left to compare.
+		script = (self.hub_function("Get-WholeIntervals") + "\n" + self.hub_function("Compare-RunCsv") + "\n"
+			"$One = \"t,kills`r`n25.2,45`r`n\"\n$Long = \"t,kills`r`n10,5`r`n20,9`r`n23.4,2`r`n\"\n"
+			"$R = Compare-RunCsv $One $One\nWrite-Host ('SAME: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One \"t,kills`r`n25.2,46`r`n\"\nWrite-Host ('DIFF: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $Long $Long\nWrite-Host ('WHOLE: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One $Long\nWrite-Host ('MIXED: ' + $R.Same + ' / ' + $R.How)\n")
+		run = self.run_ps(script)
+		self.assertIn("SAME: True / all rows, no whole interval", run.stdout, run.stdout + run.stderr)
+		self.assertIn("DIFF: False / all rows, no whole interval", run.stdout)
+		self.assertIn("WHOLE: True / whole intervals", run.stdout)
+		self.assertIn("MIXED: False / whole intervals in one file only", run.stdout)
 
 
 if __name__ == "__main__":
