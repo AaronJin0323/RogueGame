@@ -2029,7 +2029,7 @@ class GateMain(unittest.TestCase):
 
 	PY_STEPS = (("cpu_canary.py", "CPU"), ("secret_scan.py", "SECRETS"), ("docs_lint.py", "DOCS"), ("gen_constants.py", "CONSTANTS"),
 		("gen_catalog.py", "CATALOG"), ("gen_matrix.py", "MATRIX"), ("loc_build.py", "LOC"), ("catalog_lint.py", "LICENCE"),
-		("palette_lint.py", "PALETTE"), ("tools_test.py", "TOOLS"))
+		("palette_lint.py", "PALETTE"), ("audio/audio_check.py", "AUDIO"), ("tools_test.py", "TOOLS"))
 
 	def setUp(self):
 		self.tmp = tempfile.TemporaryDirectory()
@@ -2046,6 +2046,7 @@ class GateMain(unittest.TestCase):
 			shutil.copy(os.path.join(TOOLS, name), tools)
 		for name, verdict in self.PY_STEPS:
 			if name in stubs:
+				os.makedirs(os.path.dirname(os.path.join(tools, name)), exist_ok=True)
 				with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
 					f.write(f"print('{verdict}: PASS (stub)')\n")
 		return os.path.join(tools, "Gate.ps1")
