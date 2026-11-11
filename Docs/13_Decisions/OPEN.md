@@ -42,7 +42,7 @@ Decided on 2026-11-11, from `Validation/plans_audit.md`:
 - **D-050** S4's first wave continues on `dev/s4`. Nothing further starts early, the S1 build is fixed first, and no number is tuned on bot survival until people calibrate the bots. This answers O-010.
 
 Decided on 2026-11-11, after the reread and the open calls of the handover:
-- **D-053** Hammer's Key still changes nothing on Orbital Drones, and its card now says so. Whether its cleave cards should also act on the Arc Blade's sweeps is asked of the people in session A and decided at the S1 gate. Hard Blow, which you took in your run and which did nothing, now knocks enemies back as its card says.
+- **D-053** Hammer's Key still changes nothing on Orbital Drones. Its card names only the weapons it converts, and the drones are not among them. Whether its cleave cards should also act on the Arc Blade's sweeps is asked of the people in session A and decided at the S1 gate. Hard Blow, which you took in your run and which did nothing, now knocks enemies back as its card says.
 - **D-054** A run played on a PC too slow to keep up is told by its slow share: the part of the time the game ran in slow motion. The limit is set after session A; until then it is printed and nothing is set aside.
 
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
