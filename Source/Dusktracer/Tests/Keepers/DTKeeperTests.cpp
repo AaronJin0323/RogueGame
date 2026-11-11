@@ -2740,10 +2740,10 @@ DT_KEEPER_PARAM_TEST(FDTKeeperParamWhirlpoolLayer, "WhirlpoolLayer") // keepers.
 
 #undef DT_KEEPER_PARAM_TEST
 
-// T-KEE-23 (D-053 item 3): while Hard Blow is held, every enemy a cleave strikes is pushed straight away from the cleave's origin
+// T-KEE-39 (D-053 item 3): while Hard Blow is held, every enemy a cleave strikes is pushed straight away from the cleave's origin
 // by the card's knockback_uu, the value the Forge Intercession ring reads, through the same displacement queue. Without the card
 // a cleave moves nothing.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTKeepersHardBlowKnockback, "Dusktracer.Keepers.HardBlowKnockback", DTWeaponTestHarness::TestFlags) // T-KEE-23
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTKeepersHardBlowKnockback, "Dusktracer.Keepers.HardBlowKnockback", DTWeaponTestHarness::TestFlags) // T-KEE-39
 bool FDTKeepersHardBlowKnockback::RunTest(const FString& Parameters)
 {
 	using namespace DTKeeperTest;

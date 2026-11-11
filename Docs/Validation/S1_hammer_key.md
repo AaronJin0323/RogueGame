@@ -16,7 +16,7 @@ The Key's card reads: each volley's first `rounds` rounds stop flying and merge 
 Arc Blade is the plain case: its own strike is already an arc from the hero that hits every enemy inside it, so every number on the card has a place on its shape and nothing has to be invented. The sweeps are not merged (a level five blade's two sweeps face opposite ways, R-WPN-06), they stay `Weapon.ArcBlade` hits, and the blade takes no conversion, so no socket goes dormant.
 
 ## Readings
-`Dusktracer.Weapons.HammerKeyFallback` (T-WPN-14), the real Key and the real Long Haft from the catalog, Arc Blade at each of its eight levels, three enemies (near in front, in front past the blade's own reach, behind).
+`Dusktracer.Weapons.HammerKeyFallback` (T-WPN-19), the real Key and the real Long Haft from the catalog, Arc Blade at each of its eight levels, three enemies (near in front, in front past the blade's own reach, behind).
 
 | Run | Result |
 |---|---|

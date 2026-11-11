@@ -557,7 +557,7 @@ bool FDTWeaponsConversion::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsHammerKeyFallback, "Dusktracer.Weapons.HammerKeyFallback", DTWeaponTestHarness::TestFlags) // T-WPN-14
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTWeaponsHammerKeyFallback, "Dusktracer.Weapons.HammerKeyFallback", DTWeaponTestHarness::TestFlags) // T-WPN-19
 bool FDTWeaponsHammerKeyFallback::RunTest(const FString& Parameters)
 {
 	using namespace DTWeaponTest;
