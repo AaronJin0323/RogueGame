@@ -246,7 +246,10 @@ bool FDTEarMeshes::RunTest(const FString& Parameters)
 			Triangles += Mesh->GetNumTriangles(0);
 			TestEqual(*(Path + TEXT(": one level of detail (the triangle cap stands in for LODs)")), Mesh->GetNumLODs(), 1);
 			TestEqual(*(Path + TEXT(": one material slot")), Mesh->GetStaticMaterials().Num(), 1);
+#if WITH_EDITOR
+			// UStaticMesh::IsNaniteEnabled is editor-only: the Development game target (gate step devgame) compiles this test without it.
 			TestFalse(*(Path + TEXT(": Nanite off (04_Presentation §4)")), Mesh->IsNaniteEnabled());
+#endif // WITH_EDITOR
 			const FBox Box = Mesh->GetBoundingBox();
 			TestTrue(*(Path + TEXT(": nothing under the floor")), Box.Min.Z >= -0.01);
 			// One mesh unit is the hit diameter: a hull that did not reach the hit circle would mark it badly, one many times wider is another role.
