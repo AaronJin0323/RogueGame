@@ -67,4 +67,4 @@ None.
 - Everything `Validation/S4_wave1.md` §4 holds back.
 
 ## Open
-- `07_Technical` §4 lists the structs systems share; `FDTImpact` is not listed there by this package, which may not edit that file. A line for it is the scheduler's to place.
+None.
