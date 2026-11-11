@@ -54,6 +54,14 @@ Decided on 2026-11-11, on your three messages about working in parallel:
 
 - **D-059** (it was O-015, and you said to decide it): the Forge and Quicksilver trails keep the colours you confirmed. On the screen the lighter pair changes almost nothing for a red-green colour-blind player (the Forge trail against the enemy muzzle flash reads 17.0 today and 17.6 with it, where 15 is asked), and it makes the Forge trail look like the Radiance trail. Danger is told by its shape in every frame. From now on such a pair is measured on the drawn frame and not from the palette values alone. No colour-blind person has looked yet; if one cannot tell a trail from enemy fire in play, this is reopened.
 
+Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanics_rules_plan.md`):
+- **D-060** Shade's payday no longer pays for itself: a kill made by a payday adds no Debt toward the next one. It was a loop that made the cast read almost thirteen times too strong.
+- **D-061** The Pulse Wall evolution made a build about a quarter weaker than not evolving. Its damage number gets one measured pass so that evolving is at least not a loss.
+- **D-062** When all six Keepers are open in a run a person starts, the Patron hand draws any three of the six. Until now the three newer Keepers always took every seat, so the first three could never be chosen.
+- **D-063** A card is marked Rare only when Rare changes it. Today every card in a chest hand shows Rare, and for most of them nothing is different. The marks come off after session A, so the build people play then is not touched.
+- **D-064** A new save offers each of the first three Keepers one whole build to grow (Arc Grid, Hammer, Frost), not only its first card. Otherwise a first run could not show the thing the playtest asks a player to name.
+- Waiting for the S1 gate, not decided: giving the Tide cast a hit of its own, and letting a Freeze the boss refuses weaken it instead. Tide is the weakest Keeper by bots; nothing is changed on bot results before people have played.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.
