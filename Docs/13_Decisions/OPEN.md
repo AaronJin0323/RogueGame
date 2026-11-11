@@ -30,6 +30,21 @@ Nothing here blocks the agents. The first four items are things only a person ca
 - **Recommendation:** B, because A binds every floor, light and weather the game will ever have to a window about 0.05 wide. It changes how danger looks, which is yours.
 - **Default if unanswered by the first S4 floor merge to `dev/s4`:** A is held as a limit, not a rule: floor and light work stays inside the two windows and reads its worst patch (D-050 item 8).
 
+## O-017 — One sitting at the presentation build  [human-only]
+- **Context:** the first wave of how the game looks is on `dev/s4`: the figure, the enemies, the tracers, the floor, the HUD, the effects of hits and kills, and since 2026-11-12 a clear zone round the hero (D-068). Every check so far is a held frame read by a tool or by an agent. No person has seen any of it move. The second wave (D-057) is planned and held until you have looked.
+- **What to do:** run `E:\Dusktracer\.claude\worktrees\agent-a4ffafc84344cbaea\Tools\Play.bat` (add `zh-Hans` for Chinese). One run or two, as long as you like. It is the S4 build, not the session A package, and it has no sound yet. Tell the scheduler when you start, so that builds and launches stop while you play.
+- **The questions** (the Visual session's list; a line each is enough):
+  1. In the middle of a fight, can you find your hero at a glance? Can you tell which way it faces? Were you ever hit when you thought you were clear?
+  2. Your own shots are not drawn right beside the hero any more. Does your fire still look like it comes from you? With several weapons it starts as a bright ring round you: does that help you find the hero or pull your eye off it? Do you miss seeing a shot land on an enemy that touches you?
+  3. Can you name each kind of enemy from its shape, in a crowd? Do you see the armoured side of the big slow one, and where the turret aims?
+  4. Do your shots look like tracers? Can you tell your weapons apart by their fire? Does the dark trail behind an enemy shot help or get in the way? Do you notice the flash at an enemy's muzzle?
+  5. Does the floor look paved? Do you see where the arena ends?
+  6. Is the HUD easy to read? Does the brass bar look like the boss's health?
+  7. Hits and kills: do you see a shot land; do you know a kill at that moment; are the dark pieces a dead enemy throws off a help or clutter; when you are hurt, do you see the ring round the hero; when a whole pack dies at once, can you still read the screen; is any flash tiring (Settings, Motion, "Screen flashes" turns them off)?
+  8. Can you tell an elite from a plain enemy, and one kind of elite from another?
+- **What it decides:** question 1 and 2 keep, tune or revert the clear zone and say whether the dark outline is the next step (D-068); the rest say what the second wave builds first and whether it opens before session A is read.
+- **Default if unanswered:** nothing of the second wave is built before session A is held and read (D-057), and the clear zone stays as it is.
+
 ## O-013 — Decided for you  [digest, D-051]
 Each stands unless you say no. A line leaves at the next stage gate.
 
