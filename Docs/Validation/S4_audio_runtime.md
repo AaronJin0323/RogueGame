@@ -21,9 +21,13 @@ One file outside `Audio/` changed, under the Sound session's grant (D-056 ruling
 
 The ten interface sounds this branch carries (cb996a5) were heard by the owner and rejected for style (`S4_audio_ui.md` §0). They stay as placeholders that give the runtime its ten ids; no asset exists and nothing plays them.
 
+## 1a. What a recipe branch can change in `DTSoundsGen.h`
+
+The scheduler asked whether the generated table can be checked without a compile that proves anything new when only recipes change. It can. `audio_test.py` `test_a_data_cell_changes_values_never_the_shape` holds the table's shape: for one set of ids, a change of any data cell (volume, interval, voices, aggregation gain, grid, loop, variants, pitch rule, side and class, the lengths read from the manifest) changes only initialiser values on that id's row of `DTCat::Sounds`, never a type, an enum, an enum member, a field or their order. The cells the table does not emit (the length and loudness windows, zone, recipe, confusion set, `heard`) leave the text byte for byte as it was. So a recipe branch that keeps its ids changes, at most, the numbers, booleans and enum values inside existing rows; `gen_sounds.py --check` in the `audio` step proves the header matches the catalog, and C++ that compiled against the old header compiles against the new one, since every name it can use is unchanged. What it cannot do without a compile: add, remove, rename or reorder an id (that changes `ESoundId`'s members and `SoundCount`, which the observers name), or add a column the table emits (a new field of `FSoundRow`). Either changes the shape, and the test shows a new id or a new order does. The behaviour those values drive is still the runtime's tests' to prove; a new value inside a row needs no new compile proof, only the tests that read it.
+
 ## 2. The sim proof (`S4_wave1.md` §2 item 1)
 
-The five seed 9107 arms were run one at a time with `Tools\BotRuns.ps1 -Arms <arm> -FirstSeed 9107 -Seeds 1` on ce2d5d1. Each run launches the game unattended with audio on: it observed, scheduled and counted (one run's closing line: 102 frames, observe p95 0.0731 ms at 600 steps a frame). Before is the baseline of record, `S4_p0.md` §8, second table, which `S4_e0_tap.md` read again after the tap.
+The five seed 9107 arms were run one at a time with `Tools\BotRuns.ps1 -Arms <arm> -FirstSeed 9107 -Seeds 1`, on ce2d5d1 and again on e340553, the tip the last gate built; both readings are the after column below. Each run launches the game unattended with audio on: it observed, scheduled and counted (one run's closing line: 102 frames, observe p95 0.0731 ms at 600 steps a frame). Before is the baseline of record, `S4_p0.md` §8, second table, which `S4_e0_tap.md` read again after the tap.
 
 | Arm, seed 9107 | `input_hash` before / after | `steps` before / after | `bot.csv` bytes before / after | SHA-256 (first 16) before / after |
 |---|---|---|---|---|
@@ -46,6 +50,10 @@ Restart and meta: §4.
 None of these is a reading of record: they share the machine with the gate or run hundreds of steps a frame. The reading of record is the scheduler's perf run (D-056 ruling 6).
 
 ## 4. The gate
+
+- On e340553 (`dev/s4` a155ace merged), the gate of record: `GATE: PASS (e340553; 3 not run; mask FFFFF3FC)`, with tests `584 run of 584 found, 0 failed, floor 584`, restart `276faf8e / 276faf8e` (5400 steps, csv same), meta `ba2a3ac8 / ba2a3ac8` (1200 steps, csv same), `AUDIO: PASS (10 sounds: 0 heard, 0 delegated, 10 rejected, 0 not heard; 10 files, 53 tool tests; not active yet: the mix checks (R-AUD-18); 0 rebuilt, 3.5 s)`, `TOOLS: PASS (363 tests)`, build, shipping and devgame at 0 warnings. Not run: pad (no package), scope, mac (D-007). The gate waited for a machine slot first (the machine was held alone) and then ran.
+- Earlier, on ce2d5d1: `GATE: FAIL at tests`, 584 run of 584, 1 failed: `Dusktracer.Settings.Readers` (T-SET-02), because the interface observer includes a `Settings/` header. Fixed by the one-reader change of §1. A later run on c0c153b was stopped with the machine and is void.
+- The smoke scenes ran the runtime unattended; their closing lines read, for example, 4591 frames of `arena_empty` at p95 0.0022 / 0.0008 / 0.0001 ms (observe, schedule, hand), worst 0.0093 / 0.0194 / 0.0005.
 
 ## 5. What is not verified
 
