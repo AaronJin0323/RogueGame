@@ -196,6 +196,88 @@ The mean share over 18 arms goes 0.607 to 0.606, so the archetype band's centre 
 
 **Not read.** D-038 in any bot run (above). Humans, and the three clauses of R-BOT-17 (O-008). Why Rebound:Storm seed 13 at 0.6 keeps its hash. Which hits moved the four larger layer rows.
 
+### Addendum, 2026-11-11, at 146af0a: the reread after the three carries of `main`
+Branch `s2/exit-reread-3`, from `dev/s2` 146af0a. A reading: nothing tuned, nothing fixed, pass lines unchanged. **A bot reading is never a human reading**; these are bounds. It was taken alone on the machine in the carry agent's worktree, under the mask `FFFFF3FC`.
+
+```
+& Tools\S2Exit.ps1 -Out Saved\BotRuns\s2_exit -Parallel 6
+```
+The whole battery, with the options of the two readings above. 540 runs (17:41 to about 17:59), 656 ablation scenes and 1128 cast scenes, ending at 18:35. Every run's `build` reads `146af0a`, every run left a record, and none was rerun.
+
+`S2EXIT: 2 PASS, 2 FAIL, 2 NOT READ`, against 1 PASS, 3 FAIL, 2 NOT READ at 8231171.
+
+| Reading | Verdict now | 8231171 | 146af0a | Moved, and why |
+|---|---|---|---|---|
+| Keeper share | **PASS** | FAIL, 8/18 arms by share, mean 0.606 | 18/18 arms lose at least 0.6 without blessings, mean loss 0.832; share printed and never judged, mean 0.642 | **The measure changed (D-047)**: the row now judges loss, not share. That is not a change in the game. Judged by share as before, 10 of 18 arms would read at least 0.6 |
+| Build bands | **FAIL** | 9/18 within ±0.15 of the mean share | 17/18 within ±0.15 of the mean loss; Storm/Tempest OUT at 0.603 | **The measure changed (D-047)**: the band now sits around the mean loss |
+| Intercession | **FAIL** | 46/282 | 45/282 | Forge 16 to 13 of 45, Tide 1 to 2 of 47, Quicksilver 1 to 2 of 48; Storm 9/46, Shade 0/48 and Radiance 19/48 the same. Below |
+| Bots win a full run | PASS, a bound | Storm 24, Forge 41, Tide 5, Shade 39, Radiance 35, Quicksilver 43 (of 45, skill 1.0) | Storm 30, Forge 42, Tide 15, Shade 42, Radiance 35, Quicksilver 45 | more wins on five Keepers. Below |
+| Humans win a full run | NOT READ | human only | human only (O-008) | no |
+| Death histogram | NOT READ | human only | human only; the bot's is below | no |
+
+**What reached `dev/s2` since 8231171.** These moved the runs: D-045 (an arriving Rusher charges through where the hero stood), D-046 (a chest restores health), Hard Blow's knockback, Hammer's Key on the Arc Blade, the strict touch comparison, the two sim fixes of 406268e (Conduit under a Patron with no status, Refit's draw), and the fast bot's hold at the deciding step. D-047 changed the reader only. **Paired runs: the 8231171 batch's run files are not at hand** (they were in that reading's worktree, not this one), so how many of the 540 keep their `input_hash` is not read.
+
+**Runs.** Survival rose at both skills.
+
+| Bot skill | Runs | Deaths | Dead before 600 s | Wins | Reach the boss | Boss kills of reachers | Deaths by minute |
+|---|---|---|---|---|---|---|---|
+| 1.0, 8231171 | 270 | 83 | 0.14 | 0.69 | 201 | 0.07 | (above) |
+| 1.0, now | 270 | 61 | 0.09 | 0.77 | 233 | 0.10 | 2:1 3:4 4:1 6:4 7:7 8:3 9:3 10:3 11:4 13:4 14:3 15:8 16:15 17:1 |
+| 0.6, 8231171 | 270 | 176 | 0.13 | 0.35 | 193 | 0.51 | (above) |
+| 0.6, now | 270 | 121 | 0.09 | 0.55 | 230 | 0.35 | 4:2 5:5 6:2 7:11 8:3 9:2 10:5 11:4 12:3 13:1 14:2 15:46 16:34 17:1 |
+
+By Keeper, wins / reach the boss, of 45: at skill 1.0 Storm 30/31, Forge 42/44, Tide 15/34, Shade 42/44, Radiance 35/35, Quicksilver 45/45; at 0.6 Storm 21/37, Forge 30/43, Tide 5/26, Shade 27/43, Radiance 27/37, Quicksilver 39/44.
+- The data cannot split the rise among the changes above. One of them restores health: at skill 1.0, 264 of 270 runs hold a `hero_healed` record, and a run regains 32.9 HP on average (D-046). Tide gains most, 5 to 15 wins at skill 1.0.
+- At skill 0.6 the boss kills 0.35 of those who reach it, down from 0.51. Deaths in minutes 4 to 14 fell from 77 to 40, and deaths in minutes 15 and 16 from 97 to 80.
+
+**T-KEE-18 at 146af0a: FAIL** (`T-KEE-18: FAIL (18 arms: loss below 0.6 on 0, gain outside the band on 16, outside the archetype band on 1; mean loss 0.832; share, printed and never judged, mean 0.642)`).
+
+| Arm | Builds | Full DPS 8231171 | now | Share 8231171 | now | Loss now | Gain 8231171 | now | Gain with no second Keeper |
+|---|---|---|---|---|---|---|---|---|---|
+| Forge/Furnace | 5 | 11288 | 10002 | 0.559 | 0.614 | 0.810 | 1.59 | 1.62 | 2.47 |
+| Forge/Hammer | 5 | 13801 | 10437 | 0.636 | 0.712 | 0.892 | 2.59 | 3.78 | 7.27 |
+| Forge/Slam | 5 | 7807 | 7446 | 0.541 | 0.578 | 0.826 | 1.06 | 1.04 | 1.08 |
+| Quicksilver/Momentum | 5 | 13754 | 14697 | 0.527 | 0.639 | 0.928 | 2.15 | 2.20 | 4.16 |
+| Quicksilver/Rebound | 5 | 10931 | 9256 | 0.551 | 0.579 | 0.929 | 1.95 | 1.42 | 1.80 |
+| Quicksilver/Vector | 5 | 12914 | 11272 | 0.781 | 0.850 | 0.905 | 0.97 | 0.97 | 0.97 |
+| Radiance/Lance | 5 | 13312 | 12434 | 0.688 | 0.725 | 0.808 | 2.22 | 2.59 | 10.17 |
+| Radiance/Prism | 5 | 11567 | 11355 | 0.587 | 0.597 | 0.912 | 1.54 | 1.56 | 2.32 |
+| Radiance/Solar | 3 → 4 | 7188 | 6612 | 0.601 | 0.614 | 0.745 | 2.47 | 2.24 | 2.92 |
+| Shade/Economy | 5 | 19297 | 7354 | 0.380 | 0.349 | 0.700 | 2.59 | 1.20 | 1.00 |
+| Shade/Hound | 5 | 5995 | 7265 | 0.499 | 0.562 | 0.850 | 1.62 | 1.64 | 1.52 |
+| Shade/Hunters | 5 | 12388 | 10828 | 0.795 | 0.855 | 0.891 | 0.96 | 0.96 | 0.99 |
+| Storm/ArcGrid | 2 → 3 | 5804 | 4896 | 0.386 | 0.444 | 0.743 | 2.98 | 2.88 | 3.71 |
+| Storm/Downpour | 4 | 7444 | 7522 | 0.455 | 0.493 | 0.846 | 3.71 | 5.08 | 5.91 |
+| Storm/Tempest | 3 → 5 | 4127 | 3862 | 0.360 | 0.426 | 0.603 | 1.19 | 1.23 | 1.39 |
+| Tide/Frost | 3 → 4 | 8968 | 5235 | 0.829 | 0.862 | 0.755 | 0.97 | 0.77 | 0.81 |
+| Tide/Stillness | 4 | 10317 | 6941 | 0.896 | 0.851 | 0.923 | 1.08 | 1.34 | 1.42 |
+| Tide/Whirlpool | 3 | 9510 | 8406 | 0.835 | 0.798 | 0.918 | 1.03 | 1.03 | 1.74 |
+
+- The builds are other builds: an L16 snapshot exists only for a run that reached level 16, and the runs changed (four arms have more builds now). No row is the same build as before, so a row's move mixes the builds with the rules.
+- Package gain: 2 of 18 in band now (Momentum, Solar), as before (Momentum, Lance). Hammer's gain rose from 2.59 to 3.78; Hammer's Key now reaches the Arc Blade, which the snapshots hold. Economy's full DPS fell from 19297 to 7354. Neither was traced further.
+- The column "gain with no second Keeper" is new with D-047's probe; the reading at 8231171 has none.
+
+**T-KEE-15 at 146af0a: FAIL**, 45/282.
+
+| Keeper | In band 8231171 | now | Mean 8231171 | now |
+|---|---|---|---|---|
+| Storm | 9/46 | 9/46 | 57494 | 56413 |
+| Forge | 16/45 | 13/45 | 51440 | 42911 |
+| Tide | 1/47 | 2/47 | 632 | 911 |
+| Shade | 0/48 | 0/48 | 597932 | 600282 |
+| Radiance | 19/48 | 19/48 | 27029 | 27012 |
+| Quicksilver | 1/48 | 2/48 | 8062 | 7985 |
+
+- Most rows the earlier addendum printed hold to the unit: of the 31 rows with Vector, Forge/Slam 80206, Forge/Furnace 42642, Radiance/Lance 24365, Shade/Economy 1991364 and the Quicksilver/Vector-variant rows read as they did, except Vector with a Forge_Hammer layer, 870 to 634. The cast scenes run with the director off on a fixed route and loadout, so D-045 and D-046 do not reach them.
+- **Forge/Hammer moved**: with a Vector layer, 44138 at 8231171 against 9538 now, and Forge's mean fell from 51440 to 42911. The cast loadout holds the Arc Blade, which Hammer's Key now reaches, and Hard Blow's cleaves now push enemies. Which of the two moves the row was not traced.
+
+**`S1_keeper_power.md` §8 not reread.** Its commands are recorded: the nine showcase arms at 15 seeds, ablation of their builds, and the cast scenes at 3 seeds. At this battery's pace (540 runs in about 18 minutes, 656 ablation scenes in about 13, 1128 cast scenes in about 23), its 135 runs, about 1080 ablation scenes and 342 cast scenes would take about 33 minutes. That is more than the half hour the job allows, so `STATE.md`'s "stale" stands.
+
+**Seed 9107** on `dev/s2` after the third carry (`S2_carry.md`, Third carry): None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`; RestartCheck `276faf8e`.
+
+**Not read.** Humans, and the three clauses of R-BOT-17 (O-008). The pairing by `input_hash` against 8231171 (files not at hand). Which of the carried changes moved which arm. D-038 in play: no run was checked for a dash volley on an evolved weapon.
+
+Files: the carry agent's worktree, `Saved\BotRuns\s2_exit` (`s2_exit.md`, `bots_1.0`, `bots_0.6`, `ab`, `ik`) and `Saved\Logs\s2exit_console.txt`.
 ## Exit readings of 2026-10-31 at 0747e3c, replaced by the reread above
 
 | Reading | Verdict | Value | Pass line |

@@ -79,6 +79,8 @@ One reading moved that the watch does not cover: **the frame's shadow tone rose 
 
 ## 5. Perf
 
+> Replaced by `S4_perf_1080p.md` (2026-11-11): the readings below rendered 888x500 while recording 1920x1080, most on a busy machine; that note holds the reading of record at the real size, alone.
+
 `Tools\Perf.ps1`, grey box (`-Cmds "dt.Exp.EnemyGreyBox 1,..."`) against role meshes on one build, alternating, two rounds. **Every reading is void by `S4_wave1.md` §2 rule 6**: another agent's game or compiler was running at each one, and GPU p95 read 6 to 17 ms where P0's quiet runs read 2.1. They are kept as a bound on the difference, not as a level. Twenty-two readings over three passes:
 
 | Scene | Draw | Game thread p50 / p95 ms | GPU p50 / p95 ms | Proxied GPU p95 ms | What else ran (process list and CPU just before) |
