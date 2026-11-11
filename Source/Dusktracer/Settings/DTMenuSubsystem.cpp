@@ -505,9 +505,15 @@ void UDTMenuSubsystem::Draw(UCanvas* Canvas)
 		// The bank runs when the run's session closes, a tick after the screen opens for a death or a win (meta.md R-MET-06).
 		const UDTRunRecorder* Recorder = GetWorld() ? GetWorld()->GetSubsystem<UDTRunRecorder>() : nullptr;
 		const bool bSummary = State.Screen == EDTMenuScreen::RunOver && Recorder && Recorder->GetAward().bBanked;
-		DTMenuScreen::Draw(Canvas, State, DTSettings::Live(), bSummary ? DTMenuText::RunSummary(Recorder->GetAward().Retained, Recorder->GetAward().Balance) : FText::GetEmpty(),
-			// A bank that could not reach the file says so where the toast goes: it matters more than what the run found (meta.md R-MET-11).
-			bSummary ? (Recorder->GetAward().bDeferred ? DTMenuText::SaveWaiting() : DTMenuText::DiscoveryToast(Recorder->GetAward().Discovered)) : FText::GetEmpty());
+		FText Line;
+		FText Toast;
+		if (bSummary)
+		{
+			// A stuck save says nothing was kept; a busy one says the run waits; else the award and what the run found (meta.md R-MET-06).
+			const FDTRunAward& Award = Recorder->GetAward();
+			DTMenuText::RunOverLines(Award.bNotSaved, Award.bDeferred, Award.Retained, Award.Balance, Award.Discovered, Line, Toast);
+		}
+		DTMenuScreen::Draw(Canvas, State, DTSettings::Live(), Line, Toast);
 	}
 }
 
