@@ -1,6 +1,6 @@
 # Impact art — S4 wave package E
 
-> Scope: `Validation/S4_wave1.md` §3 "E" (D-043; D-055 item 6). The package lands in two steps. This file holds the first: the tap, R-IMP-01 and R-IMP-02 (branch `s4/e0-tap`). The effects drawn from it are written here as R-IMP-03 onward by the second step (branch `s4/e-feedback`) before its first line of code; until then the sections marked "second step" bind nothing. Presentation and audio read the sim and never write it (`04_Presentation` R-PRE-11).
+> Scope: `Validation/S4_wave1.md` §3 "E" (D-043; `D-055 item 6`). The package lands in two steps. This file holds the first: the tap, R-IMP-01 and R-IMP-02 (branch `s4/e0-tap`). The effects drawn from it are written here as R-IMP-03 onward by the second step (branch `s4/e-feedback`) before its first line of code; until then the sections marked "second step" bind nothing. Presentation and audio read the sim and never write it (`04_Presentation` R-PRE-11).
 
 ## Intent
 A hit and a kill are shown and heard from one read-only record of what the hit resolve phase did. The record is the sim's own account of the step: one line per hit it applied, with the kill marked on the hit that made it. The eye (this package) and the ear (`audio.md`, the Sound module) read the same lines, so a spark and its sound can never disagree about what happened. The tap adds no rule, moves no number and is read by nothing in the sim.
@@ -38,7 +38,7 @@ A hit and a kill are shown and heard from one read-only record of what the hit r
 - **R-IMP-02** Readers. A reader is presentation or audio code. It reads the step list once per sim step, after `EDTSimPhase::ResolveHits` of that step: a reader that looked once per rendered frame would miss every step but the last of a frame that ran several. It does so as a system registered with `UDTSimSubsystem` in a phase after `ResolveHits`, where it copies what it needs and writes nothing: no field of the pool, of `FDTWorldView` or of the run (R-PRE-11). Kills need no second list: the records flagged `Kill` are the step's deaths, in the order of `FDTWorldView::Kills`. A hit on a hero is not in the tap: `FDTWorldView::HeroHurt` says which heroes lost health this step, and a reader reads it the same way. A reader bounds its own output at density; the tap gives every reader the same whole step, so two readers never disagree about what was dropped.
 
 ## Numbers
-None in the tap: it has no capacity, no rate and no threshold. The second step adds this package's presentation-only keys as `C.IMP.*`, each with its row in `08_Constants.md` and in `number_change_log.csv`.
+None in the tap: it has no capacity, no rate and no threshold. The second step adds this package's presentation-only keys as a new `IMP` group of `constants.yaml`, each with its row in `08_Constants.md` and in `number_change_log.csv`.
 
 ## Data
 | File | What it holds |
@@ -50,6 +50,7 @@ These two files are the pool, the one sim-side place this package edits. Asset k
 
 ## Acceptance
 - T-IMP-01 `Dusktracer.Impact.Tap`: a pool with staged enemies and a hit list that holds plain hits, two hits on one enemy, a hit that kills followed by another hit on the same enemy, a stale-serial hit, a Tank hit inside the front arc and a piercing one, a hit an elite's shield absorbs, a hit on an Armored elite, a hit on a Shocked enemy, a critical hit, a field tick, and a Burn tick made by `StepEnemies`. The step list holds one record per applied hit, in order, and none for the two ignored hits; the record count equals the `Hit` events the run state received, and the `Kill`-flagged count equals the `Kill` events and `FDTWorldView::Kills`, serial for serial in the same order; every field and every flag is as staged, and no flag is set where it was not staged; `Dealt` sums to the health the pool removed; the next `ResolveHits` replaces the list, and a step with no hit leaves it empty.
+- T-IMP-02 `Dusktracer.Impact.Readers` PLANNED(S4), built by the second step with its first reader: a reader registered with `UDTSimSubsystem` after `ResolveHits` sees the list of every step of a frame that ran several, the same whole list as a second reader, and writes no field of the pool, of `FDTWorldView` or of the run.
 - The sim proof of `Validation/S4_p0.md` §8, read on the tap alone before any effect is drawn: gate step `seed`, `Tools/RestartCheck.ps1` and the five bot arms on seed `9107` give the hashes `dev/s4` gave before. `Tools/tools_test.py` `PresentationReadsOnly` passes: the pool includes no presentation header.
 - Second step: the checks of `Validation/S4_wave1.md` §3 "E", run without a window; what only a person can judge is written here as a human line and reported as not verified.
 
