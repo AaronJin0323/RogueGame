@@ -22,6 +22,7 @@ param(
 trap { Write-Host "MESH: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "..\Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$DTHeavy = Enter-DTHeavy -What "Mesh"  # D-055 item 7: one heavy-job slot for Blender, the import and the cook; EnemyArt.ps1 calling it has one already
 # Blender and the editor commandlets this script starts are engines and tools whose threads would widen a process mask: this script and all it
 # starts are held in a job with the mask as its affinity limit (Tools/HiddenLaunch.ps1, Hold-DTProcess), as Tools/Package.ps1 holds its cook.
 . (Join-Path $PSScriptRoot "..\HiddenLaunch.ps1"); $null = Hold-DTProcess
