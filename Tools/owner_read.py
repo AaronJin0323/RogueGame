@@ -1,11 +1,14 @@
 """A played run read against the bots that stand for it (Docs/Validation/S1_owner_run.md). Stdlib only.
 
-Usage:  python -I Tools/owner_read.py run <run.jsonl> [--key <blessing id>]
+Usage:  python -I Tools/owner_read.py run <run.jsonl | run.csv> [--key <blessing id>] [--t <s>]
         python -I Tools/owner_read.py bots <Saved/BotRuns/<folder>> ... [--key <blessing id>] [--t <s>] [--split <s>]
 
 run:  one line per reading of a run's telemetry pair, then its timeline. Every number of the owner's run in the validation
       note comes from here, so it can be read again from the same files. A file with no run_end (a killed process) still
-      reads: what only a run_end holds prints as unread.
+      reads: what only a run_end holds prints as unread. A .csv argument reads its pair's JSONL. --t adds
+      `HP lost by <t> s: ...` (hits with t <= the cut, restores beside it, never subtracted); a run that stopped earlier says
+      `ended at <s> s (<reason>): a lower bound`. The pickup ratio of a run that stopped before 300 s reads unread. Timeline hit
+      lines carry `[drop-in]` (hero_damaged.arrival) and `[charging]`; `hero_healed` lines read `healed <source> +<HP>`.
 bots: one Markdown row per arm of each folder (Tools/BotRuns.ps1 writes them), then per folder the XP of model and the
       Intercession casts pooled over its arms. --t is the sim time the HP and dash columns are cut at, so a bot arm reads
       against a run that ended there; --split is where the HP rate column turns, by default the owner's Hammer Key. Rows are
@@ -42,7 +45,7 @@ def read_run(jsonl, key=KEY):
 	"""Player 0's events of one run, parsed. Truncated lines are skipped, as the other readers do."""
 	run = {"offered": collections.Counter(), "picked": collections.Counter(), "hands": {}, "picks": {}, "levels": {}, "hits": [], "dashes": [],
 		"xp": [], "intervals": {}, "keepers": {}, "blessings": [], "key_t": None, "start": {}, "end": {}, "down_t": None, "last_t": 0.0,
-		"source_rows": [], "last_hit": {}, "casts": [], "denied": {}, "mods": []}
+		"source_rows": [], "last_hit": {}, "casts": [], "denied": {}, "mods": [], "heals": []}
 	with open(jsonl, encoding="utf-8") as f:
 		for line in f:
 			line = line.strip()
@@ -81,7 +84,13 @@ def read_run(jsonl, key=KEY):
 				max_hp = float(rec.get("max_hp") or 0.0)
 				if max_hp > 0:
 					run["hits"].append({"t": t, "amount": max(0.0, float(rec.get("amount", 0.0))), "max_hp": max_hp, "hp_after": float(rec.get("hp_after", 0.0)),
-						"hit_kind": rec.get("hit_kind"), "role": rec.get("role"), "attack": rec.get("attack")})
+						"hit_kind": rec.get("hit_kind"), "role": rec.get("role"), "attack": rec.get("attack"),
+						"arrival": rec.get("arrival"), "charging": rec.get("charging")})
+			elif kind == "hero_healed":
+				max_hp = float(rec.get("max_hp") or 0.0)
+				if max_hp > 0:
+					run["heals"].append({"t": t, "amount": max(0.0, float(rec.get("amount", 0.0))), "max_hp": max_hp,
+						"hp_after": float(rec.get("hp_after", 0.0)), "source": rec.get("source")})
 			elif kind == "dash":
 				run["dashes"].append(t)
 			elif kind == "xp":
@@ -112,6 +121,39 @@ def end_t(run):
 def hp_lost(run, t_cut=None):
 	"""HP lost as a share of max HP up to t_cut (the whole run without one)."""
 	return sum(h["amount"] / h["max_hp"] for h in run["hits"] if t_cut is None or h["t"] <= t_cut)
+
+
+def alive_end(run):
+	"""The sim time the run stopped being played: its end, or the hero's fall when that came first."""
+	end = end_t(run)
+	return min(end, run["down_t"]) if run["down_t"] is not None else end
+
+
+def end_reason(run):
+	return run["end"].get("reason") if run["end"] else "no run_end"
+
+
+def hp_by(run, t):
+	"""(HP lost by t, HP restored by t, both as shares of max HP, and the end or None): every hit and restore with time <= t.
+	Restores are printed beside the loss, never taken off it. The end is set when the run stopped before t: the value is then
+	the run's whole loss, a lower bound of what it would have lost by t (Docs/10_Tuning.md section 2)."""
+	lost = hp_lost(run, t)
+	restored = sum(h["amount"] / h["max_hp"] for h in run["heals"] if h["t"] <= t)
+	end = alive_end(run)
+	return lost, restored, (end if end < t else None)
+
+
+def dashes_by(run, t):
+	"""(dashes per minute over the first min(t, end) seconds alive, those minutes), or (None, 0.0) with no time alive."""
+	span = min(t, alive_end(run))
+	if span <= 0:
+		return None, 0.0
+	return sum(1 for d in run["dashes"] if d <= span) / (span / 60.0), span / 60.0
+
+
+def lower_bound_text(run, end):
+	"""The wording of a reading cut at a time the run never reached."""
+	return f"ended at {end:.1f} s ({end_reason(run)}): a lower bound"
 
 
 def overkill(run):
@@ -185,6 +227,19 @@ def xp_of_model(run, t_cut, consts):
 	return sum(x for t, x in run["xp"] if t <= t_cut) / bot_summary.timeline_model_xp(consts, t_cut)
 
 
+def pickup_ratio(run, consts, t_cut=XP_CHECK_S):
+	"""Audit G5: the XP of model at t_cut, or None when the run stopped before it (a ratio over a span it never played is no
+	reading)."""
+	return None if alive_end(run) < t_cut else xp_of_model(run, t_cut, consts)
+
+
+def pickup_text(run, consts, t_cut=XP_CHECK_S):
+	ratio = pickup_ratio(run, consts, t_cut)
+	if ratio is None:
+		return f"unread (ended at {alive_end(run):.1f} s, before {t_cut:.0f} s)"
+	return f"{ratio:.3f} against reference {consts['XP.REFERENCE_PICKUP_RATIO']['value']}"
+
+
 def keeper_share(run):
 	"""Keeper share of the damage of every interval: attribution over the whole run, not the L16 reading."""
 	totals = {}
@@ -230,6 +285,13 @@ def pause_per_min(run):
 	return player["wall_paused_s"] / (end / 60.0) if player and end > 0 else None
 
 
+def pause_without_patron(run):
+	"""Wall seconds in hands per sim minute with the Patron hand left out (D-013), or None without a run_end."""
+	player = (run["end"].get("per_player") or {}).get("0")
+	end = end_t(run)
+	return (player["wall_paused_s"] - hand_seconds(run).get("Patron", 0.0)) / (end / 60.0) if player and end > 0 else None
+
+
 def hand_seconds(run):
 	"""{hand kind: wall seconds to the pick}, the picks' own `wall_decide_s`, which is what a run_end's wall_paused_s sums."""
 	out = {}
@@ -264,7 +326,20 @@ def percent(value, digits):
 	return "unread" if value is None else f"{value * 100.0:.{digits}f} %"
 
 
-def print_run(jsonl, key):
+def hp_by_text(run, t):
+	"""`HP lost by <t> s: ...` with the restores beside it and the lower-bound wording of a run that stopped earlier."""
+	lost, restored, end = hp_by(run, t)
+	return (f"HP lost by {t:g} s: {lost * 100:.1f} % of max HP, restored by then {restored * 100:.1f} % (never subtracted)"
+		+ (f"; {lower_bound_text(run, end)}" if end is not None else ""))
+
+
+def hit_marks(hit):
+	"""The marks of a hit on a timeline line: `drop-in` for hero_damaged.arrival, `charging` for .charging (R-TEL-10)."""
+	marks = [m for m, on in (("drop-in", hit.get("arrival")), ("charging", hit.get("charging"))) if on]
+	return f" [{', '.join(marks)}]" if marks else ""
+
+
+def print_run(jsonl, key, t_cut=None):
 	consts = dtconst.load()
 	run = read_run(jsonl, key)
 	csv_path = jsonl[:-6] + ".csv"
@@ -286,6 +361,8 @@ def print_run(jsonl, key):
 	print(f"HP lost: {hp_lost(run) * 100:.1f} % of max HP in {len(run['hits'])} hits, overkill {overkill(run) * 100:.1f} %, gained between hits {hp_gained(run):.1f} HP")
 	for role, (hp, n) in sorted(by_role(run).items(), key=lambda kv: -kv[1][0]):
 		print(f"  {role}: {hp:.1f} HP in {n} hits")
+	if t_cut is not None:
+		print(hp_by_text(run, t_cut))
 	if run["hits"]:
 		last = run["hits"][-1]
 		print(f"last hit: {last['role']} {last['hit_kind']} {last['attack']} at {last['t']:.1f} s for {last['amount']:.1f} on {last['hp_after'] + last['amount']:.1f} HP")
@@ -312,9 +389,9 @@ def print_run(jsonl, key):
 	if pause is None:
 		print("paused: unread, no run_end")
 	else:
-		print(f"paused: {player.get('wall_paused_s')} s, {pause:.1f} s per sim minute, {(player['wall_paused_s'] - hands.get('Patron', 0.0)) / (end / 60.0):.1f} without the Patron hand, "
+		print(f"paused: {player.get('wall_paused_s')} s, {pause:.1f} s per sim minute, {pause_without_patron(run):.1f} without the Patron hand, "
 			f"against C.OFFER.PAUSED_S_PER_MIN_MAX {consts['OFFER.PAUSED_S_PER_MIN_MAX']['value']}")
-	print(f"XP of model at {XP_CHECK_S:.0f} s: {xp_of_model(run, XP_CHECK_S, consts):.3f} against reference {consts['XP.REFERENCE_PICKUP_RATIO']['value']}")
+	print(f"XP of model at {XP_CHECK_S:.0f} s: {pickup_text(run, consts)}")
 	share, floor = share_without(run["source_rows"], CLEAVE_SOURCE)
 	if share is None:
 		print("Keeper share of the whole run: unread, no `sources` record")
@@ -327,7 +404,8 @@ def print_run(jsonl, key):
 	print("timeline:")
 	events = [(t, f"L{lvl}") for lvl, t in run["levels"].items()]
 	events += [(t, f"{role} Keeper {path}") for role, (path, t) in run["keepers"].items()]
-	events += [(h["t"], f"hit {h['role']} {h['hit_kind']} -{h['amount']:.1f} HP, {h['hp_after']:.1f} left") for h in run["hits"]]
+	events += [(h["t"], f"hit {h['role']} {h['hit_kind']} -{h['amount']:.1f} HP, {h['hp_after']:.1f} left{hit_marks(h)}") for h in run["hits"]]
+	events += [(h["t"], f"healed {h['source']} +{h['amount']:.1f} HP, {h['hp_after']:.1f} left") for h in run["heals"]]
 	for hand_id, pick in run["picks"].items():
 		target = f" on {pick['target']}" if pick.get("target") else ""
 		events.append((float(pick["t"]), f"{run['hands'].get(hand_id, {}).get('hand_kind')} hand: {pick['id']}{target}"))
@@ -426,20 +504,27 @@ def main(argv):
 	key = KEY
 	t_cut = 563.3
 	t_split = 345.65
+	t_given = None
 	if "--key" in args:
 		i = args.index("--key")
 		key = args[i + 1]
 		del args[i:i + 2]
 	if "--t" in args:
 		i = args.index("--t")
-		t_cut = float(args[i + 1])
+		t_cut = t_given = float(args[i + 1])
 		del args[i:i + 2]
 	if "--split" in args:
 		i = args.index("--split")
 		t_split = float(args[i + 1])
 		del args[i:i + 2]
 	if len(args) >= 2 and args[0] == "run":
-		print_run(args[1], key)
+		path = args[1]
+		if path.endswith(".csv"):
+			path = path[:-4] + ".jsonl"  # the pair's JSONL holds the events; the CSV is read beside it
+		if not os.path.exists(path):
+			print(f"run: no JSONL at {path}")
+			return 1
+		print_run(path, key, t_given)
 		return 0
 	if len(args) >= 2 and args[0] == "bots":
 		print_bots(args[1:], key, t_cut, t_split)

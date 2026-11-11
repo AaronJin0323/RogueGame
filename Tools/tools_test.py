@@ -34,6 +34,7 @@ import gen_catalog  # noqa: E402
 import gen_constants  # noqa: E402
 import gen_matrix  # noqa: E402
 import cpu_canary  # noqa: E402
+import crash_exit  # noqa: E402
 import loc_build  # noqa: E402
 import owner_read  # noqa: E402
 import palette_lint  # noqa: E402
@@ -68,6 +69,7 @@ class Matrix(unittest.TestCase):
 
 	def test_a_hand_edit_is_caught(self):
 		self.assertNotEqual(gen_matrix.render().replace("yes", "no", 1), gen_matrix.render())
+import session_read  # noqa: E402
 
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -426,6 +428,54 @@ class OwnerRead(unittest.TestCase):
 		self.assertFalse(owner_read.chain_under_key(run), "an arc is no folded round: its free volley keeps the modifier's source")
 		run["mods"] = [(20.0, "Mod.Pierce", "Weapon.PulseRifle")]
 		self.assertFalse(owner_read.chain_under_key(run))
+
+	def main_out(self, lines, *args, csv_arg=False):
+		with tempfile.TemporaryDirectory() as folder:
+			path = os.path.join(folder, "7_20261111_120000.jsonl")
+			with open(path, "w", encoding="utf-8") as f:
+				f.write("\n".join(lines) + "\n")
+			with open(path[:-6] + ".csv", "w", encoding="utf-8") as f:
+				f.write("interval,run_time_s,player,live_bullets\n0,60,0,3\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = owner_read.main(["owner_read.py", "run", path[:-6] + ".csv" if csv_arg else path, *args])
+		return rc, out.getvalue()
+
+	def test_run_honours_t_with_the_lower_bound_of_a_run_that_ended_before(self):
+		"""G3: `run --t 600` prints HP lost by 600 s; this run died at 240 s, so its value is its whole loss and a lower bound."""
+		heal = '{"t":200.0,"step":4,"kind":"hero_healed","owner":0,"amount":15,"hp_after":85,"max_hp":100,"source":"Pickup.Chest"}'
+		lines = self.LINES[:8] + [heal] + self.LINES[8:]
+		rc, text = self.main_out(lines, "--t", "600")
+		self.assertEqual(rc, 0)
+		self.assertIn("HP lost by 600 s: 110.0 % of max HP, restored by then 15.0 % (never subtracted); ended at 240.0 s (death): a lower bound", text)
+		rc, text = self.main_out(lines, "--t", "180")
+		self.assertIn("HP lost by 180 s: 30.0 % of max HP, restored by then 0.0 % (never subtracted)\n", text)
+		rc, text = self.main_out(lines)
+		self.assertNotIn("HP lost by", text, "without --t the line is not printed")
+
+	def test_the_pickup_ratio_of_a_run_that_ended_before_300_s_is_unread(self):
+		"""G5: the run ended at 240 s, before XP_CHECK_S."""
+		rc, text = self.main_out(self.LINES)
+		self.assertIn("XP of model at 300 s: unread (ended at 240.0 s, before 300 s)", text)
+
+	def test_the_timeline_marks_drop_ins_charges_and_restores(self):
+		"""G6: a hit line carries [drop-in] and [charging]; a hero_healed line appears."""
+		lines = self.LINES[:-3] + [
+			'{"t":230.0,"step":5,"kind":"hero_damaged","owner":0,"amount":5,"hp_after":65,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}',
+			'{"t":231.0,"step":5,"kind":"hero_damaged","owner":0,"amount":5,"hp_after":60,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":false,"charging":true}',
+			'{"t":232.0,"step":5,"kind":"hero_healed","owner":0,"amount":15,"hp_after":75,"max_hp":100,"source":"Pickup.Chest"}'] + self.LINES[-3:]
+		rc, text = self.main_out(lines)
+		self.assertIn("3:50.00 230.0 hit Rusher Contact -5.0 HP, 65.0 left [drop-in, charging]", text)
+		self.assertIn("3:51.00 231.0 hit Rusher Contact -5.0 HP, 60.0 left [charging]", text)
+		self.assertIn("3:52.00 232.0 healed Pickup.Chest +15.0 HP, 75.0 left", text)
+		self.assertIn("3:00.00 180.0 hit Turret Bullet -20.0 HP, 70.0 left\n", text, "an unmarked hit carries no mark")
+
+	def test_run_reads_a_csv_argument(self):
+		rc, text = self.main_out(self.LINES, csv_arg=True)
+		self.assertEqual(rc, 0)
+		self.assertIn("run: 7_20261111_120000.jsonl build abc seed 7", text)
+		self.assertIn("live bullets from interval 6: []", text)
+		self.assertIn("HP lost: 110.0 % of max HP in 3 hits", text)
 
 	def test_the_floor_takes_the_source_off_the_keeper_side_and_keeps_the_total(self):
 		self.assertEqual(owner_read.share_without([], "Keeper.Forge"), (None, None))
@@ -1172,11 +1222,74 @@ class PressureStatistic(unittest.TestCase):
 			with open(os.path.join(folder, name + ".csv"), "w", encoding="utf-8") as f:
 				f.write("interval,run_time_s,player,swarm_ttk_s\n" + "".join(f"{i},{t},0,{v}\n" for i, (t, v) in enumerate(sorted(cells.items()))))
 
-	def check(self, *args):
+	def check(self, *args, drafts=()):
+		"""pressure.main's exit code and output. The verdict cases judge as after the S1 gate decision (DRAFT_BANDS empty);
+		drafts=pressure.DRAFT_BANDS reads as today."""
 		out = io.StringIO()
-		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), contextlib.redirect_stdout(out):
+		with mock.patch.object(pressure.dtconst, "load", return_value=self.CONSTS), mock.patch.object(pressure, "DRAFT_BANDS", drafts), \
+				contextlib.redirect_stdout(out):
 			rc = pressure.main(["pressure.py", *args])
 		return rc, out.getvalue()
+
+	def test_draft_bands_print_not_set_with_the_same_medians(self):
+		"""G10, D-046: while the bands are drafts T-DIR-02 prints NOT SET, for a bot arm and a session alike, never PASS or FAIL."""
+		with tempfile.TemporaryDirectory() as tmp:
+			root = os.path.join(tmp, "runs")
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4)
+			self.write(os.path.join(root, "Steered-A_s4"), "4_x", 0.0, end=610.0)
+			session, sheet = os.path.join(root, "sessionA"), os.path.join(tmp, "sheet.csv")
+			for seed in (5, 6, 7):
+				self.write(session, f"{seed}_x", 0.1)
+			with open(sheet, "w", encoding="utf-8") as f:
+				f.write("run,validator\n5_x,V1\n6_x,V2\n7_x,V2\n")
+			rc, text = self.check(root, "--check", "T-DIR-02", "--validators", sheet, drafts=pressure.DRAFT_BANDS)
+		self.assertIn("T-DIR-02 Steered-A: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; median over 3 run(s) alive "
+			"through 600-780 s, 1 that ended inside or before it left out; a bot reading is a bound: damage taken 0.400/min, dashes 8.00/min)", text)
+		self.assertIn("T-DIR-02 session: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; median over 3 run(s) alive "
+			"through 600-780 s: damage taken 0.100/min, dashes 8.00/min)", text)
+		self.assertIn("T-DIR-02: NOT SET (the bands are drafts until the S1 gate decision sets them, D-046; 2/2 group(s) read)", text)
+		self.assertIn("4_x p0 dmg 6.000/min [HIGH, draft band] dashes 0.00/min [LOW, draft band] alive 0.17 min", text)
+		self.assertNotIn("PASS", text)
+		self.assertNotIn("FAIL", text)
+		self.assertEqual(rc, 1, "NOT SET is not a pass")
+
+	def test_kill_time_is_judged_while_the_bands_are_drafts(self):
+		with tempfile.TemporaryDirectory() as root:
+			for seed in (1, 2, 3):
+				self.write(os.path.join(root, f"Steered-A_s{seed}"), f"{seed}_x", 0.4, cells={660: 0.1, 720: 0.1, 780: 0.1})
+			rc, text = self.check(root, "--check", "T-DIR-18", drafts=pressure.DRAFT_BANDS)
+		self.assertIn("T-DIR-18 Steered-A: PASS", text)
+		self.assertEqual(rc, 0, text)
+
+	def test_the_draft_list_follows_the_tuning_table(self):
+		"""The tool and 10_Tuning.md section 1 say the same: T-DIR-02 is a draft exactly while the damage band's row says so."""
+		with open(os.path.join(TOOLS, "..", "Docs", "10_Tuning.md"), encoding="utf-8") as f:
+			row = next(line for line in f if line.startswith("|") and "C.DMG_TAKEN.BAND_MIN10_13" in line)
+		self.assertEqual("draft" in row.split("|")[-2], "T-DIR-02" in pressure.DRAFT_BANDS, row)
+
+	def test_an_unknown_flag_is_an_error_not_a_run(self):
+		rc, text = self.check("--chek", "T-DIR-02")
+		self.assertEqual(rc, 2)
+		self.assertIn("PRESSURE: unknown flag --chek", text)
+
+	def test_a_group_reads_the_landed_count_over_the_runs_that_carry_it(self):
+		"""G4: one run without dir_block landed counts leaves the group's line read over the others, hits from the same runs."""
+		with tempfile.TemporaryDirectory() as root:
+			session = os.path.join(root, "sessionA")
+			hit = '{"t":300.0,"step":1,"kind":"hero_damaged","owner":0,"amount":10,"max_hp":100,"hit_kind":"Contact","role":"Rusher","arrival":true,"charging":true}'
+			for seed, block in ((1, '{"t":330.0,"kind":"dir_block","owner":-1,"dropins_landed_by_role":{"Rusher":4}}'),
+					(2, '{"t":330.0,"kind":"dir_block","owner":-1,"dropins_landed_by_role":{"Rusher":2}}'), (3, None)):
+				os.makedirs(session, exist_ok=True)
+				with open(os.path.join(session, f"{seed}_x.jsonl"), "w", encoding="utf-8") as f:
+					f.write("\n".join(l for l in ('{"t":0.0,"kind":"run_start","owner":-1,"players":1}', hit, block,
+						'{"t":400.0,"kind":"run_end","owner":-1}') if l) + "\n")
+			rc, text = self.check(session)
+		self.assertIn("SOURCES: all rusher hits, whole run: arrival charging 2 not charging 0; other charging 0 not charging 0; killed drop-in band 0; "
+			"out of 6 landed Rusher drop-ins over 2 run(s); 1 run(s) with no landed count left out of both", text)
+		self.assertIn("SOURCES: overall rusher hits, whole run: arrival charging 2", text)
+		hits, landed, with_count, without = pressure.group_arrivals([({("band",): 1}, None)])
+		self.assertEqual((hits, landed, with_count, without), ({("band",): 1}, None, 0, 1))
 
 	def test_a_restore_is_printed_and_moves_no_verdict(self):
 		"""D-046: `hero_healed` inside the window prints a RESTORES line; the statistic reads the same damage with and without it."""
@@ -1322,6 +1435,34 @@ class Attribution(unittest.TestCase):
 	def test_the_tool_holds_no_stub(self):
 		with open(os.path.join(TOOLS, "power_split.py"), encoding="utf-8") as f:
 			self.assertNotIn("stub", f.read())
+
+	def test_a_folder_reads_every_run_and_one_file_as_before(self):
+		"""G9: a folder reads every run under it, each POWER line after its run; one file prints one bare POWER line."""
+		level = power_split.dtconst.load()["TEL.POWER_CHECK_LEVEL"]["value"]
+		with tempfile.TemporaryDirectory() as root:
+			for sub, seed, lv in (("T1", 1, level), ("T2/Playtests", 2, 3)):
+				folder = os.path.join(root, *sub.split("/"))
+				os.makedirs(folder)
+				with open(os.path.join(folder, f"{seed}_x.jsonl"), "w", encoding="utf-8") as f:
+					f.write("\n".join(self.LINES) + "\n")
+				with open(os.path.join(folder, f"{seed}_x.csv"), "w", encoding="utf-8") as f:
+					f.write(f"interval,run_time_s,player,level\n0,60,0,{lv}\n")
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = power_split.main(["power_split.py", root])
+			one = io.StringIO()
+			with contextlib.redirect_stdout(one):
+				rc_one = power_split.main(["power_split.py", os.path.join(root, "T1", "1_x.jsonl")])
+			empty = os.path.join(root, "empty")
+			os.makedirs(empty)
+			with contextlib.redirect_stdout(io.StringIO()):
+				rc_empty = power_split.main(["power_split.py", empty])
+		text = out.getvalue()
+		self.assertIn(os.path.join("T1", "1_x") + ": POWER: attribution (P0 Keeper 10.0 %", text)
+		self.assertIn(os.path.join("Playtests", "2_x") + ": POWER: n/a (no player reached L", text)
+		self.assertEqual(rc, 0)
+		self.assertTrue(one.getvalue().strip().splitlines()[-1].startswith("POWER: attribution (P0 Keeper 10.0 %"))
+		self.assertEqual((rc_one, rc_empty), (0, 1))
 
 
 class Contrast(unittest.TestCase):
@@ -1731,7 +1872,7 @@ def first_statement(name, text):
 class Machine(unittest.TestCase):
 	"""D-052: every Tools entry script applies the machine's processor mask first (Tools/Machine.ps1), and the gate's `cpu` step catches a bad processor."""
 
-	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1",
+	ENTRY_PS = ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "SeedCheck.ps1", "PadCheck.ps1", "Package.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 		"WindowWatch.ps1", "HiddenLaunch.ps1", "S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 		"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "S3Exit.ps1", "TwoWindowsCheck.ps1",
 		"VigilCheck.ps1", "WinCheck.ps1", "EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", "HeroZone.ps1", os.path.join("blender", "Mesh.ps1"))
@@ -1915,6 +2056,51 @@ class EngineMask(unittest.TestCase):
 				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
 
 
+class LimitWarnings(unittest.TestCase):
+	"""D-052 and package.md R-PKG-10: a package check sets aside the one warning the launch job's affinity limit makes the engine write, only when
+	the limit held the launch, and counts it; every other warning still counts."""
+
+	LINES = ["[2026.11.11-07.43.12:183][  0]LogThreadingWindows: Warning: Runnable thread Foreground Worker #0 call to SetThreadAffinity failed with: 0x1f",
+		"LogThreadingWindows: Warning: Runnable thread Background Worker #3 call to SetThreadAffinity failed with: 0x1f",
+		"[2026.11.11-07.43.12:183][  0]LogThreadingWindows: Warning: Runnable thread Foreground Worker #0 call to SetThreadAffinity failed with: 0x57",
+		"[2026.11.11-07.43.12:183][  0]LogStreaming: Warning: Failed to read file '/Game/DT/Missing'"]
+
+	def split(self, mask_text):
+		with tempfile.TemporaryDirectory() as tmp:
+			path = os.path.join(tmp, "affinity.txt")
+			if mask_text:
+				with open(path, "w", encoding="ascii") as f:
+					f.write(mask_text + "\n")
+			lines = ", ".join("'" + line.replace("'", "''") + "'" for line in self.LINES)
+			script = f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; $R = Split-DTLimitWarnings @({lines}); \"SET $($R.SetAside) KEPT $($R.Kept.Count) HELD $($R.Held)\""
+			return powershell(script, {"DT_AFFINITY_FILE": path})
+
+	def test_held_launch_sets_aside_only_the_limit_line(self):
+		rc, out = self.split(f"{1 << cpu_canary.bits(cpu_canary.affinity()[0])[-1]:X}")
+		self.assertIn("SET 2 KEPT 2 HELD True", out)
+
+	def test_no_limit_sets_nothing_aside(self):
+		rc, out = self.split(None)
+		self.assertIn("SET 0 KEPT 4 HELD False", out)
+
+
+class WatchAfterLaunch(unittest.TestCase):
+	"""Two check scripts in one shell (Validation/S2_package.md): a launch, then a window watch and a launch in the same process. The watch's job held the
+	shell, the earlier launch job lay outside it, and Start-DTHidden failed with "Access is denied"."""
+
+	def test_a_launch_after_a_watch_in_the_same_process(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			child = os.path.join(tmp, "quit.py")
+			with open(child, "w", encoding="ascii") as f:
+				f.write("print('ok')\n")
+			launch = f"$P = Start-DTHidden {ps_quote(sys.executable)} @('-I', '\"{child}\"'); $null = $P.WaitForExit(60000)"
+			script = (f". {ps_quote(os.path.join(TOOLS, 'HiddenLaunch.ps1'))}; . {ps_quote(os.path.join(TOOLS, 'WindowWatch.ps1'))}; "
+				f"try {{ {launch}; Start-DTWindowWatch; {launch}; $null = Stop-DTWindowWatch; 'LAUNCHED BOTH' }} catch {{ \"THREW $_\" }}")
+			rc, out = powershell(script, {"DT_AFFINITY_FILE": os.path.join(tmp, "absent.txt")})
+			self.assertIn("LAUNCHED BOTH", out)
+			self.assertNotIn("THREW", out)
+
+
 class Pre07(unittest.TestCase):
 	"""T-PRE-07: a burst frame shows no exposure change; PLANNED(S0) is an error now that S0 has passed."""
 
@@ -2023,6 +2209,390 @@ class ArrivalHits(unittest.TestCase):
 			self.assertIsNone(pressure.landed_dropins_from_jsonl(old))
 			self.assertEqual(pressure.landed_detail(None), "landed drop-ins not in the file")
 
+def rec(t, kind, owner=0, **fields):
+	"""One JSONL record line as the game writes it."""
+	return json.dumps(dict({"t": t, "step": int(t * 60), "kind": kind, "owner": owner}, **fields), separators=(",", ":"))
+
+
+def hit(t, share, hp_after=50.0, **fields):
+	return rec(t, "hero_damaged", amount=share * 100.0, hp_after=hp_after, max_hp=100.0, **dict({"hit_kind": "Contact", "role": "Swarm"}, **fields))
+
+
+def run_text(end=900.0, reason="death", body=(), culture="en", run_end=True, dropped=0, wall="2026-11-11T03:00:00Z", bot_fast=0):
+	"""A run's JSONL: run_start, the body lines, and a run_end at `end` (none for a crash)."""
+	lines = [rec(0.0, "run_start", -1, seed=7, players=1, culture=culture, build="abc1234", bot_fast=bot_fast, wall=wall)] + list(body)
+	if run_end:
+		lines.append(rec(end, "run_end", -1, reason=reason, steps=int(end * 60), per_player={"0": {"wall_paused_s": 30.0}},
+			wall_dropped_steps=dropped, wall_duration_s=end))
+	return "\n".join(lines) + "\n"
+
+
+class SessionRead(unittest.TestCase):
+	"""Tools/session_read.py: returned zips are data, one run once, the sheet, and every S1 gate item or NOT READ (M1)."""
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.session = os.path.join(self.tmp.name, "A")
+		os.makedirs(self.session)
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def put(self, tester, base, jsonl, csv_text=None):
+		folder = os.path.join(self.session, tester)
+		os.makedirs(folder, exist_ok=True)
+		with open(os.path.join(folder, base + ".jsonl"), "w", encoding="utf-8") as f:
+			f.write(jsonl)
+		if csv_text is not None:
+			with open(os.path.join(folder, base + ".csv"), "w", encoding="utf-8") as f:
+				f.write(csv_text)
+
+	def sheet(self, rows):
+		path = os.path.join(self.tmp.name, "validators.csv")
+		with open(path, "w", encoding="utf-8") as f:
+			f.write("run,validator,order\n" + "".join(f"{r}\n" for r in rows))
+		return path
+
+	def read(self, *args):
+		out = io.StringIO()
+		with contextlib.redirect_stdout(out):
+			rc = session_read.main(["session_read.py", self.session, "--work", os.path.join(self.tmp.name, "work"), *args])
+		return rc, out.getvalue()
+
+	def lines(self, text, prefix):
+		return [line for line in text.splitlines() if line.startswith(prefix)]
+
+	def test_a_hostile_zip_leaves_nothing_outside_the_work_folder_and_gives_only_run_files(self):
+		zip_path = os.path.join(self.session, "T1", "Dusktracer_Telemetry_20261111_120000.zip")
+		os.makedirs(os.path.dirname(zip_path))
+		good = run_text(300.0)
+		with zipfile.ZipFile(zip_path, "w") as zf:
+			zf.writestr("..\\evil.py", "import os\n")
+			zf.writestr("../../escape_1_20261111_120000.jsonl", good)
+			zf.writestr("/abs/9_20261111_120500.jsonl", good)
+			zf.writestr("Dusktracer_Telemetry_x/Playtests/deep/nested/7_20261111_120000.jsonl", good)
+			zf.writestr("Dusktracer_Telemetry_x/run.ps1", "Write-Host hi\n")
+			zf.writestr("Dusktracer_Telemetry_x/MANIFEST.txt", "Dusktracer run data.\n")
+		before = sorted(os.listdir(self.tmp.name))
+		rc, text = self.read()
+		self.assertEqual(rc, 0, text)
+		self.assertEqual(sorted(os.listdir(self.tmp.name)), sorted(before + ["work"]), "nothing written beside the work folder")
+		work = os.path.join(self.tmp.name, "work")
+		written = sorted(os.path.relpath(os.path.join(d, n), work).replace("\\", "/") for d, _, ns in os.walk(work) for n in ns)
+		self.assertEqual(written, ["session_read.marker", "z/001/7_20261111_120000.jsonl", "z/001/9_20261111_120500.jsonl", "z/001/MANIFEST.txt", "zips/001.zip"])
+		self.assertIn("SESSION: folder", text)
+		self.assertIn("1 zip(s), 0 loose run file(s), 1 manifest(s); 2 run(s)", text)
+		self.assertEqual(sorted(os.listdir(os.path.join(self.session, "T1"))), ["Dusktracer_Telemetry_20261111_120000.zip"], "the session folder is never written")
+		with open(os.path.join(work, "notmine.txt"), "w", encoding="utf-8") as f:
+			f.write("x")
+		os.remove(os.path.join(work, "session_read.marker"))
+		rc, text = self.read()
+		self.assertEqual(rc, 2, "a work folder without the marker is not removed")
+		self.assertTrue(os.path.exists(os.path.join(work, "notmine.txt")))
+
+	def test_the_same_run_in_two_zips_counts_once_and_a_differing_copy_keeps_the_ended_one(self):
+		base = "7_20261111_120000"
+		for tester, text in (("T1", run_text(300.0)), ("T1b", run_text(300.0))):
+			folder = os.path.join(self.session, tester)
+			os.makedirs(folder)
+			with zipfile.ZipFile(os.path.join(folder, "Dusktracer_Telemetry_1.zip"), "w") as zf:
+				zf.writestr(f"Dusktracer_Telemetry_1/Playtests/{base}.jsonl", text)
+		rc, text = self.read()
+		self.assertIn("2 zip(s), 0 loose run file(s), 2 manifest(s); 1 run(s)".replace("2 manifest(s)", "0 manifest(s)"), text)
+		self.assertNotIn("differs", text)
+		self.put("T2", base, run_text(300.0, run_end=False) + rec(250.0, "dash") + "\n")
+		rc, text = self.read()
+		self.assertIn("1 run(s)", text)
+		self.assertIn(f"NOTE: {base}.jsonl differs between 3 copies", text)
+		self.assertIn("kept the copy with a run_end", text)
+		self.assertEqual(len(self.lines(text, "RUN: ")), 1)
+		self.assertIn("end death at 5:00 (300.0 s)", text)
+
+	def test_a_run_not_on_the_sheet_is_left_out_and_no_sheet_reads_not_read(self):
+		self.put("T1", "1_20261111_120000", run_text(900.0))
+		self.put("T1", "2_20261111_130000", run_text(900.0))
+		self.put("X", "3_20261111_090000", run_text(900.0))
+		rc, text = self.read()
+		self.assertIn("SESSION: NOT READ (no validators sheet)", text)
+		self.assertIn("ROW 1: NOT READ (no validators sheet)", text)
+		self.assertIn("HP600: session NOT READ (no validators sheet)", text)
+		self.assertIn("D-045: session NOT READ (no validators sheet)", text)
+		self.assertEqual(len(self.lines(text, "HP600: 3_")), 1, "per-run facts print over every run without a sheet")
+		rc, text = self.read("--validators", self.sheet(["1_20261111_120000,T1,", "2_20261111_130000.jsonl,T1,"]))
+		self.assertIn("2 run(s) on the sheet from 1 validator(s) (T1); 1 run(s) not on the sheet: 3_20261111_090000", text)
+		self.assertIn("NOTE: 3_20261111_090000 is not on the sheet: left out of every session statistic", text)
+		self.assertEqual(self.lines(text, "HP600: 3_"), [])
+		self.assertIn("NOTE: T1: order derived from start times", text)
+		self.assertIn("RUN: 2_20261111_130000 | validator T1 | order 2", text)
+
+	def test_list_prints_only_the_csv_to_fill(self):
+		self.put("T1", "1_20261111_120000", run_text(65.0, reason="quit"), "interval,run_time_s,player,build,culture,input_device\n0,60,0,abc1234,en,pad\n")
+		self.put("T2", "2_20261111_130000", run_text(65.0, run_end=False, culture="zh-Hans"))
+		out, err = io.StringIO(), io.StringIO()
+		with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+			rc = session_read.main(["session_read.py", self.session, "--list", "--work", os.path.join(self.tmp.name, "work")])
+		self.assertEqual(rc, 0)
+		self.assertEqual(out.getvalue().splitlines(), [
+			"run,validator,order,start_local,start_utc,build,culture,input_device,end_reason,end_s,first_seen_in",
+			"1_20261111_120000,,,2026-11-11 12:00:00,2026-11-11T03:00:00Z,abc1234,en,pad,quit,65.0,T1",
+			"2_20261111_130000,,,2026-11-11 13:00:00,2026-11-11T03:00:00Z,abc1234,zh-Hans,,no run_end,0.0,T2"])
+		self.assertIn("NOTE: work folder", err.getvalue())
+
+	def six(self, pad=True):
+		csv_kbm = "interval,run_time_s,player,input_device\n0,60,0,kbm\n1,120,0,kbm\n"
+		csv_pad = "interval,run_time_s,player,input_device\n0,60,0,kbm\n1,120,0,pad\n"
+		rows = []
+		for n, who in enumerate(("T1", "T1", "T2", "T2", "T3", "T3"), 1):
+			base = f"{n}_20261111_1{n}0000"
+			self.put(who, base, run_text(900.0, culture="zh-Hans" if n == 3 else "en"), csv_pad if pad and n == 5 else csv_kbm)
+			rows.append(f"{base},{who},{1 + (n + 1) % 2}")
+		return self.sheet(rows)
+
+	def test_row_one_needs_a_pad_run_and_kbm_never_counts(self):
+		rc, text = self.read("--validators", self.six(pad=True))
+		self.assertIn("ROW 1: validators T1 2 run(s), T2 2 run(s), T3 2 run(s); pad seen in 5_20261111_150000; zh-Hans seen in 3_20261111_130000: HOLDS", text)
+		self.assertIn("input pad in 1 of 2 intervals", text)
+		shutil.rmtree(self.session)
+		os.makedirs(self.session)
+		rc, text = self.read("--validators", self.six(pad=False))
+		self.assertIn("pad not seen; zh-Hans seen in 3_20261111_130000: does not hold (no pad run (kbm never counts))", text)
+		self.assertIn("input kbm (the default value: proves nothing)", text)
+		self.assertIn("ROW 2: SHEET (question 2)", text)
+
+	def test_the_minute_table_marks_the_partial_last_minute(self):
+		self.put("T1", "1_20261111_120000", run_text(130.0, body=[hit(30.0, 0.1), hit(70.0, 0.2), rec(71.0, "dash"), rec(72.0, "dash"),
+			hit(125.0, 0.3), rec(126.0, "hero_down")]))
+		rc, text = self.read()
+		self.assertIn("| 1_20261111_120000 | 0.100 | 0.200 | 0.300* | - | - |", text)
+		self.assertIn("| 1_20261111_120000 | 0 | 2 | 0* | - |", text)
+		self.assertIn("MINUTES: sim minutes", text)
+
+	def band_runs(self):
+		"""Four runs alive through the window, two validators: damage 0.40, 0.45, 0.55, 0.60 per window minute, dashes 6, 8, 8, 10."""
+		rows = []
+		for n, (who, dmg, dash) in enumerate((("T1", 0.40, 6), ("T1", 0.45, 8), ("T2", 0.55, 8), ("T2", 0.60, 10)), 1):
+			body = [hit(100.0, 0.1)] + [hit(630.0 + 60 * k, dmg) for k in range(3)]
+			body += [rec(601.0 + 60 * k + i * 0.5, "dash") for k in range(3) for i in range(dash)]
+			base = f"{n}_20261111_1{n}0000"
+			self.put(who, base, run_text(900.0, body=body))
+			rows.append(f"{base},{who},")
+		return self.sheet(rows)
+
+	def test_bands_print_not_set_under_three_runs(self):
+		self.put("T1", "1_20261111_120000", run_text(900.0))
+		self.put("T2", "2_20261111_130000", run_text(700.0))
+		rc, text = self.read("--validators", self.sheet(["1_20261111_120000,T1,1", "2_20261111_130000,T2,1"]))
+		self.assertIn("BANDS: NOT SET (1 run(s) alive through 600-780 s from 1 validator(s); need 3 and 2; session B becomes a second calibration)", text)
+		self.assertIn("WINDOW: 2_20261111_130000 damage taken 0.000/min, dashes 0.00/min, alive 1.67 of 3.00 min in 600-780 s: ended inside or before the window: not judged", text)
+
+	def test_the_band_arithmetic_on_four_hand_checked_runs(self):
+		rc, text = self.read("--validators", self.band_runs())
+		# median 0.5; inclusive quartiles 0.4375 and 0.5625; a quarter of the median on each side wins: 0.375 and 0.625.
+		self.assertIn("BANDS: damage taken per run 0.400, 0.450, 0.550, 0.600; median 0.500, q1 0.438, q3 0.562 (statistics.quantiles, inclusive); edges 0.375 to 0.625", text)
+		# dashes: median 8, quartiles 7.5 and 8.5; the floor gives 6 and 10.
+		self.assertIn("BANDS: dashes per run 6.00, 8.00, 8.00, 10.00; median 8.00, q1 7.50, q3 8.50 (statistics.quantiles, inclusive); edges 6.00 to 10.00", text)
+		# one chest can fall in 600-780 s (the 675 s EliteWave): (1 + 0.15) / 3 min.
+		self.assertIn("BANDS: upper bound (1 + 1 x C.PICKUP.CHEST_RESTORE_HP_RATIO 0.15) / 3 min = 0.383/min, 1 chest(s) that can fall in 600-780 s "
+			"(R-DIR-16: the 675 s EliteWave, 675 to 720 s); proposed upper damage edge 0.625: not inside it", text)
+		# sixteen hits: four of 0.1, then 0.40 x3, 0.45 x3, ...: the median is 0.45; in the window 0.5.
+		self.assertIn("BANDS: lower bound one median hit per minute: 0.450/min (median of 16 hits of the sheet's runs, whole run; in the window 0.500 over 12); "
+			"proposed lower damage edge 0.375: under it", text)
+		self.assertTrue(text.splitlines()[[i for i, l in enumerate(text.splitlines()) if l.startswith("BANDS:")][-1]]
+			.startswith("BANDS: NOT SET (a proposal by the arithmetic of 10_Tuning §2"))
+		self.assertNotIn("PASS", text)
+		self.assertNotIn("FAIL", text)
+
+	def hp_runs(self):
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=[hit(100.0, 0.3), hit(700.0, 0.5)] + [rec(10.0 * i, "dash") for i in range(1, 21)]))
+		self.put("T2", "2_20261111_130000", run_text(900.0, body=[hit(200.0, 0.5)]))
+		self.put("T3", "3_20261111_140000", run_text(480.0, body=[hit(470.0, 0.2), rec(480.0, "hero_down")]))
+		return self.sheet(["1_20261111_120000,T1,1", "2_20261111_130000,T2,1", "3_20261111_140000,T3,1"])
+
+	def test_hp600_with_a_run_down_at_480_s_reads_at_least(self):
+		rc, text = self.read("--validators", self.hp_runs())
+		self.assertIn("HP600: 1_20261111_120000 HP lost by 600 s 0.300 of max HP (restores by then 0.000, never subtracted), dashes 2.00/min over the first ten minutes alive", text)
+		self.assertIn("HP600: 3_20261111_140000 HP lost by 600 s 0.200 of max HP (restores by then 0.000, never subtracted), dashes 0.00/min over the first ten minutes alive; "
+			"ended at 480.0 s (death): a lower bound", text)
+		self.assertIn("HP600: session median HP lost by 600 s at least 0.300, median dashes 0.00/min over the first ten minutes alive, over 3 run(s); runs alive at 600 s: 2 of 3", text)
+		self.assertIn("D-046: runs alive at 600 s: 2 of 3 (hypothesis: at least half of the six)", text)
+
+	def battery(self, rows):
+		"""A BotRuns folder: {arm label: (skill, [(HP lost by 600 s, end)])}."""
+		root = os.path.join(self.tmp.name, "bots")
+		for label, (skill, runs) in rows.items():
+			for seed, (lost, end) in enumerate(runs, 1):
+				folder = os.path.join(root, f"{label}_s{seed}")
+				os.makedirs(folder)
+				with open(os.path.join(folder, f"{seed}_x.jsonl"), "w", encoding="utf-8") as f:
+					f.write(run_text(end, body=[hit(300.0, lost)]))
+				with open(os.path.join(folder, "bot.csv.txt"), "w", encoding="utf-8") as f:
+					f.write(f"outcome=death\nend_s={end}\nconfig=skill={skill} steer=1\n")
+		return root
+
+	def test_the_bracket_names_the_rows_under_and_over_and_says_when_none_brackets(self):
+		sheet = self.hp_runs()
+		rc, text = self.read("--validators", sheet, "--bots", self.battery({"Low": ("0.5", [(0.2, 900.0), (0.2, 900.0)]), "High": ("1.0", [(0.4, 900.0), (0.3, 400.0)])}))
+		self.assertIn("BRACKET: a bot reading is a bound", text)
+		self.assertIn("BRACKET: skill 0.5: 2 run(s) in 1 arm(s), alive at 600 s 2; median HP lost by 600 s 0.200", text)
+		# the run that ended at 400 s reads 0.3, a lower bound under the median 0.35: the row's median is at least that
+		self.assertIn("BRACKET: skill 1.0: 2 run(s) in 1 arm(s), alive at 600 s 1; median HP lost by 600 s at least 0.350", text)
+		self.assertIn("BRACKET: HP lost by 600 s: validators 0.300; just under: skill 0.5 (0.200); just over: skill 1.0 (0.350)", text)
+		shutil.rmtree(os.path.join(self.tmp.name, "bots"))
+		rc, text = self.read("--validators", sheet, "--bots", self.battery({"High": ("1.0", [(0.4, 900.0)])}))
+		self.assertIn("BRACKET: HP lost by 600 s: validators 0.300; NOT BRACKETED (every row is over)", text)
+		rc, text = self.read("--validators", sheet)
+		self.assertIn("BRACKET: NOT READ (no bot battery given: --bots)", text)
+
+	def test_d045_reads_drop_in_hits_over_the_runs_that_carry_the_count(self):
+		charge = dict(role="Rusher", hit_kind="Contact", arrival=True, charging=True)
+		band = dict(role="Rusher", hit_kind="Charge", arrival=True, charging=False)
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=[hit(300.0, 0.1, **charge), hit(310.0, 0.1, **band),
+			rec(330.0, "dir_block", -1, dropins=5, dropins_landed_by_role={"Rusher": 4})]))
+		self.put("T2", "2_20261111_130000", run_text(900.0, body=[hit(300.0, 0.1, **charge), rec(330.0, "dir_block", -1, dropins=2, dropins_landed_by_role={"Rusher": 2})]))
+		self.put("T3", "3_20261111_140000", run_text(900.0, body=[hit(300.0 + i, 0.1, **charge) for i in range(5)]))
+		rc, text = self.read("--validators", self.sheet(["1_20261111_120000,T1,1", "2_20261111_130000,T2,1", "3_20261111_140000,T3,1"]))
+		self.assertIn("D-045: session 3 hit(s) by an arrival's own attack (live charge + killed drop-in band) out of 6 landed Rusher drop-ins, over the 2 run(s) "
+			"that carry the count; left out of both, no count: 3_20261111_140000", text)
+		self.assertIn("D-045: hit by an arrival's own attack: T1 2, T2 1, T3 5", text)
+		self.assertIn("D-045: 3_20261111_140000 rusher hits, whole run: arrival charging 5", text)
+		self.assertIn("SHEET: D-045 revert clause (questions 8 and 14, the drop-in row)", text)
+
+	def test_d046_reads_each_second_run_at_the_boss(self):
+		boss = rec(900.0, "boss_start", -1, form="I", wins=0, players=1)
+		self.put("T1", "1_20261111_120000", run_text(700.0))
+		self.put("T1", "2_20261111_130000", run_text(1000.0, body=[hit(800.0, 0.3, hp_after=70.0), boss, hit(950.0, 0.6, hp_after=10.0)]))
+		self.put("T2", "3_20261111_140000", run_text(1000.0, body=[hit(800.0, 0.5, hp_after=40.0), rec(850.0, "hero_healed", amount=10.0, hp_after=45.0, max_hp=100.0, source="Pickup.Chest"), boss]))
+		self.put("T3", "4_20261111_150000", run_text(1000.0, body=[boss, hit(905.0, 0.5, hp_after=50.0)]))
+		self.put("T3", "5_20261111_160000", run_text(500.0))
+		rc, text = self.read("--validators", self.sheet(["1_20261111_120000,T1,1", "2_20261111_130000,T1,2", "3_20261111_140000,T2,2", "4_20261111_150000,T3,2", "5_20261111_160000,T3,1"]))
+		self.assertIn("D-046: T1 second run 2_20261111_130000: boss reached at 15:00 (900.0 s) with 0.700 of max HP (derived from hp_after; boss_start holds no health)", text)
+		self.assertIn("D-046: T2 second run 3_20261111_140000: boss reached at 15:00 (900.0 s) with 0.450 of max HP", text)
+		self.assertIn("D-046: T3 second run 4_20261111_150000: boss reached at 15:00 (900.0 s) with 1.000 of max HP", text, "no hit before the boss: full")
+		self.assertIn("D-046: 2 validator(s) reached the boss above half health on their second run", text)
+		self.assertIn("D-046: 3_20261111_140000 restores Pickup.Chest 1 for 0.100 of max HP", text)
+		self.assertIn("D-036: 3 of 5 run(s) reached the boss", text)
+
+	def test_the_frame_comes_from_the_constants_and_tests_each_edge(self):
+		consts = dtconst_load()
+		down, up, side0, slope = session_read.frame(consts)
+		self.assertAlmostEqual(down, 1504.25, places=2)
+		self.assertAlmostEqual(up, 2041.16, places=2)
+		self.assertAlmostEqual(side0, 2666.67, places=2)
+		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154
+		fr = (down, up, side0, slope)
+		self.assertEqual(session_read.off_edges(0, 0, fr), [])
+		self.assertEqual([e for e, _ in session_read.off_edges(-1600, 0, fr)], ["bottom"])
+		self.assertEqual([e for e, _ in session_read.off_edges(2100, 0, fr)], ["top"])
+		self.assertEqual([e for e, _ in session_read.off_edges(0, 2700, fr)], ["right"])
+		self.assertEqual([e for e, _ in session_read.off_edges(0, -2700, fr)], ["left"])
+		self.assertEqual(session_read.off_edges(-1500, 2300, fr), [], "the bottom row is narrower: 2316 uu")
+		wide = session_read.frame(consts, (21, 9))
+		self.assertAlmostEqual(wide[0], down)
+		self.assertAlmostEqual(wide[2], 3500.0, places=1)
+
+	def test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate(self):
+		body = [rec(95.0, "hero_pos", x=-1500, y=0), rec(99.0, "hero_pos", x=-1500, y=0), rec(100.0, "hero_pos", x=0, y=0),
+			hit(100.0, 0.1, hit_kind="Bullet", role="Turret", hero_x=0, hero_y=0, src_x=1000, src_y=0, vel_x=-500, vel_y=0, flight_s=2.0),
+			hit(200.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=-1600, src_y=0),
+			hit(300.0, 0.1, hit_kind="Bullet", role="Turret", hero_x=0, hero_y=0, src_x=0, src_y=2700, flight_s=1.0),
+			hit(400.0, 0.1, hit_kind="Contact", role="Swarm", hero_x=0, hero_y=0, src_x=30, src_y=20)]
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
+		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
+		self.assertIn("D-036: frame at 16:9: down 1504.25, up 2041.16, side 2666.67", text)
+		self.assertIn("D-036: 3 of 4 hits with a source off a 16:9 frame; by hit kind: Bullet 2 of 2, Contact 1 of 2", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 459 uu outside", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 96 uu outside", text)
+		self.assertIn("at landing right edge 33 uu outside; no hero_pos around the fire time: landing only", text)
+		self.assertIn("TIMELINE: 1_20261111_120000 1:40 100.0 hit Turret Bullet 0.100 of max HP, 0.500 left [off frame]", text)
+		self.assertIn("HUD m:ss is t from m*60+ss to m*60+ss+1", text)
+
+	def test_d053_names_who_held_the_key_with_the_blade_before_or_after_the_pick(self):
+		key = rec(300.0, "keeper_pick", blessing="Blessing.Forge.Hammer.Key")
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=[rec(0.0, "weapon_acquired", source="Weapon.PulseRifle"), rec(200.0, "weapon_acquired", source="Weapon.ArcBlade"), key]))
+		self.put("T2", "2_20261111_130000", run_text(900.0, body=[key, rec(400.0, "weapon_acquired", source="Weapon.OrbitalDrones")]))
+		self.put("T3", "3_20261111_140000", run_text(900.0, body=[key, rec(0.0, "weapon_acquired", source="Weapon.PulseRifle")]))
+		rc, text = self.read("--validators", self.sheet(["1_20261111_120000,T1,1", "2_20261111_130000,T2,1", "3_20261111_140000,T3,1"]))
+		self.assertIn("D-053: 1_20261111_120000 Blessing.Forge.Hammer.Key picked at 5:00 (300.0 s); Arc Blade from 3:20 (held at the pick)", text)
+		self.assertIn("D-053: 2_20261111_130000 Blessing.Forge.Hammer.Key picked at 5:00 (300.0 s); Orbital Drones from 6:40 (taken after it)", text)
+		self.assertIn("D-053: 3_20261111_140000 Blessing.Forge.Hammer.Key picked at 5:00 (300.0 s); neither the Arc Blade nor the Orbital Drones held with it", text)
+		self.assertIn("D-053: held the Key with the blade or the drones: T1 (1_20261111_120000), T2 (2_20261111_130000)", text)
+
+	def test_slow_shares_sorted_a_crash_unread_and_the_pickup_ratio_unread_under_300_s(self):
+		self.put("T1", "1_20261111_120000", run_text(100.0, dropped=1500))
+		self.put("T2", "2_20261111_130000", run_text(240.0, dropped=760))
+		self.put("T3", "3_20261111_140000", run_text(240.0, run_end=False))
+		self.put("T3", "4_20261111_150000", run_text(240.0, dropped=5, bot_fast=600))
+		rc, text = self.read()
+		d054 = self.lines(text, "D-054: ")
+		self.assertEqual(d054[:4], ["D-054: 2_20261111_130000 share 0.0501 (760 dropped of 15160 steps)",
+			"D-054: 1_20261111_120000 share 0.2000 (1500 dropped of 7500 steps)",
+			"D-054: 3_20261111_140000 not read (no wall_dropped_steps in run_end)",
+			"D-054: 4_20261111_150000 not read (bot at -DTBotFast=600; 5 dropped steps)"])
+		self.assertIn("D-054: 2 run(s) read, 2 not read; no threshold exists; the S1 gate decision sets one", text)
+		self.assertIn("pickup ratio (XP of model at 300 s) NOT READ (ended at 240.0 s, before 300 s)", text)
+		self.assertIn("READS: 3_20261111_140000 swarm kill time NOT READ (no cell); pause NOT READ (no run_end)", text)
+		self.assertIn("end no run_end (crash or killed)", text)
+
+	def test_the_first_trait_card_offered_and_taken(self):
+		"""C.KEEPER.TRAIT_PREREQ_CARDS's first reading: the level and time a Trait was first shown and first taken."""
+		trait = "Blessing.Storm.Tempest.Trait"
+		self.assertIn(trait, session_read.trait_ids(), "ids come from expression.csv's Path and Archetype")
+		body = [rec(300.0, "offer", hand_id=2, hand_kind="Level", level=9, cards=[{"slot": 0, "kind": "Blessing", "id": trait}, {"slot": 1, "kind": "Weapon", "id": "Weapon.ArcBlade"}]),
+			rec(300.0, "offer_pick", hand_id=2, slot=1, card_kind="Weapon", id="Weapon.ArcBlade"),
+			rec(420.0, "offer", hand_id=5, hand_kind="Level", level=12, cards=[{"slot": 0, "kind": "Blessing", "id": trait}]),
+			rec(420.0, "offer_pick", hand_id=5, slot=0, card_kind="Blessing", id=trait)]
+		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
+		self.put("T2", "2_20261111_130000", run_text(900.0, body=body[:2]))
+		self.put("T3", "3_20261111_140000", run_text(900.0))
+		rc, text = self.read()
+		self.assertIn(f"READS: 1_20261111_120000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): first offered at L9, 5:00 (300.0 s), {trait}; "
+			f"first taken at L12, 7:00 (420.0 s), {trait}", text)
+		self.assertIn(f"READS: 2_20261111_130000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): first offered at L9, 5:00 (300.0 s), {trait}; not taken", text)
+		self.assertIn("READS: 3_20261111_140000 Trait card (C.KEEPER.TRAIT_PREREQ_CARDS 2): none offered", text)
+
+	def test_bots_read_without_a_session(self):
+		"""The skill rows print before any session exists; the bracket itself waits for a session median."""
+		rc, text = self.read("--bots", self.battery({"Low": ("0.5", [(0.2, 900.0)])}))
+		self.assertIn("no run found", text)
+		self.assertIn("BRACKET: skill 0.5: 1 run(s) in 1 arm(s), alive at 600 s 1; median HP lost by 600 s 0.200", text)
+		self.assertIn("BRACKET: NOT READ (no session median)", text)
+		self.assertEqual(rc, 0)
+		empty = os.path.join(self.tmp.name, "nobots")
+		os.makedirs(empty)
+		rc, text = self.read("--bots", empty)
+		self.assertEqual(rc, 1)
+
+	def test_bad_arguments_exit_2_and_an_empty_folder_exits_1(self):
+		rc, text = self.read("--frobnicate")
+		self.assertEqual(rc, 2)
+		self.assertIn("SESSION: bad arguments (unknown flag --frobnicate", text)
+		rc, text = self.read("--aspect", "wide")
+		self.assertEqual(rc, 2)
+		rc, text = self.read()
+		self.assertEqual(rc, 1)
+		self.assertIn("no run found", text)
+
+
+def dtconst_load():
+	return session_read.dtconst.load()
+
+
+class Manifest(unittest.TestCase):
+	"""Audit G16: MANIFEST.txt names what the run files record (package.md section Data, telemetry.md R-TEL-08 and R-TEL-10)."""
+
+	def test_the_manifest_names_the_five_clock_readings_and_the_two_marks(self):
+		# dev/s3 ships Tools/PackageFiles/Export_Logs.ps1 in place of main's ExportTelemetry.ps1: the same manifest facts, read from its script.
+		with open(os.path.join(TOOLS, "PackageFiles", "Export_Logs.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		block = text[text.index("$Lines = @("):text.index('$Lines += "Files:"')]
+		for phrase in ("five clock readings", "the start time (UTC inside", "the seconds each hand of cards took", "the seconds the run was",
+				"the run's length on the clock", "the steps this PC could not keep up with", "whether it had dropped in or was charging",
+				"health restored", "how many enemies dropped in", "whether a test bot ran the run at fast speed",
+				"No name, account, machine name, path or hardware."):
+			self.assertIn(phrase, block)
+		self.assertNotIn("whether a bot played", block, "bot_fast says only that a bot ran fast")
+
+
 class HeavyLocks(unittest.TestCase):
 	"""T-TEC-18 (D-055 item 7, R-TEC-18): heavy-job slots and the alone hold (Tools/Machine.ps1 Enter-DTHeavy, Tools/Alone.ps1), on a lock directory of the test's own."""
 
@@ -2130,24 +2700,88 @@ class HeavyLocks(unittest.TestCase):
 		blocked = self.taker("any", DT_HEAVY_WAIT_MAX_S="4", DT_ALONE_TOKEN="anything")
 		self.assertIn("HEAVY: FAIL", self.line(blocked, "ERR", 30) or "")
 
-	def test_take_waits_for_busy_slots_then_writes_the_hold(self):
+	def alone_file(self):
+		path = os.path.join(self.locks, "alone.txt")
+		if not os.path.exists(path):
+			return ""
+		with open(path, encoding="ascii") as f:
+			return f.read()
+
+	def take(self, **extra):
+		return self.start(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'a test reading'", **extra)
+
+	def test_take_claims_at_once_waits_for_busy_slots_then_holds(self):
 		self.slots(1)
 		holder = self.taker("holder")
 		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
-		take = self.start(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'a test reading'")
-		self.assertIsNotNone(self.line(take, "alone: waits for the heavy slots", 30))
-		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+		take = self.take()
+		pending = self.line(take, "alone: pending", 30)
+		self.assertIsNotNone(pending)
+		token = pending.split()[2]
+		self.assertIn("state: pending", self.alone_file())
+		self.assertIn("token: " + token, self.alone_file())
+		# A new heavy job without the token waits while the take is pending, even before the busy slot ends.
+		late = self.taker("late", DT_HEAVY_WAIT_MAX_S="4")
+		self.assertIn("held alone", self.line(late, "ERR", 30) or "")
+		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Status", self.env())
+		self.assertIn("ALONE: PENDING", out)
+		self.assertIsNone(self.line(take, "ALONE: TAKEN", 3))
 		self.release(holder)
 		taken = self.line(take, "ALONE: TAKEN", 30)
 		self.assertIsNotNone(taken)
-		with open(os.path.join(self.locks, "alone.txt"), encoding="ascii") as f:
-			self.assertIn("token: " + taken.split()[2], f.read())
+		self.assertEqual(taken.split()[2], token)
+		self.assertIn("state: taken", self.alone_file())
+		after = self.taker("with_token", DT_ALONE_TOKEN=token)
+		self.assertIsNotNone(self.line(after, "GOT slot", 60))
 		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Release", self.env())
 		self.assertIn("ALONE: RELEASED", out)
-		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+		self.assertEqual(self.alone_file(), "")
+
+	def test_a_holder_of_the_token_passes_while_the_take_is_pending(self):
+		self.slots(2)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		token = (self.line(take, "alone: pending", 30) or "x x x").split()[2]
+		reading = self.taker("reading", DT_ALONE_TOKEN=token)
+		self.assertIsNotNone(self.line(reading, "GOT slot", 60))
+
+	def test_a_second_take_fails_at_once_while_one_is_pending(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'another'", self.env())
+		self.assertEqual(rc, 1, out)
+		self.assertIn("already held", out)
+
+	def test_a_take_that_times_out_leaves_no_hold(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take(DT_HEAVY_WAIT_MAX_S="4")
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		self.assertIsNotNone(self.line(take, "ALONE: FAIL", 60))
+		take.wait(timeout=30)
+		self.assertEqual(self.alone_file(), "")
+
+	def test_a_take_stopped_hard_leaves_no_hold_for_the_next_taker(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.take()
+		self.assertIsNotNone(self.line(take, "alone: pending", 30))
+		take.kill()
+		take.wait()
+		self.release(holder)
+		after = self.taker("after")
+		self.assertIsNotNone(self.line(after, "GOT slot", 60))
+		self.assertEqual(self.alone_file(), "")
 
 	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
-		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
+		# Gate.ps1 takes its slot right before its first heavy step instead (GateSlot below).
+		for name in ("RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1", "CrashExitCheck.ps1",
 			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1",
 			"CrashExportCheck.ps1", "EarnedCheck.ps1", "ExportLogsCheck.ps1", "MetaCheck.ps1", "PackageHubCheck.ps1", "TwoWindowsCheck.ps1", "VigilCheck.ps1", "WinCheck.ps1",
 			"EnemyArt.ps1", "Frames.ps1", "ImpactArt.ps1", "HeroZone.ps1", os.path.join("blender", "Mesh.ps1")):
@@ -2165,6 +2799,192 @@ class HeavyLocks(unittest.TestCase):
 		for name in ("EditorPython.bat", os.path.join("blender", "CookMesh.bat")):
 			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
 				self.assertIn('Machine.ps1" -DTRunFile "%~f0" %*', f.read(), name)
+
+
+class CrashExit(unittest.TestCase):
+	"""Tools/CrashExitCheck.ps1's lines (Tools/crash_exit.py) from canned launch records: an ended launch, a hung one, the verdict."""
+
+	ENDED = {"n": 1, "ended": True, "seconds": 2.14, "exit_code": 3, "dump_bytes": 1364942, "shutdown": True, "log": True}
+	HUNG = {"n": 2, "ended": False, "seconds": 60.0, "threads": 101, "suspended": 100, "running": ["4242 Wait/UserRequest"], "dump_bytes": 0,
+		"windows": [], "last_line": "LogWindows: Windows GetLastError: The operation completed successfully. (0)", "log": True}
+
+	def test_an_ended_and_a_hung_launch(self):
+		self.assertEqual(crash_exit.record_line(self.ENDED),
+			"crashexit: 1 ended in 2.1 s, exit 3, dump 1364942 bytes, StaticShutdownAfterError in the log: yes")
+		self.assertEqual(crash_exit.record_line(self.HUNG),
+			"crashexit: 2 hung after a crash, at 60.0 s: 101 threads, 100 suspended, not suspended: 4242 Wait/UserRequest; dump 0 bytes; windows: none; "
+			"log ends: LogWindows: Windows GetLastError: The operation completed successfully. (0)")
+		shipping = dict(self.ENDED, dump_bytes=None, log=False, shutdown=None)
+		self.assertIn("no dump, StaticShutdownAfterError in the log: no log", crash_exit.record_line(shipping))
+		unknown = dict(self.HUNG, suspended=None, running=[], windows=["4242 #32770 'Dusktracer'"])
+		self.assertIn("101 threads, suspended unknown, not suspended: none; dump 0 bytes; windows: 4242 #32770 'Dusktracer'", crash_exit.record_line(unknown))
+
+	def test_the_verdict_counts_hung_launches(self):
+		self.assertEqual(crash_exit.result_line([self.ENDED, dict(self.ENDED, n=2, seconds=3.25)], "Development"),
+			"CRASHEXIT: PASS (2 of 2 ended, slowest 3.2 s; Development)")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, dict(self.HUNG, n=3)], "Shipping"), "CRASHEXIT: FAIL (2 of 3 hung after a crash; Shipping)")
+		self.assertEqual(crash_exit.result_line([], "Development"), "CRASHEXIT: FAIL (no launch recorded; Development)")
+
+	def test_a_launch_that_never_crashed_voids_the_reading(self):
+		"""Alive at the timeout with no crash folder, no dump and no fatal line: the crash never fired (a Patron hand waiting for a person), not a hang."""
+		idle = dict(self.HUNG, n=3, suspended=0, dump_bytes=None, crash_folder=False, fatal_line=False, log=False)
+		self.assertEqual(crash_exit.outcome(idle), "no crash")
+		self.assertEqual(crash_exit.outcome(dict(idle, crash_folder=True)), "hung")
+		self.assertEqual(crash_exit.outcome(dict(idle, log=True, fatal_line=True)), "hung")
+		self.assertEqual(crash_exit.outcome(self.HUNG), "hung", "a 0-byte dump is a crash that began")
+		self.assertEqual(crash_exit.record_line(idle), "crashexit: 3 did not crash in 60.0 s (no crash folder, no dump, no fatal line; 101 threads, 0 suspended): void")
+		self.assertEqual(crash_exit.result_line([self.ENDED, self.HUNG, idle], "Shipping, no -unattended"),
+			"CRASHEXIT: VOID (1 of 3 never crashed; Shipping, no -unattended)")
+		self.assertIn("hung after a crash", crash_exit.record_line(dict(self.HUNG, last_line={"value": "x"})), "a non-text last line still prints")
+
+	def test_records_are_read_from_the_work_folder_and_names_are_scrubbed(self):
+		with tempfile.TemporaryDirectory() as work:
+			for rec in (self.HUNG, self.ENDED):
+				os.makedirs(os.path.join(work, str(rec["n"])))
+				with open(os.path.join(work, str(rec["n"]), "record.json"), "w", encoding="utf-8-sig") as f:
+					json.dump(rec, f)
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = crash_exit.main(["crash_exit.py", "result", work, "Development"])
+		self.assertEqual((rc, out.getvalue().strip()), (1, "CRASHEXIT: FAIL (1 of 2 hung after a crash; Development)"))
+		with mock.patch.dict(os.environ, {"USERNAME": "tester7", "COMPUTERNAME": "BOX9"}):
+			line = crash_exit.record_line(dict(self.HUNG, last_line="C:/Users/tester7/AppData on BOX9"))
+		self.assertTrue(line.endswith("log ends: C:/Users/<user>/AppData on <machine>"), line)
+
+	def test_a_packaged_crash_ends_shipping_by_default(self):
+		"""T-PKG-16, R-PKG-16: the game module takes Shipping off the in-process minidump unless -DTCrashDump, and any other packaged
+		build keeps the engine's path unless -DTCrashNoDump; Windows only, never an editor."""
+		with open(os.path.join(TOOLS, "..", "Source", "Dusktracer", "Dusktracer.cpp"), encoding="utf-8") as f:
+			code = f.read()
+		guard = code.index("#if PLATFORM_WINDOWS && !WITH_EDITOR")
+		block = code[guard:code.index("#endif", guard)]
+		self.assertIn('UE_BUILD_SHIPPING ? !FParse::Param(FCommandLine::Get(), TEXT("DTCrashDump")) : FParse::Param(FCommandLine::Get(), TEXT("DTCrashNoDump"))', block)
+		self.assertIn("GUseCrashReportClient = false;", block)
+		self.assertIn("MiniDumpFilenameW[0] = TEXT('\\0');", block)
+
+	def test_the_script_refuses_the_session_build_and_keeps_its_launches_hidden(self):
+		with open(os.path.join(TOOLS, "CrashExitCheck.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertIn('foreach ($Held in "Package", "Packages")', text)
+		self.assertIn("Start-DTHidden $Exe $ArgList", text)
+		self.assertIn("Stop-DTHidden $Proc", text)
+		self.assertIn('-userdir=`"$UserDir`"', text)
+		for flag in ("-RenderOffScreen", "-unattended", "-nosound", "-culture=en", "-DTSeed=770099"):
+			self.assertIn(flag, text)
+
+
+SLOT_PROBE = '''import os, sys
+held = []
+for k in range(1, 3):
+	try:
+		open(os.path.join(os.environ["DT_LOCK_DIR"], "heavy", "slot%d.lock" % k), "r+b").close()
+		held.append("free")
+	except FileNotFoundError:
+		held.append("none")
+	except PermissionError:
+		held.append("held")
+open(os.environ["DT_PROBE_OUT"], "w").write(" ".join(held) + " inherited=" + ("yes" if os.environ.get("DT_HEAVY_HELD") else "no"))
+'''
+
+
+class GateSlot(unittest.TestCase):
+	"""R-TEC-18: the gate takes its one heavy-job slot right before its first heavy step that is not skipped; a text-only run takes none and never waits."""
+
+	TEXT = ("cpu_canary.py", "secret_scan.py", "docs_lint.py", "gen_constants.py", "gen_catalog.py", "gen_matrix.py", "loc_build.py", "catalog_lint.py",
+		"palette_lint.py", os.path.join("audio", "audio_check.py"), "tools_test.py")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.locks = os.path.join(self.tmp.name, "dt-locks")
+		os.makedirs(self.locks)
+		with open(os.path.join(self.locks, "slots.txt"), "w", encoding="ascii") as f:
+			f.write("2\n")
+		tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), tools)
+		for name in self.TEXT:
+			os.makedirs(os.path.dirname(os.path.join(tools, name)), exist_ok=True)
+			with open(os.path.join(tools, name), "w", encoding="utf-8") as f:
+				f.write("print('STUB: PASS')\n")
+		self.probe_out = os.path.join(self.tmp.name, "probe.txt")
+		with open(os.path.join(self.tmp.name, "probe.py"), "w", encoding="utf-8") as f:
+			f.write(SLOT_PROBE)
+		# The build step's stand-in: it reads which slots are held while it runs, and whether it inherited the gate's.
+		with open(os.path.join(tools, "Build.bat"), "w", encoding="ascii") as f:
+			f.write(f'@echo off\r\npython -I "{os.path.join(self.tmp.name, "probe.py")}"\r\nexit /b 0\r\n')
+		self.gate = os.path.join(tools, "Gate.ps1")
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			self.heavy = re.findall(r'Start-HeavyStep "(\w+)"\)', f.read())
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def run_gate(self, run=(), wait_s="5"):
+		skip = ",".join(s for s in self.heavy if s not in run)
+		env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+		env.update({"DT_LOCK_DIR": self.locks, "DT_HEAVY_WAIT_MAX_S": wait_s, "DT_PROBE_OUT": self.probe_out,
+			"DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")})
+		done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", f"& {ps_quote(self.gate)} -Skip {skip}; exit $LASTEXITCODE"],
+			capture_output=True, env=env, timeout=300)
+		return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
+
+	def hold_all(self):
+		holders = []
+		for k in (1, 2):
+			os.makedirs(os.path.join(self.locks, "heavy"), exist_ok=True)
+			# Opened by this process with no sharing, as Enter-DTHeavy opens it: a gate that asked for a slot would wait.
+			holders.append(subprocess.Popen(["powershell", "-NoProfile", "-Command",
+				f"$S = [IO.File]::Open({ps_quote(os.path.join(self.locks, 'heavy', f'slot{k}.lock'))}, 'OpenOrCreate', 'ReadWrite', 'None'); 'HELD'; [Console]::Out.Flush(); $null = [Console]::In.ReadLine()"],
+				stdin=subprocess.PIPE, stdout=subprocess.PIPE))
+		for h in holders:
+			self.assertEqual(h.stdout.readline().decode().strip(), "HELD")
+		return holders
+
+	def release(self, holders):
+		for h in holders:
+			h.communicate(b"\n", timeout=30)
+
+	def test_the_gate_knows_its_heavy_steps(self):
+		self.assertIn("build", self.heavy)
+		self.assertIn("tests", self.heavy)
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			code = "\n".join(ps_code(f.read().splitlines()))
+		self.assertNotIn('if (-not (Skipped "', code)
+		self.assertEqual(code.count("Enter-DTHeavy"), 1)
+
+	def test_a_text_only_run_takes_no_slot_while_every_slot_is_taken(self):
+		holders = self.hold_all()
+		try:
+			rc, out = self.run_gate()
+		finally:
+			self.release(holders)
+		self.assertEqual(rc, 0, out)
+		self.assertIn("GATE: PASS", out)
+		self.assertNotIn("heavy:", out)
+
+	def test_a_text_only_run_does_not_wait_for_the_alone_hold(self):
+		with open(os.path.join(self.locks, "alone.txt"), "w", encoding="ascii") as f:
+			f.write("ALONE since now, by hand, no token.\n")
+		rc, out = self.run_gate()
+		self.assertEqual(rc, 0, out)
+		self.assertIn("GATE: PASS", out)
+
+	def test_the_alone_hold_still_stops_a_heavy_step(self):
+		with open(os.path.join(self.locks, "alone.txt"), "w", encoding="ascii") as f:
+			f.write("ALONE since now, by hand, no token.\n")
+		rc, out = self.run_gate(run=("build",), wait_s="3")
+		self.assertEqual(rc, 1, out)
+		self.assertIn("HEAVY: FAIL", out)
+		self.assertFalse(os.path.exists(self.probe_out))
+
+	def test_one_heavy_step_runs_on_one_slot_its_script_inherits(self):
+		rc, out = self.run_gate(run=("build",))
+		self.assertEqual(rc, 0, out)
+		with open(self.probe_out, encoding="ascii") as f:
+			first, second, inherited = f.read().split()
+		self.assertEqual((first, inherited), ("held", "inherited=yes"))
+		self.assertIn(second, ("free", "none"))  # no second slot: never made, or made and free
 
 
 class GateMain(unittest.TestCase):
@@ -2615,7 +3435,7 @@ class ReadAll(unittest.TestCase):
 			return f.read()
 
 	def test_the_gate_step_asks_for_it(self):
-		step = self.script("Gate.ps1").split('if (-not (Skipped "firstrun")) {')[1].split('if (-not (Skipped "win")) {')[0]
+		step = self.script("Gate.ps1").split('if (Start-HeavyStep "firstrun") {')[1].split('if (Start-HeavyStep "win") {')[0]
 		self.assertRegex(step, r"-Check T-OFF-15 -ReadAll\b")
 		self.assertIn('$Verdict -notmatch "T-OFF-15: PASS"', step)
 
@@ -4060,7 +4880,22 @@ class ReviewMinors(unittest.TestCase):
 		self.assertIn("MIDROW: False", run.stdout)
 		self.assertIn("SHORT: []", run.stdout)
 		step = self.text("Tools", "PackageHubCheck.ps1").split("$Fresh = Invoke-ShippingRun")[1].split("$CsvOk = ")[0]
-		self.assertEqual(step.count("= Get-WholeIntervals ("), 2)
+		self.assertEqual(step.count("= Compare-RunCsv ("), 1)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_step_e_compares_a_run_shorter_than_an_interval_by_its_rows(self):
+		# S3_package.md, 2026-11-11: two byte-identical one-row files read as different, because no whole interval was left to compare.
+		script = (self.hub_function("Get-WholeIntervals") + "\n" + self.hub_function("Compare-RunCsv") + "\n"
+			"$One = \"t,kills`r`n25.2,45`r`n\"\n$Long = \"t,kills`r`n10,5`r`n20,9`r`n23.4,2`r`n\"\n"
+			"$R = Compare-RunCsv $One $One\nWrite-Host ('SAME: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One \"t,kills`r`n25.2,46`r`n\"\nWrite-Host ('DIFF: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $Long $Long\nWrite-Host ('WHOLE: ' + $R.Same + ' / ' + $R.How)\n"
+			"$R = Compare-RunCsv $One $Long\nWrite-Host ('MIXED: ' + $R.Same + ' / ' + $R.How)\n")
+		run = self.run_ps(script)
+		self.assertIn("SAME: True / all rows, no whole interval", run.stdout, run.stdout + run.stderr)
+		self.assertIn("DIFF: False / all rows, no whole interval", run.stdout)
+		self.assertIn("WHOLE: True / whole intervals", run.stdout)
+		self.assertIn("MIXED: False / whole intervals in one file only", run.stdout)
 
 
 class CvdFrame(unittest.TestCase):

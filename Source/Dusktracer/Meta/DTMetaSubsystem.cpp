@@ -225,11 +225,14 @@ const FDTMetaProfile* UDTMetaSubsystem::ReadProfile(const UObject* WorldContext)
 EDTMetaNotice UDTMetaSubsystem::ReadNotice(const UObject* WorldContext, FString* OutFile)
 {
 	const FDTMetaSession* Found = FindSession(WorldContext);
+	const EDTMetaNotice Kind = Found ? Found->Notice() : EDTMetaNotice::None;
 	if (Found && OutFile)
 	{
-		*OutFile = FPaths::GetCleanFilename(Found->AsidePath);
+		// A file's name, never its path: a path can name the Windows user. A stuck session names the save it could not use.
+		const bool bStuck = Kind == EDTMetaNotice::SaveUnreadable || Kind == EDTMetaNotice::SaveNotMoved;
+		*OutFile = FPaths::GetCleanFilename(bStuck ? Found->Path : Found->AsidePath);
 	}
-	return Found ? Found->Notice() : EDTMetaNotice::None;
+	return Kind;
 }
 
 int32 UDTMetaSubsystem::GetWins(const UObject* WorldContext)

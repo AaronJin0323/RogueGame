@@ -57,4 +57,14 @@
 | D-053 | Until people have played, Hammer's Key changes nothing on Orbital Drones or the Gravity Mine and says so; Hard Blow does what its card says | RULE | applied (`s1/forge-truth`); two questions go to the S1 gate | `main` |
 | D-054 | A slowed run is told by its slow share; the threshold is set at the S1 gate | RULE | applied: `10_Tuning §2` defines it and `Tools/pressure.py` prints it; the threshold waits for the S1 gate | `main` |
 | D-055 | Modules are developed side by side by module sessions under the scheduler; audio opens with a first wave | PROCESS, GO-NOGO | applied on the owner's word; amends D-050 item 1 and D-043's hold on audio | `main`; audio on `dev/s4` |
-| D-056 | Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger | SYSTEM | applied: accepted from the Sound session's draft; the wave is open, nothing built yet | `dev/s4` |
+| D-056 | Audio wave 1: a ported scheduler, generated sounds in one key, and a band kept for danger | SYSTEM | applied: accepted from the Sound session's draft; first hearing 2026-11-11: the owner rejected the first ten sounds for style, the method stands and the sound world is being rewritten (O-016) | `dev/s4` |
+| D-057 | S4's second visual wave draws state at silhouette grade, and opens only on session A's reading | GO-NOGO | accepted as the plan of record; held until session A is read | `dev/s4` |
+| D-058 | Draw code is the Visual module's by name, wherever it sits | PROCESS | applied; amends D-055 item 1 | `main` |
+| D-059 | The Forge and Quicksilver trails keep their colours, and a colour-vision debt is read on the drawn frame | RULE | applied on the owner's word; closes O-015; evidence: `Validation/S4_o015.md` and `Tools/cvd_frame.py` on `dev/s4` | `main` |
+| D-060 | A payday's own kills add no Debt | RULE | accepted; the job is on `dev/s2` | `dev/s2` |
+| D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | accepted; amends D-020; the job is on `dev/s2` | `dev/s2` |
+| D-062 | The L8 hand is drawn unweighted, and a person's all-Keepers run reserves no seat | text, RULE | accepted; the text on `main` now, the seats on `dev/s2` with the S2 kit | `main`, `dev/s2` |
+| D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
+| D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
+| D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
+| D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; no sound of it merged yet | `dev/s4` |

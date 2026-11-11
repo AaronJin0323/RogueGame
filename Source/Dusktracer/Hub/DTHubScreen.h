@@ -27,8 +27,11 @@ namespace DTHubText
 	DUSKTRACER_API FText RootLabel(EDTHubRow Row);
 	/** The honorific of a Path. */
 	DUSKTRACER_API FText KeeperName(EDTPath Path);
-	/** What the root says of the save (R-VIG-21): Hub.Notice.SaveAside with the file's name, Hub.Notice.RunLost, or nothing. */
-	DUSKTRACER_API FText Notice(EDTMetaNotice Kind, const FString& AsideFile);
+	/**
+	 * What the root says of the save (R-VIG-21): Hub.Notice.SaveUnreadable or Hub.Notice.SaveNotMoved with the save's file name,
+	 * Hub.Notice.SaveAside with the kept file's name, Hub.Notice.RunLost, or nothing. File is a name, never a path.
+	 */
+	DUSKTRACER_API FText Notice(EDTMetaNotice Kind, const FString& File);
 	/** The text under the rows: a Keeper's terms, a sealed hint, a book entry; on the root, what Begin lacks, else the notice. */
 	DUSKTRACER_API FText Detail(const FDTHubView& View);
 }

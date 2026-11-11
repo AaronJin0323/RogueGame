@@ -33,7 +33,8 @@ namespace DTMenuScreenLocal
 	const TCHAR* const PauseRowKeys[] = { TEXT("Pause.Resume"), TEXT("Pause.Settings"), TEXT("Pause.Restart"), TEXT("Pause.Abandon"), TEXT("Pause.Quit") };
 	const TCHAR* const EndKeys[] = { TEXT("Pause.AbandonConfirm"), TEXT("Pause.AbandonCancel"), TEXT("Pause.RestartConfirm"), TEXT("Pause.QuitConfirm"),
 		TEXT("Pause.ConfirmRestartTitle"), TEXT("Pause.ConfirmAbandonTitle"), TEXT("Pause.ConfirmQuitTitle"), TEXT("Pause.ConfirmBody"), TEXT("Pause.Abandoned"),
-		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line"), TEXT("Summary.Waiting"), TEXT("RunSummary.ReturnTo") };
+		TEXT("Menu.Hint.RunOver"), TEXT("Hud.RunOver"), TEXT("Hud.Victory"), TEXT("Summary.Line"), TEXT("Summary.Waiting"), TEXT("Summary.NotSaved"),
+		TEXT("RunSummary.ReturnTo") };
 	const TCHAR* const OtherKeys[] = { TEXT("Pause.Title"), TEXT("Settings.Title"), TEXT("Settings.ValueArrows"),
 		TEXT("Settings.Percent"), TEXT("Settings.LanguageName.en"), TEXT("Settings.LanguageName.zhHans"), TEXT("Settings.On"), TEXT("Settings.Off"),
 		TEXT("Settings.Controls.Open"), TEXT("Settings.Hint.Volume"), TEXT("Settings.Hint.Graphics"), TEXT("Settings.Hint.Shake"), TEXT("Settings.Hint.Flash"),
@@ -187,6 +188,25 @@ FText DTMenuText::RunSummary(int64 Retained, int64 Balance)
 FText DTMenuText::SaveWaiting()
 {
 	return DTMenuScreenLocal::Ui(TEXT("Summary.Waiting"));
+}
+
+FText DTMenuText::RunNotSaved()
+{
+	return DTMenuScreenLocal::Ui(TEXT("Summary.NotSaved"));
+}
+
+void DTMenuText::RunOverLines(bool bNotSaved, bool bDeferred, int64 Retained, int64 Balance, TConstArrayView<FName> Discovered, FText& OutLine, FText& OutToast)
+{
+	if (bNotSaved)
+	{
+		// A stuck session (meta.md R-MET-12): no amount, no balance and no Discovery, since none of it was kept.
+		OutLine = RunNotSaved();
+		OutToast = FText::GetEmpty();
+		return;
+	}
+	OutLine = RunSummary(Retained, Balance);
+	// A bank that could not reach the file says so where the toast goes: it matters more than what the run found (meta.md R-MET-11).
+	OutToast = bDeferred ? SaveWaiting() : DiscoveryToast(Discovered);
 }
 
 FText DTMenuText::DiscoveryToast(TConstArrayView<FName> Ids)

@@ -45,13 +45,17 @@ void UDTHubSubsystem::Enter()
 	State.CodexRows = Codex.Num();
 	State.CodexFirst = FMath::Max(0, Codex.IndexOfByPredicate([](const FDTCodexRow& Row) { return Row.bRead; }));
 	Tree = DTHubTabs::MakeTree(GetWorld());
-	// What this launch has to say of its save: a bad file set aside, or a run the launch before could not write (R-VIG-21).
-	FString AsideFile;
-	const EDTMetaNotice Kind = UDTMetaSubsystem::ReadNotice(this, &AsideFile);
-	Notice = DTHubText::Notice(Kind, AsideFile);
+	// What this launch has to say of its save (R-VIG-21): a save it is stuck on, a bad file set aside, or a run the launch before
+	// could not write. The name is a file's, never a path.
+	FString NoticeFile;
+	const EDTMetaNotice Kind = UDTMetaSubsystem::ReadNotice(this, &NoticeFile);
+	Notice = DTHubText::Notice(Kind, NoticeFile);
 	if (Kind != EDTMetaNotice::None)
 	{
-		UE_LOG(LogDT, Log, TEXT("Hub: notice %s %s"), Kind == EDTMetaNotice::KeptAside ? TEXT("SaveAside") : TEXT("RunLost"), *AsideFile);
+		const TCHAR* const Said = Kind == EDTMetaNotice::SaveUnreadable ? TEXT("SaveUnreadable")
+			: Kind == EDTMetaNotice::SaveNotMoved ? TEXT("SaveNotMoved")
+			: Kind == EDTMetaNotice::KeptAside ? TEXT("SaveAside") : TEXT("RunLost");
+		UE_LOG(LogDT, Log, TEXT("Hub: notice %s %s"), Said, *NoticeFile);
 	}
 	if (UDTMenuSubsystem* Menu = GetWorld() ? GetWorld()->GetSubsystem<UDTMenuSubsystem>() : nullptr)
 	{
