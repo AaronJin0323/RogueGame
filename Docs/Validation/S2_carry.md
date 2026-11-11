@@ -156,3 +156,11 @@ tests:      480 run of 480 found, 0 failed, floor 480, 0 crash marker(s)
 GATE: PASS (46ed31b; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run); no golden re-shot, no odd failure. `dev/s2` had not moved when the leg was gated. Log: `Saved\Logs\c7s2_gate.txt` in the carry agent's worktree.
+
+`main` moved by tools and documents while the leg was gated (842259e to d23b7ef: the alone take claims the machine at once, `Tools/Alone.ps1` and `Machine.ps1` with their tools tests; D-066; the kit's crash-dump line). It merged clean as 4c53ad4, and `git diff d23b7ef -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty; no engine or content file changed, so the text steps ran again with every heavy step skipped:
+
+```
+tools:      TOOLS: PASS (203 tests)
+GATE: PASS (4c53ad4; 14 not run; mask FFFFF3FC)
+```
+Log: `Saved\Logs\c7s2_text.txt`.
