@@ -6,19 +6,17 @@ or the Python version, so this module uses only operations IEEE 754 defines exac
 ldexp) plus integer arithmetic:
   - sin, exp and ln are written here from those operations;
   - the random source is an integer xorshift, not the `random` module;
-  - there is no `**`, no pow(), no round(), and no math.sin / cos / exp / log / pow / tanh.
+  - there is no `**`, no pow(), no round(), no sum() (its float algorithm changed in Python 3.12: total() is the sum),
+    and no math.sin / cos / exp / log / pow / tanh.
 Tools/audio/audio_check.py holds that rule with an AST lint over this file and every recipe (T-AUD-13).
 The sample rate has one source: C.AUD.SAMPLE_RATE_HZ in Docs/constants.yaml.
 """
 
 import math      # floor, sqrt, frexp, ldexp only
-import os
 import struct
-import sys
 import wave
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import dtconst  # noqa: E402
+import dtconst   # the constants reader (Tools/dtconst.py): the caller puts Tools/ on sys.path
 
 SR = dtconst.load()["AUD.SAMPLE_RATE_HZ"]["value"]
 TWO_PI = 6.283185307179586
@@ -224,8 +222,16 @@ def saturate(x, drive=1.0):
 
 # ---- finishing -------------------------------------------------------------------------------------
 
+def total(xs):
+	"""Left-to-right sum. The built-in sum() changed its float algorithm in Python 3.12; this one cannot change."""
+	acc = 0.0
+	for s in xs:
+		acc += s
+	return acc
+
+
 def rms(x):
-	return math.sqrt(sum(s * s for s in x) / max(1, len(x)))
+	return math.sqrt(total(s * s for s in x) / max(1, len(x)))
 
 
 def peak(x):
