@@ -19,6 +19,7 @@ param(
 trap { Write-Host "S2EXIT: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+if (-not $ReadOnly) { $DTHeavy = Enter-DTHeavy -What "S2Exit" }  # D-055 item 7: one slot for the whole battery (its -Parallel launches are this one job); -ReadOnly launches nothing
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if (-not $Out) { $Out = Join-Path $Root "Saved\BotRuns\s2_exit" }

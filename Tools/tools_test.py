@@ -2014,6 +2014,144 @@ class ArrivalHits(unittest.TestCase):
 			self.assertIsNone(pressure.landed_dropins_from_jsonl(old))
 			self.assertEqual(pressure.landed_detail(None), "landed drop-ins not in the file")
 
+class HeavyLocks(unittest.TestCase):
+	"""T-TEC-18 (D-055 item 7, R-TEC-18): heavy-job slots and the alone hold (Tools/Machine.ps1 Enter-DTHeavy, Tools/Alone.ps1), on a lock directory of the test's own."""
+
+	MACHINE = os.path.join(TOOLS, "Machine.ps1")
+	TAKER = ". {machine}; try {{ $R = Enter-DTHeavy -What {what}; 'GOT ' + $R; {after}[Console]::Out.Flush(); $null = [Console]::In.ReadLine() }} catch {{ 'ERR ' + $_; [Console]::Out.Flush() }}"
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.locks = os.path.join(self.tmp.name, "dt-locks")
+		os.makedirs(self.locks)
+		self.procs = []
+
+	def tearDown(self):
+		for p in self.procs:
+			if p.poll() is None:
+				p.kill()
+			p.wait()
+			p.stdin.close()
+			p.stdout.close()
+		self.tmp.cleanup()
+
+	def env(self, **extra):
+		env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+		env.update({"DT_LOCK_DIR": self.locks, "DT_HEAVY_WAIT_MAX_S": "60"})
+		env.update(extra)
+		return env
+
+	def slots(self, n):
+		with open(os.path.join(self.locks, "slots.txt"), "w", encoding="ascii") as f:
+			f.write(f"{n}\n")
+
+	def start(self, script, **extra):
+		import queue
+		import threading
+		p = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT, env=self.env(**extra))
+		p.lines = queue.Queue()
+		threading.Thread(target=lambda: [p.lines.put(raw.decode("utf-8", "replace").strip()) for raw in iter(p.stdout.readline, b"")], daemon=True).start()
+		self.procs.append(p)
+		return p
+
+	def taker(self, what="t", after="", **extra):
+		return self.start(self.TAKER.format(machine=ps_quote(self.MACHINE), what=what, after=after), **extra)
+
+	@staticmethod
+	def line(p, prefix, timeout):
+		"""The first output line starting with prefix within timeout seconds, or None."""
+		import queue
+		import time
+		end = time.monotonic() + timeout
+		while time.monotonic() < end:
+			try:
+				got = p.lines.get(timeout=max(0.05, end - time.monotonic()))
+			except queue.Empty:
+				return None
+			if got.startswith(prefix):
+				return got
+		return None
+
+	def release(self, p):
+		p.stdin.write(b"\n")
+		p.stdin.flush()
+		p.wait(timeout=30)
+
+	def test_the_taker_after_n_waits_until_one_ends(self):
+		self.slots(2)
+		first, second = self.taker("a"), self.taker("b")
+		self.assertIsNotNone(self.line(first, "GOT slot", 60))
+		self.assertIsNotNone(self.line(second, "GOT slot", 60))
+		third = self.taker("c")
+		self.assertIsNotNone(self.line(third, "heavy: c waits", 30))
+		self.assertIsNone(self.line(third, "GOT", 3))
+		self.release(first)
+		self.assertIsNotNone(self.line(third, "GOT slot", 30))
+
+	def test_a_nested_tools_call_takes_no_second_slot(self):
+		self.slots(1)
+		nested = f"& powershell -NoProfile -Command \". {ps_quote(self.MACHINE)}; 'NESTED ' + (Enter-DTHeavy -What inner)\"; "
+		outer = self.taker("outer", after=nested)
+		self.assertIsNotNone(self.line(outer, "GOT slot 1 of 1", 60))
+		self.assertIsNotNone(self.line(outer, "NESTED inherited", 60))
+
+	def test_a_killed_holder_frees_its_slot(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		holder.kill()
+		holder.wait()
+		after = self.taker("after")
+		self.assertIsNotNone(self.line(after, "GOT slot 1 of 1", 30))
+
+	def write_alone(self, token):
+		with open(os.path.join(self.locks, "alone.txt"), "w", encoding="ascii") as f:
+			f.write("ALONE since now, by a test.\nWhat: a reading\n" + (f"token: {token}\n" if token else ""))
+
+	def test_the_alone_hold_blocks_a_taker_without_its_token_and_lets_one_with_it_through(self):
+		self.write_alone("abc123def456")
+		blocked = self.taker("no_token", DT_HEAVY_WAIT_MAX_S="4")
+		self.assertIn("held alone", self.line(blocked, "ERR", 30) or "")
+		allowed = self.taker("with_token", DT_ALONE_TOKEN="abc123def456")
+		self.assertIsNotNone(self.line(allowed, "GOT slot", 60))
+
+	def test_a_hand_written_alone_file_without_a_token_blocks_everyone(self):
+		self.write_alone(None)
+		blocked = self.taker("any", DT_HEAVY_WAIT_MAX_S="4", DT_ALONE_TOKEN="anything")
+		self.assertIn("HEAVY: FAIL", self.line(blocked, "ERR", 30) or "")
+
+	def test_take_waits_for_busy_slots_then_writes_the_hold(self):
+		self.slots(1)
+		holder = self.taker("holder")
+		self.assertIsNotNone(self.line(holder, "GOT slot", 60))
+		take = self.start(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Take 'a test reading'")
+		self.assertIsNotNone(self.line(take, "alone: waits for the heavy slots", 30))
+		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+		self.release(holder)
+		taken = self.line(take, "ALONE: TAKEN", 30)
+		self.assertIsNotNone(taken)
+		with open(os.path.join(self.locks, "alone.txt"), encoding="ascii") as f:
+			self.assertIn("token: " + taken.split()[2], f.read())
+		rc, out = powershell(f"& {ps_quote(os.path.join(TOOLS, 'Alone.ps1'))} -Release", self.env())
+		self.assertIn("ALONE: RELEASED", out)
+		self.assertFalse(os.path.exists(os.path.join(self.locks, "alone.txt")))
+
+	def test_every_heavy_entry_takes_a_slot_and_play_does_not(self):
+		for name in ("Gate.ps1", "RunTests.ps1", "BotRuns.ps1", "Smoke.ps1", "Perf.ps1", "Package.ps1", "PadCheck.ps1", "SeedCheck.ps1", "WindowCheck.ps1",
+			"S2Exit.ps1", "RestartCheck.ps1", "PackageRestartCheck.ps1"):
+			with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+				code = ps_code(f.read().splitlines())
+			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
+			heavy = next(i for i, line in enumerate(code) if "Enter-DTHeavy" in line)
+			self.assertEqual([line for line in code[mask + 1:heavy] if line.strip()], [], name)
+		with open(self.MACHINE, encoding="utf-8") as f:
+			machine = f.read()
+		self.assertLess(machine.index("$null = Enter-DTHeavy -What (Split-Path -Leaf $Run.File)"), machine.index("& $Run.File @RunArgs"))
+		with open(os.path.join(TOOLS, "Play.bat"), encoding="utf-8") as f:
+			self.assertNotIn("Machine.ps1", f.read())
+
+
 class GateMain(unittest.TestCase):
 	"""The gate on main guards what 11_Quality s1 says (plans_audit 4.2, 4.3, 4.6): a missing Python step, an unresolved base, a test count off the floor,
 	a private canvas link, and one GPU lock for every worktree."""
