@@ -429,17 +429,22 @@ void FDTTelemetryCore::RecordDirBlock(const FDTTelDirBlock& Block)
 		return;
 	}
 	FDTTelJson ByRole;
+	FDTTelJson LandedByRole;
 	for (int32 Role = 0; Role < static_cast<int32>(EDTEnemyRole::Count); ++Role)
 	{
 		if (Block.SpawnedByRole[Role] > 0)
 		{
 			ByRole.Int(DTTelNames::EnemyRole(static_cast<EDTEnemyRole>(Role)), Block.SpawnedByRole[Role]);
 		}
+		if (Block.DropInsLandedByRole[Role] > 0)
+		{
+			LandedByRole.Int(DTTelNames::EnemyRole(static_cast<EDTEnemyRole>(Role)), Block.DropInsLandedByRole[Role]);
+		}
 	}
 	JsonlOut += FDTTelJson(JsonHead(TEXT("dir_block"), INDEX_NONE)).Int(TEXT("block"), Block.Block).Str(TEXT("phase"), Block.Phase)
 		.Num(TEXT("row_start_s"), Block.RowStartSeconds).Num(TEXT("start_s"), Block.StartSeconds).Num(TEXT("end_s"), Block.EndSeconds)
 		.Str(TEXT("ended_by"), Block.EndedBy).Raw(TEXT("spawned_by_role"), ByRole.Close()).Int(TEXT("skipped_at_cap"), Block.SkippedAtCap)
-		.Int(TEXT("dropins"), Block.DropIns).Int(TEXT("threat_actions"), Block.ThreatActions).Int(TEXT("kills"), Block.Kills)
+		.Int(TEXT("dropins"), Block.DropIns).Raw(TEXT("dropins_landed_by_role"), LandedByRole.Close()).Int(TEXT("threat_actions"), Block.ThreatActions).Int(TEXT("kills"), Block.Kills)
 		.Raw(TEXT("kill_horizon_p50_uu"), Block.KillHorizonP50UU >= 0.0f ? FDTTelJson::Real(Block.KillHorizonP50UU) : FString(TEXT("null")))
 		.Int(TEXT("alive_peak"), Block.AlivePeak)
 		.Raw(TEXT("dmg_taken"), ByOwner<float>(Block.DamageTakenShare, [](const float& V) { return FDTTelJson::Real(V); }))

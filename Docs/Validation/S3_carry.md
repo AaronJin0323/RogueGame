@@ -84,3 +84,16 @@ tests:      545 run of 545 found, 0 failed, floor 545, 0 crash marker(s)
 GATE: PASS (8dbb124; 3 not run; mask FFFFF3FC)
 ```
 Every step passed but pad, scope and mac (not run), firstrun 6/6 at the boss; no odd failure.
+## Third carry: `carry3/s2` (`main` d17458f in `dev/s2`) into `dev/s3` bb0c100 (`carry3/s3`)
+- Conflicts: the scheduler's records take `main`'s side whole (`git diff d17458f -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty). `package.md`: `dev/s3`'s list of what a run file holds, with "how many drop-ins landed" added from `main`. `telemetry.md`: T-TEL-16 and T-TEL-17 beside `dev/s3`'s HUMAN line. `number_change_log.csv`: every row of both sides. The floor and the generated header. `dev/s3` added no field to `dir_block`.
+- The bot: both versions end a decided run in `UDTBotSubsystem::HandleStepEnd`; the hold is there and nothing was added. T-TEL-17 passes; MetaCheck (`ba2a3ac8`, 1200 / 1200) and RestartCheck (`276faf8e`, 5400 / 5400) stay equal; firstrun reads 6/6 at the boss.
+- Pinned values: none moved. No `dev/s3` test or tool check pins a fast bot's step count or closing record.
+- Ids: T-TEL-16 and T-TEL-17 collide with nothing.
+- Counts: 547 found, 547 pass; `C.GATE.TEST_FLOOR` 545 to 547; `tools_test.py` 280.
+- Seed 9107, read on bb0c100 and on 054a7d2: every `input_hash` unchanged (v1 `00e0d4ec`, `51369747`, `e3293942`, `b046559b`, `def51848`; v2 `00e0d4ec`, `3b526497`, `27a6b67f`, `dcb5b3e4`); each record's `steps` reads two lower (v2: 58150 to 58148, 57637 to 57635, 55264 to 55262), which is this fix.
+
+```
+tests:      547 run of 547 found, 0 failed, floor 547, 0 crash marker(s)
+GATE: PASS (054a7d2; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run); no odd failure.
