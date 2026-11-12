@@ -31,8 +31,8 @@ The owner's order is floor and light, then models, then rounds and effects. I ke
 
 | # | Package | What it is | Why here | Size |
 |---|---|---|---|---|
-| L0 | The frame | No build: the camera study at four framings (today's 53 m across, 71, 39 and the direction's 27), for the scheduler's ruling | Every package's detail is sized by it. Until it is ruled, each design must hold at today's frame and at the direction's | running |
-| L1 | The bed, its light and its air | The floor as the Outfall's bed (ring-laid stone, three channels, the grate), an overcast dusk with one warm key, fixed exposure, glow for emissive parts, grain | The owner's first; and the exposure all else is judged in. Sheet sent | 2 to 3 days of one art agent, 1 of a developer |
+| L0 | The frame | No build: the camera study at four framings (today's 53 m across, 71, 39 and the direction's 27), for the scheduler's ruling. D-077 asks for three and names 71 m as today's; `C.ARENA.CAMERA_FRAME_RADIUS_UU` gives 53 m since D-036, so the study shoots both | Every package's detail is sized by it. Until it is ruled, each design must hold at today's frame and at the direction's | running |
+| L1 | The bed, its light and its air | The floor as the Outfall's bed (ring-laid stone, three channels, the grate), an overcast dusk with one warm key, fixed exposure, glow for emissive parts, grain | The owner's first; and the exposure all else is judged in. Its sheet was accepted by the scheduler on 2026-11-12 with six conditions, and it is in build | 2 to 3 days of one art agent, 1 of a developer |
 | L2 | Danger and fire as light | The warning drawn as a projection with a hot edge that reads on any ground; the enemy round's rim and the player round's core set to the contract's numbers in the new exposure; the muzzle flash | It is the second half of "the exposure and glow everything is judged in". It frees the floor: today's warnings need a ground of one tone, which is O-014. It is materials only, no mesh: the largest change to the picture for the least work | 2 days and 1 |
 | L3 | The Reclaimer | A person: hood and mask, dark undersuit, pale plates, the weapon rack above the head with its lamp, the hanging cloths in the patron's colour; the lamp's three states. And the shared hard-surface material the cast-offs will wear | One body, always at the centre of the screen. The lamp and the rack's outline are the designed answer to "find the hero", which D-068 answered only by clearing fire away | 3 to 4 days and 1 |
 | L4 | The cast-offs | The four roles as old machines of the Keep, mass first (a black and white test at fight distance before any detail), then the optic, then the material; elite parts on the anchors of D-076 | The mass of the picture. Needs the material of L3 and the hull call below | 5 to 6 days and 2 |
@@ -52,7 +52,7 @@ The HUD of wave 1 stands. The direction's card system, sigils, hub and ending ar
 | HUD, cards, hub, type | Yes | A whole card system the early boards only sketched | after the fight |
 | Palette, materials and pipeline | Each token row is re-read | Every row of `04_Presentation` that cites an early plate is read again in the package that uses it; a token moves only by its own record | each package |
 | Cast-offs | Yes | It settles in words what the list found split: old pale ceramic over a dark structure, not one dark enemy material | L4, with the call below |
-| Elites and the Warden | Yes | Affix parts mount by the hull's bounding box: D-076 is that rule | D-076, then L4; the Warden later |
+| Elites and the Warden | Yes | The direction mounts affix parts by the hull's bounding box (sides, top, rear); D-076's anchor table, taken from the hull generator, is the game's form of that | D-076, then L4; the Warden later |
 | World: camera, Keep, weather | Yes | The arena is the Outfall: a round basin with ring paving, where the early boards drew square slabs | L0, L1, L6 |
 The list's third section still holds, word for word, of the new pictures: a picture is not a proof of readability. `S4_wave2.md` maps as follows: its statuses to L7, pickups and weapons to L7 and L5, the elite anchors to D-076, the stride to L3, the second impact pass to L5, the offer screen to the interface work.
 
@@ -63,7 +63,7 @@ What wave 1 leaves that stands: its tools (the frames tool, the colour-vision re
 |---|---|---|
 | The camera's frame | the scheduler (D-077 item 7); Mechanics names the readings each framing makes stale | L0: the study |
 | The floor's stone colour, if it moves `Pal.Ground.*` | a record of its own | L1's frame, in both |
-| O-014: may the ground hold mid-tones under danger | the owner's, by O-014 | L1's frame beside one frame of a deeper, wetter bed with L2's warning |
+| O-014: may the ground hold mid-tones under danger | the scheduler rules it on a pair of frames | Shot inside L1 (the scheduler's condition on its sheet): the bed built inside the two windows with today's warnings, beside a deeper, wetter bed with the warning drawn as light |
 | How danger looks: the warning as light with a hot edge in place of the band with black edges (`04_Presentation` R-PRE-03, R-PRE-05) | a record of its own | L2's sheet and frames |
 | The enemies' hulls: pale ceramic over dark, against D-010 and `Pal.Enemy.Body` | D-077 item 8 | L4: the same fight in both, under the contract |
 | The exposure value | mine to tune inside the contract; `C.ARENA.EXPOSURE_EV100` is a constant with a row | L1 |
