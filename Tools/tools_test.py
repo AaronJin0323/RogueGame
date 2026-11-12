@@ -174,6 +174,31 @@ class SwarmTtk(unittest.TestCase):
 		self.assertFalse(pressure.ttk_is_first_hit(None))
 
 
+class EmissionBudget(unittest.TestCase):
+	"""D-078: the battery summary prints the worst refused share of asked by weapon and socket set, and whether any passes 0.05."""
+
+	def run_file(self, folder, lines):
+		os.makedirs(folder)
+		with open(os.path.join(folder, "1_x.jsonl"), "w", encoding="utf-8") as f:
+			f.write("\n".join(lines) + "\n")
+		return os.path.join(folder, "1_x.jsonl")
+
+	def test_the_worst_set_comes_first_and_the_last_line_says_whether_one_passes(self):
+		with tempfile.TemporaryDirectory() as root:
+			bad = self.run_file(os.path.join(root, "A_s1"), [
+				'{"t":10.0,"kind":"modifier_socketed","owner":0,"weapon":"Weapon.RingEmitter","modifier":"Mod.ScatterShell"}',
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.RingEmitter","spawned":600,"throttled":400}',
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.PulseRifle","spawned":100,"throttled":0}'])
+			good = self.run_file(os.path.join(root, "A_s2"), [
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.RingEmitter","spawned":990,"throttled":10}'])
+			lines = bot_summary.refusal_lines([("A_s1", bot_summary.read_refusals(bad)), ("A_s2", bot_summary.read_refusals(good))])
+		self.assertIn("| Weapon.RingEmitter | ScatterShell | 1 | 0.400 | A_s1 | 0.400 |", lines)
+		self.assertIn("| Weapon.RingEmitter | - | 1 | 0.010 | A_s2 | 0.010 |", lines)
+		self.assertEqual(lines[-1], "Emission budget: some weapon and socket set passes 0.05 (1 weapon run(s) over it; worst 0.400, Weapon.RingEmitter [ScatterShell] in A_s1).")
+		quiet = bot_summary.refusal_lines([("A_s2", {("Weapon.RingEmitter", "-"): (990, 10)})])
+		self.assertTrue(quiet[-1].startswith("Emission budget: no weapon and socket set passes 0.05 (0 weapon run(s) over it"), quiet[-1])
+
+
 class Casts(unittest.TestCase):
 	def read(self, lines):
 		with tempfile.TemporaryDirectory() as folder:
