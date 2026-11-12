@@ -1179,19 +1179,15 @@ bool FDTWeaponSim::FireVolley(const FDTSimContext& Context, FDTBulletPool* Bulle
 		{
 			const int32 Row = Spec.EvolveRow;
 			const float Grow = DTReforge::Param(Row, TEXT("grow_s"));
-			// R-RFG-12: a free volley, a kill's or a dash's, leaves the live ring where it stands (D-039, D-040). The ring strikes its band
-			// once more, as that volley's and at its multiplier. With none live the volley opens one below, and that ring is the volley's.
-			if (bFree && StrikeForceField(Context, Owner, Slot, Runtime, Shot.SourceId,
-				DTReforge::Param(Row, TEXT("dps")) * Shot.Damage * DTReforge::Param(Row, TEXT("tick_s"))))
+			// R-RFG-12: a free volley, a kill's or a dash's, leaves the live ring where it stands (D-039, D-040). The ring strikes what stands
+			// inside it once more, as that volley's and at its multiplier. With none live the volley opens one, and that ring is the volley's.
+			// D-074: the volley fires its rounds below as the weapon does, and unless this weapon has a ring live it also opens one.
+			if (!(bFree && StrikeForceField(Context, Owner, Slot, Runtime, Shot.SourceId,
+				DTReforge::Param(Row, TEXT("dps")) * Shot.Damage * DTReforge::Param(Row, TEXT("tick_s")))))
 			{
-				break;
+				OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
+					Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s")));
 			}
-			if (!OpenForceField(Owner, Slot, Runtime, Shot.SourceId, Hero, DTReforge::Param(Row, TEXT("radius_uu")), Grow + DTReforge::Param(Row, TEXT("hold_s")),
-				Grow, DTReforge::Param(Row, TEXT("band_uu")), DTReforge::Param(Row, TEXT("push_uu_s")), DTReforge::Param(Row, TEXT("dps")) * Shot.Damage, DTReforge::Param(Row, TEXT("tick_s"))))
-			{
-				return false; // the last ring still lives: the cooldown stays ready, or a volley is lost for a whole cooldown
-			}
-			break;
 		}
 		const FVector2f Base(1.0f, 0.0f);
 		for (int32 Index = Converted; Index < Spec.Count; ++Index)
@@ -2057,6 +2053,7 @@ void FDTWeaponSim::AddFieldHit(FDTWorldView& View, const FField& Field, FWeaponR
 	Hit.SourceId = SourceId;
 	Hit.WeaponSlot = Field.Slot;
 	AddHitImpact(View, Hit, Field.Slot, Runtime, Field.Position, Field.Position, Hit.Damage, false);
+	Impacts.Last().bRingStrike = true; // D-074: the ring's own push is this strike's one displacement
 }
 
 bool FDTWeaponSim::StrikeForceField(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, uint16 SourceId, float Damage)
@@ -3782,10 +3779,6 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 	bool bBounced = false; // a modifier's and a Keeper's Ricochet are one bounce
 	for (const FDTResolvedFlag& Flag : Flags)
 	{
-		if (!Flag.IsNative() && !Flag.IsFallback())
-		{
-			continue; // a flag that resolves none does nothing on this weapon (weapons.md R-WPN-08: only Pulse Wall has one, D-070)
-		}
 		const FDTFlagParams& Params = Flag.Entry.Params;
 		const FName On = Params.GetWord(DTFlagParam::On);
 		switch (Flag.Entry.Flag)
@@ -3909,8 +3902,8 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			}
 			if (Params.GetWord(DTFlagParam::Target) == WordOrigin)
 			{
-				// Mod.Backwash: the hit enemy is drawn toward the round's origin.
-				if ((Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcHit || Impact.Kind == EImpact::MineHit) && HitEnemy != INDEX_NONE)
+				// Mod.Backwash: the hit enemy is drawn toward the round's origin; never by a ring's strike, whose push is its one move (D-074).
+				if ((Impact.Kind == EImpact::RoundHit || Impact.Kind == EImpact::ArcHit || Impact.Kind == EImpact::MineHit) && HitEnemy != INDEX_NONE && !Impact.bRingStrike)
 				{
 					const FVector2f To = Impact.Origin - View.EnemyPositions[HitEnemy];
 					const float Dist = To.Size();

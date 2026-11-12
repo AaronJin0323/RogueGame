@@ -194,8 +194,7 @@ void DTReforge::ApplyEvolution(int32 Row, const DTCat::FWeaponLevelRow& Level, F
 		Spec.LifeOverride = Get(TEXT("life_s"));
 		Spec.Damage = Level.Damage * Get(TEXT("dmg_ratio"));
 		break;
-	case EDTEvolve::PulseWall: // R-RFG-12
-		Spec.Cooldown = FMath::Max(Spec.Cooldown, Get(TEXT("grow_s")) + Get(TEXT("hold_s")));
+	case EDTEvolve::PulseWall: // R-RFG-12, D-074: the weapon's own cooldown; one ring per weapon lives at a time
 		break;
 	case EDTEvolve::Vortex: // R-RFG-13
 		Spec.Range = Get(TEXT("vortex_uu"));

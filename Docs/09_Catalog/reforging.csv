@@ -12,6 +12,6 @@ Evolve.RailLance,Evolve,Weapon.RailLance,SweepBeam,Beam;Continuous;Aimed,beam_s=
 Evolve.FlakMortar,Evolve,Weapon.FlakMortar,CarpetLine,Lob;Area,blasts=5;walk_uu=600;step_s=0.12;dmg_ratio=0.25,GATED(S2),build_depth_spec 1.4; design log step 4 step; dmg_ratio first guess
 Evolve.ArcBlade,Evolve,Weapon.ArcBlade,MoveSpin,Melee;Area,hits_s=2;arc_deg=360;dmg_ratio=0.6;move_min_uu_s=50,GATED(S2),build_depth_spec 1.4; dmg_ratio and move_min first guess
 Evolve.SeekerSwarm,Evolve,Weapon.SeekerSwarm,Persist,Homing;Projectile;Expiry,life_s=6;pierce=200;dmg_ratio=0.2,GATED(S2),build_depth_spec 1.4; design log step 4 pierce; dmg_ratio first guess
-Evolve.RingEmitter,Evolve,Weapon.RingEmitter,PulseWall,Radial;Area,radius_uu=600;grow_s=0.6;hold_s=3;push_uu_s=73;dps=6;tick_s=0.25,GATED(S2),build_depth_spec 1.4; design log step 4 grow; caps dps push from the previous project's source (D-070)
+Evolve.RingEmitter,Evolve,Weapon.RingEmitter,PulseWall,Projectile;Radial;Area;Expiry,radius_uu=600;grow_s=0.6;hold_s=3;push_uu_s=73;dps=6;tick_s=0.25,GATED(S2),build_depth_spec 1.4; design log step 4 grow; dps and push and no band from the previous project's source (D-070 and D-074)
 Evolve.SpiralProjector,Evolve,Weapon.SpiralProjector,Vortex,Radial;Projectile;Continuous;Expiry,vortex_uu=500;curl_deg_s=70;zone_r_uu=260;zone_s=1.2;pull_uu_s=180,GATED(S2),build_depth_spec 1.4; design log step 4 zone
 Evolve.GravityMine,Evolve,Weapon.GravityMine,Merge,Mine;Area,pull_uu=900;blast_ratio=1.5,GATED(S2),build_depth_spec 1.4; blast_ratio first guess

@@ -443,6 +443,8 @@ private:
 		int8 DuoRow = INDEX_NONE;
 		/** The hit or round was a payday's (keepers.md R-KEE-29): what this impact sets off is the payday's too. */
 		bool bPayday = false;
+		/** A force field's strike (Pulse Wall's ring, R-RFG-12): no modifier moves what it strikes (D-074). */
+		bool bRingStrike = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */

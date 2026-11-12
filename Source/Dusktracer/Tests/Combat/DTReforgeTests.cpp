@@ -107,19 +107,10 @@ bool FDTReforgeCatalog::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s has an Evolve row"), DTCat::Weapons[Weapon].Id), Row != INDEX_NONE);
 		const FDTCapList Caps = DTReforge::Caps(Row);
 		TestTrue(TEXT("an evolution declares caps"), Caps.Caps.Num() > 0);
-		// weapons.md R-WPN-08's one stated exception (D-070 ruling 11): Pulse Wall resolves Chain and StatusApply native, every other flag none.
-		const bool bWall = DTReforge::RowId(Row) == FName(TEXT("Evolve.RingEmitter"));
 		for (int32 Flag = 0; Flag < static_cast<int32>(DTCat::EFlag::Count); ++Flag)
 		{
-			const DTCat::ECompat Compat = DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat;
-			if (!bWall)
-			{
-				TestTrue(FString::Printf(TEXT("%s resolves %s"), DTCat::Reforges[Row].Id, DTCat::FlagIds[Flag]), Compat != DTCat::ECompat::None);
-				continue;
-			}
-			const bool bKept = Flag == static_cast<int32>(DTCat::EFlag::Chain) || Flag == static_cast<int32>(DTCat::EFlag::StatusApply);
-			TestEqual(FString::Printf(TEXT("Pulse Wall: %s resolves %s"), DTCat::FlagIds[Flag], bKept ? TEXT("native") : TEXT("none")),
-				static_cast<int32>(Compat), static_cast<int32>(bKept ? DTCat::ECompat::Native : DTCat::ECompat::None));
+			TestTrue(FString::Printf(TEXT("%s resolves %s"), DTCat::Reforges[Row].Id, DTCat::FlagIds[Flag]),
+				DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat != DTCat::ECompat::None);
 		}
 	}
 	for (const EDTPath Path : { EDTPath::Storm, EDTPath::Forge, EDTPath::Tide, EDTPath::Shade, EDTPath::Radiance, EDTPath::Quicksilver })
@@ -552,7 +543,7 @@ bool FDTReforgePulseWallDisc::RunTest(const FString& Parameters)
 		TestEqual(TEXT("one ring live"), H.Weapons.GetLiveFields(), 1);
 	}
 	{
-		// The round modifiers go dormant on the evolved weapon (R-MOD-08); Conduit and Chain Trigger stay live (D-070 rulings 5, 10).
+		// D-074: the port's capabilities stay, so every modifier that fits the Ring Emitter stays live on the evolved weapon.
 		FDTHarness H;
 		int32 Slot = INDEX_NONE;
 		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8, &Slot);
@@ -564,10 +555,127 @@ bool FDTReforgePulseWallDisc::RunTest(const FString& Parameters)
 		const FDTWeaponInstance& Now = H.Run.GetPlayer(0).Weapons[Slot];
 		for (const FDTWeaponInstance::FSocket& Socket : Now.Sockets)
 		{
-			const bool bRound = Socket.ModId == FName(TEXT("Mod.Pierce"));
-			TestEqual(FString::Printf(TEXT("%s is %s on Pulse Wall"), *Socket.ModId.ToString(), bRound ? TEXT("dormant") : TEXT("live")), Socket.bDormant, bRound);
+			TestFalse(FString::Printf(TEXT("%s stays live on Pulse Wall"), *Socket.ModId.ToString()), Socket.bDormant);
 		}
 	}
+	return true;
+}
+namespace DTReforgeTest
+{
+	/** An evolved Ring Emitter with these modifiers socketed on the plain weapon first (the sockets the evolution keeps). */
+	static int32 GiveWallWith(FDTHarness& H, std::initializer_list<const TCHAR*> Mods)
+	{
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8, &Slot);
+		for (const TCHAR* Mod : Mods)
+		{
+			H.Weapons.Socket(H.Run, 0, Slot, FName(Mod));
+		}
+		FDTWeaponInstance& Owned = H.Run.GetPlayer(0).Weapons[Slot];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		return Owned.Evolve;
+	}
+
+	/** Steps, recording any displacement of Serial toward the ring's centre (the hero at the origin): a pull, not the ring's push. */
+	static bool StepAndSeePull(FDTHarness& H, int32 Steps, uint32 Serial)
+	{
+		bool bPulled = false;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			H.StepOnce();
+			for (const FDTDisplacement& D : H.View.Displacements)
+			{
+				const int32 Index = H.Enemies.GetSerials().IndexOfByKey(D.EnemySerial);
+				bPulled = bPulled || (D.EnemySerial == Serial && Index != INDEX_NONE && FVector2f::DotProduct(D.Delta, H.Enemies.GetPositions()[Index]) < 0.0f);
+			}
+			H.View.Displacements.Reset();
+		}
+		return bPulled;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallStrike, "Dusktracer.Reforging.PulseWallStrike", DTWeaponTestHarness::TestFlags) // T-RFG-12, D-074
+bool FDTReforgePulseWallStrike::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const int32 Steps = FMath::RoundToInt(1.5f / Dt);
+	{
+		// A ring's strike places nothing and pulls nothing: an enemy between two of the volley's round lines is struck by the ring only.
+		FDTHarness H;
+		GiveWallWith(H, { TEXT("Mod.SplitCore"), TEXT("Mod.LingeringField"), TEXT("Mod.Backwash") });
+		H.StepOnce();
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f; // one volley
+		const int32 Count = FMath::Max(1, H.Weapons.GetLastSpec(0, 0).Count);
+		const float Half = 0.5f * 360.0f / static_cast<float>(Count);
+		const FVector2f At = FVector2f(FMath::Cos(FMath::DegreesToRadians(Half)), FMath::Sin(FMath::DegreesToRadians(Half))) * 150.0f;
+		const int32 Index = H.AddEnemy(At);
+		const uint32 Serial = H.Enemies.GetSerials()[Index];
+		const int32 Before = H.HitLog.Num();
+		const bool bPulled = StepAndSeePull(H, Steps, Serial);
+		int32 Ring = 0;
+		for (int32 Hit = Before; Hit < H.HitLog.Num(); ++Hit)
+		{
+			Ring += H.HitLog[Hit].EnemySerial == Serial ? 1 : 0;
+		}
+		TestTrue(TEXT("the ring strikes it"), Ring > 0);
+		TestFalse(TEXT("and Backwash does not pull it on a ring's strike"), bPulled);
+		TestEqual(TEXT("Lingering Field places nothing on a ring's strike: only the ring lives"), H.Weapons.GetLiveFields(), 1);
+		TestEqual(TEXT("Split Core fans nothing from a ring's strike: no round hits it"), HitsOn(H, Serial, DTWeapons::ModifierSource(DTWeapons::FindModifier(TEXT("Mod.SplitCore")))), 0);
+	}
+	{
+		// The same volley's rounds do what those modifiers do on the plain weapon: an enemy on a round line is struck by a round,
+		// which fans Split Core's children, leaves Lingering Field's zone and pulls it back toward the hero.
+		FDTHarness H;
+		GiveWallWith(H, { TEXT("Mod.SplitCore"), TEXT("Mod.LingeringField"), TEXT("Mod.Backwash") });
+		const int32 Index = H.AddEnemy(FVector2f(400.0f, 0.0f));
+		const uint32 Serial = H.Enemies.GetSerials()[Index];
+		const int32 OpenedBefore = H.Weapons.GetFieldsOpened();
+		const bool bPulled = StepAndSeePull(H, Steps, Serial);
+		TestTrue(TEXT("a round strikes it"), H.Bullets.Num() > 0 || HitsOn(H, Serial) > 0);
+		TestTrue(TEXT("Backwash pulls it on a round's hit"), bPulled);
+		TestTrue(TEXT("Lingering Field leaves a zone where the round struck"), H.Weapons.GetFieldsOpened() > OpenedBefore + 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallThrottle, "Dusktracer.Reforging.PulseWallThrottle", DTWeaponTestHarness::TestFlags) // T-RFG-12, D-074 item 5
+bool FDTReforgePulseWallThrottle::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// A crowd stands inside the disc for several ring lives; with a Keeper's Chain composed every ring strike starts jumps, and a
+	// jump spends one of the weapon's emissions. The weapon's rounds must not be throttled for it.
+	const auto Scene = [](bool bChain, int64& OutSpawned, int64& OutThrottled)
+	{
+		FDTHarness H;
+		GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+		if (bChain)
+		{
+			FDTWeaponFlags Flags;
+			FDTFlagEntry& Chain = Flags.Add(DTCat::EFlag::Chain, DTWeapons::KeeperSource(EDTPath::Storm), EDTFlagTier::Key);
+			Chain.Params.Set(DTFlagParam::Jumps, 2.0f);
+			Chain.Params.Set(DTFlagParam::RangeUu, 350.0f);
+			Chain.Params.Set(DTFlagParam::Dmg, 0.6f);
+			H.Weapons.AddFlagSource(0, TEXT("Test.ArcGrid"), Flags);
+		}
+		for (int32 Ring = 0; Ring < 3; ++Ring)
+		{
+			for (int32 Index = 0; Index < 16; ++Index)
+			{
+				const float Angle = 2.0f * PI * (static_cast<float>(Index) + 0.5f * Ring) / 16.0f;
+				H.AddEnemy(FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * (150.0f + 150.0f * Ring));
+			}
+		}
+		H.StepMany(FMath::RoundToInt(3.0f * (0.6f + 3.0f) / Dt)); // three ring lives
+		OutSpawned = H.Weapons.GetCounters(0, 0).Spawned;
+		OutThrottled = H.Weapons.GetCounters(0, 0).Throttled;
+	};
+	int64 SpawnedPlain = 0, ThrottledPlain = 0, SpawnedChain = 0, ThrottledChain = 0;
+	Scene(false, SpawnedPlain, ThrottledPlain);
+	Scene(true, SpawnedChain, ThrottledChain);
+	AddInfo(FString::Printf(TEXT("without the chain: %lld spawned, %lld throttled; with it: %lld spawned, %lld throttled"), SpawnedPlain, ThrottledPlain, SpawnedChain, ThrottledChain));
+	TestEqual(TEXT("chains started by the disc's strikes throttle no more of the weapon's emissions"), ThrottledChain, ThrottledPlain);
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallGap, "Dusktracer.Reforging.PulseWallGap", DTWeaponTestHarness::TestFlags) // T-RFG-12
