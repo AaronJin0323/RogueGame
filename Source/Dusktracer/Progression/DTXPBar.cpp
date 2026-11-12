@@ -12,8 +12,11 @@
 namespace DTXPBarLocal
 {
 	// HUD layout (pixels at the drawn canvas size) and the flash window; presentation, not tuning.
-	constexpr float TopPx = 24.0f;
-	constexpr float WidthRatio = 0.4f;
+	// The top-right block the first visual wave gives the level and XP (D-080 item 11), on the run clock's margin and under it.
+	constexpr float TopPx = 24.0f;      // ADTHUD's margin: the clock's top
+	constexpr float MarginPx = 24.0f;   // ADTHUD's margin: the clock's right edge
+	constexpr float BlockWidthPx = 360.0f;
+	constexpr float ClockScale = 1.5f;  // ADTHUD's title scale, at which the clock is drawn
 	constexpr float BarHeightPx = 12.0f;
 	constexpr float LabelGapPx = 10.0f;
 	constexpr float RowGapPx = 8.0f;
@@ -82,11 +85,19 @@ void FDTXPBar::Draw(UCanvas* Canvas, UWorld* World, UFont* Font, float TextScale
 		Canvas->DrawItem(Tile);
 	};
 
-	const float BarW = Canvas->ClipX * WidthRatio;
-	const float BarX = (Canvas->ClipX - BarW) * 0.5f;
-	float Y = TopPx;
-	for (const FDTXPBarRow& Row : Rows)
+	// The top-right block, under the run clock (ADTHUD draws it at TopPx, right-aligned, at ClockScale): out of the hero's column.
+	const FBox2f Block = BlockSpan(Canvas->ClipX);
+	const float BarX = Block.Min.X;
+	const float BarW = Block.GetSize().X;
+	float ClockW = 0.0f;
+	float ClockH = 0.0f;
+	Canvas->TextSize(Font, TEXT("00:00"), ClockW, ClockH, ClockScale, ClockScale);
+	const float ClockLeft = Block.Max.X - ClockW;
+	const float ClockBottom = TopPx + ClockH;
+	float Y = ClockBottom + RowGapPx;
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
+		const FDTXPBarRow& Row = Rows[Index];
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Level"), FText::AsNumber(Row.Level));
 		Args.Add(TEXT("XP"), FText::AsNumber(Row.XP));
@@ -96,32 +107,53 @@ void FDTXPBar::Draw(UCanvas* Canvas, UWorld* World, UFont* Font, float TextScale
 		float LabelW = 0.0f;
 		float LineH = 0.0f;
 		Measure(Label, LabelW, LineH);
-		const float RowH = FMath::Max(LineH, BarHeightPx);
-		const float BarY = Y + (RowH - BarHeightPx) * 0.5f;
 
-		Text(Label, BarX - LabelGapPx - LabelW, Y + (RowH - LineH) * 0.5f);
-		Box(BarX, BarY, BarW, BarHeightPx, Back);
-		Box(BarX, BarY, BarW * Row.Progress01, BarHeightPx, Row.bFlash ? FlashFill : Fill);
+		// The level: beside the clock on its baseline for the first player, else on its own line.
+		if (Index == 0 && BarX + LabelW + LabelGapPx <= ClockLeft && LineH <= ClockH)
+		{
+			Text(Label, BarX, ClockBottom - LineH);
+		}
+		else
+		{
+			Text(Label, BarX, Y);
+			Y += LineH + RowGapPx;
+		}
+		Box(BarX, Y, BarW, BarHeightPx, Back);
+		Box(BarX, Y, BarW * Row.Progress01, BarHeightPx, Row.bFlash ? FlashFill : Fill);
+		Y += BarHeightPx + RowGapPx;
 
-		float RightX = BarX + BarW + LabelGapPx;
-		const FText Xp = FText::Format(XpFormat, Args);
-		float XpW = 0.0f;
-		float XpH = 0.0f;
-		Measure(Xp, XpW, XpH);
-		Text(Xp, RightX, Y + (RowH - XpH) * 0.5f);
-		RightX += XpW + LabelGapPx;
+		// Under the bar: the XP, then the waiting hands and the level-up flash, each on the line while it fits the block.
+		float RightX = BarX;
+		float LineBottom = Y;
+		auto Place = [&](const FText& Line)
+		{
+			float W = 0.0f;
+			float H = 0.0f;
+			Measure(Line, W, H);
+			if (RightX > BarX && RightX + W > Block.Max.X)
+			{
+				RightX = BarX;
+				Y = LineBottom;
+			}
+			Text(Line, RightX, Y);
+			RightX += W + LabelGapPx;
+			LineBottom = FMath::Max(LineBottom, Y + H);
+		};
+		Place(FText::Format(XpFormat, Args));
 		if (Row.PendingHands > 0)
 		{
-			const FText Pending = FText::Format(PendingFormat, Args);
-			float PendingW = 0.0f;
-			Measure(Pending, PendingW, XpH);
-			Text(Pending, RightX, Y + (RowH - XpH) * 0.5f);
-			RightX += PendingW + LabelGapPx;
+			Place(FText::Format(PendingFormat, Args));
 		}
 		if (Row.bFlash)
 		{
-			Text(LevelUp, RightX, Y + (RowH - XpH) * 0.5f);
+			Place(LevelUp);
 		}
-		Y += RowH + RowGapPx;
+		Y = LineBottom + RowGapPx;
 	}
+}
+
+FBox2f FDTXPBar::BlockSpan(float ClipX)
+{
+	using namespace DTXPBarLocal;
+	return FBox2f(FVector2f(ClipX - MarginPx - BlockWidthPx, TopPx), FVector2f(ClipX - MarginPx, TopPx));
 }

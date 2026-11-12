@@ -9,6 +9,7 @@ Exit test (`12_Production §2`, S1; D-048): **3 validators × 2 runs, at each of
 - Between runs: the game has no restart. After the death or victory screen press Alt+F4 (the host does it for a pad tester), then launch again. Alt+F4 mid-run is safe; the run file closes with reason `quit`.
 - If the game freezes (the picture stops and no key or button does anything): wait fifteen seconds. If it has not closed by itself, press Ctrl+Alt+Delete, choose Task Manager, select Dusktracer and press End task. What the run wrote up to that moment is kept and is exported with the other runs. Write the run and the clock time in the Bugs row, then launch again. A run cut short by a freeze or a crash keeps its row in the run table with how it ended; if there is time, give the tester another run and write it as a new row.
 - Have this sheet and a clock. Write the clock time each time you launch, and the run timer (HUD) at each key moment.
+- Known gaps of this build, not findings. If a tester remarks on one, write their words and the time and say nothing: (1) the boss is a grey box, and when it stands above the hero on the screen its top is cut off by the screen's edge (D-080 item 13).
 
 ### Only if the session is on the development PC
 Three things are true there and nowhere else:

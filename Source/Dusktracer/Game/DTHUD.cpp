@@ -36,6 +36,7 @@ namespace DTHUDLocal
 	constexpr float MarginPx = 24.0f;
 	constexpr float LineGapPx = 6.0f;
 	constexpr float TitleScale = 1.5f;
+	constexpr float BannerGapPx = 6.0f; // between the boss row and a banner under it (the first visual wave's gap)
 	const FLinearColor BarBack = DTPal::Linear(DTPal::UI_Panel);
 	const FLinearColor BarFill = DTPal::Linear(DTPal::Player_TrailNeutral);
 	const FLinearColor BarReady = DTPal::Linear(DTPal::Player_Core);
@@ -372,7 +373,8 @@ void ADTHUD::DrawHUD()
 		Canvas->DrawItem(Item);
 	}
 
-	// Director banners, top centre (director.md R-DIR-17).
+	// Director banners, top centre (director.md R-DIR-17): directly under the boss row while it is drawn, as the first visual
+	// wave stacks the centre column; at the top margin when it is not.
 	if (const UDTDirector* Director = GetWorld() ? GetWorld()->GetSubsystem<UDTDirector>() : nullptr)
 	{
 		const EDTDirBanner Banner = Director->GetCore().GetBanner();
@@ -382,7 +384,10 @@ void ADTHUD::DrawHUD()
 			float Width = 0.0f;
 			float Height = 0.0f;
 			Canvas->TextSize(Font, Line.ToString(), Width, Height, TitleScale, TitleScale);
-			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, DTHUDLocal::MarginPx), Line, Font, DTHUDLocal::UIText);
+			const UDTBossSubsystem* const Boss = GetWorld()->GetSubsystem<UDTBossSubsystem>();
+			const float BannerY = Boss && Boss->GetCore().HasHull()
+				? UDTBossSubsystem::BossRowRect(Canvas->ClipX).Max.Y + DTHUDLocal::BannerGapPx : DTHUDLocal::MarginPx;
+			FCanvasTextItem Item(FVector2D((Canvas->ClipX - Width) * 0.5f, BannerY), Line, Font, DTHUDLocal::UIText);
 			Item.Scale = FVector2D(TitleScale, TitleScale);
 			Item.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(Item);

@@ -433,6 +433,8 @@ private:
 		float EnemyRadius = 0.0f;
 		FVector2f EnemyPosition = FVector2f::ZeroVector;
 		int32 Generation = 0;
+		/** Born of a Scatter Shell ring (an on=Expiry ring split): such a round never bursts into a ring again (R-MOD-05, D-078). */
+		bool bRingChild = false;
 		int32 BouncesLeft = 0;
 		bool bSpent = false;
 		bool bCleave = false;
@@ -469,6 +471,7 @@ private:
 		float BaseDamage = 0.0f;
 		int32 PierceLeft = 1;
 		int32 Generation = 0;
+		bool bRingChild = false;
 		int32 BouncesLeft = 0;
 		bool bCharged = false;
 		bool bEmber = false;
@@ -574,6 +577,7 @@ private:
 		float Life = 0.0f;
 		bool bTrack = false;
 		int32 Generation = 0;
+		bool bRingChild = false;
 		int32 Bounces = 0;
 		bool bCharged = false;
 		bool bEmber = false;
@@ -765,7 +769,7 @@ private:
 	/** Mod.Refit: a random pool modifier into the first weapon with a free socket that can use one. */
 	bool TryRefit(const FDTSimContext& Context, FDTPlayerRunState& Player, FWeaponRuntime& Source);
 	void EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FImpact& Impact,
-		const FDTFlagEntry& Entry, bool bRing, const FVector2f& From);
+		const FDTFlagEntry& Entry, bool bRing, const FVector2f& From, bool bMarkRingChildren = false);
 	void ApplyStatus(const FDTSimContext& Context, const FDTFlagParams& Params, const FDTEnemyHandle& Handle,
 		float HitDamage, int32 OwnerId, uint16 SourceId);
 	/** Bitmask of EDTStatus on an enemy (0 without an enemy pool or for a stale handle). */

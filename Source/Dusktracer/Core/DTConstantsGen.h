@@ -181,7 +181,8 @@ namespace DTConst
 	inline constexpr float ARENA_BLOOM_THRESHOLD = 1.0f; // scale, GATED(S0)
 	inline constexpr int32 ARENA_CAMERA_PITCH_DEG = 60; // deg, GATED(S1)
 	inline constexpr int32 ARENA_CAMERA_FOV_DEG = 50; // deg, GATED(S1)
-	inline constexpr int32 ARENA_CAMERA_FRAME_RADIUS_UU = 1500; // uu, GATED(S0)
+	inline constexpr float ARENA_CAMERA_FRAME_RADIUS_UU = 1258.2f; // uu, GATED(S0)
+	inline constexpr float ARENA_CAMERA_AIM_SHIFT_UU = 140.6f; // uu, GATED(S0)
 	inline constexpr int32 SMOKE_SECONDS = 10; // s, CORE
 	inline constexpr float SMOKE_GOLDEN_MEAN_DIFF_MAX = 12.0f; // level, GATED(S0)
 	inline constexpr float SMOKE_IMAGE_STDDEV_MIN = 4.0f; // level, CORE
@@ -205,7 +206,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 488; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 489; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE

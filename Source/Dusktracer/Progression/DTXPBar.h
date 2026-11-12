@@ -27,6 +27,10 @@ struct DUSKTRACER_API FDTXPBar
 	/** One row per player of the run, always (R-PRG-11), whatever the hand queue or density. */
 	static void BuildRows(const FDTRunState& Run, double SimTime, TConstArrayView<double> LastLevelUpTime, TArray<FDTXPBarRow>& Out);
 
-	/** Draws every player's row at the top centre of the canvas. No-op without a run (no sim subsystem). */
+	/** Draws every player's level and XP in the top-right block, under the run clock, its text at TextScale (the text-size setting).
+	 *  No-op without a run (no sim subsystem). */
 	static void Draw(UCanvas* Canvas, UWorld* World, UFont* Font, float TextScale = 1.0f);
+
+	/** The columns of the top-right block on a canvas ClipX wide (Min.X to Max.X; Y is its top): out of the hero's column (06_UX R-UX-01). */
+	static FBox2f BlockSpan(float ClipX);
 };
