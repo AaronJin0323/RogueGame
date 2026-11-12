@@ -35,7 +35,7 @@ A constant or a test id that exists only on `dev/s2` is written without its pref
 5. **Always printed beside a card's figures: its Path's card on the same three measures.** That is the hand's real choice. If the Path's card reads 1.5 and the evolution 1.2, the hand is decided for the player; the record on what an evolution must give says what gap is too wide. This draft sets no number for it.
 6. **The source's second clause** (the swarm's time to kill stays under `TTK.SWARM_STEERED_MAX` before and after) is printed from the play arms; the run files hold it.
 7. **What the field cannot show, said with every reading:** it reads power when the weapon is used. The probe's hero takes no damage and walks its route inside the crowd, so a contact weapon reads at its best there. Whether a build survives using it is the play arms': deaths before the boss and damage taken, printed per arm.
-8. **R-RFG-18's sentence becomes:** "Its power is a reading on the build that reaches the hand: on the probe's fixed field the build's damage with the card is `C.REFORGE.POWER_MIN` to `C.REFORGE.POWER_MAX` times its damage without it; in play the card costs neither the run before the boss nor the boss fight against a control that declines the hand."
+8. **R-RFG-18's sentence becomes:** "Its power is a reading on the build that reaches the hand: on the probe's fixed field the build's damage with the card is `REFORGE.POWER_MIN` to `REFORGE.POWER_MAX` times its damage without it; in play the card costs neither the run before the boss nor the boss fight against a control that declines the hand."
 
 ### The equipment's own check
 It is kept if all of this holds, and reported if any does not:
