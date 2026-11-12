@@ -61,6 +61,7 @@ presentation:
   HUD.LOW_HP_PULSE_S:          { value: 0.8,  unit: s,     tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-05, T-HUD-05] }
   HUD.LOW_HP_PULSE_MIN:        { value: 0.45, unit: ratio, tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-05, T-HUD-05] }
   HUD.TEXT_MIN_PX:             { value: 12,   unit: px,    tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-08, T-HUD-08] }
+  HUD.TRANSIENT_FLOOR_UU:      { value: 1050, unit: uu,    tag: GATED(S4),  dependents: [02_Systems/hud.md, R-HUD-02, T-HUD-02] }
 budget:
   BUDGET.RES:                  { value: "1080p60", unit: res_fps, tag: CORE, dependents: [11_Quality.md] }
   BUDGET.GAME_THREAD_P50_MS:   { value: 8,    unit: ms,    tag: CORE, dependents: [11_Quality.md] }

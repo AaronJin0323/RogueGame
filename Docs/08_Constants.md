@@ -49,6 +49,7 @@
 | C.HUD.LOW_HP_PULSE_S | 0.8 | s | GATED(S4) | hud.md R-HUD-05, T-HUD-05 (one pulse of the HP bar's fill, on sim time) |
 | C.HUD.LOW_HP_PULSE_MIN | 0.45 | ratio | GATED(S4) | hud.md R-HUD-05, T-HUD-05 (the fill's opacity at the bottom of a pulse) |
 | C.HUD.TEXT_MIN_PX | 12 | px | GATED(S4) | hud.md R-HUD-08, T-HUD-08 (the shortest line of player text at the smoke window, default text size) |
+| C.HUD.TRANSIENT_FLOOR_UU | 1050 | uu | GATED(S4) | hud.md R-HUD-02, T-HUD-02 (the lowest the banner and the toast under the boss row may reach up the hero's column, on the drawn plane; D-080: they are transient and not counted by the circle) |
 | C.PRE.DENSITY_LOD_KILLS_PER_S | 20 | /s | GATED(S1) | 04_Presentation §2, T-PRE-06 |
 | C.PRE.CUE_EMISSIVE | 1.6 | ratio | GATED(S1) | 04_Presentation R-PRE-11, T-PRE-11 |
 | C.PRE.CUE_Z_UU | 1 | uu | GATED(S1) | 04_Presentation R-PRE-11, Combat/DTWeaponSubsystem |

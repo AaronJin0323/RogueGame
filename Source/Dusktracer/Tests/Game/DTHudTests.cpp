@@ -423,20 +423,73 @@ bool FDTHudKeepOut::RunTest(const FString& Parameters)
 		TestFalse(TEXT("a corner does not"), DTHud::CoversKeepOut(View.Size, FBox2f(FVector2f(0.0f), FVector2f(16.0f))));
 	}
 
+	// Every rect that stays on screen, the ones a build grows included, is clear of the circle. The banner and the toast are
+	// transient (D-080) and held instead to their band: under the boss row, and never lower than C.HUD.TRANSIENT_FLOOR_UU up the
+	// hero's column on the drawn plane.
 	const FTables Tables;
+	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
 	int32 Rects = 0;
+	int32 Transient = 0;
+	float LowestReach = TNumericLimits<float>::Max();
+	FString LowestTag;
 	Walk(Tables, true, [&](const FString& Tag, const FView& View, int32 Culture, float Scale, const FDTHudLayout& Layout)
 	{
+		const FDTHudRect* Name = Layout.Find(EDTHudElem::BossName);
+		const FDTHudRect* Bar = Layout.Find(EDTHudElem::BossBar);
+		const float RowBottom = FMath::Max(Name ? Name->Box.Max.Y : 0.0f, Bar ? Bar->Box.Max.Y : 0.0f);
+		// What the bottom-left block gave up to the circle at this window and text size: each dormant panel's width and lines.
+		FString Dormant;
+		for (const FDTHudRect& Rect : Layout.Rects)
+		{
+			if (Rect.Kind == EDTHudElem::DormantPanel)
+			{
+				int32 Lines = 0;
+				float TextMul = 1.0f;
+				for (const FDTHudRect& Line : Layout.Rects)
+				{
+					if (Line.Kind == EDTHudElem::DormantLine && Line.Index == Rect.Index)
+					{
+						++Lines;
+						TextMul = FMath::Min(TextMul, Line.TextMul);
+					}
+				}
+				Dormant += FString::Printf(TEXT(" [%d: x %.0f to %.0f, y %.0f to %.0f, %d lines, text x%.2f]"), Rect.Index, Rect.Box.Min.X, Rect.Box.Max.X, Rect.Box.Min.Y, Rect.Box.Max.Y, Lines, TextMul);
+			}
+		}
+		AddInfo(Tag + TEXT("dormant panels") + Dormant);
 		for (const FDTHudRect& Rect : Layout.Rects)
 		{
 			++Rects;
+			if (Rect.Kind == EDTHudElem::Banner || Rect.Kind == EDTHudElem::Toast)
+			{
+				++Transient;
+				FVector2f Ground;
+				const bool bLands = DTHud::UnprojectGround(View.Size, FVector2f(0.5f * View.Size.X, Rect.Box.Max.Y), Ground, Z);
+				if (bLands && Ground.X < LowestReach)
+				{
+					LowestReach = Ground.X;
+					LowestTag = Tag + Describe(Rect);
+				}
+				if (Rect.Box.Min.Y < RowBottom - Touch)
+				{
+					AddError(Tag + Describe(Rect) + TEXT(" stands above the boss row's lower edge, out of its band"));
+				}
+				if (!bLands || Ground.X < static_cast<float>(DTConst::HUD_TRANSIENT_FLOOR_UU))
+				{
+					AddError(FString::Printf(TEXT("%s%s reaches down to %.1f uu up the hero's column, under C.HUD.TRANSIENT_FLOOR_UU %d"), *Tag, *Describe(Rect),
+						bLands ? Ground.X : 0.0f, DTConst::HUD_TRANSIENT_FLOOR_UU));
+				}
+				continue;
+			}
 			if (DTHud::CoversKeepOut(View.Size, Rect.Box))
 			{
-				AddError(Tag + Describe(Rect) + TEXT(" covers the floor R-UX-01 keeps in view"));
+				AddError(Tag + Describe(Rect) + TEXT(" covers the circle R-UX-01 keeps in view"));
 			}
 		}
 	});
+	AddInfo(FString::Printf(TEXT("the transient band's lowest edge reaches %.1f uu up the hero's column (%s)"), LowestReach, *LowestTag));
 	TestTrue(TEXT("rects were tested"), Rects > 0);
+	TestTrue(TEXT("the banner and the toast were tested"), Transient > 0);
 	return true;
 }
 

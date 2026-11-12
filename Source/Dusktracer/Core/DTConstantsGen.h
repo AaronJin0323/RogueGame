@@ -65,6 +65,7 @@ namespace DTConst
 	inline constexpr float HUD_LOW_HP_PULSE_S = 0.8f; // s, GATED(S4)
 	inline constexpr float HUD_LOW_HP_PULSE_MIN = 0.45f; // ratio, GATED(S4)
 	inline constexpr int32 HUD_TEXT_MIN_PX = 12; // px, GATED(S4)
+	inline constexpr int32 HUD_TRANSIENT_FLOOR_UU = 1050; // uu, GATED(S4)
 	// budget
 	// BUDGET_RES = '1080p60' (res_fps, CORE) - not a number; no constant generated
 	inline constexpr int32 BUDGET_GAME_THREAD_P50_MS = 8; // ms, CORE
