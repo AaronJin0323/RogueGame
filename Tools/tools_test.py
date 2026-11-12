@@ -5,6 +5,8 @@ Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 """
 
 import contextlib
+import csv
+import hashlib
 import io
 import json
 import os
@@ -2181,6 +2183,135 @@ class GateSlot(unittest.TestCase):
 			first, second, inherited = f.read().split()
 		self.assertEqual((first, inherited), ("held", "inherited=yes"))
 		self.assertIn(second, ("free", "none"))  # no second slot: never made, or made and free
+
+
+ARMS_STUB = r'''param([string]$Arms = "", [int]$FirstSeed = 1, [int]$Parallel = 1, [string]$Out = "")
+# The arms step's stand-in for BotRuns.ps1: one run folder per row of stub_arms.csv beside it, as BotRuns names them.
+New-Item -ItemType Directory -Force $Out | Out-Null
+Set-Content (Join-Path $Out "args.txt") "$Arms|$FirstSeed|$Parallel"
+foreach ($Row in (Import-Csv (Join-Path $PSScriptRoot "stub_arms.csv"))) {
+	$Dir = Join-Path $Out ("{0}_s{1}" -f ($Row.arm -replace ':', '-'), $FirstSeed)
+	New-Item -ItemType Directory -Force $Dir | Out-Null
+	[IO.File]::WriteAllText((Join-Path $Dir "bot.csv"), $Row.csv)
+	[IO.File]::WriteAllText((Join-Path $Dir "bot.csv.txt"), "outcome=death`nsteps=$($Row.steps)`ninput_hash=$($Row.input_hash)`n")
+}
+Write-Host "BOTRUNS: PASS (stub)"
+exit 0
+'''
+
+
+class GateArms(unittest.TestCase):
+	"""The gate's arms step: the five seed 9107 arms against Tools/gate_arms.csv, on a stand-in BotRuns; nothing here launches a game."""
+
+	ARMS = ("None", "Random", "Steered:Forge:Hammer", "Steered:Storm:Tempest", "Steered:Tide:Frost")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.locks = os.path.join(self.tmp.name, "dt-locks")
+		os.makedirs(self.locks)
+		with open(os.path.join(self.locks, "slots.txt"), "w", encoding="ascii") as f:
+			f.write("2\n")
+		self.tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(self.tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tools)
+		for name in GateSlot.TEXT:
+			with open(os.path.join(self.tools, name), "w", encoding="utf-8") as f:
+				f.write("print('STUB: PASS')\n")
+		with open(os.path.join(self.tools, "BotRuns.ps1"), "w", encoding="utf-8") as f:
+			f.write(ARMS_STUB)
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			self.heavy = re.findall(r'Start-HeavyStep "(\w+)"\)', f.read())
+		self.rows = {arm: {"input_hash": "%08x" % (i + 1), "steps": str(1000 + i), "csv": f"minute\n{i}\n"} for i, arm in enumerate(self.ARMS)}
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def write(self, ran, baseline, with_sha=True):
+		with open(os.path.join(self.tools, "stub_arms.csv"), "w", encoding="utf-8", newline="") as f:
+			w = csv.writer(f)
+			w.writerow(["arm", "input_hash", "steps", "csv"])
+			for arm, row in ran.items():
+				w.writerow([arm, row["input_hash"], row["steps"], row["csv"]])
+		with open(os.path.join(self.tools, "gate_arms.csv"), "w", encoding="utf-8", newline="") as f:
+			f.write("# stand-in baseline\n")
+			w = csv.writer(f)
+			w.writerow(["arm", "input_hash", "steps", "bot_csv_sha256"])
+			for arm, row in baseline.items():
+				sha = hashlib.sha256(row["csv"].encode("utf-8")).hexdigest() if with_sha else ""
+				w.writerow([arm, row["input_hash"], row["steps"], sha])
+
+	def run_gate(self, skip_arms=False):
+		skip = ",".join(s for s in self.heavy if s != "arms" or skip_arms)
+		env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+		env.update({"DT_LOCK_DIR": self.locks, "DT_HEAVY_WAIT_MAX_S": "5", "DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")})
+		done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			f"& {ps_quote(os.path.join(self.tools, 'Gate.ps1'))} -Skip {skip}; exit $LASTEXITCODE"], capture_output=True, env=env, timeout=300)
+		out = (done.stdout + done.stderr).decode("utf-8", "replace")
+		return done.returncode, out, [line for line in out.splitlines() if line.startswith("arms:")]
+
+	def test_the_five_matching_pass_inside_one_run_of_botruns(self):
+		self.write(self.rows, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 0, out)
+		self.assertEqual(len(line), 1, out)
+		self.assertRegex(line[0], r"^arms:\s+PASS \(None 00000001, Random 00000002, Steered:Forge:Hammer 00000003, Steered:Storm:Tempest 00000004, Steered:Tide:Frost 00000005; \d+ s\)$")
+		with open(os.path.join(self.tmp.name, "tree", "Saved", "BotRuns", "gate_arms", "args.txt"), encoding="utf-8-sig") as f:
+			self.assertEqual(f.read().strip(), "None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost|9107|5")
+
+	def test_a_moved_input_hash_names_the_arm_and_both_values(self):
+		ran = dict(self.rows, **{"Steered:Tide:Frost": dict(self.rows["Steered:Tide:Frost"], input_hash="deadbeef")})
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("FAIL (Steered:Tide:Frost input_hash 00000005 -> deadbeef;", line[0])
+		self.assertIn("GATE: FAIL at arms", out)
+
+	def test_a_moved_step_count_fails_the_same_way(self):
+		ran = dict(self.rows, Random=dict(self.rows["Random"], steps="1234"))
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("Random steps 1001 -> 1234", line[0])
+		self.assertNotIn("input_hash", line[0].split("; read ")[0])
+
+	def test_moved_bot_csv_bytes_fail_and_a_baseline_without_the_hash_does_not_compare_them(self):
+		ran = dict(self.rows)
+		ran["None"] = dict(self.rows["None"], csv="minute\nother\n")
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("None bot.csv sha256 ", line[0])
+		self.write(ran, self.rows, with_sha=False)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 0, out)
+
+	def test_an_arm_missing_from_the_baseline_fails(self):
+		self.write(self.rows, {k: v for k, v in self.rows.items() if k != "Steered:Storm:Tempest"})
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("Steered:Storm:Tempest has no row in Tools\\gate_arms.csv", line[0])
+
+	def test_skip_arms_skips_it_and_counts_it_not_run(self):
+		self.write(self.rows, {})
+		rc, out, line = self.run_gate(skip_arms=True)
+		self.assertEqual(rc, 0, out)
+		self.assertEqual([re.sub(r"\s+", " ", text) for text in line], ["arms: NOT RUN (skipped by -Skip)"])
+		self.assertRegex(out, r"GATE: PASS \([^;]*; %d not run;" % (len(self.heavy) + 2))
+		self.assertFalse(os.path.exists(os.path.join(self.tmp.name, "tree", "Saved", "BotRuns")))
+
+	def test_the_step_is_a_heavy_step_after_seed_and_main_holds_five_rows(self):
+		self.assertIn("arms", self.heavy)
+		self.assertEqual(self.heavy.index("arms"), self.heavy.index("seed") + 1)
+		with open(os.path.join(TOOLS, "gate_arms.csv"), encoding="utf-8") as f:
+			rows = list(csv.DictReader(line for line in f if not line.startswith("#")))
+		self.assertEqual([r["arm"] for r in rows], list(self.ARMS))
+		for r in rows:
+			self.assertRegex(r["input_hash"], r"^[0-9a-f]{8}$")
+			self.assertRegex(r["steps"], r"^\d+$")
+			self.assertRegex(r["bot_csv_sha256"], r"^([0-9a-f]{64})?$")
+		with open(os.path.join(TOOLS, "..", "Docs", "11_Quality.md"), encoding="utf-8") as f:
+			self.assertIn("arms", f.read())
 
 
 class GateMain(unittest.TestCase):
