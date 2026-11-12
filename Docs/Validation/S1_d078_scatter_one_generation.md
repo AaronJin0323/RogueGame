@@ -128,7 +128,10 @@ These are counted from run files, with no new run. Here is how many of each fold
 `main` names no S1 exit battery yet, so none is counted.
 
 ## Gate
-`& Tools\Gate.ps1 -Base main` on the branch's tip. The line is added below once the gate ends.
+`& Tools\Gate.ps1 -Base main` on the branch's tip eb364d5 (`main` 3aba803 merged, documents only on that side), 2026-11-12 23:43 to 2026-11-13:
+- `GATE: PASS (eb364d5; 3 not run; mask FFFFF3FC)`. Not run: pad (the package is stale), scope, mac.
+- tests: 266 run of 266 found, 0 failed, floor 266. arms: PASS on the new rows (Random 53c6cce3, Steered:Tide:Frost 9dd709ab).
+- This line was added after the gate in a documents-only commit; the gate ran on eb364d5.
 
 ## Not shown
 - **What a person sees.** No frame or play session was looked at. Everything here was read from bot runs and one test scene. A person would see the following, unseen by anyone:
