@@ -81,10 +81,10 @@ The goldens that hold elites, shot against the old golden first, then again with
 The same parts are written either way, so nothing was expected and nothing reads: the draw scope's mean with the role anchors less the hit circle is +0.03, -0.25, -0.21 ms, and the game thread swings by more than 7 ms between runs of one side. The one run over budget (round 2, hit circle) is the old placement and points to the machine. A quiet pair would give a reading; this is a bound that the mend costs nothing visible beside the load.
 
 ## 9. Contrast and the sim proof
-TODO.
+Read by the whole gate (its `contrast`, `seed`, `restart` and `meta` steps), which waits for the Visual session's word. Already read on this build: `Tools\EnemyArt.ps1 -NoMeshCheck` passes (geometry, with the elite parts reading above, and the line-up frames at both sizes; no generator changed, so no mesh check) and `Tools\HeroZone.ps1` passes (both frames with the zone on inside their limits). The engine tests of enemy art and elites, 19 of 19, pass on this build: `Dusktracer.EnemyArt.*` with the new `EliteAnchors`, `Dusktracer.Elites.*`, `Dusktracer.Pre.EliteLight` and `Dusktracer.Enemies.OpticPart`, the last three unchanged.
 
 ## 10. Gate of record
-TODO.
+To come: the whole gate on the branch tip with `dev/s4` merged (01d6bb6, unmoved since the branch was cut), started on the Visual session's word. The text steps pass on the tip. `C.GATE.TEST_FLOOR` is 595: one test added to the 594.
 
 ## 11. Not verified
 - No person has looked at an elite on the new hulls, mended or not (D-076 Impact); the owner's sitting asks it (O-017 question 8).
