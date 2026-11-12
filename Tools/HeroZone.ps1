@@ -7,6 +7,7 @@
 # for their size; frames with it off are printed as the "before".
 # The game is launched as Tools\ImpactArt.ps1 launches it (UnrealEditor -game -RenderOffScreen, on the hidden desktop of Tools\HiddenLaunch.ps1,
 # -DTShot, -ForceRes). Shots: <OutDir>\tracer_crossing_<px per m>_<on|off>_<run>.png; logs Saved\Logs\HeroZone_<same>.log.
+# -OutDir (relative to the tree) and every shot and log path go through Tools\OutDir.ps1: a folder outside this worktree is a FAIL line before the slot.
 # Not a gate step. Prints "HERO ZONE ACCEPTANCE: PASS|FAIL (...)"; exit 0 / 1. A frame that passes is not a person finding the hero.
 param(
 	[int]$Runs = 1,
@@ -17,14 +18,15 @@ param(
 trap { Write-Host "HERO ZONE ACCEPTANCE: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "OutDir.ps1")  # before the slot: a refused folder costs nothing
+try { $OutDir = Resolve-DTOutDir $OutDir $Root -Default "Saved\HeroZone" } catch { Write-Host "HERO ZONE ACCEPTANCE: FAIL (-OutDir $($_.Exception.Message))"; exit 1 }
 $DTHeavy = Enter-DTHeavy -What "HeroZone"  # D-055 item 7, R-TEC-18: one machine slot for the game launches
 
-$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
-if (-not $OutDir) { $OutDir = Join-Path $Root "Saved\HeroZone" }
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $Failed = @()
 
@@ -49,8 +51,8 @@ foreach ($Density in $Densities) {
 	foreach ($Side in "off", "on") {
 		for ($Run = 1; $Run -le $Runs; $Run++) {
 			$Tag = "{0}_{1}_{2}_{3}" -f $Scene, [int]$Density, $Side, $Run
-			$Shot = Join-Path $OutDir "$Tag.png"
-			$Log = Join-Path $Root "Saved\Logs\HeroZone_$Tag.log"
+			$Shot = Resolve-DTOutDir (Join-Path $OutDir "$Tag.png") $Root
+			$Log = Resolve-DTOutDir (Join-Path $Root "Saved\Logs\HeroZone_$Tag.log") $Root
 			foreach ($Old in $Shot, $Log) { if (Test-Path $Old) { Remove-Item $Old -Force } }
 			$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-ForceRes", "-LiveCoding=false", "-nosplash",
 				"-unattended", "-culture=en", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))

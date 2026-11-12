@@ -13,6 +13,7 @@
 # -DTShot, -ForceRes). Shots: Saved\ImpactArt\<scene>_<px per m>.png; logs Saved\Logs\ImpactArt_<scene>_<px per m>.log.
 # dt.Impact.Draw follows the environment variable DT_IMPACT_DRAW, which the game reads at start: set it to 0 to shoot the same frames
 # without the effects (then every frame fails its kind check, by design).
+# Its fixed folders and every shot and log path go through Tools\OutDir.ps1, and a -Scenes name is lower case, digits and underscores: else a FAIL line before the slot.
 # Not a gate step: Blender is not started by the gate. Prints "IMPACT ART ACCEPTANCE: PASS|FAIL (...)"; exit 0 / 1. A frame that holds an
 # effect is not a person seeing it read.
 param(
@@ -27,14 +28,16 @@ param(
 trap { Write-Host "IMPACT ART ACCEPTANCE: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "OutDir.ps1")  # before the slot: a refused folder or scene name costs nothing
+try { $OutDir = Resolve-DTOutDir "Saved\ImpactArt" $Root; $LogDir = Resolve-DTOutDir "Saved\Logs" $Root } catch { Write-Host "IMPACT ART ACCEPTANCE: FAIL ($($_.Exception.Message))"; exit 1 }
+foreach ($Name in $Scenes) { if ($Name -cnotmatch '^[a-z][a-z0-9_]*$') { Write-Host "IMPACT ART ACCEPTANCE: FAIL (scene name '$Name': lower case, digits and underscores)"; exit 1 } }
 $DTHeavy = Enter-DTHeavy -What "ImpactArt"  # D-055 item 7, R-TEC-18: one machine slot for Blender and the game
 
-$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
-$OutDir = Join-Path $Root "Saved\ImpactArt"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $Failed = @()
 
@@ -73,8 +76,8 @@ $Lines = @()
 
 # One launch: returns the stats line of its held step, or $null (and records the failure).
 function Invoke-Shot([string]$Tag, [object]$Data, [string[]]$Keys, [double]$Seconds, [string]$Cmds, [int]$ResX, [int]$ResY, [string]$Draw) {
-	$Shot = Join-Path $OutDir "$Tag.png"
-	$Log = Join-Path $Root "Saved\Logs\ImpactArt_$Tag.log"
+	$Shot = Resolve-DTOutDir (Join-Path $OutDir "$Tag.png") $Root
+	$Log = Resolve-DTOutDir (Join-Path $LogDir "ImpactArt_$Tag.log") $Root
 	foreach ($Old in $Shot, $Log) { if (Test-Path $Old) { Remove-Item $Old -Force } }
 	$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-ForceRes", "-LiveCoding=false", "-nosplash",
 		"-unattended", "-culture=en", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds))
