@@ -1290,6 +1290,9 @@ bool FDTModifiersChainTriggerSingularity::RunTest(const FString& Parameters)
 		TestNearlyEqual(TEXT("a mine the free volley laid is the modifier's, whatever joins it"), Blast, 2.0f * Most[0], 0.01f * Most[0]);
 		TestEqual(TEXT("and the weapon has none of it"), OwnHits, 0);
 	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersScatterOneGeneration, "Dusktracer.Modifiers.ScatterOneGeneration", DTWeaponTestHarness::TestFlags) // T-MOD-05 (D-078)
 bool FDTModifiersScatterOneGeneration::RunTest(const FString& Parameters)
 {
