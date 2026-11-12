@@ -1165,13 +1165,15 @@ class Mix(unittest.TestCase):
 		with self.assertRaises(ValueError):                              # a Fire row with no weapon is named, never guessed
 			X.player_roles([dict(ROW, id="Snd.Fire.Nothing", family="Fire", valid=True)], lambda row: [[0.0, 0.1, 0.0]], X.standins(B.Snapshot(B.RECIPES)), k)
 
-	def test_the_heartbeat_is_judged_on_its_least_seed_of_the_flood(self):
+	def test_the_heartbeat_is_judged_on_its_median_and_its_least_seed_of_the_flood(self):
 		beat = cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low")
 		result, renders = self.counted_run(self.keys, list(X.ROLES), [beat])
 		c = result["cues"][0]
 		self.assertEqual(len(c["smr_seeds"]), X.CREST_SEEDS)
-		self.assertEqual(c["smr"], min(c["smr_seeds"]))
+		self.assertEqual(c["smr"], X.crest_median(c["smr_seeds"]))                          # the median, against C.AUD.HEARTBEAT_SMR_MIN_DB
+		self.assertEqual(c["smr_least"], min(c["smr_seeds"]))                               # the least draw, against C.AUD.WARN_OVER_MIX_MIN_DB
 		self.assertAlmostEqual(c["smr_no_duck"], c["smr"] + self.keys["AUD.LOWHP_HOLD_DB"], places=9)
+		self.assertAlmostEqual(c["smr_least_no_duck"], c["smr_least"] + self.keys["AUD.LOWHP_HOLD_DB"], places=9)
 		first, _ = X.cue_readings(self.keys, X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.FLOOD_KPS,))[0], [beat], None, MIX_SKIP)
 		self.assertAlmostEqual(c["smr_seeds"][0], first[0]["smr"], places=9)              # the run's own draw first
 		self.assertEqual(renders, len(X.TIERS) + X.CREST_SEEDS - 1)                         # the flood tier's extra seeds only
@@ -1180,6 +1182,31 @@ class Mix(unittest.TestCase):
 		_, both = self.counted_run(self.keys, [], [beat])
 		layered = [t for t in result["tiers"] if t["layer_on"]]
 		self.assertEqual(both, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
+
+	def test_the_heartbeat_has_two_lines_median_and_least(self):
+		# Readings as data: passes both; fails the median only; fails the least only. Each error names its key and its figure.
+		k = self.keys
+		floor, warn = k["AUD.HEARTBEAT_SMR_MIN_DB"], k["AUD.WARN_OVER_MIX_MIN_DB"]
+		hold = k["AUD.LOWHP_HOLD_DB"]
+
+		def reading(seeds):
+			r = {"id": "Snd.Hero.Beat", "zone": "low", "family": "", "peak_dbfs": -20.0, "smr_seeds": list(seeds)}
+			r["smr"], r["smr_least"] = X.crest_median(seeds), min(seeds)
+			r["smr_no_duck"], r["smr_least_no_duck"] = r["smr"] + hold, r["smr_least"] + hold
+			return r
+		both = reading([floor + 1, floor + 2, floor + 1.5, warn + 1, floor + 3])
+		self.assertEqual(X.judge(k, [], [both], None), [])
+		median = reading([floor - 1, floor - 0.5, floor - 2, warn + 0.5, floor + 4])          # its median under 9, its least over 6
+		e = X.judge(k, [], [median], None)
+		self.assertEqual(len(e), 1, e)
+		self.assertIn(f"audibility {median['smr']:.1f} dB (the median of 5 seeds)", e[0])
+		self.assertIn(f"under C.AUD.HEARTBEAT_SMR_MIN_DB {floor}", e[0])
+		least = reading([floor + 1, floor + 1, floor + 1, warn - 1, floor + 2])               # its median over 9, its least under 6
+		e = X.judge(k, [], [least], None)
+		self.assertEqual(len(e), 1, e)
+		self.assertIn(f"audibility {warn - 1:.1f} dB on its least of 5 seeds", e[0])
+		self.assertIn(f"under C.AUD.WARN_OVER_MIX_MIN_DB {warn}, the floor a warning must clear", e[0])
+		self.assertIn("AUD.WARN_OVER_MIX_MIN_DB", X.KEYS_READ)
 
 	def test_the_mix_raised_12_db_fails_the_peak(self):
 		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]

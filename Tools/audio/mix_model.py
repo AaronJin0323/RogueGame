@@ -519,8 +519,10 @@ def judge_crest(keys, roles, tiers, readings, used, seconds=TIER_SECONDS, skip=S
 
 
 def heartbeat_over_seeds(keys, roles, flood, cues, readings, seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED, memo=None):
-	"""A `low` zone cue (the heartbeat, at the hold) is judged as the least of its readings over CREST_SEEDS seeds of the flood tier, the
-	first the run's own, so one lucky draw cannot carry it. Rewrites its smr and no-duck figure, and keeps `smr_seeds`."""
+	"""A `low` zone cue (the heartbeat, at the hold) is read over CREST_SEEDS seeds of the flood tier, the first the run's own, on two
+	lines (the scheduler's ruling of 2026-11-13): its median (`smr`), judged against C.AUD.HEARTBEAT_SMR_MIN_DB, and its least draw
+	(`smr_least`), judged against C.AUD.WARN_OVER_MIX_MIN_DB, the floor a warning must clear. A danger cue is a guard, and a guard is read
+	at its worst case as well as its usual one. Keeps `smr_seeds`; each line's no-duck figure has the hold taken off."""
 	low = [(c, r) for c, r in zip(cues, readings) if c.zone == "low"]
 	if not low:
 		return readings
@@ -528,8 +530,10 @@ def heartbeat_over_seeds(keys, roles, flood, cues, readings, seconds=TIER_SECOND
 	for cue, r in low:
 		played = [cue.played(v) for v in range(len(cue.variants))]
 		r["smr_seeds"] = [r["smr"]] + [min(M.audibility(x, mask, *M.LOWZONE)[0] for x in played) for mask in masks]
-		r["smr"] = min(r["smr_seeds"])
+		r["smr"] = crest_median(r["smr_seeds"])
 		r["smr_no_duck"] = r["smr"] + keys["AUD.LOWHP_HOLD_DB"]
+		r["smr_least"] = min(r["smr_seeds"])
+		r["smr_least_no_duck"] = r["smr_least"] + keys["AUD.LOWHP_HOLD_DB"]
 	return readings
 
 
@@ -673,11 +677,16 @@ def judge(keys, tiers, cues, control):
 		if c["zone"] == "warn" and c["smr"] < keys["AUD.DANGER_SMR_MIN_DB"]:
 			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.DANGER_BAND_HZ over the densest mix ducked by C.AUD.DUCK_DB "
 				f"({c['smr_no_duck']:.1f} dB with no duck), under C.AUD.DANGER_SMR_MIN_DB {keys['AUD.DANGER_SMR_MIN_DB']} (R-AUD-18)")
+		held = ("in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by C.AUD.LOWHP_LOWEND_DUCK_DB and the whole held down by "
+			"C.AUD.LOWHP_HOLD_DB")
 		if c["zone"] == "low" and c["smr"] < keys["AUD.HEARTBEAT_SMR_MIN_DB"]:
-			least = f" (the least of {len(c['smr_seeds'])} seeds)" if c.get("smr_seeds") else ""
-			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB{least} in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by "
-				f"C.AUD.LOWHP_LOWEND_DUCK_DB and the whole held down by C.AUD.LOWHP_HOLD_DB ({c['smr_no_duck']:.1f} dB with nothing lowered), "
+			median = f" (the median of {len(c['smr_seeds'])} seeds)" if c.get("smr_seeds") else ""
+			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB{median} {held} ({c['smr_no_duck']:.1f} dB with nothing lowered), "
 				f"under C.AUD.HEARTBEAT_SMR_MIN_DB {keys['AUD.HEARTBEAT_SMR_MIN_DB']} (R-AUD-18)")
+		if c["zone"] == "low" and "smr_least" in c and c["smr_least"] < keys["AUD.WARN_OVER_MIX_MIN_DB"]:
+			e.append(f"mix: {c['id']}: audibility {c['smr_least']:.1f} dB on its least of {len(c['smr_seeds'])} seeds {held} "
+				f"({c['smr_least_no_duck']:.1f} dB with nothing lowered), under C.AUD.WARN_OVER_MIX_MIN_DB {keys['AUD.WARN_OVER_MIX_MIN_DB']}, "
+				"the floor a warning must clear (R-AUD-18)")
 		if "over_mix" in c and c["over_mix"] < keys["AUD.WARN_OVER_MIX_MIN_DB"]:
 			e.append(f"mix: {c['id']}: its loudest 100 ms is {c['over_mix']:.1f} dB over the densest mix ducked by C.AUD.DUCK_DB, under "
 				f"C.AUD.WARN_OVER_MIX_MIN_DB {keys['AUD.WARN_OVER_MIX_MIN_DB']} (R-AUD-18)")
@@ -764,11 +773,13 @@ def table(result):
 			over = f"{c['over_mix']:8.1f}" if "over_mix" in c else f"{'-':>8s}"
 			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}  {c.get('lk_max', float('nan')):6.1f}  {'+' + format(c.get('agg_db', 0.0), '.1f') + ' dB' if c.get('agg_db') else '-'}")
 		if any(c["zone"] == "low" for c in result["cues"]):
-			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked, as the least over the flood tier's "
-				f"CREST_SEEDS = {CREST_SEEDS} seeds; its no-duck figure has nothing lowered")
+			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked, over the flood tier's "
+				f"CREST_SEEDS = {CREST_SEEDS} seeds: its row is the median (against C.AUD.HEARTBEAT_SMR_MIN_DB); its least draw is judged against "
+				"C.AUD.WARN_OVER_MIX_MIN_DB; a no-duck figure has nothing lowered")
 			for c in result["cues"]:
 				if c.get("smr_seeds"):
-					lines.append(f"  {c['id']} per seed: " + ", ".join(f"{v:.1f}" for v in c["smr_seeds"]))
+					lines.append(f"  {c['id']} per seed: " + ", ".join(f"{v:.1f}" for v in c["smr_seeds"])
+						+ f"; median {c['smr']:.1f} ({c['smr_no_duck']:.1f} nothing lowered), least {c['smr_least']:.1f} ({c['smr_least_no_duck']:.1f} nothing lowered)")
 	else:
 		lines.append("no danger-side row in the catalog: no cue read")
 	if result["control"]:
