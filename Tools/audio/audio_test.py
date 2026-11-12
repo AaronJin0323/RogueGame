@@ -1099,14 +1099,32 @@ class Mix(unittest.TestCase):
 		self.assertTrue([ln for ln in lines if ln.startswith("Snd.Warn.ClickA + Snd.Warn.ClickB") or ln.startswith("Snd.Warn.ClickB + Snd.Warn.ClickA")], lines)
 		self.assertIn("pairs: none read (fewer than two danger cues that can start together)", X.table(self.counted_run(k, list(X.ROLES), [a])[0]))
 
-	def test_the_fire_is_each_weapon_at_its_own_cadence_and_the_worst_real_build(self):
-		# Test rows as data: a weapons table with a fast orbiter, a spiral past the dense rate and slow weapons.
-		k = dict(self.keys, **{"AUD.FIRE_DENSE_SHOTS_PER_S": 8, "AUD.FIRE_DENSE_VOICES_PER_S": 6, "WEAPON.SLOTS": 2})
+	def test_a_row_with_an_aggregation_gain_is_read_at_the_cap(self):
+		# R-AUD-06, R-AUD-18: a batch can lift a row with an aggregation gain to C.AUD.AGGREGATE_MAX; its loudness and its peak on top, and
+		# the pairs, read it there; its audibility stays the count of one.
+		k = self.keys
+		plain = cue("Snd.Danger.Pop", ping(PING_LEVEL), "warn", "Danger")
+		batched = X.Source("Snd.Danger.Pops", [ping(PING_LEVEL)], 1.0, agg_gain=0.25, side="danger", zone="warn", family="Danger")
+		cr, _ = self.judged([plain, batched])
+		cap = X.to_db(k["AUD.AGGREGATE_MAX"])
+		self.assertEqual(cr[0]["agg_db"], 0.0)
+		self.assertAlmostEqual(cr[1]["agg_db"], cap, places=9)
+		self.assertAlmostEqual(cr[1]["smr"], cr[0]["smr"], places=9)                       # audibility at a count of one
+		self.assertAlmostEqual(cr[1]["lk_max"], cr[0]["lk_max"] + cap, places=6)           # loudness at the cap
+		mask = X.mix_of(self.dense["parts"], gain_db=k["AUD.DUCK_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):]
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(cr[1]["peak_dbfs"], X.peak_on_top(mask, batched.played(0, cap), step), places=9)
+		pair = X.pair_readings(k, self.dense, [plain, batched], MIX_SKIP)[0]
+		self.assertAlmostEqual(pair["bare_dbfs"], X.peak_db(X._together(plain.played(0), batched.played(0, cap))), places=9)
+
+	def test_the_fire_is_the_fullest_build_of_the_loudest_rows_at_the_cap(self):
+		# Test rows as data: a weapons table with a fast orbiter, a spiral and slow weapons; fire rows told apart by their played level.
+		k = dict(self.keys, **{"AUD.FIRE_DENSE_VOICES_PER_S": 6, "WEAPON.SLOTS": 2})
 		path = os.path.join(SAVED, "weapons_fixture.csv")
 		with open(path, "w", encoding="utf-8", newline="") as f:
 			f.write("id,pattern,level,count,cooldown_s\n"
 				"Weapon.Slow,Aimed,1,1,2.0\nWeapon.Slow,Aimed,2,1,0.5\n"       # the last level counts: two a second
-				"Weapon.Drones,Orbiter,1,4,0.4\n"                               # four drones in turn: ten a second, past the dense rate
+				"Weapon.Drones,Orbiter,1,4,0.4\n"                               # four drones in turn: ten a second
 				"Weapon.Spiral,Spiral,1,3,0.05\n"                               # twenty a second
 				"Weapon.Mid,Aimed,1,2,0.25\n")                                  # four a second
 		cad = dict(X.weapon_cadences(path))
@@ -1115,31 +1133,29 @@ class Mix(unittest.TestCase):
 		self.assertAlmostEqual(cad["Drones"], 10.0)
 		self.assertAlmostEqual(cad["Spiral"], 20.0)
 		self.assertAlmostEqual(cad["Mid"], 4.0)
-		self.assertEqual(X.fire_voices(k, 2.0), 2.0)                     # under the dense rate: every firing
-		self.assertEqual(X.fire_voices(k, 8.0), 8.0)                     # at it, still every firing
-		self.assertEqual(X.fire_voices(k, 10.0), 6.0)                    # past it, the density's voices
-		self.assertEqual(X.boosted_voices(k, 2.0), 8.0)                  # an unbounded multiplier drives a slow weapon to the dense rate
-		self.assertEqual(X.boosted_voices(k, 2.0, 1.5), 3.0)             # a bounded one only so far
-		self.assertEqual(X.boosted_voices(k, 20.0), 6.0)                 # a weapon past the rate cannot come back under it
-		src = {n: X.Source(f"Snd.Fire.{n}", [[0.0]], 0.3) for n in cad}
+		self.assertEqual(X.fire_voices(k, 2.0), 2.0)                     # slower than the cap: every firing
+		self.assertEqual(X.fire_voices(k, 7.0), 6.0)                     # at any rate past it, the cap (R-AUD-07)
+		self.assertEqual(X.fire_voices(k, 20.0), 6.0)
+		tone = dtsynth.osc(0.2, dtsynth.hz("A4"))
+		volume = {"Slow": 0.1, "Drones": 0.4, "Spiral": 0.2, "Mid": 0.3}
+		src = {n: X.Source(f"Snd.Fire.{n}", [tone], volume[n]) for n in cad}
 		weapons = [(src[n], n, cad[n]) for n in ("Slow", "Drones", "Spiral", "Mid")]
 		sources, rates, plan = X.fire_plan(k, weapons)
-		self.assertAlmostEqual(plan["case1"], 2.0 + 6.0 + 6.0 + 4.0)
-		self.assertAlmostEqual(plan["case2"], 8.0 + 8.0)                 # two slots, the two that can be driven to the dense rate
-		self.assertTrue(plan["case"].startswith("all 4 weapons"))      # the larger: case (1) here
-		self.assertEqual([s.label for s in sources], ["Snd.Fire.Slow", "Snd.Fire.Drones", "Snd.Fire.Spiral", "Snd.Fire.Mid"])   # the weapons' order
-		self.assertEqual(rates, [2.0, 6.0, 6.0, 4.0])
+		self.assertEqual([s.label for s in sources], ["Snd.Fire.Drones", "Snd.Fire.Mid"])     # C.WEAPON.SLOTS of them, the loudest first
+		self.assertEqual(rates, [6.0, 6.0])                                                   # each at the cap, whatever its own rate
+		self.assertAlmostEqual(plan["voices_per_s"], 12.0)
+		self.assertEqual([w[0] for w in plan["weapons"]], ["Drones", "Mid"])
+		self.assertEqual([w[2] for w in plan["weapons"]], [cad["Drones"], cad["Mid"]])       # its own cadence printed beside
+		self.assertIn("the fullest build: 2 weapons (C.WEAPON.SLOTS)", plan["case"])
+		self.assertGreater(X.played_level(src["Drones"]), X.played_level(src["Mid"]))
+		# The tiers fire the first weapons of the plan, at most all of it.
 		k4 = dict(k, **{"WEAPON.SLOTS": 4})
 		sources, rates, plan = X.fire_plan(k4, weapons)
-		self.assertAlmostEqual(plan["case2"], 8.0 + 8.0 + 6.0 + 6.0)
-		self.assertIn("the fullest build (4 weapons, C.WEAPON.SLOTS)", plan["case"])
-		self.assertEqual(rates, [8.0, 8.0, 6.0, 6.0])                    # the most asking first
-		self.assertEqual([s.label for s in sources][:2], ["Snd.Fire.Mid", "Snd.Fire.Slow"])
-		# The tiers fire the first weapons of the plan, at most all of it.
+		self.assertEqual([s.label for s in sources], ["Snd.Fire.Drones", "Snd.Fire.Mid", "Snd.Fire.Spiral", "Snd.Fire.Slow"])
 		roles = dict(self.roles, fire=sources, fire_rates=rates)
 		self.assertEqual([len([s for s in X.tier_streams(k4, roles, kps, n) if s.source in sources]) for kps, n in zip(X.TIERS, X.WEAPONS_FIRING)],
 			[min(n, 4) for n in X.WEAPONS_FIRING])
-		self.assertEqual([s.rate for s in X.tier_streams(k4, roles, X.TIERS[0], 3)][:3], [8.0, 8.0, 6.0])
+		self.assertEqual([s.rate for s in X.tier_streams(k4, roles, X.TIERS[0], 3)][:3], [6.0, 6.0, 6.0])
 		# On the real catalogs: every weapon of weapons.csv has a cadence, and the stand-ins play them.
 		real = X.weapon_cadences()
 		self.assertEqual(len(real), 10)

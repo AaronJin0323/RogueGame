@@ -1,6 +1,5 @@
 // The Fire family's observer (02_Systems/audio.md R-AUD-02, R-AUD-07; Validation/S4_audio_wave1.md §4.3, §7.1): each weapon of the
-// local player sounds as it fires, by the growth of its spawned counter, and above C.AUD.FIRE_DENSE_SHOTS_PER_S firings a second at most
-// C.AUD.FIRE_DENSE_VOICES_PER_S times a second.
+// local player sounds once a firing, seen by the growth of its spawned counter, and at most C.AUD.FIRE_DENSE_VOICES_PER_S times a second.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -30,11 +29,9 @@ namespace DTFireEvents
 }
 
 /**
- * R-AUD-07's last clause for one weapon, on sim time (engine-free). A weapon whose firings of the last second (C.SIM.FIXED_HZ steps,
- * this one included) come faster than C.AUD.FIRE_DENSE_SHOTS_PER_S a second, read from the first of them to this one, is dense: it
- * sounds only when at least MinGapSteps() have passed since it last sounded, so in any second it sounds at most
- * C.AUD.FIRE_DENSE_VOICES_PER_S times, evenly spread. A weapon below the rate sounds every time. A firing is one step on which the
- * weapon's counter grew, whatever it spawned.
+ * R-AUD-07's last clause for one weapon, on sim time (engine-free): at any rate, a firing sounds only when at least MinGapSteps() have
+ * passed since the weapon last sounded, so in any second it sounds at most C.AUD.FIRE_DENSE_VOICES_PER_S times, evenly spread; a slower
+ * weapon sounds every time. A firing is one step on which the weapon's counter grew, whatever it spawned.
  */
 class DUSKTRACER_API FDTFireDensity
 {
@@ -42,12 +39,10 @@ public:
 	/** A firing at Step (steps only grow until Reset): true when it sounds, false when it is withheld. */
 	bool Admit(int64 Step);
 	void Reset();
-	/** ceil(C.SIM.FIXED_HZ / C.AUD.FIRE_DENSE_VOICES_PER_S): the least steps between two voices of a dense weapon. */
+	/** ceil(C.SIM.FIXED_HZ / C.AUD.FIRE_DENSE_VOICES_PER_S): the least steps between two voices of one weapon. */
 	static int64 MinGapSteps();
 
 private:
-	/** The firings of the last second, oldest first: at most one a step, so it never holds more than C.SIM.FIXED_HZ. */
-	TArray<int64> Recent;
 	int64 LastSounded = TNumericLimits<int64>::Lowest();
 	bool bSounded = false;
 };

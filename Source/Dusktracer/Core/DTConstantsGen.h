@@ -302,7 +302,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 601; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 603; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -599,7 +599,6 @@ namespace DTConst
 	inline constexpr int32 AUD_VOICES_UI = 4; // n, GATED(S4)
 	inline constexpr int32 AUD_PLAYER_STARTS_PER_S_MAX = 60; // per_s, GATED(S4)
 	inline constexpr int32 AUD_STARTS_PER_FRAME_MAX = 4; // n, GATED(S4)
-	inline constexpr int32 AUD_FIRE_DENSE_SHOTS_PER_S = 8; // per_s, GATED(S4)
 	inline constexpr int32 AUD_FIRE_DENSE_VOICES_PER_S = 6; // per_s, GATED(S4)
 	inline constexpr float AUD_AGGREGATE_MAX = 1.6f; // ratio, GATED(S4)
 	inline constexpr int32 AUD_SCAN_MAX = 64; // n, GATED(S4)
@@ -621,4 +620,5 @@ namespace DTConst
 	inline constexpr int32 AUD_LADDER_SEMIS_MAX = 12; // semitones, GATED(S4)
 	inline constexpr int32 AUD_LOOP_SEAM_LEVEL_MAX_DB = 3; // dB, GATED(S4)
 	inline constexpr int32 AUD_LEVEL_JITTER_DB = 1; // dB, GATED(S4)
+	inline constexpr int32 AUD_LOWHP_HOLD_DB = -4; // dB, GATED(S4)
 }

@@ -599,7 +599,6 @@ audio:
   AUD.VOICES_UI:                 { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.PLAYER_STARTS_PER_S_MAX:   { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.STARTS_PER_FRAME_MAX:      { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, R-AUD-21, T-AUD-07] }
-  AUD.FIRE_DENSE_SHOTS_PER_S:    { value: 8, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.FIRE_DENSE_VOICES_PER_S:   { value: 6, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.AGGREGATE_MAX:             { value: 1.6, unit: ratio, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-06, T-AUD-06] }
   AUD.SCAN_MAX:                  { value: 64, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-02, T-AUD-02] }

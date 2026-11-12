@@ -80,18 +80,8 @@ int64 FDTFireDensity::MinGapSteps()
 
 bool FDTFireDensity::Admit(int64 Step)
 {
-	const int64 Second = DTConst::SIM_FIXED_HZ;
-	Recent.RemoveAll([Step, Second](int64 Fired) { return Fired <= Step - Second; });
-	Recent.Add(Step);
-	// The rate over the last second, from its first firing to this one: (firings - 1) over their span. Dense when it is above
-	// C.AUD.FIRE_DENSE_SHOTS_PER_S, read in whole steps: (n - 1) / (span / FIXED_HZ) > SHOTS.
-	bool bDense = false;
-	if (Recent.Num() >= 2)
-	{
-		const int64 Span = Step - Recent[0];
-		bDense = Span > 0 && static_cast<int64>(Recent.Num() - 1) * Second > static_cast<int64>(DTConst::AUD_FIRE_DENSE_SHOTS_PER_S) * Span;
-	}
-	if (!bDense || !bSounded || Step - LastSounded >= MinGapSteps())
+	// At any rate (R-AUD-07): a firing sounds when the weapon last sounded at least MinGapSteps() ago, and is withheld otherwise.
+	if (!bSounded || Step - LastSounded >= MinGapSteps())
 	{
 		LastSounded = Step;
 		bSounded = true;
@@ -102,7 +92,6 @@ bool FDTFireDensity::Admit(int64 Step)
 
 void FDTFireDensity::Reset()
 {
-	Recent.Reset();
 	LastSounded = TNumericLimits<int64>::Lowest();
 	bSounded = false;
 }
@@ -143,15 +132,17 @@ void FDTObserveFire::Observe(const FDTFireView& Now, IDTAudioRequests& Out)
 		bPrimed = true;
 		return;
 	}
-	DTFireEvents::Diff(Last, Now, [&](int32 Slot, int32 Sound, int32 Count)
+	// A weapon's sound is its whole volley: one request a firing, whatever the counter grew by (its rounds would raise the voice by the
+	// aggregation gain over the level the mix model reads). So asked counts firings.
+	DTFireEvents::Diff(Last, Now, [&](int32 Slot, int32 Sound, int32 /*Rounds*/)
 	{
 		if (Density[Slot].Admit(Now.Step))
 		{
-			Out.Run(Sound, Count, Now.Step);
+			Out.Run(Sound, 1, Now.Step);
 		}
 		else
 		{
-			Out.Merged(Sound, Count); // withheld by R-AUD-07's density: asked and merged, so the counts still add up (R-AUD-20)
+			Out.Merged(Sound, 1); // withheld by R-AUD-07's density: asked and merged, so the counts still add up (R-AUD-20)
 		}
 	});
 	Last = Now;

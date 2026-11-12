@@ -682,8 +682,7 @@ S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no k
 | C.AUD.VOICES_UI | 4 | n | GATED(S4) | audio R-AUD-07, T-AUD-07 (kept for the interface) |
 | C.AUD.PLAYER_STARTS_PER_S_MAX | 60 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
 | C.AUD.STARTS_PER_FRAME_MAX | 4 | n | GATED(S4) | audio R-AUD-07, R-AUD-21, T-AUD-07 (danger first; a player voice past it waits a frame) |
-| C.AUD.FIRE_DENSE_SHOTS_PER_S | 8 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
-| C.AUD.FIRE_DENSE_VOICES_PER_S | 6 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07 |
+| C.AUD.FIRE_DENSE_VOICES_PER_S | 6 | per_s | GATED(S4) | audio R-AUD-07, T-AUD-07, Audio/Observe/DTObserveFire, Tools/audio/mix_model.py (a weapon sounds at most this many times a second, at any rate) |
 | C.AUD.AGGREGATE_MAX | 1.6 | ratio | GATED(S4) | audio R-AUD-06, T-AUD-06 (most gain a merged batch takes) |
 | C.AUD.SCAN_MAX | 64 | n | GATED(S4) | audio R-AUD-02, T-AUD-02 (entries of a step buffer audio may read) |
 | C.AUD.LAYER_FADE_PER_S | 3 | per_s | GATED(S4) | audio R-AUD-08, T-AUD-08 (slew of a layer's gain) |

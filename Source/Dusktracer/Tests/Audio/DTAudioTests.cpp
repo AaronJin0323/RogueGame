@@ -592,15 +592,15 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 			return Asks.Runs;
 		};
 		TestTrue(TEXT("the run's first step is the baseline: rounds already counted raise nothing"), Observe(100, 5, 0).Num() == 0);
-		TestTrue(TEXT("the rifle fired two rounds: one request carrying two"), Observe(200, 7, 0) == FPairs({ { Rifle, 2 } }));
+		TestTrue(TEXT("the rifle fired two rounds: one request, a count of one (its sound is its whole volley)"), Observe(200, 7, 0) == FPairs({ { Rifle, 1 } }));
 		TestTrue(TEXT("an unchanged step raises none"), Observe(300, 7, 0).Num() == 0);
-		TestTrue(TEXT("both fire in one step: one request each, the ring's carrying its twelve"), Observe(400, 9, 12) == FPairs({ { Rifle, 2 }, { Ring, 12 } }));
+		TestTrue(TEXT("both fire in one step: one request each, a count of one whatever the growth"), Observe(400, 9, 12) == FPairs({ { Rifle, 1 }, { Ring, 1 } }));
 		TestTrue(TEXT("a counter that went down is a new baseline"), Observe(500, 1, 12).Num() == 0);
-		TestTrue(TEXT("and grows from there"), Observe(600, 3, 12) == FPairs({ { Rifle, 2 } }));
+		TestTrue(TEXT("and grows from there"), Observe(600, 3, 12) == FPairs({ { Rifle, 1 } }));
 		TestTrue(TEXT("nothing was withheld at this pace"), Asks.Merges.Num() == 0);
 		{
 			// The observer and its density together: a rifle firing every third step sounds at most C.AUD.FIRE_DENSE_VOICES_PER_S times in any
-			// second, and every firing it withholds is passed on as merged, carrying its rounds.
+			// second, and every firing it withholds is passed on as merged, one a firing.
 			FDTObserveFire Dense;
 			FFireAsks DenseAsks;
 			TArray<int64> Sounded;
@@ -634,7 +634,7 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 			TestTrue(FString::Printf(TEXT("20 firings a second sound at most %d times in any second (most %d)"), DTConst::AUD_FIRE_DENSE_VOICES_PER_S, Most),
 				Most <= DTConst::AUD_FIRE_DENSE_VOICES_PER_S && Sounded.Num() > 0);
 			TestTrue(TEXT("the rest are withheld and passed on as merged"), DenseAsks.Merges.Num() > 0);
-			TestEqual(TEXT("sounded and withheld together carry every round after the baseline"), Rounds, 2 * (5 * DTConst::SIM_FIXED_HZ / 3 + 1) - 2ll);
+			TestEqual(TEXT("sounded and withheld together count every firing after the baseline, one each"), Rounds, static_cast<int64>(5 * DTConst::SIM_FIXED_HZ / 3));
 		}
 		Fire.Reset();
 		TestTrue(TEXT("a new run: its first step is the baseline again"), Observe(0, 50, 0).Num() == 0);
@@ -1856,14 +1856,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestFireDensity, "Dusktracer.Audio.FireDe
 bool FDTAudTestFireDensity::RunTest(const FString& Parameters)
 {
 	using namespace DTAudioTest;
-	// R-AUD-07's last clause, on sim time: above C.AUD.FIRE_DENSE_SHOTS_PER_S firings a second a weapon sounds at most
-	// C.AUD.FIRE_DENSE_VOICES_PER_S times in any second, evenly spread; below it, every time.
+	// R-AUD-07's last clause, on sim time: at any rate a weapon sounds at most C.AUD.FIRE_DENSE_VOICES_PER_S times in any second, evenly
+	// spread; at that rate or slower, every time.
 	const int64 Second = DTConst::SIM_FIXED_HZ;
 	const int64 Gap = FDTFireDensity::MinGapSteps();
 	TestEqual(TEXT("the least gap is a second over the voices, rounded up"), Gap, (Second + DTConst::AUD_FIRE_DENSE_VOICES_PER_S - 1) / DTConst::AUD_FIRE_DENSE_VOICES_PER_S);
-	TestTrue(TEXT("the keys leave room to thin: the voices are fewer than the dense rate"), DTConst::AUD_FIRE_DENSE_VOICES_PER_S <= DTConst::AUD_FIRE_DENSE_SHOTS_PER_S);
 	constexpr int64 Seconds = 30;
-	for (int32 Rate = 14; Rate <= 22; ++Rate)
+	for (int32 Rate = DTConst::AUD_FIRE_DENSE_VOICES_PER_S + 1; Rate <= 22; ++Rate)
 	{
 		FDTFireDensity D;
 		TArray<int64> Fired;
@@ -1910,8 +1909,8 @@ bool FDTAudTestFireDensity::RunTest(const FString& Parameters)
 			Sounded.Num() >= Seconds * Second / (Gap + MaxFireGap));
 	}
 	{
-		// Twice a second, and at the dense rate itself: every firing sounds.
-		for (const int32 Rate : { 2, DTConst::AUD_FIRE_DENSE_SHOTS_PER_S - 1 })
+		// Twice a second, and at the cap itself: every firing sounds.
+		for (const int32 Rate : { 2, DTConst::AUD_FIRE_DENSE_VOICES_PER_S })
 		{
 			FDTFireDensity D;
 			int32 Fired = 0;
@@ -1966,11 +1965,11 @@ bool FDTAudTestFireDensity::RunTest(const FString& Parameters)
 		}
 		const FDTAudioCounts& C = S.GetCounts(Rifle);
 		AddInfo(FString::Printf(TEXT("the rifle at 20 firings a second for 10 s: asked %lld, played %lld, merged %lld, dropped %lld"), C.Asked, C.Played, C.Merged, C.Dropped));
-		const int64 Rounds = 2 * ((10 * Second - 1) / 3 + 1) - 2; // the counter at the last step, less the baseline's two
-		TestEqual(TEXT("asked is every round after the baseline, sounded or withheld"), C.Asked, Rounds);
+		const int64 Firings = (10 * Second - 1) / 3; // every third step after the baseline's
+		TestEqual(TEXT("asked is every firing after the baseline, one each, sounded or withheld"), C.Asked, Firings);
 		TestTrue(TEXT("asked = played + merged + dropped"), Settled(S, Rifle) && S.NumWaiting() == 0);
 		TestTrue(TEXT("played at most the density's voices a second, and some"), C.Played > 0 && C.Played <= 10 * DTConst::AUD_FIRE_DENSE_VOICES_PER_S);
-		TestTrue(TEXT("the withheld rounds are merged"), C.Merged > 0);
+		TestTrue(TEXT("the withheld firings are merged"), C.Merged > 0);
 	}
 	return true;
 }
@@ -2073,7 +2072,7 @@ bool FDTAudTestFirePlayable::RunTest(const FString& Parameters)
 		FDTFireView Fired = Was;
 		Fired.Step = 1;
 		Fired.Spawned[0] = 7;
-		DTFireEvents::Diff(Was, Fired, [&](int32 Slot, int32 Sound, int32 Count) { Audio->RequestRun(Sound, Count, 0); });
+		DTFireEvents::Diff(Was, Fired, [&](int32 Slot, int32 Sound, int32 Rounds) { Audio->RequestRun(Sound, 1, 0); }); // one a firing, as the observer asks
 		Frame();
 	}
 	TSet<int32> Heard;

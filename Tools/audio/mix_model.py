@@ -9,9 +9,8 @@ catalog row takes a role by its family (FIRE_FAMILY: every row is one weapon) or
 with no catalog row plays its stand-in from Tools/audio/recipes/standin.py, at the levels of STANDINS. The output always
 names the roles that were stand-ins.
 
-The fire is a worst case of a real build (fire_plan): each weapon asks at its own cadence from weapons.csv, as the runtime's
-density lets it sound, and the model plays the larger of all ten weapons at their last level and the fullest build a run holds
-under the largest fire rate. Per density tier (TIERS kills a second, the first WEAPONS_FIRING weapons of that fire) the model
+The fire is the fullest build a run holds (fire_plan): C.WEAPON.SLOTS weapons, the loudest fire rows, each at R-AUD-07's cap
+of C.AUD.FIRE_DENSE_VOICES_PER_S a second (the catalogs do not bound the fire-rate multiplier). Per density tier (TIERS kills a second, the first WEAPONS_FIRING weapons of that fire) the model
 schedules the player side by the scheduler's rules (R-AUD-06 to R-AUD-10) with every cap that binds read as the worst case
 (the louder sound goes first), renders the mix at C.AUD.SAMPLE_RATE_HZ for TIER_SECONDS, and reads it past its first
 SKIP_SECONDS: K-weighted loudness, the share in the danger band, crest (judged on the flood tier only, printed in the others),
@@ -72,19 +71,17 @@ STANDINS = {
 # Ten stand-in weapons, rifle x4, heavy x3, light x3, interleaved so the first three are one of each.
 STANDIN_WEAPONS = ("fire_rifle", "fire_heavy", "fire_light") * 3 + ("fire_rifle",)
 
-# ---- the fire: each weapon at its own cadence ---------------------------------------------------------------------
-# A Fire row is the weapon of its name (Snd.Fire.<Name> is Weapon.<Name>, as the fire observer matches them). A weapon fires once a
-# volley at its last level, one over cooldown_s (an Orbiter fires one drone at a time: count over cooldown_s), and sounds as the
-# runtime's density lets it (R-AUD-07, fire_voices). Ten stand-in weapons play the ten weapons' cadences in weapons.csv's order.
+# ---- the fire: the fullest build a run holds, at the density's cap ---------------------------------------------------
+# A Fire row is the weapon of its name (Snd.Fire.<Name> is Weapon.<Name>, as the fire observer matches them); weapon_cadences reads
+# each weapon's own firings a second at its last level (one over cooldown_s, an Orbiter's count over cooldown_s), printed beside the
+# plan. The fire the model plays (fire_plan, the scheduler's ruling of 2026-11-13) is the fullest build a run holds: C.WEAPON.SLOTS
+# weapons, the loudest fire rows by played level, each at C.AUD.FIRE_DENSE_VOICES_PER_S, R-AUD-07's cap at any rate. The cap is the
+# bound because the catalogs do not bound the fire-rate multiplier: Transform.Quicksilver (reforging.csv, Slipstream) takes
+# Flag.SpeedScale's stacks_max away and leaves a leak (R-RFG-21), so the stacks stand where the hero's speed balances it; with
+# Flag.SpeedScale's per_stack (expression.csv), Flag.VolleyOnDash's tailwind_rate and a Ricochet fallback beside it, any weapon can be
+# driven to the cap. Ten stand-in weapons take the ten weapons' names in weapons.csv's order.
 WEAPONS_CSV = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "weapons.csv")
 FIRE_PREFIX, WEAPON_PREFIX = "Snd.Fire.", "Weapon."
-# The largest fire-rate multiplier the catalogs allow, over a weapon's own cooldown; None = not bounded by the catalogs. What
-# shortens a cooldown in a run: Flag.SpeedScale's per_stack up to stacks_max (expression.csv, Archetype.Quicksilver.Momentum and
-# .Rebound: 1 + 30 x 0.02, +0.002 a stack from its upgrade), Flag.VolleyOnDash's tailwind_rate (Archetype.Quicksilver.Vector: 1.5,
-# +0.1), a Ricochet fallback on a melee or orbit weapon (C.KEEPER.RICOCHET_FALLBACK_RATE per bounce), and Transform.Quicksilver
-# (reforging.csv, Slipstream), which takes the stacks' cap away and leaves only a leak (R-RFG-21): the stacks then stand where the
-# hero's speed balances the leak, which no catalog row bounds. So a weapon under C.AUD.FIRE_DENSE_SHOTS_PER_S can be driven to it.
-FIRE_RATE_MULT_MAX = None
 # Files whose rows set the fire the model plays or its bound: part of the readings' cache key.
 FIRE_CATALOGS = (WEAPONS_CSV, os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "expression.csv"), os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "reforging.csv"))
 
@@ -117,7 +114,8 @@ KEYS_READ = ("AUD.SAMPLE_RATE_HZ", "AUD.DANGER_BAND_HZ", "AUD.LOW_ZONE_HZ", "AUD
 	"AUD.MASK_WINDOW_MS", "AUD.PLAYER_BAND_SHARE_MAX_DB", "AUD.MIX_CREST_MAX_DB", "AUD.DENSITY_RISE_MAX_DB", "AUD.DANGER_SMR_MIN_DB",
 	"AUD.HEARTBEAT_SMR_MIN_DB", "AUD.WARN_OVER_MIX_MIN_DB", "AUD.LIMIT_DBFS", "AUD.DUCK_DB", "AUD.DUCK_ATTACK_MS", "AUD.DUCK_RELEASE_MS",
 	"AUD.LOWHP_LOWEND_DUCK_DB", "AUD.LOWHP_HOLD_DB", "AUD.FIRE_DENSE_VOICES_PER_S", "AUD.KILL_DENSE_VOICES_PER_S", "AUD.AGGREGATE_MAX",
-	"AUD.PLAYER_STARTS_PER_S_MAX", "AUD.FIRE_DENSE_SHOTS_PER_S", "WEAPON.SLOTS", "AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER", "AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
+	"AUD.PLAYER_STARTS_PER_S_MAX", "WEAPON.SLOTS", "AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER",
+	"AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
 	"PRE.DENSITY_LOD_KILLS_PER_S", "IMP.DENSITY_FLOOD_KILLS_PER_S", "SIM.FIXED_HZ")
 
 
@@ -241,41 +239,32 @@ def weapon_cadences(path=WEAPONS_CSV):
 
 
 def fire_voices(keys, rate):
-	"""Voices a second the runtime gives a weapon firing `rate` times a second (R-AUD-07): every firing up to C.AUD.FIRE_DENSE_SHOTS_PER_S,
-	at most C.AUD.FIRE_DENSE_VOICES_PER_S above it (Audio/Observe/DTObserveFire's density)."""
-	return rate if rate <= keys["AUD.FIRE_DENSE_SHOTS_PER_S"] else float(min(rate, keys["AUD.FIRE_DENSE_VOICES_PER_S"]))
+	"""Voices a second the runtime gives a weapon firing `rate` times a second (R-AUD-07): every firing, at most
+	C.AUD.FIRE_DENSE_VOICES_PER_S, at any rate (Audio/Observe/DTObserveFire's density)."""
+	return float(min(rate, keys["AUD.FIRE_DENSE_VOICES_PER_S"]))
 
 
-def boosted_voices(keys, rate, mult=None):
-	"""The most voices a second a weapon of base `rate` can sound with its cooldown shortened by any multiplier up to `mult` (None: not
-	bounded). The density is not monotonic: a weapon driven exactly to C.AUD.FIRE_DENSE_SHOTS_PER_S sounds that often, one past it
-	C.AUD.FIRE_DENSE_VOICES_PER_S."""
-	shots = keys["AUD.FIRE_DENSE_SHOTS_PER_S"]
-	if rate > shots:
-		return fire_voices(keys, rate)
-	if mult is None or rate * mult >= shots:
-		return float(shots)
-	return rate * mult
+def played_level(src):
+	"""A source's loudest variant as played: its lk100 plus its volume in dB."""
+	return max(src.lk(v) for v in range(len(src.variants))) + to_db(src.volume)
 
 
-def fire_plan(keys, weapons, mult=FIRE_RATE_MULT_MAX):
-	"""The fire the model plays: the larger, by voices a second, of (1) every weapon at its last level and (2) the fullest build a run
-	holds, C.WEAPON.SLOTS weapons, those that ask most under the largest fire-rate multiplier (boosted_voices). `weapons` is
-	[(source, name, firings a second)]. Returns (sources, voices a second each, {case, voices_per_s, weapons, case1, case2}); case (1)
-	keeps the weapons' order, case (2) the most asking first. A tie is case (1)."""
-	one = [(s, n, fire_voices(keys, r)) for s, n, r in weapons]
-	ranked = sorted(weapons, key=lambda w: -w[2])                         # the most asking first, so among equals the fastest of its own
-	two = sorted([(s, n, boosted_voices(keys, r, mult)) for s, n, r in ranked], key=lambda w: -w[2])[:keys["WEAPON.SLOTS"]]
-	c1, c2 = math.fsum(v for _, _, v in one), math.fsum(v for _, _, v in two)
-	case, chosen = (f"all {len(weapons)} weapons at their last level", one) if c1 >= c2 else (f"the fullest build ({keys['WEAPON.SLOTS']} weapons, C.WEAPON.SLOTS) under the largest fire rate", two)
-	return [s for s, _, _ in chosen], [v for _, _, v in chosen], {"case": case, "voices_per_s": max(c1, c2), "weapons": [[n, v] for _, n, v in chosen],
-		"case1": c1, "case2": c2}
+def fire_plan(keys, weapons):
+	"""The fire the model plays: the fullest build a run holds, C.WEAPON.SLOTS weapons, the loudest by played level (the first of equals
+	in the weapons' order), each at the density's cap C.AUD.FIRE_DENSE_VOICES_PER_S (the bound: the catalogs do not bound the fire-rate
+	multiplier). `weapons` is [(source, name, its own firings a second)]. Returns (sources, voices a second each, {case, voices_per_s,
+	weapons: [[name, voices, own firings, played level]]}), the loudest first."""
+	cap = float(keys["AUD.FIRE_DENSE_VOICES_PER_S"])
+	ranked = sorted(weapons, key=lambda w: -played_level(w[0]))[:keys["WEAPON.SLOTS"]]
+	case = f"the fullest build: {len(ranked)} weapons (C.WEAPON.SLOTS), the loudest fire rows, each at the cap C.AUD.FIRE_DENSE_VOICES_PER_S"
+	return [s for s, _, _ in ranked], [cap] * len(ranked), {"case": case, "voices_per_s": cap * len(ranked),
+		"weapons": [[n, cap, r, played_level(s)] for s, n, r in ranked]}
 
 
 def player_roles(rows, read_variants, stand, keys=None, cadences=None):
 	"""({role: Source, 'fire': [Source], 'fire_rates': [voices a second], 'fire_plan': {...}}, [roles played by stand-ins]).
-	`read_variants(row)` gives a row's samples, or []. A Fire row takes its weapon's cadence by name; the stand-ins take the ten
-	weapons' in order. `keys` default to the constants file's; `cadences` to weapon_cadences()."""
+	`read_variants(row)` gives a row's samples, or []. A Fire row is its weapon's by name; the stand-ins take the ten weapons' names in
+	order. `keys` default to the constants file's; `cadences` to weapon_cadences()."""
 	keys = keys or read_keys()
 	cadences = cadences if cadences is not None else weapon_cadences()
 	rate_of = dict(cadences)
@@ -589,7 +578,12 @@ def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
 		if cue.family == WARN_FAMILY:
 			r["lk"] = min(M.lk_window(x) for x in played)
 			r["over_mix"] = r["lk"] - mix_lk
-		r["peak_dbfs"] = max(peak_on_top(mask, x, step) for x in played)
+		# Its loudness and its peak on top as loud as it can be asked: a row with an aggregation gain at C.AUD.AGGREGATE_MAX (enemy fire,
+		# which the game asks with the step's rounds as the count). Its audibility above stays the count of one, the quieter reading.
+		r["agg_db"] = cap_db(keys, cue)
+		loud = [cue.played(v, r["agg_db"]) for v in range(len(cue.variants))]
+		r["lk_max"] = max(M.lk_window(x) for x in loud)
+		r["peak_dbfs"] = max(peak_on_top(mask, x, step) for x in loud)
 		out.append(r)
 	ctl = None
 	if control is not None:
@@ -598,9 +592,14 @@ def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
 	return out, ctl
 
 
-def loudest_file(cue):
-	"""The played samples of the cue's variant with the highest peak (the first of equals)."""
-	files = [cue.played(v) for v in range(len(cue.variants))]
+def cap_db(keys, cue):
+	"""The level a batch can add to a cue: C.AUD.AGGREGATE_MAX in dB for a row with an aggregation gain (R-AUD-06), else 0."""
+	return to_db(keys["AUD.AGGREGATE_MAX"]) if cue.agg_gain > 0 else 0.0
+
+
+def loudest_file(cue, extra_db=0.0):
+	"""The played samples of the cue's variant with the highest peak (the first of equals), `extra_db` louder."""
+	files = [cue.played(v, extra_db) for v in range(len(cue.variants))]
 	return max(files, key=lambda x: max((abs(s) for s in x), default=0.0))
 
 
@@ -620,7 +619,7 @@ def pair_readings(keys, dense, cues, skip=SKIP_SECONDS):
 	mask = mix_of(dense["parts"], gain_db=keys["AUD.DUCK_DB"])[int(skip * sr):]
 	step = int(sr * keys["AUD.MASK_WINDOW_MS"] / 1000.0)
 	excluded = {frozenset(p) for p in EXCLUSIVE_PAIRS}
-	loud = [(c.label, loudest_file(c)) for c in cues]
+	loud = [(c.label, loudest_file(c, cap_db(keys, c))) for c in cues]          # a row with an aggregation gain at its cap
 	out = []
 	for i, (a, xa) in enumerate(loud):
 		for b, xb in loud[i + 1:]:
@@ -745,8 +744,8 @@ def table(result):
 	lines = [f"stand-ins: {standin_text(result['standins']) or 'none'}"]
 	plan = result.get("fire")
 	if plan:
-		lines.append(f"fire: {plan['case']}, {plan['voices_per_s']:.2f} voices a second (all of them {plan['case1']:.2f}, the fullest build {plan['case2']:.2f}): "
-			+ ", ".join(f"{n} {v:.2f}" for n, v in plan["weapons"]))
+		lines.append(f"fire: {plan['case']}, {plan['voices_per_s']:.2f} voices a second: "
+			+ ", ".join(f"{n} {v:.2f} (its own {r:.2f} firings a second, played {lv:.1f} LK)" for n, v, r, lv in plan["weapons"]))
 	lines.append("tier      weapons  layers     asked  merged  started  dropped  most/s  voices   LKint  band dB  crest dB  median  peak dBFS")
 	for t in result["tiers"]:
 		median = (f"{t['crest_median']:6.1f}" + ("*" if t.get("crest_judged") else " ")) if "crest_median" in t else f"{'-':>6s} "
@@ -759,11 +758,11 @@ def table(result):
 		lines.append(f"crest: the median over CREST_SEEDS = {CREST_SEEDS} seeds in each tier with a layer on, judged (*) on the flood tier ({FLOOD_KPS}/s) "
 			"only, printed elsewhere; crest dB is the first seed's")
 	if result["cues"]:
-		lines.append("cue                          zone  SMR ducked  SMR no duck  over mix  peak dBFS")
+		lines.append("cue                          zone  SMR ducked  SMR no duck  over mix  peak dBFS  LK max  at cap")
 		for c in result["cues"]:
 			smr = f"{c['smr']:10.1f}  {c['smr_no_duck']:11.1f}" if "smr" in c else f"{'-':>10s}  {'-':>11s}"
 			over = f"{c['over_mix']:8.1f}" if "over_mix" in c else f"{'-':>8s}"
-			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}")
+			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}  {c.get('lk_max', float('nan')):6.1f}  {'+' + format(c.get('agg_db', 0.0), '.1f') + ' dB' if c.get('agg_db') else '-'}")
 		if any(c["zone"] == "low" for c in result["cues"]):
 			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked, as the least over the flood tier's "
 				f"CREST_SEEDS = {CREST_SEEDS} seeds; its no-duck figure has nothing lowered")
