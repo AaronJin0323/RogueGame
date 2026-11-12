@@ -9,12 +9,12 @@ Snd.UI.Pick,UI,ui,body,UI,ui.pick,1,0,0.65,fixed,,150,1,0,0,400,3000,-32,-20,ui,
 Snd.UI.Reroll,UI,ui,body,UI,ui.reroll,1,0,0.6,fixed,,150,1,0,0,100,900,-32,-20,ui,delegated 2026-11-11
 Snd.UI.Banish,UI,ui,body,UI,ui.banish,1,0,0.6,fixed,,150,1,0,0,100,900,-32,-20,ui,delegated 2026-11-11
 Snd.UI.Lock,UI,ui,body,UI,ui.lock,1,0,0.6,fixed,,150,1,0,0,80,1500,-32,-20,ui,delegated 2026-11-11
-Snd.Warn.Line,Warn,danger,warn,Danger,warn.line,1,0,0.64,fixed,,120,2,0,0,30,120,-19,-11,warn,no
-Snd.Warn.Band,Warn,danger,warn,Danger,warn.band,1,0,0.64,fixed,,120,2,0,0,110,260,-19,-11,warn,no
-Snd.Warn.Ring,Warn,danger,warn,Danger,warn.ring,1,0,0.64,fixed,,120,2,0,0,120,260,-19,-11,warn,no
-Snd.Warn.Arc,Warn,danger,warn,Danger,warn.arc,1,0,0.64,fixed,,120,2,0,0,180,450,-19,-11,warn,no
-Snd.Danger.EnemyFire,Danger,danger,warn,Danger,danger.enemy_fire,2,0,0.6,fixed,,60,3,0.25,0,15,80,-28,-18,warn,no
-Snd.Danger.HeroHurt,Danger,danger,free,Danger,danger.hero_hurt,2,0,0.72,fixed,,150,1,0,0,120,320,-19,-10,hero,no
-Snd.Danger.HeroDown,Danger,danger,free,Danger,danger.hero_down,1,0,0.9,fixed,,1000,1,0,0,900,4200,-20,-10,hero,no
-Snd.Danger.Heartbeat,Danger,danger,low,Danger,danger.heartbeat,1,0,0.9,fixed,,300,1,0,0,250,450,-22,-12,hero,no
-Snd.Danger.BossPhase,Danger,danger,free,Danger,danger.boss_phase,1,0,0.9,fixed,,1000,1,0,0,900,4800,-20,-10,hero,no
+Snd.Warn.Line,Warn,danger,warn,Danger,warn.line,1,0,0.64,fixed,,120,2,0,0,30,120,-19,-11,warn,delegated 2026-11-12
+Snd.Warn.Band,Warn,danger,warn,Danger,warn.band,1,0,0.64,fixed,,120,2,0,0,110,260,-19,-11,warn,delegated 2026-11-12
+Snd.Warn.Ring,Warn,danger,warn,Danger,warn.ring,1,0,0.64,fixed,,120,2,0,0,120,260,-19,-11,warn,delegated 2026-11-12
+Snd.Warn.Arc,Warn,danger,warn,Danger,warn.arc,1,0,0.64,fixed,,120,2,0,0,180,450,-19,-11,warn,delegated 2026-11-12
+Snd.Danger.EnemyFire,Danger,danger,warn,Danger,danger.enemy_fire,2,0,0.6,fixed,,60,3,0.25,0,15,80,-28,-18,warn,delegated 2026-11-12
+Snd.Danger.HeroHurt,Danger,danger,free,Danger,danger.hero_hurt,2,0,0.72,fixed,,150,1,0,0,120,320,-19,-10,hero,delegated 2026-11-12
+Snd.Danger.HeroDown,Danger,danger,free,Danger,danger.hero_down,1,0,0.9,fixed,,1000,1,0,0,900,4200,-20,-10,hero,delegated 2026-11-12
+Snd.Danger.Heartbeat,Danger,danger,low,Danger,danger.heartbeat,1,0,0.9,fixed,,300,1,0,0,250,450,-22,-12,hero,delegated 2026-11-12
+Snd.Danger.BossPhase,Danger,danger,free,Danger,danger.boss_phase,1,0,0.9,fixed,,1000,1,0,0,900,4800,-20,-10,hero,delegated 2026-11-12
