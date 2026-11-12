@@ -23,6 +23,15 @@ namespace DTCat
 		Snd_UI_Reroll,
 		Snd_UI_Banish,
 		Snd_UI_Lock,
+		Snd_Warn_Line,
+		Snd_Warn_Band,
+		Snd_Warn_Ring,
+		Snd_Warn_Arc,
+		Snd_Danger_EnemyFire,
+		Snd_Danger_HeroHurt,
+		Snd_Danger_HeroDown,
+		Snd_Danger_Heartbeat,
+		Snd_Danger_BossPhase,
 		Count
 	};
 
@@ -45,7 +54,7 @@ namespace DTCat
 		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
-	inline constexpr int32 SoundCount = 10;
+	inline constexpr int32 SoundCount = 19;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
 		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
@@ -58,5 +67,14 @@ namespace DTCat
 		{ TEXT("Snd.UI.Reroll"), TEXT("/Game/DT/Audio/SFX/SW_UI_Reroll"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 594, true },
 		{ TEXT("Snd.UI.Banish"), TEXT("/Game/DT/Audio/SFX/SW_UI_Banish"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 654, true },
 		{ TEXT("Snd.UI.Lock"), TEXT("/Game/DT/Audio/SFX/SW_UI_Lock"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 1014, true },
+		{ TEXT("Snd.Warn.Line"), TEXT("/Game/DT/Audio/SFX/SW_Warn_Line"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.64f, ESoundPitch::Fixed, ESoundNote::None, 120, 2, 0.0f, false, 70, true },
+		{ TEXT("Snd.Warn.Band"), TEXT("/Game/DT/Audio/SFX/SW_Warn_Band"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.64f, ESoundPitch::Fixed, ESoundNote::None, 120, 2, 0.0f, false, 185, true },
+		{ TEXT("Snd.Warn.Ring"), TEXT("/Game/DT/Audio/SFX/SW_Warn_Ring"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.64f, ESoundPitch::Fixed, ESoundNote::None, 120, 2, 0.0f, false, 190, true },
+		{ TEXT("Snd.Warn.Arc"), TEXT("/Game/DT/Audio/SFX/SW_Warn_Arc"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.64f, ESoundPitch::Fixed, ESoundNote::None, 120, 2, 0.0f, false, 340, true },
+		{ TEXT("Snd.Danger.EnemyFire"), TEXT("/Game/DT/Audio/SFX/SW_Danger_EnemyFire"), ESoundSide::Danger, ESoundClass::Danger, 2, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 60, 3, 0.25f, false, 50, true },
+		{ TEXT("Snd.Danger.HeroHurt"), TEXT("/Game/DT/Audio/SFX/SW_Danger_HeroHurt"), ESoundSide::Danger, ESoundClass::Danger, 2, false, 0.72f, ESoundPitch::Fixed, ESoundNote::None, 150, 1, 0.0f, false, 240, true },
+		{ TEXT("Snd.Danger.HeroDown"), TEXT("/Game/DT/Audio/SFX/SW_Danger_HeroDown"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 3766, true },
+		{ TEXT("Snd.Danger.Heartbeat"), TEXT("/Game/DT/Audio/SFX/SW_Danger_Heartbeat"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 300, 1, 0.0f, false, 400, true },
+		{ TEXT("Snd.Danger.BossPhase"), TEXT("/Game/DT/Audio/SFX/SW_Danger_BossPhase"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 4126, true },
 	};
 }

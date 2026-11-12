@@ -4,6 +4,7 @@ A helper module: it holds no catalog sound of its own. The families' recipes bui
   stone    a dull knock that does not ring: slabs, tablets            small, frequent, refused
   bell     struck bronze, tuned so every partial is a note of the key  what is granted
   breath   a scrape, air                                               a slab moved, a tablet slid
+  clunk    a heavy latch of the old machine                            the Keep's acts, the Warden
   hall     a great stone room baked into the file                      rare sounds only
 Everything ends in `world()`: no rumble below hearing, nothing in the danger band. Exact operations only, like the core.
 """
@@ -98,3 +99,9 @@ def stone(note, sec, ring_ms, amp=1.0, seed=1):
 def breath(sec, seed, centre_hz, attack_ms, tau_ms, amp, q=2.0):
 	x = mul(noise(sec, Rng(seed)), env_ad(n_of(sec), attack_ms, tau_ms))
 	return gain(biquad(biquad(x, "bp", centre_hz, q), "bp", centre_hz, q), amp)
+
+
+def clunk(note, amp=1.0, seed=3, ring_ms=30.0):
+	"""A heavy latch of the old machine: a low body, two dull metal partials, a soft knock of air."""
+	x = struck(hz(note), 0.2, ((1.0, 1.0, ring_ms), (2.1, 0.5, ring_ms * 0.5), (3.9, 0.3, ring_ms * 0.35)), 4.5, amp)
+	return add_at(x, breath(0.03, seed, 420.0, 4.0, 7.0, 0.5 * amp, 1.2), 0.0)

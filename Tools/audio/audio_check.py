@@ -14,16 +14,21 @@ In order:
      licence row, catalog and manifest name the same files;
   4  build or reuse every file (Tools/audio/audio_build.py) and compare its SHA-256 with Tools/audio/sound_manifest.csv;
   5  the per-file rules of the C.AUD.* keys (T-AUD-15, T-AUD-16), variants not byte-identical, and every pair of every
-     confusion set (T-AUD-17).
-Not active yet, and named so in the verdict, never passed: the mix checks (audio.md R-AUD-18, a later job's mix_model.py) and
-the generated C++ table (Source/Dusktracer/Audio/DTSoundsGen.h): it is held to gen_sounds.py as soon as it exists.
+     confusion set (T-AUD-17);
+  6  the mix (R-AUD-18, T-AUD-18; Tools/audio/mix_model.py): once the catalog has a danger-side row, every one is read against
+     the densest player mix, and the mix's density readings are judged. The readings are cached in <out>/mix.json under a key
+     over everything they depend on (mix_model.cache_key); with no danger-side row there is nothing to read.
+Not active yet, and named so in the verdict, never passed: the mix checks while the catalog has no danger-side row, and the
+generated C++ table (Source/Dusktracer/Audio/DTSoundsGen.h): it is held to gen_sounds.py as soon as it exists.
 
-Last line: AUDIO: PASS (<n> sounds: <a> heard, <d> delegated, <r> rejected, <x> not heard; <m> files, <t> tool tests; <what is not
-active yet>) or AUDIO: FAIL (<k> error(s)). The counts are the catalog's heard column (R-AUD-22, T-AUD-22).
+Last line: AUDIO: PASS (<n> sounds: <a> heard, <d> delegated, <r> rejected, <x> not heard; <m> files, <t> tool tests; [mix: <c> cue(s)
+over stand-ins for <roles>;] <what is not active yet>) or AUDIO: FAIL (<k> error(s)). The counts are the catalog's heard column
+(R-AUD-22, T-AUD-22).
 Every error line starts with `error: `; whatever escapes the checks is one such line and a FAIL. Exit 0 / 1.
 """
 
 import ast
+import json
 import math
 import os
 import re
@@ -39,6 +44,7 @@ import audio_build as B  # noqa: E402
 import audio_metrics as M  # noqa: E402
 import catalog_lint  # noqa: E402
 import dtconst  # noqa: E402
+import mix_model  # noqa: E402
 
 _DEFAULTS = M.aud_keys()
 KEYS = dict(_DEFAULTS)                       # check() reads them from its Paths' constants file
@@ -318,10 +324,40 @@ def header_errors(rows, header_path, manifest=None):
 	return True, []
 
 
+# ---- 6: the mix ------------------------------------------------------------------------------------
+
+def mix_text(mix):
+	"""The verdict's words for what the mix read."""
+	roles = mix_model.standin_text(mix["standins"])
+	return f"mix: {len(mix['cues'])} cue(s) over " + (f"stand-ins for {roles}" if roles else "the catalog's player side")
+
+
+def mix_check(rows, files, paths, snapshot, options=None):
+	"""(the mix model's result or None, [error]). None when the catalog has no danger-side row: nothing to read. `options` are
+	mix_model.run's keyword arguments (the tests shorten the render); they are part of the cache key."""
+	if not any(r.get("valid") and r["side"] == "danger" for r in rows):
+		return None, []
+	options = dict(options or {})
+	keys = mix_model.read_keys(paths.constants)
+	read = mix_model.mix_rows(rows)
+	used = {stem: f for stem, f in files.items() if f["row"] in read}
+	k = mix_model.cache_key(snapshot, paths, keys, used, json.dumps(options, sort_keys=True))
+	cache_path = os.path.join(paths.out, "mix.json")
+	cached = B._load_json(cache_path)
+	if cached.get("key") == k and isinstance(cached.get("result"), dict):
+		result = cached["result"]
+	else:
+		roles, standins, cues = mix_model.catalog_inputs(rows, used, snapshot)
+		result = mix_model.run(keys, roles, cues, standins, **options)
+		B._save_json(cache_path, {"key": k, "result": result})
+	return result, list(result["errors"])
+
+
 # ---- the step --------------------------------------------------------------------------------------
 
-def check(paths):
-	"""All checks but the tool tests: ([error], summary dict). The keys are read from `paths.constants`."""
+def check(paths, mix=True):
+	"""All checks but the tool tests: ([error], summary dict). The keys are read from `paths.constants`. mix=False leaves the mix out
+	(the fixture trees of the tool tests); a dict is mix_model.run's keyword arguments."""
 	global KEYS
 	KEYS = M.aud_keys(paths.constants)
 	M.configure(KEYS)
@@ -348,16 +384,23 @@ def check(paths):
 	errors += pair_errors(rows, files, measures)
 	header_active, found = header_errors(rows, paths.header, manifest)
 	errors += found
+	result = None
+	if mix is not False:
+		result, found = mix_check(rows, files, paths, snapshot, mix if isinstance(mix, dict) else None)
+		errors += found
 	return errors, {"sounds": len(rows), "files": len(files), "rebuilt": sum(1 for f in files.values() if f["rebuilt"]), "header": header_active,
-		"heard": B.heard_counts(rows)}
+		"heard": B.heard_counts(rows), "mix": result}
 
 
 def pass_line(summary, count, seconds):
-	"""The step's verdict when nothing failed: the catalog's heard counts first (R-AUD-22), and what is not active yet, never passed."""
+	"""The step's verdict when nothing failed: the catalog's heard counts first (R-AUD-22), what the mix read, and what is not active
+	yet, never passed."""
 	h = summary["heard"]
-	inactive = ["the mix checks (R-AUD-18)"] + ([] if summary["header"] else ["the generated C++ table DTSoundsGen.h"])
+	mix = summary.get("mix")
+	inactive = ([] if mix else ["the mix checks (R-AUD-18)"]) + ([] if summary["header"] else ["the generated C++ table DTSoundsGen.h"])
 	return (f"AUDIO: PASS ({summary['sounds']} sounds: {h['heard']} heard, {h['delegated']} delegated, {h['rejected']} rejected, {h['not heard']} not heard; "
-		f"{summary['files']} files, {count} tool tests; not active yet: {' and '.join(inactive)}; {summary['rebuilt']} rebuilt, {seconds:.1f} s)")
+		f"{summary['files']} files, {count} tool tests; " + (f"{mix_text(mix)}; " if mix else "") +
+		(f"not active yet: {' and '.join(inactive)}; " if inactive else "") + f"{summary['rebuilt']} rebuilt, {seconds:.1f} s)")
 
 
 def run_tool_tests():

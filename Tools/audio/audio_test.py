@@ -43,6 +43,7 @@ import audio_view  # noqa: E402
 import dtconst  # noqa: E402
 import dtsynth  # noqa: E402
 import gen_sounds  # noqa: E402
+import mix_model as X  # noqa: E402
 
 SAVED = os.path.join(B.ROOT, "Saved", "AudioTest")   # main() narrows it to a folder of this run, so two runs never share one
 # The fixture trees share one measures cache, kept between runs: it is keyed by file hash, measure code and keys like the step's own.
@@ -323,8 +324,9 @@ class Tree:
 		files, _ = B.build(rows, self.paths)
 		B.write_manifest(self.paths.manifest, files, B.measure_all(files, self.paths))
 
-	def check(self):
-		errors, summary = audio_check.check(self.paths)
+	def check(self, mix=False):
+		"""The step's checks on this tree; the mix is left out unless asked for (mix: mix_model.run's keyword arguments)."""
+		errors, summary = audio_check.check(self.paths, mix)
 		return "\n".join(errors), summary
 
 
@@ -923,6 +925,285 @@ class Header(unittest.TestCase):
 		with contextlib.redirect_stdout(io.StringIO()):
 			self.assertEqual(gen_sounds.main(["--check"] + args), 1)
 		self.assertIn("is out of date against sounds.csv", tree.check()[0])
+
+
+# ---- the mix model (T-AUD-18) -----------------------------------------------------------------------------------
+
+MIX_SECONDS, MIX_SKIP = 1.0, 0.5               # the tests render short tiers: half a second read past half a second
+
+
+def ping(level):
+	"""A short ping near 3 kHz: E7 and G7, one partial in each of two third-octave bands of the danger band."""
+	n = dtsynth.n_of(0.12)
+	x = [a + b for a, b in zip(dtsynth.osc(0.12, dtsynth.hz("E7")), dtsynth.osc(0.12, dtsynth.hz("G7")))]
+	return dtsynth.gain(dtsynth.edges(dtsynth.mul(x, dtsynth.env_ad(n, 1.0, 25.0)), 0.5), level)
+
+
+def thump(level):
+	"""A thump near 60 Hz: A1 under its octave, the heartbeat's zone."""
+	n = dtsynth.n_of(0.25)
+	x = [a + 0.5 * b for a, b in zip(dtsynth.osc(0.25, dtsynth.hz("A1")), dtsynth.osc(0.25, dtsynth.hz("A2")))]
+	return dtsynth.gain(dtsynth.edges(dtsynth.mul(x, dtsynth.env_ad(n, 8.0, 60.0)), 0.5), level)
+
+
+def cue(label, samples, zone, family=""):
+	return X.Source(label, [samples], 1.0, side="danger", zone=zone, family=family)
+
+
+PING_LEVEL, THUMP_LEVEL = 0.25, 0.6
+CUE_RECIPES = f'''"""Fixture: the mix test's ping (Tools/audio/audio_test.py)."""
+
+from dtsynth import edges, env_ad, gain, hz, mul, n_of, osc
+
+
+def ping(v=0):
+	n = n_of(0.12)
+	x = [a + b for a, b in zip(osc(0.12, hz("E7")), osc(0.12, hz("G7")))]
+	return gain(edges(mul(x, env_ad(n, 1.0, 25.0)), 0.5), {PING_LEVEL})
+'''
+PING_ROW = dict(WARN, id="Snd.Warn.Ping", family="Warn", recipe="cues.ping", volume="1.0", len_min_ms="1", len_max_ms="250", level_min_lk="-60", level_max_lk="-1")
+
+
+def recipe_text(name):
+	with open(os.path.join(HERE, "recipes", name), encoding="utf-8") as f:
+		return f.read()
+
+
+class Mix(unittest.TestCase):
+	"""T-AUD-18: the off-line mix model. Each reading is shown to fail; the schedule holds the caps; one seed gives one mix."""
+
+	@classmethod
+	def setUpClass(cls):
+		cls.keys = X.read_keys()
+		cls.roles, used = X.player_roles([], lambda row: [], X.standins(B.Snapshot(B.RECIPES)))
+		assert used == list(X.ROLES), used
+		cls.tiers = X.render_tiers(cls.keys, cls.roles, MIX_SECONDS)
+		cls.readings = X.tier_readings(cls.keys, cls.tiers, MIX_SKIP)
+		cls.dense = cls.tiers[-1]
+
+	def tearDown(self):
+		X.configure(self.keys)
+
+	def judged(self, cues, dense=None, keys=None):
+		keys = keys or self.keys
+		cr, ctl = X.cue_readings(keys, dense or self.dense, cues, X.loudest_player(self.roles), MIX_SKIP)
+		return cr, X.judge(keys, [], cr, ctl)
+
+	def test_a_ping_passes_and_the_same_ping_30_db_down_fails(self):
+		cr, errors = self.judged([cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn"), cue("Snd.Warn.Low", ping(PING_LEVEL * X.db_gain(-30.0)), "warn", "Warn")])
+		self.assertFalse([e for e in errors if "Snd.Warn.Ping" in e], errors)
+		self.assertGreaterEqual(cr[0]["smr"], self.keys["AUD.DANGER_SMR_MIN_DB"])
+		self.assertGreaterEqual(cr[0]["over_mix"], self.keys["AUD.WARN_OVER_MIX_MIN_DB"])
+		self.assertAlmostEqual(cr[0]["smr_no_duck"], cr[0]["smr"] + self.keys["AUD.DUCK_DB"])
+		low = [e for e in errors if "Snd.Warn.Low" in e]
+		self.assertEqual(len(low), 2, errors)
+		self.assertIn("under C.AUD.DANGER_SMR_MIN_DB", low[0])
+		self.assertIn("under C.AUD.WARN_OVER_MIX_MIN_DB", low[1])
+
+	def test_a_thump_passes_or_fails_the_low_zone_by_level(self):
+		cr, errors = self.judged([cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low"), cue("Snd.Hero.Faint", thump(THUMP_LEVEL * X.db_gain(-30.0)), "low")])
+		self.assertGreaterEqual(cr[0]["smr"], self.keys["AUD.HEARTBEAT_SMR_MIN_DB"])
+		self.assertNotIn("over_mix", cr[0])           # not of the Warn family
+		self.assertEqual(len(errors), 1, errors)
+		self.assertIn("Snd.Hero.Faint: audibility", errors[0])
+		self.assertIn("under C.AUD.HEARTBEAT_SMR_MIN_DB", errors[0])
+
+	def test_the_mix_raised_12_db_fails_the_peak(self):
+		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]
+		self.assertFalse([e for e in self.judged(cues)[1] if "peaks at" in e])
+		g = X.db_gain(12.0)
+		loud = dict(self.dense, parts={k: [s * g for s in v] for k, v in self.dense["parts"].items()})
+		errors = self.judged(cues, loud)[1]
+		self.assertTrue([e for e in errors if "Snd.Warn.Ping: the densest mix ducked, with it on top, peaks at" in e and "over C.AUD.LIMIT_DBFS" in e], errors)
+
+	def test_the_control_never_reaches_the_floor_unless_the_model_is_broken(self):
+		_, ctl = X.cue_readings(self.keys, self.dense, [], X.loudest_player(self.roles), MIX_SKIP)
+		self.assertLess(ctl["smr"], self.keys["AUD.DANGER_SMR_MIN_DB"])
+		self.assertEqual(X.judge(self.keys, [], [], ctl), [])
+		real = M.audibility                                             # a broken measure: everything reads as heard
+		M.audibility = lambda cue, masker, lo, hi, *a: (99.0, 99.0, {})
+		self.addCleanup(setattr, M, "audibility", real)
+		errors = self.judged([])[1]
+		self.assertEqual(len(errors), 1, errors)
+		self.assertIn("the model is broken", errors[0])
+
+	def test_the_stand_in_mix_holds_the_band_and_a_strong_3_khz_part_fails_it(self):
+		share_max = self.keys["AUD.PLAYER_BAND_SHARE_MAX_DB"]
+		self.assertTrue(all(t["share_db"] <= share_max for t in self.readings), self.readings)
+		tone = dtsynth.osc(0.2, dtsynth.hz("G7"))
+		rifle = self.roles["fire"][0]
+		bright = X.Source("standin.fire_rifle+3k", [[s + 0.3 * tone[i] if i < len(tone) else s for i, s in enumerate(x)] for x in rifle.variants],
+			rifle.volume, rifle.pitch, rifle.note, rifle.interval_ms, rifle.agg_gain, rifle.grid)
+		roles = dict(self.roles, fire=[bright if s is rifle else s for s in self.roles["fire"]])
+		tr = X.tier_readings(self.keys, X.render_tiers(self.keys, roles, MIX_SECONDS, tiers=(X.TIERS[-1],)), MIX_SKIP)
+		errors = X.judge(self.keys, tr, [], None)
+		self.assertTrue([e for e in errors if "in C.AUD.DANGER_BAND_HZ, over C.AUD.PLAYER_BAND_SHARE_MAX_DB" in e], (tr, errors))
+
+	def test_the_rise_is_judged(self):
+		tr = [dict(t, lk_int=-30.0) for t in self.readings]
+		self.assertEqual(X.judge(self.keys, tr, [], None), [])
+		tr[-1]["lk_int"] = tr[0]["lk_int"] + self.keys["AUD.DENSITY_RISE_MAX_DB"] + 0.5
+		errors = X.judge(self.keys, tr, [], None)
+		self.assertEqual(len(errors), 1, errors)
+		self.assertIn("loudness rises", errors[0])
+		self.assertIn("C.AUD.DENSITY_RISE_MAX_DB", errors[0])
+
+	def counted_run(self, keys, used):
+		"""mix_model.run on the short render, counting every tier render (the run's own and the crest's extra seeds)."""
+		calls = []
+		real = X.render
+
+		def counting(*a, **k):
+			calls.append(1)
+			return real(*a, **k)
+		X.render = counting
+		try:
+			result = X.run(keys, self.roles, [], used, MIX_SECONDS, MIX_SKIP)
+		finally:
+			X.render = real
+		return result, len(calls)
+
+	def test_with_stand_ins_the_crest_is_printed_and_never_judged(self):
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 0})            # every tier's crest is over this limit
+		result, renders = self.counted_run(keys, list(X.ROLES))
+		self.assertTrue(all(t["crest_db"] > 0 for t in result["tiers"]))
+		self.assertFalse([e for e in result["errors"] if "crest" in e], result["errors"])
+		self.assertFalse([t for t in result["tiers"] if t["crest_judged"]])
+		self.assertEqual(renders, len(X.TIERS))                              # no extra seed rendered
+		lines = X.table(result)
+		self.assertIn("crest not judged: stand-ins for fire, kills, layers (printed on one seed)", lines)
+		for t in result["tiers"]:
+			self.assertTrue([ln for ln in lines if ln.startswith(f"{t['kps']:4d}/s") and f"{t['crest_db']:8.1f}" in ln], (t, lines))
+		partial = X.run(keys, self.roles, [], ["hit"], MIX_SECONDS, MIX_SKIP)   # one stand-in is enough to hold the judgement back
+		self.assertFalse([e for e in partial["errors"] if "crest" in e])
+
+	def test_with_no_stand_in_a_layered_tier_is_judged_on_the_median_of_its_seeds(self):
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 0})
+		result, renders = self.counted_run(keys, [])
+		layered = [t for t in result["tiers"] if t["layer_on"]]
+		self.assertEqual([t["kps"] for t in layered], [k for k in X.TIERS if k >= self.keys["PRE.DENSITY_LOD_KILLS_PER_S"]])
+		self.assertEqual(renders, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
+		crest = [e for e in result["errors"] if "C.AUD.MIX_CREST_MAX_DB" in e]
+		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {t['kps']}" for t in layered], result["errors"])
+		self.assertTrue(all(f"the median of {X.CREST_SEEDS} seeds" in e for e in crest))
+		sparse = [t for t in result["tiers"] if not t["layer_on"]]
+		self.assertTrue(sparse and not any(t["crest_judged"] for t in sparse))   # a tier with no layer is still not judged
+		for t in layered:
+			self.assertEqual(len(t["crest_seeds"]), X.CREST_SEEDS)
+			self.assertEqual(t["crest_seeds"][0], t["crest_db"])
+			self.assertEqual(t["crest_median"], X.crest_median(t["crest_seeds"]))
+			self.assertEqual(len(set(t["crest_seeds"])), X.CREST_SEEDS)        # the seeds draw different mixes
+		self.assertEqual(X.judge(self.keys, [dict(t, crest_median=self.keys["AUD.MIX_CREST_MAX_DB"] - 0.1) for t in result["tiers"]], [], None), [])
+
+	def test_the_judged_crest_is_the_median(self):
+		self.assertEqual(X.crest_median([14.3, 12.0, 13.1]), 13.1)
+		self.assertEqual(X.crest_median([15.0, 12.0, 13.9, 13.0, 14.2]), 13.9)
+		self.assertEqual(X.crest_median([12.0, 14.0, 13.0, 15.0]), 13.5)   # an even count: the mean of the two middle ones
+		self.assertEqual(X.crest_median([14.1]), 14.1)
+		self.assertEqual(X.CREST_SEEDS % 2, 1)                              # odd: the median is one seed's own reading
+		real = X.crest_of
+		draws = [14.6, 13.2, 13.4, 13.8, 12.9, 12.5][:X.CREST_SEEDS - 1]
+		it = iter(draws)
+		X.crest_of = lambda *a: next(it)
+		self.addCleanup(setattr, X, "crest_of", real)
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 14})
+		r = X.judge_crest(keys, self.roles, [{"kps": 100, "weapons": 10}], [{"kps": 100, "layer_on": True, "crest_db": 14.1, "crest_judged": False}], [])[0]
+		self.assertEqual(r["crest_seeds"], [14.1] + draws)
+		self.assertEqual(r["crest_median"], X.crest_median([14.1] + draws))
+		self.assertLess(r["crest_median"], 14)                                  # the first seed over the line by a tenth is not a finding ...
+		self.assertEqual(X.judge(keys, [dict(r, share_db=-60.0)], [], None), [])
+		over = dict(r, share_db=-60.0, crest_median=14.2)                       # ... the median over it is
+		self.assertEqual(X.judge(keys, [over], [], None), [f"mix at 100 kills/s: crest 14.2 dB (the median of {X.CREST_SEEDS} seeds) over C.AUD.MIX_CREST_MAX_DB 14 (R-AUD-18)"])
+
+	def test_two_runs_give_the_same_samples_and_readings(self):
+		a = X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.TIERS[-1],))
+		b = X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.TIERS[-1],))
+		self.assertEqual(a[0]["parts"], b[0]["parts"])
+		self.assertEqual(a[0]["parts"], self.dense["parts"])           # and the same as the class's run, made earlier
+		self.assertEqual(X.tier_readings(self.keys, b, MIX_SKIP)[0], self.readings[-1])
+
+	def test_the_schedule_holds_every_cap(self):
+		k = self.keys
+		slots = k["AUD.VOICES_MAX"] - k["AUD.VOICES_DANGER"] - k["AUD.VOICES_UI"]
+		dropped = 0
+		for kps, weapons in zip(X.TIERS, X.WEAPONS_FIRING):
+			s = X.schedule(k, self.roles, kps, weapons, X.TIER_SECONDS, X.SEED * 1000 + kps)
+			frames = [int(round(t * X.FRAME_HZ)) for t, _, _, _, _ in s["starts"]]
+			self.assertEqual(frames, sorted(frames))
+			for f in set(frames):
+				self.assertLessEqual(frames.count(f), k["AUD.STARTS_PER_FRAME_MAX"], (kps, f))
+				self.assertLessEqual(sum(1 for g in frames if f - X.FRAME_HZ < g <= f), k["AUD.PLAYER_STARTS_PER_S_MAX"], (kps, f))
+			spans = [(t, t + len(src.voice(v, semis)) / k["AUD.SAMPLE_RATE_HZ"]) for t, src, v, semis, _ in s["starts"]]
+			layers = int(s["crowd"]) + int(s["low"])
+			for t, _ in spans:
+				self.assertLessEqual(sum(1 for a, b in spans if a <= t < b) + layers, slots, (kps, t))
+			self.assertLessEqual(s["most_voices"], slots)
+			self.assertLessEqual(s["most_per_s"], k["AUD.PLAYER_STARTS_PER_S_MAX"])
+			self.assertEqual((s["crowd"], s["low"]), (kps >= k["PRE.DENSITY_LOD_KILLS_PER_S"], kps >= k["IMP.DENSITY_FLOOD_KILLS_PER_S"]))
+			gains = [g for _, src, _, _, g in s["starts"]]
+			self.assertLessEqual(max(gains), k["AUD.AGGREGATE_MAX"] * X.db_gain(k["AUD.LEVEL_JITTER_DB"]) + 1e-9)
+			for _, src, _, semis, _ in s["starts"]:
+				self.assertIn(semis, X.DEGREES[src.note] if src.pitch == "key" else (0,))
+			dropped += s["dropped"]
+		self.assertGreater(dropped, 0)                   # the densest tiers bind the start cap: the reading is the worst case
+
+	def test_the_step_reads_the_mix_and_caches_it(self):
+		tree = Tree([PING_ROW], licences=("Content/DT/Audio/SFX/SW_Warn_*",), extra={"cues.py": CUE_RECIPES, "world.py": recipe_text("world.py"),
+			"standin.py": recipe_text("standin.py")})
+		calls = []
+		real = X.run
+
+		def counted(*a, **k):
+			calls.append(1)
+			return real(*a, **k)
+		X.run = counted
+		self.addCleanup(setattr, X, "run", real)
+		self.addCleanup(M.configure, M.aud_keys())
+		options = {"seconds": MIX_SECONDS, "skip": MIX_SKIP}
+		with open(dtconst.CONSTANTS_YAML, encoding="utf-8") as f:
+			yaml = f.read()
+		path = os.path.join(tree.root, "constants.yaml")
+		with open(path, "w", encoding="utf-8", newline="\n") as f:
+			f.write(yaml)
+		tree.paths.constants = path
+		text, summary = tree.check(options)
+		self.assertEqual(text, "")
+		self.assertEqual(audio_check.mix_text(summary["mix"]), "mix: 1 cue(s) over stand-ins for fire, kills, layers")
+		self.assertIn("; mix: 1 cue(s) over stand-ins for fire, kills, layers; not active yet: the generated C++ table DTSoundsGen.h;", audio_check.pass_line(summary, 1, 1.0))
+		self.assertEqual(len(calls), 1)
+		self.assertEqual(tree.check(options)[1]["mix"], summary["mix"])
+		self.assertEqual(len(calls), 1)                 # nothing changed: read from the cache
+		X.run = lambda *a, **k: calls.append(2) or dict(summary["mix"], errors=["recomputed"])   # the recompute itself is read above
+		with open(path, "w", encoding="utf-8", newline="\n") as f:
+			f.write(yaml.replace("AUD.DANGER_SMR_MIN_DB:         { value: 12", "AUD.DANGER_SMR_MIN_DB:         { value: 13"))
+		text, _ = tree.check(options)
+		self.assertEqual((len(calls), text), (2, "recomputed"))           # a changed key recomputes
+		self.assertEqual(tree.check(options)[0], "recomputed")              # and its readings are the cache's from then on
+		self.assertEqual(len(calls), 2)
+		# A catalog with no danger-side row: nothing to read, as before.
+		_, summary = Tree([ROW]).check(options)
+		self.assertIsNone(summary["mix"])
+		self.assertIn("not active yet: the mix checks (R-AUD-18)", audio_check.pass_line(summary, 1, 1.0))
+
+	def test_the_cache_key_covers_each_part(self):
+		tree = Tree([PING_ROW], licences=("Content/DT/Audio/SFX/SW_Warn_*",), extra={"cues.py": CUE_RECIPES})
+		snap = B.Snapshot(tree.paths.recipes)
+		files = {"SW_Warn_Ping": {"sha256": "a"}}
+		base = X.cache_key(snap, tree.paths, self.keys, files)
+		self.assertEqual(X.cache_key(B.Snapshot(tree.paths.recipes), tree.paths, dict(self.keys), dict(files)), base)
+		changed = [X.cache_key(snap, tree.paths, dict(self.keys, **{"AUD.DUCK_DB": -7}), files), X.cache_key(snap, tree.paths, self.keys, {"SW_Warn_Ping": {"sha256": "b"}}),
+			X.cache_key(snap, tree.paths, self.keys, files, "seconds")]
+		for name in ("catalog", "manifest"):
+			path = getattr(tree.paths, name)
+			with open(path, "a", encoding="utf-8") as f:
+				f.write("\n")
+			changed.append(X.cache_key(snap, tree.paths, self.keys, files))
+		with open(os.path.join(tree.paths.recipes, "cues.py"), "a", encoding="utf-8") as f:
+			f.write("\n")
+		changed.append(X.cache_key(B.Snapshot(tree.paths.recipes), tree.paths, self.keys, files))
+		self.assertEqual(len(set(changed + [base])), len(changed) + 1, changed)
+		for f in ("mix_model.py", "audio_metrics.py"):          # the model's own code is hashed by its bytes
+			self.assertIn(f, open(X.__file__, encoding="utf-8").read().split("def cache_key")[1].split("def table")[0])
 
 
 def main():
