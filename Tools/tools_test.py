@@ -4331,6 +4331,8 @@ class EnemyArt(unittest.TestCase):
 			self.assertIn(f"constexpr float {name} = {value:g}f;" if value != int(value) else f"constexpr float {name} = {value:.1f}f;", code, name)
 		self.assertIn("const float Radius = K->Reach * R + 1.5f * P;", code)
 		self.assertIn("FMath::Sqrt(static_cast<float>(DTConst::EAR_ELITE_LIGHT_AREA_MAX_RATIO) / LightRatio)", code)
+		self.assertIn("FMath::Max(K->TailHalf * R - Half, P)", code)
+		self.assertIn("FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R)", code)
 
 	def test_a_light_too_large_for_its_hull_is_scaled_down(self):
 		# R-EAR-08: the Turret's mirror covers most of its disc; its light is held to the cap, the others are not touched.
@@ -4341,8 +4343,6 @@ class EnemyArt(unittest.TestCase):
 		self.assertGreater(elite_anchors.light_area_ratio(elite_anchors.table()["Turret"]), cap)
 		for role in ("Swarm", "Tank", "Rusher"):
 			self.assertLessEqual(elite_anchors.light_area_ratio(elite_anchors.table()[role]), cap, role)
-		self.assertIn("FMath::Max(K->TailHalf * R - Half, P)", code)
-		self.assertIn("FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R)", code)
 
 	def test_a_floating_part_is_found(self):
 		hull = [enemy_shapes.box("Hull", -50, 50, -50, 50, 0, 100)]
