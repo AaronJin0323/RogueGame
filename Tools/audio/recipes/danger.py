@@ -48,19 +48,21 @@ def hero_down(v=0):
 
 
 def thump(note, tau_ms, amp):
+	"""One beat: the note and its octaves, falling a little as it dies. The fight's own low notes are A and E; a beat on C
+	puts its weight in the third-octave bands between them (63, 125 and 250 Hz), where the fight leaves room."""
 	f0 = hz(note)
 	sec = 0.24
 	n = n_of(sec)
 	out = [0.0] * n
-	for h, g, t in ((1.0, 0.7, 1.0), (2.0, 0.9, 0.6), (3.0, 1.0, 0.45), (4.0, 0.8, 0.35), (5.0, 0.55, 0.3)):
-		part = mul(osc(sec, f0 * h, f0 * h * 0.8, 0.0, 0.5), env_ad(n, 8.0 if h == 1.0 else 5.0, tau_ms * t))
+	for h, g, t in ((1.0, 0.9, 1.0), (2.0, 1.0, 0.6), (3.0, 0.45, 0.45), (4.0, 1.1, 0.4), (5.0, 0.3, 0.3)):
+		part = mul(osc(sec, f0 * h, f0 * h * 0.92, 0.0, 0.5), env_ad(n, 8.0 if h == 1.0 else 5.0, tau_ms * t))
 		for i, s in enumerate(part):
 			out[i] += amp * g * s
 	return out
 
 
 def heartbeat(v=0):
-	x = thump("A1", 60.0, 1.0)
+	x = thump("C2", 60.0, 1.0)
 	add_at(x, thump("C2", 45.0, 0.7), 0.16)
 	return finish(lp4(hp4(saturate(x, 1.8), 35.0), 600.0), 0.20, 0.85, 2.0, 20.0)
 

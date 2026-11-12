@@ -1,12 +1,12 @@
 # S4 audio: the warnings and the danger family, as drafts
 
-Branch `s4/audio-snd-danger`, on `s4/audio-snd-ui-stone` at 60c4f28. It adds nine catalog rows in two families, their recipes, their manifest lines and their rows of the generated table. Every row reads `no` in the catalog's `heard` column, so none becomes an asset and none can play (`02_Systems/audio.md` R-AUD-22). There is no engine code here; the generated table gains nine ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures.
+Branch `s4/audio-snd-danger`, on `s4/audio-snd-ui-stone` at 60c4f28, with the mix model's branch `s4/audio-mix` merged. It adds nine catalog rows in two families, their recipes, their manifest lines and their rows of the generated table. Every row reads `no` in the catalog's `heard` column, so none becomes an asset and none can play (`02_Systems/audio.md` R-AUD-22). There is no engine code here; the generated table gains nine ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures.
 
 ## 0. Why the rows read `no`
 
-- A danger row stays `no` until its branch carries the mix model and shows a warning over a fight; then it becomes `delegated` on the scheduler's word, unless the owner has spoken. The mix model is its own job (`s4/audio-mix`). This note gains its readings when the two are merged.
+- A danger row stays `no` until its branch carries the mix model and shows a warning over a fight; then it becomes `delegated` on the scheduler's word, unless the owner has spoken. The model is here now and §3 holds its readings; the word is the scheduler's.
 - The owner has had the nine as audition files since 2026-11-12 (`Saved\S4Report\Audio\2026-11-12_danger_draft\` of the session's worktree), and a model of a fight with them on top (`Saved\S4Report\Audio\2026-11-12_fight_draft\`). Nothing waits on them and no answer has come.
-- The warnings in the first folder play 2 dB louder than these rows: the model of the fight showed a warning on top of the densest mix peaking over the limiter's line, so the catalog volumes came down (§3).
+- Two things in those folders differ from these rows. The warnings play 2 dB louder there: the model showed a warning on top of the densest mix peaking over the limiter's line, so the catalog volumes came down. And the heartbeat there is an earlier one, on A; §1 says why it moved.
 
 ## 1. Two families, nine sounds
 
@@ -23,16 +23,18 @@ A warning belongs to the Keep by its material and stands apart by its size: a sm
 | `Snd.Danger.EnemyFire`, two files | dark iron, a dry tick | enemy rounds leave a barrel | warn | 40.7, 43.9 | 1.3, 1.7 | -20.4, -18.4 | -24.8, -22.8 | -0.1, -0.3 | 0.0 | 1 |
 | `Snd.Danger.HeroHurt`, two files | a heavy damped plate and a crack over it | the vessel is struck | free | 219.9, 210.3 | 3.8, 9.7 | -13.2, -13.3 | -16.1, -16.2 | -57.8 | 4.6 | 1 |
 | `Snd.Danger.HeroDown` | a great bell struck once; its pitch sinks as it dies | the vessel falls | free | 1959.2 | 18.2 | -15.9 | -16.8 | -77.0 | 4.5 | 1 |
-| `Snd.Danger.Heartbeat` | the vessel's own pulse: two low thumps, dry | low health, every beat | low | 355.7 | 18.8 | -17.5 | -18.4 | -89.0 | 4.9 | 2 |
+| `Snd.Danger.Heartbeat` | the vessel's own pulse: two low beats on C, dry | low health, every beat | low | 355.7 | 15.6 | -16.9 | -17.8 | -90.1 | 4.3 | 2 |
 | `Snd.Danger.BossPhase` | a mechanism turns over under a low bell | the Warden changes phase | free | 1961.1 | 133.4 | -15.4 | -16.3 | -79.7 | 6.5 | 1 |
 
 All are fixed in pitch. The warnings ring on E7, G7 and D7 with partials that are notes of the key. The helper `clunk` (a heavy latch of the old machine) joins `Tools/audio/recipes/world.py`; the ten interface files did not move by a byte.
+
+**The heartbeat sits between the fight's notes.** A fight in this world rests on A and E (the stand-ins' fire on A1, A2 and E3, the low layer on A and E). The first heartbeat was on A, in the same third-octave bands as the fire, and the model read it at 9.3 dB against a floor of 9. It now beats on C, with its weight on the note, its octave and its double octave: the bands at 63, 125 and 250 Hz, which the fight's A and E leave open. The model reads 12.3 dB, and it lost less on a small speaker (4.3 dB against 4.9).
 
 The catalog's least interval of a warning is 120 ms, the value of `C.AUD.WARN_MIN_INTERVAL_MS`. Nothing ties the cell to the key yet; the wiring job adds that check or drops the key.
 
 ## 2. Told apart
 
-Two confusion sets. Distances are the session's reading of the same bytes (the built files equal the judged drafts, by hash).
+Two confusion sets. The warnings' distances are the session's reading of the same bytes (the built files equal the judged drafts, by hash); the heartbeat's are read from the built file.
 
 | Pair | Spectral distance, dB | It holds by |
 |---|---|---|
@@ -44,23 +46,38 @@ Two confusion sets. Distances are the session's reading of the same bytes (the b
 | Arc, Ring | 9.8 | distance, strikes |
 | EnemyFire against the four | 7.8 to 16.5 | distance |
 | HeroDown, HeroHurt | 8.3 | distance, length |
-| Heartbeat, HeroHurt | 13.5 | distance, strikes |
-| Heartbeat, HeroDown | 6.9 | distance, strikes, length |
+| Heartbeat, HeroHurt | 10.3 | distance, beats (2, 1) |
+| Heartbeat, HeroDown | 7.2 | distance, beats, length |
 | BossPhase, HeroHurt | 10.8 | distance, length |
 | BossPhase, HeroDown | 6.5 | distance alone |
-| BossPhase, Heartbeat | 6.8 | distance, strikes, length |
+| BossPhase, Heartbeat | 7.3 | distance, beats, length |
 
-## 3. What proves it, and the levels
+## 3. What the mix model reads
 
-- `python -I Tools\audio\audio_check.py`: `AUDIO: PASS (19 sounds: 0 heard, 10 delegated, 0 rejected, 9 not heard; 21 files, 54 tool tests; not active yet: the mix checks (R-AUD-18); 0 rebuilt, 5.6 s)`. Per file that is: a warning's share in the danger band at least -3 dB and its attack at most 3 ms; the heartbeat's share in the low zone; lengths, levels, peaks, edges; the small speaker for the warnings and the heartbeat; every pair above.
-- The levels come from a model of the fight in the session's sketch (not committed; it is being ported as `Tools/audio/mix_model.py`): stand-in sounds for the player's side, mixed by the scheduler's caps. With these rows' volumes over the densest mix it read: each warning ahead by 25 to 35 dB in the danger band with no duck (floor `C.AUD.DANGER_SMR_MIN_DB` 12); enemy fire by 10.6 dB, and 16.6 with the duck; the heartbeat by 7.3 dB in the low zone, and 13.3 with the duck (floor 9); a player sound read as a warning at -52, failing as it must; the peak with one danger sound on top at -2.5 dBFS (limit -1). At the first drafts' volumes that peak read +0.4 dBFS, which is why the warnings are at 0.64 and not 0.8.
-- These are a sketch's figures. The figures of record are the mix model's, on the merged tree.
+`python -I Tools\audio\mix_model.py`, on this branch: the nine rows against a player side made of stand-ins for fire, kills and both layers (`Validation/S4_audio_mix.md` has the method and the tiers). Each cue is read against the densest mix, lowered by the duck as it would be while the cue sounds.
+
+| Cue | Audibility in its zone, dB | The same with no duck | Loudest 100 ms over the mix, dB | Peak with it on top, dBFS |
+|---|---|---|---|---|
+| `Snd.Warn.Line` | 32.9 | 26.9 | 7.7 | -3.56 |
+| `Snd.Warn.Band` | 37.9 | 31.9 | 10.2 | -4.23 |
+| `Snd.Warn.Ring` | 41.6 | 35.6 | 8.3 | -2.37 |
+| `Snd.Warn.Arc` | 42.9 | 36.9 | 8.8 | -5.26 |
+| `Snd.Danger.EnemyFire` | 18.6 | 12.6 | | -4.58 |
+| `Snd.Danger.HeroHurt` | | | | -3.57 |
+| `Snd.Danger.HeroDown` | | | | -3.82 |
+| `Snd.Danger.Heartbeat` | 12.3 | 6.3 | | -3.77 |
+| `Snd.Danger.BossPhase` | | | | -3.83 |
+
+Floors and limits: `C.AUD.DANGER_SMR_MIN_DB` for the five of zone warn, `C.AUD.HEARTBEAT_SMR_MIN_DB` for the heartbeat in the low zone, `C.AUD.WARN_OVER_MIX_MIN_DB` for the four of family `Warn`, `C.AUD.LIMIT_DBFS` for every peak. All nine hold. The control, a stand-in's fire read as a warning, reads -66.7 dB and fails, as it must.
+
+**The audio step fails on this branch, on one line that is not about these sounds:** `mix at 100 kills/s: crest 14.1 dB over C.AUD.MIX_CREST_MAX_DB 14 (R-AUD-18)`. It is the stand-in mix's crest, which reads 13.9, 12.7 and 14.1 dB in the three dense tiers, by the draw of one seed. The ruling on how the crest is judged while the player's side is stand-ins is asked of the scheduler; until it is given this branch cannot pass its gate.
 
 ## 4. What is not verified
 
 - Nobody has heard these in a fight. The first interface sounds passed every number and were wrong in style.
 - Two pairs hold by one leg. Arc and Line are the same strike, damped or left to ring: they differ in length alone. BossPhase and HeroDown are both long, low and of bronze: they differ by 6.5 dB of spectrum against a floor of 6. Each wants an ear; the second can be moved apart at no cost if the owner hears them as one.
-- Enemy fire and the heartbeat reach their floors only with the duck. That is by design for enemy fire (it sounds many times a second). For the heartbeat it means its audibility rests on the heartbeat being a danger voice that lowers the player's side on every beat.
+- The heartbeat reaches its floor only with the duck (6.3 dB without it): its audibility rests on the heartbeat being a danger voice that lowers the player's side on every beat. Enemy fire holds with no duck by 0.6 dB and by 6.6 with it.
+- The readings are against stand-ins. The real fire and kills families will sit on other notes and levels; the heartbeat's place between A and E holds only while the fight keeps to them.
 - Whether a turret's fire, sounding many times a second and lowering the player's side each time, makes a fight pump. The model can draw the duck; it cannot hear it.
 - BossPhase loses 6.5 dB on a small speaker. The rule binds warnings, the heartbeat and the interface, so it passes; on a laptop the Warden's phase is a faint sound.
 - Nothing raises these sounds. The danger observers are the wiring job's.
