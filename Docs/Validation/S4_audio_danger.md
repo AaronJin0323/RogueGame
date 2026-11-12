@@ -1,6 +1,6 @@
 # S4 audio: the warnings and the danger family, as drafts
 
-Branch `s4/audio-snd-danger`, on `s4/audio-snd-ui-stone` at 60c4f28, with the mix model's branch `s4/audio-mix` merged. It adds nine catalog rows in two families, their recipes, their manifest lines and their rows of the generated table. Every row reads `no` in the catalog's `heard` column, so none becomes an asset and none can play (`02_Systems/audio.md` R-AUD-22). There is no engine code here; the generated table gains nine ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures.
+Branch `s4/audio-snd-danger`, on `s4/audio-snd-ui-stone` at 60c4f28, with the mix model's branch `s4/audio-mix` and the import job's branch `s4/audio-import` merged, so that it gates once on the tree `dev/s4` will be. It adds nine catalog rows in two families, their recipes, their manifest lines and their rows of the generated table. Every row reads `no` in the catalog's `heard` column, so none becomes an asset and none can play (`02_Systems/audio.md` R-AUD-22). There is no engine code here; the generated table gains nine ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures.
 
 ## 0. Why the rows read `no`
 
@@ -70,7 +70,9 @@ Two confusion sets. The warnings' distances are the session's reading of the sam
 
 Floors and limits: `C.AUD.DANGER_SMR_MIN_DB` for the five of zone warn, `C.AUD.HEARTBEAT_SMR_MIN_DB` for the heartbeat in the low zone, `C.AUD.WARN_OVER_MIX_MIN_DB` for the four of family `Warn`, `C.AUD.LIMIT_DBFS` for every peak. All nine hold. The control, a stand-in's fire read as a warning, reads -66.7 dB and fails, as it must.
 
-The audio step on this branch: `AUDIO: PASS (19 sounds: 0 heard, 10 delegated, 0 rejected, 9 not heard; 21 files, 67 tool tests; mix: 9 cue(s) over stand-ins for fire, kills, layers; 0 rebuilt, 31.4 s)`.
+The audio step on this branch: `AUDIO: PASS (19 sounds: 0 heard, 10 delegated, 0 rejected, 9 not heard; 21 files, 71 tool tests; mix: 9 cue(s) over stand-ins for fire, kills, layers; 0 rebuilt, 20.8 s)`. The import's selection on it: `SELECT: PASS (10 asset(s) of 19 row(s))`: the nine rows that read `no` yield no asset.
+
+The test `Dusktracer.Audio.Playable` is narrowed here to the interface's rows. As the import job wrote it, it expected every playable row to be raised by an interface moment, which holds only while every playable row is an interface sound; a danger row accepted before its observer exists would have failed it for a reason it is not about.
 
 **The crest is printed and not judged.** Before the scheduler's ruling of 2026-11-12 this branch failed on one line that is not about these sounds: the stand-in mix's crest at 100 kills a second, 14.1 dB against `C.AUD.MIX_CREST_MAX_DB`. By the ruling (R-AUD-18 as it now reads) the crest is judged only where no part of the mix is a stand-in and a layer is on, as a median over the model's seeds. It is worth knowing now that the stand-in mix would not pass that reading: its medians are 14.1, 15.0 and 14.4 dB in the three dense tiers. The first real family is read against the limit before it is tuned.
 
