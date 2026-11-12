@@ -352,7 +352,7 @@ def mix_check(rows, files, paths, snapshot, options=None):
 	if cached.get("key") == k and isinstance(cached.get("result"), dict):
 		result = cached["result"]
 	else:
-		roles, standins, cues = mix_model.catalog_inputs(rows, used, snapshot)
+		roles, standins, cues = mix_model.catalog_inputs(rows, used, snapshot, keys)
 		result = mix_model.run(keys, roles, cues, standins, **options)
 		B._save_json(cache_path, {"key": k, "result": result})
 	return result, list(result["errors"])

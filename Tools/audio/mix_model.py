@@ -9,13 +9,17 @@ catalog row takes a role by its family (FIRE_FAMILY: every row is one weapon) or
 with no catalog row plays its stand-in from Tools/audio/recipes/standin.py, at the levels of STANDINS. The output always
 names the roles that were stand-ins.
 
-Per density tier (TIERS kills a second, WEAPONS_FIRING weapons) the model schedules the player side by the scheduler's
-rules (R-AUD-06 to R-AUD-10) with every cap that binds read as the worst case (the louder sound goes first), renders the
-mix at C.AUD.SAMPLE_RATE_HZ for TIER_SECONDS, and reads it past its first SKIP_SECONDS: K-weighted loudness, the share in
-the danger band, crest, and the rise from the sparsest to the densest tier. Every danger-side row is then read against
+The fire is a worst case of a real build (fire_plan): each weapon asks at its own cadence from weapons.csv, as the runtime's
+density lets it sound, and the model plays the larger of all ten weapons at their last level and the fullest build a run holds
+under the largest fire rate. Per density tier (TIERS kills a second, the first WEAPONS_FIRING weapons of that fire) the model
+schedules the player side by the scheduler's rules (R-AUD-06 to R-AUD-10) with every cap that binds read as the worst case
+(the louder sound goes first), renders the mix at C.AUD.SAMPLE_RATE_HZ for TIER_SECONDS, and reads it past its first
+SKIP_SECONDS: K-weighted loudness, the share in the danger band, crest (judged on the flood tier only, printed in the others),
+and the rise from the sparsest to the densest tier. Every danger-side row is then read against
 the densest mix lowered as it would be while that row sounds: a `warn` zone row's audibility in the danger band over the mix
 lowered by C.AUD.DUCK_DB; a `low` zone row (the heartbeat, which adds no duck of its own: R-AUD-12) in the low zone over the
-mix held C.AUD.LOWHP_HOLD_DB lower, with the low layer lowered by C.AUD.LOWHP_LOWEND_DUCK_DB too; a `Warn` family row's
+mix held C.AUD.LOWHP_HOLD_DB lower, with the low layer lowered by C.AUD.LOWHP_LOWEND_DUCK_DB too, the least over the flood
+tier's CREST_SEEDS seeds; a `Warn` family row's
 loudness over the ducked mix; and the peak of the mix, lowered the same way, with each danger sound on top. The loudest
 player-side sound is read as a warning, as a control: it must not reach the floor. Last, every pair of danger cues that can
 start in one frame is read at its loudest files, bare and on the ducked mix, against C.AUD.LIMIT_DBFS: printed and counted,
@@ -27,6 +31,7 @@ This is a model of the mix, not the engine's mixer, and band energy is a proxy f
 
 import array
 import contextlib
+import csv
 import hashlib
 import json
 import math
@@ -67,9 +72,26 @@ STANDINS = {
 # Ten stand-in weapons, rifle x4, heavy x3, light x3, interleaved so the first three are one of each.
 STANDIN_WEAPONS = ("fire_rifle", "fire_heavy", "fire_light") * 3 + ("fire_rifle",)
 
+# ---- the fire: each weapon at its own cadence ---------------------------------------------------------------------
+# A Fire row is the weapon of its name (Snd.Fire.<Name> is Weapon.<Name>, as the fire observer matches them). A weapon fires once a
+# volley at its last level, one over cooldown_s (an Orbiter fires one drone at a time: count over cooldown_s), and sounds as the
+# runtime's density lets it (R-AUD-07, fire_voices). Ten stand-in weapons play the ten weapons' cadences in weapons.csv's order.
+WEAPONS_CSV = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "weapons.csv")
+FIRE_PREFIX, WEAPON_PREFIX = "Snd.Fire.", "Weapon."
+# The largest fire-rate multiplier the catalogs allow, over a weapon's own cooldown; None = not bounded by the catalogs. What
+# shortens a cooldown in a run: Flag.SpeedScale's per_stack up to stacks_max (expression.csv, Archetype.Quicksilver.Momentum and
+# .Rebound: 1 + 30 x 0.02, +0.002 a stack from its upgrade), Flag.VolleyOnDash's tailwind_rate (Archetype.Quicksilver.Vector: 1.5,
+# +0.1), a Ricochet fallback on a melee or orbit weapon (C.KEEPER.RICOCHET_FALLBACK_RATE per bounce), and Transform.Quicksilver
+# (reforging.csv, Slipstream), which takes the stacks' cap away and leaves only a leak (R-RFG-21): the stacks then stand where the
+# hero's speed balances the leak, which no catalog row bounds. So a weapon under C.AUD.FIRE_DENSE_SHOTS_PER_S can be driven to it.
+FIRE_RATE_MULT_MAX = None
+# Files whose rows set the fire the model plays or its bound: part of the readings' cache key.
+FIRE_CATALOGS = (WEAPONS_CSV, os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "expression.csv"), os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "reforging.csv"))
+
 # ---- the schedule ------------------------------------------------------------------------------------------------
 TIERS = (5, 20, 60, 100)                    # kills a second
-WEAPONS_FIRING = (3, 6, 10, 10)             # weapons firing in each tier
+WEAPONS_FIRING = (3, 6, 10, 10)             # weapons firing in each tier: the first ones of the fire plan, at most all of it
+FLOOD_KPS = TIERS[-1]                       # the flood tier, the densest: both beds on, the fullest build's fire
 # The crest (the scheduler's ruling of 2026-11-12, option A with the median): printed for every tier, judged only in a tier with a
 # layer on (a sparse mix is single sounds with silence between: peak over RMS says nothing there) and only once no role is a
 # stand-in, as the median over CREST_SEEDS seeds: one seed's draw moves the crest by more than 1 dB and the limit sits inside
@@ -95,7 +117,7 @@ KEYS_READ = ("AUD.SAMPLE_RATE_HZ", "AUD.DANGER_BAND_HZ", "AUD.LOW_ZONE_HZ", "AUD
 	"AUD.MASK_WINDOW_MS", "AUD.PLAYER_BAND_SHARE_MAX_DB", "AUD.MIX_CREST_MAX_DB", "AUD.DENSITY_RISE_MAX_DB", "AUD.DANGER_SMR_MIN_DB",
 	"AUD.HEARTBEAT_SMR_MIN_DB", "AUD.WARN_OVER_MIX_MIN_DB", "AUD.LIMIT_DBFS", "AUD.DUCK_DB", "AUD.DUCK_ATTACK_MS", "AUD.DUCK_RELEASE_MS",
 	"AUD.LOWHP_LOWEND_DUCK_DB", "AUD.LOWHP_HOLD_DB", "AUD.FIRE_DENSE_VOICES_PER_S", "AUD.KILL_DENSE_VOICES_PER_S", "AUD.AGGREGATE_MAX",
-	"AUD.PLAYER_STARTS_PER_S_MAX", "AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER", "AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
+	"AUD.PLAYER_STARTS_PER_S_MAX", "AUD.FIRE_DENSE_SHOTS_PER_S", "WEAPON.SLOTS", "AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER", "AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
 	"PRE.DENSITY_LOD_KILLS_PER_S", "IMP.DENSITY_FLOOD_KILLS_PER_S", "SIM.FIXED_HZ")
 
 
@@ -202,17 +224,74 @@ def standins(snapshot):
 	return _STANDIN_MEMO[memo]
 
 
-def player_roles(rows, read_variants, stand):
-	"""({role: Source, 'fire': [Source]}, [roles played by stand-ins]). `read_variants(row)` gives a row's samples, or []."""
+def weapon_cadences(path=WEAPONS_CSV):
+	"""[(name, firings a second)] of every weapon of weapons.csv in its order, at its last level: one over cooldown_s, an Orbiter's count
+	over cooldown_s (its drones fire one at a time)."""
+	last = {}
+	with open(path, encoding="utf-8", newline="") as f:
+		for line in csv.DictReader(f):
+			name = line["id"][len(WEAPON_PREFIX):] if line["id"].startswith(WEAPON_PREFIX) else None
+			if name and (name not in last or int(line["level"]) > int(last[name]["level"])):
+				last[name] = line
+	out = []
+	for name, line in last.items():
+		per = float(line["count"]) if line["pattern"] == "Orbiter" else 1.0
+		out.append((name, per / float(line["cooldown_s"])))
+	return out
+
+
+def fire_voices(keys, rate):
+	"""Voices a second the runtime gives a weapon firing `rate` times a second (R-AUD-07): every firing up to C.AUD.FIRE_DENSE_SHOTS_PER_S,
+	at most C.AUD.FIRE_DENSE_VOICES_PER_S above it (Audio/Observe/DTObserveFire's density)."""
+	return rate if rate <= keys["AUD.FIRE_DENSE_SHOTS_PER_S"] else float(min(rate, keys["AUD.FIRE_DENSE_VOICES_PER_S"]))
+
+
+def boosted_voices(keys, rate, mult=None):
+	"""The most voices a second a weapon of base `rate` can sound with its cooldown shortened by any multiplier up to `mult` (None: not
+	bounded). The density is not monotonic: a weapon driven exactly to C.AUD.FIRE_DENSE_SHOTS_PER_S sounds that often, one past it
+	C.AUD.FIRE_DENSE_VOICES_PER_S."""
+	shots = keys["AUD.FIRE_DENSE_SHOTS_PER_S"]
+	if rate > shots:
+		return fire_voices(keys, rate)
+	if mult is None or rate * mult >= shots:
+		return float(shots)
+	return rate * mult
+
+
+def fire_plan(keys, weapons, mult=FIRE_RATE_MULT_MAX):
+	"""The fire the model plays: the larger, by voices a second, of (1) every weapon at its last level and (2) the fullest build a run
+	holds, C.WEAPON.SLOTS weapons, those that ask most under the largest fire-rate multiplier (boosted_voices). `weapons` is
+	[(source, name, firings a second)]. Returns (sources, voices a second each, {case, voices_per_s, weapons, case1, case2}); case (1)
+	keeps the weapons' order, case (2) the most asking first. A tie is case (1)."""
+	one = [(s, n, fire_voices(keys, r)) for s, n, r in weapons]
+	ranked = sorted(weapons, key=lambda w: -w[2])                         # the most asking first, so among equals the fastest of its own
+	two = sorted([(s, n, boosted_voices(keys, r, mult)) for s, n, r in ranked], key=lambda w: -w[2])[:keys["WEAPON.SLOTS"]]
+	c1, c2 = math.fsum(v for _, _, v in one), math.fsum(v for _, _, v in two)
+	case, chosen = (f"all {len(weapons)} weapons at their last level", one) if c1 >= c2 else (f"the fullest build ({keys['WEAPON.SLOTS']} weapons, C.WEAPON.SLOTS) under the largest fire rate", two)
+	return [s for s, _, _ in chosen], [v for _, _, v in chosen], {"case": case, "voices_per_s": max(c1, c2), "weapons": [[n, v] for _, n, v in chosen],
+		"case1": c1, "case2": c2}
+
+
+def player_roles(rows, read_variants, stand, keys=None, cadences=None):
+	"""({role: Source, 'fire': [Source], 'fire_rates': [voices a second], 'fire_plan': {...}}, [roles played by stand-ins]).
+	`read_variants(row)` gives a row's samples, or []. A Fire row takes its weapon's cadence by name; the stand-ins take the ten
+	weapons' in order. `keys` default to the constants file's; `cadences` to weapon_cadences()."""
+	keys = keys or read_keys()
+	cadences = cadences if cadences is not None else weapon_cadences()
+	rate_of = dict(cadences)
 	valid = [r for r in rows if r.get("valid", True) and r["side"] == "player"]
 	fire = [Source.from_row(r, read_variants(r)) for r in valid if r["family"] == FIRE_FAMILY]
 	fire = [s for s in fire if s.variants]
 	roles, used = {}, []
 	if fire:
-		roles["fire"] = fire
+		missing = [s.label for s in fire if s.label[len(FIRE_PREFIX):] not in rate_of]
+		if missing:
+			raise ValueError(f"mix model: Fire row(s) with no Weapon.<Name> row in weapons.csv: {', '.join(missing)}")
+		weapons = [(s, s.label[len(FIRE_PREFIX):], rate_of[s.label[len(FIRE_PREFIX):]]) for s in fire]
 	else:
-		roles["fire"] = [stand[name] for name in STANDIN_WEAPONS]
+		weapons = [(stand[STANDIN_WEAPONS[i % len(STANDIN_WEAPONS)]], name, rate) for i, (name, rate) in enumerate(cadences)]
 		used.append("fire")
+	roles["fire"], roles["fire_rates"], roles["fire_plan"] = fire_plan(keys, weapons)
 	for role, rid in ROLE_IDS.items():
 		row = next((r for r in valid if r["id"] == rid), None)
 		src = Source.from_row(row, read_variants(row)) if row else None
@@ -247,9 +326,11 @@ class _Stream:
 
 
 def tier_streams(keys, roles, kps, weapons):
-	"""The request streams of one tier: one per weapon firing, the hits, the kills."""
+	"""The request streams of one tier: one per weapon firing (the first `weapons` of the fire plan, each at its own voices a second),
+	the hits, the kills."""
 	lod = keys["PRE.DENSITY_LOD_KILLS_PER_S"]
-	streams = [_Stream(roles["fire"][i % len(roles["fire"])], keys["AUD.FIRE_DENSE_VOICES_PER_S"]) for i in range(weapons)]
+	rates = roles.get("fire_rates") or [keys["AUD.FIRE_DENSE_VOICES_PER_S"]] * len(roles["fire"])
+	streams = [_Stream(roles["fire"][i], rates[i]) for i in range(min(weapons, len(roles["fire"])))]
 	streams.append(_Stream(roles["hit"], HITS_PER_KILL * kps))
 	streams.append(_Stream(roles["kill"], kps if kps < lod else keys["AUD.KILL_DENSE_VOICES_PER_S"]))
 	return streams
@@ -379,8 +460,19 @@ def render_tiers(keys, roles, seconds=TIER_SECONDS, tiers=None, seed=SEED):
 		if tiers is not None and kps not in tiers:
 			continue
 		sched = schedule(keys, roles, kps, weapons, seconds, seed * 1000 + kps)
-		out.append({"kps": kps, "weapons": weapons, "sched": sched, "parts": render(keys, roles, sched, seconds)})
+		out.append({"kps": kps, "weapons": min(weapons, len(roles["fire"])), "sched": sched, "parts": render(keys, roles, sched, seconds)})
 	return out
+
+
+def seed_parts(keys, roles, tier, seconds, seed, memo=None):
+	"""The parts of one tier's mix drawn from another seed; `memo` ({(kps, seed): parts}) keeps them for a second reader in one run."""
+	k = (tier["kps"], seed)
+	if memo is not None and k in memo:
+		return memo[k]
+	parts = render(keys, roles, schedule(keys, roles, tier["kps"], tier["weapons"], seconds, seed * 1000 + tier["kps"]), seconds)
+	if memo is not None:
+		memo[k] = parts
+	return parts
 
 
 # ---- the readings ------------------------------------------------------------------------------------------------
@@ -409,9 +501,9 @@ def tier_readings(keys, tiers, skip=SKIP_SECONDS):
 	return out
 
 
-def crest_of(keys, roles, kps, weapons, seconds, skip, seed):
-	"""The crest, in dB, of one tier's mix drawn from another seed (read past `skip`)."""
-	parts = render(keys, roles, schedule(keys, roles, kps, weapons, seconds, seed * 1000 + kps), seconds)
+def crest_of(keys, roles, kps, weapons, seconds, skip, seed, memo=None):
+	"""The crest, in dB, of one tier's mix drawn from another seed (read past `skip`); `memo` as seed_parts'."""
+	parts = seed_parts(keys, roles, {"kps": kps, "weapons": weapons}, seconds, seed, memo)
 	body = mix_of(parts)[int(skip * keys["AUD.SAMPLE_RATE_HZ"]):]
 	return peak_db(body) - rms_db(body)
 
@@ -423,15 +515,32 @@ def crest_median(values):
 	return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0
 
 
-def judge_crest(keys, roles, tiers, readings, used, seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED):
-	"""Marks the tiers whose crest is judged (no role a stand-in, a layer on) and gives each the median over CREST_SEEDS seeds, the
-	first being the run's own seed. Renders the extra seeds only for a judged tier."""
+def judge_crest(keys, roles, tiers, readings, used, seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED, memo=None):
+	"""With no role a stand-in, gives every tier with a bed on the median of its crest over CREST_SEEDS seeds, the first being the run's
+	own seed, and marks the flood tier's (FLOOD_KPS) as judged; the others' medians are printed, never judged. A sparse fight's high
+	crest is single strikes in a quiet room, which is what a sparse fight should sound like; what a ceiling on crest can guard is the
+	flood, that it is not strikes over beds too thin to carry them. Renders the extra seeds only then; `memo` as seed_parts'."""
 	for t, r in zip(tiers, readings):
 		if used or not r["layer_on"]:
 			continue
-		r["crest_judged"] = True
-		r["crest_seeds"] = [r["crest_db"]] + [crest_of(keys, roles, t["kps"], t["weapons"], seconds, skip, seed + j) for j in range(1, CREST_SEEDS)]
+		r["crest_judged"] = r["kps"] == FLOOD_KPS
+		r["crest_seeds"] = [r["crest_db"]] + [crest_of(keys, roles, t["kps"], t["weapons"], seconds, skip, seed + j, memo) for j in range(1, CREST_SEEDS)]
 		r["crest_median"] = crest_median(r["crest_seeds"])
+	return readings
+
+
+def heartbeat_over_seeds(keys, roles, flood, cues, readings, seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED, memo=None):
+	"""A `low` zone cue (the heartbeat, at the hold) is judged as the least of its readings over CREST_SEEDS seeds of the flood tier, the
+	first the run's own, so one lucky draw cannot carry it. Rewrites its smr and no-duck figure, and keeps `smr_seeds`."""
+	low = [(c, r) for c, r in zip(cues, readings) if c.zone == "low"]
+	if not low:
+		return readings
+	masks = [low_mask_of(keys, {"parts": seed_parts(keys, roles, flood, seconds, seed + j, memo)}, skip) for j in range(1, CREST_SEEDS)]
+	for cue, r in low:
+		played = [cue.played(v) for v in range(len(cue.variants))]
+		r["smr_seeds"] = [r["smr"]] + [min(M.audibility(x, mask, *M.LOWZONE)[0] for x in played) for mask in masks]
+		r["smr"] = min(r["smr_seeds"])
+		r["smr_no_duck"] = r["smr"] + keys["AUD.LOWHP_HOLD_DB"]
 	return readings
 
 
@@ -566,7 +675,8 @@ def judge(keys, tiers, cues, control):
 			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.DANGER_BAND_HZ over the densest mix ducked by C.AUD.DUCK_DB "
 				f"({c['smr_no_duck']:.1f} dB with no duck), under C.AUD.DANGER_SMR_MIN_DB {keys['AUD.DANGER_SMR_MIN_DB']} (R-AUD-18)")
 		if c["zone"] == "low" and c["smr"] < keys["AUD.HEARTBEAT_SMR_MIN_DB"]:
-			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by "
+			least = f" (the least of {len(c['smr_seeds'])} seeds)" if c.get("smr_seeds") else ""
+			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB{least} in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by "
 				f"C.AUD.LOWHP_LOWEND_DUCK_DB and the whole held down by C.AUD.LOWHP_HOLD_DB ({c['smr_no_duck']:.1f} dB with nothing lowered), "
 				f"under C.AUD.HEARTBEAT_SMR_MIN_DB {keys['AUD.HEARTBEAT_SMR_MIN_DB']} (R-AUD-18)")
 		if "over_mix" in c and c["over_mix"] < keys["AUD.WARN_OVER_MIX_MIN_DB"]:
@@ -585,20 +695,23 @@ def run(keys, roles, cues, used=(), seconds=TIER_SECONDS, skip=SKIP_SECONDS, see
 	"""The whole reading: {standins, tiers, rise_db, cues, control, pairs, pair_counts, errors}, JSON-serialisable. The pairs are read
 	and counted and never judged (pair_readings)."""
 	tiers = render_tiers(keys, roles, seconds, seed=seed)
-	tr = judge_crest(keys, roles, tiers, tier_readings(keys, tiers, skip), used, seconds, skip, seed)
+	memo = {}                                                       # the flood tier's extra seeds, drawn once for the crest and the heartbeat
+	tr = judge_crest(keys, roles, tiers, tier_readings(keys, tiers, skip), used, seconds, skip, seed, memo)
 	cr, ctl = cue_readings(keys, tiers[-1], cues, loudest_player(roles), skip)
+	cr = heartbeat_over_seeds(keys, roles, tiers[-1], cues, cr, seconds, skip, seed, memo)
 	pairs = pair_readings(keys, tiers[-1], cues, skip)
-	return {"standins": list(used), "tiers": tr, "rise_db": tr[-1]["lk_int"] - tr[0]["lk_int"], "cues": cr, "control": ctl,
-		"pairs": pairs, "pair_counts": pair_counts(keys, pairs), "errors": judge(keys, tr, cr, ctl)}
+	return {"standins": list(used), "fire": roles.get("fire_plan"), "tiers": tr, "rise_db": tr[-1]["lk_int"] - tr[0]["lk_int"], "cues": cr,
+		"control": ctl, "pairs": pairs, "pair_counts": pair_counts(keys, pairs), "errors": judge(keys, tr, cr, ctl)}
 
 
 # ---- the catalog's mix, and its cache key ------------------------------------------------------------------------
 
-def catalog_inputs(rows, files, snapshot):
-	"""(roles, stand-in roles, danger cues) of a built catalog: `files` is audio_build.build's output."""
+def catalog_inputs(rows, files, snapshot, keys=None):
+	"""(roles, stand-in roles, danger cues) of a built catalog: `files` is audio_build.build's output; `keys` read_keys' (the constants
+	file's by default)."""
 	def read_variants(row):
 		return [M.read_wav(files[s]["path"])[0] for s in B.file_names(row) if s in files]
-	roles, used = player_roles(rows, read_variants, standins(snapshot))
+	roles, used = player_roles(rows, read_variants, standins(snapshot), keys)
 	return roles, used, danger_cues(rows, read_variants)
 
 
@@ -609,11 +722,13 @@ def mix_rows(rows):
 
 def cache_key(snapshot, paths, keys, files, extra=""):
 	"""SHA-256 over all the readings depend on: the recipes and the core (the snapshot's hash), the catalog, the manifest, the bytes of
-	every file the model reads, the keys read, this file and audio_metrics.py."""
+	every file the model reads, the keys read, this file and audio_metrics.py, and the catalogs of the fire (FIRE_CATALOGS: the weapons'
+	cadences and the rows that bound their fire rate)."""
 	h = hashlib.sha256()
 	h.update(b"generator=" + snapshot.hash.encode() + b"\n")
+	fire = tuple((os.path.basename(p), p) for p in FIRE_CATALOGS)
 	for label, path in (("catalog", paths.catalog), ("manifest", paths.manifest), ("mix_model.py", os.path.abspath(__file__)),
-			("audio_metrics.py", os.path.join(HERE, "audio_metrics.py"))):
+			("audio_metrics.py", os.path.join(HERE, "audio_metrics.py"))) + fire:
 		with open(path, "rb") as f:
 			h.update(label.encode() + b"\n" + f.read() + b"\n")
 	for stem in sorted(files):
@@ -627,17 +742,22 @@ def cache_key(snapshot, paths, keys, files, extra=""):
 
 def table(result):
 	"""The readings as printable lines."""
-	lines = [f"stand-ins: {standin_text(result['standins']) or 'none'}",
-		"tier      weapons  layers     asked  merged  started  dropped  most/s  voices   LKint  band dB  crest dB  median  peak dBFS"]
+	lines = [f"stand-ins: {standin_text(result['standins']) or 'none'}"]
+	plan = result.get("fire")
+	if plan:
+		lines.append(f"fire: {plan['case']}, {plan['voices_per_s']:.2f} voices a second (all of them {plan['case1']:.2f}, the fullest build {plan['case2']:.2f}): "
+			+ ", ".join(f"{n} {v:.2f}" for n, v in plan["weapons"]))
+	lines.append("tier      weapons  layers     asked  merged  started  dropped  most/s  voices   LKint  band dB  crest dB  median  peak dBFS")
 	for t in result["tiers"]:
-		median = f"{t['crest_median']:6.1f}*" if t.get("crest_judged") else f"{'-':>6s} "
+		median = (f"{t['crest_median']:6.1f}" + ("*" if t.get("crest_judged") else " ")) if "crest_median" in t else f"{'-':>6s} "
 		lines.append(f"{t['kps']:4d}/s   {t['weapons']:7d}  {t['layers']:9s} {t['asked']:6d}  {t['merged']:6d}  {t['started']:7d}  {t['dropped']:7d}  "
 			f"{t['most_per_s']:6d}  {t['most_voices']:6d}  {t['lk_int']:6.1f}  {t['share_db']:7.1f}  {t['crest_db']:8.1f}  {median}  {t['peak_db']:9.1f}")
 	lines.append(f"loudness rise, sparsest to densest: {result['rise_db']:.1f} dB")
 	if result["standins"]:
 		lines.append(f"crest not judged: stand-ins for {standin_text(result['standins'])} (printed on one seed)")
 	else:
-		lines.append(f"crest judged (*) in the tiers with a layer on: the median over CREST_SEEDS = {CREST_SEEDS} seeds; crest dB is the first seed's")
+		lines.append(f"crest: the median over CREST_SEEDS = {CREST_SEEDS} seeds in each tier with a layer on, judged (*) on the flood tier ({FLOOD_KPS}/s) "
+			"only, printed elsewhere; crest dB is the first seed's")
 	if result["cues"]:
 		lines.append("cue                          zone  SMR ducked  SMR no duck  over mix  peak dBFS")
 		for c in result["cues"]:
@@ -645,7 +765,11 @@ def table(result):
 			over = f"{c['over_mix']:8.1f}" if "over_mix" in c else f"{'-':>8s}"
 			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}")
 		if any(c["zone"] == "low" for c in result["cues"]):
-			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked; its no-duck figure has nothing lowered")
+			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked, as the least over the flood tier's "
+				f"CREST_SEEDS = {CREST_SEEDS} seeds; its no-duck figure has nothing lowered")
+			for c in result["cues"]:
+				if c.get("smr_seeds"):
+					lines.append(f"  {c['id']} per seed: " + ", ".join(f"{v:.1f}" for v in c["smr_seeds"]))
 	else:
 		lines.append("no danger-side row in the catalog: no cue read")
 	if result["control"]:
@@ -740,7 +864,7 @@ def main(argv):
 	files, build_errors = B.build(mix_rows(rows), paths, snapshot=snapshot, write_stamp=False)
 	for e in errors + build_errors:
 		print(f"error: {e}")
-	roles, used, cues = catalog_inputs(rows, files, snapshot)
+	roles, used, cues = catalog_inputs(rows, files, snapshot, keys)
 	result = run(keys, roles, cues, used)
 	for line in table(result):
 		print(line)

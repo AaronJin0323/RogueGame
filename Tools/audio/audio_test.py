@@ -1099,6 +1099,72 @@ class Mix(unittest.TestCase):
 		self.assertTrue([ln for ln in lines if ln.startswith("Snd.Warn.ClickA + Snd.Warn.ClickB") or ln.startswith("Snd.Warn.ClickB + Snd.Warn.ClickA")], lines)
 		self.assertIn("pairs: none read (fewer than two danger cues that can start together)", X.table(self.counted_run(k, list(X.ROLES), [a])[0]))
 
+	def test_the_fire_is_each_weapon_at_its_own_cadence_and_the_worst_real_build(self):
+		# Test rows as data: a weapons table with a fast orbiter, a spiral past the dense rate and slow weapons.
+		k = dict(self.keys, **{"AUD.FIRE_DENSE_SHOTS_PER_S": 8, "AUD.FIRE_DENSE_VOICES_PER_S": 6, "WEAPON.SLOTS": 2})
+		path = os.path.join(SAVED, "weapons_fixture.csv")
+		with open(path, "w", encoding="utf-8", newline="") as f:
+			f.write("id,pattern,level,count,cooldown_s\n"
+				"Weapon.Slow,Aimed,1,1,2.0\nWeapon.Slow,Aimed,2,1,0.5\n"       # the last level counts: two a second
+				"Weapon.Drones,Orbiter,1,4,0.4\n"                               # four drones in turn: ten a second, past the dense rate
+				"Weapon.Spiral,Spiral,1,3,0.05\n"                               # twenty a second
+				"Weapon.Mid,Aimed,1,2,0.25\n")                                  # four a second
+		cad = dict(X.weapon_cadences(path))
+		self.assertEqual(sorted(cad), ["Drones", "Mid", "Slow", "Spiral"])
+		self.assertAlmostEqual(cad["Slow"], 2.0)
+		self.assertAlmostEqual(cad["Drones"], 10.0)
+		self.assertAlmostEqual(cad["Spiral"], 20.0)
+		self.assertAlmostEqual(cad["Mid"], 4.0)
+		self.assertEqual(X.fire_voices(k, 2.0), 2.0)                     # under the dense rate: every firing
+		self.assertEqual(X.fire_voices(k, 8.0), 8.0)                     # at it, still every firing
+		self.assertEqual(X.fire_voices(k, 10.0), 6.0)                    # past it, the density's voices
+		self.assertEqual(X.boosted_voices(k, 2.0), 8.0)                  # an unbounded multiplier drives a slow weapon to the dense rate
+		self.assertEqual(X.boosted_voices(k, 2.0, 1.5), 3.0)             # a bounded one only so far
+		self.assertEqual(X.boosted_voices(k, 20.0), 6.0)                 # a weapon past the rate cannot come back under it
+		src = {n: X.Source(f"Snd.Fire.{n}", [[0.0]], 0.3) for n in cad}
+		weapons = [(src[n], n, cad[n]) for n in ("Slow", "Drones", "Spiral", "Mid")]
+		sources, rates, plan = X.fire_plan(k, weapons)
+		self.assertAlmostEqual(plan["case1"], 2.0 + 6.0 + 6.0 + 4.0)
+		self.assertAlmostEqual(plan["case2"], 8.0 + 8.0)                 # two slots, the two that can be driven to the dense rate
+		self.assertTrue(plan["case"].startswith("all 4 weapons"))      # the larger: case (1) here
+		self.assertEqual([s.label for s in sources], ["Snd.Fire.Slow", "Snd.Fire.Drones", "Snd.Fire.Spiral", "Snd.Fire.Mid"])   # the weapons' order
+		self.assertEqual(rates, [2.0, 6.0, 6.0, 4.0])
+		k4 = dict(k, **{"WEAPON.SLOTS": 4})
+		sources, rates, plan = X.fire_plan(k4, weapons)
+		self.assertAlmostEqual(plan["case2"], 8.0 + 8.0 + 6.0 + 6.0)
+		self.assertIn("the fullest build (4 weapons, C.WEAPON.SLOTS)", plan["case"])
+		self.assertEqual(rates, [8.0, 8.0, 6.0, 6.0])                    # the most asking first
+		self.assertEqual([s.label for s in sources][:2], ["Snd.Fire.Mid", "Snd.Fire.Slow"])
+		# The tiers fire the first weapons of the plan, at most all of it.
+		roles = dict(self.roles, fire=sources, fire_rates=rates)
+		self.assertEqual([len([s for s in X.tier_streams(k4, roles, kps, n) if s.source in sources]) for kps, n in zip(X.TIERS, X.WEAPONS_FIRING)],
+			[min(n, 4) for n in X.WEAPONS_FIRING])
+		self.assertEqual([s.rate for s in X.tier_streams(k4, roles, X.TIERS[0], 3)][:3], [8.0, 8.0, 6.0])
+		# On the real catalogs: every weapon of weapons.csv has a cadence, and the stand-ins play them.
+		real = X.weapon_cadences()
+		self.assertEqual(len(real), 10)
+		self.assertEqual(len(self.roles["fire"]), len(self.roles["fire_rates"]))
+		self.assertGreater(self.roles["fire_plan"]["voices_per_s"], 0.0)
+		self.assertIn(os.path.basename(X.WEAPONS_CSV), [os.path.basename(p) for p in X.FIRE_CATALOGS])
+		with self.assertRaises(ValueError):                              # a Fire row with no weapon is named, never guessed
+			X.player_roles([dict(ROW, id="Snd.Fire.Nothing", family="Fire", valid=True)], lambda row: [[0.0, 0.1, 0.0]], X.standins(B.Snapshot(B.RECIPES)), k)
+
+	def test_the_heartbeat_is_judged_on_its_least_seed_of_the_flood(self):
+		beat = cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low")
+		result, renders = self.counted_run(self.keys, list(X.ROLES), [beat])
+		c = result["cues"][0]
+		self.assertEqual(len(c["smr_seeds"]), X.CREST_SEEDS)
+		self.assertEqual(c["smr"], min(c["smr_seeds"]))
+		self.assertAlmostEqual(c["smr_no_duck"], c["smr"] + self.keys["AUD.LOWHP_HOLD_DB"], places=9)
+		first, _ = X.cue_readings(self.keys, X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.FLOOD_KPS,))[0], [beat], None, MIX_SKIP)
+		self.assertAlmostEqual(c["smr_seeds"][0], first[0]["smr"], places=9)              # the run's own draw first
+		self.assertEqual(renders, len(X.TIERS) + X.CREST_SEEDS - 1)                         # the flood tier's extra seeds only
+		self.assertTrue([ln for ln in X.table(result) if ln.startswith("  Snd.Hero.Beat per seed: ")])
+		# With no stand-in the crest reads the same seeds: drawn once for both.
+		_, both = self.counted_run(self.keys, [], [beat])
+		layered = [t for t in result["tiers"] if t["layer_on"]]
+		self.assertEqual(both, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
+
 	def test_the_mix_raised_12_db_fails_the_peak(self):
 		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]
 		self.assertFalse([e for e in self.judged(cues)[1] if "peaks at" in e])
@@ -1175,8 +1241,14 @@ class Mix(unittest.TestCase):
 		self.assertEqual([t["kps"] for t in layered], [k for k in X.TIERS if k >= self.keys["PRE.DENSITY_LOD_KILLS_PER_S"]])
 		self.assertEqual(renders, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
 		crest = [e for e in result["errors"] if "C.AUD.MIX_CREST_MAX_DB" in e]
-		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {t['kps']}" for t in layered], result["errors"])
+		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {X.FLOOD_KPS}"], result["errors"])   # judged on the flood tier only
 		self.assertTrue(all(f"the median of {X.CREST_SEEDS} seeds" in e for e in crest))
+		self.assertEqual([t["kps"] for t in layered if t["crest_judged"]], [X.FLOOD_KPS])
+		self.assertTrue(all("crest_median" in t for t in layered))                   # the other bedded tiers' medians are printed
+		lines = X.table(result)
+		for t in layered:
+			mark = "*" if t["kps"] == X.FLOOD_KPS else " "
+			self.assertTrue([ln for ln in lines if ln.startswith(f"{t['kps']:4d}/s") and f"{t['crest_median']:6.1f}{mark}" in ln], (t, lines))
 		sparse = [t for t in result["tiers"] if not t["layer_on"]]
 		self.assertTrue(sparse and not any(t["crest_judged"] for t in sparse))   # a tier with no layer is still not judged
 		for t in layered:
@@ -1236,7 +1308,9 @@ class Mix(unittest.TestCase):
 			for _, src, _, semis, _ in s["starts"]:
 				self.assertIn(semis, X.DEGREES[src.note] if src.pitch == "key" else (0,))
 			dropped += s["dropped"]
-		self.assertGreater(dropped, 0)                   # the densest tiers bind the start cap: the reading is the worst case
+		# The fire at the weapons' own cadences need not bind the start cap (the old model's every weapon at six a second did): drops are
+		# counted, not required.
+		self.assertGreaterEqual(dropped, 0)
 
 	def test_the_step_reads_the_mix_and_caches_it(self):
 		tree = Tree([PING_ROW], licences=("Content/DT/Audio/SFX/SW_Warn_*",), extra={"cues.py": CUE_RECIPES, "world.py": recipe_text("world.py"),
