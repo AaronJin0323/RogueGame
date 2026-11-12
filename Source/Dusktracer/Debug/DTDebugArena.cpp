@@ -17,8 +17,9 @@ namespace DTDebugArena
 	// Seconds a staged frame waits for the run's camera before the command gives up: a scene's commands run before the run starts.
 	constexpr float FrameWaitSeconds = 60.0f;
 
-	/** Moves the run's camera to the distance that frames Radius, at the game's pitch and lens. False while no camera follows a hero yet. */
-	static bool Apply(UWorld* World, float Radius)
+	/** Moves the run's camera to the distance that frames Radius, aimed Shift from the hero toward it, at the game's pitch and lens.
+	 *  False while no camera follows a hero yet. */
+	static bool Apply(UWorld* World, float Radius, float Shift)
 	{
 		for (TActorIterator<ADTCameraPawn> It(World); It; ++It)
 		{
@@ -26,11 +27,9 @@ namespace DTDebugArena
 			{
 				continue;
 			}
-			const float Pitch = static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG);
-			const float Distance = ADTCameraPawn::ComputeFramingDistance(Radius, static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), ADTCameraPawn::TargetAspect);
-			const float PitchRad = FMath::DegreesToRadians(Pitch);
-			It->SetActorRelativeTransform(FTransform(FRotator(-Pitch, 0.0f, 0.0f), FVector(-Distance * FMath::Cos(PitchRad), 0.0, Distance * FMath::Sin(PitchRad))));
-			UE_LOG(LogDT, Log, TEXT("DT.Arena.Frame %.0f uu (camera %.0f uu from the hero; a staged frame, not the game's frame)"), Radius, Distance);
+			// The camera's own sum, one place for every frame (ADTCameraPawn::FramingTransform, D-080).
+			It->SetActorRelativeTransform(ADTCameraPawn::FramingTransform(Radius, Shift));
+			UE_LOG(LogDT, Log, TEXT("DT.Arena.Frame %.0f uu aimed %.1f uu toward the camera (a staged frame, not the game's frame)"), Radius, Shift);
 			return true;
 		}
 		return false;
@@ -44,21 +43,23 @@ namespace DTDebugArena
 	static void Frame(const TArray<FString>& Args, UWorld* World)
 	{
 		const float Radius = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.0f;
+		// Centred unless a shift is given, as the staged edge frames have always been (2000 uu, the frame before D-036).
+		const float Shift = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 0.0f;
 		if (!World || !World->IsGameWorld() || Radius <= 0.0f)
 		{
 			UE_LOG(LogDT, Warning, TEXT("DT.Arena.Frame <radius uu>: game worlds only"));
 			return;
 		}
-		if (Apply(World, Radius))
+		if (Apply(World, Radius, Shift))
 		{
 			return;
 		}
 		const TWeakObjectPtr<UWorld> Weak(World);
 		const double GiveUp = FPlatformTime::Seconds() + FrameWaitSeconds;
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Radius, GiveUp](float)
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Radius, Shift, GiveUp](float)
 		{
 			UWorld* Live = Weak.Get();
-			if (!Live || Apply(Live, Radius))
+			if (!Live || Apply(Live, Radius, Shift))
 			{
 				return false;
 			}
@@ -72,7 +73,7 @@ namespace DTDebugArena
 	}
 
 	static FAutoConsoleCommandWithWorldAndArgs FrameCmd(TEXT("DT.Arena.Frame"),
-		TEXT("DT.Arena.Frame <radius uu>: stage the camera at another frame radius (edge frames of the arena art; tool runs only)"),
+		TEXT("DT.Arena.Frame <radius uu> [aim shift uu]: stage the camera at another frame radius, centred unless a shift is given (edge frames of the arena art; tool runs only)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Frame));
 }
 

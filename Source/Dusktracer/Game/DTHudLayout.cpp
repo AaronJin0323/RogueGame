@@ -40,6 +40,7 @@ namespace DTHudLayoutLocal
 	struct FLens
 	{
 		float Distance;
+		float Shift;
 		float SinPitch;
 		float CosPitch;
 		float TanHalfVertical;
@@ -48,7 +49,9 @@ namespace DTHudLayoutLocal
 		explicit FLens(const FVector2f& View)
 		{
 			const float Fov = static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG);
-			Distance = ADTCameraPawn::ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), Fov, ADTCameraPawn::TargetAspect);
+			// The game's frame from its one place (D-080): the distance from the aim point and the aim point's shift toward the camera.
+			Distance = ADTCameraPawn::FramingDistance();
+			Shift = ADTCameraPawn::AimShift();
 			FMath::SinCos(&SinPitch, &CosPitch, FMath::DegreesToRadians(static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG)));
 			TanHalfVertical = FMath::Tan(FMath::DegreesToRadians(0.5f * Fov)) / ADTCameraPawn::TargetAspect;
 			TanHalfHorizontal = TanHalfVertical * View.X / FMath::Max(View.Y, 1.0f);
@@ -372,9 +375,11 @@ float DTHud::KeepOutRadiusUU()
 FVector2f DTHud::ProjectGround(const FVector2f& View, const FVector2f& Ground)
 {
 	const DTHudLayoutLocal::FLens Lens(View);
-	// The hero stands on the view axis; the floor point is Ground.X further along the camera's heading and Ground.Y to its right.
-	const float Depth = FMath::Max(Lens.Distance + Ground.X * Lens.CosPitch, UE_KINDA_SMALL_NUMBER);
-	const float Up = Ground.X * Lens.SinPitch;
+	// The aim point stands on the view axis, Shift from the hero toward the camera (D-080); the floor point is Ground.X further
+	// from the hero along the camera's heading and Ground.Y to its right.
+	const float Along = Ground.X + Lens.Shift;
+	const float Depth = FMath::Max(Lens.Distance + Along * Lens.CosPitch, UE_KINDA_SMALL_NUMBER);
+	const float Up = Along * Lens.SinPitch;
 	return FVector2f(0.5f * View.X * (1.0f + Ground.Y / (Depth * Lens.TanHalfHorizontal)), 0.5f * View.Y * (1.0f - Up / (Depth * Lens.TanHalfVertical)));
 }
 
@@ -383,15 +388,16 @@ bool DTHud::UnprojectGround(const FVector2f& View, const FVector2f& Pixel, FVect
 	const DTHudLayoutLocal::FLens Lens(View);
 	const float NdcX = 2.0f * Pixel.X / FMath::Max(View.X, 1.0f) - 1.0f;
 	const float NdcY = 1.0f - 2.0f * Pixel.Y / FMath::Max(View.Y, 1.0f);
-	// Up = NdcY * TanHalfVertical * Depth, with Up = X * sin and Depth = Distance + X * cos.
+	// Up = NdcY * TanHalfVertical * Depth, with Up = A * sin and Depth = Distance + A * cos, A measured from the aim point.
 	const float Slope = NdcY * Lens.TanHalfVertical;
 	const float Denominator = Lens.SinPitch - Slope * Lens.CosPitch;
 	if (Denominator <= UE_KINDA_SMALL_NUMBER)
 	{
 		return false; // at or above the horizon
 	}
-	OutGround.X = Slope * Lens.Distance / Denominator;
-	OutGround.Y = NdcX * Lens.TanHalfHorizontal * (Lens.Distance + OutGround.X * Lens.CosPitch);
+	const float Along = Slope * Lens.Distance / Denominator;
+	OutGround.X = Along - Lens.Shift;
+	OutGround.Y = NdcX * Lens.TanHalfHorizontal * (Lens.Distance + Along * Lens.CosPitch);
 	return true;
 }
 

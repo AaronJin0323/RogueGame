@@ -390,19 +390,26 @@ bool FDTHudKeepOut::RunTest(const FString& Parameters)
 	const float Radius = DTHud::KeepOutRadiusUU();
 	TestEqual(TEXT("the keep-out radius is R-UX-01's reach"), Radius, static_cast<float>(Farthest + 2 * DTConst::ROLE_TANK_RADIUS_UU));
 
-	// The projection is the camera's: the hero at the middle of the frame, the frame radius on the bottom edge of the frame the
-	// target aspect solves for (T-UX-01), and a pixel and its floor point name each other.
+	// The projection is the camera's: the hero on the middle column above the centre by the aim shift (D-080), the floor's down-screen
+	// reach on the bottom edge of the frame the target aspect solves for, and a pixel and its floor point name each other.
 	for (const FView& View : Views)
 	{
 		const FVector2f Hero = DTHud::ProjectGround(View.Size, FVector2f::ZeroVector);
-		TestTrue(*FString::Printf(TEXT("%s: the hero is the middle of the frame"), View.Name), Hero.Equals(0.5f * View.Size, 0.01f));
+		TestTrue(*FString::Printf(TEXT("%s: the hero stands on the middle column, above the centre"), View.Name),
+			FMath::IsNearlyEqual(Hero.X, 0.5f * View.Size.X, 0.01f) && Hero.Y < 0.5f * View.Size.Y);
+		FVector2f Aim;
+		TestTrue(*FString::Printf(TEXT("%s: the frame's centre is the aim point, the shift toward the camera"), View.Name),
+			DTHud::UnprojectGround(View.Size, 0.5f * View.Size, Aim) && FMath::IsNearlyEqual(Aim.X, -ADTCameraPawn::AimShift(), 0.05f));
 		const double Pitch = FMath::DegreesToRadians(static_cast<double>(DTConst::ARENA_CAMERA_PITCH_DEG));
 		const double TanHalfVertical = FMath::Tan(FMath::DegreesToRadians(0.5 * DTConst::ARENA_CAMERA_FOV_DEG)) / ADTCameraPawn::TargetAspect;
 		const double Distance = ADTCameraPawn::ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), ADTCameraPawn::TargetAspect);
-		const double Down = Distance * FMath::Cos(Pitch) - Distance * FMath::Sin(Pitch) / FMath::Tan(Pitch + FMath::Atan(TanHalfVertical));
+		const double Shift = static_cast<double>(ADTCameraPawn::AimShift());
+		const double Down = Distance * FMath::Cos(Pitch) + Shift - Distance * FMath::Sin(Pitch) / FMath::Tan(Pitch + FMath::Atan(TanHalfVertical));
+		// R-UX-01 reads the plane bodies are drawn on (T-UX-01); telegraphs lie on the floor, where the reach is a little less.
+		const double DownDrawn = Distance * FMath::Cos(Pitch) + Shift - (Distance * FMath::Sin(Pitch) - DTConst::SIM_PLANE_Z_UU) / FMath::Tan(Pitch + FMath::Atan(TanHalfVertical));
 		const FVector2f Edge = DTHud::ProjectGround(View.Size, FVector2f(static_cast<float>(-Down), 0.0f));
 		TestTrue(*FString::Printf(TEXT("%s: the down-screen reach lands on the bottom edge (y %.2f of %.0f)"), View.Name, Edge.Y, View.Size.Y), FMath::Abs(Edge.Y - View.Size.Y) < 0.5f);
-		TestTrue(TEXT("the reach covers the keep-out circle"), Down >= Radius);
+		TestTrue(TEXT("the reach on the drawn plane covers the keep-out circle"), DownDrawn >= Radius);
 		const FVector2f Point(0.31f * View.Size.X, 0.83f * View.Size.Y);
 		FVector2f Ground;
 		TestTrue(TEXT("a pixel below the horizon has a floor point"), DTHud::UnprojectGround(View.Size, Point, Ground));

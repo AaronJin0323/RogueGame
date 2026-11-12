@@ -27,18 +27,18 @@ namespace DTArenaArtTest
 	// uu; a mesh comes through FBX in single floats.
 	constexpr double SizeTolerance = 0.05;
 
-	/** Where the four corners of the frame land on the plane Z, for a hero standing at Hero and a camera framing Radius in a window of Aspect. */
-	static TArray<FVector2D> FrameCorners(const FVector2D& Hero, double Radius, double Aspect, double Z)
+	/** Where the four corners of the frame land on the plane Z, for a hero standing at Hero and a camera framing Radius, aimed Shift
+	 *  from the hero toward the camera (D-080), in a window of Aspect. */
+	static TArray<FVector2D> FrameCorners(const FVector2D& Hero, double Radius, double Shift, double Aspect, double Z)
 	{
 		const double Pitch = FMath::DegreesToRadians(static_cast<double>(DTConst::ARENA_CAMERA_PITCH_DEG));
 		const double TanTarget = FMath::Tan(FMath::DegreesToRadians(static_cast<double>(DTConst::ARENA_CAMERA_FOV_DEG) * 0.5));
 		// The height holds and the sides follow the window (R-UX-01).
 		const double TanVertical = TanTarget / static_cast<double>(ADTCameraPawn::TargetAspect);
 		const double TanHorizontal = TanVertical * Aspect;
-		const double Distance = static_cast<double>(ADTCameraPawn::ComputeFramingDistance(static_cast<float>(Radius),
-			static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), ADTCameraPawn::TargetAspect));
-		// The camera follows the hero's actor, which is drawn on the floor (ADTCameraPawn::FollowTransform).
-		const FVector Eye(Hero.X - Distance * FMath::Cos(Pitch), Hero.Y, Distance * FMath::Sin(Pitch));
+		// The camera follows the hero's actor, which is drawn on the floor, at the camera's own sum (ADTCameraPawn::FramingTransform).
+		const FVector Offset = ADTCameraPawn::FramingTransform(static_cast<float>(Radius), static_cast<float>(Shift)).GetLocation();
+		const FVector Eye(Hero.X + Offset.X, Hero.Y + Offset.Y, Offset.Z);
 		const FVector Forward(FMath::Cos(Pitch), 0.0, -FMath::Sin(Pitch));
 		const FVector Right(0.0, 1.0, 0.0);
 		const FVector Up(FMath::Sin(Pitch), 0.0, FMath::Cos(Pitch));
@@ -132,17 +132,20 @@ bool FDTArenaApronReach::RunTest(const FString& Parameters)
 
 	// Today's frame and the one D-036 reverts to, the target window and the widest one: every corner of every frame a hero at the
 	// clamp can make lands on the apron. The lowest surface is where a ray lands farthest out, so it is the plane judged.
-	const double Radii[] = { static_cast<double>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), static_cast<double>(DTConst::ARN_FRAME_RADIUS_MAX_UU) };
+	// Today's frame aimed at its shift; the wide one centred, as DT.Arena.Frame stages it.
+	const TPair<double, double> Frames[] = { { static_cast<double>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), static_cast<double>(ADTCameraPawn::AimShift()) },
+		{ static_cast<double>(DTConst::ARN_FRAME_RADIUS_MAX_UU), 0.0 } };
 	const double Aspects[] = { static_cast<double>(ADTCameraPawn::TargetAspect), static_cast<double>(DTConst::ARN_ASPECT_MAX) };
 	double Tightest = TNumericLimits<double>::Max();
 	int32 PastPlate = 0;
-	for (const double Radius : Radii)
+	for (const TPair<double, double>& Frame : Frames)
 	{
+		const double Radius = Frame.Key;
 		for (const double Aspect : Aspects)
 		{
 			for (const FVector2D& Hero : EdgeStands())
 			{
-				for (const FVector2D& Corner : FrameCorners(Hero, Radius, Aspect, Box.Min.Z))
+				for (const FVector2D& Corner : FrameCorners(Hero, Radius, Frame.Value, Aspect, Box.Min.Z))
 				{
 					const double Margin = FMath::Min(FMath::Min(Corner.X - Box.Min.X, Box.Max.X - Corner.X), FMath::Min(Corner.Y - Box.Min.Y, Box.Max.Y - Corner.Y));
 					Tightest = FMath::Min(Tightest, Margin);
@@ -152,7 +155,7 @@ bool FDTArenaApronReach::RunTest(const FString& Parameters)
 							Radius, Aspect, Hero.X, Hero.Y, Corner.X, Corner.Y, -Margin));
 					}
 				}
-				for (const FVector2D& Corner : FrameCorners(Hero, Radius, Aspect, 0.0))
+				for (const FVector2D& Corner : FrameCorners(Hero, Radius, Frame.Value, Aspect, 0.0))
 				{
 					PastPlate += FMath::Max(FMath::Abs(Corner.X), FMath::Abs(Corner.Y)) > Half ? 1 : 0;
 				}
