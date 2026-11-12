@@ -102,7 +102,7 @@ Moved expectations, old and new:
 - The Tempest hold read on the tip equals step 0's hold 15 of 15 in outcome, `end_s`, `steps` and `input_hash`. The rule moves nothing in a run that does not evolve the drones, so step 0's holds serve both pairs.
 - Step 0's Tempest hold also equals D-075's (`d075_hold_branch`, read on `281959d`) 15 of 15: D-074's landing did not move it.
 
-**The fight window.** `Tools/evolve_read.py` (`split_windows`) counts every source's damage per minute, from every `hit` record of player 0, to everything alive in the window, not damage to the boss. A fight window over 1.0 therefore does not say the boss dies faster. On Tempest the evolved build kills the boss more slowly than the hold (a median fight of 128 s against 93 s), although its fight window reads 1.03.
+**The fight window.** `Tools/evolve_read.py` (`split_windows`) counts every source's damage per minute, from every `hit` record of player 0, to everything alive in the window; it does not count damage to the boss alone.
 
 | | Tempest hold | Tempest port | Tempest rule | Arc Grid hold | Arc Grid port | Arc Grid rule |
 |---|---|---|---|---|---|---|
@@ -132,10 +132,30 @@ How the table was read:
 
 On Arc Grid no run of the rule dies before the boss.
 
+**The boss's own records.** `boss.md` R-BOS-09 sets the Warden's effective max from the damage it takes in its first seconds, with a floor of 9600. Read from `boss_calibrated` and `boss_end`, over the runs that reached the boss. The damage dealt to the boss a minute is the effective max × (1 − `hp_left_frac`) / `fight_time_s` × 60, as a median over runs and pooled over the runs' sums.
+
+| | Tempest rule | Tempest hold | Arc Grid rule | Arc Grid hold |
+|---|---|---|---|---|
+| runs that reached the boss | 13 | 15 | 15 | 15 |
+| effective max, median | 14871 | 9600 | 10035 | 9600 |
+| on the 9600 floor | 3 of 13 | 8 of 15 | 6 of 15 | 8 of 15 |
+| damage to the boss a minute, median (pooled) | 9674 (9994) | 9295 (8669) | 7794 (8074) | 5770 (5881) |
+| rule against hold, median (pooled) | 1.04 (1.15) | | 1.35 (1.37) | |
+
+These figures agree with the coordinator's own reader (`boss_measure.py`). On both pairs the evolved build deals more to the boss a minute than the hold. Its Tempest fights are longer because it meets a boss with more health: the fight's length reads the calibration, not the build. The hero's longer and costlier Tempest fight stays as printed fact: 128 s against 93 s, and 25.1 damage taken a minute against 11.6.
+
 Nothing above is judged but the three clauses (D-050); nothing was tuned on it.
 
 ## Step 6: the gate
-GATE
+`& Tools\Gate.ps1 -Base dev/s2` on `40be484` (the tip before this documents commit; `dev/s2` is `1106820`, an ancestor):
+- `GATE: PASS (40be484; 3 not run; mask FFFFF3FC)`.
+- The tests: 485 run of 485, 0 failed, floor 485.
+- `RESTART: PASS` (seed 9107, input_hash `276faf8e` / `276faf8e`, steps 5400 / 5400).
+- Not run: pad (no package), scope (no brief in flight), mac (deferred, D-007).
+
+This documents commit on top carries the boss's own records and the gate's line; no code moved after the gate.
+
+The five seed 9107 arms by hand, on the gated build: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`. All are as expected; none of them evolves the drones (`reforge=none` in each).
 
 ## Not shown
 The blades' share of the weapon's damage: blades and bolts carry one source, `Weapon.OrbitalDrones`. Telling them apart would need a source of its own for a blade's strike, and this job did not add one.
