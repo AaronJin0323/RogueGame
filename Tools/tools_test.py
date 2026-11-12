@@ -27,6 +27,7 @@ import catalog_lint  # noqa: E402
 import contrast_check  # noqa: E402
 import dtconst  # noqa: E402
 import dtpalette  # noqa: E402
+import elite_anchors  # noqa: E402
 import enemy_art_check  # noqa: E402
 import enemy_shapes  # noqa: E402
 import evolve_read  # noqa: E402
@@ -4307,7 +4308,40 @@ class EnemyArt(unittest.TestCase):
 	def test_the_four_roles_pass_every_rule(self):
 		errors, lines = enemy_art_check.check_geometry(dtconst.load())
 		self.assertEqual(errors, [])
-		self.assertEqual(len(lines), len(enemy_art_check.ROLES) + len(dtconst.load()["EAR.SILHOUETTE_PX_PER_M"]["value"]))
+		self.assertEqual(len(lines), 2 * len(enemy_art_check.ROLES) + len(dtconst.load()["EAR.SILHOUETTE_PX_PER_M"]["value"]))
+
+	def test_the_elite_anchors_are_the_generators(self):
+		# T-EAR-08, D-076 item 2: the header the code places from is what the generators give, byte for byte; never typed by hand.
+		with open(elite_anchors.OUT, encoding="utf-8", newline="") as f:
+			self.assertEqual(f.read(), elite_anchors.render(), "run python -I Tools/elite_anchors.py")
+		self.assertEqual(elite_anchors.ROLES, enemy_art_check.ROLES)
+
+	def test_the_placement_by_the_hit_circle_fails_on_the_role_hulls(self):
+		# The defect the check is there to catch: today's cube placement over the role hulls fails it on every role.
+		errors, _ = enemy_art_check.check_elite_parts(dtconst.load(), cube=True)
+		for role in enemy_art_check.ROLES:
+			self.assertTrue(any(message.startswith(f"{role} ") or message.startswith(f"{role}:") for message in errors), role)
+
+	def test_the_code_places_by_the_tool_s_layout(self):
+		# DTElite.cpp states the layout the tool's mirror of BuildParts uses; the two read the same numbers.
+		with open(os.path.join(SOURCE, "Enemies", "DTElite.cpp"), encoding="utf-8") as f:
+			code = f.read()
+		for name, value in elite_anchors.LAYOUT.items():
+			self.assertIn(f"constexpr float {name} = {value:g}f;" if value != int(value) else f"constexpr float {name} = {value:.1f}f;", code, name)
+		self.assertIn("const float Radius = K->Reach * R + 1.5f * P;", code)
+		self.assertIn("FMath::Max(K->TailHalf * R - Half, P)", code)
+		self.assertIn("FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R)", code)
+
+	def test_a_floating_part_is_found(self):
+		hull = [enemy_shapes.box("Hull", -50, 50, -50, 50, 0, 100)]
+		planes = [enemy_art_check._planes(part) for part in hull]
+		points = [p for part in hull for p in enemy_art_check.surface_samples(part, 3)]
+		touching = elite_anchors.box_part("Plate", (0, 60, 50), (40, 10, 40), 0)
+		floating = elite_anchors.box_part("Plate", (0, 70, 50), (40, 10, 40), 0)
+		sunk = elite_anchors.box_part("Plate", (0, 52, 50), (40, 10, 40), 0)
+		self.assertEqual(enemy_art_check.gap_and_sink(touching, planes, points), (0.0, 0.0))
+		self.assertAlmostEqual(enemy_art_check.gap_and_sink(floating, planes, points)[0], 10.0, places=3)
+		self.assertAlmostEqual(enemy_art_check.gap_and_sink(sunk, planes, points)[1], 8.0, places=3)
 
 	def test_two_cubes_overlap_wholly_whatever_their_size(self):
 		# What the silhouette rule is there to tell apart from: before the role meshes every role was the same outline.

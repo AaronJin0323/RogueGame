@@ -643,6 +643,8 @@ Presentation only (S4 wave 1 package B, D-043): no key here has a reader in the 
 | C.EAR.LINEUP_SPACING_UU | 320 | uu | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (slot size of `DT.Enemies.LineUp`) |
 | C.EAR.LINEUP_ROWS | 3 | n | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (facings per role in the line-up) |
 | C.EAR.FRAME_MASK_TOLERANCE | 0.06 | ratio | GATED(S4) | enemy_art T-EAR-07, Tools/enemy_art_check.py (how far a pixel's channel must sit from the slot's floor to count as drawn) |
+| C.EAR.ELITE_PART_GAP_MAX_UU | 3 | uu | GATED(S4) | enemy_art R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests (widest gap between an elite part and its role hull, the shield's orbit excepted) |
+| C.EAR.ELITE_PART_SINK_MAX_UU | 5 | uu | GATED(S4) | enemy_art R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests (deepest an elite part may sit inside its role hull) |
 
 ## Audio (02_Systems/audio.md)
 

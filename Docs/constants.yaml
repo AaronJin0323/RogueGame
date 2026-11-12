@@ -565,6 +565,8 @@ enemy_art:
   EAR.LINEUP_SPACING_UU:         { value: 320, unit: uu, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
   EAR.LINEUP_ROWS:               { value: 3, unit: n, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py] }
   EAR.FRAME_MASK_TOLERANCE:      { value: 0.06, unit: ratio, tag: GATED(S4), dependents: [02_Systems/enemy_art.md, T-EAR-07, Tools/enemy_art_check.py] }
+  EAR.ELITE_PART_GAP_MAX_UU:     { value: 3,    unit: uu,    tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests] }
+  EAR.ELITE_PART_SINK_MAX_UU:    { value: 5,    unit: uu,    tag: GATED(S4), dependents: [02_Systems/enemy_art.md, R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests] }
 audio:
   # S4 audio wave 1 (D-056, 02_Systems/audio.md): presentation only, no reader in the sim.
   AUD.SAMPLE_RATE_HZ:            { value: 48000, unit: Hz, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/dtsynth.py] }

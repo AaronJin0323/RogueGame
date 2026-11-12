@@ -1,4 +1,4 @@
-"""Machine checks of the Cast-off hulls (02_Systems/enemy_art.md T-EAR-03 to T-EAR-07). Stdlib only; no engine, no Blender.
+"""Machine checks of the Cast-off hulls (02_Systems/enemy_art.md T-EAR-03 to T-EAR-08). Stdlib only; no engine, no Blender.
 
     python -I Tools/enemy_art_check.py                      the generators' geometry: every rule below, "ENEMY ART: PASS|FAIL (...)"
     python -I Tools/enemy_art_check.py --frame <png> ...    captured line-up frames (Tools/EnemyArt.ps1 takes them): the silhouette rule on pixels
@@ -17,8 +17,11 @@ the middle of the frame: looking along +X, C.ARENA.CAMERA_PITCH_DEG down, withou
                worst facing is held against the cube's best.
   optic        (T-EAR-04) the optic's visible area from the camera, its own hull in front of it, is at no facing under the least the optic cube
                showed on its cube, and on average not under the cube's average.
-  elite light  (T-EAR-04) the elite's light is today's cube (elites.md R-ELT-10), placed by today's formula over the role hull drawn at
-               C.ELITE.DRAW_SCALE: at every facing it shows at least C.EAR.ELITE_LIGHT_VISIBLE_MIN of the least it showed over the cube.
+  elite light  (T-EAR-04) the elite's light (elites.md R-ELT-10), placed from the role's anchors (R-EAR-08) over the role hull drawn at
+               C.ELITE.DRAW_SCALE: at every facing it shows at least C.EAR.ELITE_LIGHT_VISIBLE_MIN of the least today's cube light showed over the cube.
+  elite parts  (T-EAR-08) every elite part placed from Tools/elite_anchors.py's anchors, each affix alone and all together, the shield over its
+               orbit: its gap to the hull's own solids (not their bounds) within C.EAR.ELITE_PART_GAP_MAX_UU (the shield's plates orbit clear),
+               sunk no deeper than C.EAR.ELITE_PART_SINK_MAX_UU, and the light's centre inside the optic's bounds.
   triangles    (T-EAR-03) hull plus optic of a role stay within C.EAR.ROLE_TRIS_MAX: the stand-in for LODs at this grade.
   parts        (T-EAR-03) every part is closed, convex and wound outward, and the mesh is its own mirror left to right, so the Y flip of the
                import cannot show.
@@ -33,6 +36,7 @@ import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
+import elite_anchors  # noqa: E402
 import enemy_shapes as es  # noqa: E402
 import image_check  # noqa: E402
 
@@ -259,15 +263,162 @@ def optic_reading(camera, subject):
 
 
 def elite_light_reading(camera, constants, subject, as_cube):
-	"""The elite light's least visible area over the facings (uu2 of screen): over this role's hull at the elite scale, or over the cube."""
+	"""The elite light's least visible area over the facings (uu2 of screen): placed from the role's anchors over its hull at the elite
+	scale (R-EAR-08), or today's cube light over the cube (what it is held against)."""
 	scale = constant(constants, "ELITE.DRAW_SCALE")
 	radius = subject.radius * scale
 	cube, light = grey_box(constants, subject.role, radius)
+	if not as_cube:
+		(_, centre, half, yaw), = [part for part in elite_anchors.place(elite_anchors.table()[subject.role], radius, set()) if part[0] == "Light"]
+		light = [elite_anchors.box_part("Light", centre, half, yaw)]
 	seen = []
 	for yaw in FACINGS_DEG:
 		hull = placed(cube, 1.0, yaw) if as_cube else placed(subject.hull, subject.scale * scale, yaw)
 		seen.append(float(Raster([camera.screen(hull), camera.screen(placed(light, 1.0, yaw))], 1.0).count(1)))
 	return min(seen)
+
+
+# --- elite parts (T-EAR-08) ------------------------------------------------------------------------------------------------
+
+def _planes(part):
+	"""A convex part as [(outward unit normal, offset, face points)]: a point p is inside when normal . p <= offset for every face."""
+	out = []
+	verts = part["verts"]
+	for face in part["faces"]:
+		points = [verts[index] for index in face]
+		normal = [0.0, 0.0, 0.0]
+		for index, p in enumerate(points):
+			q = points[(index + 1) % len(points)]
+			normal[0] += (p[1] - q[1]) * (p[2] + q[2])
+			normal[1] += (p[2] - q[2]) * (p[0] + q[0])
+			normal[2] += (p[0] - q[0]) * (p[1] + q[1])
+		length = math.sqrt(sum(c * c for c in normal))
+		normal = tuple(c / length for c in normal)
+		out.append((normal, sum(normal[a] * points[0][a] for a in range(3)), points))
+	return out
+
+
+def _segment_distance(p, a, b):
+	ab = [b[i] - a[i] for i in range(3)]
+	t = sum((p[i] - a[i]) * ab[i] for i in range(3)) / max(sum(c * c for c in ab), 1e-12)
+	t = min(1.0, max(0.0, t))
+	return math.sqrt(sum((p[i] - a[i] - t * ab[i]) ** 2 for i in range(3)))
+
+
+def point_distance(p, planes):
+	"""(distance outside, depth inside) of point p against one convex part; exactly one of the two is above zero."""
+	signed = [sum(n[a] * p[a] for a in range(3)) - d for n, d, _ in planes]
+	if max(signed) <= 0.0:
+		return 0.0, -max(signed)
+	best = math.inf
+	for (n, d, points), s in zip(planes, signed):
+		if s <= 0.0:
+			continue
+		foot = [p[a] - s * n[a] for a in range(3)]
+		inside = True
+		for index, a in enumerate(points):
+			b = points[(index + 1) % len(points)]
+			edge = [b[i] - a[i] for i in range(3)]
+			to = [foot[i] - a[i] for i in range(3)]
+			cross = (edge[1] * to[2] - edge[2] * to[1], edge[2] * to[0] - edge[0] * to[2], edge[0] * to[1] - edge[1] * to[0])
+			if sum(cross[i] * n[i] for i in range(3)) < -1e-12:
+				inside = False
+				break
+		if inside:
+			best = min(best, s)
+		else:
+			best = min(best, min(_segment_distance(p, points[i], points[(i + 1) % len(points)]) for i in range(len(points))))
+	return best, 0.0
+
+
+def surface_samples(part, steps=4):
+	"""Points over every face of a convex part (a grid between its corners), its corners and its centre."""
+	verts = part["verts"]
+	out = list(verts)
+	for face in part["faces"]:
+		points = [verts[index] for index in face]
+		a = points[0]
+		for index in range(1, len(points) - 1):
+			b, c = points[index], points[index + 1]
+			for i in range(steps + 1):
+				for j in range(steps + 1 - i):
+					u, v = i / steps, j / steps
+					out.append(tuple(a[k] + u * (b[k] - a[k]) + v * (c[k] - a[k]) for k in range(3)))
+	out.append(tuple(sum(v[a] for v in verts) / len(verts) for a in range(3)))
+	return out
+
+
+def gap_and_sink(part, hull_planes, hull_points):
+	"""(gap, sink) of one placed part against a hull, in the part's units: the least distance between the part and any hull part
+	(zero when they touch or overlap), and how deep the part's surface goes into any one hull part (zero when it rests on it)."""
+	gap, sink = math.inf, 0.0
+	for p in surface_samples(part):
+		for planes in hull_planes:
+			outside, inside = point_distance(p, planes)
+			gap = min(gap, outside)
+			sink = max(sink, inside)
+	if gap > 0.0:
+		# The hull's own corners and face points against the part: a hull corner may come closer than any sample of the part.
+		own = _planes(part)
+		for p in hull_points:
+			gap = min(gap, point_distance(p, own)[0])
+	return gap, sink
+
+
+AFFIX_SETS = tuple((name,) for name in elite_anchors.AFFIXES) + (elite_anchors.AFFIXES,)
+SHIELD_STEPS_DEG = tuple(range(0, 60, 15))  # the plates' orbit repeats every 60 degrees (six plates)
+
+
+def elite_parts_reading(constants, role, cube=False):
+	"""T-EAR-08 on one role, at its elite drawn radius: {(affix, set): (worst gap, worst sink)} in uu over its parts and the shield's
+	orbit, and the light's centre against the optic's bounds. cube=True places by today's hit-circle formula (the defect)."""
+	radius = float(constant(constants, RADIUS_KEY[role])) * constant(constants, "ELITE.DRAW_SCALE")
+	hull, optic = load_role(role)
+	scale = 2.0 * radius
+	hull_uu = [es._part(part["name"], [tuple(c * scale for c in v) for v in part["verts"]], part["faces"]) for part in hull]
+	hull_planes = [_planes(part) for part in hull_uu]
+	hull_points = [p for part in hull_uu for p in surface_samples(part, 3)]
+	(olo, ohi) = elite_anchors.bounds([es._part("o", [tuple(c * scale for c in v) for v in part["verts"]], part["faces"]) for part in optic])
+	row = elite_anchors.table()[role]
+	out, light = {}, None
+	for affixes in AFFIX_SETS:
+		for shield in (SHIELD_STEPS_DEG if "Shielded" in affixes else (0,)):
+			parts = elite_anchors.cube_place(radius, role, set(affixes), shield) if cube else elite_anchors.place(row, radius, set(affixes), shield)
+			for name, centre, half, yaw in parts:
+				if name == "Light":
+					light = (centre, all(olo[a] - 1e-6 <= centre[a] <= ohi[a] + 1e-6 for a in range(3)))
+					if len(affixes) > 1:
+						continue
+				gap, sink = gap_and_sink(elite_anchors.box_part(name, centre, half, yaw), hull_planes, hull_points)
+				key = (name, "+".join(affixes) if len(affixes) > 1 else "one")
+				was = out.get(key)
+				# Over the shield's orbit the least clearance is what counts; for every other part the worst gap.
+				out[key] = (gap, sink) if was is None else ((min if name == "Shielded" else max)(was[0], gap), max(was[1], sink))
+	return out, light, radius
+
+
+def check_elite_parts(constants, cube=False):
+	"""Errors and lines of T-EAR-08 for every role: every part's gap and sink within C.EAR.ELITE_PART_GAP_MAX_UU and
+	C.EAR.ELITE_PART_SINK_MAX_UU (the shield's plates orbit clear: they may not sink, and their gap is reported), the light's centre in
+	the optic's bounds."""
+	gap_max = constant(constants, "EAR.ELITE_PART_GAP_MAX_UU")
+	sink_max = constant(constants, "EAR.ELITE_PART_SINK_MAX_UU")
+	errors, lines = [], []
+	for role in ROLES:
+		reading, (light_at, light_in), radius = elite_parts_reading(constants, role, cube)
+		if not light_in:
+			errors.append(f"{role}: the elite light's centre ({light_at[0]:.1f}, {light_at[1]:.1f}, {light_at[2]:.1f}) uu is outside the optic's bounds")
+		worst_gap = max((g, k) for k, (g, s) in reading.items() if k[0] != "Shielded")
+		worst_sink = max((s, k) for k, (g, s) in reading.items())
+		shield_gap = min((g for k, (g, s) in reading.items() if k[0] == "Shielded"), default=0.0)
+		for (name, where), (gap, sink) in sorted(reading.items()):
+			if name != "Shielded" and gap > gap_max:
+				errors.append(f"{role} {name} ({where}): {gap:.1f} uu clear of its hull, over C.EAR.ELITE_PART_GAP_MAX_UU {gap_max}")
+			if sink > sink_max:
+				errors.append(f"{role} {name} ({where}): sunk {sink:.1f} uu into its hull, over C.EAR.ELITE_PART_SINK_MAX_UU {sink_max}")
+		lines.append(f"  {role:<7} elite R {radius:.1f} uu ({'cube anchors' if cube else 'role anchors'}): worst gap {worst_gap[0]:.1f} uu ({worst_gap[1][0]}), "
+			f"worst sink {worst_sink[0]:.1f} uu ({worst_sink[1][0]}), shield clear by {shield_gap:.1f} uu, light centre {'in' if light_in else 'OUT of'} the optic")
+	return errors, lines
 
 
 def worst_overlaps(masks):
@@ -343,6 +494,10 @@ def check_geometry(constants, sheet=None):
 		size = [max(v[axis] for v in corners) - min(v[axis] for v in corners) for axis in range(3)]
 		lines.append(f"  {role:<7} R {mesh.radius:.0f} uu: {tris} tris; drawn {size[0]:.0f} x {size[1]:.0f} x {size[2]:.0f} uu; floor {area:.0f} uu2 ({area / cube_area:.2f} x cube), "
 			f"reach {reach:.1f} uu ({reach / cube_reach:.2f} x); optic {least:.0f} / {mean:.0f} uu2 (cube {cube_least:.0f} / {cube_mean:.0f}); elite light {light / cube_light:.2f} x")
+
+	part_errors_, part_lines = check_elite_parts(constants)
+	errors += part_errors_
+	lines += part_lines
 
 	sheet_rows = []
 	for density in constant(constants, "EAR.SILHOUETTE_PX_PER_M"):
