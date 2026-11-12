@@ -389,45 +389,47 @@ float DTHud::KeepOutRadiusUU()
 	return static_cast<float>(Farthest + 2 * DTConst::ROLE_TANK_RADIUS_UU);
 }
 
-FVector2f DTHud::ProjectGround(const FVector2f& View, const FVector2f& Ground)
+FVector2f DTHud::ProjectGround(const FVector2f& View, const FVector2f& Ground, float Z)
 {
 	const DTHudLayoutLocal::FLens Lens(View);
-	// The aim point stands on the view axis, Shift from the hero toward the camera (D-080); the floor point is Ground.X further
-	// from the hero along the camera's heading and Ground.Y to its right.
+	// The aim point stands on the view axis on the floor, Shift from the hero toward the camera (D-080); the point is Ground.X further
+	// from the hero along the camera's heading, Ground.Y to its right and Z above the floor.
 	const float Along = Ground.X + Lens.Shift;
-	const float Depth = FMath::Max(Lens.Distance + Along * Lens.CosPitch, UE_KINDA_SMALL_NUMBER);
-	const float Up = Along * Lens.SinPitch;
+	const float Depth = FMath::Max(Lens.Distance + Along * Lens.CosPitch - Z * Lens.SinPitch, UE_KINDA_SMALL_NUMBER);
+	const float Up = Along * Lens.SinPitch + Z * Lens.CosPitch;
 	return FVector2f(0.5f * View.X * (1.0f + Ground.Y / (Depth * Lens.TanHalfHorizontal)), 0.5f * View.Y * (1.0f - Up / (Depth * Lens.TanHalfVertical)));
 }
 
-bool DTHud::UnprojectGround(const FVector2f& View, const FVector2f& Pixel, FVector2f& OutGround)
+bool DTHud::UnprojectGround(const FVector2f& View, const FVector2f& Pixel, FVector2f& OutGround, float Z)
 {
 	const DTHudLayoutLocal::FLens Lens(View);
 	const float NdcX = 2.0f * Pixel.X / FMath::Max(View.X, 1.0f) - 1.0f;
 	const float NdcY = 1.0f - 2.0f * Pixel.Y / FMath::Max(View.Y, 1.0f);
-	// Up = NdcY * TanHalfVertical * Depth, with Up = A * sin and Depth = Distance + A * cos, A measured from the aim point.
+	// Up = NdcY * TanHalfVertical * Depth, with Up = A * sin + Z * cos and Depth = Distance + A * cos - Z * sin, A measured from the aim point.
 	const float Slope = NdcY * Lens.TanHalfVertical;
 	const float Denominator = Lens.SinPitch - Slope * Lens.CosPitch;
 	if (Denominator <= UE_KINDA_SMALL_NUMBER)
 	{
 		return false; // at or above the horizon
 	}
-	const float Along = Slope * Lens.Distance / Denominator;
+	const float Along = (Slope * (Lens.Distance - Z * Lens.SinPitch) - Z * Lens.CosPitch) / Denominator;
 	OutGround.X = Along - Lens.Shift;
-	OutGround.Y = NdcX * Lens.TanHalfHorizontal * (Lens.Distance + Along * Lens.CosPitch);
+	OutGround.Y = NdcX * Lens.TanHalfHorizontal * (Lens.Distance + Along * Lens.CosPitch - Z * Lens.SinPitch);
 	return true;
 }
 
 bool DTHud::CoversKeepOut(const FVector2f& View, const FBox2f& Box)
 {
 	const float Radius = KeepOutRadiusUU();
+	// R-UX-01's circle on the plane bodies are drawn on (C.SIM.PLANE_Z_UU), as T-UX-01 reads it since D-080.
+	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
 	const auto Inside = [&](const FVector2f& Pixel)
 	{
 		FVector2f Ground;
-		return UnprojectGround(View, Pixel, Ground) && Ground.SizeSquared() < Radius * Radius;
+		return UnprojectGround(View, Pixel, Ground, Z) && Ground.SizeSquared() < Radius * Radius;
 	};
 	// The circle's image is convex. A rect that meets it either holds the hero or has a point of its edge inside.
-	const FVector2f Hero = ProjectGround(View, FVector2f::ZeroVector);
+	const FVector2f Hero = ProjectGround(View, FVector2f::ZeroVector, Z);
 	if (Box.IsInside(Hero))
 	{
 		return true;
