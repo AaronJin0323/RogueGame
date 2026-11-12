@@ -21,6 +21,9 @@ namespace DTHudLayoutLocal
 	constexpr float BossBarW = 560.0f;
 	constexpr float BossBarH = 12.0f;
 	constexpr float BossNameGap = 12.0f;
+	// The boss bar's top: rows 17 to 28 at 1080 rows, its lower edge y 29.0, where 06_UX R-UX-01 counts it (D-080). It scales with the
+	// window only; one pixel lower breaks the rule (the reach up to y 30 is 1 412.39 uu, under 1 416).
+	constexpr float BossBarTop = 17.0f;
 	constexpr float Ring = 84.0f;
 	constexpr float RingGap = 16.0f;
 	constexpr float PipW = 34.0f;
@@ -74,11 +77,9 @@ void DTHud::BossRow(const FVector2f& View, const FVector2f& PlaceNameSize, const
 	// Its lower edge is what 06_UX R-UX-01 counts on the hero's column (D-080).
 	const float BarWidth = FMath::Max(0.0f, FMath::Min(BossBarW * S, ColumnW - PlaceNameSize.X - BossNameGap * S));
 	const float RowW = PlaceNameSize.X + BossNameGap * S + BarWidth;
-	const float RowH = FMath::Max(PlaceNameSize.Y, BossBarH * S);
 	const float X = 0.5f * (View.X - RowW);
-	const float Y = CentreTop * S;
 	const float BarX = X + PlaceNameSize.X + BossNameGap * S;
-	OutBar = FBox2f(FVector2f(BarX, Y + 0.5f * (RowH - BossBarH * S)), FVector2f(BarX + BarWidth, Y + 0.5f * (RowH + BossBarH * S)));
+	OutBar = FBox2f(FVector2f(BarX, BossBarTop * S), FVector2f(BarX + BarWidth, (BossBarTop + BossBarH) * S));
 	// The name takes the text size: its right edge stays at the gap and it grows leftward, away from the bar and the hero's column,
 	// centred on the bar's height; past the centre column's left edge it shrinks to fit, as the layout's other fitted lines do.
 	const float Right = BarX - BossNameGap * S;
