@@ -118,7 +118,7 @@ In the Visual session's `Saved\S4Report\hero-zone\` (not in the repo): `tracer_c
 - `contrast`: 7/7 on `contrast`, 7/7 on `impact_dense`, 2/2 on `tracer_crossing`; `WATCH: OK` on each. On `tracer_crossing` the telegraph reads 3.32 and the enemy round 3.28, beside package E's gate of record 3.29 to 3.32 and 3.21 to 3.27; the watch floor is 3.10.
 - Build, shipping and devgame: 0 warnings; nonunity 7 files, 0 failed.
 
-**Goldens.** Every golden passed its tolerance (mean difference at most 12), so none was re-shot. Mean differences: arena_empty 0.30 (en) and 0.33 (zh-Hans), combat_staged 0.57 and 0.57, edge_corner 0.30 and 0.30, edge_corner_wide 0.29, enemy_lineup 0.25, hero_lineup 0.33, hud_boss 0.29, hud_staged 0.34 and 0.35, impact_hit 0.30, impact_kill 0.33, tracer_weapons 0.51.
+**Goldens.** Every golden passed its tolerance (mean difference at most 12), so none was re-shot. On `s4/zone-goldens` four were shot again because they showed the player's fire over the hero though they passed: `tracer_weapons_en` (0.52 against its old golden; 0.34 against the new one on the next launch), `impact_hit_en` (0.42; 0.32), `combat_staged_en` (0.57; 0.39) and `combat_staged_zh-Hans` (0.56; 0.42). Mean differences: arena_empty 0.30 (en) and 0.33 (zh-Hans), combat_staged 0.57 and 0.57, edge_corner 0.30 and 0.30, edge_corner_wide 0.29, enemy_lineup 0.25, hero_lineup 0.33, hud_boss 0.29, hud_staged 0.34 and 0.35, impact_hit 0.30, impact_kill 0.33, tracer_weapons 0.51.
 
 **Perf: not a reading.** `Tools\Perf.ps1 -Scene S4`, three times with the zone off (`DT_TRACER_CLEAR_ZONE=0`) and three times on, alternating, on the one build (1056932's code). Before each run the process list showed other sessions' engine processes: an editor and six editor commandlets, then seven commandlets, then an editor and five commandlets (five to seven other engine processes on every run). The GPU p95 swung between 7.46 and 9.58 ms (it reads 3.74 alone, `S4_e_feedback.md` §10). **The five `PERF: FAIL` lines are that hour's load, not this branch's.** The six runs as they are:
 
@@ -138,7 +138,7 @@ The game thread p95 with the zone on never reads higher than with it off (spread
 ## 9. Not verified
 
 - No person has looked, and nothing was seen in motion. Every figure is a held step of one seed.
-- The perf of the zone: §8 is a bound under heavy load. The scheduler's comparison against the base (`S4_perf_1080p.md`, "The clear zone against its base") found no cost beyond the spread, on one loaded evening: a comparison, not a record; no record with the zone exists yet.
+- The perf of the zone: §8 is a bound under heavy load. The scheduler's comparison against the base (`S4_perf_1080p.md`, "The clear zone against its base") found no cost beyond the spread, on one loaded evening: a comparison, not a record; no record with the zone exists yet. The bench (`S4_perf_1080p.md`, "The bench inside one game") puts the zone's cost at about 0.02 ms a frame at the round cap, in the per-round test of the two writers, and found the instance count not to be the cause.
 - Several heroes: the zone is built for each player's hero and a round is hidden only in its owner's zone; no scene has two heroes.
 - A round that hits an enemy touching the hero is never drawn: package E's spark is then the only sign; whether it reads as a hit is for the sitting.
 - The tool reads the hero at the frame's centre (the camera follows it); a frame where the camera stops at the arena's edge and the hero is off centre was not shot or read.
