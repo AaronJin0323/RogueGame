@@ -8,7 +8,9 @@ Branch `dev/s2-perfproof`, from `dev/s2` f70d651. Class: tool, no game rule. Lay
 & Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 NoDuoFields"  # the control of the emit-cap reading
 & Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 NoReactions"  # must fail
 & Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 Hp=300"       # the crowd sweep
+& Tools\Perf.ps1 -Scene S2 -Cmds "DT.PerfScene S2 Drones"      # D-079: the Blade Halo's perf bound
 ```
+The `Drones` option (D-079 item 5, `s2/blade-halo-bolts` 268174f) puts an evolved Orbital Drones (Blade Halo), with the same three modifiers, in the Spiral Projector's place; the game log names it ("Drones: Weapon.OrbitalDrones evolved in the Spiral Projector's place"). It is off in the scene of record, which is unchanged without it: on 268174f with the option off, `PERF: PASS (1920x1080, game p50 3.07 / p95 4.82 ms, GPU p95 4.26 ms, load 5815.00 bullets / 399.00 enemies, 1800 frames)`, beside an earlier scene-of-record line the same evening on D-072's 11c7ffa, `PERF: PASS (1920x1080, game p50 3.00 / p95 4.39 ms, GPU p95 4.21 ms, load 5798.00 bullets / 399.00 enemies, 1800 frames)` (`Validation/S2_d079_blade_halo_bolts.md`).
 The switch keeps every budget of the caps scene and adds a proof: the verdict reads the capture window, not the settings. Sums are the span of `DT/S2Sum_*`, live counts the median of `DT/S2Live_*`. It fails when Steam is under `C.PERF.S2_STEAM_MIN_PER_S`, fewer pairs than `C.PERF.S2_PAIRS_MIN` fired, median elites are under `C.PERF.S2_ELITES_MIN`, an affix has none alive, no Shade stands, the window holds no lance, ring, kill, dash, duo field, discharge, husk or pillar, or the build changed in the window. `-Scene S2` also prints the `DT/` phase timers as a profile.
 
 ## The scene
