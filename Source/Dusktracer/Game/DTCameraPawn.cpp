@@ -25,11 +25,27 @@ ADTCameraPawn::ADTCameraPawn()
 
 FTransform ADTCameraPawn::FollowTransform()
 {
+	// D-080: the camera aims at a floor point C.ARENA.CAMERA_AIM_SHIFT_UU from the hero toward itself, so the hero stands
+	// above the screen's centre and the reach up the screen equals the reach down (R-UX-01).
+	return FramingTransform(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), AimShift());
+}
+
+FTransform ADTCameraPawn::FramingTransform(float FrameRadius, float Shift)
+{
 	const float PitchRad = FMath::DegreesToRadians(static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG));
-	const float Distance = ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU),
-		static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), TargetAspect);
+	const float Distance = ComputeFramingDistance(FrameRadius, static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), TargetAspect);
 	return FTransform(FRotator(-static_cast<float>(DTConst::ARENA_CAMERA_PITCH_DEG), 0.0f, 0.0f),
-		FVector(-Distance * FMath::Cos(PitchRad), 0.0, Distance * FMath::Sin(PitchRad)));
+		FVector(-Distance * FMath::Cos(PitchRad) - Shift, 0.0, Distance * FMath::Sin(PitchRad)));
+}
+
+float ADTCameraPawn::FramingDistance()
+{
+	return ComputeFramingDistance(static_cast<float>(DTConst::ARENA_CAMERA_FRAME_RADIUS_UU), static_cast<float>(DTConst::ARENA_CAMERA_FOV_DEG), TargetAspect);
+}
+
+float ADTCameraPawn::AimShift()
+{
+	return static_cast<float>(DTConst::ARENA_CAMERA_AIM_SHIFT_UU);
 }
 
 void ADTCameraPawn::Follow(AActor* Target)

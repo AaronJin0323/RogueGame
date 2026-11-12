@@ -1,5 +1,6 @@
-// Camera tests (06_UX.md §1, T-UX-01 and T-UX-02; decided in D-036).
-// T-UX-01 is pure: the frame's ground reach from ADTCameraPawn::ComputeFramingDistance and the constants.
+// Camera tests (06_UX.md §1, T-UX-01 and T-UX-02; decided in D-036, the raised frame in D-080).
+// T-UX-01 is pure: the frame's reach on the drawn plane from ADTCameraPawn::ComputeFramingDistance, the constants and the
+// HUD's own layout rows on the hero's column (DTHud::Layout, DTHud::BossRow: the boss bar), read as inputs.
 // T-UX-02 follows a hero through a run in a headless world: run start, a Threat beat, a held pause and the boss fight.
 // Run headless: & Tools\RunTests.ps1 -Filter Dusktracer.UX
 
@@ -10,10 +11,13 @@
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
+#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/DTCameraPawn.h"
+#include "Game/DTHudLayout.h"
+#include "Game/DTUIStyle.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputAction.h"
@@ -22,7 +26,10 @@
 #include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
 #include "Player/DTInputSet.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "SceneView.h"
+#include "Serialization/Csv/CsvParser.h"
 #include "UObject/Package.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -32,31 +39,88 @@ namespace DTCameraTest
 	constexpr EAutomationTestFlags Flags = EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter;
 	// uu; the reach sums are a few thousand uu in doubles.
 	constexpr double ReachTolerance = 0.01;
+	// uu; R-UX-01's equal reach up and down holds within about one pixel at the top of a 1080-row screen (3.65 uu at this frame).
+	constexpr double EqualTolerance = 4.0;
+	// uu of frame radius; the frame is the tightest to this step.
+	constexpr double RadiusStep = 1.0;
 	// uu and degrees; an attached actor's world transform is its parent's times a constant.
 	constexpr double OffsetTolerance = 0.01;
 
-	/** Ground distances from the hero to the frame's edges, on the screen's centre lines. */
-	struct FReach
+	/** The reach from the hero on a plane PlaneZ above the floor, up the screen to row y = TopEdge and down to row y = BottomEdge
+	 *  of a ViewH-row screen, on the hero's column, for a camera Distance from its aim point, which is Shift from the hero toward
+	 *  the camera (06_UX R-UX-01, D-080). Rows are pixel edges: y 0 is the screen's top. */
+	struct FPlaneReach
 	{
-		double Down = 0.0;
 		double Up = 0.0;
-		double Side = 0.0;
+		double Down = 0.0;
 	};
-
-	/** The reach of a camera Distance from the hero, PitchDeg below the horizon, with these half field of view tangents. */
-	static FReach ReachOf(double Distance, double PitchDeg, double TanHalfVertical, double TanHalfHorizontal)
+	static FPlaneReach PlaneReachOf(double Distance, double Shift, double PitchDeg, double TanHalfVertical, double TopEdge, double BottomEdge,
+		double ViewH, double PlaneZ)
 	{
 		const double Pitch = FMath::DegreesToRadians(PitchDeg);
-		const double HalfVertical = FMath::Atan(TanHalfVertical);
-		const double Height = Distance * FMath::Sin(Pitch);
-		const double Back = Distance * FMath::Cos(Pitch);
-		FReach Out;
-		// The bottom edge's ray is steeper than the view axis and lands between the camera's foot and the hero.
-		Out.Down = Back - Height / FMath::Tan(Pitch + HalfVertical);
-		// The top edge's ray is shallower; at or above the horizon it never lands.
-		Out.Up = Pitch > HalfVertical ? Height / FMath::Tan(Pitch - HalfVertical) - Back : TNumericLimits<double>::Max();
-		// The hero's line crosses the view axis at Distance.
-		Out.Side = Distance * TanHalfHorizontal;
+		const double CameraX = -Distance * FMath::Cos(Pitch) - Shift;
+		const double Above = Distance * FMath::Sin(Pitch) - PlaneZ;
+		// Where the ray through a row of the centre column meets the plane, along the camera's heading from the hero.
+		const auto Land = [&](double Row)
+		{
+			const double Ndc = 1.0 - 2.0 * Row / ViewH;
+			const double Below = Pitch - FMath::Atan(Ndc * TanHalfVertical);
+			return Below > 0.0 ? CameraX + Above / FMath::Tan(Below) : TNumericLimits<double>::Max();
+		};
+		FPlaneReach Out;
+		Out.Up = Land(TopEdge);
+		Out.Down = -Land(BottomEdge);
+		return Out;
+	}
+
+	/** Pixels at the 1080-row reference: how far every fixed readout but the boss bar keeps from the hero's column. */
+	constexpr float ColumnMarginPx = 40.0f;
+
+	/** A line as the HUD measures it (UCanvas::TextSize is this call). */
+	static FVector2f MeasureLine(const FString& Line, float Scale)
+	{
+		int32 Width = 0;
+		int32 Height = 0;
+		UCanvas::ClippedStrLen(GEngine ? GEngine->GetLargeFont() : nullptr, Scale, Scale, Width, Height, Line);
+		return FVector2f(static_cast<float>(Width), static_cast<float>(Height));
+	}
+
+	/** The boss's name in each culture, from its string table's source (boss.md Text). */
+	static TArray<FString> BossNames()
+	{
+		TArray<FString> Out;
+		FString Csv;
+		if (FFileHelper::LoadFileToString(Csv, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DT/Text/ST_Enemies.csv"))))
+		{
+			const FCsvParser Parser(Csv);
+			for (const TArray<const TCHAR*>& Row : Parser.GetRows())
+			{
+				if (Row.Num() >= 3 && FCString::Strcmp(Row[0], TEXT("Enemy.Boss.Name")) == 0)
+				{
+					Out.Add(Row[1]);
+					Out.Add(Row[2]);
+				}
+			}
+		}
+		return Out;
+	}
+
+	/** Every fixed readout of a run in the fight, the widest numbers each holds; no banner and no toast (transient). */
+	static FDTHudContent FixedContent()
+	{
+		FDTHudContent Out;
+		FDTHudPlayerContent& P = Out.Players.AddDefaulted_GetRef();
+		P.Hp = FText::FromString(TEXT("HP 1,000 / 1,000"));
+		P.Level = FText::FromString(TEXT("Level 30"));
+		P.Xp = FText::FromString(TEXT("XP 1,234 / 5,678"));
+		P.LevelUp = FText::FromString(TEXT("LEVEL UP"));
+		P.Pending = FText::FromString(TEXT("12 hands waiting"));
+		P.Intercession = FText::FromString(TEXT("Intercession ready"));
+		P.Dash = FText::FromString(TEXT("Dash"));
+		P.DashPips = DTConst::DASH_CHARGES + 2;
+		P.Tools = { FText::FromString(TEXT("Reroll 9")), FText::FromString(TEXT("Banish 9")), FText::FromString(TEXT("Lock 9")) };
+		Out.DevLines = { FText::FromString(TEXT("Language check: this line is English.")), FText::FromString(TEXT("120 fps  8.33 ms frame  12.34 ms game")) };
+		Out.Clock = FText::FromString(TEXT("88:88"));
 		return Out;
 	}
 
@@ -137,29 +201,106 @@ bool FDTUxCameraReach::RunTest(const FString& Parameters)
 	// The frame radius is half the frame height at the hero, across the view axis.
 	TestEqual(TEXT("the frame radius fills half the frame height"), Distance * TanVertical, Radius, 0.5);
 
-	// R-UX-01: the down-screen reach covers the farthest attack start plus a Tank's diameter.
-	const FReach Reach = ReachOf(Distance, Pitch, TanVertical, TanHorizontal);
+	// The HUD's rows on the hero's column, read from the HUD's own layout (DTHud::Layout and DTHud::BossRow, inputs and not
+	// numbers of this test) with the boss's real name in both cultures. Only what is drawn ACROSS the hero's column counts
+	// (R-UX-01): the boss bar. The name's line box, the corner blocks and every other fixed readout must stay off the column;
+	// the director's banner and the reaction toast under the boss row are transient and not counted.
+	const auto HeroColumnTop = [&](const FVector2f& View) -> double
+	{
+		const float HeroColumn = 0.5f * View.X; // the hero stands on the screen's vertical centre line
+		const float S = DTUI::CanvasScale(View.Y);
+		double Edge = 0.0;
+		for (const FString& Name : BossNames())
+		{
+			FDTHudContent Content = FixedContent();
+			Content.BossName = FText::FromString(Name);
+			const FDTHudLayout Layout = DTHud::Layout(View, 1.0f, Content, MeasureLine);
+			const FDTHudRect* Bar = Layout.Find(EDTHudElem::BossBar);
+			if (!TestNotNull(TEXT("the layout places the boss bar"), Bar))
+			{
+				return 0.0;
+			}
+			// The layout's boss row is the function the fight draws with.
+			FBox2f NameBox(ForceInit);
+			FBox2f BarBox(ForceInit);
+			DTHud::BossRow(View, MeasureLine(Name, DTUI::TypeStep(EDTType::Body) * S), NameBox, BarBox);
+			TestTrue(TEXT("the layout's boss bar is DTHud::BossRow's"), BarBox.Min.Equals(Bar->Box.Min, 0.01f) && BarBox.Max.Equals(Bar->Box.Max, 0.01f));
+			TestTrue(FString::Printf(TEXT("%.0fx%.0f: the boss bar (x %.0f to %.0f) crosses the hero's column"), View.X, View.Y, Bar->Box.Min.X, Bar->Box.Max.X),
+				Bar->Box.Min.X <= HeroColumn && Bar->Box.Max.X >= HeroColumn);
+			for (const FDTHudRect& Rect : Layout.Rects)
+			{
+				if (Rect.Kind == EDTHudElem::BossBar)
+				{
+					continue;
+				}
+				TestTrue(FString::Printf(TEXT("%.0fx%.0f: readout %d (x %.0f to %.0f, y %.0f to %.0f) stays %.0f px off the hero's column"), View.X, View.Y,
+					static_cast<int32>(Rect.Kind), Rect.Box.Min.X, Rect.Box.Max.X, Rect.Box.Min.Y, Rect.Box.Max.Y, ColumnMarginPx * S),
+					Rect.Box.Max.X < HeroColumn - ColumnMarginPx * S || Rect.Box.Min.X > HeroColumn + ColumnMarginPx * S);
+			}
+			Edge = FMath::Max(Edge, static_cast<double>(Bar->Box.Max.Y) / View.Y);
+		}
+		return Edge * 1080.0; // in rows of the 1080-row target, where the rule is read
+	};
+	const double ViewH = 1080.0;
+	const double TopEdge = HeroColumnTop(FVector2f(1920.0f, 1080.0f));
+	const double BottomEdge = ViewH; // nothing of the HUD crosses the column at the bottom (checked above)
+	// The layout scales with the window's height and the lens keeps the vertical field of view: the rule's rows are the same.
+	TArray<TPair<FVector2f, double>> OtherEdges;
+	for (const FVector2f View : { FVector2f(1280.0f, 720.0f), FVector2f(2560.0f, 1440.0f), FVector2f(2560.0f, 1080.0f) })
+	{
+		OtherEdges.Emplace(View, HeroColumnTop(View));
+	}
+	const double PlaneZ = static_cast<double>(DTConst::SIM_PLANE_Z_UU);
+	const double Shift = static_cast<double>(DTConst::ARENA_CAMERA_AIM_SHIFT_UU);
 	const double Needed = ReachNeeded();
-	AddInfo(FString::Printf(TEXT("reach down %.1f, up %.1f, side %.1f uu; needed %.1f uu"), Reach.Down, Reach.Up, Reach.Side, Needed));
-	TestTrue(FString::Printf(TEXT("down-screen reach %.1f uu covers the farthest attack start plus a Tank's diameter, %.1f uu"), Reach.Down, Needed),
-		Reach.Down >= Needed);
-	// Down-screen is the shortest reach, so it alone decides what is on screen.
-	TestTrue(TEXT("down-screen is no longer than up-screen"), Reach.Down <= Reach.Up);
-	TestTrue(TEXT("down-screen is no longer than the side"), Reach.Down <= Reach.Side);
+	const auto ReachAt = [&](double FrameRadius, double AimShift)
+	{
+		const double D = static_cast<double>(ADTCameraPawn::ComputeFramingDistance(static_cast<float>(FrameRadius), static_cast<float>(Fov), ADTCameraPawn::TargetAspect));
+		return PlaneReachOf(D, AimShift, Pitch, TanVertical, TopEdge, BottomEdge, ViewH, PlaneZ);
+	};
+	// R-UX-01: equal up and down within a pixel at the top, and each at least the farthest attack start plus a Tank's diameter.
+	const auto Meets = [&](double FrameRadius, double AimShift)
+	{
+		const FPlaneReach R = ReachAt(FrameRadius, AimShift);
+		return FMath::Abs(R.Up - R.Down) <= EqualTolerance && R.Up >= Needed && R.Down >= Needed;
+	};
+	const FPlaneReach Reach = ReachAt(Radius, Shift);
+	AddInfo(FString::Printf(TEXT("drawn plane: reach up %.2f to row %.1f, down %.2f to row %.1f uu; needed %.1f uu"), Reach.Up, TopEdge, Reach.Down, BottomEdge, Needed));
+	TestTrue(FString::Printf(TEXT("the reach up (%.2f) equals the reach down (%.2f) within %.1f uu"), Reach.Up, Reach.Down, EqualTolerance),
+		FMath::Abs(Reach.Up - Reach.Down) <= EqualTolerance);
+	TestTrue(FString::Printf(TEXT("the reach up %.2f uu covers the farthest attack start plus a Tank's diameter, %.1f uu"), Reach.Up, Needed), Reach.Up >= Needed);
+	TestTrue(FString::Printf(TEXT("the reach down %.2f uu covers it"), Reach.Down), Reach.Down >= Needed);
+	// The same rule with the layout's own rows at other window sizes (the lens keeps the vertical field of view).
+	for (const TPair<FVector2f, double>& Other : OtherEdges)
+	{
+		const double D = static_cast<double>(ADTCameraPawn::ComputeFramingDistance(static_cast<float>(Radius), static_cast<float>(Fov), ADTCameraPawn::TargetAspect));
+		const FPlaneReach R = PlaneReachOf(D, Shift, Pitch, TanVertical, Other.Value, BottomEdge, ViewH, PlaneZ);
+		TestTrue(FString::Printf(TEXT("%.0fx%.0f: reach up %.2f to row %.2f and down %.2f hold the rule"), Other.Key.X, Other.Key.Y, R.Up, Other.Value, R.Down),
+			FMath::Abs(R.Up - R.Down) <= EqualTolerance && R.Up >= Needed && R.Down >= Needed);
+	}
+	// The tightest: a frame one step smaller, aimed for an equal reach (reach up falls and reach down rises one for one with the
+	// shift), misses the line.
+	const FPlaneReach Centred = ReachAt(Radius - RadiusStep, 0.0);
+	const double BestTighter = 0.5 * (Centred.Up + Centred.Down);
+	TestTrue(FString::Printf(TEXT("a frame %.1f uu tighter reaches at most %.2f uu, under the line"), RadiusStep, BestTighter), BestTighter < Needed);
+	// The check has teeth: D-036's centred frame is not equal; the study's frame solved without the HUD and its frame with no body
+	// margin (D-080 Context) fall short of the line.
+	TestFalse(TEXT("D-036's centred frame (1500, no shift) fails the rule"), Meets(1500.0, 0.0));
+	TestFalse(TEXT("the frame solved without the HUD (1213.3, 185.6) fails it"), Meets(1213.3, 185.6));
+	TestFalse(TEXT("the frame with no body margin (1115, 168) fails it"), Meets(1115.0, 168.0));
+	// The side at the hero's line is wider still.
+	TestTrue(TEXT("the side reaches further than the line"), (Distance + Shift * FMath::Cos(FMath::DegreesToRadians(Pitch))) * TanHorizontal >= Needed);
 
-	// The check has teeth: the frame D-036 turned down, 100 uu tighter than the one it chose, misses the same line.
-	const double Tight = static_cast<double>(ADTCameraPawn::ComputeFramingDistance(1400.0f, static_cast<float>(Fov), ADTCameraPawn::TargetAspect));
-	TestTrue(TEXT("a 1400 uu frame does not cover it"), ReachOf(Tight, Pitch, TanVertical, TanHorizontal).Down < Needed);
-
-	// The camera in the game is that camera: its offset is the framing distance at the pitch, its lens the field of view.
+	// The camera in the game is that camera: aimed at a floor point Shift from the hero toward the camera, at the framing
+	// distance from it, at the pitch, its lens the field of view.
 	const FTransform Follow = ADTCameraPawn::FollowTransform();
-	TestEqual(TEXT("the follow offset is the framing distance"), Follow.GetLocation().Size(), Distance, ReachTolerance);
-	TestEqual(TEXT("the follow offset is behind and above at the pitch"), Follow.GetLocation().Z, Distance * FMath::Sin(FMath::DegreesToRadians(Pitch)), ReachTolerance);
+	const FVector Aim(-Shift, 0.0, 0.0);
+	TestEqual(TEXT("the camera is the framing distance from its aim point"), (Follow.GetLocation() - Aim).Size(), Distance, ReachTolerance);
+	TestEqual(TEXT("the follow offset is above at the pitch"), Follow.GetLocation().Z, Distance * FMath::Sin(FMath::DegreesToRadians(Pitch)), ReachTolerance);
 	TestTrue(TEXT("the camera sits down-screen of the hero"), Follow.GetLocation().X < 0.0 && FMath::IsNearlyZero(Follow.GetLocation().Y));
 	TestEqual(TEXT("the camera looks down at the pitch"), Follow.Rotator().Pitch, -Pitch, 1e-3);
 	TestEqual(TEXT("no yaw"), Follow.Rotator().Yaw, 0.0, 1e-3);
-	// From the hero the view axis runs back along the offset: the hero is at the frame's centre.
-	TestTrue(TEXT("the camera looks at the hero"), Follow.GetRotation().GetForwardVector().Equals(-Follow.GetLocation().GetSafeNormal(), 1e-4));
+	TestTrue(TEXT("the camera looks at its aim point"), Follow.GetRotation().GetForwardVector().Equals((Aim - Follow.GetLocation()).GetSafeNormal(), 1e-4));
 
 	UCameraComponent* Lens = GetDefault<ADTCameraPawn>()->GetCamera();
 	if (TestNotNull(TEXT("camera component"), Lens))
@@ -175,8 +316,8 @@ bool FDTUxCameraReach::RunTest(const FString& Parameters)
 		TestEqual(TEXT("a wider window keeps the height"), Wide.X, TanVertical, 1e-4);
 		TestTrue(TEXT("a wider window shows more ground at the sides"), Wide.Y > Target.Y);
 		TestEqual(TEXT("a narrower window keeps the height"), Narrow.X, TanVertical, 1e-4);
-		TestTrue(TEXT("the reach holds in a wider window"), ReachOf(Distance, Pitch, Wide.X, Wide.Y).Down >= Needed);
-		TestTrue(TEXT("the reach holds in a narrower window"), ReachOf(Distance, Pitch, Narrow.X, Narrow.Y).Down >= Needed);
+		TestTrue(TEXT("the reach holds in a wider window"), PlaneReachOf(Distance, Shift, Pitch, Wide.X, TopEdge, BottomEdge, ViewH, PlaneZ).Down >= Needed);
+		TestTrue(TEXT("the reach holds in a narrower window"), PlaneReachOf(Distance, Shift, Pitch, Narrow.X, TopEdge, BottomEdge, ViewH, PlaneZ).Down >= Needed);
 	}
 	return true;
 }

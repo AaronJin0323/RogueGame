@@ -304,7 +304,8 @@ Stress arena `L_Arena_Test` (built by `Tools/create_arena.py`), its camera, and 
 | C.ARENA.BLOOM_THRESHOLD | 1.0 | scale | GATED(S0) | Tools/create_arena.py, 04_Presentation §4 |
 | C.ARENA.CAMERA_PITCH_DEG | 60 | deg below horizon | GATED(S1) | Game/DTCameraPawn |
 | C.ARENA.CAMERA_FOV_DEG | 50 | deg (horizontal) | GATED(S1) | Game/DTCameraPawn |
-| C.ARENA.CAMERA_FRAME_RADIUS_UU | 1500 | uu | GATED(S0) | 06_UX.md R-UX-01, Game/DTCameraPawn (D-036: every attack starts on screen; the frame is fixed) |
+| C.ARENA.CAMERA_FRAME_RADIUS_UU | 1258.2 | uu | GATED(S0) | 06_UX.md R-UX-01, Game/DTCameraPawn, Tools/session_read.py (D-036 and D-080: every attack starts on screen; the tightest frame whose reach on the drawn plane is equal up and down at the fairness line, counted to the HUD; the frame is fixed) |
+| C.ARENA.CAMERA_AIM_SHIFT_UU | 140.6 | uu toward the camera | GATED(S0) | 06_UX.md R-UX-01, Game/DTCameraPawn, Tools/session_read.py (D-080: the camera aims this far from the hero toward itself, so the hero stands above the centre and the reach up equals the reach down; a constant, never moved in a run) |
 | C.SMOKE.SECONDS | 10 | s | CORE | Tools/Smoke.ps1 |
 | C.SMOKE.GOLDEN_MEAN_DIFF_MAX | 12.0 | 8-bit level | GATED(S0) | Tools/image_check.py, Tools/Smoke.ps1, Tools/image_check.py --exposure (T-PRE-07) |
 | C.SMOKE.IMAGE_STDDEV_MIN | 4.0 | 8-bit level | CORE | Tools/image_check.py (not blank / uniform) |

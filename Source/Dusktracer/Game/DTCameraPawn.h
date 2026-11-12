@@ -9,8 +9,10 @@ class UCameraComponent;
 
 /**
  * Looks down at C.ARENA.CAMERA_PITCH_DEG with a horizontal field of view of C.ARENA.CAMERA_FOV_DEG, placed so that a
- * circle of C.ARENA.CAMERA_FRAME_RADIUS_UU around its root fits the screen height at TargetAspect (06_UX R-UX-01, D-036:
- * every enemy attack starts on screen). The height is what holds: a window of another shape keeps the vertical field of
+ * circle of C.ARENA.CAMERA_FRAME_RADIUS_UU around its aim point fits the screen height at TargetAspect. The aim point is
+ * C.ARENA.CAMERA_AIM_SHIFT_UU from its root toward the camera, so the root stands above the screen's centre and the reach
+ * from it on the drawn plane is equal up and down the screen (06_UX R-UX-01; D-036 and D-080: every enemy attack starts on
+ * screen). The height is what holds: a window of another shape keeps the vertical field of
  * view and shows more or less ground at the sides. The frame is fixed (R-UX-02): no tick, no input, no zoom. Not possessed:
  * ADTGameMode attaches it to player 0's ADTHero and makes it the view target, so it follows the hero exactly as drawn
  * (interpolated at the sim alpha), at FollowTransform from it. With no hero it stays at that offset from the arena origin.
@@ -39,6 +41,14 @@ public:
 	 * from the hero's position at level pitch: a horizon and the hero's dark disc instead of the arena from above.
 	 */
 	static FTransform FollowTransform();
+
+	/** The camera's place for a frame of FrameRadius aimed Shift uu from the hero toward the camera, at the game's pitch and lens. */
+	static FTransform FramingTransform(float FrameRadius, float Shift);
+
+	/** The game's frame, the one place every world-to-screen sum reads: the camera's distance from its aim point, and the aim
+	 *  point's shift from the hero toward the camera (C.ARENA.CAMERA_FRAME_RADIUS_UU, C.ARENA.CAMERA_AIM_SHIFT_UU; D-080). */
+	static float FramingDistance();
+	static float AimShift();
 
 	/** Attaches the camera to Target at FollowTransform: from here it moves with Target and never relative to it (R-UX-02). */
 	void Follow(AActor* Target);
