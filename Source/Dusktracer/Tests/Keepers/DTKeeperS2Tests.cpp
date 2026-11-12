@@ -1257,7 +1257,7 @@ DT_S2_TEST(FDTKeeperS2VectorEveryWeapon, "Card.Quicksilver.Vector.EveryWeapon") 
 
 DT_S2_TEST(FDTKeeperS2VectorBladeHalo, "Card.Quicksilver.Vector.BladeHalo") // T-KEE-34, D-038
 {
-	// Blade Halo fires no bolts (R-RFG-07): its dash volley is every blade striking once where it is, as the volley's.
+	// Blade Halo keeps its bolts (R-RFG-07, D-079): its dash volley fires the bolts and every blade strikes once where it is, as the volley's.
 	using namespace DTKeeperS2Test;
 	const uint16 Quick = Src(EDTPath::Quicksilver);
 	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
@@ -1284,16 +1284,17 @@ DT_S2_TEST(FDTKeeperS2VectorBladeHalo, "Card.Quicksilver.Vector.BladeHalo") // T
 		FDTKeeperHarness H;
 		Scene(H, true, 0.0f);
 		const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
-		int32 QuickHits = 0;
-		float Most = 0.0f;
+		const int32 Blades = FMath::RoundToInt(DTReforge::Param(Spec.EvolveRow, TEXT("blades")));
+		const float Blade = Spec.Damage * DTReforge::Param(Spec.EvolveRow, TEXT("dmg_ratio"));
+		int32 QuickStrikes = 0;
+		bool bBolts = H.Bullets.Num() > 0;
 		for (const FDTHit& Hit : H.HitLog)
 		{
-			QuickHits += Hit.SourceId == Quick ? 1 : 0;
-			Most = Hit.SourceId == Quick ? FMath::Max(Most, Hit.Damage) : Most;
+			QuickStrikes += Hit.SourceId == Quick && FMath::IsNearlyEqual(Hit.Damage, 1.5f * Blade, 0.01f) ? 1 : 0;
+			bBolts |= Hit.SourceId == Quick && FMath::IsNearlyEqual(Hit.Damage, 1.5f * Spec.Damage, 0.01f);
 		}
-		TestTrue(TEXT("every blade strikes once as Keeper.Quicksilver"), QuickHits >= Spec.Count);
-		TestEqual(TEXT("at the Key's multiplier"), Most, 1.5f * Spec.Damage);
-		TestEqual(TEXT("and still no bolts"), H.Bullets.Num(), 0);
+		TestTrue(TEXT("every blade strikes once as Keeper.Quicksilver, at the Key's multiplier"), QuickStrikes >= Blades);
+		TestTrue(TEXT("and its bolts fire, a bolt at the Key's multiplier"), bBolts);
 	}
 	{
 		FDTKeeperHarness H;

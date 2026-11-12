@@ -504,6 +504,16 @@ float FDTWeaponSim::GetBladeRadius(int32 OwnerId, int32 Slot) const
 	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot) ? BladeOrbit(Players[OwnerId], Players[OwnerId].Weapons[Slot]) : 0.0f;
 }
 
+float FDTWeaponSim::GetDroneAngle(int32 OwnerId, int32 Slot) const
+{
+	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot) ? Players[OwnerId].Weapons[Slot].DroneAngleDeg : 0.0f;
+}
+
+float FDTWeaponSim::GetBladeAngle(int32 OwnerId, int32 Slot) const
+{
+	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot) ? Players[OwnerId].Weapons[Slot].BladeAngleDeg : 0.0f;
+}
+
 bool FDTWeaponSim::TryEmit(FWeaponRuntime& Runtime)
 {
 	if (Runtime.EmitRing.Num() == 0)
@@ -1269,25 +1279,18 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 	}
 	if (Spec.Evolve == EDTEvolve::ContactBlades)
 	{
+		// R-RFG-07 (D-079): the blades turn and strike beside the drones, whose bolts below are the plain weapon's.
 		if (!bFreeVolley)
 		{
 			StepBlades(Context, Player, Slot, Runtime);
 		}
-		else if (Players.IsValidIndex(Owner))
+		else
 		{
-			// A free volley: every blade touches once where it is, as the volley's source; the turn is not spent (R-RFG-07).
-			// A dash volley's touch is at its multiplier (keepers.md R-KEE-34); a kill's, Mod.ChainTrigger's, at the row's damage.
-			const float Orbit = BladeOrbit(Players[Owner], Runtime);
-			const float Contact = DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu"));
-			const int32 Blades = FMath::Max(1, Spec.Count); // the blades StepBlades turns
-			for (int32 Blade = 0; Blade < Blades; ++Blade)
-			{
-				const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
-				StrikeCircle(Context, Owner, Slot, Runtime, Hero + Rotate(FVector2f(Orbit, 0.0f), Angle), Hero, Contact, Spec.Damage * (bVolleyForced ? VolleyMult : 1.0f),
-					FreeSource != 0 ? FreeSource : Instance.SourceId, false);
-			}
+			// A free volley: every blade strikes once where it is, as the volley's source; the contact tick is not moved.
+			// A dash volley's strike is at its multiplier (keepers.md R-KEE-34); a kill's, Mod.ChainTrigger's, at the blade's damage.
+			StrikeBlades(Context, Owner, Slot, Runtime, Spec.Damage * DTReforge::Param(Spec.EvolveRow, TEXT("dmg_ratio")) * (bVolleyForced ? VolleyMult : 1.0f),
+				FreeSource != 0 ? FreeSource : Instance.SourceId);
 		}
-		return; // R-RFG-07: no bolts
 	}
 	auto DronePos = [&](int32 Drone)
 	{
@@ -1965,25 +1968,51 @@ float FDTWeaponSim::BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntim
 	{
 		return Base;
 	}
+	// R-RFG-07: the row's own rest radius, widened by the hero's speed, the speed counted no higher than `speed_cap` x `speed_ref_uu_s`.
 	const int32 Row = Runtime.Spec.EvolveRow;
-	return Base * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio")) * Player.HeroSpeed / DTReforge::Param(Row, TEXT("speed_ref_uu_s")));
+	const float Reference = DTReforge::Param(Row, TEXT("speed_ref_uu_s"));
+	const float CountedSpeed = FMath::Min(Player.HeroSpeed, DTReforge::Param(Row, TEXT("speed_cap")) * Reference);
+	return DTReforge::Param(Row, TEXT("orbit_r_uu")) * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio")) * CountedSpeed / Reference);
 }
 
 void FDTWeaponSim::StepBlades(const FDTSimContext& Context, FDTPlayerRunState& Player, int32 Slot, FWeaponRuntime& Runtime)
 {
-	if (Runtime.DroneTimer > 0.0f)
+	// R-RFG-07: the blades turn at `orbit_deg_s`; each `contact_tick_s` every blade strikes, for `dmg_ratio` of the weapon's damage.
+	const FDTWeaponSpec& Spec = Runtime.Spec;
+	Runtime.BladeAngleDeg = FMath::Fmod(Runtime.BladeAngleDeg + DTReforge::Param(Spec.EvolveRow, TEXT("orbit_deg_s")) * Context.StepSeconds, 360.0f);
+	Runtime.BladeTimer -= Context.StepSeconds;
+	if (Runtime.BladeTimer > 0.0f)
 	{
 		return;
 	}
-	const FDTWeaponSpec& Spec = Runtime.Spec;
-	const int32 Owner = Player.PlayerIndex;
-	const int32 Blades = FMath::Max(1, Spec.Count);
-	Runtime.DroneTimer = FMath::Max(Runtime.DroneTimer, -Spec.Cooldown) + Spec.Cooldown / static_cast<float>(Blades);
-	const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Runtime.NextDrone) / static_cast<float>(Blades);
-	Runtime.NextDrone = (Runtime.NextDrone + 1) % Blades;
-	const FVector2f Hero = DTWeaponSimLocal::HeroOf(*Context.View, Owner);
-	const FVector2f At = Hero + DTWeaponSimLocal::Rotate(FVector2f(BladeOrbit(Players[Owner], Runtime), 0.0f), Angle);
-	StrikeCircle(Context, Owner, Slot, Runtime, At, Hero, DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu")), Spec.Damage, Player.Weapons[Slot].SourceId, false);
+	const float ContactTick = FMath::Max(DTReforge::Param(Spec.EvolveRow, TEXT("contact_tick_s")), Context.StepSeconds);
+	Runtime.BladeTimer = FMath::Max(Runtime.BladeTimer, -ContactTick) + ContactTick;
+	StrikeBlades(Context, Player.PlayerIndex, Slot, Runtime, Spec.Damage * DTReforge::Param(Spec.EvolveRow, TEXT("dmg_ratio")), Player.Weapons[Slot].SourceId);
+}
+
+void FDTWeaponSim::StrikeBlades(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, float Damage, uint16 Source)
+{
+	if (!Players.IsValidIndex(OwnerId))
+	{
+		return;
+	}
+	// Every blade strikes every enemy within `contact_r_uu` of it, the enemy's own radius counted (HitCircle).
+	const int32 Row = Runtime.Spec.EvolveRow;
+	const int32 Blades = FMath::Max(1, FMath::RoundToInt(DTReforge::Param(Row, TEXT("blades"))));
+	const FVector2f Hero = DTWeaponSimLocal::HeroOf(*Context.View, OwnerId);
+	const float Ring = BladeOrbit(Players[OwnerId], Runtime);
+	const float Contact = DTReforge::Param(Row, TEXT("contact_r_uu"));
+	const int32 First = Impacts.Num();
+	for (int32 Blade = 0; Blade < Blades; ++Blade)
+	{
+		const float Angle = Runtime.BladeAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
+		StrikeCircle(Context, OwnerId, Slot, Runtime, Hero + DTWeaponSimLocal::Rotate(FVector2f(Ring, 0.0f), Angle), Hero, Contact, Damage, Source, false);
+	}
+	for (int32 Index = First; Index < Impacts.Num(); ++Index)
+	{
+		// D-079 item 3: what the Pulse Wall's ring strike carries, the Patron's status and nothing a modifier places or moves.
+		Impacts[Index].bRingStrike = true;
+	}
 }
 
 void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime)
@@ -4028,7 +4057,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		case DTCat::EFlag::Chain:
 		{
-			if (!bEnemyHit || NumEnemies == 0 || Impact.bRingStrike) // D-074 ruling 10: a ring's strike carries status, not the chain
+			if (!bEnemyHit || NumEnemies == 0 || Impact.bRingStrike) // D-074 ruling 10, D-079 item 3: a ring's or a blade's strike carries status, not the chain
 			{
 				break;
 			}
@@ -4194,9 +4223,19 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 				{
 					FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
 					V.Kind = FDTWeaponVisual::EKind::Drone;
-					V.Position = Hero + Rotate(FVector2f(BladeOrbit(Players[Owner], Weapon), 0.0f),
+					V.Position = Hero + Rotate(FVector2f(static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU), 0.0f),
 						Weapon.DroneAngleDeg + 360.0f * static_cast<float>(Drone) / static_cast<float>(Drones));
 					V.Radius = 2.0f * Spec.Radius; // a drone reads as twice its bolt
+				}
+				// A Blade Halo's blades turn on their own ring beside the drones (R-RFG-07, D-079); how they look is the Visual session's.
+				const int32 Blades = Spec.Evolve == EDTEvolve::ContactBlades ? FMath::RoundToInt(DTReforge::Param(Spec.EvolveRow, TEXT("blades"))) : 0;
+				for (int32 Blade = 0; Blade < Blades; ++Blade)
+				{
+					FDTWeaponVisual& V = Out.AddDefaulted_GetRef();
+					V.Kind = FDTWeaponVisual::EKind::Drone;
+					V.Position = Hero + Rotate(FVector2f(BladeOrbit(Players[Owner], Weapon), 0.0f),
+						Weapon.BladeAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades));
+					V.Radius = 2.0f * Spec.Radius;
 				}
 			}
 			for (const FShell& Shell : Weapon.Shells)

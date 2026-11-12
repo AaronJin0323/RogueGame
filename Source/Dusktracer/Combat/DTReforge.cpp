@@ -173,9 +173,7 @@ void DTReforge::ApplyEvolution(int32 Row, const DTCat::FWeaponLevelRow& Level, F
 		Spec.Count = FMath::RoundToInt(Get(TEXT("pellets")));
 		Spec.Damage = Total / static_cast<float>(FMath::Max(1, Spec.Count));
 		break;
-	case EDTEvolve::ContactBlades: // R-RFG-07
-		Spec.Count = FMath::RoundToInt(Get(TEXT("blades")));
-		Spec.Damage = Level.Damage * Get(TEXT("dmg_ratio"));
+	case EDTEvolve::ContactBlades: // R-RFG-07, D-079: the bolts are the plain weapon's; the blades read `blades` and `dmg_ratio` where they strike
 		break;
 	case EDTEvolve::SweepBeam: // R-RFG-08
 		Spec.Count = 1;
