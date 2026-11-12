@@ -560,7 +560,7 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 		{
 			TArray<TPair<int32, int32>> Runs;
 			TArray<TPair<int32, int32>> Merges;
-			virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck) override { Runs.Emplace(Sound, Count); }
+			virtual void Run(int32 Sound, int32 Count, int64 AtStep, bool bNoDuck) override { Runs.Emplace(Sound, Count); }
 			virtual void Ui(int32 Sound, int32 Count) override {}
 			virtual void Merged(int32 Sound, int32 Count) override { Merges.Emplace(Sound, Count); }
 		};
