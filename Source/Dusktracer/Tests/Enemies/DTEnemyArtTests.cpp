@@ -375,6 +375,10 @@ bool FDTEarEliteAnchors::RunTest(const FString& Parameters)
 			{
 				++Lights;
 				TestTrue(*(Name + TEXT(": the light's centre is inside the optic's bounds (elites.md R-ELT-10)")), OpticAt.ExpandBy(0.01).IsInside(At));
+				// R-EAR-08: the light's top view is at most C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's top-view bounds.
+				const FVector2D HullTop(HullAt.GetSize().X, HullAt.GetSize().Y);
+				TestTrue(*(Name + TEXT(": the light's top view within C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's")),
+					4.0 * Half.X * Half.Y <= DTConst::EAR_ELITE_LIGHT_AREA_MAX_RATIO * HullTop.X * HullTop.Y * (1.0 + 2.0 * AnchorTolerance));
 				continue;
 			}
 			if (Part.Affix == EDTAffix::Shielded)

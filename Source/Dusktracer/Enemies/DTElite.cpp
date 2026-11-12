@@ -224,8 +224,12 @@ void DTElite::BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, f
 			auto On = [&](float X, float Y) { return At + F * X + S * Y; };
 			auto RestZ = [R](float Z0, float Z1, float Half) { return FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R); };
 
-			// The light covers the role's optic where that optic sits (elites.md R-ELT-10).
-			Add(EDTAffix::Count, On(K->OpticX * R, 0.0f), K->OpticZ * R, FVector(2.0f * LightCover * R * K->OpticHalfX, 2.0f * LightCover * R * K->OpticHalfY, 2.0f * LightCover * R * K->OpticHalfZ), Yaw, true);
+			// The light covers the role's optic where that optic sits (elites.md R-ELT-10), its top view at most
+			// C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's top-view bounds: a larger optic's light is scaled down about its centre.
+			const float LightRatio = (2.0f * LightCover * K->OpticHalfX) * (2.0f * LightCover * K->OpticHalfY) / ((K->Front + K->Rear) * 2.0f * K->HalfWidth);
+			const float Shrink = FMath::Min(1.0f, FMath::Sqrt(static_cast<float>(DTConst::EAR_ELITE_LIGHT_AREA_MAX_RATIO) / LightRatio));
+			const float Light = 2.0f * LightCover * Shrink * R;
+			Add(EDTAffix::Count, On(K->OpticX * R, 0.0f), K->OpticZ * R, FVector(Light * K->OpticHalfX, Light * K->OpticHalfY, Light * K->OpticHalfZ), Yaw, true);
 			if (Has(A.AffixMask, EDTAffix::Armored))
 			{
 				// A plate along each flat side, as long as that side, as tall as the part it rests on (at most a radius).

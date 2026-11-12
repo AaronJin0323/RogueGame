@@ -4329,6 +4329,17 @@ class EnemyArt(unittest.TestCase):
 		for name, value in elite_anchors.LAYOUT.items():
 			self.assertIn(f"constexpr float {name} = {value:g}f;" if value != int(value) else f"constexpr float {name} = {value:.1f}f;", code, name)
 		self.assertIn("const float Radius = K->Reach * R + 1.5f * P;", code)
+		self.assertIn("FMath::Sqrt(static_cast<float>(DTConst::EAR_ELITE_LIGHT_AREA_MAX_RATIO) / LightRatio)", code)
+
+	def test_a_light_too_large_for_its_hull_is_scaled_down(self):
+		# R-EAR-08: the Turret's mirror covers most of its disc; its light is held to the cap, the others are not touched.
+		cap = dtconst.load()["EAR.ELITE_LIGHT_AREA_MAX_RATIO"]["value"]
+		for role, row in elite_anchors.table().items():
+			hx, hy, _ = elite_anchors.light_half(row)
+			self.assertLessEqual(4.0 * hx * hy / ((row["Front"] + row["Rear"]) * 2.0 * row["HalfWidth"]), cap + 1e-9, role)
+		self.assertGreater(elite_anchors.light_area_ratio(elite_anchors.table()["Turret"]), cap)
+		for role in ("Swarm", "Tank", "Rusher"):
+			self.assertLessEqual(elite_anchors.light_area_ratio(elite_anchors.table()[role]), cap, role)
 		self.assertIn("FMath::Max(K->TailHalf * R - Half, P)", code)
 		self.assertIn("FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R)", code)
 

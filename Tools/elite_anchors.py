@@ -184,14 +184,27 @@ def render():
 
 # --- placement (the mirror of DTElite::BuildParts) ----------------------------------------------------------------------------
 
+def light_area_ratio(row):
+	"""The light's top-view area, the optic's bounds LightCover over, against the hull's top-view bounding area, before the cap."""
+	cover = LAYOUT["LightCover"]
+	return (2.0 * cover * row["OpticHalfX"]) * (2.0 * cover * row["OpticHalfY"]) / ((row["Front"] + row["Rear"]) * 2.0 * row["HalfWidth"])
+
+
+def light_half(row):
+	"""The light's half-sizes in drawn radii: the optic's bounds LightCover over, scaled down about its centre, keeping its proportions,
+	until its top-view area is at most C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's top-view bounding area (R-EAR-08)."""
+	cover = LAYOUT["LightCover"]
+	shrink = min(1.0, math.sqrt(constant("EAR.ELITE_LIGHT_AREA_MAX_RATIO") / light_area_ratio(row)))
+	return tuple(cover * shrink * row[key] for key in ("OpticHalfX", "OpticHalfY", "OpticHalfZ"))
+
+
 def place(row, radius, affixes, shield_deg=0.0):
 	"""The parts of one elite of drawn radius `radius` (uu) by the anchors `row`, in the hull's frame in uu, z from the floor:
 	[(affix or "Light", (cx, cy, cz), (hx, hy, hz), yaw_deg)]. `affixes` is a set of AFFIXES names; shield_deg the orbit's angle."""
 	R, L = radius, LAYOUT
 	P = R * constant("ELITE.PART_RATIO")
 	out = []
-	cover = L["LightCover"]
-	out.append(("Light", (row["OpticX"] * R, 0.0, row["OpticZ"] * R), (cover * row["OpticHalfX"] * R, cover * row["OpticHalfY"] * R, cover * row["OpticHalfZ"] * R), 0.0))
+	out.append(("Light", (row["OpticX"] * R, 0.0, row["OpticZ"] * R), tuple(h * R for h in light_half(row)), 0.0))
 
 	def rest_z(z0, z1, half):
 		# A part against a face sits at the face's middle height, and never below the floor the face stands on.

@@ -565,6 +565,7 @@ namespace DTConst
 	inline constexpr int32 EAR_LINEUP_ROWS = 3; // n, GATED(S4)
 	inline constexpr float EAR_FRAME_MASK_TOLERANCE = 0.06f; // ratio, GATED(S4)
 	inline constexpr int32 EAR_ELITE_PART_GAP_MAX_UU = 3; // uu, GATED(S4)
+	inline constexpr float EAR_ELITE_LIGHT_AREA_MAX_RATIO = 0.28f; // ratio, GATED(S4)
 	inline constexpr int32 EAR_ELITE_PART_SINK_MAX_UU = 5; // uu, GATED(S4)
 	// audio
 	inline constexpr int32 AUD_SAMPLE_RATE_HZ = 48000; // Hz, GATED(S4)

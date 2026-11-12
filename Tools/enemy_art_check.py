@@ -408,6 +408,12 @@ def check_elite_parts(constants, cube=False):
 		reading, (light_at, light_in), radius = elite_parts_reading(constants, role, cube)
 		if not light_in:
 			errors.append(f"{role}: the elite light's centre ({light_at[0]:.1f}, {light_at[1]:.1f}, {light_at[2]:.1f}) uu is outside the optic's bounds")
+		row = elite_anchors.table()[role]
+		hx, hy, _ = (h * radius for h in elite_anchors.light_half(row)) if not cube else (constant(constants, "ENEMIES.OPTIC_SCALE") * radius,) * 3
+		area = 4.0 * hx * hy / ((row["Front"] + row["Rear"]) * 2.0 * row["HalfWidth"] * radius * radius)
+		area_max = constant(constants, "EAR.ELITE_LIGHT_AREA_MAX_RATIO")
+		if area > area_max + 1e-6:
+			errors.append(f"{role}: the elite light covers {area:.3f} of the hull's top-view bounds, over C.EAR.ELITE_LIGHT_AREA_MAX_RATIO {area_max}")
 		worst_gap = max((g, k) for k, (g, s) in reading.items() if k[0] != "Shielded")
 		worst_sink = max((s, k) for k, (g, s) in reading.items())
 		shield_gap = min((g for k, (g, s) in reading.items() if k[0] == "Shielded"), default=0.0)
@@ -417,7 +423,7 @@ def check_elite_parts(constants, cube=False):
 			if sink > sink_max:
 				errors.append(f"{role} {name} ({where}): sunk {sink:.1f} uu into its hull, over C.EAR.ELITE_PART_SINK_MAX_UU {sink_max}")
 		lines.append(f"  {role:<7} elite R {radius:.1f} uu ({'cube anchors' if cube else 'role anchors'}): worst gap {worst_gap[0]:.1f} uu ({worst_gap[1][0]}), "
-			f"worst sink {worst_sink[0]:.1f} uu ({worst_sink[1][0]}), shield clear by {shield_gap:.1f} uu, light centre {'in' if light_in else 'OUT of'} the optic")
+			f"worst sink {worst_sink[0]:.1f} uu ({worst_sink[1][0]}), shield clear by {shield_gap:.1f} uu, light centre {'in' if light_in else 'OUT of'} the optic, light {area:.3f} of the top view (uncapped {elite_anchors.light_area_ratio(row):.3f})")
 	return errors, lines
 
 
