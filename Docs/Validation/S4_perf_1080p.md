@@ -94,8 +94,23 @@ The S4 scene read 7.16 and 7.26 ms proxied on P0 at the smaller size and 5.94 an
 
 **What it does not show.**
 - It compares two builds with each other on one loaded evening and replaces no record. Whether the S4 scene stands under the wave's 5.0 ms game thread ceiling is read again on a quiet machine; until then no branch is judged against the night before's absolutes.
-- The two builds are two trees, so a difference of a few hundredths may be the tree and not the zone. A pair on one build with the switch (`DT_TRACER_CLEAR_ZONE` 0 against the default) would tell, and was not taken alone.
+- The two builds are two trees, so a difference of a few hundredths may be the tree and not the zone. A pair on one build with the switch (`DT_TRACER_CLEAR_ZONE` 0 against the default) would tell: it was taken the same evening, not alone, and is the part below.
 - The window also read a third build, the audio runtime; its lines are in the same files and belong to the runtime's own note.
+
+**The pair on one build.** `s4/zone-goldens` at 6047ef3 (`dev/s4` with the zone and the audio runtime; no code change on the branch), built in the Visual worktree `agent-a76c15a416b3c6fea`, 2026-11-12. `Tools\Perf.ps1 -Scene S4` six times in turn, zone off (`DT_TRACER_CLEAR_ZONE` 0) and on (unset), three rounds, logged from 18:58:19 to 19:01:57 (each time a run's end). A first attempt at 18:51 lost its first round to another session's measurement holding the GPU lock and was taken again whole. Before each run the other engine processes alive: three editor commandlets of `agent-a37e1827c3d77226d` before round 1 off; six editor commandlets of `agent-a2b736d35d80303fb` before round 2 on; none before the other four. The owner's own programs were running throughout. It is a pair of one evening on a machine that was not quiet: no figure of it stands beside a record.
+
+| Round | Zone | Frame p50 / p95 | Game thread p50 / p95 | GPU p50 / p95 | `SimRender` mean / p50 / p95 | `SimTick` mean / p50 / p95 | Load |
+|---|---|---|---|---|---|---|---|
+| 1 | off | 4.97 / 5.96 | 3.42 / 4.98 | 3.56 / 4.16 | 0.62 / 0.61 / 0.71 | 1.04 / 0.62 / 2.18 | 5817 bullets / 400 enemies |
+| 1 | on | 5.33 / 7.11 | 3.72 / 5.79 | 3.54 / 4.24 | 0.71 / 0.66 / 0.99 | 1.23 / 0.75 / 2.58 | 5813 / 400 |
+| 2 | off | 5.16 / 6.46 | 3.54 / 5.30 | 3.55 / 4.21 | 0.66 / 0.64 / 0.92 | 1.13 / 0.66 / 2.37 | 5814 / 400 |
+| 2 | on | 5.09 / 6.34 | 3.55 / 5.21 | 3.54 / 4.21 | 0.67 / 0.64 / 0.94 | 1.12 / 0.66 / 2.30 | 5821 / 400 |
+| 3 | off | 5.09 / 6.11 | 3.46 / 5.05 | 3.55 / 4.20 | 0.64 / 0.63 / 0.77 | 1.08 / 0.64 / 2.21 | 5815 / 400 |
+| 3 | on | 6.30 / 8.48 | 4.72 / 7.28 | 3.59 / 4.25 | 0.85 / 0.88 / 1.11 | 1.63 / 1.00 / 3.44 | 5816 / 400 |
+
+On less off, by round: game thread p95 +0.81, -0.09, +2.23; `SimRender` mean +0.09, +0.01, +0.21; `SimRender` p95 +0.28, +0.02, +0.34; `SimTick` mean +0.19, -0.01, +0.55. Spread across a side's three rounds: off, game thread p95 0.32, `SimRender` mean 0.04; on, game thread p95 2.07, `SimRender` mean 0.18.
+
+The verdict, by the brief's rule (a cost only if `SimRender` mean reads higher with the zone on in all three rounds and the smallest of those differences is larger than the off side's own spread): `SimRender` mean reads higher with the zone on in all three rounds, but the smallest difference, +0.01 in round 2, is under the off side's spread of 0.04. **By the rule the pair shows no cost.** It is not a clean no: two of the three rounds read higher in the draw scope with the zone on, and the third "on" run (round 3) read slower everywhere, its frame, step and game thread as well as its draw scope, with no engine process of ours alive before it, which points to the machine and not to the zone. A quiet pair would settle it.
 
 **Where the files are.** In the scheduler's worktree: `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_w2.txt` (one line per run), `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_w2.raw.txt` (the whole output), `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_control.txt` and `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_control.raw.txt`.
 
