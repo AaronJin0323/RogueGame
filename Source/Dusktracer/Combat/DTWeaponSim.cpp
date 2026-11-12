@@ -4242,9 +4242,9 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 		{
 			// A ring draws as beaded arcs, never a filled disc: its outer edge, and a band's inner edge when it has one (R-RFG-12; D-070 ruling 8).
 			const float Outer = Field.CurrentRadius();
-			for (const float Radius : { Outer, Outer - Field.BandUu })
+			for (const float Radius : { Outer, Field.BandUu > 0.0f ? Outer - Field.BandUu : 0.0f })
 			{
-				if (Radius > 0.0f && (Radius == Outer || Field.BandUu > 0.0f))
+				if (Radius > 0.0f)
 				{
 					FDTWeaponVisual& Ring = Out.AddDefaulted_GetRef();
 					Ring.Kind = FDTWeaponVisual::EKind::Arc;
