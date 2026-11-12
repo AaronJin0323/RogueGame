@@ -227,6 +227,8 @@ public:
 	float GetBladeRadius(int32 OwnerId, int32 Slot) const;
 	/** Where an orbiting weapon's first drone or blade stands on its turn, in degrees (R-RFG-07; tests). */
 	float GetDroneAngle(int32 OwnerId, int32 Slot) const;
+	/** Where a Blade Halo's first blade stands on its turn, in degrees (R-RFG-07; tests). */
+	float GetBladeAngle(int32 OwnerId, int32 Slot) const;
 	int32 GetTrackedRounds() const { return Rounds.Num(); }
 	/** Highest split generation of any round spawned this run (R-MOD-05 check). */
 	int32 GetMaxGeneration() const { return MaxGeneration; }
@@ -274,6 +276,9 @@ private:
 		float DroneAngleDeg = 0.0f;
 		float DroneTimer = 0.0f;
 		int32 NextDrone = 0;
+		/** Blade Halo (R-RFG-07, D-079): the blades' own turn and contact tick, beside the drones' bolts. */
+		float BladeAngleDeg = 0.0f;
+		float BladeTimer = 0.0f;
 		TArray<FMine> Mines;
 		TArray<FShell> Shells;
 		float SpiralDeg = 0.0f;
@@ -445,8 +450,11 @@ private:
 		int8 DuoRow = INDEX_NONE;
 		/** The hit or round was a payday's (keepers.md R-KEE-29): what this impact sets off is the payday's too. */
 		bool bPayday = false;
-		/** A force field's strike (Pulse Wall's ring, R-RFG-12): no modifier moves what it strikes (D-074). */
+		/** A force field's strike (Pulse Wall's ring, R-RFG-12): no modifier moves what it strikes, and it starts no chain (D-074). A Blade
+		 * Halo's blade strike carries the same mark (R-RFG-07, D-079 item 3: its throttle scene refused bolts to the chain). */
 		bool bRingStrike = false;
+		/** A Blade Halo's blade strike (R-RFG-07). */
+		bool bBladeStrike = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */
@@ -647,8 +655,10 @@ private:
 		const FVector2f& Origin, float Damage, bool bCharged);
 
 	// --- reforging.md -------------------------------------------------------------------------------------------
-	/** Blade Halo (R-RFG-07): one blade's touch per turn. */
+	/** Blade Halo (R-RFG-07): the blades turn, and each contact tick every blade strikes. */
 	void StepBlades(const FDTSimContext& Context, FDTPlayerRunState& Player, int32 Slot, FWeaponRuntime& Runtime);
+	/** Every blade strikes once where it stands, for Damage, as Source; the impacts carry the blade strike's mark. */
+	void StrikeBlades(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime, float Damage, uint16 Source);
 	float BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntime& Runtime) const;
 	/** Sweep Beam (R-RFG-08): the arc of this tick. */
 	void StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime);

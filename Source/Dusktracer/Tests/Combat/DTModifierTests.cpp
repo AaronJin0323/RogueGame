@@ -986,7 +986,7 @@ namespace DTChainTriggerTest
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerBladeHalo, "Dusktracer.Modifiers.ChainTrigger.BladeHalo", DTWeaponTestHarness::TestFlags) // T-MOD-16, D-039
 bool FDTModifiersChainTriggerBladeHalo::RunTest(const FString& Parameters)
 {
-	// Blade Halo fires no bolts (R-RFG-07): Chain Trigger's free volley is every blade striking once where it is, as the modifier's.
+	// Blade Halo keeps its bolts (R-RFG-07, D-079): Chain Trigger's free volley fires the bolts and every blade strikes once where it is, as the modifier's.
 	using namespace DTChainTriggerTest;
 	const uint16 Chain = ChainSource();
 	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
@@ -1020,26 +1020,34 @@ bool FDTModifiersChainTriggerBladeHalo::RunTest(const FString& Parameters)
 			MostPerTouch = FMath::Max(MostPerTouch, Touch);
 		}
 		const FDTWeaponSpec& Spec = H.Weapons.GetLastSpec(0, 0);
+		const int32 Blades = FMath::RoundToInt(DTReforge::Param(Spec.EvolveRow, TEXT("blades")));
+		const float Blade = Spec.Damage * DTReforge::Param(Spec.EvolveRow, TEXT("dmg_ratio"));
 		int32 ChainHits = 0;
+		int32 ChainStrikes = 0;
+		int32 ChainBolts = 0;
 		for (const FDTHit& Hit : H.HitLog)
 		{
 			OwnHits[Killed] += Hit.SourceId == Own ? 1 : 0;
 			ChainHits += Hit.SourceId == Chain ? 1 : 0;
 			if (Hit.SourceId == Chain)
 			{
-				TestEqual(TEXT("each strike is the row's blade damage, with no multiplier"), Hit.Damage, Spec.Damage);
+				const bool bStrike = FMath::IsNearlyEqual(Hit.Damage, Blade, 0.01f);
+				const bool bBolt = FMath::IsNearlyEqual(Hit.Damage, Spec.Damage, 0.01f);
+				TestTrue(TEXT("each hit is a blade's strike or a bolt, with no multiplier"), bStrike || bBolt);
+				ChainStrikes += bStrike ? 1 : 0;
+				ChainBolts += bBolt ? 1 : 0;
 			}
 		}
 		if (Killed == 1)
 		{
-			TestTrue(TEXT("every blade strikes once as Modifier.ChainTrigger"), ChainHits >= Spec.Count);
-			TestTrue(TEXT("once each: no more than one touch of every blade"), ChainHits <= Spec.Count * MostPerTouch);
+			TestTrue(TEXT("every blade strikes once as Modifier.ChainTrigger"), ChainStrikes >= Blades);
+			TestTrue(TEXT("once each: no more than one touch of every blade"), ChainStrikes <= Blades * MostPerTouch);
+			TestTrue(TEXT("and its bolts fire as the modifier's"), ChainBolts > 0);
 		}
 		else
 		{
 			TestEqual(TEXT("without a kill nothing is the modifier's"), ChainHits, 0);
 		}
-		TestEqual(TEXT("and still no bolts"), H.Bullets.Num(), 0);
 	}
 	TestEqual(TEXT("the free volley moves no contact tick: the weapon's own strikes are unchanged"), OwnHits[1], OwnHits[0]);
 	return true;

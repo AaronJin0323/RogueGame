@@ -16,7 +16,7 @@ Evolve.PulseRifle.Desc,Bolts become orbiting blades that launch at the nearest e
 Evolve.ScatterCannon.Name,Flechette,箭霰,Offer card name of Evolve.ScatterCannon (reforging.md Text).,
 Evolve.ScatterCannon.Desc,"Pellets embed in enemies, then explode.",弹丸钉入敌人，随后爆炸。,Evolve.ScatterCannon rules. No number: the catalog may change it.,
 Evolve.OrbitalDrones.Name,Blade Halo,刃环,Offer card name of Evolve.OrbitalDrones (reforging.md Text).,
-Evolve.OrbitalDrones.Desc,Drones become blades that cut what they touch. Their orbit widens the faster you move.,浮游炮变成刀刃，切开触及的一切。移动越快，轨道越宽。,Evolve.OrbitalDrones rules. No number: the catalog may change it.,
+Evolve.OrbitalDrones.Desc,The drones keep firing and gain blades that cut what they touch. The blades' orbit widens the faster you move.,浮游炮继续开火，并获得刀刃，切开触及的一切。移动越快，刀刃的轨道越宽。,Evolve.OrbitalDrones rules (D-079). No number: the catalog may change it. zh-Hans is a first draft for the native reader (D-079 item 7).,
 Evolve.RailLance.Name,Sweep Beam,横扫光束,Offer card name of Evolve.RailLance (reforging.md Text).,
 Evolve.RailLance.Desc,Fires a beam that sweeps across the densest side.,发射光束，扫过敌人最密集的一侧。,Evolve.RailLance rules. No number: the catalog may change it.,
 Evolve.FlakMortar.Name,Carpet,地毯轰炸,Offer card name of Evolve.FlakMortar (reforging.md Text).,

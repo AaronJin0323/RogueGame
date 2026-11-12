@@ -227,7 +227,7 @@ bool FDTReforgeCaps::RunTest(const FString& Parameters)
 	using namespace DTReforgeTest;
 	using namespace DTWeaponTestHarness;
 	FDTHarness H;
-	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8);
+	H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RailLance")), 8); // D-079: the Halo keeps its caps; Sweep Beam loses Projectile and Expiry
 	FDTPlayerRunState& P = H.Run.GetPlayer(0);
 	int32 Mod = INDEX_NONE;
 	const FDTCapList Evolved = DTReforge::Caps(DTReforge::FindEvolve(P.Weapons[0].Def));
@@ -240,7 +240,7 @@ bool FDTReforgeCaps::RunTest(const FString& Parameters)
 	}
 	if (Mod == INDEX_NONE)
 	{
-		AddError(TEXT("no modifier the Halo loses"));
+		AddError(TEXT("no modifier Sweep Beam loses"));
 		return false;
 	}
 	TestEqual(TEXT("socketed"), H.Weapons.Socket(H.Run, 0, 0, DTWeapons::ModifierId(Mod)), EDTWeaponResult::Ok);
@@ -332,33 +332,55 @@ bool FDTReforgeBladeHalo::RunTest(const FString& Parameters)
 		Inside.Add(H.AddEnemy(FVector2f(Rest + Contact + Own - 1.0f, 0.0f).GetRotated(3.0f * static_cast<float>(Index))));
 		Outside.Add(H.AddEnemy(FVector2f(Rest + Contact + Own + 2.0f, 0.0f).GetRotated(3.0f * static_cast<float>(Index))));
 	}
+	// D-079: the drones' bolts fly beside the blades, so a blade's strike is told by its damage, dmg_ratio of the weapon's.
+	H.StepOnce(); // the weapon composes on its first step
+	const float Blade = H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("dmg_ratio"));
+	const auto IsStrike = [&](const FDTHit& Hit) { return FMath::IsNearlyEqual(Hit.Damage, Blade, 0.01f); };
+	const auto Strikes = [&](int32 From)
+	{
+		int32 Count = 0;
+		for (int32 Index = From; Index < H.HitLog.Num(); ++Index)
+		{
+			Count += IsStrike(H.HitLog[Index]) ? 1 : 0;
+		}
+		return Count;
+	};
+	const auto StrikesOn = [&](int32 Enemy)
+	{
+		int32 Count = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			Count += Hit.EnemySerial == H.Enemies.GetSerials()[Enemy] && IsStrike(Hit) ? 1 : 0;
+		}
+		return Count;
+	};
 	const auto RingAngles = [&](int32 From)
 	{
 		TArray<float> Angles;
 		for (int32 Index = From; Index < H.HitLog.Num(); ++Index)
 		{
 			const FVector2f At = H.HitLog[Index].Position;
-			if (FMath::Abs(At.Size() - Rest) < 1.0f)
+			if (IsStrike(H.HitLog[Index]) && FMath::Abs(At.Size() - Rest) < 1.0f)
 			{
 				Angles.Add(FMath::RadiansToDegrees(FMath::Atan2(At.Y, At.X)));
 			}
 		}
 		return Angles;
 	};
-	// The first tick: step until the blades strike (the weapon composes on its first step).
+	// The first tick: step until the blades strike.
 	int32 Before = 0;
-	for (int32 Step = 0; Step <= TickSteps + 2 && H.HitLog.Num() == 0; ++Step)
+	for (int32 Step = 0; Step <= TickSteps + 2 && Strikes(0) == 0; ++Step)
 	{
 		Before = H.HitLog.Num();
 		H.StepOnce();
 	}
 	TArray<float> First = RingAngles(Before);
 	TestTrue(TEXT("the first tick strikes the ring"), First.Num() > 0);
-	// Every blade strikes on the tick, not one in turn: the ring's hits of that one step fall in every quarter the blades stand in.
+	// Every blade strikes on the tick, not one in turn: the ring's strikes of that one step fall in every quarter the blades stand in.
 	TSet<int32> Quarters;
 	for (const float Angle : First)
 	{
-		Quarters.Add(FMath::FloorToInt(FMath::Fmod(Angle - First[0] + 405.0f, 360.0f) / 90.0f) % 4);
+		Quarters.Add(FMath::FloorToInt(FMath::Fmod(Angle - (First.Num() > 0 ? First[0] : 0.0f) + 405.0f, 360.0f) / 90.0f) % 4);
 	}
 	TestEqual(TEXT("every blade strikes on the same tick"), Quarters.Num(), Blades);
 	// And none strikes again before the next tick.
@@ -367,34 +389,79 @@ bool FDTReforgeBladeHalo::RunTest(const FString& Parameters)
 	{
 		H.StepOnce();
 	}
-	TestEqual(TEXT("no strike between ticks"), H.HitLog.Num(), AfterFirst);
+	TestEqual(TEXT("no strike between ticks"), Strikes(AfterFirst), 0);
 	H.StepOnce();
 	H.StepOnce();
-	TestTrue(TEXT("the next tick strikes"), H.HitLog.Num() > AfterFirst);
+	TestTrue(TEXT("the next tick strikes"), Strikes(AfterFirst) > 0);
 	// The reach counts the enemy's own radius: over a few turns the inner off-orbit ring is struck, the outer never.
 	RunSteps(H, 600);
 	int32 InsideHits = 0;
 	for (const int32 Enemy : Inside)
 	{
-		InsideHits += HitsOn(H, H.Enemies.GetSerials()[Enemy]);
+		InsideHits += StrikesOn(Enemy);
 	}
 	int32 OutsideHits = 0;
 	for (const int32 Enemy : Outside)
 	{
-		OutsideHits += HitsOn(H, H.Enemies.GetSerials()[Enemy]);
+		OutsideHits += StrikesOn(Enemy);
 	}
 	TestTrue(TEXT("an enemy within contact_r_uu plus its own radius is struck"), InsideHits > 0);
 	TestEqual(TEXT("one just outside is not"), OutsideHits, 0);
-	TestEqual(TEXT("the probe out of reach is not"), HitsOn(H, H.Enemies.GetSerials()[Probe]), 0);
-	TestEqual(TEXT("no bolts"), H.Bullets.Num(), 0);
-	TestEqual(TEXT("the blade count"), H.Weapons.GetLastSpec(0, 0).Count, Blades);
+	TestEqual(TEXT("the probe out of reach is not"), StrikesOn(Probe), 0);
 
-	// The blades turn at the row's speed, and the plain drones still at their constant.
+	// D-079: the bolts are the plain weapon's: its count, damage and cooldown, and the same bolts fired on the same crowd.
+	{
+		const FDTWeaponSpec& Evolved = H.Weapons.GetLastSpec(0, 0);
+		FDTHarness PlainSpec;
+		PlainSpec.Weapons.Give(PlainSpec.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8);
+		PlainSpec.StepOnce();
+		const FDTWeaponSpec& Plain = PlainSpec.Weapons.GetLastSpec(0, 0);
+		TestEqual(TEXT("the bolts' count is the plain weapon's"), Evolved.Count, Plain.Count);
+		TestEqual(TEXT("their damage"), Evolved.Damage, Plain.Damage);
+		TestEqual(TEXT("their cooldown"), Evolved.Cooldown, Plain.Cooldown);
+		// One enemy well beyond the blades: every hit on it is a bolt's, and the evolved weapon fires what the plain one fires.
+		const auto Fired = [](bool bEvolve, int32& OutHits)
+		{
+			FDTHarness Shot;
+			int32 Slot = INDEX_NONE;
+			Shot.Weapons.Give(Shot.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8, &Slot);
+			if (bEvolve)
+			{
+				FDTWeaponInstance& Owned = Shot.Run.GetPlayer(0).Weapons[Slot];
+				Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+			}
+			Shot.AddEnemy(FVector2f(600.0f, 0.0f));
+			int32 Spawned = 0;
+			for (int32 Step = 0; Step < 300; ++Step)
+			{
+				Shot.StepOnce();
+				int32 Now = 0;
+				int32 Throttled = 0;
+				Shot.Weapons.TakeEmissions(0, Slot, Now, Throttled);
+				Spawned += Now;
+			}
+			OutHits = Shot.HitLog.Num();
+			return Spawned;
+		};
+		int32 PlainHits = 0;
+		int32 EvolvedHits = 0;
+		const int32 PlainBolts = Fired(false, PlainHits);
+		const int32 EvolvedBolts = Fired(true, EvolvedHits);
+		AddInfo(FString::Printf(TEXT("bolts spawned in 5 s: plain %d, evolved %d; hits %d and %d"), PlainBolts, EvolvedBolts, PlainHits, EvolvedHits));
+		TestTrue(TEXT("the plain drones fire"), PlainBolts > 0);
+		TestEqual(TEXT("the evolved weapon fires the same bolts"), EvolvedBolts, PlainBolts);
+		TestEqual(TEXT("and they land the same hits"), EvolvedHits, PlainHits);
+	}
+
+	// The blades turn at the row's speed; the drones, evolved or plain, still at their constant.
 	{
 		const float Turn = DTReforge::Param(Row, TEXT("orbit_deg_s"));
-		const float From = H.Weapons.GetDroneAngle(0, 0);
+		const float From = H.Weapons.GetBladeAngle(0, 0);
+		const float DroneFrom = H.Weapons.GetDroneAngle(0, 0);
 		H.StepOnce();
-		TestNearlyEqual(TEXT("the blades turn at orbit_deg_s"), FMath::Fmod(H.Weapons.GetDroneAngle(0, 0) - From + 360.0f, 360.0f), Turn * Dt, 0.01f);
+		TestNearlyEqual(TEXT("the blades turn at orbit_deg_s"), FMath::Fmod(H.Weapons.GetBladeAngle(0, 0) - From + 360.0f, 360.0f), Turn * Dt, 0.01f);
+		TestNearlyEqual(TEXT("the evolved weapon's drones turn at their constant"), FMath::Fmod(H.Weapons.GetDroneAngle(0, 0) - DroneFrom + 360.0f, 360.0f),
+			static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S) * Dt, 0.01f);
 		FDTHarness Plain;
 		Plain.Weapons.Give(Plain.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8);
 		Plain.StepOnce();
@@ -425,6 +492,21 @@ bool FDTReforgeBladeHalo::RunTest(const FString& Parameters)
 		TestNearlyEqual(TEXT("the orbit widens with speed"), MoveAt(Reference), Rest * (1.0f + Ratio), 0.5f);
 		TestNearlyEqual(TEXT("up to speed_cap times the reference"), MoveAt(Cap * Reference), Rest * (1.0f + Ratio * Cap), 0.5f);
 		TestNearlyEqual(TEXT("and no further"), MoveAt(3.0f * Cap * Reference), Rest * (1.0f + Ratio * Cap), 0.5f);
+	}
+	// D-079 item 2: the row's caps are the plain weapon's, so Pierce and Backwash socketed on the plain drones stay live at the pick.
+	{
+		FDTHarness Sockets;
+		int32 Slot = INDEX_NONE;
+		Sockets.Weapons.Give(Sockets.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8, &Slot);
+		TestEqual(TEXT("Pierce sockets on the plain drones"), Sockets.Weapons.Socket(Sockets.Run, 0, Slot, TEXT("Mod.Pierce")), EDTWeaponResult::Ok);
+		TestEqual(TEXT("Backwash sockets on the plain drones"), Sockets.Weapons.Socket(Sockets.Run, 0, Slot, TEXT("Mod.Backwash")), EDTWeaponResult::Ok);
+		FDTWeaponInstance& Owned = Sockets.Run.GetPlayer(0).Weapons[Slot];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		Sockets.StepOnce();
+		for (const FDTWeaponInstance::FSocket& Socket : Sockets.Run.GetPlayer(0).Weapons[Slot].Sockets)
+		{
+			TestFalse(FString::Printf(TEXT("%s stays live on Blade Halo"), *Socket.ModId.ToString()), Socket.bDormant);
+		}
 	}
 	return true;
 }
@@ -860,6 +942,60 @@ bool FDTReforgePulseWallThrottle::RunTest(const FString& Parameters)
 	AddInfo(FString::Printf(TEXT("without the chain: %lld emissions, %lld throttled, %lld rounds; with it: %lld emissions, %lld throttled, %lld rounds"),
 		SpawnedPlain, ThrottledPlain, RoundsPlain, SpawnedChain, ThrottledChain, RoundsChain));
 	TestEqual(TEXT("the weapon fires as many rounds with the disc's chains as without them"), RoundsChain, RoundsPlain);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeBladeHaloThrottle, "Dusktracer.Reforging.BladeHaloThrottle", DTWeaponTestHarness::TestFlags) // T-RFG-07, D-079 item 3
+bool FDTReforgeBladeHaloThrottle::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// A crowd stands in the blades for several seconds at level 8, with and without Arc Grid's Key (a Keeper's Chain) composed. Had a blade's
+	// strike started the chain, its jumps would spend the weapon's emissions: read with the chain kept, 66 bolts against 76 and 361 refused
+	// (D-079 item 3). So a blade's strike carries status and not the chain, as the ring's (D-074 ruling 10), and the bolts are untouched.
+	const auto Scene = [](bool bChain, int64& OutSpawned, int64& OutThrottled, int64& OutBolts, int32& OutStrikes)
+	{
+		FDTHarness H;
+		const int32 Row = GiveEvolved(H, TEXT("Weapon.OrbitalDrones"));
+		if (bChain)
+		{
+			FDTWeaponFlags Flags;
+			FDTFlagEntry& Chain = Flags.Add(DTCat::EFlag::Chain, DTWeapons::KeeperSource(EDTPath::Storm), EDTFlagTier::Key);
+			Chain.Params.Set(DTFlagParam::Jumps, 2.0f);
+			Chain.Params.Set(DTFlagParam::RangeUu, 350.0f);
+			Chain.Params.Set(DTFlagParam::Dmg, 0.6f);
+			H.Weapons.AddFlagSource(0, TEXT("Test.ArcGrid"), Flags);
+		}
+		const float Rest = DTReforge::Param(Row, TEXT("orbit_r_uu"));
+		for (int32 Ring = 0; Ring < 3; ++Ring)
+		{
+			for (int32 Index = 0; Index < 24; ++Index)
+			{
+				const float Angle = 2.0f * PI * (static_cast<float>(Index) + 0.5f * Ring) / 24.0f;
+				H.AddEnemy(FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * (Rest - 25.0f + 25.0f * Ring));
+			}
+		}
+		H.StepOnce();
+		const float Blade = H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("dmg_ratio"));
+		H.StepMany(FMath::RoundToInt(5.0f / Dt));
+		OutSpawned = H.Weapons.GetCounters(0, 0).Spawned;
+		OutThrottled = H.Weapons.GetCounters(0, 0).Throttled;
+		OutBolts = H.Bullets.GetCounters().Spawned; // the weapon's bolts: a chain's jump is no bullet
+		OutStrikes = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			OutStrikes += FMath::IsNearlyEqual(Hit.Damage, Blade, 0.01f) ? 1 : 0;
+		}
+	};
+	int64 SpawnedPlain = 0, ThrottledPlain = 0, BoltsPlain = 0, SpawnedChain = 0, ThrottledChain = 0, BoltsChain = 0;
+	int32 StrikesPlain = 0, StrikesChain = 0;
+	Scene(false, SpawnedPlain, ThrottledPlain, BoltsPlain, StrikesPlain);
+	Scene(true, SpawnedChain, ThrottledChain, BoltsChain, StrikesChain);
+	AddInfo(FString::Printf(TEXT("without the chain: %lld emissions, %lld throttled, %lld bolts, %d blade strikes; with it: %lld emissions, %lld throttled, %lld bolts, %d blade strikes"),
+		SpawnedPlain, ThrottledPlain, BoltsPlain, StrikesPlain, SpawnedChain, ThrottledChain, BoltsChain, StrikesChain));
+	TestTrue(TEXT("the blades strike the crowd"), StrikesPlain > 0);
+	TestEqual(TEXT("the weapon fires as many bolts with a Keeper's Chain composed as without it"), BoltsChain, BoltsPlain);
+	TestEqual(TEXT("and nothing is refused"), ThrottledChain, ThrottledPlain);
+	TestEqual(TEXT("the blades strike the same"), StrikesChain, StrikesPlain);
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallGap, "Dusktracer.Reforging.PulseWallGap", DTWeaponTestHarness::TestFlags) // T-RFG-12
