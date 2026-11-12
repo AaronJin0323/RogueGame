@@ -441,16 +441,23 @@ void UDTOfferScreen::DrawCard(UCanvas* Canvas, const FDTOfferCard& Card, const F
 	if (Dormant.Num() > 0 || Rounds.Num() > 0)
 	{
 		// What this pick takes, boxed in the modifier family's token above the rarity row: the rounds that stop flying, then the
-		// sockets that sleep (R-OFF-13, modifiers.md R-MOD-08). The box steps down rather than run into the rules text.
+		// sockets that sleep (R-OFF-13, modifiers.md R-MOD-08), or, on an evolution, each modifier handed back and the rerolls that
+		// gives (reforging.md R-RFG-04, D-073). The box steps down rather than run into the rules text.
 		const float BoxPad = DormantPad * P.S;
 		TArray<FString> Rows;
 		for (const FDTRoundsLeft& Left : Rounds)
 		{
 			Rows.Add(DTOfferText::RoundsLeft(Left).ToString());
 		}
+		int32 HandedBack = 0;
 		for (const FDTDormantSocket& Socket : Dormant)
 		{
-			Rows.Add(DTOfferText::Dormant(TEXT("Dormant.Card"), Socket).ToString());
+			Rows.Add(DTOfferText::Dormant(Socket.bHandBack ? TEXT("HandBack.Card") : TEXT("Dormant.Card"), Socket).ToString());
+			HandedBack += Socket.bHandBack ? 1 : 0;
+		}
+		if (HandedBack > 0)
+		{
+			Rows.Add(DTOfferText::HandBackRerolls(HandedBack).ToString());
 		}
 		TArray<FString> Lines;
 		float LineH = 0.0f;

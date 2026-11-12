@@ -1118,7 +1118,22 @@ FDTPickOutcome DTOffers::ApplyPickState(FDTPlayerRunState& Player, EDTHandKind H
 			int32 Slot = INDEX_NONE;
 			if (OwnsWeapon(Player, Card.TargetWeapon, &Slot))
 			{
-				Player.Weapons[Slot].Evolve = Row;
+				// R-RFG-04 (D-073): each modifier the evolved caps refuse leaves its socket at the pick, back to the run pool (a weapon's
+				// modifier cards are drawn from the pool for any free socket that does not carry it), and gives one reroll, the source's rate.
+				// What is handed back is what the card named: the composition on copies (DormantAfterPick), read before the row is set.
+				const TArray<FDTDormantSocket> Refused = DormantAfterPick(Player, Card);
+				FDTWeaponInstance& Evolved = Player.Weapons[Slot];
+				Evolved.Evolve = Row;
+				for (const FDTDormantSocket& Socket : Refused)
+				{
+					if (Socket.bHandBack && Socket.Weapon == Evolved.Id
+						&& Evolved.Sockets.RemoveAll([&Socket](const FDTWeaponInstance::FSocket& S) { return S.ModId == Socket.Mod; }) > 0)
+					{
+						Out.HandedBack.Add(Socket.Mod);
+						++Out.RerollsGained;
+						++Player.Offer.RerollsLeft;
+					}
+				}
 				Out.Weapon = Card.TargetWeapon;
 				Out.bValid = true;
 			}
@@ -1173,7 +1188,8 @@ TArray<FDTDormantSocket> DTOffers::DormantAfterPick(const FDTPlayerRunState& Pla
 		{
 			if (After.Sockets[Index].bDormant && !Now.Sockets[Index].bDormant)
 			{
-				Out.Add(FDTDormantSocket{ Weapon.Id, Weapon.Sockets[Index].ModId });
+				// An evolution hands the modifier back (R-RFG-04, D-073); only a blessing's conversion still puts one to sleep (R-MOD-08).
+				Out.Add(FDTDormantSocket{ Weapon.Id, Weapon.Sockets[Index].ModId, bEvolves && Weapon.Id == Card.TargetWeapon });
 			}
 		}
 	}

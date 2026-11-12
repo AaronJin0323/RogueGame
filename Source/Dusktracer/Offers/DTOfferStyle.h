@@ -86,6 +86,8 @@ namespace DTOfferText
 	DUSKTRACER_API FText KeywordDesc(const FString& Keyword);
 	/** A dormant socket in words (modifiers.md R-MOD-08): the ST_Modifiers row Key, Dormant.Hud or Dormant.Card, with its names filled. */
 	DUSKTRACER_API FText Dormant(const TCHAR* Key, const FDTDormantSocket& Socket);
+	/** The rerolls an evolution's hand-back gives (reforging.md R-RFG-04, D-073): ST_Modifiers HandBack.Rerolls. */
+	DUSKTRACER_API FText HandBackRerolls(int32 Count);
 	/** What a conversion leaves of a weapon's rounds, in words: the ST_Weapons row Rounds.None when none still fly, else Rounds.Some. */
 	DUSKTRACER_API FText RoundsLeft(const FDTRoundsLeft& Rounds);
 	DUSKTRACER_API FText Ui(const TCHAR* Key);

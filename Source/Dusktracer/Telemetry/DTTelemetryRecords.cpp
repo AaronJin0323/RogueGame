@@ -552,17 +552,23 @@ void FDTTelemetryCore::SetGemsLive(int32 Count)
 
 // ---- weapons.md ---------------------------------------------------------------------------------------------------------
 
-void FDTTelemetryCore::RecordReforge(int32 Owner, bool bEvolve, FName Id, FName Target, int32 WeaponLevel, TConstArrayView<FName> Dormant)
+void FDTTelemetryCore::RecordReforge(int32 Owner, bool bEvolve, FName Id, FName Target, int32 WeaponLevel, TConstArrayView<FName> Dormant,
+	TConstArrayView<FName> HandedBack, int32 RerollsGained)
 {
 	if (RecordOwner(Owner))
 	{
-		TArray<FString> Names;
-		for (const FName& Name : Dormant)
+		const auto Join = [](TConstArrayView<FName> List)
 		{
-			Names.Add(Name.ToString());
-		}
+			TArray<FString> Names;
+			for (const FName& Name : List)
+			{
+				Names.Add(Name.ToString());
+			}
+			return FString::Join(Names, TEXT(";"));
+		};
 		JsonlOut += FDTTelJson(JsonHead(TEXT("reforge"), Owner)).Str(TEXT("reforge_kind"), bEvolve ? TEXT("Evolve") : TEXT("Path")).Name(TEXT("id"), Id)
-			.Name(TEXT("target"), Target).Int(TEXT("weapon_level"), WeaponLevel).Str(TEXT("dormant"), *FString::Join(Names, TEXT(";"))).Line();
+			.Name(TEXT("target"), Target).Int(TEXT("weapon_level"), WeaponLevel).Str(TEXT("dormant"), *Join(Dormant))
+			.Str(TEXT("handed_back"), *Join(HandedBack)).Int(TEXT("rerolls_gained"), RerollsGained).Line();
 	}
 }
 
