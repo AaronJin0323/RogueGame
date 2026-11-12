@@ -76,7 +76,11 @@ Before: `DTHud::BossRow`'s `S` was the canvas height over 1080 only, but the bar
 
 ## The sim proof, by hand
 
-Seed 9107, the five arms one after another on b8948e5: None `00e0d4ec` 44137 steps, Random `51369747` 59380, Steered:Forge:Hammer `e3293942` 57749, Steered:Storm:Tempest `b046559b` 60231, Steered:Tide:Frost `def51848` 48598; each `bot.csv` byte for byte the baseline of `S4_p0.md` §8 (SHA-256 `b6a4878cb23adae7`, `485ed85694ad5c92`, `b3cda2804c6a4664`, `cab7cae12d42f789`, `dc02a5d3f44c2d11`). Restart and meta: the whole gate's lines.
+Seed 9107, the five arms one after another, read on b8948e5 and again on 46d129c (dev/s4 179d0c3 merged), both times: None `00e0d4ec` 44137 steps, Random `51369747` 59380, Steered:Forge:Hammer `e3293942` 57749, Steered:Storm:Tempest `b046559b` 60231, Steered:Tide:Frost `def51848` 48598; each `bot.csv` byte for byte the baseline of `S4_p0.md` §8 (SHA-256 `b6a4878cb23adae7`, `485ed85694ad5c92`, `b3cda2804c6a4664`, `cab7cae12d42f789`, `dc02a5d3f44c2d11`). Restart 276faf8e and meta a2a3ac8: the whole gate's lines on 46d129c.
+
+## The whole gate
+
+`GATE: PASS (46d129c; 3 not run; mask FFFFF3FC)` (pad: no package; scope; mac), on `dev/s4` 179d0c3 merged: 603 tests of 603 against the floor of 603, every golden at 0.13 to 0.40 against the goldens shot here, restart, seed, meta, vigil, first run, win, earned, contrast, settings and windows all PASS.
 
 ## Not verified
 
