@@ -15,6 +15,8 @@ namespace DTEliteLocal
 	constexpr float ReactorSize = 1.5f;
 	constexpr float SpikeLength = 2.5f;
 	constexpr float ShieldOrbit = 2.0f;
+	// R-EAR-08 (D-076): the light is the optic's own bounds this much over, so it covers the optic it takes the place of.
+	constexpr float LightCover = 1.15f;
 
 	static const TCHAR* StringTableName = TEXT("ST_Enemies");
 	static const TCHAR* StringTablePrefix = TEXT("ST_Enemies.");
@@ -169,7 +171,13 @@ void DTElite::LabelledElites(const FDTEnemyPool& Pool, const FVector2f& At, TArr
 	}
 }
 
-void DTElite::BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, float MeshSizeUU, TArray<FDTElitePart>& Out)
+const FDTEliteAnchors* DTElite::Anchors(EDTEnemyRole Role)
+{
+	const int32 Index = static_cast<int32>(Role);
+	return Index >= 0 && Index < DTEliteAnchorsGen::NumRoles ? &DTEliteAnchorsGen::Rows[Index] : nullptr;
+}
+
+void DTElite::BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, float MeshSizeUU, TArray<FDTElitePart>& Out, bool bRoleAnchors)
 {
 	using namespace DTEliteLocal;
 	Out.Reset();
@@ -207,6 +215,75 @@ void DTElite::BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, f
 			Part.Emissive = bLit ? Emissive : 0.0f;
 			Part.Affix = Affix;
 		};
+
+		const FDTEliteAnchors* K = bRoleAnchors ? Anchors(Roles[Index]) : nullptr;
+		if (K)
+		{
+			// R-EAR-08: every part from the role hull's anchors, in drawn radii in the hull's frame (+X the facing, +Z up from the floor
+			// the role mesh stands on). A part against a face sits at the face's middle height and never below the face's bottom.
+			auto On = [&](float X, float Y) { return At + F * X + S * Y; };
+			auto RestZ = [R](float Z0, float Z1, float Half) { return FMath::Max(Z0 * R + Half, 0.5f * (Z0 + Z1) * R); };
+
+			// The light covers the role's optic where that optic sits (elites.md R-ELT-10).
+			Add(EDTAffix::Count, On(K->OpticX * R, 0.0f), K->OpticZ * R, FVector(2.0f * LightCover * R * K->OpticHalfX, 2.0f * LightCover * R * K->OpticHalfY, 2.0f * LightCover * R * K->OpticHalfZ), Yaw, true);
+			if (Has(A.AffixMask, EDTAffix::Armored))
+			{
+				// A plate along each flat side, as long as that side, as tall as the part it rests on (at most a radius).
+				for (const float Side : { -1.0f, 1.0f })
+				{
+					Add(EDTAffix::Armored, On(0.5f * (K->SideX0 + K->SideX1) * R, Side * (K->SideY * R + 0.5f * P)), 0.5f * (K->SideZ0 + K->SideZ1) * R,
+						FVector((K->SideX1 - K->SideX0) * R, P, (K->SideZ1 - K->SideZ0) * R), Yaw, false);
+				}
+			}
+			if (Has(A.AffixMask, EDTAffix::Swift))
+			{
+				// Each vane's front end at a corner of the rear face, the vane trailing back along its own line.
+				const float Half = 0.5f * VaneLength * P;
+				const float VaneRad = FMath::DegreesToRadians(VaneYawDeg);
+				for (const float Side : { -1.0f, 1.0f })
+				{
+					Add(EDTAffix::Swift, On(-K->Rear * R - Half * FMath::Cos(VaneRad), Side * (K->RearHalf * R - Half * FMath::Sin(VaneRad))), RestZ(K->RearZ0, K->RearZ1, 0.5f * ThinPart * P),
+						FVector(VaneLength * P, ThinPart * P, ThinPart * P), Yaw + Side * VaneYawDeg, false);
+				}
+			}
+			if (Has(A.AffixMask, EDTAffix::Volatile))
+			{
+				const float Half = 0.5f * ReactorSize * P;
+				Add(EDTAffix::Volatile, On(-K->TailX * R - Half, 0.0f), RestZ(K->TailZ0, K->TailZ1, Half), FVector(ReactorSize * P), Yaw, true);
+			}
+			if (Has(A.AffixMask, EDTAffix::Splitter))
+			{
+				// Docked against the tail's rear end, spread across it, the outer drones flush with its sides, never closer than a drone apart.
+				const int32 Count = DTConst::AFFIX_SPLITTER_COUNT;
+				const float Half = 0.5f * P;
+				const float Spread = Count > 1 ? FMath::Max(K->TailHalf * R - Half, P) : 0.0f;
+				for (int32 Dock = 0; Dock < Count; ++Dock)
+				{
+					const float Offset = Count > 1 ? -Spread + 2.0f * Spread * static_cast<float>(Dock) / static_cast<float>(Count - 1) : 0.0f;
+					Add(EDTAffix::Splitter, On(-K->TailX * R - Half, Offset), RestZ(K->TailZ0, K->TailZ1, Half), FVector(P), Yaw, false);
+				}
+			}
+			if (Has(A.AffixMask, EDTAffix::Vampiric))
+			{
+				const float Half = 0.5f * SpikeLength * P;
+				Add(EDTAffix::Vampiric, On(K->NoseX * R + Half, 0.0f), RestZ(K->NoseZ0, K->NoseZ1, 0.5f * ThinPart * P), FVector(SpikeLength * P, ThinPart * P, ThinPart * P), Yaw, true);
+			}
+			if (A.ShieldHitsLeft > 0)
+			{
+				// The orbit clears the hull's longest reach by a part's size.
+				const int32 Total = DTConst::AFFIX_SHIELD_PLATES;
+				const int32 Up = FMath::CeilToInt32(static_cast<float>(Total) * A.ShieldHitsLeft / static_cast<float>(DTConst::AFFIX_SHIELD_HITS));
+				const float Orbit = FMath::DegreesToRadians(static_cast<float>(DTConst::ELITE_SHIELD_ORBIT_DEG_S) * Seconds);
+				const float Radius = K->Reach * R + 1.5f * P;
+				const float PlateZ = RestZ(K->Bottom, K->Top, 0.5f * P);
+				for (int32 Plate = 0; Plate < Up; ++Plate)
+				{
+					const float Angle = Orbit + UE_TWO_PI * static_cast<float>(Plate) / static_cast<float>(Total);
+					Add(EDTAffix::Shielded, At + FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius, PlateZ, FVector(P), FMath::RadiansToDegrees(Angle), true);
+				}
+			}
+			continue;
+		}
 
 		// The light sits where the role's optic sits (R-ENM-24), larger with the hull.
 		const bool bCentred = Roles[Index] == EDTEnemyRole::Turret || Roles[Index] == EDTEnemyRole::Boss;
