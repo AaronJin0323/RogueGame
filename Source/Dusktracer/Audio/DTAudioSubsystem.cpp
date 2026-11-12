@@ -14,6 +14,8 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
 #include "Misc/CoreDelegates.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -32,7 +34,22 @@ namespace DTAudioSubsystemLocal
 	class FDTEngineSink : public IDTAudioSink
 	{
 	public:
-		explicit FDTEngineSink(UWorld* InWorld) : World(InWorld) {}
+		/** Pushes the duck's mix once, here: a silent process never makes this sink, so it never pushes a mix. */
+		FDTEngineSink(UWorld* InWorld, USoundMix* InDuckMix, USoundClass* InPlayerClass) : World(InWorld), DuckMix(InDuckMix), PlayerClass(InPlayerClass)
+		{
+			if (World.IsValid() && DuckMix.IsValid())
+			{
+				UGameplayStatics::PushSoundMixModifier(World.Get(), DuckMix.Get());
+			}
+		}
+		virtual void SetPlayerDuckDb(float Db) override
+		{
+			if (World.IsValid() && DuckMix.IsValid() && PlayerClass.IsValid())
+			{
+				// No engine fade: the engine is given the scheduler's own curve, one value per frame it moves.
+				UGameplayStatics::SetSoundMixClassOverride(World.Get(), DuckMix.Get(), PlayerClass.Get(), FMath::Pow(10.0f, Db / 20.0f), 1.0f, 0.0f, true);
+			}
+		}
 		virtual void Start(const DTCat::FSoundRow& Row, const FDTAudioVoice& Voice, USoundBase* Sound) override
 		{
 			if (Sound && World.IsValid())
@@ -45,7 +62,12 @@ namespace DTAudioSubsystemLocal
 
 	private:
 		TWeakObjectPtr<UWorld> World;
+		TWeakObjectPtr<USoundMix> DuckMix;
+		TWeakObjectPtr<USoundClass> PlayerClass;
 	};
+
+	static const TCHAR* const DuckMixPath = TEXT("/Game/DT/Audio/Mix/SMX_Duck.SMX_Duck");
+	static const TCHAR* const PlayerClassPath = TEXT("/Game/DT/Audio/Mix/SC_Player.SC_Player");
 
 	static double Percentile(TArray<float> Values, double P)
 	{
@@ -144,11 +166,11 @@ void UDTAudioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		FApp::SetVolumeMultiplier(0.0f);
 	}
+	ResolveAssets();
 	if (!bSilent)
 	{
-		Sink = MakeShared<DTAudioSubsystemLocal::FDTEngineSink>(GetWorld());
+		Sink = MakeShared<DTAudioSubsystemLocal::FDTEngineSink>(GetWorld(), DuckMix, PlayerClass);
 	}
-	ResolveAssets();
 	// The frame's flush runs after every tickable of the world, the sim's step included, paused or not (R-AUD-05).
 	TickEndHandle = FWorldDelegates::OnWorldTickEnd.AddUObject(this, &UDTAudioSubsystem::HandleWorldTickEnd);
 }
@@ -192,6 +214,8 @@ TStatId UDTAudioSubsystem::GetStatId() const
 
 void UDTAudioSubsystem::ResolveAssets()
 {
+	DuckMix = LoadObject<USoundMix>(nullptr, DTAudioSubsystemLocal::DuckMixPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	PlayerClass = LoadObject<USoundClass>(nullptr, DTAudioSubsystemLocal::PlayerClassPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	Assets.Reset();
 	AssetFirst.Reset();
 	for (const DTCat::FSoundRow& Row : DTAudio::Catalog())
@@ -306,6 +330,10 @@ void UDTAudioSubsystem::RunFrame(double Now)
 		{
 			VoiceLog.Add(Voice);
 		}
+	}
+	if (Sink.IsValid() && DuckSender.Next(Scheduler.GetDuckDb()))
+	{
+		Sink->SetPlayerDuckDb(DuckSender.Sent);
 	}
 	const uint64 C3 = FPlatformTime::Cycles64();
 	const int32 Slot = static_cast<int32>(TimedFrames % TimerFrames);

@@ -41,14 +41,36 @@ public:
 	virtual void Start(const DTCat::FSoundRow& Row, const FDTAudioVoice& Voice, class USoundBase* Sound) = 0;
 	/** True for the sink that hands voices to the engine (the one an unattended process never makes, R-AUD-03). */
 	virtual bool IsEngine() const { return false; }
+	/** The Player group's gain in dB (R-AUD-05): sent only on frames where the scheduler's duck curve moved since the last send. */
+	virtual void SetPlayerDuckDb(float Db) {}
+};
+
+/** Decides when the duck is sent: only when the curve moved since the last send (the engine starts at 0 dB). */
+struct FDTDuckSender
+{
+	float Sent = 0.0f;
+	/** True, and remembers Db, when Db differs from what was sent last. */
+	bool Next(float Db)
+	{
+		if (FMath::Abs(Db - Sent) < 1.0e-4f)
+		{
+			return false;
+		}
+		Sent = Db;
+		return true;
+	}
 };
 
 /** A sink that keeps every voice it is given (tests, and the proof that a run's voices are a function of its seed). */
 class FDTRecordingSink : public IDTAudioSink
 {
 public:
-	virtual void Start(const DTCat::FSoundRow& Row, const FDTAudioVoice& Voice, class USoundBase* Sound) override { Voices.Add(Voice); }
+	virtual void Start(const DTCat::FSoundRow& Row, const FDTAudioVoice& Voice, class USoundBase* Sound) override { Voices.Add(Voice); Sounds.Add(Sound); }
+	virtual void SetPlayerDuckDb(float Db) override { DuckSends.Add(Db); }
 	TArray<FDTAudioVoice> Voices;
+	/** The asset each voice was given, in order (nullptr when there was none). */
+	TArray<class USoundBase*> Sounds;
+	TArray<float> DuckSends;
 };
 
 namespace DTAudio
