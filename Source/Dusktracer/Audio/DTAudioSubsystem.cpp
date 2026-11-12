@@ -40,6 +40,20 @@ namespace DTAudioSubsystemLocal
 			if (World.IsValid() && DuckMix.IsValid())
 			{
 				UGameplayStatics::PushSoundMixModifier(World.Get(), DuckMix.Get());
+				// The engine starts where the sender believes it is: 0 dB, whatever an earlier world left in the device.
+				SetPlayerDuckDb(0.0f);
+			}
+		}
+		/** One push, one pop: the world ends with SC_Player back at 0 dB and the mix taken off (R-AUD-05). */
+		virtual ~FDTEngineSink() override
+		{
+			if (World.IsValid() && DuckMix.IsValid())
+			{
+				if (PlayerClass.IsValid())
+				{
+					UGameplayStatics::ClearSoundMixClassOverride(World.Get(), DuckMix.Get(), PlayerClass.Get(), 0.0f);
+				}
+				UGameplayStatics::PopSoundMixModifier(World.Get(), DuckMix.Get());
 			}
 		}
 		virtual void SetPlayerDuckDb(float Db) override
@@ -186,6 +200,7 @@ void UDTAudioSubsystem::HandleWorldTickEnd(UWorld* InWorld, ELevelTick TickType,
 void UDTAudioSubsystem::Deinitialize()
 {
 	FWorldDelegates::OnWorldTickEnd.Remove(TickEndHandle);
+	Sink.Reset(); // the engine sink takes its duck back while the world still stands
 	Observer.Unbind();
 	bBound = false;
 	if (NumTimedFrames() > 0)

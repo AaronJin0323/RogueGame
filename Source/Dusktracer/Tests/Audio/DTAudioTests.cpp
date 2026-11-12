@@ -536,6 +536,13 @@ bool FDTAudTestDangerFirst::RunTest(const FString& Parameters)
 		const double HoldEnd = Start + DuckRows[0].LengthMs / 1000.0;
 		const double ReleaseEnd = HoldEnd + DTConst::AUD_DUCK_RELEASE_MS / 1000.0;
 		TestTrue(TEXT("the duck is sent"), Sink.DuckSends.Num() > 0);
+		// A world starts at 0 dB whatever the engine kept: a fresh sender sends the curve's value on its first frame, 0 here.
+		TestTrue(TEXT("a fresh sender sends 0 dB first, though the curve has not moved"), Sink.DuckSends.Num() > 0 && Sink.DuckSends[0] == 0.0f && SendTimes[0] == Start);
+		{
+			FDTDuckSender Fresh;
+			TestTrue(TEXT("a fresh sender sends on its first frame"), Fresh.Next(0.0f));
+			TestFalse(TEXT("and not again while nothing moves"), Fresh.Next(0.0f));
+		}
 		const int32 FloorAt = Sink.DuckSends.IndexOfByPredicate([](float Db) { return FMath::IsNearlyEqual(Db, static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f); });
 		TestTrue(TEXT("down to C.AUD.DUCK_DB within C.AUD.DUCK_ATTACK_MS (one frame's grain)"), FloorAt != INDEX_NONE && SendTimes[FloorAt] <= Start + DTConst::AUD_DUCK_ATTACK_MS / 1000.0 + Dt);
 		TestTrue(TEXT("nothing sent while it holds"), !SendTimes.ContainsByPredicate([&](double T) { return T > SendTimes[FloorAt] && T < HoldEnd; }));

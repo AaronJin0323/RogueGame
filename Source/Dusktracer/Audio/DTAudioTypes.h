@@ -45,17 +45,23 @@ public:
 	virtual void SetPlayerDuckDb(float Db) {}
 };
 
-/** Decides when the duck is sent: only when the curve moved since the last send (the engine starts at 0 dB). */
+/**
+ * Decides when the duck is sent: a fresh sender does not know where the engine stands, so its first frame sends whatever the curve
+ * says (0 dB at a world's start); after that, only a frame where the curve moved since the last send sends. So a world never inherits
+ * the last world's duck, whatever the engine kept.
+ */
 struct FDTDuckSender
 {
 	float Sent = 0.0f;
-	/** True, and remembers Db, when Db differs from what was sent last. */
+	bool bKnown = false;
+	/** True, and remembers Db, on the first call and whenever Db differs from what was sent last. */
 	bool Next(float Db)
 	{
-		if (FMath::Abs(Db - Sent) < 1.0e-4f)
+		if (bKnown && FMath::Abs(Db - Sent) < 1.0e-4f)
 		{
 			return false;
 		}
+		bKnown = true;
 		Sent = Db;
 		return true;
 	}
