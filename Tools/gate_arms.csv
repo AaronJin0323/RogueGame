@@ -1,15 +1,13 @@
 # The gate's arms step (Tools/Gate.ps1): five bot arms on seed 9107, each compared by input_hash, steps and, where a value stands here, bot.csv's SHA-256.
 # Each branch holds its own values. A carry keeps the branch's own file, as it keeps its test floor. A rule that moves an arm on purpose edits this file in the same branch and names its decision in the hand-over.
-# main's values: read on 2026-11-12 on build 842259e (Source, Content and Config equal to main's tip), two runs each, equal on every value and bot.csv byte for byte;
-# options as BotRuns printed them: one seed per arm from 9107, skill 1, policy All, 600 steps a frame, bot v1. Read by the Mechanics session on that build; the values are repeated in its hand-over to the scheduler.
-# D-078 (R-MOD-05, this branch s1/scatter-one-generation): a round born of a Scatter Shell ring never bursts into a ring again. Random and Steered:Tide:Frost moved on purpose:
-# they are the two arms that socket Scatter Shell (Random on the Ring Emitter at 194.7 s, Tide:Frost on the Pulse Rifle at 484.3 s). Their rows were read on 2026-11-12 on the clean build c8f817e;
-# None, Steered:Forge:Hammer and Steered:Storm:Tempest socket no Scatter Shell and read the same as main's rows on every value. main's two rows before D-078: Random a80e96ea, 59844 steps,
-# 6350b69b8d25168fe45e048044f166c8a74bb826018af6b29071b2832a033cb2, victory 997.4000; Steered:Tide:Frost 217db85a, 59245 steps, b30625e9886078c41086fc5c81acf724466e674f8b65b6f47d6c2ea6bf2a71d9, death 987.4167.
+# dev/s2's values: read on 2026-11-13 on carry8/s2 (main 1e99644 carried into dev/s2 0d2f1ca, then dev/s2 d1ceee1; Validation/S2_carry.md, Seventh carry), one process,
+# options as BotRuns printed them: one seed per arm from 9107, skill 1, policy All, 600 steps a frame, bot v1. Against dev/s2 before the carry (00e0d4ec, 51369747,
+# e3293942, b046559b, def51848): Random, Steered:Forge:Hammer and Steered:Storm:Tempest moved, the three arms that socket Scatter Shell (Random on the Ring Emitter at 194.7 s,
+# Forge:Hammer on the Pulse Rifle at 569.5 s, Storm:Tempest on the Pulse Rifle at 579.0 s), as D-078 (R-MOD-05) moves them; None and Steered:Tide:Frost socket none and read as before.
 # bot.csv holds per-minute play columns only (no build stamp, date or path), so its hash does not move with a commit that leaves the sim alone. outcome and end_s are context and are not compared.
 arm,input_hash,steps,bot_csv_sha256,outcome,end_s
-None,fe30ec79,38179,74b385d41b094b3ac5bd4d26e5137c3b12cef0ec648fea4cc5986915ee1472ba,death,636.3167
-Random,53c6cce3,60409,1640b5aec5da3756a5de881b58b936f73ac37ef5608a0e9baabd24201a546543,victory,1006.8167
-Steered:Forge:Hammer,8dd4ffc6,58102,3c5bfb8b4b03266bc918e53863f7c31faa25522db04ca2ae5aa8667e7c512e65,victory,968.3667
-Steered:Storm:Tempest,32aa9ec9,59330,c66d8901a8507d8ac2c89d0b7425a3a0717313b1eb7504f8a04a30b057d039f2,victory,988.8333
-Steered:Tide:Frost,9dd709ab,57211,7e9cdf6461266b1fdbf1f4b794b18769b5dc28a9e4ba26958d4830befe47b160,victory,953.5167
+None,00e0d4ec,44137,b6a4878cb23adae707d58ee87d628e4c507b3606adeeb1b59fbf7b1489beef64,death,735.6167
+Random,15a228cd,59951,190366eb0f0946b85df8dd70f52c0fa38a0983f205e9a241d0de4822b0ff9ed6,victory,999.1833
+Steered:Forge:Hammer,8831aba6,57482,562bd1e6d7e8114f638bb38c7b25ee30d60126ed79a06e272d8e178b3e4b9988,victory,958.0333
+Steered:Storm:Tempest,0948c7be,59239,4a0199f27bdd87edbbb8f9408e30f47a643d7419aeb9224febd3f84ca4f79c06,victory,987.3167
+Steered:Tide:Frost,def51848,48598,dc02a5d3f44c2d11e8846cf35385de829e8607f6c1b8f2f74257b9ea0dd4767b,death,809.9667
