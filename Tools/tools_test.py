@@ -2477,9 +2477,9 @@ class SessionRead(unittest.TestCase):
 	def test_the_frame_comes_from_the_constants_and_tests_each_edge(self):
 		consts = dtconst_load()
 		down, up, side0, slope = session_read.frame(consts)
-		self.assertAlmostEqual(down, 1504.25, places=2)
-		self.assertAlmostEqual(up, 2041.16, places=2)
-		self.assertAlmostEqual(side0, 2666.67, places=2)
+		self.assertAlmostEqual(down, 1402.37, places=2)  # D-080: 1258.2 uu framed, aimed 140.6 uu toward the camera
+		self.assertAlmostEqual(up, 1571.52, places=2)
+		self.assertAlmostEqual(side0, 2269.58, places=2)
 		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154
 		fr = (down, up, side0, slope)
 		self.assertEqual(session_read.off_edges(0, 0, fr), [])
@@ -2487,10 +2487,10 @@ class SessionRead(unittest.TestCase):
 		self.assertEqual([e for e, _ in session_read.off_edges(2100, 0, fr)], ["top"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, 2700, fr)], ["right"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, -2700, fr)], ["left"])
-		self.assertEqual(session_read.off_edges(-1500, 2300, fr), [], "the bottom row is narrower: 2316 uu")
+		self.assertEqual(session_read.off_edges(-1400, 1900, fr), [], "the bottom row is narrower: 1943 uu")
 		wide = session_read.frame(consts, (21, 9))
 		self.assertAlmostEqual(wide[0], down)
-		self.assertAlmostEqual(wide[2], 3500.0, places=1)
+		self.assertAlmostEqual(wide[2], 2978.8, places=1)
 
 	def test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate(self):
 		body = [rec(95.0, "hero_pos", x=-1500, y=0), rec(99.0, "hero_pos", x=-1500, y=0), rec(100.0, "hero_pos", x=0, y=0),
@@ -2500,11 +2500,11 @@ class SessionRead(unittest.TestCase):
 			hit(400.0, 0.1, hit_kind="Contact", role="Swarm", hero_x=0, hero_y=0, src_x=30, src_y=20)]
 		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
 		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
-		self.assertIn("D-036: frame at 16:9: down 1504.25, up 2041.16, side 2666.67", text)
+		self.assertIn("D-036: frame at 16:9: down 1402.37, up 1571.52, side 2269.58", text)
 		self.assertIn("D-036: 3 of 4 hits with a source off a 16:9 frame; by hit kind: Bullet 2 of 2, Contact 1 of 2", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 459 uu outside", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 96 uu outside", text)
-		self.assertIn("at landing right edge 33 uu outside; no hero_pos around the fire time: landing only", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 928 uu outside", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 198 uu outside", text)
+		self.assertIn("at landing right edge 430 uu outside; no hero_pos around the fire time: landing only", text)
 		self.assertIn("TIMELINE: 1_20261111_120000 1:40 100.0 hit Turret Bullet 0.100 of max HP, 0.500 left [off frame]", text)
 		self.assertIn("HUD m:ss is t from m*60+ss to m*60+ss+1", text)
 
