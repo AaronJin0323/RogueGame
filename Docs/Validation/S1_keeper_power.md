@@ -231,3 +231,90 @@ python -I Tools\probe.py intercession Saved\Probes\ik_reread --seeds 3
 Pass criteria are unchanged and nothing was tuned. Both tests still wait for human readings.
 
 **Addendum, 2026-11-10, at 8231171 (`fix/dash-volley-rule`).** The drones dash-volley fix and D-038 (`S2_dash_volley.md`) do not reach this section, and it was not rerun: its probes are the nine S1 showcase arms with nothing unlocked, 57 combinations of Storm, Forge and Tide, and no scene holds a Quicksilver card, so none has a dash volley. The T-KEE-15 and T-KEE-18 rows that hold a Vector card are the S2 probes; their old and new values are in `S2_exit.md`, the addendum of the same date. There T-KEE-18's Vector row goes 0.795 to 0.781 in share (full DPS 12306 to 12914) and 30 of the 31 T-KEE-15 rows with Vector move in value; no row changes side and both tests read FAIL as before.
+
+## 9. Reread at 41d510b, 2026-11-13
+Branch `s2/readings`, built at `41d510b` (`dev/s2`'s code; the branch adds documents only). A reading: no game code, number, pass line or tool changed. These are §8's own commands, with the output folders renamed. Bot v1 at skill 1.0 (BotRuns' defaults), headless, a bound (O-008), nothing unlocked, `-Parallel 6 -Stagger 0.4`. Every run left a record, and no scene was rerun.
+```
+& Tools\BotRuns.ps1 -Arms <the nine showcase arms> -Seeds 15 -Parallel 6 -Stagger 0.4 -Out Saved\BotRuns\s1_reread_r2
+python -I Tools\probe.py ablation Saved\Probes\ab_reread_r2 --builds Saved\BotRuns\s1_reread_r2
+& Tools\BotRuns.ps1 -Jobs Saved\Probes\ab_reread_r2\jobs.csv -Parallel 6 -Stagger 0.4 -Out Saved\Probes\ab_reread_r2\runs
+python -I Tools\probe.py intercession Saved\Probes\ik_reread_r2 --seeds 3
+& Tools\BotRuns.ps1 -Jobs Saved\Probes\ik_reread_r2\jobs.csv -Parallel 6 -Stagger 0.4 -Out Saved\Probes\ik_reread_r2\runs
+python -I Tools\probe.py read Saved\Probes\ab_reread_r2
+python -I Tools\probe.py read Saved\Probes\ik_reread_r2
+```
+Wall time, in this worktree under the session lock:
+- The battery, 135 runs: 5 minutes.
+- The ablation scenes: 20 minutes.
+- The cast scenes, 342 of them: 17 minutes.
+
+The two readers' verdict lines, verbatim, and the battery's count:
+- `T-KEE-15: FAIL (14/57 combinations within +-0.2 of their Keeper's mean; Forge mean 40464, 4/18 in band; Storm mean 36795, 10/19 in band; Tide mean -2104, 0/20 in band)`
+- `T-KEE-18: FAIL (9 arms: loss below 0.6 on 1, gain outside the band on 9, outside the archetype band on 1; mean loss 0.816; share, printed and never judged, mean 0.584)`
+- The battery: 135 runs, 115 reached the boss, 106 wins. This is printed, judged nowhere, and counted from the run files' `boss_start` and `run_end` records; it is no tool's line.
+
+**What reached `dev/s2` between the two readings** (`d827a58..41d510b`, 63 first-parent commits). The part that reaches these probes:
+- The three carries of `main` and the later ones (`7bea6b7`, `9d40dbb`, `f4ab48d` and the fourth and fifth carries). With them come D-045's Rusher charge and D-046's chest, D-053's Forge truth (Hammer's Key on the Arc Blade, Hard Blow's cleave knockback), and D-047's loss reader of T-KEE-18 (`f56cc4e`).
+- The dash-volley rules D-038 to D-041, and Conduit under a Patron with no status.
+- What does not reach these probes: the S2 fits, D-060's payday and the evolution rules (D-070, D-072, D-074). Their cards are not in these builds, the probes' scenes, or the nine arms' S1 pool.
+
+**T-KEE-15.** 342 scenes.
+
+| Keeper | Mean at d827a58 | In band at d827a58 | Mean now | In band now | Range now |
+|---|---|---|---|---|---|
+| Storm | 37 698 | 8/19 | 36 795 | 10/19 | -2 505 to 62 524 |
+| Forge | 48 385 | 7/18 | 40 464 | 4/18 | 10 832 to 77 105 |
+| Tide | -2 126 | 0/20 (no band) | -2 104 | 0/20 (no band) | -22 802 to 11 906 |
+
+- All 57: 14 in band, against 15.
+- Casts that lose damage: 14, 13 of them Tide, as at d827a58.
+- The Furnace rows §8 names read as they did to the unit: no layer 42 898, Downpour 24 831, Whirlpool 36 531, Stillness 31 277. Tide's Whirlpool:Furnace (-8 425) and Stillness:Furnace (-22 802) read the same too.
+- §8 kept only its Keeper means and these rows, not each row's value. So "the rows that moved by more than their SD" can only be said for the rows it printed, and none of those moved.
+- Forge's mean is what moved: 48 385 to 40 464. Every Hammer row is out of band now, from 0.27 to 0.78 of the mean:
+
+| Hammer with | Marginal | SD | / Forge mean | In band |
+|---|---|---|---|---|
+| Tide_Frost | 31 437 | 3 476 | 0.78 | OUT |
+| Storm_Downpour | 23 613 | 8 575 | 0.58 | OUT |
+| Tide_Stillness | 20 182 | 3 909 | 0.50 | OUT |
+| Storm_ArcGrid | 20 124 | 10 153 | 0.50 | OUT |
+| none | 12 581 | 2 496 | 0.31 | OUT |
+| Tide_Whirlpool | 10 832 | 3 350 | 0.27 | OUT |
+
+  The Hammer rows' fall is traced in `S2_hammer_vector_row.md` (R1). During a Hammer-led cast every cleave pushes what it strikes by the variant's `knockback_uu` (200), as the variant's card says (D-053, `b1d3915`, carried in `7bea6b7`), and the pushed crowd leaves the cast's rings. It is as specified. Storm's Downpour:Hammer (34 942) and ArcGrid:Hammer (3 934, SD 15 282) hold Hammer as the layer, not the variant.
+
+**T-KEE-18.** 120 builds. The reader judges loss now (D-047, carried in `f56cc4e`); §8's table judged share, which is printed beside it.
+
+| Arm | Builds | Full DPS | Loss now | Share at d827a58 | Share now | Gain at d827a58 | Gain now | Gain, no second Keeper | Band now |
+|---|---|---|---|---|---|---|---|---|---|
+| Forge/Furnace | 15 | 11 407 | 0.897 PASS | 0.697 | 0.667 | 1.83 | 1.92 | 3.05 | IN |
+| Forge/Hammer | 15 | 11 679 | 0.929 PASS | 0.738 | 0.859 | 2.93 | 2.69 | 3.32 | IN |
+| Forge/Slam | 15 | 9 185 | 0.832 PASS | 0.514 | 0.506 | 1.21 | 1.19 | 1.58 | IN |
+| Storm/ArcGrid | 14 | 4 467 | 0.790 PASS | 0.380 | 0.400 | 3.04 | 3.40 | 3.51 | IN |
+| Storm/Downpour | 15 | 7 020 | 0.874 PASS | 0.450 | 0.444 | 5.29 | 5.86 | 6.12 | IN |
+| Storm/Tempest | 15 | 2 557 | 0.551 FAIL | 0.332 | 0.318 | 1.42 | 1.37 | 1.40 | OUT |
+| Tide/Frost | 12 | 8 370 | 0.812 PASS | 0.516 | 0.632 | 0.94 | 0.93 | 0.80 | IN |
+| Tide/Stillness | 9 | 7 226 | 0.816 PASS | 0.735 | 0.681 | 1.07 | 1.21 | 1.48 | IN |
+| Tide/Whirlpool | 10 | 8 670 | 0.842 PASS | 0.732 | 0.754 | 1.48 | 1.22 | 2.36 | IN |
+
+- By loss, 8 of 9 arms pass. Storm/Tempest is under the line at 0.551 and out of the archetype band (mean 0.816). No arm's gain is in the band (2.0 to 2.4). The no-second-Keeper control is printed, never judged.
+- As in §8 these are other builds, not a paired comparison: the 135 runs were played on another tree. What moved a given arm was not traced.
+
+**The nine arms' boss reach and wins** (printed, judged nowhere; §8 printed wins only):
+
+| Arm | Reached the boss, of 15 | Wins at d827a58 | Wins now |
+|---|---|---|---|
+| Forge/Furnace | 15 | — | 14 |
+| Forge/Hammer | 15 | — | 14 |
+| Forge/Slam | 14 | — | 13 |
+| Storm/ArcGrid | 13 | — | 13 |
+| Storm/Downpour | 15 | — | 14 |
+| Storm/Tempest | 13 | 8 | 12 |
+| Tide/Frost | 11 | 2 | 9 |
+| Tide/Stillness | 9 | — | 9 |
+| Tide/Whirlpool | 10 | 0 | 8 |
+| All | 115 | 72 | 106 |
+
+§8 printed only Frost, Whirlpool and Tempest by arm, and "the rest within 1" of its earlier reading. Wins rose from 72 to 106 of 135 across the carries; which change moved them was not traced.
+
+Pass criteria are unchanged and nothing was tuned. Both tests still wait for human readings.
