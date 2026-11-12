@@ -54,7 +54,11 @@ The limits are `C.AUD.PAIR_DISTANCE_MIN_DB` (6) and `C.AUD.PAIR_LENGTH_RATIO_MIN
 
 - The crest holds in the three tiers where it is judged, against `C.AUD.MIX_CREST_MAX_DB` (14): by 0.4, 0.9 and 0.2 dB.
 - The loudness rises 5.6 dB from the sparsest tier to the densest, against `C.AUD.DENSITY_RISE_MAX_DB` (6).
-- Both hold with little room, and they pull against each other: a louder bed lowers the crest and raises the rise.
+- Both hold with little room, and they pull against each other. Which level moves which, for the next tuning:
+  - **Hit and kill up** (measured on this branch: hit 0.25 to 0.28 and kill 0.35 to 0.40, about 1 dB each): the sparsest tier gains 0.5 dB, the tier of 20 gains 0.3 and the two dense tiers 0.1, so the rise falls by 0.4 dB (6.0 to 5.6); the crest's medians grow by 0.1, 0.3 and 0.4 dB (13.5, 12.8 and 13.4 to 13.6, 13.1 and 13.8). They sound as often in a small fight as in a flood, so they fill the small fight; they are short and struck, so they stand over the beds.
+  - **The beds up** (reasoned, not measured): they sound only in the dense tiers and are steady, so a louder bed raises the rise and lowers the crest; a quieter one does the reverse.
+  - **The weapons** (reasoned, not measured): the first three rows are the whole of the sparsest tier's fire, so raising them lowers the rise; the heavy ones (Gravity Mine, Rail Lance, Flak Mortar) are the tallest peaks of the dense tiers, so lowering them lowers the crest.
+  - So a rise over its limit is met with hit and kill up or the beds down, at the crest's cost; a crest over its limit with the beds up or the heavy weapons down, the first at the rise's cost. Only the heavy weapons down helps both.
 
 The nine danger cues against this fight, each over the densest mix lowered by the duck:
 
