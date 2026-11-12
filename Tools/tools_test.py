@@ -2791,7 +2791,11 @@ class HeavyLocks(unittest.TestCase):
 				code = ps_code(f.read().splitlines())
 			mask = next(i for i, line in enumerate(code) if "Set-DTAffinity" in line)
 			heavy = next(i for i, line in enumerate(code) if "Enter-DTHeavy" in line)
-			self.assertEqual([line for line in code[mask + 1:heavy] if line.strip()], [], name)
+			between = [line for line in code[mask + 1:heavy] if line.strip()]
+			if name in OutDirRoot.SCRIPTS:
+				# The look's scripts check their output folders first (Tools/OutDir.ps1), so a refused run costs no slot; nothing else stands there.
+				between = [line for line in between if not OutDirRoot.BEFORE_SLOT.search(line)]
+			self.assertEqual(between, [], name)
 		with open(self.MACHINE, encoding="utf-8") as f:
 			machine = f.read()
 		self.assertLess(machine.index("$null = Enter-DTHeavy -What (Split-Path -Leaf $Run.File)"), machine.index("& $Run.File @RunArgs"))
@@ -3262,6 +3266,117 @@ class Doors(unittest.TestCase):
 		with open(os.path.join(self.ROOT, "Content", "DT", "Text", "ST_Codex.csv"), encoding="utf-8-sig", newline="") as f:
 			cells = {r["Unlock"].split(".", 1)[1] for r in csv.DictReader(f) if r["Key"].startswith("Codex.Enemy.")}
 		self.assertEqual(cells - set(gen_catalog.ROLES), set(re.findall(r"`Kill\.(\w+)`", self.spec().split("**R-MET-28**")[1].split("### Discoveries")[0])))
+
+
+class OutDirRoot(unittest.TestCase):
+	"""Docs/Validation/S4_outdir_root.md: the look's Tools scripts hand the engine only absolute paths inside their own tree (Tools/OutDir.ps1).
+	The engine resolves a relative -DTShot= or -ABSLOG= against its own binaries folder, so shots of HeroZone.ps1 -OutDir <relative> landed there."""
+
+	HELPER = os.path.join(TOOLS, "OutDir.ps1")
+	SCRIPTS = ("HeroZone.ps1", "Frames.ps1", "EnemyArt.ps1", "ImpactArt.ps1")
+	# The only lines that may stand between the mask and the slot in SCRIPTS (T-TEC-18's test above reads it): the root, the helper, the checks.
+	BEFORE_SLOT = re.compile(r'^\s*(\$Root = \(Resolve-Path \(Join-Path \$PSScriptRoot "\.\."\)\)\.Path'
+		r'|\. \(Join-Path \$PSScriptRoot "OutDir\.ps1"\)'
+		r'|try \{ [^{}]*Resolve-DTOutDir [^{}]*\} catch \{ Write-Host "[A-Z ]+: FAIL \([^"]*\)"; exit 1 \}'
+		r"|foreach \(\$Name in \$Scenes\) \{ if \(\$Name -cnotmatch '\^\[a-z\]\[a-z0-9_\]\*\$'\) \{ Write-Host \"[A-Z ]+: FAIL \([^\"]*\)\"; exit 1 \} \})\s*$")
+	ARG = re.compile(r'"-(\w+)=`"\$(\w+)`""')
+
+	def code(self, name):
+		with open(os.path.join(TOOLS, name), encoding="utf-8") as f:
+			return ps_code(f.read().splitlines())
+
+	def resolve(self, root, cases):
+		"""Each case through Resolve-DTOutDir in one child: 'OK <path>' or 'NO <message>' per case, in order."""
+		body = "; ".join(f"try {{ 'OK ' + (Resolve-DTOutDir {ps_quote(p)} {ps_quote(root)} -Default 'Saved\\Def') }} catch {{ 'NO ' + $_.Exception.Message }}" for p in cases)
+		rc, out = powershell(f". {ps_quote(self.HELPER)}; {body}")
+		self.assertEqual(rc, 0, out)
+		lines = [line.strip() for line in out.splitlines() if line.startswith(("OK ", "NO "))]
+		self.assertEqual(len(lines), len(cases), out)
+		return lines
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_the_helper_answers_inside_and_refuses_outside(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			root = os.path.join(tmp, "Tree")
+			os.makedirs(root)
+			drive = os.path.splitdrive(root)[0].upper()
+			other = "Q:" if drive != "Q:" else "R:"
+			upper = root.upper() + "\\Saved\\Up\\"
+			got = self.resolve(root, ["Saved\\Frames", "", upper, "Saved/a/../b", root + "\\Saved\\In",
+				os.path.join(tmp, "Out"), "..\\..\\x", root + "2\\x", other + "\\Tree\\x", "\\\\server\\share\\x", "\\\\?\\" + root + "\\x",
+				root, root + "\\", "Saved\\..", drive + "x", "\\x"])
+			ok = [line[3:] for line in got[:5]]
+			self.assertEqual(ok[0].lower(), (root + "\\Saved\\Frames").lower())
+			self.assertEqual(ok[1].lower(), (root + "\\Saved\\Def").lower())
+			self.assertEqual(ok[2].lower(), (root + "\\Saved\\Up").lower())
+			self.assertEqual(ok[3].lower(), (root + "\\Saved\\b").lower())
+			self.assertEqual(ok[4], root + "\\Saved\\In")
+			for line in got[:5]:
+				self.assertTrue(line.startswith("OK "), got)
+			for line in got[5:]:
+				self.assertTrue(line.startswith("NO "), got)
+				self.assertIn(root, line)
+			self.assertIn("is outside this worktree", got[5])
+			self.assertIn("is outside this worktree", got[6])
+			self.assertIn("is outside this worktree", got[7])
+			self.assertIn("is outside this worktree", got[8])
+			self.assertIn("UNC or device path", got[9])
+			self.assertIn("UNC or device path", got[10])
+			for line in got[11:14]:
+				self.assertIn("root", line)
+				self.assertIn("itself", line)
+			self.assertIn("drive-relative", got[14])
+			self.assertIn("rooted at the current drive", got[15])
+			# A root given with a trailing separator answers the same; the helper made nothing.
+			self.assertEqual(self.resolve(root + "\\", ["Saved\\x"])[0][3:].lower(), (root + "\\Saved\\x").lower())
+			self.assertEqual(os.listdir(root), [])
+
+	def test_every_path_the_look_hands_the_engine_goes_through_the_helper(self):
+		for name in self.SCRIPTS:
+			code = self.code(name)
+			heavy = next(i for i, line in enumerate(code) if "Enter-DTHeavy" in line)
+			self.assertTrue(any('. (Join-Path $PSScriptRoot "OutDir.ps1")' in line for line in code[:heavy]), name)
+			self.assertTrue(any("Resolve-DTOutDir" in line for line in code[:heavy]), name)
+			args = {(flag, var) for line in code for flag, var in self.ARG.findall(line)}
+			paths = {(flag, var) for flag, var in args if flag != "ExecCmds"}
+			self.assertTrue({flag for flag, _ in paths} >= {"DTShot", "ABSLOG"}, name)
+			for flag, var in paths:
+				sets = [line for line in code if re.search(r"(^|[;{])\s*\$" + var + r"\s*=[^=]", line)]
+				self.assertTrue(sets, f"{name}: -{flag}= ${var} is never set")
+				for line in sets:
+					self.assertIn("Resolve-DTOutDir", line, f"{name}: -{flag}= ${var}")
+			# A folder parameter is resolved before the slot and never set again another way; the folders the paths are built from are the helper's.
+			for var in ("OutDir", "LogDir"):
+				for line in [line for line in code if re.search(r"(^|[;{])\s*\$" + var + r"\s*=[^=]", line)]:
+					self.assertIn("Resolve-DTOutDir", line, f"{name}: ${var}")
+			self.assertFalse(any("IsPathRooted" in line for line in code), name)
+
+	@unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")
+	def test_a_refused_folder_costs_no_slot_and_no_launch(self):
+		root = os.path.dirname(TOOLS)
+		with tempfile.TemporaryDirectory() as tmp:
+			locks = os.path.join(tmp, "dt-locks")
+			os.makedirs(locks)
+			# A hand-written hold: any slot asked for would wait, and print a heavy: line. No engine at UE_ROOT: nothing could start.
+			with open(os.path.join(locks, "alone.txt"), "w", encoding="ascii") as f:
+				f.write("held by tools_test\n")
+			env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+			env.update({"DT_LOCK_DIR": locks, "DT_HEAVY_WAIT_MAX_S": "5", "DT_AFFINITY_FILE": os.path.join(tmp, "absent.txt"), "UE_ROOT": os.path.join(tmp, "no_engine")})
+			outside = os.path.join(tmp, "shots")
+			for script, args, line in (
+					("Frames.ps1", ["-Scene", "arena_empty", "-OutDir", outside], f"FRAMES: FAIL (-OutDir {outside} is outside this worktree "),
+					("HeroZone.ps1", ["-OutDir", outside], f"HERO ZONE ACCEPTANCE: FAIL (-OutDir {outside} is outside this worktree "),
+					("HeroZone.ps1", ["-OutDir", "..\\..\\x"], "HERO ZONE ACCEPTANCE: FAIL (-OutDir ..\\..\\x is outside this worktree "),
+					("Frames.ps1", ["-Scene", "arena_empty", "-OutDir", root], "FRAMES: FAIL (-OutDir "),
+					("ImpactArt.ps1", ["-NoMeshCheck", "-Scenes", "..\\x"], "IMPACT ART ACCEPTANCE: FAIL (scene name '..\\x'")):
+				done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(TOOLS, script)] + args,
+					capture_output=True, encoding="utf-8", errors="replace", env=env, timeout=120)
+				self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+				self.assertIn(line, done.stdout, script)
+				self.assertNotIn("heavy", done.stdout.lower(), script)
+				self.assertNotIn("PID", done.stdout, script)
+			self.assertFalse(os.path.exists(os.path.join(locks, "heavy")))
+			self.assertFalse(os.path.exists(outside))
 
 
 @unittest.skipUnless(shutil.which("powershell"), "needs Windows PowerShell")

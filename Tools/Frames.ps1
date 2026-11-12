@@ -9,7 +9,7 @@
 # The launch is EnemyArt.ps1's and Smoke.ps1's: UnrealEditor -game -RenderOffScreen on the hidden desktop of Tools\HiddenLaunch.ps1 (Start-DTHidden),
 # -ForceRes with -ResX/-ResY (without it the engine shrinks a frame larger than 1280x720 on this desktop), -DTShot/-DTShotAfter (the sim is held on
 # that step and shot once the still frame has settled, so the frame rate moves nothing), the director off unless the scene turns it on, seed 0
-# unless the scene names one. Right after the mask it takes one machine-wide heavy-job slot (Enter-DTHeavy, Tools\Machine.ps1), waiting while none is
+# unless the scene names one. Right after the mask and the -OutDir check it takes one machine-wide heavy-job slot (Enter-DTHeavy, Tools\Machine.ps1), waiting while none is
 # free or the machine is held alone, and keeps it until the script ends. It holds the GPU semaphore (Tools\GpuLock.ps1) for the launch and refuses to
 # start while another process holds it.
 # The game's process mask is sampled about every 0.2 s for its whole life and must stay inside the machine's mask (D-052; Wait-Sampled mirrors Smoke.ps1).
@@ -17,6 +17,7 @@
 # Verdict, and nothing more: "Run start" seen; no crash, no ensure, no Error/Fatal line from LogDT (as Smoke.ps1 reads them); the PNG exists and is
 # exactly -Width x -Height (a shrunk frame fails, as in Perf.ps1). No golden, no contrast judge, no text check: a pass says the frame was taken, not
 # that it is right. Output: <OutDir>\<scene>_<culture>_<W>x<H>[_<tag>].png (-OutDir relative to the tree; default Saved\Frames).
+# -OutDir and every shot and log path go through Tools\OutDir.ps1: a folder outside this worktree is a FAIL line before the slot (frames handed in elsewhere are copied there).
 # Log: Saved\Logs\Frames_<scene>_<culture>_<W>x<H>[_<tag>].log. Prints "FRAMES: PASS (<file>)" or "FRAMES: FAIL (<why>)"; exit 0 / 1.
 param(
 	[Parameter(Mandatory = $true)]
@@ -35,21 +36,22 @@ param(
 trap { Write-Host "FRAMES: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "OutDir.ps1")  # before the slot: a refused folder costs nothing
+try { $OutDir = Resolve-DTOutDir $OutDir $Root -Default "Saved\Frames" } catch { Write-Host "FRAMES: FAIL (-OutDir $($_.Exception.Message))"; exit 1 }
 $DTHeavy = Enter-DTHeavy -What "Frames"  # D-055 item 7: one machine-wide heavy-job slot for this run, none for a run started by one that holds one
 Write-Host "frames: heavy slot $DTHeavy"
 
-$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 . (Join-Path $PSScriptRoot "GpuLock.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
-$LogDir = Join-Path $Root "Saved\Logs"
+$LogDir = Resolve-DTOutDir "Saved\Logs" $Root
 
 if ($Scene -notmatch '^[a-z][a-z0-9_]*$') { Write-Host "FRAMES: FAIL (scene name '$Scene': lower case, digits and underscores)"; exit 1 }
 if ($Tag -and $Tag -notmatch '^[A-Za-z0-9_-]+$') { Write-Host "FRAMES: FAIL (tag '$Tag': letters, digits, _ and - only)"; exit 1 }
 if ($Width -lt 16 -or $Height -lt 16) { Write-Host "FRAMES: FAIL (size ${Width}x${Height})"; exit 1 }
-if (-not [IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $Root $OutDir }
 New-Item -ItemType Directory -Force $LogDir, $OutDir | Out-Null
 
 # --- the scene, as data (mirrors Tools\Smoke.ps1 -Scene) ------------------------------------------------------------------------
@@ -76,8 +78,8 @@ function Get-Constant([string]$Key) {
 if ($Seconds -lt 0) { $Seconds = if ($Keys -contains "seconds") { [double]$Data.seconds } else { Get-Constant "SMOKE.SECONDS" } }
 
 $Name = "${Scene}_${Culture}_${Width}x${Height}" + $(if ($Tag) { "_$Tag" } else { "" })
-$Shot = Join-Path $OutDir "$Name.png"
-$Log = Join-Path $LogDir "Frames_$Name.log"
+$Shot = Resolve-DTOutDir (Join-Path $OutDir "$Name.png") $Root
+$Log = Resolve-DTOutDir (Join-Path $LogDir "Frames_$Name.log") $Root
 $Head = (& git -C $Root rev-parse --short HEAD) 2>$null
 $Dirty = if (@(& git -C $Root status --porcelain --untracked-files=no 2>$null).Count) { "+dirty" } else { "" }
 
