@@ -17,6 +17,7 @@ Last line: AUDIOTESTS: PASS|FAIL (<n> tests, <s> s). Exit 0 / 1.
 """
 
 import contextlib
+import csv
 import hashlib
 import io
 import json
@@ -520,6 +521,18 @@ class Catalog(unittest.TestCase):
 		self.assertEqual(sorted(warn), ["Snd.Warn.Arc", "Snd.Warn.Band", "Snd.Warn.Line", "Snd.Warn.Ring"])
 		floor = dtconst.load()["AUD.WARN_MIN_INTERVAL_MS"]["value"]
 		self.assertEqual(warn, {k: floor for k in warn})
+
+	def test_every_weapon_has_its_fire_row_and_every_fire_row_its_weapon(self):
+		# R-AUD-07, the fire observer (Audio/Observe/DTObserveFire): Weapon.<Name> sounds as Snd.Fire.<Name>, matched by name, both ways.
+		rows, errors = B.read_catalog()
+		self.assertEqual(errors, [])
+		fire = {r["id"][len("Snd.Fire."):] for r in rows if r["family"] == "Fire"}
+		self.assertTrue(all(r["id"].startswith("Snd.Fire.") for r in rows if r["family"] == "Fire"))
+		with open(os.path.join(B.ROOT, "Docs", "09_Catalog", "weapons.csv"), encoding="utf-8", newline="") as f:
+			weapons = {line["id"][len("Weapon."):] for line in csv.DictReader(f) if line["id"].startswith("Weapon.")}
+		self.assertEqual(len(weapons), 10, weapons)
+		self.assertEqual(sorted(weapons - fire), [], "a weapon with no fire row")
+		self.assertEqual(sorted(fire - weapons), [], "a fire row with no weapon")
 
 	def test_a_family_with_no_licence_row_fails(self):
 		text, _ = Tree([ROW, WARN], licences=("Content/DT/Audio/SFX/SW_Kill_*",)).check()

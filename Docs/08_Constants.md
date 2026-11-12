@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 601 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 603 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 

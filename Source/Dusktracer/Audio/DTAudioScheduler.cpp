@@ -100,6 +100,16 @@ void FDTAudioScheduler::Request(int32 Sound, int32 Count, int64 Step, bool bNoDu
 	Pending.Add(Batch);
 }
 
+void FDTAudioScheduler::CountMerged(int32 Sound, int32 Count)
+{
+	if (!Rows.IsValidIndex(Sound) || Count <= 0)
+	{
+		return;
+	}
+	Counts[Sound].Asked += Count;
+	Counts[Sound].Merged += Count;
+}
+
 void FDTAudioScheduler::RequestUi(int32 Sound, int32 Count)
 {
 	Request(Sound, Count, 0);

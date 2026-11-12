@@ -1,5 +1,6 @@
 #include "Audio/DTAudioObserver.h"
 #include "Audio/Observe/DTObserveDanger.h"
+#include "Audio/Observe/DTObserveFire.h"
 #include "Audio/Observe/DTObserveInterface.h"
 #include "Audio/Observe/DTObserveWarn.h"
 #include "Core/DTSimSubsystem.h"
@@ -12,6 +13,7 @@ FDTAudioObserver::FDTAudioObserver()
 	Families.Add(MakeUnique<FDTObserveInterface>());
 	Families.Add(MakeUnique<FDTObserveWarn>());
 	Families.Add(MakeUnique<FDTObserveDanger>());
+	Families.Add(MakeUnique<FDTObserveFire>());
 }
 
 FDTAudioObserver::~FDTAudioObserver()

@@ -9,9 +9,11 @@
 #include "Audio/DTAudioTypes.h"
 #include "Audio/DTStingerQueue.h"
 #include "Audio/Observe/DTObserveDanger.h"
+#include "Audio/Observe/DTObserveFire.h"
 #include "Audio/Observe/DTObserveInterface.h"
 #include "Audio/Observe/DTObserveWarn.h"
 #include "Bot/DTBotSubsystem.h"
+#include "Core/DTCatalogGen.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
@@ -145,6 +147,10 @@ namespace DTAudioTest
 		int64 FireAsked = 0;
 		/** The nine Warn and Danger ids' counts, one line each. */
 		TArray<FString> DangerCounts;
+		/** Asked of the ten weapons' fire sounds (the local player's), and their counts, one line each. */
+		int64 PlayerFireAsked = 0;
+		bool bFireSettled = true;
+		TArray<FString> FireCounts;
 		bool bObserving = false;
 		bool bHasAudio = false;
 		int32 Decisions = 0;
@@ -248,6 +254,19 @@ namespace DTAudioTest
 					const FDTAudioCounts& C = Audio->GetScheduler().GetCounts(Sound);
 					Result.DangerCounts.Add(FString::Printf(TEXT("%s asked %lld played %lld merged %lld dropped %lld"), DTCat::Sounds[Sound].Id, C.Asked, C.Played, C.Merged, C.Dropped));
 				}
+				for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+				{
+					const int32 Sound = DTFireEvents::SoundOf(Row);
+					if (Sound == INDEX_NONE)
+					{
+						continue;
+					}
+					const FDTAudioCounts& C = Audio->GetScheduler().GetCounts(Sound);
+					Result.PlayerFireAsked += C.Asked;
+					// What still waits at the run's end (a grid row's last batch) is not settled yet; only a count past the sum is wrong.
+					Result.bFireSettled &= C.Played + C.Merged + C.Dropped <= C.Asked;
+					Result.FireCounts.Add(FString::Printf(TEXT("%s asked %lld played %lld merged %lld dropped %lld"), DTCat::Sounds[Sound].Id, C.Asked, C.Played, C.Merged, C.Dropped));
+				}
 			}
 			Result.bObserving = Audio && Audio->IsObserving();
 			if (const UDTOfferSubsystem* Offers = Test.World->GetSubsystem<UDTOfferSubsystem>())
@@ -282,6 +301,12 @@ bool FDTAudTestSimUntouched::RunTest(const FString& Parameters)
 	for (const FString& Line : On.DangerCounts)
 	{
 		AddInfo(FString::Printf(TEXT("danger count: %s"), *Line));
+	}
+	TestTrue(FString::Printf(TEXT("the fire observer was on: the bot's weapons asked for their fire sounds (%lld)"), On.PlayerFireAsked), On.PlayerFireAsked > 0);
+	TestTrue(TEXT("the fire counts never pass what was asked"), On.bFireSettled);
+	for (const FString& Line : On.FireCounts)
+	{
+		AddInfo(FString::Printf(TEXT("fire count: %s"), *Line));
 	}
 	TestFalse(TEXT("dt.Audio.Enabled 0 at world creation: no audio runtime at all"), Off.bHasAudio);
 	TestEqual(TEXT("same steps"), Off.Steps, On.Steps);
@@ -527,6 +552,131 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 		D.Step = 21;
 		D.bLowHp = true;
 		TestTrue(TEXT("low health inside one pulse raises nothing"), Danger(D).Num() == 0);
+	}
+
+	// The Fire family: each weapon slot of the local player by the growth of its spawned counter, one request carrying the growth.
+	{
+		struct FFireAsks : public IDTAudioRequests
+		{
+			TArray<TPair<int32, int32>> Runs;
+			TArray<TPair<int32, int32>> Merges;
+			virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck) override { Runs.Emplace(Sound, Count); }
+			virtual void Ui(int32 Sound, int32 Count) override {}
+			virtual void Merged(int32 Sound, int32 Count) override { Merges.Emplace(Sound, Count); }
+		};
+		using FPairs = TArray<TPair<int32, int32>>;
+		const int32 Rifle = DTFireEvents::SoundOfId(TEXT("Weapon.PulseRifle"));
+		const int32 Ring = DTFireEvents::SoundOfId(TEXT("Weapon.RingEmitter"));
+		TestEqual(TEXT("Weapon.PulseRifle sounds as Snd.Fire.PulseRifle"), Rifle, static_cast<int32>(ESoundId::Snd_Fire_PulseRifle));
+		TestEqual(TEXT("Weapon.RingEmitter sounds as Snd.Fire.RingEmitter"), Ring, static_cast<int32>(ESoundId::Snd_Fire_RingEmitter));
+		int32 RifleRow = INDEX_NONE;
+		int32 RingRow = INDEX_NONE;
+		for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+		{
+			RifleRow = FCString::Strcmp(DTCat::Weapons[Row].Id, TEXT("Weapon.PulseRifle")) == 0 ? Row : RifleRow;
+			RingRow = FCString::Strcmp(DTCat::Weapons[Row].Id, TEXT("Weapon.RingEmitter")) == 0 ? Row : RingRow;
+		}
+		FDTObserveFire Fire;
+		FFireAsks Asks;
+		// Steps a hundred apart: no weapon here fires faster than the density's rate, so every firing sounds.
+		const auto Observe = [&](int64 AtStep, int64 RifleSpawned, int64 RingSpawned)
+		{
+			FDTFireView FV;
+			FV.Step = AtStep;
+			FV.Weapon[0] = RifleRow;
+			FV.Spawned[0] = RifleSpawned;
+			FV.Weapon[1] = RingRow;
+			FV.Spawned[1] = RingSpawned;
+			Asks.Runs.Reset(); // the merges add up over the whole sequence
+			Fire.Observe(FV, Asks);
+			return Asks.Runs;
+		};
+		TestTrue(TEXT("the run's first step is the baseline: rounds already counted raise nothing"), Observe(100, 5, 0).Num() == 0);
+		TestTrue(TEXT("the rifle fired two rounds: one request carrying two"), Observe(200, 7, 0) == FPairs({ { Rifle, 2 } }));
+		TestTrue(TEXT("an unchanged step raises none"), Observe(300, 7, 0).Num() == 0);
+		TestTrue(TEXT("both fire in one step: one request each, the ring's carrying its twelve"), Observe(400, 9, 12) == FPairs({ { Rifle, 2 }, { Ring, 12 } }));
+		TestTrue(TEXT("a counter that went down is a new baseline"), Observe(500, 1, 12).Num() == 0);
+		TestTrue(TEXT("and grows from there"), Observe(600, 3, 12) == FPairs({ { Rifle, 2 } }));
+		TestTrue(TEXT("nothing was withheld at this pace"), Asks.Merges.Num() == 0);
+		{
+			// The observer and its density together: a rifle firing every third step sounds at most C.AUD.FIRE_DENSE_VOICES_PER_S times in any
+			// second, and every firing it withholds is passed on as merged, carrying its rounds.
+			FDTObserveFire Dense;
+			FFireAsks DenseAsks;
+			TArray<int64> Sounded;
+			int64 Rounds = 0;
+			for (int64 AtStep = 0; AtStep <= 5 * DTConst::SIM_FIXED_HZ; ++AtStep)
+			{
+				FDTFireView FV;
+				FV.Step = AtStep;
+				FV.Weapon[0] = RifleRow;
+				FV.Spawned[0] = 2 * (AtStep / 3 + 1);
+				const int32 RunsBefore = DenseAsks.Runs.Num();
+				Dense.Observe(FV, DenseAsks);
+				if (DenseAsks.Runs.Num() > RunsBefore)
+				{
+					Sounded.Add(AtStep);
+				}
+			}
+			for (const TPair<int32, int32>& Asked : DenseAsks.Runs)
+			{
+				Rounds += Asked.Value;
+			}
+			for (const TPair<int32, int32>& Asked : DenseAsks.Merges)
+			{
+				Rounds += Asked.Value;
+			}
+			int32 Most = 0;
+			for (const int64 From : Sounded)
+			{
+				Most = FMath::Max(Most, Sounded.FilterByPredicate([From](int64 S) { return S >= From && S < From + DTConst::SIM_FIXED_HZ; }).Num());
+			}
+			TestTrue(FString::Printf(TEXT("20 firings a second sound at most %d times in any second (most %d)"), DTConst::AUD_FIRE_DENSE_VOICES_PER_S, Most),
+				Most <= DTConst::AUD_FIRE_DENSE_VOICES_PER_S && Sounded.Num() > 0);
+			TestTrue(TEXT("the rest are withheld and passed on as merged"), DenseAsks.Merges.Num() > 0);
+			TestEqual(TEXT("sounded and withheld together carry every round after the baseline"), Rounds, 2 * (5 * DTConst::SIM_FIXED_HZ / 3 + 1) - 2ll);
+		}
+		Fire.Reset();
+		TestTrue(TEXT("a new run: its first step is the baseline again"), Observe(0, 50, 0).Num() == 0);
+		TestTrue(TEXT("then each firing once"), Observe(100, 51, 0) == FPairs({ { Rifle, 1 } }));
+		{
+			// A slot that held no weapon last step (a weapon just given) sounds its first firing; one that held another weapon is a baseline.
+			FDTFireView Before;
+			FDTFireView After;
+			After.Weapon[2] = RingRow;
+			After.Spawned[2] = 8;
+			FPairs Got;
+			DTFireEvents::Diff(Before, After, [&](int32 Slot, int32 Sound, int32 Count) { Got.Emplace(Sound, Count); });
+			TestTrue(TEXT("a weapon just given sounds its first firing"), Got == FPairs({ { Ring, 8 } }));
+			Got.Reset();
+			Before.Weapon[2] = RifleRow;
+			DTFireEvents::Diff(Before, After, [&](int32 Slot, int32 Sound, int32 Count) { Got.Emplace(Sound, Count); });
+			TestTrue(TEXT("a slot that held another weapon raises nothing"), Got.Num() == 0);
+		}
+		// Every weapon id the game's table holds resolves to its fire sound, by name, and a Reforging form keeps its base weapon's row.
+		int32 Resolved = 0;
+		for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+		{
+			const int32 Sound = DTFireEvents::SoundOf(Row);
+			const FString Want = FString(TEXT("Snd.Fire.")) + FString(DTCat::Weapons[Row].Id).RightChop(7);
+			if (TestTrue(*FString::Printf(TEXT("%s resolves to a sound id"), DTCat::Weapons[Row].Id), Sound != INDEX_NONE))
+			{
+				TestEqual(*FString::Printf(TEXT("%s sounds as %s"), DTCat::Weapons[Row].Id, *Want), FString(DTCat::Sounds[Sound].Id), Want);
+				++Resolved;
+			}
+		}
+		TestEqual(TEXT("the ten weapons of the game's table resolve"), Resolved, 10);
+		TestEqual(TEXT("the game's table holds ten weapons"), DTCat::NumWeapons, 10);
+		for (int32 Row = 0; Row < DTCat::NumReforges; ++Row)
+		{
+			if (DTCat::Reforges[Row].bEvolve)
+			{
+				TestTrue(*FString::Printf(TEXT("%s sounds as its base weapon %s"), DTCat::Reforges[Row].Id, DTCat::Reforges[Row].Source),
+					DTFireEvents::SoundOfId(DTCat::Reforges[Row].Source) != INDEX_NONE);
+			}
+		}
+		TestEqual(TEXT("an id that is not a weapon resolves to none"), DTFireEvents::SoundOfId(TEXT("Snd.Fire.PulseRifle")), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("a row outside the table resolves to none"), DTFireEvents::SoundOf(DTCat::NumWeapons), static_cast<int32>(INDEX_NONE));
 	}
 
 	// A world with nothing open reads as nothing shown.
@@ -1349,6 +1499,7 @@ namespace DTAudioTest
 			}
 		}
 		virtual void Ui(int32 Sound, int32 Count) override { S.RequestUi(Sound, Count); }
+		virtual void Merged(int32 Sound, int32 Count) override { S.CountMerged(Sound, Count); }
 		virtual void HeldDuck(float Db) override
 		{
 			if (!bPlain)
@@ -1698,6 +1849,129 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestFireDensity, "Dusktracer.Audio.FireDensity", DTAudioTest::Flags) // T-AUD-07, T-AUD-20
+bool FDTAudTestFireDensity::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	// R-AUD-07's last clause, on sim time: above C.AUD.FIRE_DENSE_SHOTS_PER_S firings a second a weapon sounds at most
+	// C.AUD.FIRE_DENSE_VOICES_PER_S times in any second, evenly spread; below it, every time.
+	const int64 Second = DTConst::SIM_FIXED_HZ;
+	const int64 Gap = FDTFireDensity::MinGapSteps();
+	TestEqual(TEXT("the least gap is a second over the voices, rounded up"), Gap, (Second + DTConst::AUD_FIRE_DENSE_VOICES_PER_S - 1) / DTConst::AUD_FIRE_DENSE_VOICES_PER_S);
+	TestTrue(TEXT("the keys leave room to thin: the voices are fewer than the dense rate"), DTConst::AUD_FIRE_DENSE_VOICES_PER_S <= DTConst::AUD_FIRE_DENSE_SHOTS_PER_S);
+	constexpr int64 Seconds = 30;
+	for (int32 Rate = 14; Rate <= 22; ++Rate)
+	{
+		FDTFireDensity D;
+		TArray<int64> Fired;
+		TArray<int64> Sounded;
+		// Firings at Rate a second on whole steps: the k-th on step floor(k * FIXED_HZ / Rate), as a weapon's cooldown falls on steps.
+		for (int64 K = 0; K * Second / Rate < Seconds * Second; ++K)
+		{
+			const int64 AtStep = K * Second / Rate;
+			if (Fired.Num() > 0 && Fired.Last() == AtStep)
+			{
+				continue;
+			}
+			Fired.Add(AtStep);
+			if (D.Admit(AtStep))
+			{
+				Sounded.Add(AtStep);
+			}
+		}
+		int32 Most = 0;
+		for (int64 From = 0; From < Seconds * Second; ++From)
+		{
+			int32 In = 0;
+			for (const int64 S : Sounded)
+			{
+				In += S >= From && S < From + Second ? 1 : 0;
+			}
+			Most = FMath::Max(Most, In);
+		}
+		int64 MaxFireGap = 0;
+		for (int32 Index = 1; Index < Fired.Num(); ++Index)
+		{
+			MaxFireGap = FMath::Max(MaxFireGap, Fired[Index] - Fired[Index - 1]);
+		}
+		bool bEven = Sounded.Num() > 1;
+		for (int32 Index = 1; Index < Sounded.Num(); ++Index)
+		{
+			const int64 Between = Sounded[Index] - Sounded[Index - 1];
+			bEven &= Between >= Gap && Between < Gap + MaxFireGap;
+		}
+		TestTrue(FString::Printf(TEXT("%d firings a second: at most %d voices in any second of sim time (most %d)"), Rate, DTConst::AUD_FIRE_DENSE_VOICES_PER_S, Most),
+			Most <= DTConst::AUD_FIRE_DENSE_VOICES_PER_S);
+		TestTrue(FString::Printf(TEXT("%d firings a second: evenly spread, each voice the least gap to one firing's gap after the last"), Rate), bEven);
+		TestTrue(FString::Printf(TEXT("%d firings a second: it still sounds, about every %lld steps (%d voices in %lld s)"), Rate, Gap, Sounded.Num(), Seconds),
+			Sounded.Num() >= Seconds * Second / (Gap + MaxFireGap));
+	}
+	{
+		// Twice a second, and at the dense rate itself: every firing sounds.
+		for (const int32 Rate : { 2, DTConst::AUD_FIRE_DENSE_SHOTS_PER_S - 1 })
+		{
+			FDTFireDensity D;
+			int32 Fired = 0;
+			int32 Sounded = 0;
+			for (int64 AtStep = 0; AtStep < Seconds * Second; AtStep += Second / Rate)
+			{
+				++Fired;
+				Sounded += D.Admit(AtStep) ? 1 : 0;
+			}
+			TestEqual(*FString::Printf(TEXT("%d firings a second sound every time"), Rate), Sounded, Fired);
+		}
+	}
+	{
+		// A reset (a new run) forgets the rate: the first firing after it sounds.
+		FDTFireDensity D;
+		D.Admit(0);
+		D.Admit(3);
+		D.Reset();
+		TestTrue(TEXT("after a reset the first firing sounds"), D.Admit(4));
+	}
+	{
+		// Through the scheduler on the real table: what the density withholds is counted as merged, so asked = played + merged + dropped
+		// (T-AUD-20), and the rifle's played voices stay under the density's count.
+		FDTAudioScheduler S;
+		S.Configure(DTAudio::Catalog(), 9);
+		FToScheduler Out(S);
+		FDTObserveFire Fire;
+		int32 RifleRow = INDEX_NONE;
+		for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+		{
+			RifleRow = FCString::Strcmp(DTCat::Weapons[Row].Id, TEXT("Weapon.PulseRifle")) == 0 ? Row : RifleRow;
+		}
+		const int32 Rifle = DTFireEvents::SoundOf(RifleRow);
+		TArray<FDTAudioVoice> Voices;
+		double Now = 10.0;
+		for (int64 AtStep = 0; AtStep < 10 * Second; ++AtStep)
+		{
+			FDTFireView V;
+			V.Step = AtStep;
+			V.Weapon[0] = RifleRow;
+			V.Spawned[0] = 2 * (AtStep / 3 + 1); // twenty firings a second
+			Fire.Observe(V, Out);
+			Voices.Reset();
+			S.Frame(Now, AtStep, Voices);
+			Now += 1.0 / Second;
+		}
+		for (int32 Flush = 0; Flush < 4; ++Flush)
+		{
+			Voices.Reset();
+			S.Frame(Now, 10 * Second + DTConst::AUD_GRID_STEPS * (Flush + 1), Voices); // a grid row's last request starts or settles
+			Now += 1.0 / Second;
+		}
+		const FDTAudioCounts& C = S.GetCounts(Rifle);
+		AddInfo(FString::Printf(TEXT("the rifle at 20 firings a second for 10 s: asked %lld, played %lld, merged %lld, dropped %lld"), C.Asked, C.Played, C.Merged, C.Dropped));
+		const int64 Rounds = 2 * ((10 * Second - 1) / 3 + 1) - 2; // the counter at the last step, less the baseline's two
+		TestEqual(TEXT("asked is every round after the baseline, sounded or withheld"), C.Asked, Rounds);
+		TestTrue(TEXT("asked = played + merged + dropped"), Settled(S, Rifle) && S.NumWaiting() == 0);
+		TestTrue(TEXT("played at most the density's voices a second, and some"), C.Played > 0 && C.Played <= 10 * DTConst::AUD_FIRE_DENSE_VOICES_PER_S);
+		TestTrue(TEXT("the withheld rounds are merged"), C.Merged > 0);
+	}
+	return true;
+}
+
 #if WITH_EDITORONLY_DATA
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestDangerPlayable, "Dusktracer.Audio.DangerPlayable", DTAudioTest::Flags) // T-AUD-19
 bool FDTAudTestDangerPlayable::RunTest(const FString& Parameters)
@@ -1768,6 +2042,60 @@ bool FDTAudTestDangerPlayable::RunTest(const FString& Parameters)
 		TestEqual(*FString::Printf(TEXT("%s: missing 0"), DTCat::Sounds[Sound].Id), Audio->GetMissing(Sound), int64(0));
 	}
 	TestEqual(TEXT("the nine danger ids were judged"), Judged, 9);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestFirePlayable, "Dusktracer.Audio.FirePlayable", DTAudioTest::Flags) // T-AUD-19
+bool FDTAudTestFirePlayable::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	// Each weapon's firing, raised by the fire family's own rule through a recording sink in place of the engine sink, gets its asset:
+	// the playable fire rows are judged, and all ten weapons must be among them.
+	DTAudioTest::FTestWorld Test;
+	UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
+	if (!TestNotNull(TEXT("the audio runtime"), Audio))
+	{
+		return false;
+	}
+	TSharedPtr<FDTRecordingSink> Sink = MakeShared<FDTRecordingSink>();
+	Audio->SetSinkForTest(Sink);
+	double Now = 100.0;
+	const auto Frame = [&]() { Now += 5.0; Audio->RunFrame(Now); }; // five seconds apart: every voice ends, every interval passes
+	Frame(); // the runtime meets the world's run first, so no request below is a run's leftover
+	for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+	{
+		FDTFireView Was;
+		Was.Weapon[0] = Row;
+		Was.Spawned[0] = 4;
+		FDTFireView Fired = Was;
+		Fired.Step = 1;
+		Fired.Spawned[0] = 7;
+		DTFireEvents::Diff(Was, Fired, [&](int32 Slot, int32 Sound, int32 Count) { Audio->RequestRun(Sound, Count, 0); });
+		Frame();
+	}
+	TSet<int32> Heard;
+	for (int32 Index = 0; Index < Sink->Voices.Num(); ++Index)
+	{
+		const int32 Sound = Sink->Voices[Index].Sound;
+		TestNotNull(*FString::Printf(TEXT("%s is given its asset"), DTCat::Sounds[Sound].Id), Sink->Sounds[Index]);
+		Heard.Add(Sound);
+	}
+	int32 Judged = 0;
+	for (int32 Sound = 0; Sound < DTCat::SoundCount; ++Sound)
+	{
+		if (DTCat::Sounds[Sound].bPlayable && FString(DTCat::Sounds[Sound].Id).StartsWith(TEXT("Snd.Fire."), ESearchCase::CaseSensitive))
+		{
+			++Judged;
+			TestTrue(*FString::Printf(TEXT("%s was raised and started"), DTCat::Sounds[Sound].Id), Heard.Contains(Sound));
+			TestEqual(*FString::Printf(TEXT("%s: missing 0"), DTCat::Sounds[Sound].Id), Audio->GetMissing(Sound), int64(0));
+		}
+	}
+	for (int32 Row = 0; Row < DTCat::NumWeapons; ++Row)
+	{
+		const int32 Sound = DTFireEvents::SoundOf(Row);
+		TestTrue(*FString::Printf(TEXT("%s's fire sound is playable"), DTCat::Weapons[Row].Id), Sound != INDEX_NONE && DTCat::Sounds[Sound].bPlayable);
+	}
+	TestEqual(TEXT("the ten weapons' fire rows were judged"), Judged, 10);
 	return true;
 }
 #endif
