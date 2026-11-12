@@ -1033,11 +1033,12 @@ class ReforgeStage(unittest.TestCase):
 			with open(os.path.join(root, "builds.csv"), "w", encoding="utf-8", newline="") as f:
 				w = csv.writer(f)
 				w.writerow(["build", "folder", "patron", "second", "cards"])
-				w.writerows([[f"b{b}", "x", "Storm", "", ""] for b in range(1, builds + 1)])
+				w.writerows([[f"b{b}", "x", "Storm", "Tide", ""] for b in range(1, builds + 1)])
 			for b in range(1, builds + 1):
 				self.write_scene(runs, f"RF-b{b}-none", b * 100 + 1, 1000.0, kills)
 				self.write_scene(runs, f"RF-b{b}-Evolve.RingEmitter", b * 100 + 1, 1000.0 * evolve_lift)
 				self.write_scene(runs, f"RF-b{b}-Transform.Storm", b * 100 + 1, 1000.0 * path_lift)
+				self.write_scene(runs, f"RF-b{b}-Transform.Tide", b * 100 + 1, 1000.0 * 1.4)
 			probe.read_reforge(runs, lines)
 		return lines
 
@@ -1046,16 +1047,17 @@ class ReforgeStage(unittest.TestCase):
 		rows = {line.split(" | ")[0].lstrip("| "): line for line in lines if line.startswith("| Evolve.") or line.startswith("| Transform.")}
 		self.assertIn("| 10 | 1.50 |", rows["Evolve.RingEmitter"])
 		self.assertIn("in band", rows["Evolve.RingEmitter"])
-		self.assertIn("Transform.Storm (10 builds) | 1.10 |", rows["Evolve.RingEmitter"])
+		self.assertIn("Transform.Storm (10 builds) | 1.10 | Transform.Tide (10 builds) | 1.40 |", rows["Evolve.RingEmitter"])
+		self.assertTrue(any(line.startswith("| RF-b1-none_s101 | 0 | 0.000 |") for line in lines), "every scene's kills against the ceiling")
 		self.assertIn("under", rows["Transform.Storm"])
 		self.assertIn(probe.FIELD_SENTENCE, lines)
-		self.assertEqual(lines[-1], "REFORGE: 2 card(s) read, 1 in band, 1 under, 0 over; 0 not read (fewer than 10 builds); printed, judged nowhere")
+		self.assertEqual(lines[-1], "REFORGE: 3 card(s) read, 2 in band, 1 under, 0 over; 0 not read (fewer than 10 builds); printed, judged nowhere")
 		self.assertTrue(lines[-2].startswith("CEILING: under"), lines[-2])
 
 	def test_fewer_than_ten_builds_is_not_read(self):
 		lines = self.read(9, 2.0, 1.4)
 		self.assertTrue(any("| Evolve.RingEmitter | 9 | 2.00 |" in line and "NOT READ" in line for line in lines), lines)
-		self.assertEqual(lines[-1], "REFORGE: 0 card(s) read, 0 in band, 0 under, 0 over; 2 not read (fewer than 10 builds); printed, judged nowhere")
+		self.assertEqual(lines[-1], "REFORGE: 0 card(s) read, 0 in band, 0 under, 0 over; 3 not read (fewer than 10 builds); printed, judged nowhere")
 
 	def test_a_scene_at_the_ceiling_saturates_the_stage(self):
 		lines = self.read(10, 1.5, 1.5, kills=probe.REFILL_CEILING_KILLS)

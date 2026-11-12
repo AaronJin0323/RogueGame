@@ -274,7 +274,7 @@ def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
 	hp = field_hp(consts, mult)
-	jobs, index = [], []
+	by_card, index = {}, []
 	path_only = {os.path.abspath(f) for root in path_roots for f in glob.glob(os.path.join(root, "*_s*"))}
 	for count, folder, build in reforge_builds(list(builds_roots) + list(path_roots), max_build):
 		patron, second, blessings, weapons = build
@@ -287,7 +287,10 @@ def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None
 				f.write(scene(patron, second, blessings, weapons, FIELD, hp, ABLATE_WARMUP_S, ABLATE_WINDOW_S)
 					+ (f"reforge {card}\n" if card != REFORGE_NONE else ""))
 			for seed in range(1, seeds + 1):
-				jobs.append([tag, count * 100 + seed, os.path.abspath(script)])
+				# a build's cards share its seed, so they are listed card by card, as ablation's configurations are: two runs of one
+				# seed then start minutes apart and their telemetry names never collide
+				by_card.setdefault(card if card in (REFORGE_NONE, f"Transform.{patron}") else ("second" if card.startswith("Transform.") else card), []).append(
+					[tag, count * 100 + seed, os.path.abspath(script)])
 		index.append([f"b{count}", os.path.abspath(folder), patron, second or "", ";".join(picks[1:])])
 	with open(os.path.join(out_dir, "builds.csv"), "w", encoding="utf-8", newline="") as f:
 		w = csv.writer(f)
@@ -295,7 +298,7 @@ def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None
 		w.writerows(index)
 	with open(os.path.join(out_dir, "hp_mult.txt"), "w", encoding="utf-8") as f:
 		f.write(f"{mult:g}\n")
-	write_jobs(out_dir, jobs)
+	write_jobs(out_dir, [job for card in by_card for job in by_card[card]])
 
 
 def read_run(folder):
@@ -532,11 +535,11 @@ def read_reforge(root, lines):
 	need = REFORGE_MIN_BUILDS
 	runs = read_all(root)
 	lifts = reforge_lifts(runs)
-	patrons = {}
+	keepers = {}
 	builds_csv = os.path.join(os.path.dirname(root.rstrip("\\/")), "builds.csv")
 	if os.path.exists(builds_csv):
 		with open(builds_csv, encoding="utf-8", newline="") as f:
-			patrons = {r["build"]: r["patron"] for r in csv.DictReader(f)}
+			keepers = {r["build"]: (r["patron"], r["second"]) for r in csv.DictReader(f)}
 	most, most_at, every = 0, "-", []
 	for folder in sorted(glob.glob(os.path.join(root, "RF-*_s*"))):
 		kills = read_kills(folder)
@@ -553,7 +556,8 @@ def read_reforge(root, lines):
 		return None
 	lines += ["", f"## Reforging band on the probe's field (lift = window damage with the card / without it; band {low}-{high}; "
 		f"a card on fewer than {need} builds is not read)", "", FIELD_SENTENCE, "",
-		"| Card | Builds | Median lift | Lowest | Highest | Band | The Patron's card on the same builds | Its median |", "|---|---|---|---|---|---|---|---|"]
+		"| Card | Builds | Median lift | Lowest | Highest | Band | The Patron's card on the same builds | Its median | The second Keeper's card on the same builds | Its median |",
+		"|---|---|---|---|---|---|---|---|---|---|"]
 	read = inband = under = over = 0
 	for card in sorted(lifts, key=lambda c: (not c.startswith("Transform."), c)):
 		per = lifts[card]
@@ -568,18 +572,24 @@ def read_reforge(root, lines):
 		else:
 			verdict, inband = "in band", inband + 1
 		read += n >= need
-		beside, beside_med = "-", "-"
-		if card.startswith("Evolve."):
-			paired = {}
-			for build in per:
-				path_card = f"Transform.{patrons[build]}" if build in patrons else None
-				if path_card and build in lifts.get(path_card, {}):
-					paired[build] = lifts[path_card][build]
-			if paired:
-				cards = sorted({f"Transform.{patrons[b]}" for b in paired})
-				beside, beside_med = f"{'/'.join(cards)} ({len(paired)} builds)", f"{statistics.median(paired.values()):.2f}"
-		lines.append(f"| {card} | {n} | {med:.2f} | {min(per.values()):.2f} | {max(per.values()):.2f} | {verdict} | {beside} | {beside_med} |")
+		beside = []
+		for which in (0, 1):  # the hand offers both Keepers' transformations beside an evolution: each on the same builds
+			cell, cell_med = "-", "-"
+			if card.startswith("Evolve."):
+				paired = {}
+				for build in per:
+					keeper = keepers.get(build, ("", ""))[which]
+					if keeper and build in lifts.get(f"Transform.{keeper}", {}):
+						paired[build] = (f"Transform.{keeper}", lifts[f"Transform.{keeper}"][build])
+				if paired:
+					names = sorted({name for name, _ in paired.values()})
+					cell, cell_med = f"{'/'.join(names)} ({len(paired)} builds)", f"{statistics.median(v for _, v in paired.values()):.2f}"
+			beside += [cell, cell_med]
+		lines.append(f"| {card} | {n} | {med:.2f} | {min(per.values()):.2f} | {max(per.values()):.2f} | {verdict} | {' | '.join(beside)} |")
 	saturated = most >= REFILL_CEILING_KILLS
+	lines += ["", f"### Every scene's kills in its window, against the refill's ceiling of {REFILL_CEILING_KILLS} (also <dir>/kills.csv)", "",
+		"| Scene | Kills | Of the ceiling |", "|---|---|---|"]
+	lines += [f"| {scene} | {kills} | {share} |" for scene, kills, share in every]
 	lines.append("")
 	lines.append(f"CEILING: {'SATURATED' if saturated else 'under'} (most kills in one scene's window {most} of the refill's ceiling "
 		f"{REFILL_CEILING_KILLS}, {100.0 * most / REFILL_CEILING_KILLS:.0f} %, {most_at})")
