@@ -661,7 +661,7 @@ void FDTTelemetryCore::WriteIntervalRecords(int32 Player)
 		JsonlOut += FDTTelJson(JsonHead(TEXT("status"), Player)).Raw(TEXT("applied"), Applied.Close()).Line();
 	}
 
-	// weapon{source, level, load_rank, spawned, throttled, hits, damage} per owned weapon (weapons.md), by source name.
+	// weapon{source, level, load_rank, spawned, throttled, hits, damage, strike_hits, strike_damage} per owned weapon (weapons.md), by source name.
 	TArray<uint16> Sources;
 	P.Weapons.GetKeys(Sources);
 	Sources.Sort([](uint16 A, uint16 B) { return FDTTelemetrySources::GetName(A) < FDTTelemetrySources::GetName(B); });
@@ -672,6 +672,7 @@ void FDTTelemetryCore::WriteIntervalRecords(int32 Player)
 		JsonlOut += FDTTelJson(JsonHead(TEXT("weapon"), Player)).Str(TEXT("source"), FDTTelemetrySources::GetName(Source))
 			.Int(TEXT("level"), Weapon.Level).Int(TEXT("load_rank"), Weapon.LoadRank).Int(TEXT("spawned"), Weapon.Spawned)
 			.Int(TEXT("throttled"), Weapon.Throttled).Int(TEXT("hits"), Totals ? Totals->Hits : 0).Int(TEXT("damage"), Totals ? Totals->Damage : 0)
+			.Int(TEXT("strike_hits"), Totals ? Totals->StrikeHits : 0).Int(TEXT("strike_damage"), Totals ? Totals->StrikeDamage : 0)
 			.Line();
 	}
 

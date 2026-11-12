@@ -63,6 +63,10 @@ bool FDTProbeScript::Parse(const FString& Text, FString& OutError)
 		{
 			CastDashS = FCString::Atof(*Words[1]);
 		}
+		else if (Key == TEXT("reforge") && bOneArg && Reforge.IsNone())
+		{
+			Reforge = FName(*Words[1]); // D-082: one Reforging card of reforging.csv, applied as the pick applies it
+		}
 		else
 		{
 			OutError = FString::Printf(TEXT("bad line: %s"), *Raw);
@@ -96,6 +100,10 @@ FString FDTProbeScript::ToText() const
 			Out += TEXT(" ") + Mod.ToString();
 		}
 		Out += TEXT("\n");
+	}
+	if (!Reforge.IsNone())
+	{
+		Out += FString::Printf(TEXT("reforge %s\n"), *Reforge.ToString());
 	}
 	return Out;
 }

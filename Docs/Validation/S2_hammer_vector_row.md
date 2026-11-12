@@ -39,7 +39,7 @@ Cast and plain are the scene's window damage, mean of 2 seeds. The marginal is c
 | Keeper.Forge damage | 125 502 | 84 394 | 122 577 |
 | Keeper.Forge hits | 4 472 | 3 470 | 4 292 |
 | Arc Blade damage | 11 955 | 17 563 | 23 478 |
-| Kills in the window | 22.0 | 34.0 | 28.0 |
+| `kill` records in the window (steps with a kill, not kills) | 22.0 | 34.0 | 28.0 |
 
 Keeper.Forge damage in the cast arm, per 2 s of the window (the cast is at 8 s):
 

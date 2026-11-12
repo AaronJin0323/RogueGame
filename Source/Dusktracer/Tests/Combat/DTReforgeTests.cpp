@@ -1678,4 +1678,119 @@ bool FDTBotCardCarry::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTBotDeclineReforge, "Dusktracer.Bot.DeclineReforge", DTWeaponTestHarness::TestFlags) // T-BOT-20
+bool FDTBotDeclineReforge::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	const FName Rifle(TEXT("Weapon.PulseRifle"));
+	const FName Blade(TEXT("Weapon.ArcBlade"));
+	FDTHarness H;
+	Commit(H, TEXT("Weapon.PulseRifle"), 1);
+	H.Weapons.Give(H.Run, 0, Blade, 1);
+	FDTPlayerRunState& Player = H.Run.GetPlayer(0);
+	const auto Make = [](EDTCardKind Kind, FName Id, FName Target)
+	{
+		FDTOfferCard Card;
+		Card.Kind = Kind;
+		Card.ContentId = Id;
+		Card.TargetWeapon = Target;
+		return Card;
+	};
+	FDTOfferHand Level;
+	Level.HandKind = EDTHandKind::Level;
+	Level.Cards = { Make(EDTCardKind::Blessing, FName(TEXT("Blessing.Storm.Tempest.Key")), NAME_None), Make(EDTCardKind::WeaponUpgrade, Rifle, Rifle),
+		Make(EDTCardKind::WeaponUpgrade, Blade, Blade) };
+	FDTOfferHand Forge;
+	Forge.HandKind = EDTHandKind::Reforging;
+	Forge.Cards = { Make(EDTCardKind::Reforging, FName(TEXT("Transform.Storm")), NAME_None), Make(EDTCardKind::Reforging, FName(TEXT("Transform.Tide")), NAME_None),
+		Make(EDTCardKind::Reforging, FName(TEXT("Evolve.ArcBlade")), Blade) };
+
+	for (const bool bCarry : { false, true })
+	{
+		FDTBotConfig Config;
+		Config.Policy = EDTBotPolicy::Steered;
+		Config.Version = 2;
+		Config.Path = EDTPath::Storm;
+		Config.Archetype = FName(TEXT("Tempest"));
+		Config.Seed = 7;
+		Config.CarryWeapon = bCarry ? Blade : NAME_None;
+		Config.bCarryHold = bCarry;
+		FDTBotBrain Off;
+		Off.Reset(Config);
+		const int32 LevelOff = Off.ChooseCard(Level, Player);
+		const int32 ForgeOff = Off.ChooseCard(Forge, Player);
+		Config.bDeclineReforge = true;
+		FDTBotBrain On;
+		On.Reset(Config);
+		const FString With = bCarry ? TEXT(" (with the carry arm's hold)") : TEXT("");
+		TestTrue(TEXT("off, the Reforging hand takes a card") + With, ForgeOff != INDEX_NONE);
+		TestEqual(TEXT("on, the Reforging hand is declined") + With, On.ChooseCard(Forge, Player), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and no other hand is") + With, On.ChooseCard(Level, Player), LevelOff);
+		TestTrue(TEXT("config names it") + With, Config.Describe().Contains(TEXT(" decline_reforge=1")));
+		FDTBotConfig V1 = Config;
+		V1.Version = 1;
+		FDTBotBrain Old;
+		Old.Reset(V1);
+		TestTrue(TEXT("bot v1 is not reached") + With, Old.ChooseCard(Forge, Player) != INDEX_NONE);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeStrikeMarks, "Dusktracer.Reforging.StrikeMarks", DTWeaponTestHarness::TestFlags) // T-WPN-20, D-082 item 9
+bool FDTReforgeStrikeMarks::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// The hits a marked strike makes carry bStrike, which telemetry counts as strike_hits and strike_damage: a Pulse Wall's ring strikes and a
+	// Blade Halo's blade strikes do; the rounds and bolts beside them, and a plain weapon, do not.
+	const auto Count = [](FDTHarness& H, int32& OutStrikes, int32& OutOthers)
+	{
+		OutStrikes = 0;
+		OutOthers = 0;
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			(Hit.bStrike ? OutStrikes : OutOthers) += 1;
+		}
+	};
+	const auto Crowd = [](FDTHarness& H, float Radius)
+	{
+		for (int32 Index = 0; Index < 24; ++Index)
+		{
+			H.AddEnemy(FVector2f(Radius, 0.0f).GetRotated(15.0f * static_cast<float>(Index)));
+		}
+	};
+	int32 Strikes = 0, Others = 0;
+	{
+		FDTHarness H;
+		GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+		Crowd(H, 200.0f);
+		RunSteps(H, FMath::RoundToInt(2.0f / Dt));
+		Count(H, Strikes, Others);
+		AddInfo(FString::Printf(TEXT("Pulse Wall: %d strikes, %d other hits"), Strikes, Others));
+		TestTrue(TEXT("the ring's strikes are marked"), Strikes > 0);
+	}
+	{
+		FDTHarness H;
+		const int32 Row = GiveEvolved(H, TEXT("Weapon.OrbitalDrones"));
+		Crowd(H, DTReforge::Param(Row, TEXT("orbit_r_uu")));
+		RunSteps(H, FMath::RoundToInt(2.0f / Dt));
+		Count(H, Strikes, Others);
+		AddInfo(FString::Printf(TEXT("Blade Halo: %d strikes, %d other hits"), Strikes, Others));
+		TestTrue(TEXT("the blades' strikes are marked"), Strikes > 0);
+	}
+	{
+		FDTHarness H;
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8, &Slot);
+		Crowd(H, 200.0f);
+		RunSteps(H, FMath::RoundToInt(2.0f / Dt));
+		Count(H, Strikes, Others);
+		AddInfo(FString::Printf(TEXT("plain Ring Emitter: %d strikes, %d other hits"), Strikes, Others));
+		TestTrue(TEXT("the plain weapon hits"), Others > 0);
+		TestEqual(TEXT("and marks nothing"), Strikes, 0);
+	}
+	return true;
+}
+
 #endif

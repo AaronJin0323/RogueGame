@@ -213,6 +213,10 @@ FString FDTBotConfig::Describe() const
 	{
 		Text += FString::Printf(TEXT(" second_archetype=%s"), *SecondArchetype.ToString());
 	}
+	if (bDeclineReforge)
+	{
+		Text += TEXT(" decline_reforge=1");
+	}
 	if (Pick != EDTBotPick::All)
 	{
 		Text += TEXT(" pick=BlessingsOnly");
@@ -999,6 +1003,11 @@ int32 FDTBotBrain::ChooseCard(const FDTOfferHand& Hand, const FDTPlayerRunState&
 		break;
 	case EDTBotPolicy::Steered:
 	{
+		if (Config.bDeclineReforge && Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging)
+		{
+			Slot = INDEX_NONE; // R-BOT-20: the hand is closed with no pick (UDTOfferSubsystem::Decline)
+			break;
+		}
 		const int32 Carry = Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? CarryPick(Hand) : INDEX_NONE;
 		const int32 Reforge = Carry != INDEX_NONE ? Carry : (Config.Version >= 2 && Hand.HandKind == EDTHandKind::Reforging ? ReforgePick(Hand, Config.Seed) : INDEX_NONE);
 		if (Reforge != INDEX_NONE)

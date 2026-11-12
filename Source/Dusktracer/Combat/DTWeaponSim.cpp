@@ -2003,6 +2003,7 @@ void FDTWeaponSim::StrikeBlades(const FDTSimContext& Context, int32 OwnerId, int
 	const float Ring = BladeOrbit(Players[OwnerId], Runtime);
 	const float Contact = DTReforge::Param(Row, TEXT("contact_r_uu"));
 	const int32 First = Impacts.Num();
+	const int32 FirstHit = Context.View->Hits.Num();
 	for (int32 Blade = 0; Blade < Blades; ++Blade)
 	{
 		const float Angle = Runtime.BladeAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
@@ -2012,6 +2013,10 @@ void FDTWeaponSim::StrikeBlades(const FDTSimContext& Context, int32 OwnerId, int
 	{
 		// D-079 item 3: what the Pulse Wall's ring strike carries, the Patron's status and nothing a modifier places or moves.
 		Impacts[Index].bRingStrike = true;
+	}
+	for (int32 Index = FirstHit; Index < Context.View->Hits.Num(); ++Index)
+	{
+		Context.View->Hits[Index].bStrike = true; // telemetry's strike_hits and strike_damage (D-082 item 9)
 	}
 }
 
@@ -2082,6 +2087,7 @@ void FDTWeaponSim::AddFieldHit(FDTWorldView& View, const FField& Field, FWeaponR
 	Hit.Position = View.EnemyPositions[Enemy];
 	Hit.SourceId = SourceId;
 	Hit.WeaponSlot = Field.Slot;
+	Hit.bStrike = true; // telemetry's strike_hits and strike_damage (D-082 item 9)
 	AddHitImpact(View, Hit, Field.Slot, Runtime, Field.Position, Field.Position, Hit.Damage, false);
 	Impacts.Last().bRingStrike = true; // D-074: the ring's own push is this strike's one displacement
 }

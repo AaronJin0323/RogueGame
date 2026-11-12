@@ -123,11 +123,12 @@ The column is the S1 design reason (D-002) and names the S1 Paths only; every we
 - T-WPN-17 `Dusktracer.Arsenal.SeekerSwarm`: missiles reach enemies off their launch bearing, spread over the living, same seed same hits; a dead target is replaced.
 - T-WPN-18 `Dusktracer.Arsenal.SpiralProjector`: fires with no enemy at the stated rate, each round turned on from the last, one per arm; Echo strikes through its fallback.
 - T-WPN-19 `Dusktracer.Weapons.HammerKeyFallback`: with the real `Blessing.Forge.Hammer.Key`, an Arc Blade at every level sweeps the Key's arc and reach, reaches an enemy past its own reach, deals the card's `{cleave_mult}` on every sweep under the weapon's own source, and Long Haft scales that reach; on Gravity Mine and Orbital Drones the Key moves no number, as R-WPN-08 states (D-053).
+- T-WPN-20 `Dusktracer.Reforging.StrikeMarks` and `Dusktracer.Telemetry.Records.Weapons`: an evolved Ring Emitter's ring strikes and an evolved Orbital Drones' blade strikes mark their hits, and a plain Ring Emitter marks none; a marked hit is counted in the `weapon` record's `hits` and `damage` and again in `strike_hits` and `strike_damage` (D-082).
 - `Dusktracer.Arsenal.Catalog`: ten weapons with full level tracks, a reach and a fit; sixteen modifiers with a fit (T-WPN-01 over the arsenal).
 - HUMAN: a validator can say in their own words what each S1 weapon does, and can see the difference when a Keeper flag changes it (split fans on the Ring Emitter, a cleave from the Pulse Rifle, the mine's pull).
 
 ## Telemetry
-- Per weapon and player, per interval: `weapon{source, level, load_rank, spawned, throttled, hits, damage}` (schema owned by `telemetry.md`; hits and damage already arrive by source through R-TEL-05).
+- Per weapon and player, per interval: `weapon{source, level, load_rank, spawned, throttled, hits, damage, strike_hits, strike_damage}` (schema owned by `telemetry.md`; hits and damage already arrive by source through R-TEL-05). `strike_hits` and `strike_damage` are the part of `hits` and `damage` made by impacts that carry D-074's strike mark: a Pulse Wall ring's strikes and a Blade Halo blade's strikes, apart from the rounds and bolts of the same weapon. They are telemetry only; no sim state reads them (D-081, D-082).
 - `weapon_acquired{source}` and `weapon_level{source, level}` (record `owner` = the player) when the loadout changes through `UDTWeaponSubsystem`: an offer pick, the Patron's starting weapon, a bot or debug loadout. A weapon given above its first level writes both. The subsystem reports emissions and the weapon's level and load rank each step for the `weapon` record.
 
 ## Text

@@ -19,6 +19,7 @@
 #include "Misc/Crc.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
+#include "Offers/DTOfferGenerator.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Player/DTHero.h"
 #include "Player/DTHeroSubsystem.h"
@@ -135,6 +136,7 @@ FDTBotConfig UDTBotSubsystem::ReadConfig() const
 		Config.CarryWeapon = FName(*Text);
 		Config.bCarryHold = FParse::Param(Cmd, TEXT("DTBotCarryHold"));
 	}
+	Config.bDeclineReforge = FParse::Param(Cmd, TEXT("DTBotDeclineReforge")); // R-BOT-20
 	Config.Seed = Sim.IsValid() ? Sim->GetLaunchSeed().Seed : 0;
 	return Config;
 }
@@ -231,6 +233,20 @@ void UDTBotSubsystem::ApplyProbe()
 				UE_LOG(LogDT, Error, TEXT("Bot: probe modifier %s on %s refused (%d)"), *Mod.ToString(), *Weapon.Id.ToString(), static_cast<int32>(Socketed));
 			}
 		}
+	}
+	if (!Probe.Reforge.IsNone())
+	{
+		// D-082: the build's one Reforging card, through the pick's own state path (ApplyPickState; the pick's world step does nothing
+		// for a Reforging card), so a scene reads the card exactly as a run that took it.
+		const int32 Row = DTReforge::FindRow(Probe.Reforge);
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Reforging;
+		Card.ContentId = Probe.Reforge;
+		Card.TargetWeapon = Row != INDEX_NONE && DTCat::Reforges[Row].bEvolve ? FName(DTCat::Reforges[Row].Source) : NAME_None;
+		const FDTPickOutcome Outcome = DTOffers::ApplyPickState(Player, EDTHandKind::Reforging, Card);
+		UE_CLOG(!Outcome.bValid, LogDT, Error, TEXT("Bot: probe reforge %s refused"), *Probe.Reforge.ToString());
+		UE_CLOG(Outcome.bValid, LogDT, Log, TEXT("Bot: probe reforge %s applied%s%s"), *Probe.Reforge.ToString(),
+			Card.TargetWeapon.IsNone() ? TEXT("") : TEXT(" to "), Card.TargetWeapon.IsNone() ? TEXT("") : *Card.TargetWeapon.ToString());
 	}
 	Heroes->SetNoDamage(true); // the probe reads damage dealt; a hero that dies ends the window
 	if (const FDTHeroState* State = Heroes->GetState(0))

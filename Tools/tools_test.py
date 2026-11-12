@@ -968,6 +968,110 @@ class Ablation(unittest.TestCase):
 		self.assertAlmostEqual(probe.share_of(dps | {"no_second": 60.0, "no_second_no_package": 30.0})["control"], 2.0)
 
 
+class ReforgeStage(unittest.TestCase):
+	"""D-082, reforging.md R-RFG-18: the band's scenes, the no-pick scene as T-KEE-18's full configuration, the reader, the ceiling."""
+
+	BUILD = Ablation.BUILD[:3] + ([("Weapon.PulseRifle", 6, ["Mod.A"]), ("Weapon.ArcBlade", 3, []), ("Weapon.RingEmitter", 8, [])],)
+
+	def snapshots(self, root, label, seeds):
+		for seed in seeds:
+			folder = os.path.join(root, f"{label}_s{seed}")
+			os.makedirs(folder)
+			with open(os.path.join(folder, "bot.csv.L16"), "w", encoding="utf-8") as f:
+				f.write(probe.scene(*self.BUILD, 120, 1, 0, 0))
+
+	@staticmethod
+	def jobs(folder):
+		with open(os.path.join(folder, "jobs.csv"), encoding="utf-8") as f:
+			return {row["label"]: (int(row["seed"]), open(row["script"], encoding="utf-8").read()) for row in csv.DictReader(f)}
+
+	def test_cards_of_a_snapshot(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.snapshots(os.path.join(root, "carry"), "Steered-Storm-Tempest-Tide-Carry-RingEmitter", [1])
+			self.snapshots(os.path.join(root, "arms"), "Steered-Storm-Tempest", [1])
+			with contextlib.redirect_stdout(io.StringIO()):
+				probe.gen_reforge(os.path.join(root, "rf"), [os.path.join(root, "carry")], 1, path_roots=[os.path.join(root, "arms")])
+			jobs = self.jobs(os.path.join(root, "rf"))
+		# The Rifle at 6 and the Ring Emitter at 8 can evolve; the Arc Blade at 3 cannot; the showcase arm's snapshot reads the Path cards only.
+		self.assertEqual(sorted(jobs), sorted(["RF-b1-none", "RF-b1-Transform.Storm", "RF-b1-Transform.Tide", "RF-b1-Evolve.PulseRifle", "RF-b1-Evolve.RingEmitter",
+			"RF-b2-none", "RF-b2-Transform.Storm", "RF-b2-Transform.Tide"]))
+		self.assertTrue(jobs["RF-b1-Evolve.RingEmitter"][1].endswith("reforge Evolve.RingEmitter\n"))
+		self.assertNotIn("reforge", jobs["RF-b1-none"][1])
+		self.assertEqual(len({seed for seed, _ in (jobs[k] for k in jobs if k.startswith("RF-b1-"))}), 1, "every card of a build on its seed")
+
+	def test_no_pick_scene_is_t18_full(self):
+		# D-082 item 10: on a showcase arm's snapshots the no-pick scene is T-KEE-18's full configuration, script and seed.
+		with tempfile.TemporaryDirectory() as root:
+			self.snapshots(os.path.join(root, "bots"), "Steered-Storm-Tempest", [1, 2, 3])
+			self.snapshots(os.path.join(root, "bots"), "Steered-Storm-ArcGrid", [1, 2])  # a snapshot's Patron is its arm's
+			with contextlib.redirect_stdout(io.StringIO()):
+				probe.gen_ablation(os.path.join(root, "ab"), os.path.join(root, "bots"), 1)
+				probe.gen_reforge(os.path.join(root, "rf"), [os.path.join(root, "bots")], 1)
+			ab, rf = self.jobs(os.path.join(root, "ab")), self.jobs(os.path.join(root, "rf"))
+		fulls = {k: v for k, v in ab.items() if k.endswith("-full")}
+		nones = {k: v for k, v in rf.items() if k.endswith("-none")}
+		self.assertEqual(len(fulls), 5)
+		self.assertEqual(sorted(fulls.values()), sorted(nones.values()))
+
+	def write_scene(self, runs, label, seed, damage, kills=0):
+		dumps = lambda rec: json.dumps(rec, separators=(",", ":"))  # as the run file writes them
+		folder = os.path.join(runs, f"{label}_s{seed}")
+		os.makedirs(folder)
+		with open(os.path.join(folder, "scene.txt"), "w", encoding="utf-8") as f:
+			f.write("patron Storm\nwarmup_s 8\nwindow_s 10\n")
+		with open(os.path.join(folder, "1.jsonl"), "w", encoding="utf-8") as f:
+			f.write(dumps({"t": 9.0, "kind": "hit", "owner": 0, "damage": damage}) + "\n")
+			if kills:
+				f.write(dumps({"t": 9.5, "kind": "kill", "owner": 0, "kills": kills}) + "\n")
+			f.write(dumps({"t": 30.0, "kind": "hit", "owner": 0, "damage": 99999.0}) + "\n")  # past the window: not counted
+			f.write(dumps({"t": 18.0, "kind": "run_end"}) + "\n")
+
+	def read(self, builds, evolve_lift, path_lift, kills=0):
+		lines = []
+		with tempfile.TemporaryDirectory() as root:
+			runs = os.path.join(root, "runs")
+			with open(os.path.join(root, "builds.csv"), "w", encoding="utf-8", newline="") as f:
+				w = csv.writer(f)
+				w.writerow(["build", "folder", "patron", "second", "cards"])
+				w.writerows([[f"b{b}", "x", "Storm", "", ""] for b in range(1, builds + 1)])
+			for b in range(1, builds + 1):
+				self.write_scene(runs, f"RF-b{b}-none", b * 100 + 1, 1000.0, kills)
+				self.write_scene(runs, f"RF-b{b}-Evolve.RingEmitter", b * 100 + 1, 1000.0 * evolve_lift)
+				self.write_scene(runs, f"RF-b{b}-Transform.Storm", b * 100 + 1, 1000.0 * path_lift)
+			probe.read_reforge(runs, lines)
+		return lines
+
+	def test_the_reader(self):
+		lines = self.read(10, 1.5, 1.1)
+		rows = {line.split(" | ")[0].lstrip("| "): line for line in lines if line.startswith("| Evolve.") or line.startswith("| Transform.")}
+		self.assertIn("| 10 | 1.50 |", rows["Evolve.RingEmitter"])
+		self.assertIn("in band", rows["Evolve.RingEmitter"])
+		self.assertIn("Transform.Storm (10 builds) | 1.10 |", rows["Evolve.RingEmitter"])
+		self.assertIn("under", rows["Transform.Storm"])
+		self.assertIn(probe.FIELD_SENTENCE, lines)
+		self.assertEqual(lines[-1], "REFORGE: 2 card(s) read, 1 in band, 1 under, 0 over; 0 not read (fewer than 10 builds); printed, judged nowhere")
+		self.assertTrue(lines[-2].startswith("CEILING: under"), lines[-2])
+
+	def test_fewer_than_ten_builds_is_not_read(self):
+		lines = self.read(9, 2.0, 1.4)
+		self.assertTrue(any("| Evolve.RingEmitter | 9 | 2.00 |" in line and "NOT READ" in line for line in lines), lines)
+		self.assertEqual(lines[-1], "REFORGE: 0 card(s) read, 0 in band, 0 under, 0 over; 2 not read (fewer than 10 builds); printed, judged nowhere")
+
+	def test_a_scene_at_the_ceiling_saturates_the_stage(self):
+		lines = self.read(10, 1.5, 1.5, kills=probe.REFILL_CEILING_KILLS)
+		self.assertTrue(lines[-2].startswith(f"CEILING: SATURATED (most kills in one scene's window {probe.REFILL_CEILING_KILLS} of"), lines[-2])
+
+	def test_s2exit_band_step(self):
+		with open(os.path.join(TOOLS, "S2Exit.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertIn("[switch]$NoBand", text)
+		band = [line.strip() for line in text.splitlines() if line.strip().startswith("Invoke-BotRuns (") and "$CarryArgs" in line]
+		self.assertEqual(len(band), 3, band)
+		self.assertTrue(any('"-CarryHold"' in c for c in band) and any('"-DeclineReforge"' in c for c in band), band)
+		self.assertIn("& python -I $Probe reforge $Rf --builds (Join-Path $Band \"carry\") --path-builds", text)
+		self.assertRegex(text, r'\$BandArm = "Steered:Storm:Tempest:Tide"')
+
+
 class KeeperLoss(unittest.TestCase):
 	"""T-KEE-18 judges loss (D-047). The fixture is a multiplying Keeper: its weapon groups drop with it, so its share reads
 	0.37 while removing its blessings costs 0.70 of the build's DPS."""

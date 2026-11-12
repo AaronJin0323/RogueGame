@@ -3,6 +3,7 @@
 Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5] [--stage S1|S2|all]            writes the T-KEE-15 scenes and <dir>/jobs.csv
         python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1] [--stage S1|S2|all] [--max-build <seed>]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
         & Tools\\BotRuns.ps1 -Jobs <dir>\\jobs.csv -Parallel 14 -Out <dir>\\runs   runs them headless
+        python -I Tools/probe.py reforge <dir> --builds <runs>[,<runs>...] [--path-builds <runs>[,...]] [--seeds 1] [--hp-mult 40] [--max-build <seed>]  writes the Reforging band's scenes (D-082)
         python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
 
 A scene (Source/Dusktracer/Bot/DTProbeScript.h) is a build, a refilled swarm field and a window: the hero takes no damage and
@@ -26,7 +27,16 @@ the arms; every arm's gain inside its band. A run folder from before the control
 --stage picks the primaries (expression.csv Stage; default S1, the S1 commands read as they did): S2 is Shade, Radiance and
 Quicksilver as primaries, with every R-KEE-16 layer of all six Keepers.
 
-Prints T-KEE-15: PASS|FAIL (...) and T-KEE-18: PASS|FAIL (...); with --check exit 1 on FAIL or no reading, else 0.
+The Reforging band (D-082, reforging.md R-RFG-18): each level 16 snapshot is read on ablation's field and window with no pick and with
+each card its hand can hold (the Patron's and the second Keeper's transformations, the evolution of each weapon at
+C.OFFER.REFORGE_EVOLVE_MIN_LEVEL). A card's lift on a build is its window damage over the no-pick scene's, same seed; the card reads
+the median over its builds against C.REFORGE.POWER_MIN..MAX, NOT READ on fewer than REFORGE_MIN_BUILDS builds, and each evolution
+prints the Patron's transformation on the same builds beside it. Every scene's kills are written to <dir>/kills.csv against the
+refill's ceiling (REFILL_CEILING_KILLS); a scene at it marks the stage SATURATED. The no-pick scene of a showcase arm's snapshot is
+T-KEE-18's full configuration, script and seed. Printed only.
+
+Prints T-KEE-15: PASS|FAIL (...) and T-KEE-18: PASS|FAIL (...); with --check exit 1 on FAIL or no reading, else 0. REFORGE: and CEILING:
+lines are printed and never judged.
 """
 
 import csv
@@ -41,6 +51,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dtconst  # noqa: E402
 
 EXPRESSION = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "expression.csv")
+REFORGING = os.path.join(dtconst.ROOT, "Docs", "09_Catalog", "reforging.csv")
 
 FIELD = 120
 FIELD_HP_MULT = 40.0  # at the Handoff's 10x a level 16 build still reaches the refill's kill ceiling (S1_keeper_power.md §3)
@@ -67,6 +78,13 @@ PICK = re.compile(r"Offer p0: picked slot \d+ Keeper\.(\w+)")
 CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra")
 CONTROL = ("no_second", "no_second_no_package")  # the package gain again, the second Keeper's cards off both sides
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")
+REFORGE_NONE = "none"  # the reforge stage's scene with no Reforging pick: the band's denominator (D-082 item 1)
+# The refill's ceiling (S1_keeper_power.md §3): at 10x HP the strong arms killed 160 to 176 in a 10 s window and their numbers
+# pressed together; a scene whose kills reach the low end of that range may be reading the refill, not the build (D-082 item 2).
+REFILL_CEILING_KILLS = 160
+REFORGE_MIN_BUILDS = 10  # D-082 item 10: a card read on fewer builds than this is NOT READ
+FIELD_SENTENCE = ("The field reads power when the weapon is used: the probe's hero takes no damage and walks inside the crowd, so a "
+	"contact weapon reads at its best here; whether a build survives using it is the play arms' (D-082 item 7).")
 
 
 def read_archetypes(path=EXPRESSION, stage="S1"):
@@ -212,6 +230,72 @@ def gen_ablation(out_dir, builds_root, seeds, mult=FIELD_HP_MULT, stage="S1", ma
 				for seed in range(1, seeds + 1):
 					by_config[config].append([tag, count * 100 + seed, os.path.abspath(script)])
 	write_jobs(out_dir, [job for config in CONFIGS + CONTROL for job in by_config[config]])
+
+
+def evolvable(weapons, consts):
+	"""The evolution rows of the snapshot's weapons at C.OFFER.REFORGE_EVOLVE_MIN_LEVEL or more, in slot order."""
+	rows = {r["source"]: r["id"] for r in read_reforges() if r["kind"] == "Evolve"}
+	need = consts["OFFER.REFORGE_EVOLVE_MIN_LEVEL"]["value"]
+	return [rows[w] for w, lvl, _ in weapons if lvl >= need and w in rows]
+
+
+def read_reforges(path=REFORGING):
+	with open(path, encoding="utf-8", newline="") as f:
+		return [row for row in csv.DictReader(f) if row.get("id") and not row["id"].startswith("#")]
+
+
+def reforge_builds(builds_roots, max_build=None):
+	"""[(count, source folder, build)] of every bot.csv.L16 snapshot under the roots. The showcase arms' folders come first, in
+	ablation's order and with its count, so a no-pick scene of one is T-KEE-18's full configuration to the seed (D-082 item 10)."""
+	order = list(SHOWCASE) + list(SHOWCASE_S2)
+	out, count, seen = [], 0, set()
+	for root in builds_roots:
+		folders = sorted(glob.glob(os.path.join(root, "*_s*")))
+		ranked = [f for label in order for f in folders if os.path.basename(f).rsplit("_s", 1)[0] == label]
+		ranked += [f for f in folders if f not in ranked]
+		for folder in ranked:
+			snap = os.path.join(folder, "bot.csv.L16")
+			if not os.path.exists(snap) or folder in seen:
+				continue
+			seen.add(folder)
+			if max_build is not None and int(folder.rsplit("_s", 1)[1]) > max_build:
+				continue
+			with open(snap, encoding="utf-8") as f:
+				build = parse_build(f.read())
+			count += 1
+			out.append((count, folder, build))
+	return out
+
+
+def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None, path_roots=()):
+	"""D-082: per level 16 snapshot, on ablation's field and window, one scene with no pick and one per Reforging card the hand
+	can hold: the Patron's transformation, the second Keeper's, and the evolution of each weapon at the evolution level. The snapshots of
+	path_roots (the showcase arms' folders at the exit) read the two transformations only."""
+	consts = dtconst.load()
+	os.makedirs(out_dir, exist_ok=True)
+	hp = field_hp(consts, mult)
+	jobs, index = [], []
+	path_only = {os.path.abspath(f) for root in path_roots for f in glob.glob(os.path.join(root, "*_s*"))}
+	for count, folder, build in reforge_builds(list(builds_roots) + list(path_roots), max_build):
+		patron, second, blessings, weapons = build
+		evolutions = [] if os.path.abspath(folder) in path_only else evolvable(weapons, consts)
+		picks = [REFORGE_NONE, f"Transform.{patron}"] + ([f"Transform.{second}"] if second else []) + evolutions
+		for card in picks:
+			tag = f"RF-b{count}-{card}"
+			script = os.path.join(out_dir, tag + ".txt")
+			with open(script, "w", encoding="utf-8", newline="\n") as f:
+				f.write(scene(patron, second, blessings, weapons, FIELD, hp, ABLATE_WARMUP_S, ABLATE_WINDOW_S)
+					+ (f"reforge {card}\n" if card != REFORGE_NONE else ""))
+			for seed in range(1, seeds + 1):
+				jobs.append([tag, count * 100 + seed, os.path.abspath(script)])
+		index.append([f"b{count}", os.path.abspath(folder), patron, second or "", ";".join(picks[1:])])
+	with open(os.path.join(out_dir, "builds.csv"), "w", encoding="utf-8", newline="") as f:
+		w = csv.writer(f)
+		w.writerow(["build", "folder", "patron", "second", "cards"])
+		w.writerows(index)
+	with open(os.path.join(out_dir, "hp_mult.txt"), "w", encoding="utf-8") as f:
+		f.write(f"{mult:g}\n")
+	write_jobs(out_dir, jobs)
 
 
 def read_run(folder):
@@ -393,6 +477,117 @@ def read_ablation(root, lines):
 	return ok
 
 
+def read_kills(folder):
+	"""Kills inside the scene's window (the `kill` records' `kills`, owner 0), or None without telemetry."""
+	jsonls = glob.glob(os.path.join(folder, "*.jsonl"))
+	if not jsonls:
+		return None
+	lo = hi = None
+	with open(os.path.join(folder, "scene.txt"), encoding="utf-8") as f:
+		for line in f:
+			words = line.split()
+			if words and words[0] == "warmup_s":
+				lo = float(words[1])
+			elif words and words[0] == "window_s":
+				hi = float(words[1])
+	hi += lo
+	kills = 0
+	with open(jsonls[0], encoding="utf-8") as f:
+		for line in f:
+			if '"kind":"kill"' in line:
+				rec = json.loads(line)
+				if rec["owner"] == 0 and lo <= rec["t"] < hi:
+					kills += int(rec.get("kills", 1))
+	return kills
+
+
+def reforge_lifts(runs):
+	"""{card: {build: lift}} from {label: {seed: (damage, ...)}}: the card's window damage over the same build's no-pick damage,
+	seed by seed, the mean over seeds."""
+	scenes = {}
+	for label, seeds in runs.items():
+		if not label.startswith("RF-"):
+			continue
+		build, _, card = label[3:].partition("-")
+		scenes.setdefault(build, {})[card] = seeds
+	out = {}
+	for build, cards in scenes.items():
+		base = cards.get(REFORGE_NONE)
+		if not base:
+			continue
+		for card, seeds in cards.items():
+			if card == REFORGE_NONE:
+				continue
+			ratios = [seeds[s][0] / base[s][0] for s in seeds if s in base and base[s][0] > 0]
+			if ratios:
+				out.setdefault(card, {})[build] = statistics.mean(ratios)
+	return out
+
+
+def read_reforge(root, lines):
+	"""D-082: per card, the median lift over its builds against REFORGE.POWER_MIN..MAX; each evolution beside its builds' own Patron
+	transformation; how near each scene's kills come to the refill's ceiling. Printed only: it judges nothing and sets no exit code."""
+	consts = dtconst.load()
+	low, high = consts["REFORGE.POWER_MIN"]["value"], consts["REFORGE.POWER_MAX"]["value"]
+	need = REFORGE_MIN_BUILDS
+	runs = read_all(root)
+	lifts = reforge_lifts(runs)
+	patrons = {}
+	builds_csv = os.path.join(os.path.dirname(root.rstrip("\\/")), "builds.csv")
+	if os.path.exists(builds_csv):
+		with open(builds_csv, encoding="utf-8", newline="") as f:
+			patrons = {r["build"]: r["patron"] for r in csv.DictReader(f)}
+	most, most_at, every = 0, "-", []
+	for folder in sorted(glob.glob(os.path.join(root, "RF-*_s*"))):
+		kills = read_kills(folder)
+		if kills is not None:
+			every.append([os.path.basename(folder), kills, f"{kills / REFILL_CEILING_KILLS:.3f}"])
+			if kills > most:
+				most, most_at = kills, os.path.basename(folder)
+	with open(os.path.join(os.path.dirname(root.rstrip("\\/")), "kills.csv"), "w", encoding="utf-8", newline="") as f:
+		w = csv.writer(f)
+		w.writerow(["scene", "kills_in_window", "of_ceiling"])
+		w.writerows(every)
+	if not lifts:
+		lines.append("REFORGE: n/a (no card with a no-pick scene beside it)")
+		return None
+	lines += ["", f"## Reforging band on the probe's field (lift = window damage with the card / without it; band {low}-{high}; "
+		f"a card on fewer than {need} builds is not read)", "", FIELD_SENTENCE, "",
+		"| Card | Builds | Median lift | Lowest | Highest | Band | The Patron's card on the same builds | Its median |", "|---|---|---|---|---|---|---|---|"]
+	read = inband = under = over = 0
+	for card in sorted(lifts, key=lambda c: (not c.startswith("Transform."), c)):
+		per = lifts[card]
+		n = len(per)
+		med = statistics.median(per.values())
+		if n < need:
+			verdict = "NOT READ"
+		elif med < low:
+			verdict, under = "under", under + 1
+		elif med > high:
+			verdict, over = "over", over + 1
+		else:
+			verdict, inband = "in band", inband + 1
+		read += n >= need
+		beside, beside_med = "-", "-"
+		if card.startswith("Evolve."):
+			paired = {}
+			for build in per:
+				path_card = f"Transform.{patrons[build]}" if build in patrons else None
+				if path_card and build in lifts.get(path_card, {}):
+					paired[build] = lifts[path_card][build]
+			if paired:
+				cards = sorted({f"Transform.{patrons[b]}" for b in paired})
+				beside, beside_med = f"{'/'.join(cards)} ({len(paired)} builds)", f"{statistics.median(paired.values()):.2f}"
+		lines.append(f"| {card} | {n} | {med:.2f} | {min(per.values()):.2f} | {max(per.values()):.2f} | {verdict} | {beside} | {beside_med} |")
+	saturated = most >= REFILL_CEILING_KILLS
+	lines.append("")
+	lines.append(f"CEILING: {'SATURATED' if saturated else 'under'} (most kills in one scene's window {most} of the refill's ceiling "
+		f"{REFILL_CEILING_KILLS}, {100.0 * most / REFILL_CEILING_KILLS:.0f} %, {most_at})")
+	lines.append(f"REFORGE: {read} card(s) read, {inband} in band, {under} under, {over} over; {len(lifts) - read} not read "
+		f"(fewer than {need} builds); printed, judged nowhere")
+	return None
+
+
 def main(argv):
 	if len(argv) < 3:
 		print(__doc__)
@@ -403,6 +598,11 @@ def main(argv):
 	stage = argv[argv.index("--stage") + 1] if "--stage" in argv else "S1"
 	if command == "intercession":
 		gen_intercession(target, seeds or 5, mult, stage)
+		return 0
+	if command == "reforge":
+		max_build = int(argv[argv.index("--max-build") + 1]) if "--max-build" in argv else None
+		paths = argv[argv.index("--path-builds") + 1].split(",") if "--path-builds" in argv else []
+		gen_reforge(target, argv[argv.index("--builds") + 1].split(",") if "--builds" in argv else [], seeds or 1, mult, max_build, paths)
 		return 0
 	if command == "ablation":
 		max_build = int(argv[argv.index("--max-build") + 1]) if "--max-build" in argv else None
@@ -415,6 +615,8 @@ def main(argv):
 	lines = [f"# Probe readings, {target}"]
 	results = [r for r in (read_intercession(runs, lines) if glob.glob(os.path.join(runs, "IK-*")) else None,
 		read_ablation(runs, lines) if glob.glob(os.path.join(runs, "AB-*")) else None) if r is not None]
+	if glob.glob(os.path.join(runs, "RF-*")):
+		read_reforge(runs, lines)  # printed only: it sets no exit code (D-082)
 	with open(os.path.join(target, "probe.md"), "w", encoding="utf-8") as f:
 		f.write("\n".join(lines) + "\n")
 	print("\n".join(lines))

@@ -89,6 +89,9 @@ struct FDTHit
 	bool bFieldTick = false;
 	/** Made by a payday's round, what that round set off, or the payday's execute: its kill adds no Debt (keepers.md R-KEE-29, D-060). */
 	bool bPayday = false;
+	/** Made by an impact that carries D-074's strike mark (a Pulse Wall ring's or a Blade Halo blade's strike). Telemetry only: it feeds
+	 *  the `weapon` record's `strike_hits` and `strike_damage` (D-081 item 6, D-082 item 9) and no sim state reads it. */
+	bool bStrike = false;
 };
 
 enum class EDTHeroHitKind : uint8

@@ -54,6 +54,8 @@ struct DUSKTRACER_API FDTBotConfig
 	FName CarryWeapon;
 	/** R-BOT-18: that arm's control: the same picks, and the Reforging hand takes its Path card, not the evolution. */
 	bool bCarryHold = false;
+	/** R-BOT-20: a measuring arm; bot v2 closes the Reforging hand with no pick, every other hand as without it (the band's denominator, D-082). */
+	bool bDeclineReforge = false;
 	/** Seeds the bot's own streams (never one of the run's streams, R-TEC-02). */
 	int32 Seed = 0;
 	/** Intercession presses: CastAuto = when the meter is full and a crowd is near; CastNever = none (a probe's no-cast arm);

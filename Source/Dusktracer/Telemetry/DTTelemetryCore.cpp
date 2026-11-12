@@ -195,7 +195,7 @@ void FDTTelemetryCore::OnRunEvent(const FDTGameEvent& Event, bool bRouted)
 	}
 }
 
-void FDTTelemetryCore::ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 Amount)
+void FDTTelemetryCore::ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 Amount, bool bStrike)
 {
 	if (!bRouted || !Players.IsValidIndex(Owner))
 	{
@@ -213,6 +213,8 @@ void FDTTelemetryCore::ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 
 		FDTTelemetrySourceTotals& T = Map->FindOrAdd(Source);
 		T.Damage += Amount;
 		++T.Hits;
+		T.StrikeHits += bStrike ? 1 : 0;
+		T.StrikeDamage += bStrike ? Amount : 0;
 	}
 }
 
@@ -312,7 +314,7 @@ void FDTTelemetryCore::EndResolve(int32 PoolNum, TConstArrayView<EDTEnemyRole> R
 			break;
 		}
 		const FPendingEvent& HitEvent = Pending[Next++];
-		ApplyHit(HitEvent.Event.OwnerId, HitEvent.bRouted, Hit.SourceId, HitEvent.Event.Amount);
+		ApplyHit(HitEvent.Event.OwnerId, HitEvent.bRouted, Hit.SourceId, HitEvent.Event.Amount, Hit.bStrike);
 		if (HitEvent.bRouted)
 		{
 			const uint32 Serial = Hit.EnemySerial != 0 || !ResolveSerials.IsValidIndex(Slot) ? Hit.EnemySerial : ResolveSerials[Slot];

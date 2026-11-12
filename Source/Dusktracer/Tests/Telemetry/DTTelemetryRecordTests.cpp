@@ -376,7 +376,9 @@ bool FDTTelRecWeapons::RunTest(const FString& Parameters)
 	Hit.OwnerId = 0;
 	Hit.Damage = 1.0f;
 	Hit.SourceId = Lance;
-	View.Hits = { Hit, Hit };
+	FDTHit Strike = Hit;
+	Strike.bStrike = true; // a marked strike: counted in hits and damage, and again in strike_hits and strike_damage (D-082 item 9)
+	View.Hits = { Hit, Strike };
 	FDTSimContext Context;
 	Context.StepSeconds = StepSeconds();
 	Context.Run = &Run;
@@ -403,11 +405,11 @@ bool FDTTelRecWeapons::RunTest(const FString& Parameters)
 	{
 		const int32 N = StepsPerInterval();
 		TestEqual(TEXT("first interval, Lance (by source name)"), Weapons[0], Head(TEXT("weapon"), 0, N)
-			+ TEXT(",\"source\":\"Weapon.TestRecLance\",\"level\":3,\"load_rank\":2,\"spawned\":15,\"throttled\":2,\"hits\":2,\"damage\":2}"));
+			+ TEXT(",\"source\":\"Weapon.TestRecLance\",\"level\":3,\"load_rank\":2,\"spawned\":15,\"throttled\":2,\"hits\":2,\"damage\":2,\"strike_hits\":1,\"strike_damage\":1}"));
 		TestEqual(TEXT("first interval, Orbit idle"), Weapons[1], Head(TEXT("weapon"), 0, N)
-			+ TEXT(",\"source\":\"Weapon.TestRecOrbit\",\"level\":1,\"load_rank\":0,\"spawned\":0,\"throttled\":0,\"hits\":0,\"damage\":0}"));
+			+ TEXT(",\"source\":\"Weapon.TestRecOrbit\",\"level\":1,\"load_rank\":0,\"spawned\":0,\"throttled\":0,\"hits\":0,\"damage\":0,\"strike_hits\":0,\"strike_damage\":0}"));
 		TestEqual(TEXT("second interval: level kept, counts reset"), Weapons[2], Head(TEXT("weapon"), 0, 2 * N)
-			+ TEXT(",\"source\":\"Weapon.TestRecLance\",\"level\":3,\"load_rank\":2,\"spawned\":0,\"throttled\":0,\"hits\":0,\"damage\":0}"));
+			+ TEXT(",\"source\":\"Weapon.TestRecLance\",\"level\":3,\"load_rank\":2,\"spawned\":0,\"throttled\":0,\"hits\":0,\"damage\":0,\"strike_hits\":0,\"strike_damage\":0}"));
 	}
 	return true;
 }

@@ -17,6 +17,7 @@
 # -Check T-DIR-01 alone defaults to the no-pick arm with C.DIR.BOT_RUNS seeds.
 # Prints "BOTRUNS: PASS|FAIL (...)"; exit 0 / 1 (a failed check or a run with no record fails).
 # -Carry runs the measuring arm of R-BOT-18: every -Arms arm once per weapon, unlocking only that weapon, labelled <arm>-Carry-<Name>.
+# -DeclineReforge (R-BOT-20) closes the Reforging hand with no pick on bot v2; its label ends -Decline and the BOTRUNS: line says "decline".
 # -Jobs runs the probe scenes of Tools/probe.py instead of arms (label,seed,script per row): the director stays off and each
 # run folder gets the scene as scene.txt; -Stagger is the wall time between starts, which a job list's distinct seeds let shrink.
 # -Policy BlessingsOnly filters the Steered arms' cards: Weapon and WeaponUpgrade are passed, as the owner's run did
@@ -45,6 +46,8 @@ param(
 	[string[]]$Carry = @(),
 	# R-BOT-18: that arm's control, which takes the Path card at the Reforging hand.
 	[switch]$CarryHold,
+	# R-BOT-20: the band's denominator; bot v2 closes the Reforging hand with no pick. Labelled -Decline; with -Carry it is that arm's second control.
+	[switch]$DeclineReforge,
 	[ValidateSet("All", "BlessingsOnly")][string]$Policy = "All"
 )
 
@@ -182,7 +185,7 @@ $CarryRuns = if ($Carry.Count) { $Carry } else { @("") }
 foreach ($Arm in $Arms) {
 	$Parts = $Arm -split ':'
 	foreach ($Weapon in $CarryRuns) {
-		$Label = ($Parts -join '-') + $(if ($Weapon) { "-Carry-" + ($Weapon -replace '^Weapon\.', '') } else { "" })
+		$Label = ($Parts -join '-') + $(if ($Weapon) { "-Carry-" + ($Weapon -replace '^Weapon\.', '') } else { "" }) + $(if ($DeclineReforge) { "-Decline" } else { "" })
 		foreach ($Seed in $FirstSeed..($FirstSeed + $Seeds - 1)) {
 			$Extra = @("-DTBot=$($Parts[0])", "-DTBotMaxSeconds=$MaxSeconds")
 			if ($Parts.Count -gt 1) { $Extra += "-DTBotPath=$($Parts[1])" }
@@ -190,6 +193,7 @@ foreach ($Arm in $Arms) {
 			if ($Parts.Count -gt 3) { $Extra += "-DTBotSecond=$($Parts[3])" }
 			if ($Parts.Count -gt 4) { $Extra += "-DTBotSecondArchetype=$($Parts[4])" }
 			if ($Policy -ne "All") { $Extra += "-DTBotPick=$Policy" }
+			if ($DeclineReforge) { $Extra += "-DTBotDeclineReforge" }
 			$Unlocks = @($Parts | Select-Object -Skip 1 | Where-Object { $S2Keepers -contains $_ } | ForEach-Object { "Keeper.$_" })
 			if ($Weapon) {
 				$Unlocks += $Weapon
@@ -218,5 +222,5 @@ if ($Rc -ne 0 -or $Missing -gt 0) {
 	Write-Host ("BOTRUNS: FAIL ({0}{1}; {2})" -f ($Verdicts -join '; '), $(if ($Missing) { "; $Missing run(s) without a bot record" } else { "" }), $Out)
 	exit 1
 }
-Write-Host ("BOTRUNS: PASS ({0}; {1})" -f $(if ($Verdicts) { $Verdicts -join '; ' } else { "no check requested" }), $Out)
+Write-Host ("BOTRUNS: PASS ({0}{1}; {2})" -f $(if ($Verdicts) { $Verdicts -join '; ' } else { "no check requested" }), $(if ($DeclineReforge) { "; decline" } else { "" }), $Out)
 exit 0

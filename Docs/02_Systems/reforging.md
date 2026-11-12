@@ -34,7 +34,7 @@ At `C.OFFER.REFORGING_LEVEL` the build changes kind (`00_Vision §2`; `offers.md
 - **R-RFG-22** A Path row's hits are Keeper hits: they carry no weapon slot, so no proc feeds on them (`keepers.md` §2, R-KEE-13). Collection's are the exception R-RFG-19 names.
 
 **Budget**
-- **R-RFG-18** A Reforging pick is one decision and one milestone hand (R-OFF-15). It adds no hand and no XP. Its power is a reading: a steered build's output after the pick stays inside the source's band, `C.REFORGE.POWER_MIN` to `C.REFORGE.POWER_MAX`, and T-OFF-15 reads no worse than a control without it. XP income past the line D-018 measured breaks T-OFF-15, so a row that lifts XP income that far is cut, and the hand budget is not the thing that moves.
+- **R-RFG-18** A Reforging pick is one decision and one milestone hand (R-OFF-15). It adds no hand and no XP. Its power is a reading on the build that reaches the hand: on the probe's fixed field the build's damage with the card is `REFORGE.POWER_MIN` to `REFORGE.POWER_MAX` times its damage without it; in play the card costs neither the run before the boss nor the boss fight against a control that declines the hand. T-OFF-15 reads no worse than a control without it. XP income past the line D-018 measured breaks T-OFF-15, so a row that lifts XP income that far is cut, and the hand budget is not the thing that moves.
 
 ## Numbers
 | Constant | Key | Tag | Dependents |
@@ -95,6 +95,6 @@ Named-in-source values and first guesses are told apart in each row's `ref` and 
 - Cyclone asks for motion and Stillness asks for rest: the first spin carries a charge gathered at rest (T-RFG-10), but at rest the weapon is silent → a poor pairing, no bug; forbidden only by a human reading.
 - A pillar shatters on the owner's next hit, and most end that way, well short of `pillar_s` (`Validation/S2_reforging.md`) → what the rule says; a human reading decides if it is a wall.
 - Few steered primaries reach `C.OFFER.REFORGE_EVOLVE_MIN_LEVEL` by the hand: the cause is the bot's card scores, not the offers (`Validation/S2_reforging.md`) → human weapon levels at the hand are still unread.
-- The power band is unread: output after the pick matches the control, which may be a field cap → a measure that a full-clear build cannot saturate, before any row moves.
+- The power band is read by `Tools/probe.py reforge` (each card's lift over no pick on the probe's fixed field, its scenes kept under the refill's ceiling) and by the carry batteries with the decline arm in play (`bot.md` R-BOT-20), both as a step of the S2 exit battery (`Tools/S2Exit.ps1`, D-082). No card has been judged against the band yet: the first reading, of three evolutions and the Storm and Tide transformations, is `Validation/S2_reforge_band_equipment.md`, and every card is read at the exit battery.
 - Fusions are named by `build_depth_spec` and absent from R-OFF-09 → stays out unless a decision adds a fourth source.
 - Path rows are eligible at any Favor (source), so a Path whose status the build never applies is a weak card → the hand has two others; read it. Collection needs Marks, and a second-Keeper Shade Marks at the second's chance only.

@@ -43,6 +43,9 @@ struct FDTTelemetrySourceTotals
 	int64 Damage = 0;
 	int32 Hits = 0;
 	int32 Kills = 0;
+	/** Of Hits and Damage: those made by a marked strike (FDTHit::bStrike; the weapon record's strike_hits, strike_damage). */
+	int32 StrikeHits = 0;
+	int64 StrikeDamage = 0;
 };
 
 /** One player's numbers for the interval in progress (also what DT.Stats prints). */
@@ -299,7 +302,7 @@ private:
 		bool bRouted = false;
 	};
 
-	void ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 Amount);
+	void ApplyHit(int32 Owner, bool bRouted, uint16 Source, int32 Amount, bool bStrike = false);
 	void ApplyKill(int32 Owner, bool bRouted, uint16 Source, float TtkSeconds);
 	/** Writes this step's hit and kill records (at most one each per player) and clears the step accumulators. */
 	void WriteStepRecords();

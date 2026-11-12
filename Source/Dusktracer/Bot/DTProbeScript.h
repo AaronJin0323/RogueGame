@@ -9,6 +9,8 @@
 //   warmup_s 62                                seconds before the measured window
 //   window_s 12                                seconds of the window; the run ends with it
 //   cast_at_s 62                               Intercession press at this time; absent = the bot never casts
+//   reforge Evolve.RingEmitter                 one Reforging card (a Path transformation or a weapon's evolution), applied as the pick
+//                                              applies it (DTOffers::ApplyPickState) once the build is in; absent = none (D-082)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -35,6 +37,8 @@ struct DUSKTRACER_API FDTProbeScript
 	float CastAtS = -1.0f;
 	/** Above zero: while the cast runs the route dashes this often (Slam's variant is its dash landings). */
 	float CastDashS = 0.0f;
+	/** D-082: one Reforging card's id (reforging.csv); none = no pick. An evolution's target is its row's source weapon. */
+	FName Reforge;
 
 	/** Replaces this script with Text; false and a reason on a bad line or a missing patron. */
 	bool Parse(const FString& Text, FString& OutError);
