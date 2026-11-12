@@ -151,6 +151,20 @@ void FDTBulletPool::RemoveAtSwap(int32 Index)
 
 bool FDTBulletPool::HasHit(int32 Index, uint32 EnemySerial) const
 {
+	const int32 Window = Moves[Index] && Motion[Index].RehitAfter > 0 ? FMath::Min(Motion[Index].RehitAfter, DTConst::BULLETS_HIT_MEMORY) : DTConst::BULLETS_HIT_MEMORY;
+	if (Window < DTConst::BULLETS_HIT_MEMORY)
+	{
+		// R-RFG-11: only the last `rehit_after` enemies the round struck bar it; the ring keeps them in hit order.
+		const uint32* Kept = &HitRing[Index * DTConst::BULLETS_HIT_MEMORY];
+		for (int32 Back = 1; Back <= FMath::Min(HitCount[Index], Window); ++Back)
+		{
+			if (Kept[(HitCount[Index] - Back) % DTConst::BULLETS_HIT_MEMORY] == EnemySerial)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 	const int32 Stored = FMath::Min(HitCount[Index], DTConst::BULLETS_HIT_MEMORY);
 	const uint32* Ring = &HitRing[Index * DTConst::BULLETS_HIT_MEMORY];
 	for (int32 Slot = 0; Slot < Stored; ++Slot)

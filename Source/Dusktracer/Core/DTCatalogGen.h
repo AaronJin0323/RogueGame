@@ -386,7 +386,7 @@ namespace DTCat
 		{ TEXT("Evolve.RailLance"), true, TEXT("Weapon.RailLance"), TEXT("SweepBeam"), { ECap::Beam, ECap::Continuous, ECap::Aimed }, 3, TEXT("beam_s=1.5;sweep_deg=120;reach_uu=950;tick_s=0.1;width_deg=12;dmg_ratio=0.6") },
 		{ TEXT("Evolve.FlakMortar"), true, TEXT("Weapon.FlakMortar"), TEXT("CarpetLine"), { ECap::Lob, ECap::Area }, 2, TEXT("blasts=5;walk_uu=600;step_s=0.12;dmg_ratio=0.25") },
 		{ TEXT("Evolve.ArcBlade"), true, TEXT("Weapon.ArcBlade"), TEXT("MoveSpin"), { ECap::Melee, ECap::Area }, 2, TEXT("hits_s=2;arc_deg=360;dmg_ratio=0.6;move_min_uu_s=50") },
-		{ TEXT("Evolve.SeekerSwarm"), true, TEXT("Weapon.SeekerSwarm"), TEXT("Persist"), { ECap::Homing, ECap::Projectile, ECap::Expiry }, 3, TEXT("life_s=6;pierce=200;dmg_ratio=0.2") },
+		{ TEXT("Evolve.SeekerSwarm"), true, TEXT("Weapon.SeekerSwarm"), TEXT("Persist"), { ECap::Homing, ECap::Projectile, ECap::Expiry }, 3, TEXT("life_s=6;pierce=200;dmg_ratio=1;cooldown_mult=1.4545;rehit_after=8") },
 		{ TEXT("Evolve.RingEmitter"), true, TEXT("Weapon.RingEmitter"), TEXT("PulseWall"), { ECap::Projectile, ECap::Radial, ECap::Area, ECap::Expiry }, 4, TEXT("radius_uu=600;grow_s=0.6;hold_s=3;push_uu_s=200;band_uu=100;dps=2;tick_s=0.25") },
 		{ TEXT("Evolve.SpiralProjector"), true, TEXT("Weapon.SpiralProjector"), TEXT("Vortex"), { ECap::Radial, ECap::Projectile, ECap::Continuous, ECap::Expiry }, 4, TEXT("vortex_uu=500;curl_deg_s=70;zone_r_uu=260;zone_s=1.2;pull_uu_s=180") },
 		{ TEXT("Evolve.GravityMine"), true, TEXT("Weapon.GravityMine"), TEXT("Merge"), { ECap::Mine, ECap::Area }, 2, TEXT("pull_uu=900;blast_ratio=1.5") },
