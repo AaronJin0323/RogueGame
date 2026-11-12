@@ -138,4 +138,6 @@ Nothing above is judged but the three clauses (D-050); nothing was tuned on it.
 GATE
 
 ## Not shown
+The blades' share of the weapon's damage: blades and bolts carry one source, `Weapon.OrbitalDrones`. Telling them apart would need a source of its own for a blade's strike, and this job did not add one.
+
 How a person plays it. Whether a player stands near enemies to use the blades, and whether the blades matter, are the S2 kit's questions (D-079 item 9).
