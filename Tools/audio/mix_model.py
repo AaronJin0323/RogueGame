@@ -66,8 +66,15 @@ STANDIN_WEAPONS = ("fire_rifle", "fire_heavy", "fire_light") * 3 + ("fire_rifle"
 # ---- the schedule ------------------------------------------------------------------------------------------------
 TIERS = (5, 20, 60, 100)                    # kills a second
 WEAPONS_FIRING = (3, 6, 10, 10)             # weapons firing in each tier
-CREST_TIERS = (20, 60, 100)                 # the tiers whose crest is judged: those with a layer on (asked of the scheduler)
-HITS_PER_KILL = 20                          # hits landing a second per kill a second (T-AUD-07: thousands of hits at a hundred kills)
+# The crest (the scheduler's ruling of 2026-11-12, option A with the median): printed for every tier, judged only in a tier with a
+# layer on (a sparse mix is single sounds with silence between: peak over RMS says nothing there) and only once no role is a
+# stand-in, as the median over CREST_SEEDS seeds: one seed's draw moves the crest by more than 1 dB and the limit sits inside
+# that, so one seed over the line by a tenth is not a finding. Odd, so the median is one seed's own reading (an even count would
+# take the mean of the two middle ones). The other readings stay on the one seed.
+CREST_SEEDS = 5
+# Model constants, not keys: the game reads neither. If it ever does, each becomes a C.AUD key with a change-log row.
+HITS_PER_KILL = 20                          # hits landing a second per kill a second: T-AUD-07's sizes (thousands of hits at about a hundred kills a second)
+LAYER_SLOTS = 1                             # player slots a layer holds while it is on: one looping voice (the runtime's layer is one voice)
 TIER_SECONDS = 8.0                          # each tier is rendered this long ...
 SKIP_SECONDS = 1.0                          # ... and read past its first second, where voices build up
 FRAME_HZ = 60                               # a frame is 1/60 s: the frame cap counts starts per frame
@@ -258,7 +265,8 @@ def schedule(keys, roles, kps, weapons, seconds, seed=SEED):
 	crowd = kps >= keys["PRE.DENSITY_LOD_KILLS_PER_S"]
 	low = kps >= keys["IMP.DENSITY_FLOOD_KILLS_PER_S"]
 	slots = keys["AUD.VOICES_MAX"] - keys["AUD.VOICES_DANGER"] - keys["AUD.VOICES_UI"]
-	shot_slots = slots - int(crowd) - int(low)
+	layer_slots = LAYER_SLOTS * (int(crowd) + int(low))
+	shot_slots = slots - layer_slots
 	per_frame, per_s = keys["AUD.STARTS_PER_FRAME_MAX"], keys["AUD.PLAYER_STARTS_PER_S_MAX"]
 	agg_max, jitter_db, semis_max = keys["AUD.AGGREGATE_MAX"], keys["AUD.LEVEL_JITTER_DB"], keys["AUD.KEY_SEMIS_MAX"]
 	rng = Rng(seed)
@@ -321,7 +329,7 @@ def schedule(keys, roles, kps, weapons, seconds, seed=SEED):
 			starts.append((frame / FRAME_HZ, src, v, c["semis"], c["gain"]))
 			made += 1
 		most_per_s = max(most_per_s, len(window))
-		most_voices = max(most_voices, len(live) + int(crowd) + int(low))
+		most_voices = max(most_voices, len(live) + layer_slots)
 	dropped += len(waiting)
 	return {"starts": starts, "crowd": crowd, "low": low, "asked": asked, "merged": merged, "dropped": dropped, "started": len(starts),
 		"most_per_s": most_per_s, "most_voices": most_voices, "slots": slots}
@@ -391,8 +399,34 @@ def tier_readings(keys, tiers, skip=SKIP_SECONDS):
 		out.append({"kps": t["kps"], "weapons": t["weapons"], "layers": "+".join(n for n, on in (("crowd", s["crowd"]), ("low", s["low"])) if on) or "-",
 			"asked": s["asked"], "merged": s["merged"], "started": s["started"], "dropped": s["dropped"], "most_per_s": s["most_per_s"],
 			"most_voices": s["most_voices"], "lk_int": M.lk_integrated(body), "share_db": M.share_db(M.welch_bands(body), *M.DANGER),
-			"crest_db": pk - rm, "peak_db": pk})
+			"crest_db": pk - rm, "peak_db": pk, "layer_on": bool(s["crowd"] or s["low"]), "crest_judged": False})
 	return out
+
+
+def crest_of(keys, roles, kps, weapons, seconds, skip, seed):
+	"""The crest, in dB, of one tier's mix drawn from another seed (read past `skip`)."""
+	parts = render(keys, roles, schedule(keys, roles, kps, weapons, seconds, seed * 1000 + kps), seconds)
+	body = mix_of(parts)[int(skip * keys["AUD.SAMPLE_RATE_HZ"]):]
+	return peak_db(body) - rms_db(body)
+
+
+def crest_median(values):
+	"""The median of the seeds' crests: the middle one of an odd count, the mean of the two middle ones of an even count."""
+	v = sorted(values)
+	m = len(v) // 2
+	return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0
+
+
+def judge_crest(keys, roles, tiers, readings, used, seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED):
+	"""Marks the tiers whose crest is judged (no role a stand-in, a layer on) and gives each the median over CREST_SEEDS seeds, the
+	first being the run's own seed. Renders the extra seeds only for a judged tier."""
+	for t, r in zip(tiers, readings):
+		if used or not r["layer_on"]:
+			continue
+		r["crest_judged"] = True
+		r["crest_seeds"] = [r["crest_db"]] + [crest_of(keys, roles, t["kps"], t["weapons"], seconds, skip, seed + j) for j in range(1, CREST_SEEDS)]
+		r["crest_median"] = crest_median(r["crest_seeds"])
+	return readings
 
 
 def peak_on_top(masker, cue, step):
@@ -421,12 +455,12 @@ def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
 		played = [cue.played(v) for v in range(len(cue.variants))]
 		if cue.zone == "warn":
 			r["smr"] = min(M.audibility(x, warn_mask, *M.DANGER)[0] for x in played)
-			r["smr_undocked"] = r["smr"] + duck        # band powers scale with the gain squared: the same reading, the duck taken off
+			r["smr_no_duck"] = r["smr"] + duck        # band powers scale with the gain squared: the same reading, the duck taken off
 		if cue.zone == "low":
 			if low_mask is None:
 				low_mask = mix_of(dense["parts"], low_db=keys["AUD.LOWHP_LOWEND_DUCK_DB"], gain_db=duck)[i0:]
 			r["smr"] = min(M.audibility(x, low_mask, *M.LOWZONE)[0] for x in played)
-			r["smr_undocked"] = r["smr"] + duck
+			r["smr_no_duck"] = r["smr"] + duck
 		if cue.family == WARN_FAMILY:
 			r["lk"] = min(M.lk_window(x) for x in played)
 			r["over_mix"] = r["lk"] - mix_lk
@@ -463,8 +497,9 @@ def judge(keys, tiers, cues, control):
 	for t in tiers:
 		if t["share_db"] > share_max:
 			e.append(f"mix at {t['kps']} kills/s: {t['share_db']:.1f} dB of its energy in C.AUD.DANGER_BAND_HZ, over C.AUD.PLAYER_BAND_SHARE_MAX_DB {share_max} (R-AUD-18)")
-		if t["kps"] in CREST_TIERS and t["crest_db"] > crest_max:
-			e.append(f"mix at {t['kps']} kills/s: crest {t['crest_db']:.1f} dB over C.AUD.MIX_CREST_MAX_DB {crest_max} (R-AUD-18)")
+		if t.get("crest_judged") and t["crest_median"] > crest_max:
+			e.append(f"mix at {t['kps']} kills/s: crest {t['crest_median']:.1f} dB (the median of {len(t['crest_seeds'])} seeds) over "
+				f"C.AUD.MIX_CREST_MAX_DB {crest_max} (R-AUD-18)")
 	if len(tiers) > 1:
 		rise = tiers[-1]["lk_int"] - tiers[0]["lk_int"]
 		if rise > rise_max:
@@ -472,7 +507,7 @@ def judge(keys, tiers, cues, control):
 	for c in cues:
 		if c["zone"] == "warn" and c["smr"] < keys["AUD.DANGER_SMR_MIN_DB"]:
 			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.DANGER_BAND_HZ over the densest mix ducked by C.AUD.DUCK_DB "
-				f"({c['smr_undocked']:.1f} dB with no duck), under C.AUD.DANGER_SMR_MIN_DB {keys['AUD.DANGER_SMR_MIN_DB']} (R-AUD-18)")
+				f"({c['smr_no_duck']:.1f} dB with no duck), under C.AUD.DANGER_SMR_MIN_DB {keys['AUD.DANGER_SMR_MIN_DB']} (R-AUD-18)")
 		if c["zone"] == "low" and c["smr"] < keys["AUD.HEARTBEAT_SMR_MIN_DB"]:
 			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by "
 				f"C.AUD.LOWHP_LOWEND_DUCK_DB and the whole by C.AUD.DUCK_DB, under C.AUD.HEARTBEAT_SMR_MIN_DB {keys['AUD.HEARTBEAT_SMR_MIN_DB']} (R-AUD-18)")
@@ -490,7 +525,7 @@ def judge(keys, tiers, cues, control):
 def run(keys, roles, cues, used=(), seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED):
 	"""The whole reading: {standins, tiers, rise_db, cues, control, errors}, JSON-serialisable."""
 	tiers = render_tiers(keys, roles, seconds, seed=seed)
-	tr = tier_readings(keys, tiers, skip)
+	tr = judge_crest(keys, roles, tiers, tier_readings(keys, tiers, skip), used, seconds, skip, seed)
 	cr, ctl = cue_readings(keys, tiers[-1], cues, loudest_player(roles), skip)
 	return {"standins": list(used), "tiers": tr, "rise_db": tr[-1]["lk_int"] - tr[0]["lk_int"], "cues": cr, "control": ctl,
 		"errors": judge(keys, tr, cr, ctl)}
@@ -532,15 +567,20 @@ def cache_key(snapshot, paths, keys, files, extra=""):
 def table(result):
 	"""The readings as printable lines."""
 	lines = [f"stand-ins: {standin_text(result['standins']) or 'none'}",
-		"tier      weapons  layers     asked  merged  started  dropped  most/s  voices   LKint  band dB  crest dB  peak dBFS"]
+		"tier      weapons  layers     asked  merged  started  dropped  most/s  voices   LKint  band dB  crest dB  median  peak dBFS"]
 	for t in result["tiers"]:
+		median = f"{t['crest_median']:6.1f}*" if t.get("crest_judged") else f"{'-':>6s} "
 		lines.append(f"{t['kps']:4d}/s   {t['weapons']:7d}  {t['layers']:9s} {t['asked']:6d}  {t['merged']:6d}  {t['started']:7d}  {t['dropped']:7d}  "
-			f"{t['most_per_s']:6d}  {t['most_voices']:6d}  {t['lk_int']:6.1f}  {t['share_db']:7.1f}  {t['crest_db']:7.1f}{'*' if t['kps'] in CREST_TIERS else ' '}  {t['peak_db']:9.1f}")
-	lines.append(f"loudness rise, sparsest to densest: {result['rise_db']:.1f} dB   (* crest judged)")
+			f"{t['most_per_s']:6d}  {t['most_voices']:6d}  {t['lk_int']:6.1f}  {t['share_db']:7.1f}  {t['crest_db']:8.1f}  {median}  {t['peak_db']:9.1f}")
+	lines.append(f"loudness rise, sparsest to densest: {result['rise_db']:.1f} dB")
+	if result["standins"]:
+		lines.append(f"crest not judged: stand-ins for {standin_text(result['standins'])} (printed on one seed)")
+	else:
+		lines.append(f"crest judged (*) in the tiers with a layer on: the median over CREST_SEEDS = {CREST_SEEDS} seeds; crest dB is the first seed's")
 	if result["cues"]:
 		lines.append("cue                          zone  SMR ducked  SMR no duck  over mix  peak dBFS")
 		for c in result["cues"]:
-			smr = f"{c['smr']:10.1f}  {c['smr_undocked']:11.1f}" if "smr" in c else f"{'-':>10s}  {'-':>11s}"
+			smr = f"{c['smr']:10.1f}  {c['smr_no_duck']:11.1f}" if "smr" in c else f"{'-':>10s}  {'-':>11s}"
 			over = f"{c['over_mix']:8.1f}" if "over_mix" in c else f"{'-':>8s}"
 			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}")
 	else:
