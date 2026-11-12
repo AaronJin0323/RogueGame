@@ -123,6 +123,11 @@ def read_catalog(path=CATALOG):
 	return rows, errors
 
 
+def dtsynth_rate():
+	"""C.AUD.SAMPLE_RATE_HZ, the rate every generated file is written at."""
+	return dtconst.load()["AUD.SAMPLE_RATE_HZ"]["value"]
+
+
 def heard_verdict(row):
 	"""`no`, `yes`, `delegated` or `rejected` from a row's heard cell (None when the cell is malformed)."""
 	m = HEARD.match(row.get("heard", ""))
