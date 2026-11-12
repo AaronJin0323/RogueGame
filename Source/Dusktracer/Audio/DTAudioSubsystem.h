@@ -11,6 +11,8 @@
 #include "DTAudioSubsystem.generated.h"
 
 class USoundBase;
+class USoundClass;
+class USoundMix;
 
 /**
  * One per game world. Each frame, at the end of the world's tick (after the sim has stepped, paused or not): the interface observer
@@ -107,6 +109,12 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USoundBase>> Assets;
+	/** The duck's carrier and the class it lowers (R-AUD-05), resolved once with the waves. */
+	UPROPERTY(Transient)
+	TObjectPtr<USoundMix> DuckMix;
+	UPROPERTY(Transient)
+	TObjectPtr<USoundClass> PlayerClass;
+	FDTDuckSender DuckSender;
 	/** Per id, the index of its variant 0 in Assets. */
 	TArray<int32> AssetFirst;
 	TArray<int64> Missing;

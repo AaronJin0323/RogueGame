@@ -17,6 +17,13 @@ namespace DTInterfaceEvents
 		}
 	}
 
+	uint64 SettingsKey(const FDTUserSettings& Settings)
+	{
+		return static_cast<uint64>(Settings.Language) | static_cast<uint64>(Settings.Graphics) << 8 | static_cast<uint64>(Settings.Window) << 16
+			| static_cast<uint64>(Settings.bShake) << 24 | static_cast<uint64>(Settings.bFlash) << 25 | static_cast<uint64>(Settings.bDangerOutline) << 26
+			| static_cast<uint64>(static_cast<uint16>(Settings.VolumePct)) << 32 | static_cast<uint64>(static_cast<uint16>(Settings.TextPct)) << 48;
+	}
+
 	static bool IsRefusal(EDTMenuStatus Status)
 	{
 		return Status == EDTMenuStatus::Reserved || Status == EDTMenuStatus::WrongDevicePad || Status == EDTMenuStatus::WrongDeviceKbm;
@@ -35,6 +42,11 @@ namespace DTInterfaceEvents
 		else if (Now.Screen != EDTMenuScreen::None && (Now.MenuFocus != Was.MenuFocus || Now.MenuColumn != Was.MenuColumn))
 		{
 			Raise(ESoundId::Snd_UI_Focus, 1);
+		}
+		// A settings value moved while the settings screen is shown, frame to frame: one Step per move; opening the screen moves none.
+		if (Now.Screen == EDTMenuScreen::Settings && Was.Screen == EDTMenuScreen::Settings && Now.SettingsKey != Was.SettingsKey)
+		{
+			Raise(ESoundId::Snd_UI_Step, 1);
 		}
 		if (Now.Screen != EDTMenuScreen::None && Now.MenuStatus != Was.MenuStatus && IsRefusal(Now.MenuStatus))
 		{
@@ -90,6 +102,7 @@ namespace DTInterfaceEvents
 			View.MenuFocus = State.Focus;
 			View.MenuColumn = State.Column;
 			View.MenuStatus = State.Status;
+			View.SettingsKey = SettingsKey(DTSettings::Live());
 		}
 		if (const UDTHubSubsystem* Hub = World.GetSubsystem<UDTHubSubsystem>())
 		{

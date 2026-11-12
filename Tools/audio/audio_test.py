@@ -38,6 +38,7 @@ sys.path.insert(1, TOOLS)
 import audio_build as B  # noqa: E402
 import audio_check  # noqa: E402
 import audio_metrics as M  # noqa: E402
+import audio_select  # noqa: E402
 import audio_view  # noqa: E402
 import dtconst  # noqa: E402
 import dtsynth  # noqa: E402
@@ -519,7 +520,7 @@ class Catalog(unittest.TestCase):
 	def test_catalog_and_manifest_name_the_same_files(self):
 		tree = Tree([ROW])
 		with open(tree.paths.manifest, "a", encoding="utf-8", newline="\n") as f:
-			f.write("SW_Kill_Gone,10,ab" + ",0.0" * (len(B.MANIFEST_NUMBERS) - 1) + ",1\n")
+			f.write("SW_Kill_Gone,10,ab,cd" + ",0.0" * (len(B.MANIFEST_NUMBERS) - 1) + ",1\n")
 		text, _ = tree.check()
 		self.assertIn("SW_Kill_Gone: in sound_manifest.csv but no catalog row writes it", text)
 		text, _ = Tree([ROW], manifest=False).check()
@@ -800,6 +801,59 @@ class Verdict(unittest.TestCase):
 		finally:
 			audio_check.run_tool_tests, audio_check.check = run, check
 		self.assertEqual(out.getvalue().splitlines(), ["error: the audio step stopped: RuntimeError: planted", "AUDIO: FAIL (1 error(s))"])
+
+
+class Selection(unittest.TestCase):
+	"""T-AUD-19, R-AUD-22: what the import makes (Tools/audio/audio_select.py), read without the editor."""
+
+	def tree(self):
+		rows = [dict(FREE, id="Snd.Kill.No", heard="no"), dict(FREE, id="Snd.Kill.Rej", heard="rejected 2026-11-11"),
+			dict(FREE, id="Snd.Kill.Yes", heard="yes 2026-11-12", variants="2", recipe="sketch.kill_pop"),
+			dict(HUM, id="Snd.Kill.Del", heard="delegated 2026-11-12", variants="1")]
+		return Tree(rows)
+
+	def test_only_accepted_rows_become_assets(self):
+		tree = self.tree()
+		assets, errors, _ = audio_select.select(tree.paths.catalog, tree.paths.manifest, tree.paths.out)
+		self.assertEqual(errors, [])
+		self.assertEqual(sorted(a["name"] for a in assets), ["SW_Kill_Del", "SW_Kill_Yes", "SW_Kill_Yes_1"])
+		yes = next(a for a in assets if a["name"] == "SW_Kill_Yes_1")
+		self.assertEqual(yes["package"], "/Game/DT/Audio/SFX/SW_Kill_Yes_1")
+		self.assertEqual((yes["sound_class"], yes["loop"]), ("SC_Player", False))
+		self.assertTrue(next(a for a in assets if a["name"] == "SW_Kill_Del")["loop"])
+		self.assertEqual(len(yes["pcm_sha1"]), 40)
+
+	def test_the_package_is_the_tables(self):
+		rows, _ = B.read_catalog(self.tree().paths.catalog)
+		text = gen_sounds.render(rows)
+		self.assertIn('TEXT("Snd.Kill.Yes"), TEXT("/Game/DT/Audio/SFX/SW_Kill_Yes")', text)
+
+	def test_a_stale_or_missing_wav_fails(self):
+		tree = self.tree()
+		path = os.path.join(tree.paths.out, "SW_Kill_Yes_1.wav")
+		with open(path, "r+b") as f:
+			f.seek(200)
+			byte = f.read(1)
+			f.seek(200)
+			f.write(bytes([byte[0] ^ 1]))
+		os.remove(os.path.join(tree.paths.out, "SW_Kill_Del.wav"))
+		assets, errors, _ = audio_select.select(tree.paths.catalog, tree.paths.manifest, tree.paths.out)
+		text = "\n".join(errors)
+		self.assertIn("SW_Kill_Yes_1: ", text)
+		self.assertIn("is stale", text)
+		self.assertIn("SW_Kill_Del: ", text)
+		self.assertIn("is missing", text)
+		self.assertEqual([a["name"] for a in assets], ["SW_Kill_Yes"])
+
+	def test_the_pcm_hash_is_the_data_chunks(self):
+		tree = self.tree()
+		path = os.path.join(tree.paths.out, "SW_Kill_Yes.wav")
+		with open(path, "rb") as f:
+			data = f.read()
+		start = data.index(b"data") + 8
+		self.assertEqual(B.pcm_sha1(path), hashlib.sha1(data[start:start + int.from_bytes(data[start - 4:start], "little")]).hexdigest())
+		lines, _ = B.read_manifest(tree.paths.manifest)
+		self.assertEqual(lines["SW_Kill_Yes"]["pcm_sha1"], B.pcm_sha1(path))
 
 
 class Header(unittest.TestCase):
