@@ -59,7 +59,37 @@ Restart and meta: §4.
 | Bot run Steered:Storm:Tempest, seed 9107 (600 steps a frame) | 102 | 0.0731 / 0.0014 / 0.0005 | 0.0882 / 0.0020 / 0.0220 |
 | `Dusktracer.Audio.Cost`, the density trace through the interface observer and the scheduler | 1200 | 0.0009 ms a frame on average, against the blow-up line of 0.1 | |
 
-None of these is a reading of record: they share the machine with the gate or run hundreds of steps a frame. The reading of record is the scheduler's perf run (D-056 ruling 6).
+None of these is a reading of record: they share the machine with the gate or run hundreds of steps a frame. The reading of record is the scheduler's perf run (D-056 ruling 6), in §3a.
+
+## 3a. The perf reading (2026-11-12)
+
+The scheduler read three builds in turn at 1920x1080, three rounds each, alone as to the project's own jobs: `dev/s4` before the hero clear zone, with the zone, and with this runtime (1834e13). Game thread p95 in ms:
+
+| Scene, build | Round 1 | Round 2 | Round 3 | Mean |
+|---|---|---|---|---|
+| S4, before the zone | 5.02 | 5.07 | 5.36 | 5.15 |
+| S4, with the zone | 5.21 | 5.27 | 5.06 | 5.18 |
+| S4, with the runtime | 5.17 | 5.07 | 5.21 | 5.15 |
+| S2, before the zone | 4.74 | 4.69 | 4.89 | 4.77 |
+| S2, with the zone | 4.57 | 4.37 | 4.61 | 4.52 |
+| S2, with the runtime | 4.56 | 4.45 | 4.57 | 4.53 |
+
+What it says, and no more: against the build with the zone, the runtime shows no cost in either scene, and the sim tick's scope and the draw's scope read the same with and without it. What it cannot say: whether audio is inside its budget. The rounds of one build differ by 0.12 to 0.34 ms, and `C.AUD.GAME_THREAD_MS_MAX` is 0.05 ms, so a comparison of game thread p95 cannot resolve it.
+
+The direct measure is the runtime's own timer: three scopes around its own work each frame, printed in the subsystem's closing line.
+
+| Run | Frames | p95 ms observe / schedule / hand | Worst ms |
+|---|---|---|---|
+| S2 scene, the scheduler's run on 1834e13, 18:20 | 5748 | 0.0024 / 0.0008 / 0.0001 | 0.0101 / 0.0098 / 0.0016 |
+| S4 scene, the build of 064795d (this runtime with the stone and bronze interface table), 18:56 | 5858 | 0.0022 / 0.0007 / 0.0001 | 0.0230 / 0.0022 / 0.0012 |
+
+In the S4 scene the three p95 figures add up to 0.0030 ms, and the three worst frames to 0.0264 ms: both inside 0.05. The timer counts every frame of the process, the warm-up included; the scene's measured window is 1800 of them. The S4 run's own line was `PERF: PASS (1920x1080, game p50 3.43 / p95 4.98 ms, GPU p95 4.17 ms, load 5817.00 bullets / 400.00 enemies, 1800 frames)`; it shared the machine with other sessions' work, so its game thread figure is no reading, and only the timer's line is taken from it.
+
+What these figures do not cover:
+
+- **Only the interface observer exists.** A perf scene opens no screen, so the observer reads its state, raises nothing, and the scheduler runs empty. The figure is the cost of the runtime standing, not of a fight's sounds. It is read again at the merge of the first run family (fire), where the taps are read every frame and sounds are asked for. Until then `Dusktracer.Audio.Cost` (§3) is the only bound on the scheduler under load.
+- **A tool run makes no play call** (lock 1). The hand scope here is the cost of counting a voice as silent. The engine's side of a played voice is read only in an attended run.
+- **The absolutes are of one evening.** Every build has read higher since the PC restarted at 04:44: the owner's own programs run on the machine, and the scheduler's control on `main` read 2.75 to 2.82 ms against 2.33 to 2.47 the night before. The table compares three builds with each other and nothing else. The wave's 5.0 ms ceiling in the S4 scene is read again by the scheduler on a quiet machine.
 
 ## 4. The gate
 
