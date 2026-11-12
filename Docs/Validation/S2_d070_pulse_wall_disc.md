@@ -129,5 +129,18 @@ More, from the scratch reading:
 
 What it tells apart: the Arc Grid build, whose Keeper rides chains and not split children, reads the same before the boss (0.97) and no better in the fight (0.36 against the Tempest pair's 0.40). So the fight's shortfall is the weapon's, not one archetype's. Against the boss the wall deals about a third of the plain rings' damage (1 728 against 5 240 here, 2 069 against 5 793 in the judged pair), and the Keeper damage that rides its strikes falls with it.
 
+## Both pairs side by side (printed, judged nowhere)
+Before the boss and the runs that reached it are from `evolve_read.py`'s split. The nearest enemy and live enemies after the pick use the scratch reading of `S2_d061_pulse_wall.md` (the CSV intervals that start at or after the pick, medians over the runs), so they compare with the earlier notes.
+
+| | Tempest arm | Tempest hold | Arc Grid arm | Arc Grid hold |
+|---|---|---|---|---|
+| Damage taken before the boss, a minute | 14.6 | 1.8 | 10.8 | 1.6 |
+| Deaths before the boss | 4 of 15 | 0 | 3 of 15 | 0 |
+| Runs that reached the boss | 11 of 15 | 15 of 15 | 12 of 15 | 15 of 15 |
+| Nearest enemy after the pick, uu | 280 | 477 | 317 | 511 |
+| Live enemies after the pick | 28 | 14 | 21 | 11 |
+| Build before the boss / in the fight, against its hold | 0.97 / 0.40 | — | 0.97 / 0.36 | — |
+
+The Tempest hold is run for run the same as `d061_hold`, so its after-pick figures are that batch's.
 ## Not done
 The whole gate and the five-arm seed 9107 check were not run (a miss: ruling 12 and the brief). The look of a disc that strikes is the Visual session's (ruling 8).
