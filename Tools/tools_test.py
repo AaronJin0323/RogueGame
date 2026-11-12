@@ -12,6 +12,7 @@ import math
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -719,11 +720,16 @@ class EvolveSplit(unittest.TestCase):
 			{"kind": "run_end", "owner": -1, "t": 220.0, "reason": "death"}],
 		"D": [{"kind": "run_end", "owner": -1, "t": 50.0, "reason": "death"}],
 	}
+	# The control's runs decline the hand: B with the hand's offer in place of the pick (BD), and with neither (BN).
+	RUNS["BD"] = [{"kind": "offer", "owner": 0, "t": 100.0, "hand_kind": "Reforging", "cards": []}] + RUNS["B"][1:]
+	RUNS["BN"] = RUNS["B"][1:]
+	# A control whose boss takes more: the same run on a boss with twice the health, the same share taken.
+	RUNS["BD2"] = [dict(r, effective_max=19200.0) if isinstance(r, dict) and r.get("kind") == "boss_calibrated" else r for r in RUNS["BD"]]
 
-	def batch(self, root, runs=("A", "B", "C", "D")):
+	def batch(self, root, runs=("A", "B", "C", "D"), suffix=""):
 		folders = []
 		for seed, name in enumerate(runs, 1):
-			folder = os.path.join(root, f"Steered-Storm-Tempest-Tide-Carry-RingEmitter_s{seed}")
+			folder = os.path.join(root, f"Steered-Storm-Tempest-Tide-Carry-RingEmitter{suffix}_s{seed}")
 			os.makedirs(folder)
 			lines = []
 			for rec in self.RUNS[name]:
@@ -868,6 +874,186 @@ class EvolveSplit(unittest.TestCase):
 			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter boss fight not judged (2 runs reached it, 10 needed))"))
 			rc, lines = run("--check-windows", "1.5", "0.5")
 			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter before the boss 1.00 < 1.5; RingEmitter boss fight not judged (2 runs reached it, 10 needed))"))
+
+	def test_a_decline_run_starts_at_its_hand(self):
+		with tempfile.TemporaryDirectory() as root:
+			folders = self.batch(root, ("BD", "BN"), suffix="-Decline")
+			read = evolve_read.split_read(folders, hand_start=True)
+			plain = evolve_read.split_read(folders)
+			groups = evolve_read.carry_groups(root, decline=True)
+			self.assertEqual(list(evolve_read.carry_groups(root)), ["RingEmitter-Decline"], "without the control nothing about grouping moves")
+		self.assertEqual((read["runs"], read["no_pick"]), (1, 1), "split at the hand's offer; a run with neither left out and counted")
+		self.assertEqual(read["before"]["all"], 120.0, "the same window as the run that picked at that moment")
+		self.assertEqual((plain["runs"], plain["no_pick"]), (0, 2), "the old reading still leaves a decline run out")
+		self.assertEqual(list(groups), ["RingEmitter"])
+		self.assertEqual(read["kill_rates"], (None, 20.0), "the swarm's kills a minute after the hand, from the whole intervals before the boss")
+
+	@staticmethod
+	def arm_of(before, boss):
+		"""A made-up split_read result: per run (seed, damage a minute before the boss, damage to the boss a minute or None)."""
+		per = [(s, b, f) for s, (b, f) in enumerate(zip(before, boss), 1)]
+		bosses = [f for f in boss if f is not None]
+		return {"runs": len(per), "per_run": per, "before": {"all": statistics.median(before)}, "kill_rates": (None, None),
+			"fight": {"measured": len(bosses), "boss_pm": statistics.median(bosses) if bosses else None, "boss_pooled": None,
+				"effective_max": None, "floor": 0, "ceiling": 0, "seconds": None}}
+
+	def test_the_interval_is_fixed_and_moves_with_its_seed(self):
+		arm = [100.0 + (i * 7919) % 101 + i / 7.0 for i in range(16)]  # sixteen runs: a median of two, so the ends are not tied to the values
+		ctrl = [100.0 + (i * 104729) % 97 + i / 11.0 for i in range(16)]
+		one, two = evolve_read.interval(arm, ctrl), evolve_read.interval(arm, ctrl)
+		self.assertEqual(one, two, "the same folders always print the same interval")
+		self.assertNotEqual(evolve_read.interval(arm, ctrl, seed=evolve_read.INTERVAL_SEED + 1), one)
+		self.assertLess(one[0], statistics.median(arm) / statistics.median(ctrl))
+		self.assertGreater(one[1], statistics.median(arm) / statistics.median(ctrl))
+		runs = lambda values: [(s, v, v, None) for s, v in enumerate(values, 1)]
+		by_seed = evolve_read.interval_by_seed(runs(arm), runs(ctrl), 1)
+		self.assertEqual(by_seed, evolve_read.interval_by_seed(runs(arm), runs(ctrl), 1))
+		self.assertNotEqual(evolve_read.interval_by_seed(runs(arm), runs(ctrl), 1, seed=evolve_read.INTERVAL_SEED + 1), by_seed)
+		self.assertIsNone(evolve_read.interval(arm, [0.0] * 15), "every control statistic zero: no interval")
+		self.assertGreater(evolve_read.interval(arm, [0.0] * 7 + [1.0] * 8)[2], 0, "resamples with a control of zero are left out and counted")
+
+	def test_the_three_words_and_the_three_exit_codes_by_either_interval(self):
+		ten = lambda v: [v] * 12
+		spread = [80.0, 85.0, 90.0, 95.0, 100.0, 105.0, 110.0, 115.0, 120.0, 125.0, 90.0, 100.0]
+		control = self.arm_of(ten(100.0), ten(100.0))
+		self.assertEqual(evolve_read.JUDGE_INTERVAL, "by seed", "D-082's ruling of 04:17: the interval resampled by seed judges")
+		for judge in ("by seed", "by arm"):
+			holds = evolve_read.floor_reading(self.arm_of(ten(110.0), ten(110.0)), control, judge=judge)
+			under = evolve_read.floor_reading(self.arm_of(ten(110.0), ten(50.0)), control, judge=judge)
+			near = evolve_read.floor_reading(self.arm_of(ten(110.0), spread), control, judge=judge)
+			self.assertEqual((holds["boss"]["word"], under["boss"]["word"], near["boss"]["word"]), ("holds", "UNDER", "AT THE FLOOR"), judge)
+			self.assertEqual(evolve_read.check_floors([("RingEmitter", holds)])[1], 0)
+			line, code = evolve_read.check_floors([("RingEmitter", under)])
+			self.assertEqual(code, 1)
+			self.assertTrue(line.startswith(f"FLOORS: FAIL (RingEmitter evolved against the decline arm: before the boss 1.100, 1.100 to 1.100 {judge}, holds"), line)
+			line, code = evolve_read.check_floors([("RingEmitter", near)])
+			self.assertEqual(code, 3)
+			self.assertTrue(line.startswith("FLOORS: AT THE FLOOR (") and line.endswith(
+				"; nothing is decided on this battery; a second battery on fresh seeds can be read together with this one)"), line)
+			self.assertEqual(evolve_read.check_floors([("RingEmitter", near), ("SpiralProjector", under)])[1], 1, "an UNDER fails whatever else is at the floor")
+		self.assertEqual(evolve_read.check_floors([]), ("FLOORS: FAIL (no carried weapon read against a control)", 1))
+
+	def test_not_judged_under_ten_runs_or_ten_complete_pairs(self):
+		ten = lambda v: [v] * 12
+		few_runs = evolve_read.floor_reading(self.arm_of(ten(110.0), ten(110.0)), self.arm_of(ten(100.0), [100.0] * 9 + [None] * 3))
+		line, code = evolve_read.check_floors([("RingEmitter", few_runs)])
+		self.assertEqual(code, 1)
+		self.assertIn("damage to the boss not judged (12 and 9 runs reached it with the measure, 9 complete pairs; 10 needed on each and 10 pairs)", line)
+		# ten runs reach the boss on each arm, on seeds 1 to 10 and 3 to 12: eight complete pairs
+		arm = self.arm_of(ten(110.0), [110.0] * 10 + [None] * 2)
+		ctrl = self.arm_of(ten(100.0), [None] * 2 + [100.0] * 10)
+		by_seed, by_arm = evolve_read.floor_reading(arm, ctrl), evolve_read.floor_reading(arm, ctrl, judge="by arm")
+		self.assertEqual((by_seed["boss"]["word"], by_seed["boss"]["pairs"], by_seed["boss"]["one_arm"]), ("not judged", 8, 4))
+		self.assertEqual(by_arm["boss"]["word"], "holds", "by arm the ten runs of each arm are enough")
+
+	def test_the_two_intervals_beside_each_other(self):
+		# paired seeds: each seed's card run is 1.1 times its control run; the control's runs spread wide
+		ctrl_boss = [60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 75.0, 125.0]
+		arm, ctrl = self.arm_of([110.0] * 12, [1.1 * v for v in ctrl_boss]), self.arm_of([100.0] * 12, ctrl_boss)
+		for judge, other in (("by seed", "by arm"), ("by arm", "by seed")):
+			reading, lines = evolve_read.floor_lines("RingEmitter", "evolved", arm, ctrl, judge=judge)
+			self.assertEqual((reading["boss"]["judged_span"][:2] == (1.1, 1.1)), judge == "by seed")
+			self.assertIn(f"RingEmitter evolved against the control, resampled {other} instead, never judged: before the boss 1.100 to 1.100; the boss "
+				+ evolve_read.span_text(reading["boss"]["by_seed" if judge == "by arm" else "span"]), lines)
+			self.assertIn("RingEmitter evolved against the control, on the boss, pairs by seed: 12 complete, 0 with the figure on one arm only, 0 on neither (left out of the by-seed interval)", lines)
+		reading, lines = evolve_read.floor_lines("RingEmitter", "evolved", arm, ctrl)
+		self.assertEqual((reading["boss"]["word"], reading["boss"]["other_word"]), ("holds", "AT THE FLOOR"))
+		self.assertIn("RingEmitter evolved against the control, on the boss: the two intervals stand on different sides of the floor (by seed holds, by arm AT THE FLOOR); "
+			"the by seed one decides", lines)
+
+	def test_the_ratio_on_the_complete_pairs_is_printed_where_it_differs(self):
+		arm = self.arm_of([110.0] * 12, [200.0, 200.0] + [110.0] * 10)
+		ctrl = self.arm_of([100.0] * 12, [None, None] + [100.0] * 10)
+		reading, lines = evolve_read.floor_lines("RingEmitter", "evolved", arm, ctrl)
+		self.assertEqual(round(reading["boss"]["value"], 3), 1.1)
+		self.assertIn("RingEmitter evolved against the control, on the boss, pairs by seed: 10 complete, 2 with the figure on one arm only, 0 on neither (left out of the by-seed interval)", lines)
+		self.assertFalse([line for line in lines if "complete pairs alone" in line], "the same ratio on the pairs: no line")
+		# the card's two runs whose control seeds did not reach the boss are its best: over every run 120 / 100, on the pairs 110 / 100
+		arm = self.arm_of([110.0] * 12, [300.0, 300.0] + [100.0] * 5 + [120.0] * 5)
+		ctrl = self.arm_of([100.0] * 12, [None, None] + [100.0] * 10)
+		reading, lines = evolve_read.floor_lines("RingEmitter", "evolved", arm, ctrl)
+		self.assertEqual((round(reading["boss"]["value"], 3), reading["boss"]["pairs"]), (1.2, 10))
+		self.assertIn("RingEmitter evolved against the control, on the boss: on the complete pairs alone the ratio is 1.100 (the point figure 1.200 is over every run of each arm)", lines)
+
+	def test_the_command_line_with_a_control(self):
+		with tempfile.TemporaryDirectory() as root:
+			arm, hold, ctrl, few = (os.path.join(root, n) for n in ("arm", "hold", "decline", "few"))
+			self.batch(arm, ("B",) * 10)
+			self.batch(hold, ("B",) * 10)
+			self.batch(ctrl, ("BD2",) * 10, suffix="-Decline")
+			self.batch(few, ("BD2",) * 9 + ("A",), suffix="-Decline")
+			def run(*extra):
+				out = io.StringIO()
+				with contextlib.redirect_stdout(out):
+					rc = evolve_read.main(["evolve_read.py", "--carry", arm, "--hold", hold, *extra])
+				return rc, out.getvalue().splitlines()
+			rc, plain = run()
+			self.assertFalse([line for line in plain if "control" in line or line.startswith("FLOORS:") or "ninety" in line], "without the options the reading is today's")
+			rc, lines = run("--control", ctrl, "--check-floors")
+			self.assertEqual(rc, 1)
+			self.assertEqual(lines[:len(plain)], plain, "the control's lines come after today's, which do not move")
+			self.assertIn("RingEmitter evolved against the control (declines the hand), before the boss: 1.000 (120 / 120; 10 and 10 runs); "
+				"ninety in a hundred 1.000 to 1.000 by seed: holds against 0.95", lines)
+			self.assertTrue(any(line.startswith("RingEmitter evolved against the control, damage to the boss a minute: 0.500 by the medians (9600 / 19200)")
+				and "ninety in a hundred 0.500 to 0.500 by seed: UNDER against 0.95" in line for line in lines), lines)
+			self.assertTrue(any(line.startswith("RingEmitter hold (the Path's card) against the control, damage to the boss a minute: 0.500") for line in lines),
+				"the hold's arm read against the control beside the card's")
+			self.assertTrue(any(line.startswith("RingEmitter the band's boss side, damage to the boss a minute against the control: evolved 0.500, hold (the Path's card) 0.500; by D-085 item 9")
+				for line in lines), lines)
+			self.assertEqual(lines[-1], "FLOORS: FAIL (RingEmitter evolved against the decline arm: before the boss 1.000, 1.000 to 1.000 by seed, holds against 0.95 (10 and 10 runs), "
+				"damage to the boss 0.500, 0.500 to 0.500 by seed, UNDER against 0.95 (10 and 10 runs))")
+			rc, lines = run("--control", ctrl, "--check-floors", "0.95", "0.4")
+			self.assertEqual(rc, 0)
+			self.assertTrue(lines[-1].startswith("FLOORS: PASS ("), lines[-1])
+			rc, lines = run("--control", ctrl, "--check-floors", "0.95", "0.4", "--judge-interval", "by-arm")
+			self.assertTrue(lines[-1].startswith("FLOORS: PASS (RingEmitter evolved against the decline arm: before the boss 1.000, 1.000 to 1.000 by arm"), lines[-1])
+			rc, lines = run("--control", few, "--check-floors", "0.95", "0.4")
+			self.assertEqual(rc, 1)
+			self.assertIn("damage to the boss not judged (10 and 9 runs reached it with the measure, 9 complete pairs; 10 needed on each and 10 pairs)", lines[-1])
+			self.assertFalse([line for line in lines if line.startswith("SECOND BATTERY")], "the exit step runs no second battery of its own")
+			rc, lines = run("--control", ctrl, "--check-windows", "0.95", "0.9")
+			self.assertEqual(lines[-1], "WINDOWS: PASS (RingEmitter before the boss 1.00 >= 0.95, RingEmitter boss fight, damage to the boss 1.00 >= 0.9 (10 runs reached it; old window 1.00))",
+				"--check-windows against the hold stays as it is")
+			rc, windows = run("--check-windows", "0.95", "0.9", "--intervals")
+			extra = [line for line in windows if line not in plain]
+			self.assertEqual(windows[-1], lines[-1], "the intervals change no verdict")
+			self.assertEqual(len([line for line in extra if "ninety in a hundred" in line]), 3, "one line per window: before, the boss, the old window")
+			self.assertIn("RingEmitter evolved against hold, before the boss: 1.000; ninety in a hundred 1.000 to 1.000 resampled by run, 1.000 to 1.000 by seed "
+				"(10 and 10 runs, 10 complete pairs); printed, judged nowhere", extra)
+
+	def test_two_batteries_of_an_arm_are_read_as_one(self):
+		with tempfile.TemporaryDirectory() as root:
+			first, second, clash = (os.path.join(root, n) for n in ("decline", "decline2", "clash"))
+			self.batch(first, ("BD2",) * 5, suffix="-Decline")
+			for seed in range(6, 11):  # the second battery on the seeds after the first's
+				folder = os.path.join(second, f"Steered-Storm-Tempest-Tide-Carry-RingEmitter-Decline_s{seed}")
+				shutil.copytree(os.path.join(first, "Steered-Storm-Tempest-Tide-Carry-RingEmitter-Decline_s1"), folder)
+			self.batch(clash, ("BD2",), suffix="-Decline")
+			groups = evolve_read.carry_groups(f"{first},{second}", decline=True)
+			self.assertEqual(len(groups["RingEmitter"]), 10, "both batteries pooled")
+			with self.assertRaisesRegex(ValueError, "seed 1 of RingEmitter is in both"):
+				evolve_read.carry_groups(f"{first},{clash}", decline=True)
+			arm = os.path.join(root, "arm")
+			self.batch(arm, ("B",) * 10)
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = evolve_read.main(["evolve_read.py", "--carry", arm, "--control", f"{first},{second}", "--check-floors", "0.95", "0.4"])
+			self.assertEqual(rc, 0, out.getvalue())
+			self.assertIn("RingEmitter evolved against the control (declines the hand), before the boss: 1.000 (120 / 120; 10 and 10 runs)", out.getvalue())
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				rc = evolve_read.main(["evolve_read.py", "--carry", arm, "--control", f"{first},{clash}", "--check-floors"])
+			self.assertEqual(rc, 2)
+			self.assertIn("EVOLVE_READ: refused (seed 1 of RingEmitter is in both", out.getvalue())
+
+	def test_s2exit_band_step_reads_its_play_arms_and_seeds_per_card(self):
+		with open(os.path.join(TOOLS, "S2Exit.ps1"), encoding="utf-8") as f:
+			text = f.read()
+		self.assertNotIn("SECOND BATTERY", text, "the exit step runs no second battery of its own")
+		self.assertNotIn('"-FirstSeed"', text)
+		self.assertIn('[string]$BandSeeds = ""', text)
+		self.assertIn('--carry (Join-Path $Band "carry") --hold (Join-Path $Band "hold") --control (Join-Path $Band "decline") --check-floors', text)
+		self.assertIn('$CarryArgs = @("-Arms", $BandArm, "-Carry", ($ByCount[$N] -join \',\'), "-Seeds", "$N"', text, "a seed count per card, -Seeds by default")
 
 	def test_the_fight_is_judged_on_the_boss_and_the_switch_reads_the_old_window(self):
 		with tempfile.TemporaryDirectory() as root:

@@ -1,6 +1,10 @@
 """Evolution reach of a bot batch (Docs/Validation/S2_reforging.md): python -I Tools/evolve_read.py <batch dir> [<batch dir> ...]
 The carry arm (bot.md R-BOT-18, Docs/Validation/S2_evolutions.md): python -I Tools/evolve_read.py --carry <batch dir> [--hold <control dir>]
 	[--check-windows <before> <fight> [--judge-fight-on-old-window]]: the fight is judged on the damage the boss takes (D-081)
+	[--control <decline dir> [--check-floors [<before> <boss>]]]: D-082's floors against the arm that declines the hand (0.95 and 0.95),
+	each with its interval; exit 0 PASS, 1 FAIL, 3 AT THE FLOOR; [--judge-interval by-arm|by-seed] which interval gives the word (JUDGE_INTERVAL)
+	[--intervals]: each window against the hold also with its ninety-in-a-hundred interval, printed only
+	Each arm's folder may be several, comma-separated: their runs are pooled (a seed in two of them is refused, exit 2).
 
 Replays each steered run's offer_pick records into weapon levels at the Reforging hand, and says whether the primary (R-RFG-02)
 stood at the evolution level, how often the hands before it showed the primary's upgrade, and what was taken instead. It also sums
@@ -10,6 +14,7 @@ import collections
 import glob
 import json
 import os
+import random
 import re
 import statistics
 import sys
@@ -269,7 +274,9 @@ def carry_rows(runs):
 
 
 def read_carry(root, to_boss):
-	return [read_carry_run(folder, to_boss) for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))) if os.path.isdir(folder)]
+	"""The carry runs of one batch folder, or of several given as one comma-separated text (pooled)."""
+	return [read_carry_run(folder, to_boss) for part in root.split(",") for folder in sorted(glob.glob(os.path.join(glob.escape(part), "*Carry-*")))
+		if os.path.isdir(folder)]
 
 
 def print_carry(root, hold):
@@ -314,7 +321,7 @@ def read_split_run(folder):
 	if not files:
 		return None
 	run = {"pick": None, "boss": None, "end": None, "reason": "", "hp_left": None, "interval_s": 60.0, "hits": [], "taken": [], "sources": [],
-		"effective_max": None, "clamped": None, "fight_time_s": None, "boss_outcome": None, "weapons": []}
+		"effective_max": None, "clamped": None, "fight_time_s": None, "boss_outcome": None, "weapons": [], "hand": None}
 	with open(files[0], encoding="utf-8") as stream:
 		for line in stream:
 			line = line.strip()
@@ -326,6 +333,8 @@ def read_split_run(folder):
 				run["interval_s"] = float(record.get("interval_s") or 60.0)
 			elif kind == "reforge" and owner == 0 and run["pick"] is None:
 				run["pick"] = t
+			elif kind == "offer" and owner == 0 and record.get("hand_kind") == "Reforging" and run["hand"] is None:
+				run["hand"] = t  # the Reforging hand, as Tools/probe.py's play rate finds it: where a decline run's windows start
 			elif kind == "boss_start" and run["boss"] is None:
 				run["boss"] = t
 			elif kind == "boss_calibrated" and run["effective_max"] is None:
@@ -429,19 +438,43 @@ def strike_read(run, weapon, pick):
 	return sums if held else None
 
 
-def split_read(folders, weapon=None, clamps=None):
-	"""Medians over a batch's runs, the two windows each by itself; the fight also by the damage the boss takes (D-081)."""
+def kill_rates(run):
+	"""(kills a minute in the last whole interval before the run's start, kills a minute over the whole intervals after it and before
+	the boss) from player 0's `sources` intervals; None where there is no such interval. D-082 item 6: the swarm's time to kill."""
+	pick, stop_at = run["pick"], run["boss"] if run["boss"] is not None else run["end"]
+	before = None
+	kills = secs = 0.0
+	for start, stop, by_kills in run["sources"]:
+		if stop <= pick + 1e-6 and stop > start:
+			before = sum(by_kills.values()) / (stop - start) * 60.0
+		elif start >= pick - 1e-6 and stop <= stop_at + 1e-6 and stop > start:
+			kills += sum(by_kills.values())
+			secs += stop - start
+	return before, (kills / secs * 60.0 if secs > 0 else None)
+
+
+def split_read(folders, weapon=None, clamps=None, hand_start=False):
+	"""Medians over a batch's runs, the two windows each by itself; the fight also by the damage the boss takes (D-081). hand_start:
+	the control arm, whose runs decline the hand and hold no `reforge` record, starts at the Reforging hand's `offer` record."""
 	clamps = clamps or boss_clamps()
 	runs, no_pick, no_end = [], 0, 0
+	rates, per_run = [], []
 	strikes = {"runs": 0, "hits": 0.0, "damage": 0.0, "strike_hits": 0.0, "strike_damage": 0.0}
 	for folder in folders:
 		run = read_split_run(folder)
+		if run is not None and run["pick"] is None and hand_start:
+			run["pick"] = run["hand"]
+		if run is not None and run["pick"] is not None and run["end"] is not None:
+			rates.append(kill_rates(run))
 		if run is None or run["pick"] is None:
 			no_pick += 1
 		elif run["end"] is None:
 			no_end += 1
 		else:
-			runs.append(split_windows(run))
+			windows = split_windows(run)
+			runs.append(windows)
+			per_run.append((seed_of(folder), windows["before"]["all"], windows["fight"]["boss_pm"] if windows["fight"] else None,
+				windows["fight"]["all"] if windows["fight"] else None))
 			read = strike_read(run, weapon, run["pick"]) if weapon else None
 			if read:
 				strikes["runs"] += 1
@@ -463,7 +496,12 @@ def split_read(folders, weapon=None, clamps=None):
 			"boss_pm": median([w["boss_pm"] for w in measured]), "boss_pooled": sum(w["boss_damage"] for w in measured) / boss_s * 60.0 if boss_s else None,
 			"measured": len(measured), "not_read": len(fights) - len(measured), "effective_max": median([w["effective_max"] for w in fights]),
 			"floor": sum(clamp_of(w, clamps) == "floor" for w in fights), "ceiling": sum(clamp_of(w, clamps) == "ceiling" for w in fights)},
-		"strikes": strikes if strikes["runs"] else None}
+		"strikes": strikes if strikes["runs"] else None,
+		"kill_rates": (median([b for b, _ in rates]), median([a for _, a in rates])), "per_run": per_run}
+
+
+def seed_of(folder):
+	return int(os.path.basename(folder.rstrip("\\/")).rpartition("_s")[2])
 
 
 def ratio(arm, hold):
@@ -540,22 +578,252 @@ def check_windows(readings, bar_before, bar_fight, old_window=False):
 	return f"WINDOWS: PASS ({', '.join(held)})"
 
 
+# --- The control: the arm that declines the Reforging hand (D-082 items 4 to 6 and its ruling of 2026-11-13, D-085 item 9) ----------
+# --control names the decline arm's folder(s). Its runs hold no `reforge` record, so their windows start at the Reforging hand's `offer`
+# record; a run with neither is left out and counted. D-082's floors in play are judged against it, each by itself:
+#   before the boss: the median, over the arm's runs with a start and a run_end, of its damage a minute from the start to the boss's
+#     start (or the run's end), card arm over control;
+#   the boss: the median, over the arm's runs that reached the boss and have both boss records, of D-081's damage dealt to the boss a
+#     minute, card arm over control; ten such runs on each arm or the floor is not judged.
+# Each floor carries an interval: each arm's own runs resampled with replacement, the same count, each arm by itself, the ratio of the
+# two statistics, RESAMPLES times from random.Random(INTERVAL_SEED); the 5th and the 95th of the hundred ("ninety in a hundred").
+# The floor's word: holds (the whole interval at or over it), UNDER (the whole interval under it), AT THE FLOOR (the interval holds it),
+# not judged. A second interval resampled by seed is printed beside it and never judged.
+FLOOR_BEFORE = 0.95
+FLOOR_BOSS = 0.95
+DECLINE_SUFFIX = "-Decline"  # BotRuns.ps1 -DeclineReforge ends its label with it
+RESAMPLES = 10000
+INTERVAL_SEED = 20261113
+FLOORS_EXIT = {"PASS": 0, "FAIL": 1, "AT THE FLOOR": 3}  # 2 is a usage error
+# Which interval judges a floor: "by seed" (the complete pairs of seeds drawn with replacement, a battery's arms sharing their seeds) or
+# "by arm" (each arm's runs resampled by itself). --judge-interval by-arm|by-seed sets it for one reading; the other is printed beside it.
+JUDGE_INTERVAL = "by seed"  # D-082's ruling of 2026-11-13 04:17: the interval resampled by seed judges
+JUDGE_CHOICES = {"by-arm": "by arm", "by-seed": "by seed"}
+
+
+def quantiles_90(values):
+	"""The 5th and the 95th of the hundred of values."""
+	cuts = statistics.quantiles(values, n=20, method="inclusive")
+	return cuts[0], cuts[-1]
+
+
+def interval(arm_values, control_values, seed=None):
+	"""(low, high, resamples left out for a control statistic of zero) of median(arm) / median(control), each arm's values resampled by
+	itself with replacement at its own count; None when either arm has no value."""
+	if not arm_values or not control_values:
+		return None
+	rng = random.Random(INTERVAL_SEED if seed is None else seed)
+	ratios, zero = [], 0
+	for _ in range(RESAMPLES):
+		a = statistics.median(rng.choices(arm_values, k=len(arm_values)))
+		c = statistics.median(rng.choices(control_values, k=len(control_values)))
+		if c == 0:
+			zero += 1
+			continue
+		ratios.append(a / c)
+	if len(ratios) < 2:
+		return None
+	low, high = quantiles_90(ratios)
+	return low, high, zero
+
+
+def seed_pairs(arm_runs, control_runs, which):
+	"""([(seed, arm value, control value)] of the seeds with the figure on both arms, seeds with it on one arm only, seeds read on an arm
+	with it on neither). A battery's arms share their seeds; a seed missing the figure on one arm leaves its pair, both runs."""
+	arm = {r[0]: r[which] for r in arm_runs}
+	ctrl = {r[0]: r[which] for r in control_runs}
+	pairs, one, neither = [], 0, 0
+	for s in sorted(set(arm) | set(ctrl)):
+		a, c = arm.get(s), ctrl.get(s)
+		if a is not None and c is not None:
+			pairs.append((s, a, c))
+		elif a is not None or c is not None:
+			one += 1
+		else:
+			neither += 1
+	return pairs, one, neither
+
+
+def interval_by_seed(arm_runs, control_runs, which, seed=None):
+	"""The interval resampled by seed (D-082's ruling of 04:17, the judged one): the complete pairs drawn with replacement at their own
+	count, the ratio of the arm's median to the control's over the drawn pairs. which: 1 before the boss, 2 the boss, 3 the old window."""
+	pairs, _, _ = seed_pairs(arm_runs, control_runs, which)
+	if not pairs:
+		return None
+	rng = random.Random(INTERVAL_SEED if seed is None else seed)
+	ratios, zero = [], 0
+	for _ in range(RESAMPLES):
+		drawn = rng.choices(pairs, k=len(pairs))
+		c = statistics.median(p[2] for p in drawn)
+		if c == 0:
+			zero += 1
+			continue
+		ratios.append(statistics.median(p[1] for p in drawn) / c)
+	if len(ratios) < 2:
+		return None
+	low, high = quantiles_90(ratios)
+	return low, high, zero
+
+
+def floor_word(span, floor, judged=True):
+	if not judged or span is None:
+		return "not judged"
+	low, high, _ = span
+	if low >= floor:
+		return "holds"
+	if high < floor:
+		return "UNDER"
+	return "AT THE FLOOR"
+
+
+def floor_reading(arm, control, floors=(FLOOR_BEFORE, FLOOR_BOSS), judge=None):
+	"""Both floors of one arm against the control: {"before"|"boss": {"value", "span" (by arm), "by_seed", "judged_span", "word",
+	"other_word", "runs", "floor"}}, "pooled", "judged". judge picks the interval that gives the word (JUDGE_INTERVAL when None)."""
+	judge = judge or JUDGE_INTERVAL
+	af, cf = arm["fight"], control["fight"]
+	boss_pairs = seed_pairs(arm["per_run"], control["per_run"], 2)
+	# ten runs reaching the boss on each arm, and (the judged interval rests on ten of what it is drawn from) ten complete pairs by seed
+	judged = af["measured"] >= FIGHT_RUNS_MIN and cf["measured"] >= FIGHT_RUNS_MIN and (judge == "by arm" or len(boss_pairs[0]) >= FIGHT_RUNS_MIN)
+	out = {"judged": judged, "pooled": ratio(af["boss_pooled"], cf["boss_pooled"]) if judged else None, "judge": judge}
+	for key, which, value, floor, ok in (("before", 1, ratio(arm["before"]["all"], control["before"]["all"]), floors[0], True),
+			("boss", 2, ratio(af["boss_pm"], cf["boss_pm"]) if judged else None, floors[1], judged)):
+		a = [r[which] for r in arm["per_run"] if r[which] is not None]
+		c = [r[which] for r in control["per_run"] if r[which] is not None]
+		span = interval(a, c) if ok else None
+		by_seed = interval_by_seed(arm["per_run"], control["per_run"], which) if ok else None
+		judged_span, other = (span, by_seed) if judge == "by arm" else (by_seed, span)
+		usable = ok and value is not None
+		pairs, one, neither = seed_pairs(arm["per_run"], control["per_run"], which)
+		pair_value = ratio(statistics.median(p[1] for p in pairs), statistics.median(p[2] for p in pairs)) if pairs else None
+		out[key] = {"value": value, "span": span, "by_seed": by_seed, "judged_span": judged_span, "runs": (len(a), len(c)), "floor": floor,
+			"word": floor_word(judged_span, floor, usable), "other_word": floor_word(other, floor, usable),
+			"pairs": len(pairs), "one_arm": one, "neither": neither, "pair_value": pair_value}
+	return out
+
+
+def span_text(span):
+	if span is None:
+		return "-"
+	low, high, zero = span
+	return f"{low:.3f} to {high:.3f}" + (f" ({zero} resample(s) with a control of zero left out)" if zero else "")
+
+
+def floor_lines(weapon, name, arm, control, floors=(FLOOR_BEFORE, FLOOR_BOSS), judge=None):
+	"""The two floors of one arm (the evolved one or the hold, the Path's card) against the control, and the swarm's kill rates."""
+	reading = floor_reading(arm, control, floors, judge)
+	b, f = reading["before"], reading["boss"]
+	af, cf = arm["fight"], control["fight"]
+	other = "by seed" if reading["judge"] == "by arm" else "by arm"
+	boss_text = (f"{number(f['value'], 3)} by the medians ({number(af['boss_pm'])} / {number(cf['boss_pm'])}), {number(reading['pooled'], 3)} pooled "
+		f"({number(af['boss_pooled'])} / {number(cf['boss_pooled'])}); ninety in a hundred {span_text(f['judged_span'])} {reading['judge']}: {f['word']} against {f['floor']:g}"
+		if reading["judged"] else
+		f"not judged ({af['measured']} and {cf['measured']} runs reached it with the measure, {f['pairs']} complete pairs by seed; "
+		f"{FIGHT_RUNS_MIN} needed on each and {FIGHT_RUNS_MIN} pairs)")
+	rates = lambda r: f"{number(r['kill_rates'][0])} then {number(r['kill_rates'][1])}"
+	unjudged = lambda r: r["by_seed"] if reading["judge"] == "by arm" else r["span"]
+	lines = [f"{weapon} {name} against the control (declines the hand), before the boss: {number(b['value'], 3)} "
+		f"({number(arm['before']['all'])} / {number(control['before']['all'])}; {arm['runs']} and {control['runs']} runs); "
+		f"ninety in a hundred {span_text(b['judged_span'])} {reading['judge']}: {b['word']} against {b['floor']:g}",
+		f"{weapon} {name} against the control, damage to the boss a minute: {boss_text}; effective max {number(af['effective_max'])} / "
+		f"{number(cf['effective_max'])} (median), on the floor {af['floor']} / {cf['floor']}, on the ceiling {af['ceiling']} / {cf['ceiling']}; "
+		f"length {number(af['seconds'])} / {number(cf['seconds'])} s",
+		f"{weapon} {name} against the control, resampled {other} instead, never judged: before the boss {span_text(unjudged(b))}; "
+		f"the boss {span_text(unjudged(f)) if reading['judged'] else 'not judged'}"]
+	for key, label in (("before", "before the boss"), ("boss", "on the boss")):
+		r = reading[key]
+		lines.append(f"{weapon} {name} against the control, {label}, pairs by seed: {r['pairs']} complete, {r['one_arm']} with the figure on one arm only, "
+			f"{r['neither']} on neither (left out of the by-seed interval)")
+		if r["value"] is not None and r["pair_value"] is not None and abs(r["pair_value"] - r["value"]) > 0.01 + 1e-9:
+			lines.append(f"{weapon} {name} against the control, {label}: on the complete pairs alone the ratio is {r['pair_value']:.3f} "
+				f"(the point figure {r['value']:.3f} is over every run of each arm)")
+		if r["word"] != r["other_word"] and r["word"] != "not judged":
+			lines.append(f"{weapon} {name} against the control, {label}: the two intervals stand on different sides of the floor ({reading['judge']} "
+				f"{r['word']}, {other} {r['other_word']}); the {reading['judge']} one decides")
+	lines.append(f"{weapon} {name} against the control, the swarm's kills a minute, the interval before the hand then the intervals after it to the "
+		f"boss: {rates(arm)} against {rates(control)}")
+	return reading, lines
+
+
+def band_line(weapon, sides):
+	"""The boss's side of the band, printed and judged nowhere (D-085 item 9). sides: [(name, boss ratio or None)]."""
+	return (f"{weapon} the band's boss side, damage to the boss a minute against the control: "
+		+ ", ".join(f"{name} {number(value, 3) if value is not None else 'not judged'}" for name, value in sides)
+		+ "; by D-085 item 9 a card is in band when it is at least C.REFORGE.POWER_MIN on one side and at most C.REFORGE.POWER_MAX on both, "
+		"and the crowd's side comes from the probe's field (Tools/probe.py reforge); printed, judged nowhere")
+
+
+def check_floors(readings):
+	"""(FLOORS: PASS | FAIL | AT THE FLOOR line, exit code). readings: [(weapon, floor_reading or None)], the evolved arm against the
+	control. FAIL: a floor UNDER or not judged; AT THE FLOOR: none of those and at least one at the floor; PASS: every floor holds."""
+	parts, words = [], []
+	for weapon, reading in readings:
+		if reading is None:
+			parts.append(f"{weapon}: no run of the control carries it")
+			words.append("not judged")
+			continue
+		cells = []
+		for key, name in (("before", "before the boss"), ("boss", "damage to the boss")):
+			r = reading[key]
+			words.append(r["word"])
+			if r["word"] == "not judged":
+				cells.append(f"{name} not judged ({r['runs'][0]} and {r['runs'][1]} runs reached it with the measure, {r['pairs']} complete pairs; "
+					f"{FIGHT_RUNS_MIN} needed on each and {FIGHT_RUNS_MIN} pairs)" if key == "boss" else f"{name} not judged")
+			else:
+				cells.append(f"{name} {r['value']:.3f}, {r['judged_span'][0]:.3f} to {r['judged_span'][1]:.3f} {reading['judge']}, {r['word']} against {r['floor']:g} "
+					f"({r['runs'][0]} and {r['runs'][1]} runs)")
+		parts.append(f"{weapon} evolved against the decline arm: " + ", ".join(cells))
+	if not readings:
+		parts.append("no carried weapon read against a control")
+		words.append("not judged")
+	if any(w in ("UNDER", "not judged") for w in words):
+		verdict = "FAIL"
+	elif any(w == "AT THE FLOOR" for w in words):
+		verdict = "AT THE FLOOR"
+	else:
+		verdict = "PASS"
+	tail = "; nothing is decided on this battery; a second battery on fresh seeds can be read together with this one" if verdict == "AT THE FLOOR" else ""
+	return f"FLOORS: {verdict} ({'; '.join(parts)}{tail})", FLOORS_EXIT[verdict]
+
+
 # Judges the fight on the old window instead (every source's damage a minute in the fight), so a verdict landed before D-081 prints as it was read.
 OLD_WINDOW_SWITCH = "--judge-fight-on-old-window"
 CARRIED = re.compile(r"Carry-([^_\\/]+)_s\d+$")
 
 
-def carry_groups(root):
-	"""A batch's run folders by the weapon they carry (the label's Carry-<weapon>), in name order."""
-	groups = {}
-	for folder in sorted(glob.glob(os.path.join(glob.escape(root), "*Carry-*"))):
-		found = CARRIED.search(os.path.basename(folder))
-		if os.path.isdir(folder) and found:
-			groups.setdefault(found.group(1), []).append(folder)
+def carry_groups(root, decline=False):
+	"""A batch's run folders by the weapon they carry (the label's Carry-<weapon>), in name order. decline: the control's labels end
+	-Decline, which is not part of the weapon."""
+	groups, seen = {}, {}
+	for part in root.split(","):  # several batteries of one arm, pooled (D-082's ruling: a second battery on fresh seeds)
+		for folder in sorted(glob.glob(os.path.join(glob.escape(part), "*Carry-*"))):
+			found = CARRIED.search(os.path.basename(folder))
+			if os.path.isdir(folder) and found:
+				weapon = found.group(1)
+				if decline and weapon.endswith(DECLINE_SUFFIX):
+					weapon = weapon[:-len(DECLINE_SUFFIX)]
+				seed = seed_of(folder)
+				if (weapon, seed) in seen and seen[weapon, seed] != part:
+					raise ValueError(f"seed {seed} of {weapon} is in both {seen[weapon, seed]} and {part}: two batteries of one arm must not share a seed")
+				seen[weapon, seed] = part
+				groups.setdefault(weapon, []).append(folder)
 	return groups
 
 
-def print_split(root, hold, check, old_window=False):
+def hold_interval_lines(weapon, arm, held):
+	"""--intervals on a reading against the hold: each window's ninety-in-a-hundred interval, resampled by run and by seed, printed
+	beside the point figures; --check-windows still judges the point figures."""
+	lines = []
+	for which, name in ((1, "before the boss"), (2, "boss fight, damage to the boss a minute"), (3, "boss fight, the old window")):
+		a = [r[which] for r in arm["per_run"] if r[which] is not None]
+		h = [r[which] for r in held["per_run"] if r[which] is not None]
+		pairs = len(seed_pairs(arm["per_run"], held["per_run"], which)[0])
+		lines.append(f"{weapon} evolved against hold, {name}: {number(ratio(median(a), median(h)), 3)}; ninety in a hundred {span_text(interval(a, h))} "
+			f"resampled by run, {span_text(interval_by_seed(arm['per_run'], held['per_run'], which))} by seed ({len(a)} and {len(h)} runs, {pairs} complete pairs); "
+			"printed, judged nowhere")
+	return lines
+
+
+def print_split(root, hold, check, old_window=False, control=None, floors=None, intervals=False, judge=None):
 	"""Per carried weapon: the two windows of the evolved batch and, with --hold, of the hold and each window against it."""
 	arms = carry_groups(root)
 	holds = carry_groups(hold) if hold else {}
@@ -567,27 +835,57 @@ def print_split(root, hold, check, old_window=False):
 		for side, path in (("arm", root), ("hold", hold)):
 			for row in carry_rows(read_carry(path, to_boss)):
 				whole[side, row["weapon"].split(".")[-1]] = row["all_after"]
-	readings = []
+	readings, floor_readings = [], []
 	clamps = boss_clamps()
+	controls = carry_groups(control, decline=True) if control else {}
 	for weapon, folders in sorted(arms.items()):
 		arm = split_read(folders, "Weapon." + weapon, clamps)
 		for line in split_lines(f"{weapon} evolved", arm):
 			print(line)
+		held = None
 		if weapon not in holds:
 			readings.append((weapon, None, None, None, arm["fight"]["measured"]))
+		else:
+			held = split_read(holds[weapon], "Weapon." + weapon, clamps)
+			for line in split_lines(f"{weapon} hold", held):
+				print(line)
+			before, fight, old, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
+			for line in lines:
+				print(line)
+			if intervals:
+				for line in hold_interval_lines(weapon, arm, held):
+					print(line)
+			readings.append((weapon, before, fight, old, arm["fight"]["measured"] if not old_window else arm["reached"]))
+		if not control:
 			continue
-		held = split_read(holds[weapon], "Weapon." + weapon, clamps)
-		for line in split_lines(f"{weapon} hold", held):
+		if weapon not in controls:
+			print(f"{weapon} against the control: no run of the control carries it")
+			floor_readings.append((weapon, None))
+			continue
+		ctrl = split_read(controls[weapon], "Weapon." + weapon, clamps, hand_start=True)
+		for line in split_lines(f"{weapon} control (declines the hand)", ctrl):
 			print(line)
-		before, fight, old, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
-		for line in lines:
-			print(line)
-		readings.append((weapon, before, fight, old, arm["fight"]["measured"] if not old_window else arm["reached"]))
-	if not check:
-		return 0
-	verdict = check_windows(readings, *check, old_window=old_window)
-	print(verdict)
-	return 0 if verdict.startswith("WINDOWS: PASS") else 1
+		sides = []
+		for name, side in (("evolved", arm), ("hold (the Path's card)", held)):
+			if side is None:
+				continue
+			reading, lines = floor_lines(weapon, name, side, ctrl, floors or (FLOOR_BEFORE, FLOOR_BOSS), judge)
+			for line in lines:
+				print(line)
+			sides.append((name, reading["boss"]["value"]))
+			if side is arm:
+				floor_readings.append((weapon, reading))
+		print(band_line(weapon, sides))
+	rc = 0
+	if check:
+		verdict = check_windows(readings, *check, old_window=old_window)
+		print(verdict)
+		rc = 0 if verdict.startswith("WINDOWS: PASS") else 1
+	if floors and control:
+		verdict, code = check_floors(floor_readings)
+		print(verdict)
+		rc = rc or code
+	return rc
 
 
 def main(argv):
@@ -598,8 +896,29 @@ def main(argv):
 		if "--check-windows" in args:
 			at = args.index("--check-windows")
 			check = (float(args[at + 1]), float(args[at + 2]))
-		print_carry(argv[2], hold)
-		return print_split(argv[2], hold, check, OLD_WINDOW_SWITCH in args)
+		control = args[args.index("--control") + 1] if "--control" in args else None
+		floors = None
+		if "--check-floors" in args:
+			at = args.index("--check-floors")
+			given = []
+			for value in args[at + 1:at + 3]:
+				try:
+					given.append(float(value))
+				except ValueError:
+					break
+			floors = tuple(given) if len(given) == 2 else (FLOOR_BEFORE, FLOOR_BOSS)
+		try:
+			print_carry(argv[2], hold)
+			judge = None
+			if "--judge-interval" in args:
+				choice = args[args.index("--judge-interval") + 1]
+				if choice not in JUDGE_CHOICES:
+					raise ValueError(f"--judge-interval takes {' or '.join(JUDGE_CHOICES)}, not {choice}")
+				judge = JUDGE_CHOICES[choice]
+			return print_split(argv[2], hold, check, OLD_WINDOW_SWITCH in args, control, floors, "--intervals" in args, judge)
+		except ValueError as error:
+			print(f"EVOLVE_READ: refused ({error})")
+			return 2
 	for batch in argv[1:]:
 		read_batch(batch)
 	return 0

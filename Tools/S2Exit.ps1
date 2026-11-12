@@ -1,5 +1,5 @@
 # S2 exit battery (12_Production §2 S2 row, Docs/Validation/S2_exit.md): one headless bot battery across all six Keepers, then Tools/s2_exit.py.
-#   & Tools\S2Exit.ps1 [-Out Saved\BotRuns\s2_exit] [-Seeds 15] [-Skills 1.0,0.6] [-Parallel 12] [-Stagger 0.4] [-Builds 5] [-Unlock S2] [-ReadOnly] [-NoBand]
+#   & Tools\S2Exit.ps1 [-Out Saved\BotRuns\s2_exit] [-Seeds 15] [-Skills 1.0,0.6] [-Parallel 12] [-Stagger 0.4] [-Builds 5] [-Unlock S2] [-ReadOnly] [-NoBand] [-BandSeeds Weapon.X=30,...]
 # Run by hand. The S2 row says nightly: nothing schedules this.
 # Steps: the 18 showcase arms at each skill on bot v2 (<Out>\bots_<skill>), T-KEE-18 on the first skill's L16 builds up to seed -Builds
 # (<Out>\ab; judged by loss with share printed beside it, and the no-second-Keeper control scenes, D-047), T-KEE-15 on every Keeper (<Out>\ik), then the reader. -ReadOnly only reads. -Unlock "" reads the starter pool.
@@ -22,7 +22,10 @@ param(
 	[string]$Unlock = "S2",
 	[switch]$ReadOnly,
 	# D-082: leaves the Reforging band's step out (the exit before it).
-	[switch]$NoBand
+	[switch]$NoBand,
+	# D-082's ruling of 2026-11-13: seeds per card of the band's play arms, "Weapon.X=30,Weapon.Y=23"; a card not named runs -Seeds
+	# (Docs/Validation/S2_evolve_read_decline.md: how many seeds give ten runs reaching the boss on each arm).
+	[string]$BandSeeds = ""
 )
 
 trap { Write-Host "S2EXIT: FAIL (script error: $_)"; exit 1 }
@@ -64,11 +67,17 @@ if (-not $ReadOnly) {
 	& python -I $Probe intercession $Ik --seeds 2 --stage all
 	Invoke-BotRuns @("-Jobs", (Join-Path $Ik "jobs.csv"), "-Out", (Join-Path $Ik "runs")) $JobUnlockArgs
 	if (-not $NoBand) {
-		$Carry = $BandWeapons -join ','
-		$CarryArgs = @("-Arms", $BandArm, "-Carry", $Carry, "-Seeds", "$Seeds", "-BotVersion", "2", "-Skill", $SkillList[0])
-		Invoke-BotRuns ($CarryArgs + @("-Out", (Join-Path $Band "carry"))) $UnlockArgs
-		Invoke-BotRuns ($CarryArgs + @("-CarryHold", "-Out", (Join-Path $Band "hold"))) $UnlockArgs
-		Invoke-BotRuns ($CarryArgs + @("-DeclineReforge", "-Out", (Join-Path $Band "decline"))) $UnlockArgs
+		# One battery of each play arm per seed count: every card on -Seeds unless -BandSeeds names more for it.
+		$PerCard = @{}
+		foreach ($Pair in @($BandSeeds -split ',' | Where-Object { $_ })) { $Name, $Count = $Pair -split '='; $PerCard[$Name.Trim()] = [int]$Count }
+		$ByCount = [ordered]@{}
+		foreach ($Weapon in $BandWeapons) { $N = if ($PerCard.Contains($Weapon)) { $PerCard[$Weapon] } else { $Seeds }; if (-not $ByCount.Contains($N)) { $ByCount[$N] = @() }; $ByCount[$N] += $Weapon }
+		foreach ($N in $ByCount.Keys) {
+			$CarryArgs = @("-Arms", $BandArm, "-Carry", ($ByCount[$N] -join ','), "-Seeds", "$N", "-BotVersion", "2", "-Skill", $SkillList[0])
+			Invoke-BotRuns ($CarryArgs + @("-Out", (Join-Path $Band "carry"))) $UnlockArgs
+			Invoke-BotRuns ($CarryArgs + @("-CarryHold", "-Out", (Join-Path $Band "hold"))) $UnlockArgs
+			Invoke-BotRuns ($CarryArgs + @("-DeclineReforge", "-Out", (Join-Path $Band "decline"))) $UnlockArgs
+		}
 		# D-085: the no-pick series first (<Out>\rf\series), then the fixed and far stages at the health it gives; none when it gives none.
 		& python -I $Probe reforge-series $Rf --builds (Join-Path $Band "carry") --path-builds (Join-Path $Out ("bots_" + $SkillList[0]))
 		Invoke-BotRuns @("-Jobs", (Join-Path $Rf "series\jobs.csv"), "-Out", (Join-Path $Rf "series\runs")) $JobUnlockArgs
@@ -82,5 +91,11 @@ $Rc = $LASTEXITCODE
 if (-not $NoBand -and (Test-Path (Join-Path $Rf "runs"))) {
 	# D-082: printed, judged nowhere; the reader's own sentence of item 7 comes with it.
 	& python -I $Probe read $Rf | Select-String "^(PLAY|SERIES|HEALTH|FIELD|REFORGE|FAR):|^The field reads" | ForEach-Object { $_.Line }
+}
+if (-not $NoBand -and (Test-Path (Join-Path $Band "decline"))) {
+	# D-082 items 4 to 6: the play arms' floors against the arm that declines the hand, with their intervals, and the boss's side of the
+	# band; printed, the exit code is the reader's above.
+	& python -I (Join-Path $Root "Tools\evolve_read.py") --carry (Join-Path $Band "carry") --hold (Join-Path $Band "hold") --control (Join-Path $Band "decline") --check-floors |
+		Select-String "against the control|the band's boss side|^FLOORS:" | ForEach-Object { $_.Line }
 }
 exit $Rc
