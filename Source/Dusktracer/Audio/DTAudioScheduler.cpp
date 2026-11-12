@@ -47,9 +47,9 @@ void FDTAudioScheduler::Reset(uint64 Seed)
 	PlayerStarts.Reset();
 	StartsThisFrame = 0;
 	Stream = Seed;
-	DuckStart = -1.0e9;
-	DuckHoldUntil = -1.0e9;
-	DuckFrom = 0.0f;
+	Duck = FDuckSegment();
+	Held = FDuckSegment();
+	PendingHeldDb = 0.0f;
 	DuckDb = 0.0f;
 }
 
@@ -77,13 +77,13 @@ void FDTAudioScheduler::ResetRun(uint64 Seed)
 	Alive.RemoveAll([](const FLive& Live) { return !Live.bRealTime; });
 	PlayerStarts.Reset();
 	Stream = Seed;
-	DuckStart = -1.0e9;
-	DuckHoldUntil = -1.0e9;
-	DuckFrom = 0.0f;
+	Duck = FDuckSegment();
+	Held = FDuckSegment();
+	PendingHeldDb = 0.0f;
 	DuckDb = 0.0f;
 }
 
-void FDTAudioScheduler::Request(int32 Sound, int32 Count, int64 Step)
+void FDTAudioScheduler::Request(int32 Sound, int32 Count, int64 Step, bool bNoDuck)
 {
 	if (!Rows.IsValidIndex(Sound) || Count <= 0)
 	{
@@ -94,6 +94,7 @@ void FDTAudioScheduler::Request(int32 Sound, int32 Count, int64 Step)
 	Batch.Sound = Sound;
 	Batch.Count = Count;
 	Batch.Step = Step;
+	Batch.bNoDuck = bNoDuck;
 	const int64 Grid = FMath::Max(1, DTConst::AUD_GRID_STEPS);
 	Batch.Due = Rows[Sound].bGrid && !IsDanger(Sound) ? ((Step + Grid - 1) / Grid) * Grid : Step;
 	Pending.Add(Batch);
@@ -155,6 +156,7 @@ void FDTAudioScheduler::Frame(double Now, int64 Step, TArray<FDTAudioVoice>& Out
 
 	// One batch per id and step (per id for the interface: one frame), in the order asked. Member arrays: nothing is allocated
 	// per frame once they have grown to the busiest frame.
+	UpdateDuck(Now); // a hold asked since the last frame starts now, so this frame's voices log it
 	Batches.Reset();
 	Batches.Append(Waiting);
 	Waiting.Reset();
@@ -298,15 +300,10 @@ void FDTAudioScheduler::Start(const FBatch& Batch, double Now, int64 Step, TArra
 	Live.StartOrder = StartOrder++;
 	Alive.Add(Live);
 
-	if (bDanger)
+	if (bDanger && !Batch.bNoDuck)
 	{
 		// The duck (R-AUD-05): from where it is now toward C.AUD.DUCK_DB, held while a danger voice sounds.
-		if (Now > DuckHoldUntil)
-		{
-			DuckFrom = DuckDbAt(Now);
-			DuckStart = Now;
-		}
-		DuckHoldUntil = FMath::Max(DuckHoldUntil, Live.EndTime);
+		Duck.Lower(Now, static_cast<float>(DTConst::AUD_DUCK_DB), Live.EndTime);
 	}
 	Voice.DuckDb = DuckDbAt(Now);
 
@@ -323,23 +320,50 @@ void FDTAudioScheduler::Start(const FBatch& Batch, double Now, int64 Step, TArra
 	Out.Add(Voice);
 }
 
-float FDTAudioScheduler::DuckDbAt(double T) const
+float FDTAudioScheduler::FDuckSegment::At(double T) const
 {
-	const float Floor = static_cast<float>(DTConst::AUD_DUCK_DB);
+	// Every lowering moves at the duck's own slopes: C.AUD.DUCK_DB per C.AUD.DUCK_ATTACK_MS down, per C.AUD.DUCK_RELEASE_MS back.
+	const float Depth = static_cast<float>(DTConst::AUD_DUCK_DB);
 	const double Attack = FMath::Max(1.0, static_cast<double>(DTConst::AUD_DUCK_ATTACK_MS)) / 1000.0;
 	const double Release = FMath::Max(1.0, static_cast<double>(DTConst::AUD_DUCK_RELEASE_MS)) / 1000.0;
-	const auto Attacked = [&](double At)
+	const auto Attacked = [&](double When)
 	{
-		return FMath::Max(Floor, DuckFrom + Floor * static_cast<float>(FMath::Max(0.0, At - DuckStart) / Attack));
+		return FMath::Max(Floor, From + Depth * static_cast<float>(FMath::Max(0.0, When - Start) / Attack));
 	};
-	if (T <= DuckHoldUntil)
+	if (T <= HoldUntil)
 	{
-		return T < DuckStart ? DuckFrom : Attacked(T);
+		return T < Start ? From : Attacked(T);
 	}
-	return FMath::Min(0.0f, Attacked(DuckHoldUntil) - Floor * static_cast<float>((T - DuckHoldUntil) / Release));
+	return FMath::Min(0.0f, Attacked(HoldUntil) - Depth * static_cast<float>((T - HoldUntil) / Release));
+}
+
+void FDTAudioScheduler::FDuckSegment::Lower(double Now, float InFloor, double Until)
+{
+	if (Now > HoldUntil)
+	{
+		From = At(Now);
+		Start = Now;
+	}
+	Floor = InFloor;
+	HoldUntil = FMath::Max(HoldUntil, Until);
+}
+
+float FDTAudioScheduler::DuckDbAt(double T) const
+{
+	return FMath::Min(Duck.At(T), Held.At(T));
 }
 
 void FDTAudioScheduler::UpdateDuck(double Now)
 {
+	// The low-health hold (dt.Audio.LowHpHoldDb): it enters by the attack and leaves by the release, under the danger voices' duck.
+	const bool bHolding = Held.HoldUntil > Now;
+	if (PendingHeldDb < 0.0f && !bHolding)
+	{
+		Held.Lower(Now, PendingHeldDb, TNumericLimits<double>::Max());
+	}
+	else if (PendingHeldDb >= 0.0f && bHolding)
+	{
+		Held.HoldUntil = Now;
+	}
 	DuckDb = DuckDbAt(Now);
 }

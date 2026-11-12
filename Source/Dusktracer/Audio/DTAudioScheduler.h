@@ -35,7 +35,9 @@ public:
 	void ResetRun(uint64 Seed);
 
 	/** A run sound: Count events of Sound at sim step Step (an observer calls it at OnStepEnd). */
-	void Request(int32 Sound, int32 Count, int64 Step);
+	void Request(int32 Sound, int32 Count, int64 Step, bool bNoDuck = false);
+	/** The held lowering of the Player group (dt.Audio.LowHpHoldDb), taken at the next Frame: Db < 0 holds that deep, 0 ends it. */
+	void SetHeldDuckDb(float Db) { PendingHeldDb = Db; }
 	/** An interface sound: Count events now, on real time. */
 	void RequestUi(int32 Sound, int32 Count);
 
@@ -71,6 +73,8 @@ private:
 		int64 Due = 0;
 		/** It already waited a frame for the per-frame cap. */
 		bool bWaited = false;
+		/** A danger voice that does not duck (the heartbeat under a held duck). */
+		bool bNoDuck = false;
 	};
 	struct FLive
 	{
@@ -109,9 +113,21 @@ private:
 	int64 Stolen = 0;
 	int32 StartsThisFrame = 0;
 	uint64 Stream = 0;
-	/** Duck curve: it holds at C.AUD.DUCK_DB until DuckHoldUntil, having started from DuckFrom dB at DuckStart. */
-	double DuckStart = -1.0e9;
-	double DuckHoldUntil = -1.0e9;
-	float DuckFrom = 0.0f;
+	/** One lowering: down from From at Start toward Floor at the duck's attack slope, held until HoldUntil, back at its release slope. */
+	struct FDuckSegment
+	{
+		double Start = -1.0e9;
+		double HoldUntil = -1.0e9;
+		float From = 0.0f;
+		float Floor = 0.0f;
+		float At(double T) const;
+		/** Starts (or extends) a lowering toward InFloor that holds until Until. */
+		void Lower(double Now, float InFloor, double Until);
+	};
+	/** The danger voices' duck, toward C.AUD.DUCK_DB while one sounds. */
+	FDuckSegment Duck;
+	/** The low-health hold (dt.Audio.LowHpHoldDb): the curve is the deeper of the two. */
+	FDuckSegment Held;
+	float PendingHeldDb = 0.0f;
 	float DuckDb = 0.0f;
 };

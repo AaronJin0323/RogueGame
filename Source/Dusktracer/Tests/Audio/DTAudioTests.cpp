@@ -1099,7 +1099,7 @@ bool FDTAudTestCost::RunTest(const FString& Parameters)
 	FDTObserveInterface Interface;
 	struct FNull : public IDTAudioRequests
 	{
-		virtual void Run(int32, int32, int64) override {}
+		virtual void Run(int32, int32, int64, bool) override {}
 		virtual void Ui(int32, int32) override {}
 	} Null;
 	TArray<FDTAudioVoice> Out;
