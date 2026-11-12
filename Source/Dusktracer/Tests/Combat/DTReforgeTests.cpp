@@ -1374,6 +1374,8 @@ bool FDTReforgeDeterminism::RunTest(const FString& Parameters)
 			{
 				H.AddEnemy(FVector2f(150.0f + 60.0f * Index, 120.0f * (Index % 4) - 200.0f));
 			}
+			// One on the hero's own ring, so a Blade Halo on the source's orbit and reach (D-071) touches something too.
+			H.AddEnemy(FVector2f(0.0f, 150.0f));
 			RunSteps(H, 200);
 			for (const FDTHit& Hit : H.HitLog)
 			{
