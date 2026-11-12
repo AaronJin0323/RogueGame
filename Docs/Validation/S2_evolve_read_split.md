@@ -16,11 +16,11 @@ Today's carry lines print first, unchanged. The split follows, once per carried 
 - **Damage per minute:** from the `hit` records' `damage_by_source` at their exact times, all sources and by source. This way a short fight is read whole.
 - **Kills per minute, before the boss only:** from the whole `sources` intervals inside the window. An interval runs from `interval` × `interval_s` to its record's `t`, so the last one, cut short by the run's end, counts at its own length.
 - **Damage taken per minute:** from `hero_damaged`.
-- **The fight's other figures:** its length, and the boss's `hp_left_frac` from `boss_end`.
+- **The fight's other figures:** its length, and the boss's `hp_left_frac` from `boss_end`. Since D-081 the fight is judged on the damage the boss takes, and its health left is read over the lost fights only: see `S2_evolve_read_boss.md`. The all-sources figure of this section is now printed as "the old window".
 - **Medians and counts:** medians are over every run with a pick before the boss, and over the runs that reached the boss in the fight; the line says how many. It also counts the runs that died before the boss.
 - **Runs left out:** a run with no `reforge` record or no `run_end` is left out and counted. Only player 0's records are read.
 - **Evolved against hold:** one line per window, each the ratio of the two medians. The whole-time figure, today's build damage per minute after the pick, prints beside them and is labelled "decides nothing".
-- **Judging:** `--check-windows 0.95 0.5` prints `WINDOWS: PASS (...)` or `WINDOWS: FAIL (...)`, naming each weapon's window that missed, and sets the exit code. Without it, nothing is judged.
+- **Judging:** `--check-windows 0.95 0.5` prints `WINDOWS: PASS (...)` or `WINDOWS: FAIL (...)`, naming each weapon's window that missed, and sets the exit code. Without it, nothing is judged. Since D-081 the second number is judged on the damage the boss takes and the fight needs ten runs that reached it; `--judge-fight-on-old-window` judges it on the window described here (`S2_evolve_read_boss.md`). The verdicts quoted below were read before that change.
 
 The definitions are those of the two scratch scripts the plan note used. Its by-source table and fight lengths came from the hit-record script, and the kills and damage taken from the interval script.
 

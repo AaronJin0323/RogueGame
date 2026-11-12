@@ -1,5 +1,6 @@
 """Evolution reach of a bot batch (Docs/Validation/S2_reforging.md): python -I Tools/evolve_read.py <batch dir> [<batch dir> ...]
 The carry arm (bot.md R-BOT-18, Docs/Validation/S2_evolutions.md): python -I Tools/evolve_read.py --carry <batch dir> [--hold <control dir>]
+	[--check-windows <before> <fight> [--judge-fight-on-old-window]]: the fight is judged on the damage the boss takes (D-081)
 
 Replays each steered run's offer_pick records into weapon levels at the Reforging hand, and says whether the primary (R-RFG-02)
 stood at the evolution level, how often the hands before it showed the primary's upgrade, and what was taken instead. It also sums
@@ -284,7 +285,8 @@ def read_split_run(folder):
 	files = sorted(glob.glob(os.path.join(glob.escape(folder), "*.jsonl")))
 	if not files:
 		return None
-	run = {"pick": None, "boss": None, "end": None, "reason": "", "hp_left": None, "interval_s": 60.0, "hits": [], "taken": [], "sources": []}
+	run = {"pick": None, "boss": None, "end": None, "reason": "", "hp_left": None, "interval_s": 60.0, "hits": [], "taken": [], "sources": [],
+		"effective_max": None, "clamped": None, "fight_time_s": None, "boss_outcome": None, "weapons": []}
 	with open(files[0], encoding="utf-8") as stream:
 		for line in stream:
 			line = line.strip()
@@ -298,8 +300,13 @@ def read_split_run(folder):
 				run["pick"] = t
 			elif kind == "boss_start" and run["boss"] is None:
 				run["boss"] = t
+			elif kind == "boss_calibrated" and run["effective_max"] is None:
+				run["effective_max"], run["clamped"] = record.get("effective_max"), record.get("clamped")
 			elif kind == "boss_end":
 				run["hp_left"] = record.get("hp_left_frac")
+				run["fight_time_s"], run["boss_outcome"] = record.get("fight_time_s"), record.get("outcome")
+			elif kind == "weapon" and owner == 0:
+				run["weapons"].append((t, record))
 			elif kind == "run_end":
 				run["end"], run["reason"] = t, record.get("reason", "")
 			elif kind == "hit" and owner == 0:
@@ -336,12 +343,69 @@ def split_windows(run):
 	if boss is not None:
 		fight = window(boss, end)
 		fight["hp_left"] = run["hp_left"]
+		fight["lost"] = run["boss_outcome"] != "win" if run["boss_outcome"] is not None else run["reason"] != "victory"
+		boss_measure(fight, run)
 	return {"before": before, "fight": fight, "died_before": boss is None and run["reason"] == "death"}
 
 
-def split_read(folders):
-	"""Medians over a batch's runs, the two windows each by itself."""
+# --- The boss fight judged on the damage the boss takes (D-081; Docs/Validation/S2_evolve_read_boss.md) ----------------------------------
+# The Warden's health is set once from the damage it takes in its first seconds (boss.md R-BOS-09) and clamped, so a fight's length reads the
+# calibration as much as the build. Per run that reached the boss: damage dealt to the boss a minute = effective_max (boss_calibrated) x
+# (1 - hp_left_frac) / fight_time_s x 60 (both from boss_end). A run that reached the boss without either record is left out of it and counted.
+# The fight is judged only when this many runs of the arm have the measure (D-081 item 1).
+FIGHT_RUNS_MIN = 10
+
+
+def boss_clamps():
+	"""The Warden's health floor and ceiling, BOSS.HP_BASE x BOSS.HP_MIN_MULT and x BOSS.HP_MAX_MULT, from the constants."""
+	sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+	import dtconst
+	values = dtconst.load()
+	base = values["BOSS.HP_BASE"]["value"]
+	return base * values["BOSS.HP_MIN_MULT"]["value"], base * values["BOSS.HP_MAX_MULT"]["value"]
+
+
+def boss_measure(fight, run):
+	"""Adds the boss's own figures to a fight window: effective max, the damage dealt to it and over what seconds, or None where a record is missing."""
+	fight["effective_max"], fight["boss_damage"], fight["boss_s"], fight["boss_pm"] = run["effective_max"], None, None, None
+	fight["clamped"] = bool(run["clamped"])
+	eff, left, secs = run["effective_max"], run["hp_left"], run["fight_time_s"]
+	if eff is not None and left is not None and secs:
+		fight["boss_damage"], fight["boss_s"] = float(eff) * (1.0 - float(left)), float(secs)
+		fight["boss_pm"] = fight["boss_damage"] / fight["boss_s"] * 60.0
+
+
+def clamp_of(fight, clamps):
+	"""'floor', 'ceiling' or None: which clamp of R-BOS-09 a fight's effective max sits on."""
+	eff = fight.get("effective_max")
+	if eff is None:
+		return None
+	floor, ceiling = clamps
+	if abs(eff - floor) < 0.5:
+		return "floor"
+	if abs(eff - ceiling) < 0.5:
+		return "ceiling"
+	return None
+
+
+def strike_read(run, weapon, pick):
+	"""An evolution's own strikes (D-081 item 6) as sums over the carried weapon's `weapon` records after the pick, or None if they hold no strike fields."""
+	sums = {"hits": 0.0, "damage": 0.0, "strike_hits": 0.0, "strike_damage": 0.0}
+	held = False
+	for t, record in run["weapons"]:
+		if record.get("source") != weapon or t <= pick:
+			continue
+		held = held or ("strike_hits" in record and "strike_damage" in record)
+		for key in sums:
+			sums[key] += float(record.get(key, 0) or 0)
+	return sums if held else None
+
+
+def split_read(folders, weapon=None, clamps=None):
+	"""Medians over a batch's runs, the two windows each by itself; the fight also by the damage the boss takes (D-081)."""
+	clamps = clamps or boss_clamps()
 	runs, no_pick, no_end = [], 0, 0
+	strikes = {"runs": 0, "hits": 0.0, "damage": 0.0, "strike_hits": 0.0, "strike_damage": 0.0}
 	for folder in folders:
 		run = read_split_run(folder)
 		if run is None or run["pick"] is None:
@@ -350,7 +414,15 @@ def split_read(folders):
 			no_end += 1
 		else:
 			runs.append(split_windows(run))
+			read = strike_read(run, weapon, run["pick"]) if weapon else None
+			if read:
+				strikes["runs"] += 1
+				for key in read:
+					strikes[key] += read[key]
 	fights = [r["fight"] for r in runs if r["fight"] is not None]
+	measured = [w for w in fights if w["boss_pm"] is not None]
+	lost = [w for w in fights if w["lost"]]
+	boss_s = sum(w["boss_s"] for w in measured)
 	def by_source(windows):
 		names = sorted({s for w in windows for s in w["by_source"]})
 		return {s: median([w["by_source"].get(s, 0.0) for w in windows]) for s in names}
@@ -359,7 +431,11 @@ def split_read(folders):
 		"before": {"all": median([w["all"] for w in befores]), "kills": median([w["kills"] for w in befores]), "taken": median([w["taken"] for w in befores]),
 			"seconds": median([w["seconds"] for w in befores]), "by_source": by_source(befores)},
 		"fight": {"all": median([w["all"] for w in fights]), "taken": median([w["taken"] for w in fights]), "seconds": median([w["seconds"] for w in fights]),
-			"hp_left": median([w["hp_left"] for w in fights]), "by_source": by_source(fights)}}
+			"hp_left": median([w["hp_left"] for w in lost]), "lost": len(lost), "by_source": by_source(fights),
+			"boss_pm": median([w["boss_pm"] for w in measured]), "boss_pooled": sum(w["boss_damage"] for w in measured) / boss_s * 60.0 if boss_s else None,
+			"measured": len(measured), "not_read": len(fights) - len(measured), "effective_max": median([w["effective_max"] for w in fights]),
+			"floor": sum(clamp_of(w, clamps) == "floor" for w in fights), "ceiling": sum(clamp_of(w, clamps) == "ceiling" for w in fights)},
+		"strikes": strikes if strikes["runs"] else None}
 
 
 def ratio(arm, hold):
@@ -373,33 +449,62 @@ def split_lines(label, read):
 	return [f"split at the boss's start, {label}: {read['runs']} runs{left}; died before the boss {read['died_before']}; reached the boss {read['reached']}",
 		f"  before the boss: all sources {number(b['all'])} a minute, kills {number(b['kills'])} a minute, damage taken {number(b['taken'], 1)} a minute, {number(b['seconds'])} s",
 		f"    by source: {sources(b['by_source'])}",
-		f"  boss fight ({read['reached']} of {read['runs']} runs): length {number(f['seconds'])} s, all sources {number(f['all'])} a minute, "
-		f"damage taken {number(f['taken'], 1)} a minute, boss HP left {number(f['hp_left'], 2)}",
-		f"    by source: {sources(f['by_source'])}"]
+		f"  boss fight ({read['reached']} of {read['runs']} runs): length {number(f['seconds'])} s, effective max {number(f['effective_max'])} (median), "
+		f"on the floor {f['floor']}, on the ceiling {f['ceiling']}; damage to the boss {number(f['boss_pm'])} a minute (median), {number(f['boss_pooled'])} pooled"
+		+ (f" ({f['not_read']} not read)" if f["not_read"] else ""),
+		f"    the old window: all sources {number(f['all'])} a minute; damage taken {number(f['taken'], 1)} a minute; "
+		f"boss HP left in the lost fights {number(f['hp_left'], 2)} ({f['lost']} lost)",
+		f"    by source: {sources(f['by_source'])}",
+		f"    {strike_line(read.get('strikes'))}"]
+
+
+def strike_line(strikes):
+	if not strikes:
+		return "strikes: not read (the run files hold no strike fields)"
+	hits = strikes["strike_hits"] / strikes["hits"] if strikes["hits"] else None
+	damage = strikes["strike_damage"] / strikes["damage"] if strikes["damage"] else None
+	return f"strikes: {number(hits, 2)} of the weapon's hits and {number(damage, 2)} of its damage after the pick ({strikes['runs']} runs)"
 
 
 def against_lines(weapon, arm, hold, whole_arm, whole_hold):
-	"""Evolved against hold for one carried weapon, each window by itself; the whole-time figure beside them, deciding nothing."""
+	"""Evolved against hold for one carried weapon, each window by itself; the fight by the damage the boss takes, the old window beside it;
+	the whole-time figure beside them, deciding nothing. Returns before, the fight's measure (ratio of the medians), the old window, the lines."""
 	before = ratio(arm["before"]["all"], hold["before"]["all"])
-	fight = ratio(arm["fight"]["all"], hold["fight"]["all"])
+	af, hf = arm["fight"], hold["fight"]
+	fight = ratio(af.get("boss_pm"), hf.get("boss_pm"))
+	pooled = ratio(af.get("boss_pooled"), hf.get("boss_pooled"))
+	old = ratio(af["all"], hf["all"])
 	whole = ratio(whole_arm, whole_hold)
-	return before, fight, [
+	return before, fight, old, [
 		f"{weapon} evolved against hold, before the boss: {number(before, 2)} ({number(arm['before']['all'])} / {number(hold['before']['all'])}; {arm['runs']} and {hold['runs']} runs)",
-		f"{weapon} evolved against hold, boss fight: {number(fight, 2)} ({number(arm['fight']['all'])} / {number(hold['fight']['all'])}; {arm['reached']} and {hold['reached']} runs reached it)",
+		f"{weapon} evolved against hold, boss fight, damage to the boss a minute: {number(fight, 2)} by the medians ({number(af.get('boss_pm'))} / {number(hf.get('boss_pm'))}), "
+		f"{number(pooled, 2)} pooled ({number(af.get('boss_pooled'))} / {number(hf.get('boss_pooled'))}); {af.get('measured', arm['reached'])} and {hf.get('measured', hold['reached'])} runs read",
+		f"{weapon} evolved against hold, boss fight, the old window: {number(old, 2)} ({number(af['all'])} / {number(hf['all'])}; {arm['reached']} and {hold['reached']} runs reached it)",
 		f"{weapon} evolved against hold, the whole time after the pick: {number(whole, 2)} ({number(whole_arm)} / {number(whole_hold)}), decides nothing"]
 
 
-def check_windows(readings, bar_before, bar_fight):
-	"""WINDOWS: PASS or FAIL naming each weapon's window that missed its bar. readings: [(weapon, before, fight)]."""
+def check_windows(readings, bar_before, bar_fight, old_window=False):
+	"""WINDOWS: PASS or FAIL naming each weapon's window that missed its bar. readings: [(weapon, before, fight, old, read)]: fight is the ratio of
+	the medians of damage to the boss a minute, old the old window, read the arm's runs with the boss's measure. The fight is judged on fight (or
+	on old with old_window) and only when read reaches FIGHT_RUNS_MIN; otherwise it is "not judged", which fails the check."""
 	missed, held = [], []
-	for weapon, before, fight in readings:
-		for name, value, bar in (("before the boss", before, bar_before), ("boss fight", fight, bar_fight)):
-			if value is None:
-				missed.append(f"{weapon} {name}: no reading")
-			elif value < bar:
-				missed.append(f"{weapon} {name} {value:.2f} < {bar:g}")
-			else:
-				held.append(f"{weapon} {name} {value:.2f} >= {bar:g}")
+	for weapon, before, fight, old, read in readings:
+		if before is None:
+			missed.append(f"{weapon} before the boss: no reading")
+		elif before < bar_before:
+			missed.append(f"{weapon} before the boss {before:.2f} < {bar_before:g}")
+		else:
+			held.append(f"{weapon} before the boss {before:.2f} >= {bar_before:g}")
+		value, name = (old, "old window") if old_window else (fight, "damage to the boss")
+		tail = f"({read} runs reached it)" if old_window else f"({read} runs reached it; old window {number(old, 2)})"
+		if (read or 0) < FIGHT_RUNS_MIN:
+			missed.append(f"{weapon} boss fight not judged ({read or 0} runs reached it, {FIGHT_RUNS_MIN} needed)")
+		elif value is None:
+			missed.append(f"{weapon} boss fight, {name}: no reading")
+		elif value < bar_fight:
+			missed.append(f"{weapon} boss fight, {name} {value:.2f} < {bar_fight:g} {tail}")
+		else:
+			held.append(f"{weapon} boss fight, {name} {value:.2f} >= {bar_fight:g} {tail}")
 	if not readings:
 		missed.append("no carried weapon read")
 	if missed:
@@ -407,6 +512,8 @@ def check_windows(readings, bar_before, bar_fight):
 	return f"WINDOWS: PASS ({', '.join(held)})"
 
 
+# Judges the fight on the old window instead (every source's damage a minute in the fight), so a verdict landed before D-081 prints as it was read.
+OLD_WINDOW_SWITCH = "--judge-fight-on-old-window"
 CARRIED = re.compile(r"Carry-([^_\\/]+)_s\d+$")
 
 
@@ -420,7 +527,7 @@ def carry_groups(root):
 	return groups
 
 
-def print_split(root, hold, check):
+def print_split(root, hold, check, old_window=False):
 	"""Per carried weapon: the two windows of the evolved batch and, with --hold, of the hold and each window against it."""
 	arms = carry_groups(root)
 	holds = carry_groups(hold) if hold else {}
@@ -433,23 +540,24 @@ def print_split(root, hold, check):
 			for row in carry_rows(read_carry(path, to_boss)):
 				whole[side, row["weapon"].split(".")[-1]] = row["all_after"]
 	readings = []
+	clamps = boss_clamps()
 	for weapon, folders in sorted(arms.items()):
-		arm = split_read(folders)
+		arm = split_read(folders, "Weapon." + weapon, clamps)
 		for line in split_lines(f"{weapon} evolved", arm):
 			print(line)
 		if weapon not in holds:
-			readings.append((weapon, None, None))
+			readings.append((weapon, None, None, None, arm["fight"]["measured"]))
 			continue
-		held = split_read(holds[weapon])
+		held = split_read(holds[weapon], "Weapon." + weapon, clamps)
 		for line in split_lines(f"{weapon} hold", held):
 			print(line)
-		before, fight, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
+		before, fight, old, lines = against_lines(weapon, arm, held, whole.get(("arm", weapon)), whole.get(("hold", weapon)))
 		for line in lines:
 			print(line)
-		readings.append((weapon, before, fight))
+		readings.append((weapon, before, fight, old, arm["fight"]["measured"] if not old_window else arm["reached"]))
 	if not check:
 		return 0
-	verdict = check_windows(readings, *check)
+	verdict = check_windows(readings, *check, old_window=old_window)
 	print(verdict)
 	return 0 if verdict.startswith("WINDOWS: PASS") else 1
 
@@ -463,7 +571,7 @@ def main(argv):
 			at = args.index("--check-windows")
 			check = (float(args[at + 1]), float(args[at + 2]))
 		print_carry(argv[2], hold)
-		return print_split(argv[2], hold, check)
+		return print_split(argv[2], hold, check, OLD_WINDOW_SWITCH in args)
 	for batch in argv[1:]:
 		read_batch(batch)
 	return 0

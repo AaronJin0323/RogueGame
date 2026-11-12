@@ -679,9 +679,11 @@ class EvolveSplit(unittest.TestCase):
 		"B": [{"kind": "reforge", "owner": 0, "t": 100.0}, "HIT 130 Weapon_RingEmitter=240",
 			{"kind": "sources", "owner": 0, "t": 180.0, "interval": 2, "kills": {"Weapon.RingEmitter": 20}},
 			{"kind": "boss_start", "owner": -1, "t": 220.0}, "HIT 220 Keeper_Storm=60", {"kind": "hero_damaged", "owner": 0, "t": 220.0, "amount": 3.0},
-			{"kind": "boss_end", "owner": -1, "t": 280.0, "hp_left_frac": 0.0}, {"kind": "run_end", "owner": -1, "t": 280.0, "reason": "victory"}],
+			{"kind": "boss_calibrated", "owner": -1, "t": 228.0, "effective_max": 9600.0, "clamped": True},
+			{"kind": "boss_end", "owner": -1, "t": 280.0, "outcome": "win", "fight_time_s": 60.0, "hp_left_frac": 0.0}, {"kind": "run_end", "owner": -1, "t": 280.0, "reason": "victory"}],
 		"C": [{"kind": "reforge", "owner": 0, "t": 100.0}, "HIT 159.9 Weapon_RingEmitter=60", {"kind": "boss_start", "owner": -1, "t": 160.0},
-			"HIT 170 Weapon_RingEmitter=30", {"kind": "boss_end", "owner": -1, "t": 220.0, "hp_left_frac": 0.5},
+			{"kind": "boss_calibrated", "owner": -1, "t": 168.0, "effective_max": 12000.0, "clamped": False},
+			"HIT 170 Weapon_RingEmitter=30", {"kind": "boss_end", "owner": -1, "t": 220.0, "outcome": "loss", "fight_time_s": 40.0, "hp_left_frac": 0.5},
 			{"kind": "run_end", "owner": -1, "t": 220.0, "reason": "death"}],
 		"D": [{"kind": "run_end", "owner": -1, "t": 50.0, "reason": "death"}],
 	}
@@ -727,31 +729,83 @@ class EvolveSplit(unittest.TestCase):
 			read = evolve_read.split_read(self.batch(root))
 		self.assertEqual((read["runs"], read["no_pick"], read["no_end"], read["died_before"], read["reached"]), (3, 1, 0, 1, 2))
 		self.assertEqual((read["before"]["all"], read["before"]["kills"]), (120.0, 31.0))
-		self.assertEqual((read["fight"]["all"], read["fight"]["seconds"], read["fight"]["hp_left"]), (45.0, 60.0, 0.25))
+		self.assertEqual((read["fight"]["all"], read["fight"]["seconds"]), (45.0, 60.0))
+		self.assertEqual((read["fight"]["hp_left"], read["fight"]["lost"]), (0.5, 1), "health left over the lost fights only: the won fight's 0 does not halve it")
 		self.assertEqual(read["fight"]["by_source"], {"Keeper.Storm": 30.0, "Weapon.RingEmitter": 15.0}, "a source a fight lacks counts 0 in its median")
 		lines = evolve_read.split_lines("evolved", read)
 		self.assertEqual(lines[0], "split at the boss's start, evolved: 3 runs (1 without a pick and 0 without a run_end, left out); died before the boss 1; reached the boss 2")
-		self.assertTrue(lines[3].startswith("  boss fight (2 of 3 runs): length 60 s, all sources 45 a minute"), lines[3])
+		self.assertEqual(lines[3], "  boss fight (2 of 3 runs): length 60 s, effective max 10800 (median), on the floor 1, on the ceiling 0; "
+			"damage to the boss 9300 a minute (median), 9360 pooled")
+		self.assertEqual(lines[4], "    the old window: all sources 45 a minute; damage taken 1.5 a minute; boss HP left in the lost fights 0.50 (1 lost)")
+
+	def test_damage_to_the_boss_a_minute_median_and_pooled(self):
+		with tempfile.TemporaryDirectory() as root:
+			read = evolve_read.split_read(self.batch(root), clamps=(9600.0, 64000.0))
+		fight = read["fight"]
+		# B: on the floor, 9 600 x (1 - 0) over 60 s = 9 600 a minute; C: off it, 12 000 x (1 - 0.5) over 40 s = 9 000 a minute.
+		self.assertEqual((fight["boss_pm"], fight["measured"], fight["not_read"]), (9300.0, 2, 0), "the median over the runs that reached the boss")
+		self.assertAlmostEqual(fight["boss_pooled"], (9600.0 + 6000.0) / 100.0 * 60.0, msg="pooled: all damage over all seconds")
+		self.assertNotEqual(fight["boss_pm"], fight["boss_pooled"])
+		self.assertEqual((fight["effective_max"], fight["floor"], fight["ceiling"]), (10800.0, 1, 0))
+
+	def test_a_run_without_either_boss_record_is_left_out_and_counted(self):
+		with tempfile.TemporaryDirectory() as root:
+			folders = self.batch(root, ("B", "C"))
+			for folder, kind in zip(folders, ("boss_end", "boss_calibrated")):
+				path = os.path.join(folder, "1_1.jsonl")
+				with open(path, encoding="utf-8") as f:
+					kept = [line for line in f if f'"kind":"{kind}"' not in line]
+				with open(path, "w", encoding="utf-8") as f:
+					f.writelines(kept)
+			read = evolve_read.split_read(folders, clamps=(9600.0, 64000.0))
+		self.assertEqual((read["reached"], read["fight"]["measured"], read["fight"]["not_read"], read["fight"]["boss_pm"]), (2, 0, 2, None))
+		self.assertTrue(evolve_read.split_lines("evolved", read)[3].endswith("damage to the boss - a minute (median), - pooled (2 not read)"))
+
+	def test_the_floor_and_the_ceiling_are_told_apart(self):
+		self.assertEqual(evolve_read.boss_clamps(), (9600.0, 64000.0), "BOSS.HP_BASE x BOSS.HP_MIN_MULT and x BOSS.HP_MAX_MULT from the constants")
+		clamps = (9600.0, 64000.0)
+		self.assertEqual([evolve_read.clamp_of({"effective_max": e}, clamps) for e in (9600.0, 64000.0, 21000.0, None)], ["floor", "ceiling", None, None])
+
+	def test_strike_fields_present_and_absent(self):
+		with tempfile.TemporaryDirectory() as root:
+			folders = self.batch(root, ("B", "C"))
+			read = evolve_read.split_read(folders, "Weapon.RingEmitter", (9600.0, 64000.0))
+			self.assertIsNone(read["strikes"])
+			self.assertEqual(evolve_read.split_lines("evolved", read)[-1], "    strikes: not read (the run files hold no strike fields)")
+			records = [{"kind": "weapon", "owner": 0, "t": 90.0, "source": "Weapon.RingEmitter", "hits": 50, "damage": 500, "strike_hits": 50, "strike_damage": 500},
+				{"kind": "weapon", "owner": 0, "t": 160.0, "source": "Weapon.RingEmitter", "hits": 40, "damage": 400, "strike_hits": 10, "strike_damage": 100},
+				{"kind": "weapon", "owner": 0, "t": 160.0, "source": "Weapon.PulseRifle", "hits": 99, "damage": 999, "strike_hits": 0, "strike_damage": 0}]
+			with open(os.path.join(folders[0], "1_1.jsonl"), "a", encoding="utf-8") as f:
+				f.write("".join(json.dumps(r) + "\n" for r in records))
+			read = evolve_read.split_read(folders, "Weapon.RingEmitter", (9600.0, 64000.0))
+		self.assertEqual((read["strikes"]["runs"], read["strikes"]["hits"], read["strikes"]["strike_damage"]), (1, 40.0, 100.0), "the carried weapon after the pick only")
+		self.assertEqual(evolve_read.strike_line(read["strikes"]), "strikes: 0.25 of the weapon's hits and 0.25 of its damage after the pick (1 runs)")
 
 	def test_each_window_against_the_hold_and_the_whole_time_decides_nothing(self):
 		with tempfile.TemporaryDirectory() as root:
 			arm = evolve_read.split_read(self.batch(root))
-		hold = {"runs": 15, "reached": 15, "before": {"all": 150.0}, "fight": {"all": 90.0}}
-		before, fight, lines = evolve_read.against_lines("RingEmitter", arm, hold, 75.0, 100.0)
-		self.assertEqual((before, fight), (0.8, 0.5))
+		hold = {"runs": 15, "reached": 15, "before": {"all": 150.0}, "fight": {"all": 90.0, "boss_pm": 9300.0 / 0.93, "boss_pooled": 9360.0 / 1.2, "measured": 15}}
+		before, fight, old, lines = evolve_read.against_lines("RingEmitter", arm, hold, 75.0, 100.0)
+		self.assertEqual((before, round(fight, 6), old), (0.8, 0.93, 0.5))
 		self.assertEqual(lines, ["RingEmitter evolved against hold, before the boss: 0.80 (120 / 150; 3 and 15 runs)",
-			"RingEmitter evolved against hold, boss fight: 0.50 (45 / 90; 2 and 15 runs reached it)",
+			"RingEmitter evolved against hold, boss fight, damage to the boss a minute: 0.93 by the medians (9300 / 10000), 1.20 pooled (9360 / 7800); 2 and 15 runs read",
+			"RingEmitter evolved against hold, boss fight, the old window: 0.50 (45 / 90; 2 and 15 runs reached it)",
 			"RingEmitter evolved against hold, the whole time after the pick: 0.75 (75 / 100), decides nothing"])
 
 	def test_the_check_names_the_window_that_missed(self):
 		check = evolve_read.check_windows
-		self.assertEqual(check([("RingEmitter", 0.96, 0.52)], 0.95, 0.5),
-			"WINDOWS: PASS (RingEmitter before the boss 0.96 >= 0.95, RingEmitter boss fight 0.52 >= 0.5)")
-		self.assertEqual(check([("RingEmitter", 0.80, 0.52)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter before the boss 0.80 < 0.95)")
-		self.assertEqual(check([("RingEmitter", 0.96, 0.31)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight 0.31 < 0.5)")
-		self.assertEqual(check([("RingEmitter", 0.96, None)], 0.95, 0.5), "WINDOWS: FAIL (RingEmitter boss fight: no reading)")
-		self.assertEqual(check([("RingEmitter", 0.96, 0.52), ("SpiralProjector", 0.99, 0.2)], 0.95, 0.5), "WINDOWS: FAIL (SpiralProjector boss fight 0.20 < 0.5)")
-		self.assertEqual(check([], 0.95, 0.5), "WINDOWS: FAIL (no carried weapon read)")
+		self.assertEqual(check([("RingEmitter", 0.96, 1.04, 1.03, 13)], 0.95, 0.9),
+			"WINDOWS: PASS (RingEmitter before the boss 0.96 >= 0.95, RingEmitter boss fight, damage to the boss 1.04 >= 0.9 (13 runs reached it; old window 1.03))")
+		self.assertEqual(check([("RingEmitter", 0.80, 1.04, 1.03, 13)], 0.95, 0.9), "WINDOWS: FAIL (RingEmitter before the boss 0.80 < 0.95)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.31, 0.95, 13)], 0.95, 0.9),
+			"WINDOWS: FAIL (RingEmitter boss fight, damage to the boss 0.31 < 0.9 (13 runs reached it; old window 0.95))", "judged on the boss's measure, not the old window")
+		self.assertEqual(check([("RingEmitter", 0.96, None, 1.0, 13)], 0.95, 0.9), "WINDOWS: FAIL (RingEmitter boss fight, damage to the boss: no reading)")
+		self.assertEqual(check([("RingEmitter", 0.96, 1.5, 1.5, 9)], 0.95, 0.9), "WINDOWS: FAIL (RingEmitter boss fight not judged (9 runs reached it, 10 needed))")
+		self.assertEqual(check([("RingEmitter", 0.96, 1.04, 1.03, 13), ("SpiralProjector", 0.99, 0.2, 0.2, 15)], 0.95, 0.9),
+			"WINDOWS: FAIL (SpiralProjector boss fight, damage to the boss 0.20 < 0.9 (15 runs reached it; old window 0.20))")
+		self.assertEqual(check([], 0.95, 0.9), "WINDOWS: FAIL (no carried weapon read)")
+		self.assertEqual(check([("RingEmitter", 0.96, 0.31, 0.95, 13)], 0.95, 0.9, old_window=True),
+			"WINDOWS: PASS (RingEmitter before the boss 0.96 >= 0.95, RingEmitter boss fight, old window 0.95 >= 0.9 (13 runs reached it))")
 
 	def test_a_batch_of_several_carried_weapons_reads_each_apart(self):
 		with tempfile.TemporaryDirectory() as root:
@@ -778,9 +832,33 @@ class EvolveSplit(unittest.TestCase):
 			self.assertIn("RingEmitter evolved against hold, before the boss: 1.00 (120 / 120; 3 and 3 runs)", lines)
 			self.assertIn("split at the boss's start, RingEmitter evolved: 3 runs (1 without a pick and 0 without a run_end, left out); died before the boss 1; reached the boss 2", lines)
 			self.assertTrue(lines[0].startswith("== "), "today's carry lines come first, unchanged")
-			self.assertEqual(run("--check-windows", "0.95", "0.5")[0], 0)
+			rc, lines = run("--check-windows", "0.95", "0.5")
+			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter boss fight not judged (2 runs reached it, 10 needed))"))
 			rc, lines = run("--check-windows", "1.5", "0.5")
-			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter before the boss 1.00 < 1.5)"))
+			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter before the boss 1.00 < 1.5; RingEmitter boss fight not judged (2 runs reached it, 10 needed))"))
+
+	def test_the_fight_is_judged_on_the_boss_and_the_switch_reads_the_old_window(self):
+		with tempfile.TemporaryDirectory() as root:
+			arm, hold = os.path.join(root, "arm"), os.path.join(root, "hold")
+			self.batch(arm, ("B",) * 10)
+			folders = self.batch(hold, ("B",) * 10)
+			# The hold's boss has more health and the same share taken: more damage to the boss, the same old window.
+			for folder in folders:
+				path = os.path.join(folder, "1_1.jsonl")
+				with open(path, encoding="utf-8") as f:
+					text = f.read().replace('"effective_max":9600.0', '"effective_max":19200.0')
+				with open(path, "w", encoding="utf-8") as f:
+					f.write(text)
+			def run(*extra):
+				out = io.StringIO()
+				with contextlib.redirect_stdout(out):
+					rc = evolve_read.main(["evolve_read.py", "--carry", arm, "--hold", hold, "--check-windows", "0.95", "0.9", *extra])
+				return rc, out.getvalue().splitlines()
+			rc, lines = run()
+			self.assertEqual((rc, lines[-1]), (1, "WINDOWS: FAIL (RingEmitter boss fight, damage to the boss 0.50 < 0.9 (10 runs reached it; old window 1.00))"))
+			rc, lines = run("--judge-fight-on-old-window")
+			self.assertEqual((rc, lines[-1]), (0, "WINDOWS: PASS (RingEmitter before the boss 1.00 >= 0.95, RingEmitter boss fight, old window 1.00 >= 0.9 (10 runs reached it))"),
+				"the switch gives the verdict the old window gave before D-081")
 
 
 class S2Exit(unittest.TestCase):
