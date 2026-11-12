@@ -512,6 +512,7 @@ void FDTWeaponSim::SpawnRound(const FDTSimContext& Context, FDTBulletPool* Bulle
 		Round.BaseDamage = Shot.Damage;
 		Round.PierceLeft = Spawn.Pierce;
 		Round.Generation = Shot.Generation;
+		Round.bRingChild = Shot.bRingChild;
 		Round.BouncesLeft = Shot.Bounces;
 		Round.bCharged = Shot.bCharged;
 		Round.bEmber = Shot.bEmber;
@@ -1660,6 +1661,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Expiry.HitDamage = Round.BaseDamage;
 			Expiry.Area = Round.Radius;
 			Expiry.Generation = Round.Generation;
+			Expiry.bRingChild = Round.bRingChild;
 			Rounds.RemoveAtSwap(Index);
 			continue;
 		}
@@ -1730,6 +1732,7 @@ void FDTWeaponSim::ObserveBullets(const FDTSimContext& Context)
 			Impact.BaseDamage = Round.BaseDamage;
 			Impact.Area = Round.Radius;
 			Impact.Generation = Round.Generation;
+			Impact.bRingChild = Round.bRingChild;
 			Impact.BouncesLeft = Round.BouncesLeft;
 			Impact.bCharged = Round.bCharged;
 			Impact.bEmber = Round.bEmber;
@@ -2411,7 +2414,7 @@ void FDTWeaponSim::ApplyStatus(const FDTSimContext& Context, const FDTFlagParams
 }
 
 void FDTWeaponSim::EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bullets, FWeaponRuntime& Runtime, const FImpact& Impact,
-	const FDTFlagEntry& Entry, bool bRing, const FVector2f& From)
+	const FDTFlagEntry& Entry, bool bRing, const FVector2f& From, bool bMarkRingChildren)
 {
 	using namespace DTWeaponSimLocal;
 	const FDTFlagParams& Params = Entry.Params;
@@ -2425,6 +2428,7 @@ void FDTWeaponSim::EmitChildren(const FDTSimContext& Context, FDTBulletPool* Bul
 	Shot.Pierce = 1;
 	Shot.bTrack = true; // children carry their generation (R-MOD-05)
 	Shot.Generation = Impact.Generation + 1;
+	Shot.bRingChild = bMarkRingChildren;
 	Shot.Bounces = 0;
 	if (Shot.Speed <= 0.0f)
 	{
@@ -2569,8 +2573,15 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 				break;
 			}
 			const bool bRing = Params.GetWord(DTFlagParam::Pattern) == WordRing;
+			// R-MOD-05 (D-078): a Scatter Shell ring (on=Expiry, pattern=Ring) makes one generation: its children carry the mark,
+			// and such an entry never fires on a round with the mark. Other split entries read and set no mark.
+			const bool bOneGenerationRing = bRing && On == WordExpiry;
+			if (bOneGenerationRing && Impact.bRingChild)
+			{
+				break;
+			}
 			const FVector2f From = (Impact.Kind == EImpact::RoundHit && Impact.EnemySerial != 0) ? Impact.EnemyPosition : Impact.Position;
-			EmitChildren(Context, Bullets, *Runtime, Impact, Flag.Entry, bRing, From);
+			EmitChildren(Context, Bullets, *Runtime, Impact, Flag.Entry, bRing, From, bOneGenerationRing);
 			break;
 		}
 		case DTCat::EFlag::Field:
@@ -2842,6 +2853,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 			Bounce.Pierce = 1;
 			Bounce.bTrack = true;
 			Bounce.Generation = Impact.Generation;
+			Bounce.bRingChild = Impact.bRingChild; // a bounce is the same round flying on
 			Bounce.Bounces = Bounces - 1;
 			const FVector2f Dir = SafeDir(View.EnemyPositions[Next] - Impact.Position, Impact.Dir);
 			const FVector2f From = Impact.EnemySerial != 0 ? Impact.EnemyPosition + Dir * (Impact.EnemyRadius + Bounce.Radius) : Impact.Position;

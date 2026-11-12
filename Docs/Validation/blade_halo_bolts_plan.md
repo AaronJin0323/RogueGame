@@ -55,11 +55,11 @@ We believe that a Blade Halo that keeps its bolts holds its build, because the e
 A before and after pair on `Tools/Perf.ps1 -Scene S2`, read in turn on one evening, with the scene's option that puts the Orbital Drones in the Spiral Projector's place (granted by the scheduler as way (1) and put on hold until a halo rule stood to be landed; it comes off hold with this record). The stop line is 0.3 ms of game thread at p95 against the base read beside it.
 
 ### Impact (dependency sweep)
-- Rules replaced: `reforging.md` R-RFG-07 and T-RFG-07; one sentence each in `keepers.md` R-KEE-34 and `modifiers.md` R-MOD-16 (the free volley now fires bolts as well).
+- Rules replaced: `reforging.md` R-RFG-07 and its test line; one sentence each in `keepers.md` R-KEE-34 and `modifiers.md` R-MOD-16 (the free volley now fires bolts as well).
 - Catalog cells, each with its number-log row and the source's lines as D-071's note cites them: `caps` Orbit to Orbit and Projectile; `dmg_ratio` 1.5 to 1.33; `contact_r_uu` 60 to 30; new `contact_tick_s` 0.15, `orbit_deg_s` 260, `orbit_r_uu` 150, `speed_cap` 1.5. `matrix.csv` is generated again and its diff shown: only this row may move.
 - Constants: none.
 - Code: the blades' rhythm and orbit come from `s2/d071-blade-halo`; the job is cut from `dev/s2` 41d510b, takes that branch's blade code and cells, and restores the bolts. The developer says how (a merge or a pick) before building.
-- Tests: `Dusktracer.Reforging.BladeHalo` (bolts fire; blades strike on the tick), the two free-volley tests named in D-071's T-RFG-07, one throttle scene. `C.GATE.TEST_FLOOR` follows the count.
+- Tests: `Dusktracer.Reforging.BladeHalo` (bolts fire; blades strike on the tick), the two free-volley tests named in D-071's test line for that rule, one throttle scene. `C.GATE.TEST_FLOOR` follows the count.
 - D-073 (the refund): Blade Halo no longer refuses a modifier, so its table loses that row and its battery reads four pairs, not five.
 - Discoveries, walked by counter on `dev/s3`'s `discoveries.csv`: `DroneKills300` counts the weapon's kills; with the bolts kept an evolved weapon counts as the plain one does or faster. No other counter reads this weapon.
 - Text: the card's line says "Drones become blades that cut what they touch." It becomes a line that says the drones keep firing and gain blades, en and zh, the zh a first draft. What a halo with bolts looks like is the Visual session's, asked when this is accepted.
