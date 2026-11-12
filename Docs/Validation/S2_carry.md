@@ -238,4 +238,23 @@ The emission block's last line:
 - the S2 exit battery;
 - every golden and frame shot before the raised camera (D-080).
 
-GATE_LINES
+The whole gate (`& Tools\Gate.ps1 -Base dev/s2`) ran on 5a2efe1, which is the tree above with `main` 1879298 merged; `main` had moved by decision records before the gate began.
+
+```
+tools:      TOOLS: PASS (248 tests)
+tests:      489 run of 489 found, 0 failed, floor 489, 0 crash marker(s)
+arms:       PASS (None 00e0d4ec, Random 15a228cd, Steered:Forge:Hammer 8831aba6, Steered:Storm:Tempest 0948c7be, Steered:Tide:Frost def51848)
+restart:    RESTART: PASS (seed 9107, input_hash 276faf8e / 276faf8e, steps 5400 / 5400)
+GATE: PASS (5a2efe1; 3 not run; mask FFFFF3FC)
+```
+Every step passed but pad, scope and mac (not run). Log: `Saved\Logs\c8s2_gate.txt` in the carry agent's worktree.
+
+`main` moved again by decision records while the leg was gated (1879298 to 06d4f7c: D-082, D-084). It merged clean as 57a6812, and `git diff 06d4f7c -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty. The text steps were then run again with every heavy step skipped.
+- The first two runs failed at `cpu`: `CPU: FAIL (processor 16)`, "processor 16: timeout 120 s".
+- `cpu` is the processor canary, which reads the machine, not the tree, and it had passed in the whole gate an hour before. It was then skipped, and the text steps read:
+
+```
+tools:      TOOLS: PASS (248 tests)
+GATE: PASS (57a6812; 16 not run; mask FFFFF3FC)
+```
+Log: `Saved\Logs\c8s2_text.txt`. The canary's fault on processor 16 is a finding for the machine, not for this carry.
