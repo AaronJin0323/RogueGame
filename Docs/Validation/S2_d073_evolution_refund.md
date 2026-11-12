@@ -4,6 +4,8 @@ Branch `s2/d073-evolution-refund`, cut from `dev/s2` at `a200b91` (it holds D-07
 
 **The judged half is met on all three pairs.** No socket is dormant from an evolution in any run. In every run the rerolls gained equal the modifiers handed back: Pulse Rifle 1 for 1, Rail Lance 5 for 5, Flak Mortar 0 for 0. No Flak Mortar run evolves with a refused modifier fitted, so on that pair the judged half has nothing to read.
 
+The judged half rests on six hand-backs in forty-five runs, and none of them is Carpet's. The tests hold the cases play did not meet: two and three refused modifiers on one weapon, a modifier the evolved caps accept, and an evolution that refuses nothing.
+
 Build:
 - **Base.** The tree's binaries of `40be484`: D-079's gated build, whose code is `a200b91`'s. Read on it: the six batteries of step 0.
 - **The rule, `2ec5148`.** The rule is `5360d1e` and the reader `3b44cef`; `2ec5148` adds one moved test line. Read on it: the Reforging, Modifiers, Offers and Telemetry tests, the three arms of step 5, and the Rail Lance hold read again.
@@ -21,7 +23,11 @@ Computed with `Tools/gen_matrix.py`'s own `compatible()` over `a200b91`'s catalo
 | Sweep Beam (Rail Lance) | 14 | 7 | Split Core, Scatter Shell, Pierce, Backwash, Ricochet, Boomerang, Spread Wave |
 | Carpet (Flak Mortar) | 9 | 3 | Scatter Shell, Mirror, Fork |
 
-Flechette, Blade Halo (D-079), Cyclone, Murmuration, Pulse Wall (D-073 ruling 9), Vortex and Singularity refuse nothing. The record names five pairs in its Context and Hypothesis and four in ruling 9; the catalogs give three, and this job reads those three.
+**Three evolutions refuse a modifier.** Flechette, Blade Halo, Cyclone, Murmuration, Pulse Wall, Vortex and Singularity refuse nothing:
+- Pulse Wall keeps its capabilities by D-073 ruling 9.
+- Blade Halo keeps the plain weapon's caps by D-079.
+
+The record names five pairs in its Context and Hypothesis and four in ruling 9. The catalogs give three, and this job reads those three.
 
 ## Step 1: the rule's text
 - **`reforging.md` R-RFG-04, as the record words it.** A refused modifier leaves its socket at the pick, returns to that player's run pool, and gives one reroll, the source's rate. The Reforging card names every modifier it would hand back, and the rerolls, before the pick.
@@ -117,7 +123,15 @@ What the windows show:
 None is owed: the rule acts once, at a pick, on at most three sockets (D-073, The perf bound). Nothing was read.
 
 ## Step 7: the gate
-GATE
+`& Tools\Gate.ps1 -Base dev/s2` on `cff6537` (`dev/s2` is `7b3ebf7`, an ancestor):
+- `GATE: PASS (cff6537; 3 not run; mask FFFFF3FC)`.
+- The tests: 486 run of 486, 0 failed, floor 486.
+- `RESTART: PASS` (seed 9107, input_hash `276faf8e` / `276faf8e`, steps 5400 / 5400).
+- Not run: pad (no package), scope (no brief in flight), mac (deferred, D-007).
+
+This documents commit on top carries only the gate's line and the five hashes.
+
+The five seed 9107 arms by hand on the gated build: None `00e0d4ec`, Random `51369747`, Steered:Forge:Hammer `e3293942`, Steered:Storm:Tempest `b046559b`, Steered:Tide:Frost `def51848`. All are as expected; none of them evolves a weapon (`reforge=none` in each).
 
 ## Not shown
 - No person has met a hand-back.
