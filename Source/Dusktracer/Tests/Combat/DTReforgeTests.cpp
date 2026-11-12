@@ -646,7 +646,7 @@ bool FDTReforgePulseWallThrottle::RunTest(const FString& Parameters)
 	using namespace DTWeaponTestHarness;
 	// A crowd stands inside the disc for several ring lives; with a Keeper's Chain composed every ring strike starts jumps, and a
 	// jump spends one of the weapon's emissions. The weapon's rounds must not be throttled for it.
-	const auto Scene = [](bool bChain, int64& OutSpawned, int64& OutThrottled)
+	const auto Scene = [](bool bChain, int64& OutSpawned, int64& OutThrottled, int64& OutRounds)
 	{
 		FDTHarness H;
 		GiveEvolved(H, TEXT("Weapon.RingEmitter"));
@@ -670,12 +670,14 @@ bool FDTReforgePulseWallThrottle::RunTest(const FString& Parameters)
 		H.StepMany(FMath::RoundToInt(3.0f * (0.6f + 3.0f) / Dt)); // three ring lives
 		OutSpawned = H.Weapons.GetCounters(0, 0).Spawned;
 		OutThrottled = H.Weapons.GetCounters(0, 0).Throttled;
+		OutRounds = H.Bullets.GetCounters().Spawned; // the weapon's rounds: a chain's jump is no bullet
 	};
-	int64 SpawnedPlain = 0, ThrottledPlain = 0, SpawnedChain = 0, ThrottledChain = 0;
-	Scene(false, SpawnedPlain, ThrottledPlain);
-	Scene(true, SpawnedChain, ThrottledChain);
-	AddInfo(FString::Printf(TEXT("without the chain: %lld spawned, %lld throttled; with it: %lld spawned, %lld throttled"), SpawnedPlain, ThrottledPlain, SpawnedChain, ThrottledChain));
-	TestEqual(TEXT("chains started by the disc's strikes throttle no more of the weapon's emissions"), ThrottledChain, ThrottledPlain);
+	int64 SpawnedPlain = 0, ThrottledPlain = 0, RoundsPlain = 0, SpawnedChain = 0, ThrottledChain = 0, RoundsChain = 0;
+	Scene(false, SpawnedPlain, ThrottledPlain, RoundsPlain);
+	Scene(true, SpawnedChain, ThrottledChain, RoundsChain);
+	AddInfo(FString::Printf(TEXT("without the chain: %lld emissions, %lld throttled, %lld rounds; with it: %lld emissions, %lld throttled, %lld rounds"),
+		SpawnedPlain, ThrottledPlain, RoundsPlain, SpawnedChain, ThrottledChain, RoundsChain));
+	TestEqual(TEXT("the weapon fires as many rounds with the disc's chains as without them"), RoundsChain, RoundsPlain);
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallGap, "Dusktracer.Reforging.PulseWallGap", DTWeaponTestHarness::TestFlags) // T-RFG-12
