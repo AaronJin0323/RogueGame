@@ -1433,11 +1433,14 @@ bool FDTAudTestPlayable::RunTest(const FString& Parameters)
 		TestNotNull(*FString::Printf(TEXT("%s is given its asset"), DTCat::Sounds[Sound].Id), Sink->Sounds[Index]);
 		Heard.Add(Sound);
 	}
-	// Only the interface rows are judged here: a run family's rows are never raised by an interface moment, and its own wiring job proves them.
+	// Only the interface family's rows are judged here, the ids the interface observer raises (Snd.UI.*): another family's rows are never
+	// raised by an interface moment, and its own wiring job proves them. Side alone is not the handle: a row of another family can sit on
+	// the interface side (Snd.Keeper.<Path>.Pick is taken in the hand while the world stands, so it plays in the UI class while paused),
+	// yet its family raises it through the stinger queue, not the interface observer. The row has no family field, so the id's prefix is it.
 	int32 Judged = 0;
 	for (int32 Sound = 0; Sound < DTCat::SoundCount; ++Sound)
 	{
-		if (DTCat::Sounds[Sound].bPlayable && DTCat::Sounds[Sound].Side == DTCat::ESoundSide::UI)
+		if (DTCat::Sounds[Sound].bPlayable && FCString::Strncmp(DTCat::Sounds[Sound].Id, TEXT("Snd.UI."), 7) == 0)
 		{
 			++Judged;
 			TestTrue(*FString::Printf(TEXT("%s was raised and started"), DTCat::Sounds[Sound].Id), Heard.Contains(Sound));
