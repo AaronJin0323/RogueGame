@@ -18,7 +18,7 @@ public:
 	virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck = false) = 0;
 	/** An interface sound now. */
 	virtual void Ui(int32 Sound, int32 Count) = 0;
-	/** The Player group held at least this deep for as long as it is asked (0 = no hold): the low-health hold of dt.Audio.LowHpHoldDb. */
+	/** The Player group held at least this deep for as long as it is asked (0 = no hold): the low-health hold (R-AUD-12, C.AUD.LOWHP_HOLD_DB). */
 	virtual void HeldDuck(float Db) {}
 };
 

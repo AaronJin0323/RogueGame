@@ -13,10 +13,12 @@ Per density tier (TIERS kills a second, WEAPONS_FIRING weapons) the model schedu
 rules (R-AUD-06 to R-AUD-10) with every cap that binds read as the worst case (the louder sound goes first), renders the
 mix at C.AUD.SAMPLE_RATE_HZ for TIER_SECONDS, and reads it past its first SKIP_SECONDS: K-weighted loudness, the share in
 the danger band, crest, and the rise from the sparsest to the densest tier. Every danger-side row is then read against
-the densest mix lowered by C.AUD.DUCK_DB: a `warn` zone row's audibility in the danger band, a `low` zone row's in the low
-zone (with the low layer lowered by C.AUD.LOWHP_LOWEND_DUCK_DB too), a `Warn` family row's loudness over the mix, and the
-peak of the mix with each danger sound on top. The loudest player-side sound is read as a warning, as a control: it must
-not reach the floor. Every limit is a key; this file holds the model's own named constants only.
+the densest mix lowered as it would be while that row sounds: a `warn` zone row's audibility in the danger band over the mix
+lowered by C.AUD.DUCK_DB; a `low` zone row (the heartbeat, which adds no duck of its own: R-AUD-12) in the low zone over the
+mix held C.AUD.LOWHP_HOLD_DB lower, with the low layer lowered by C.AUD.LOWHP_LOWEND_DUCK_DB too; a `Warn` family row's
+loudness over the ducked mix; and the peak of the mix, lowered the same way, with each danger sound on top. The loudest
+player-side sound is read as a warning, as a control: it must not reach the floor. Every limit is a key; this file holds the
+model's own named constants only.
 
 This is a model of the mix, not the engine's mixer, and band energy is a proxy for hearing.
 """
@@ -88,8 +90,8 @@ DEGREES = {"A": (-5, -2, 0, 3, 5), "C": (-5, -3, 0, 2, 4), "D": (-5, -2, 0, 2, 5
 KEYS_READ = ("AUD.SAMPLE_RATE_HZ", "AUD.DANGER_BAND_HZ", "AUD.LOW_ZONE_HZ", "AUD.AIR_LINE_HZ", "AUD.SMALL_SPEAKER_HZ", "AUD.MASK_SPREAD_DB",
 	"AUD.MASK_WINDOW_MS", "AUD.PLAYER_BAND_SHARE_MAX_DB", "AUD.MIX_CREST_MAX_DB", "AUD.DENSITY_RISE_MAX_DB", "AUD.DANGER_SMR_MIN_DB",
 	"AUD.HEARTBEAT_SMR_MIN_DB", "AUD.WARN_OVER_MIX_MIN_DB", "AUD.LIMIT_DBFS", "AUD.DUCK_DB", "AUD.DUCK_ATTACK_MS", "AUD.DUCK_RELEASE_MS",
-	"AUD.LOWHP_LOWEND_DUCK_DB", "AUD.FIRE_DENSE_VOICES_PER_S", "AUD.KILL_DENSE_VOICES_PER_S", "AUD.AGGREGATE_MAX", "AUD.PLAYER_STARTS_PER_S_MAX",
-	"AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER", "AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
+	"AUD.LOWHP_LOWEND_DUCK_DB", "AUD.LOWHP_HOLD_DB", "AUD.FIRE_DENSE_VOICES_PER_S", "AUD.KILL_DENSE_VOICES_PER_S", "AUD.AGGREGATE_MAX",
+	"AUD.PLAYER_STARTS_PER_S_MAX", "AUD.STARTS_PER_FRAME_MAX", "AUD.GRID_STEPS", "AUD.VOICES_MAX", "AUD.VOICES_DANGER", "AUD.VOICES_UI", "AUD.LEVEL_JITTER_DB", "AUD.KEY_SEMIS_MAX",
 	"PRE.DENSITY_LOD_KILLS_PER_S", "IMP.DENSITY_FLOOD_KILLS_PER_S", "SIM.FIXED_HZ")
 
 
@@ -438,13 +440,21 @@ def peak_on_top(masker, cue, step):
 	return to_db(best)
 
 
+def low_mask_of(keys, dense, skip=SKIP_SECONDS):
+	"""The densest tier's mix as it stands while the heartbeat runs (R-AUD-12): held C.AUD.LOWHP_HOLD_DB lower, its low layer a further
+	C.AUD.LOWHP_LOWEND_DUCK_DB down; read past `skip`."""
+	return mix_of(dense["parts"], low_db=keys["AUD.LOWHP_LOWEND_DUCK_DB"], gain_db=keys["AUD.LOWHP_HOLD_DB"])[int(skip * keys["AUD.SAMPLE_RATE_HZ"]):]
+
+
 def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
-	"""Every danger cue against the densest tier's mix ducked by C.AUD.DUCK_DB (the duck holds while a cue sounds; its attack is
-	left out). A cue with several variants reads its worst. Returns ([cue reading], control reading)."""
+	"""Every danger cue against the densest tier's mix as it is lowered while that cue sounds (the lowering holds; its attack is left
+	out): a `low` zone cue, the heartbeat, which adds no duck of its own, over the mix held C.AUD.LOWHP_HOLD_DB lower (low_mask_of);
+	every other cue over the mix ducked by C.AUD.DUCK_DB. A cue with several variants reads its worst. The `smr_no_duck` figure is
+	the same reading with the lowering taken off. Returns ([cue reading], control reading)."""
 	configure(keys)
 	sr = keys["AUD.SAMPLE_RATE_HZ"]
 	i0 = int(skip * sr)
-	duck = keys["AUD.DUCK_DB"]
+	duck, hold = keys["AUD.DUCK_DB"], keys["AUD.LOWHP_HOLD_DB"]
 	warn_mask = mix_of(dense["parts"], gain_db=duck)[i0:]
 	low_mask = None
 	mix_lk = M.lk_window(warn_mask)
@@ -453,18 +463,20 @@ def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
 	for cue in cues:
 		r = {"id": cue.label, "zone": cue.zone, "family": cue.family, "variants": len(cue.variants)}
 		played = [cue.played(v) for v in range(len(cue.variants))]
+		mask = warn_mask
 		if cue.zone == "warn":
 			r["smr"] = min(M.audibility(x, warn_mask, *M.DANGER)[0] for x in played)
 			r["smr_no_duck"] = r["smr"] + duck        # band powers scale with the gain squared: the same reading, the duck taken off
 		if cue.zone == "low":
 			if low_mask is None:
-				low_mask = mix_of(dense["parts"], low_db=keys["AUD.LOWHP_LOWEND_DUCK_DB"], gain_db=duck)[i0:]
+				low_mask = low_mask_of(keys, dense, skip)
+			mask = low_mask
 			r["smr"] = min(M.audibility(x, low_mask, *M.LOWZONE)[0] for x in played)
-			r["smr_no_duck"] = r["smr"] + duck
+			r["smr_no_duck"] = r["smr"] + hold        # the same reading, the hold taken off
 		if cue.family == WARN_FAMILY:
 			r["lk"] = min(M.lk_window(x) for x in played)
 			r["over_mix"] = r["lk"] - mix_lk
-		r["peak_dbfs"] = max(peak_on_top(warn_mask, x, step) for x in played)
+		r["peak_dbfs"] = max(peak_on_top(mask, x, step) for x in played)
 		out.append(r)
 	ctl = None
 	if control is not None:
@@ -510,12 +522,14 @@ def judge(keys, tiers, cues, control):
 				f"({c['smr_no_duck']:.1f} dB with no duck), under C.AUD.DANGER_SMR_MIN_DB {keys['AUD.DANGER_SMR_MIN_DB']} (R-AUD-18)")
 		if c["zone"] == "low" and c["smr"] < keys["AUD.HEARTBEAT_SMR_MIN_DB"]:
 			e.append(f"mix: {c['id']}: audibility {c['smr']:.1f} dB in C.AUD.LOW_ZONE_HZ over the densest mix, its low layer down by "
-				f"C.AUD.LOWHP_LOWEND_DUCK_DB and the whole by C.AUD.DUCK_DB, under C.AUD.HEARTBEAT_SMR_MIN_DB {keys['AUD.HEARTBEAT_SMR_MIN_DB']} (R-AUD-18)")
+				f"C.AUD.LOWHP_LOWEND_DUCK_DB and the whole held down by C.AUD.LOWHP_HOLD_DB ({c['smr_no_duck']:.1f} dB with nothing lowered), "
+				f"under C.AUD.HEARTBEAT_SMR_MIN_DB {keys['AUD.HEARTBEAT_SMR_MIN_DB']} (R-AUD-18)")
 		if "over_mix" in c and c["over_mix"] < keys["AUD.WARN_OVER_MIX_MIN_DB"]:
 			e.append(f"mix: {c['id']}: its loudest 100 ms is {c['over_mix']:.1f} dB over the densest mix ducked by C.AUD.DUCK_DB, under "
 				f"C.AUD.WARN_OVER_MIX_MIN_DB {keys['AUD.WARN_OVER_MIX_MIN_DB']} (R-AUD-18)")
 		if c["peak_dbfs"] > keys["AUD.LIMIT_DBFS"]:
-			e.append(f"mix: {c['id']}: the densest mix ducked, with it on top, peaks at {c['peak_dbfs']:.2f} dBFS, over C.AUD.LIMIT_DBFS {keys['AUD.LIMIT_DBFS']} (R-AUD-18)")
+			lowered = "held down" if c["zone"] == "low" else "ducked"
+			e.append(f"mix: {c['id']}: the densest mix {lowered}, with it on top, peaks at {c['peak_dbfs']:.2f} dBFS, over C.AUD.LIMIT_DBFS {keys['AUD.LIMIT_DBFS']} (R-AUD-18)")
 	if control is not None and control["smr"] >= keys["AUD.DANGER_SMR_MIN_DB"]:
 		e.append(f"mix: the control {control['id']}, a player-side sound read as a warning, reaches C.AUD.DANGER_SMR_MIN_DB "
 			f"({control['smr']:.1f} dB): the model is broken (T-AUD-18)")
@@ -583,6 +597,8 @@ def table(result):
 			smr = f"{c['smr']:10.1f}  {c['smr_no_duck']:11.1f}" if "smr" in c else f"{'-':>10s}  {'-':>11s}"
 			over = f"{c['over_mix']:8.1f}" if "over_mix" in c else f"{'-':>8s}"
 			lines.append(f"{c['id']:28s} {c['zone']:5s} {smr}  {over}  {c['peak_dbfs']:9.2f}")
+		if any(c["zone"] == "low" for c in result["cues"]):
+			lines.append("a low zone row (the heartbeat) is read over the mix held down by C.AUD.LOWHP_HOLD_DB, not ducked; its no-duck figure has nothing lowered")
 	else:
 		lines.append("no danger-side row in the catalog: no cue read")
 	if result["control"]:
@@ -633,10 +649,9 @@ def audition(keys, roles, cues, out_dir, seed=SEED):
 			x = cue.played(0)
 			i0 = int(AUDITION_GAP_S * (k + 1) * sr)
 			_add(danger, x, i0, 1.0)
-			spans.append((i0, len(x)))
-			if cue.zone == "low":
-				low_spans.append((i0, len(x)))
-		g = duck_curve(keys, n, spans, keys["AUD.DUCK_DB"])
+			(low_spans if cue.zone == "low" else spans).append((i0, len(x)))
+		# The heartbeat adds no duck: the whole is held C.AUD.LOWHP_HOLD_DB lower while it sounds (R-AUD-12); the deeper lowering wins.
+		g = [min(a, b) for a, b in zip(duck_curve(keys, n, spans, keys["AUD.DUCK_DB"]), duck_curve(keys, n, low_spans, keys["AUD.LOWHP_HOLD_DB"]))]
 		gl = duck_curve(keys, n, low_spans, keys["AUD.LOWHP_LOWEND_DUCK_DB"])
 		both = [k * (a + b + c * m) + d for a, b, c, k, m, d in zip(parts["shots"], parts["crowd"], parts["low"], g, gl, danger)]
 		path = os.path.join(out_dir, f"mix_{kps:03d}_with_danger.wav")

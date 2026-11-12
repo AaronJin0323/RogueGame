@@ -1402,8 +1402,12 @@ bool FDTAudTestHeartbeat::RunTest(const FString& Parameters)
 	constexpr int64 Steps = 2000;
 	constexpr int64 PauseAt = 700;
 	constexpr int32 PauseFrames = 300;
+	// The game's form is b (R-AUD-12): the hold the observer reads by default is C.AUD.LOWHP_HOLD_DB, and the staged run plays it.
+	const float GameHold = DTDangerEvents::LowHpHoldDb();
+	TestEqual(TEXT("the game's heartbeat is form b: the hold read by default is C.AUD.LOWHP_HOLD_DB"), GameHold, static_cast<float>(DTConst::AUD_LOWHP_HOLD_DB));
+	TestTrue(TEXT("C.AUD.LOWHP_HOLD_DB is a depth (below zero)"), DTConst::AUD_LOWHP_HOLD_DB < 0);
 	TArray<int64> Asked;
-	const TArray<FStagedFrame> Frames = StagedRun(0.0f, false, Steps, PauseAt, PauseFrames, &Asked, NoExtra);
+	const TArray<FStagedFrame> Frames = StagedRun(GameHold, false, Steps, PauseAt, PauseFrames, &Asked, NoExtra);
 	TArray<int64> Played;
 	int32 PausedBeats = 0;
 	for (const FStagedFrame& F : Frames)
@@ -1457,6 +1461,12 @@ bool FDTAudTestHeartbeat::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the beats keep the pulse's period on average"), NumGaps > 10 && FMath::IsNearlyEqual(Gaps / FMath::Max(1, NumGaps), Period, 0.1));
 	TestFalse(TEXT("none above the line"), Asked.ContainsByPredicate([](int64 S) { return S < 300 || (S >= 1200 && S < 1500); }));
 	TestFalse(TEXT("none once down"), Asked.ContainsByPredicate([](int64 S) { return S >= 1800; }));
+	{
+		// Form a, at a hold of 0, beats on the same steps: the form changes the duck, never when the heart beats.
+		TArray<int64> AskedA;
+		StagedRun(0.0f, false, Steps, PauseAt, PauseFrames, &AskedA, NoExtra);
+		TestTrue(TEXT("form a (hold 0) beats on the very steps form b does"), AskedA == Asked);
+	}
 
 	// A new run resets it: the observer's baseline is the new run's first step, so the beat is on the new run's clock from its first pulse.
 	{
@@ -1466,21 +1476,22 @@ bool FDTAudTestHeartbeat::RunTest(const FString& Parameters)
 		FToScheduler Out(S);
 		for (int64 Step = 1000; Step < 1030; ++Step)
 		{
-			Obs.Observe(StagedView(Step, LowHpValue()), Out, 0.0f);
+			Obs.Observe(StagedView(Step, LowHpValue()), Out, GameHold);
 		}
 		Out.Beats.Reset();
 		Obs.Reset();
 		S.ResetRun(6);
 		for (int64 Step = 0; Step < 3 * Period; ++Step)
 		{
-			Obs.Observe(StagedView(Step, LowHpValue()), Out, 0.0f);
+			Obs.Observe(StagedView(Step, LowHpValue()), Out, GameHold);
 		}
 		TestTrue(TEXT("the new run's beats fall on its own pulses: its first step, then a period apart"),
 			Out.Beats.Num() == 3 && Out.Beats[0] == 0 && FMath::Abs(Out.Beats[1] - Period) <= 1.0 && FMath::Abs(Out.Beats[2] - 2 * Period) <= 1.0);
 		TestEqual(TEXT("the new run's first pulse starts full"), DTHud::LowHp(LowHpValue(), 100.0f, 0.0, true).FillAlpha, 1.0f);
 	}
 
-	// Form a's dip in numbers (the owner's first question): the duck the beats give the Player group over one beat in a steady low stretch.
+	// Form a's dip in numbers (reached at a hold of 0, no longer the game's): the duck the beats give the Player group over one beat in a
+	// steady low stretch, printed beside form b's level hold.
 	{
 		const DTCat::FSoundRow& Beat = DTCat::Sounds[static_cast<int32>(DTCat::ESoundId::Snd_Danger_Heartbeat)];
 		FDTAudioScheduler S;
@@ -1513,6 +1524,7 @@ bool FDTAudTestHeartbeat::RunTest(const FString& Parameters)
 			Depth, MsBelow, Ms, Beat.LengthMs, DTConst::AUD_DUCK_RELEASE_MS, AvgDb, AvgGainDb));
 		TestTrue(TEXT("form a dips to C.AUD.DUCK_DB"), FMath::IsNearlyEqual(Depth, static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f));
 		TestTrue(TEXT("below full for the voice and the release, to the ms"), FMath::Abs(MsBelow - (Beat.LengthMs + DTConst::AUD_DUCK_RELEASE_MS)) <= 1);
+		AddInfo(FString::Printf(TEXT("heartbeat form b (the game's): the Player group held level at %.2f dB for as long as health is low, no dip at a beat"), GameHold));
 	}
 	return true;
 }
@@ -1522,7 +1534,9 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 {
 	using namespace DTAudioTest;
 	constexpr int64 Steps = 2000;
-	constexpr float Hold = -4.0f;
+	// The game's hold, the key (R-AUD-12): what the observer reads by default.
+	constexpr float Hold = static_cast<float>(DTConst::AUD_LOWHP_HOLD_DB);
+	static_assert(Hold < 0.0f, "C.AUD.LOWHP_HOLD_DB is a depth below zero (form b)");
 	constexpr int64 WarnAt = 600;
 	const int32 Ring = static_cast<int32>(DTCat::ESoundId::Snd_Warn_Ring);
 	const auto Warn = [Ring](FDTAudioScheduler& S, int64 Step)
@@ -1532,7 +1546,8 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 			S.Request(Ring, 1, Step);
 		}
 	};
-	const TArray<FStagedFrame> B = StagedRun(Hold, false, Steps, INDEX_NONE, 0, nullptr, Warn);
+	TestEqual(TEXT("the default the observer reads is the key"), DTDangerEvents::LowHpHoldDb(), Hold);
+	const TArray<FStagedFrame> B = StagedRun(DTDangerEvents::LowHpHoldDb(), false, Steps, INDEX_NONE, 0, nullptr, Warn);
 	const auto At = [&](int64 Step) { return B[Step].DuckDb; };
 	TestEqual(TEXT("full while health is full"), At(299), 0.0f);
 	const double Attack = DTConst::AUD_DUCK_ATTACK_MS / 1000.0;
@@ -1613,7 +1628,8 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 		TestEqual(TEXT("and held there"), Curve[199], -2.0f);
 	}
 
-	// With the hold at zero nothing differs from form a, sample for sample: the same voices and the same curve as the runtime before form b.
+	// Form a is still reached at a hold of zero, and nothing differs from it, sample for sample: the same voices and the same curve as the
+	// runtime before form b.
 	{
 		const TArray<FStagedFrame> A = StagedRun(0.0f, false, Steps, 700, 120, nullptr, Warn);
 		const TArray<FStagedFrame> Plain = StagedRun(0.0f, true, Steps, 700, 120, nullptr, Warn);
@@ -1631,14 +1647,16 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 		TestTrue(TEXT("hold 0: frame for frame, the curve and every voice equal form a's"), bSame && A.Num() > Steps);
 	}
 
-	// The console variable: there outside Shipping, off by default, never above zero.
+	// The console variable: there outside Shipping, its default the key, 0 selecting form a, never above zero.
 	IConsoleVariable* Var = IConsoleManager::Get().FindConsoleVariable(TEXT("dt.Audio.LowHpHoldDb"));
 	if (TestNotNull(TEXT("dt.Audio.LowHpHoldDb exists outside Shipping"), Var))
 	{
 		const float Was = Var->GetFloat();
-		TestEqual(TEXT("off by default"), Var->GetFloat(), 0.0f);
-		Var->Set(-4.0f, ECVF_SetByCode);
-		TestEqual(TEXT("it is read"), DTDangerEvents::LowHpHoldDb(), -4.0f);
+		TestEqual(TEXT("its default is C.AUD.LOWHP_HOLD_DB (form b)"), Var->GetFloat(), Hold);
+		Var->Set(0.0f, ECVF_SetByCode);
+		TestEqual(TEXT("0 selects form a"), DTDangerEvents::LowHpHoldDb(), 0.0f);
+		Var->Set(-6.0f, ECVF_SetByCode);
+		TestEqual(TEXT("another depth is read"), DTDangerEvents::LowHpHoldDb(), -6.0f);
 		Var->Set(3.0f, ECVF_SetByCode);
 		TestEqual(TEXT("never above zero"), DTDangerEvents::LowHpHoldDb(), 0.0f);
 		Var->Set(Was, ECVF_SetByCode);

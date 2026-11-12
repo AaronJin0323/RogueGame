@@ -1017,6 +1017,32 @@ class Mix(unittest.TestCase):
 		self.assertIn("Snd.Hero.Faint: audibility", errors[0])
 		self.assertIn("under C.AUD.HEARTBEAT_SMR_MIN_DB", errors[0])
 
+	def test_the_heartbeat_is_read_under_the_hold_not_the_duck(self):
+		# R-AUD-12, R-AUD-18: the heartbeat adds no duck of its own; the mix stands C.AUD.LOWHP_HOLD_DB lower while it sounds.
+		beat, ping_cue = cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low"), cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")
+		k = self.keys
+		self.assertIn("AUD.LOWHP_HOLD_DB", X.KEYS_READ)
+		self.assertLess(k["AUD.LOWHP_HOLD_DB"], 0)
+		cr, _ = self.judged([beat, ping_cue])
+		low = X.low_mask_of(k, self.dense, MIX_SKIP)
+		self.assertEqual(low, X.mix_of(self.dense["parts"], low_db=k["AUD.LOWHP_LOWEND_DUCK_DB"], gain_db=k["AUD.LOWHP_HOLD_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):])
+		self.assertAlmostEqual(cr[0]["smr"], M.audibility(beat.played(0), low, *M.LOWZONE)[0], places=9)
+		self.assertAlmostEqual(cr[0]["smr_no_duck"], cr[0]["smr"] + k["AUD.LOWHP_HOLD_DB"], places=9)   # the hold taken off
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(cr[0]["peak_dbfs"], X.peak_on_top(low, beat.played(0), step), places=9)  # its peak on top: the held mix too
+		deeper_duck = dict(k, **{"AUD.DUCK_DB": k["AUD.DUCK_DB"] - 10})
+		cd, _ = self.judged([beat, ping_cue], keys=deeper_duck)
+		self.assertAlmostEqual(cd[0]["smr"], cr[0]["smr"], places=9)                      # the duck's depth does not move the heartbeat ...
+		self.assertAlmostEqual(cd[1]["smr"], cr[1]["smr"] + 10, places=6)                 # ... and still moves a warning
+		deeper_hold = dict(k, **{"AUD.LOWHP_HOLD_DB": k["AUD.LOWHP_HOLD_DB"] - 3})
+		ch, _ = self.judged([beat, ping_cue], keys=deeper_hold)
+		self.assertAlmostEqual(ch[0]["smr"], cr[0]["smr"] + 3, places=6)                  # the hold's depth does
+		self.assertAlmostEqual(ch[0]["smr_no_duck"], cr[0]["smr_no_duck"], places=6)      # and nothing lowered is the same reading
+		self.assertAlmostEqual(ch[1]["smr"], cr[1]["smr"], places=9)
+		faint = dict(k, **{"AUD.LOWHP_HOLD_DB": 0})                                       # no hold at all: the error names the hold
+		_, ef = self.judged([cue("Snd.Hero.Faint", thump(THUMP_LEVEL * X.db_gain(-30.0)), "low")], keys=faint)
+		self.assertTrue([e for e in ef if "Snd.Hero.Faint: audibility" in e and "held down by C.AUD.LOWHP_HOLD_DB" in e], ef)
+
 	def test_the_mix_raised_12_db_fails_the_peak(self):
 		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]
 		self.assertFalse([e for e in self.judged(cues)[1] if "peaks at" in e])
@@ -1201,6 +1227,7 @@ class Mix(unittest.TestCase):
 		base = X.cache_key(snap, tree.paths, self.keys, files)
 		self.assertEqual(X.cache_key(B.Snapshot(tree.paths.recipes), tree.paths, dict(self.keys), dict(files)), base)
 		changed = [X.cache_key(snap, tree.paths, dict(self.keys, **{"AUD.DUCK_DB": -7}), files), X.cache_key(snap, tree.paths, self.keys, {"SW_Warn_Ping": {"sha256": "b"}}),
+			X.cache_key(snap, tree.paths, dict(self.keys, **{"AUD.LOWHP_HOLD_DB": self.keys["AUD.LOWHP_HOLD_DB"] - 1}), files),
 			X.cache_key(snap, tree.paths, self.keys, files, "seconds")]
 		for name in ("catalog", "manifest"):
 			path = getattr(tree.paths, name)

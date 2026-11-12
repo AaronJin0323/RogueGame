@@ -704,3 +704,4 @@ S4 audio wave 1 (D-056, `Validation/S4_audio_wave1.md`): presentation only, no k
 | C.AUD.LADDER_SEMIS_MAX | 12 | semitones | GATED(S4) | audio R-AUD-15, T-AUD-15, Tools/audio/audio_check.py (highest step of a `ladder` sound, such as a gem streak) |
 | C.AUD.LEVEL_JITTER_DB | 1 | dB | GATED(S4) | audio R-AUD-10, T-AUD-10, Audio/DTAudioScheduler (a `key` voice's level is drawn within this many dB either side of its catalog volume) |
 | C.AUD.LOOP_SEAM_LEVEL_MAX_DB | 3 | dB | GATED(S4) | audio R-AUD-16, T-AUD-16, Tools/audio/audio_check.py (a loop's first and last 20 ms differ in level by at most this; the step rule stands beside it) |
+| C.AUD.LOWHP_HOLD_DB | -4 | dB | GATED(S4) | audio R-AUD-12, T-AUD-12, Audio/Observe/DTObserveDanger, Tools/audio/mix_model.py (while the heartbeat runs the Player group is held this much lower, level; the beat adds no duck of its own) |

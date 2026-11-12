@@ -28,7 +28,8 @@ namespace DTDangerEvents
 	DUSKTRACER_API int64 PulseIndex(int64 Step);
 	/** The danger moments between two step views, each one request with its count; the caller says whether the heartbeat ducks. */
 	DUSKTRACER_API void Diff(const FDTDangerView& Was, const FDTDangerView& Now, TFunctionRef<void(DTCat::ESoundId Sound, int32 Count)> Raise);
-	/** dt.Audio.LowHpHoldDb (not in Shipping): below zero, the Player group is held that deep while health is low (form b). */
+	/** The low-health hold (R-AUD-12, form b): C.AUD.LOWHP_HOLD_DB in Shipping; elsewhere dt.Audio.LowHpHoldDb, whose default is the key
+	 *  and whose 0 selects form a (each beat ducks). Never above zero. */
 	DUSKTRACER_API float LowHpHoldDb();
 }
 
