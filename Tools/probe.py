@@ -101,6 +101,7 @@ FAR_SERIES = (160.0, 320.0, 640.0)
 ROOM_KILLS = FIELD / 2  # item 4: the no-pick build leaves room above it, at most half the standing field
 KILLS_LIFT_MIN = 20  # item 5: the lift by kills is printed where the no-pick median is this many kills or more
 FIRM_FACTOR = 2.0  # one stage of the series: a battery's own health this far from the pooled one makes the health NOT FIRM
+SPLIT_INSIDE_GAP = 0.1  # D-085 ruling 12: a card whose lift by damage over all builds and over the inside builds differ by more is split
 FIELD_SENTENCE = ("The field reads power when the weapon is used: the probe's hero takes no damage and walks inside the crowd, so a "
 	"contact weapon reads at its best here; whether a build survives using it is the play arms' (D-082 item 7).")
 
@@ -753,7 +754,7 @@ def calibration_of(paths, lines):
 	else:
 		h1, k1, h2, k2 = cal["bracket"]
 		target = ROOM_KILLS if cal["room"] else cal["rate"]
-		lines.append(f"HEALTH: {cal['health']:g}x fixed ({cal['raw']:.1f} interpolated) where the no-pick median meets {target:.1f}, between "
+		lines.append(f"HEALTH: {cal['health']:g}x fixed ({cal['raw']:.2f} interpolated) where the no-pick median meets {target:.2f}, between "
 			f"{h1:g}x ({k1:g}) and {h2:g}x ({k2:g}), on the logarithms of health and kills"
 			+ (f"; {cal['note']}" if cal["note"] else "")
 			+ (f"; the play rate {cal['rate']:.1f} is over half the standing field ({ROOM_KILLS:g} of {FIELD}), so the health is raised until "
@@ -769,7 +770,7 @@ def calibration_of(paths, lines):
 				cells.append(f"{name} not found ({one['why']})")
 				loose.append(f"{name} not found")
 				continue
-			cells.append(f"{name} {one['health']:g}x (play {one['rate']:.1f})")
+			cells.append(f"{name} {one['health']:g}x ({one['raw']:.2f}; play {one['rate']:.1f})")
 			if max(one["health"] / cal["health"], cal["health"] / one["health"]) > FIRM_FACTOR + 1e-9:
 				loose.append(f"{name} {one['health']:g}x")
 		lines.append(f"HEALTH: each battery alone, printed and never used: {'; '.join(cells)}")
@@ -802,7 +803,9 @@ def card_rows(stage):
 			dmg = [seeds[s][0] / base[s][0] for s in common if base[s][0] > 0]
 			if not dmg:
 				continue
-			row = out.setdefault(card, {"dmg": {}, "kills": {}, "base": {}, "most": 0})
+			row = out.setdefault(card, {"dmg": {}, "kills": {}, "base": {}, "most": 0, "past": 0, "scenes": 0})
+			row["past"] += sum(1 for s in common if seeds[s][1] > FIELD)
+			row["scenes"] += len(common)
 			row["dmg"][build] = statistics.mean(dmg)
 			kills = [seeds[s][1] / base[s][1] for s in common if base[s][1] > 0]
 			if kills:
@@ -824,14 +827,27 @@ def card_reading(row, low, high, need=REFORGE_MIN_BUILDS):
 	dmg = statistics.median(row["dmg"].values())
 	base = statistics.median(row["base"].values())
 	kills = statistics.median(row["kills"].values()) if base >= KILLS_LIFT_MIN and row["kills"] else None
+	# Ruling 12: the same medians over the builds whose no-pick scene stays inside the field (kills not over FIELD); a build past it is
+	# bound by the ring on both sides and presses a lift toward one.
+	inside = [b for b, k in row["base"].items() if k <= FIELD]
+	in_dmg = statistics.median(row["dmg"][b] for b in inside) if inside else None
+	in_base = statistics.median(row["base"][b] for b in inside) if inside else 0
+	in_kills_v = [row["kills"][b] for b in inside if b in row["kills"]]
+	in_kills = statistics.median(in_kills_v) if in_base >= KILLS_LIFT_MIN and in_kills_v else None
+	reasons = []
 	if n < need:
 		verdict = "NOT READ"
-	elif kills is not None and side(kills, low, high) != side(dmg, low, high):
-		verdict = "split"
 	else:
-		verdict = side(dmg, low, high)
+		if kills is not None and side(kills, low, high) != side(dmg, low, high):
+			reasons.append("damage and kills, all builds")
+		if len(inside) >= need and in_kills is not None and side(in_kills, low, high) != side(in_dmg, low, high):
+			reasons.append("damage and kills, inside builds")
+		if len(inside) >= need and abs(dmg - in_dmg) > SPLIT_INSIDE_GAP + 1e-9:
+			reasons.append(f"all and inside builds by damage {abs(dmg - in_dmg):.2f} apart")
+		verdict = f"split ({'; '.join(reasons)})" if reasons else side(dmg, low, high)
 	return {"n": n, "dmg": dmg, "lowest": min(row["dmg"].values()), "highest": max(row["dmg"].values()), "kills": kills, "base": base,
-		"at_least": row["most"] > FIELD, "verdict": verdict}
+		"at_least": row["most"] > FIELD, "verdict": verdict, "past": row.get("past", 0), "scenes": row.get("scenes", n),
+		"inside": len(inside), "in_dmg": in_dmg, "in_kills": in_kills}
 
 
 def lift_text(value, at_least):
@@ -842,7 +858,8 @@ def stage_table(stage, keepers, low, high, judged):
 	"""The lines of one stage's table and {card: reading}. The fixed stage is judged on the crowd's side; the far stage is not."""
 	rows = card_rows(stage)
 	readings = {card: card_reading(row, low, high) for card, row in rows.items()}
-	head = "| Card | Builds | Lift by damage (median) | Lowest | Highest | Lift by kills (median) | No-pick kills (median) |" + (" Crowd's side |" if judged else "")
+	head = (f"| Card | Builds | Lift by damage (median) | Lowest | Highest | Lift by kills (median) | No-pick kills (median) | Scenes past the {FIELD} that stand |"
+		f" Builds with the no-pick scene inside the field | Lift by damage, inside | Lift by kills, inside |" + (" Crowd's side |" if judged else ""))
 	head += " The Patron's card on the same builds | Its median | The second Keeper's card on the same builds | Its median |"
 	lines = [head, "|" + "---|" * (head.count("|") - 1)]
 	for card in sorted(readings, key=lambda c: (not c.startswith("Transform."), c)):
@@ -861,7 +878,10 @@ def stage_table(stage, keepers, low, high, judged):
 					cell, cell_med = f"{'/'.join(names)} ({len(paired)} builds)", f"{statistics.median(v for _, v in paired.values()):.2f}"
 			beside += [cell, cell_med]
 		kills = "-" if r["kills"] is None else lift_text(r["kills"], r["at_least"])
-		lines.append(f"| {card} | {r['n']} | {lift_text(r['dmg'], r['at_least'])} | {r['lowest']:.2f} | {r['highest']:.2f} | {kills} | {r['base']:g} |"
+		inside = (f" {r['inside']} | {'-' if r['in_dmg'] is None else lift_text(r['in_dmg'], r['at_least'])} | "
+			f"{'-' if r['in_kills'] is None else lift_text(r['in_kills'], r['at_least'])} |")
+		lines.append(f"| {card} | {r['n']} | {lift_text(r['dmg'], r['at_least'])} | {r['lowest']:.2f} | {r['highest']:.2f} | {kills} | {r['base']:g} | {r['past']} of {r['scenes']} |"
+			+ inside
 			+ (f" {r['verdict']} |" if judged else "") + f" {' | '.join(beside)} |")
 	return lines, readings
 
@@ -895,11 +915,18 @@ def read_reforge(root, lines, series=None, far=None, out=None):
 	lines += ["", f"## Reforging band on the probe's field at {at_mult}, the crowd's side (lift = window damage with the card / without it, applied "
 		f"damage; band {low}-{high}; the lift by kills beside it where the no-pick median is {KILLS_LIFT_MIN} kills or more; \"at least\" where a "
 		f"scene of the card killed more than the {FIELD} that stand; a card on fewer than {need} builds is not read)", "", FIELD_SENTENCE, ""] + table
-	over_field = sum(1 for _, kills in every if kills > FIELD)
-	counts = {w: sum(1 for r in readings.values() if r["verdict"] == w) for w in ("in band", "under", "over", "split", "NOT READ")}
+	over_field = sum(r["past"] for r in readings.values())  # the cards' scenes; the no-pick scenes' own count is the FIELD: line
+	counts = {w: sum(1 for r in readings.values() if r["verdict"].split(" (")[0] == w) for w in ("in band", "under", "over", "split", "NOT READ")}
+	none_kills = stage_kills(fixed)
+	none_past = sum(1 for k in none_kills if k > FIELD)
 	lines.append("")
+	lines.append(f"FIELD: {none_past} of {len(none_kills)} no-pick scene(s) at {at_mult} killed past the {FIELD} that stand (highest {max(none_kills) if none_kills else 0}), "
+		f"{len(none_kills) - none_past} inside it (ruling 12: each card is read on all its builds and on those inside); "
+		f"the room-above rule reads their median, {statistics.median(none_kills) if none_kills else 0:g}, against {ROOM_KILLS:g}")
+	if none_past * 2 > len(none_kills):
+		lines.append(f"FIELD: CROWDED (more than half the no-pick scenes killed past the {FIELD} that stand); the stage is read all the same and no verdict word moves by it")
 	lines.append(f"REFORGE: the crowd's side at {at_mult}: {len(readings) - counts['NOT READ']} card(s) read, {counts['in band']} in band, {counts['under']} under, "
-		f"{counts['over']} over, {counts['split']} split; {counts['NOT READ']} not read (fewer than {need} builds); {over_field} scene(s) over the "
+		f"{counts['over']} over, {counts['split']} split; {counts['NOT READ']} not read (fewer than {need} builds); {over_field} card scene(s) over the "
 		f"{FIELD} that stand (\"at least\"); printed, judged nowhere")
 	lines.append("REFORGE: no card is said to be in band here: by D-085 item 9 a card is in band when it is at least C.REFORGE.POWER_MIN on one side "
 		"and at most C.REFORGE.POWER_MAX on both, and the boss's side comes from play")

@@ -81,6 +81,6 @@ if (-not $ReadOnly) {
 $Rc = $LASTEXITCODE
 if (-not $NoBand -and (Test-Path (Join-Path $Rf "runs"))) {
 	# D-082: printed, judged nowhere; the reader's own sentence of item 7 comes with it.
-	& python -I $Probe read $Rf | Select-String "^(PLAY|SERIES|HEALTH|REFORGE|FAR):|^The field reads" | ForEach-Object { $_.Line }
+	& python -I $Probe read $Rf | Select-String "^(PLAY|SERIES|HEALTH|FIELD|REFORGE|FAR):|^The field reads" | ForEach-Object { $_.Line }
 }
 exit $Rc

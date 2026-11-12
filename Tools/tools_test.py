@@ -1087,7 +1087,9 @@ class ReforgeStage(unittest.TestCase):
 		self.assertIn(probe.FIELD_SENTENCE, lines)
 		self.assertIn("HEALTH: not calibrated (no series beside this stage): read at its own health, as D-082 read it", lines)
 		self.assertEqual(lines[-2], "REFORGE: the crowd's side at its health: 3 card(s) read, 2 in band, 1 under, 0 over, 0 split; 0 not read (fewer than 10 builds); "
-			"0 scene(s) over the 120 that stand (\"at least\"); printed, judged nowhere")
+			"0 card scene(s) over the 120 that stand (\"at least\"); printed, judged nowhere")
+		self.assertTrue(any(line.startswith("FIELD: 0 of 10 no-pick scene(s) at its health killed past the 120 that stand (highest 0), 10 inside it") for line in lines), lines)
+		self.assertFalse([line for line in lines if "CROWDED" in line])
 		self.assertTrue(lines[-1].startswith("REFORGE: no card is said to be in band here: by D-085 item 9"), lines[-1])
 		self.assertFalse([line for line in lines if "SATURATED" in line or "CEILING" in line], "the flag of 160 leaves the stage")
 
@@ -1103,16 +1105,41 @@ class ReforgeStage(unittest.TestCase):
 		self.assertEqual((reading["at_least"], reading["verdict"], reading["kills"]), (True, "in band", 1.6), "a scene over the 120 that stand: at least")
 		self.assertEqual(probe.lift_text(reading["dmg"], reading["at_least"]), "at least 1.50")
 		self.assertFalse(probe.card_reading(row(1.5, 1.6, 40, probe.FIELD), 1.3, 1.8)["at_least"], "the 120 that stand are not more than the field")
-		self.assertEqual(probe.card_reading(row(1.5, 2.1, 40, 50), 1.3, 1.8)["verdict"], "split", "damage in band, kills over: said, not settled")
-		self.assertEqual(probe.card_reading(row(1.2, 1.4, 40, 50), 1.3, 1.8)["verdict"], "split")
+		self.assertEqual(probe.card_reading(row(1.5, 2.1, 40, 50), 1.3, 1.8)["verdict"],
+			"split (damage and kills, all builds; damage and kills, inside builds)", "damage in band, kills over: said, not settled")
+		self.assertTrue(probe.card_reading(row(1.2, 1.4, 40, 50), 1.3, 1.8)["verdict"].startswith("split (damage and kills, all builds"))
 		quiet = probe.card_reading(row(1.5, 2.1, probe.KILLS_LIFT_MIN - 1, 50), 1.3, 1.8)
 		self.assertEqual((quiet["kills"], quiet["verdict"]), (None, "in band"), "under twenty no-pick kills the lift by kills is not printed and splits nothing")
 		stage = {f"b{i}": {"none": {1: (1000.0, 50)}, "Evolve.RingEmitter": {1: (1500.0, probe.FIELD + 10)}} for i in range(10)}
 		table, readings = probe.stage_table(stage, {}, 1.3, 1.8, judged=True)
-		self.assertEqual(table[2], "| Evolve.RingEmitter | 10 | at least 1.50 | 1.50 | 1.50 | at least 2.60 | 50 | split | - | - | - | - |",
-			"the card's scenes killed over the field: at least, by damage and by kills")
+		self.assertEqual(table[2], "| Evolve.RingEmitter | 10 | at least 1.50 | 1.50 | 1.50 | at least 2.60 | 50 | 10 of 10 | 10 | at least 1.50 | at least 2.60 | "
+			"split (damage and kills, all builds; damage and kills, inside builds) | - | - | - | - |", "the card's scenes killed over the field: at least, by damage and by kills")
 		far, _ = probe.stage_table(stage, {}, 1.3, 1.8, judged=False)
 		self.assertNotIn("split", far[2], "the far stage says no side")
+
+	def test_the_inside_builds(self):
+		# D-085 ruling 12: builds whose no-pick scene is past the field (kills over FIELD) are left out of the second set of medians.
+		def row(inside_lift, past_lift, inside_kills_lift, past=4, builds=14, past_kills=1.0):
+			b = [f"b{i}" for i in range(builds)]
+			dmg = {x: (inside_lift if i >= past else past_lift) for i, x in enumerate(b)}
+			kil = {x: (inside_kills_lift if i >= past else past_kills) for i, x in enumerate(b)}
+			base = {x: (60 if i >= past else probe.FIELD + 1) for i, x in enumerate(b)}
+			return {"dmg": dmg, "kills": kil, "base": base, "most": 0}
+		r = probe.card_reading(row(1.5, 1.1, 1.6), 1.3, 1.8)
+		self.assertEqual((r["inside"], r["in_dmg"], r["in_kills"], r["dmg"]), (10, 1.5, 1.6, 1.5))
+		self.assertEqual(r["verdict"], "in band", "the two medians by damage agree: no mark")
+		r = probe.card_reading(row(1.7, 1.0, 1.7, past=7), 1.3, 1.8)
+		self.assertEqual((r["inside"], r["verdict"]), (7, "in band"), "fewer than ten inside builds: the second set marks nothing")
+		self.assertIsNone(probe.card_reading(row(1.5, 1.1, 1.6, past=14), 1.3, 1.8)["in_dmg"], "no build inside: nothing to read there")
+		r = probe.card_reading(row(1.7, 1.0, 1.7, past=10, builds=20), 1.3, 1.8)  # the median of all 1.35 against 1.7 inside
+		self.assertTrue(r["verdict"].endswith("all and inside builds by damage 0.35 apart)"), r["verdict"])
+		r = probe.card_reading(row(1.5, 1.5, 2.0, past=10, builds=20, past_kills=1.5), 1.3, 1.8)  # by kills 1.75 over all, 2.0 inside
+		self.assertEqual(r["verdict"], "split (damage and kills, inside builds)", "split on the inside builds only, as the hand reading found")
+
+	def test_a_crowded_field_is_said_and_still_read(self):
+		lines = self.read(10, 1.5, 1.1, kills=probe.FIELD + 1)
+		self.assertIn("FIELD: CROWDED (more than half the no-pick scenes killed past the 120 that stand); the stage is read all the same and no verdict word moves by it", lines)
+		self.assertTrue(any("| Evolve.RingEmitter | 10 | 1.50 |" in line for line in lines))
 
 	# --- D-085: the play rate, the series and the health -------------------------------------------------------------------------
 
@@ -1178,17 +1205,17 @@ class ReforgeStage(unittest.TestCase):
 		with tempfile.TemporaryDirectory() as root:
 			cal, lines = self.calibration(root, {"holdA": same, "holdB": same})
 		self.assertEqual(cal["health"], 16.0)
-		self.assertTrue(any(line.startswith("HEALTH: 16x fixed (15.5 interpolated) where the no-pick median meets 43.3, between 10x (98) and 20x (27)") for line in lines), lines)
-		self.assertIn("HEALTH: each battery alone, printed and never used: holdA 16x (play 43.3); holdB 16x (play 43.3)", lines)
+		self.assertTrue(any(line.startswith("HEALTH: 16x fixed (15.51 interpolated) where the no-pick median meets 43.33, between 10x (98) and 20x (27)") for line in lines), lines)
+		self.assertIn("HEALTH: each battery alone, printed and never used: holdA 16x (15.51; play 43.3); holdB 16x (15.51; play 43.3)", lines)
 		self.assertFalse([line for line in lines if "NOT FIRM" in line])
 		self.assertIn("FAR: bodies that do not die at 320x (no pick kills nothing in 20 scene(s)); printed and never judged", lines,
 			"160x still kills: doubled once")
 		tough = {5.0: 400, 10.0: 300, 20.0: 200, 40.0: 100, 80.0: 30}
 		with tempfile.TemporaryDirectory() as root:
 			cal, lines = self.calibration(root, {"holdA": same, "holdB": tough})
-		self.assertTrue(lines[2].startswith("HEALTH: 49x fixed (49.0 interpolated) where the no-pick median meets 43.3, between 40x (50.5) and 80x (30)"), lines[2])
+		self.assertTrue(lines[2].startswith("HEALTH: 49x fixed (") and "where the no-pick median meets 43.33, between 40x (50.5) and 80x (30)" in lines[2], lines[2])
 		self.assertTrue(lines[2].endswith("; the series extended by one doubling to 80x"), lines[2])
-		self.assertEqual(lines[3], "HEALTH: each battery alone, printed and never used: holdA 16x (play 43.3); holdB 65x (play 43.3)")
+		self.assertTrue(lines[3].startswith("HEALTH: each battery alone, printed and never used: holdA 16x (15.51; play 43.3); holdB 65x ("), lines[3])
 		self.assertEqual(lines[4], "HEALTH: NOT FIRM (pooled 49x; more than one stage of the series (2 times) away: holdA 16x)")
 		self.assertEqual(cal["health"], 49.0, "NOT FIRM is said; the pooled health is still the one read")
 
@@ -1198,7 +1225,7 @@ class ReforgeStage(unittest.TestCase):
 		self.assertTrue(cal["room"])
 		self.assertEqual(cal["health"], float(math.ceil(cal["raw"])))
 		self.assertTrue(lines[2].endswith("the play rate 80.0 is over half the standing field (60 of 120), so the health is raised until the no-pick median is not over 60"), lines[2])
-		self.assertIn("meets 60.0, between 10x (98) and 20x (27)", lines[2])
+		self.assertIn("meets 60.00, between 10x (98) and 20x (27)", lines[2])
 		self.assertIn("FAR: not found (no stage of 160x, 320x, 640x read with no kill in any no-pick scene)", lines)
 
 	def test_the_series_and_the_calibrated_stage_are_written(self):
@@ -1226,7 +1253,7 @@ class ReforgeStage(unittest.TestCase):
 		self.assertIn("& python -I $Probe reforge-series $Rf --builds (Join-Path $Band \"carry\") --path-builds", text)
 		self.assertIn('(Join-Path $Out ("bots_" + $SkillList[0])) --calibrated', text, "the second pass reads the first's series")
 		self.assertIn('(Join-Path $Rf "series\\jobs.csv")', text)
-		self.assertIn('"^(PLAY|SERIES|HEALTH|REFORGE|FAR):|^The field reads"', text)
+		self.assertIn('"^(PLAY|SERIES|HEALTH|FIELD|REFORGE|FAR):|^The field reads"', text)
 		self.assertRegex(text, r'\$BandArm = "Steered:Storm:Tempest:Tide"')
 
 
