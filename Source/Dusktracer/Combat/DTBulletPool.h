@@ -39,6 +39,8 @@ struct FDTBulletMotion
 	float CurlDegS = 0.0f;
 	/** Murmuration: drops its target after each hit and never seeks one it struck (R-RFG-11). */
 	bool bRetarget = false;
+	/** Murmuration: strikes an enemy again once this many others came after it (R-RFG-11, `rehit_after`); 0 keeps C.BULLETS.HIT_MEMORY. */
+	int32 RehitAfter = 0;
 	bool IsActive() const { return TurnDegS > 0.0f || OrbitLeft > 0.0f || bBoomerang || CurlDegS != 0.0f; }
 };
 

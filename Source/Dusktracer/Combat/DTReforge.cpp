@@ -193,6 +193,7 @@ void DTReforge::ApplyEvolution(int32 Row, const DTCat::FWeaponLevelRow& Level, F
 		Spec.Pierce = FMath::RoundToInt(Get(TEXT("pierce")));
 		Spec.LifeOverride = Get(TEXT("life_s"));
 		Spec.Damage = Level.Damage * Get(TEXT("dmg_ratio"));
+		Spec.Cooldown *= Get(TEXT("cooldown_mult")); // the source's evolved cooldown over its plain one (D-072)
 		break;
 	case EDTEvolve::PulseWall: // R-RFG-12, D-074: the weapon's own cooldown; one ring per weapon lives at a time
 		break;

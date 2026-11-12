@@ -428,6 +428,66 @@ bool FDTReforgeMurmuration::RunTest(const FString& Parameters)
 	const int32 Total = HitsOn(H, H.Enemies.GetSerials()[A]) + HitsOn(H, H.Enemies.GetSerials()[B]) + HitsOn(H, H.Enemies.GetSerials()[C]);
 	TestTrue(TEXT("a missile moved on"), Total > Launched);
 	TestTrue(TEXT("once each at most"), Total <= Launched * 3);
+
+	// D-072: a missile deals the row's damage, launched at the row's cooldown times cooldown_mult.
+	const DTCat::FWeaponLevelRow& L1 = *DTWeapons::GetLevelRow(Spec.Weapon, 1);
+	TestNearlyEqual(TEXT("a missile deals dmg_ratio of the row's damage"), Spec.Damage, L1.Damage * DTReforge::Param(Row, TEXT("dmg_ratio")), 0.001f);
+	TestNearlyEqual(TEXT("dmg_ratio is the row's own damage"), Spec.Damage, L1.Damage, 0.001f);
+	TestNearlyEqual(TEXT("launched at the row's cooldown times cooldown_mult"), Spec.Cooldown, L1.Cooldown_s * DTReforge::Param(Row, TEXT("cooldown_mult")), 0.001f);
+	bool bAllFull = true;
+	for (const FDTHit& Hit : H.HitLog)
+	{
+		bAllFull &= FMath::IsNearlyEqual(Hit.Damage, Spec.Damage, 0.001f);
+	}
+	TestTrue(TEXT("every strike is the missile's whole damage"), bAllFull);
+
+	// A lone target is struck once per missile: with nobody else to come after it, a round never returns to it.
+	{
+		FDTHarness Lone;
+		GiveEvolved(Lone, TEXT("Weapon.SeekerSwarm"), 1);
+		const int32 Boss = Lone.AddEnemy(FVector2f(300.0f, 0.0f));
+		Lone.StepOnce();
+		Lone.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f;
+		const int32 Missiles = Lone.Bullets.Num();
+		RunSteps(Lone, FMath::RoundToInt(DTReforge::Param(Row, TEXT("life_s")) / Dt) + 2);
+		const int32 Struck = HitsOn(Lone, Lone.Enemies.GetSerials()[Boss]);
+		TestTrue(TEXT("a lone target is struck"), Struck > 0);
+		TestTrue(TEXT("once per missile at most"), Struck <= Missiles);
+	}
+
+	// The re-strike window: one homing round among three enemies. Under the row's rehit_after (more than two others) it strikes each once;
+	// with a window of two it returns to the first once two others came after it.
+	const auto MostOnOne = [&](int32 Window)
+	{
+		FDTHarness R;
+		const int32 Targets[3] = { R.AddEnemy(FVector2f(150.0f, 0.0f)), R.AddEnemy(FVector2f(-75.0f, 130.0f)), R.AddEnemy(FVector2f(-75.0f, -130.0f)) };
+		FDTBulletSpawn Round;
+		Round.Position = FVector2f::ZeroVector;
+		Round.Velocity = FVector2f(600.0f, 0.0f);
+		Round.Radius = 9.0f;
+		Round.Damage = 1.0f;
+		Round.Life = 6.0f;
+		Round.OwnerId = 0;
+		Round.Pierce = 200;
+		Round.Motion.TurnDegS = 720.0f;
+		Round.Motion.SeekUu = 900.0f;
+		Round.Motion.Speed = 600.0f;
+		Round.Motion.Pierce = 200;
+		Round.Motion.bRetarget = true;
+		Round.Motion.RehitAfter = Window;
+		R.Bullets.Spawn(Round);
+		R.StepMany(FMath::RoundToInt(6.0f / Dt));
+		int32 Most = 0;
+		for (const int32 Enemy : Targets)
+		{
+			Most = FMath::Max(Most, HitsOn(R, R.Enemies.GetSerials()[Enemy]));
+		}
+		return Most;
+	};
+	const int32 RowWindow = FMath::RoundToInt(DTReforge::Param(Row, TEXT("rehit_after")));
+	TestTrue(TEXT("the row's rehit_after exceeds the two others here"), RowWindow > 2);
+	TestEqual(TEXT("with fewer than rehit_after others a round never strikes an enemy again"), MostOnOne(RowWindow), 1);
+	TestTrue(TEXT("once rehit_after others came after it, it may"), MostOnOne(2) > 1);
 	return true;
 }
 

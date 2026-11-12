@@ -106,6 +106,7 @@ namespace DTWeaponSimLocal
 		Out.ReleaseRange = Spec.Range * Spec.OrbitRangeRatio;
 		Out.bBoomerang = Spec.bBoomerang;
 		Out.bRetarget = Spec.Evolve == EDTEvolve::Persist;
+		Out.RehitAfter = Spec.Evolve == EDTEvolve::Persist ? FMath::RoundToInt(DTReforge::Param(Spec.EvolveRow, TEXT("rehit_after"))) : 0;
 		Out.CurlDegS = Spec.Evolve == EDTEvolve::Vortex ? DTReforge::Param(Spec.EvolveRow, TEXT("curl_deg_s")) : 0.0f;
 		Out.ReturnAt = InOutLife;
 		InOutLife = InOutLife * (Spec.bBoomerang ? 2.0f : 1.0f) + Spec.OrbitHoldS;
