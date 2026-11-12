@@ -609,6 +609,37 @@ class BotLabel(unittest.TestCase):
 		self.assertEqual(bot_summary.read_config("policy=Steered skill=1.00 seed=3"), ("1", "1.00"))
 
 
+class HandBackRead(unittest.TestCase):
+	"""T-RFG-04, D-073: the reader prints what an evolution handed back, the rerolls gained and the freed sockets fitted again."""
+
+	def run_folder(self, root, seed, back, rerolls, fits):
+		folder = os.path.join(root, f"Steered-Storm-Tempest-Tide-Carry-RailLance_s{seed}")
+		os.makedirs(folder)
+		with open(os.path.join(folder, "bot.csv.txt"), "w", encoding="utf-8") as stream:
+			stream.write("outcome=victory\nend_s=950.0\nreforge=Evolve.RailLance\nconfig=policy=Steered seed=1 version=2 carry=Weapon.RailLance\n")
+		records = [{"kind": "modifier_socketed", "owner": 0, "t": 50.0, "weapon": "Weapon.RailLance", "modifier": "Mod.Pierce"},
+			{"kind": "reforge", "t": 90.0, "dormant": "", "handed_back": ";".join(back), "rerolls_gained": rerolls, "weapon_level": 6}]
+		records += [{"kind": "modifier_socketed", "owner": 0, "t": 100.0 + i, "weapon": "Weapon.RailLance", "modifier": "Mod.Conduit"} for i in range(fits)]
+		records += [{"kind": "modifier_socketed", "owner": 0, "t": 120.0, "weapon": "Weapon.PulseRifle", "modifier": "Mod.Pierce"}]
+		with open(os.path.join(folder, "1_1.jsonl"), "w", encoding="utf-8") as stream:
+			stream.write("\n".join(json.dumps(r, separators=(",", ":")) for r in records))
+
+	def test_rows(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.run_folder(root, 1, ["Mod.Pierce", "Mod.SplitCore"], 2, 1)
+			self.run_folder(root, 2, ["Mod.Pierce"], 1, 3)
+			self.run_folder(root, 3, [], 0, 0)
+			self.run_folder(root, 4, ["Mod.Backwash"], 0, 0)
+			rows = evolve_read.carry_rows(evolve_read.read_carry(root, 900.0))
+		row = rows[0]
+		self.assertEqual(row["handed_back"]["Mod.Pierce"], 2)
+		self.assertEqual((row["freed"], row["rerolls_gained"]), (4, 3))
+		self.assertEqual(row["refitted"], 2)  # one in s1, and in s2 at most the one socket freed; a socket before the pick or on another weapon is none
+		self.assertEqual(row["unmatched"], [4])
+		self.assertEqual(row["dormant_runs"], 0)
+		self.assertEqual([seed for seed, *_ in row["per_run"]], [1, 2, 4])
+
+
 class CarryRead(unittest.TestCase):
 	"""T-BOT-18: a carry run reads as taken, level, damage either side of the pick, and its log faults."""
 

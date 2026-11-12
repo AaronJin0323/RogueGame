@@ -129,6 +129,8 @@ struct FDTDormantSocket
 {
 	FName Weapon;
 	FName Mod;
+	/** An evolution's pick hands this modifier back instead of putting it to sleep (reforging.md R-RFG-04, D-073). */
+	bool bHandBack = false;
 };
 
 /** What a conversion leaves of a weapon's rounds (R-WPN-10), named on the card that would convert them: Kept of Count still fly. */

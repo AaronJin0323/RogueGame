@@ -249,15 +249,121 @@ bool FDTReforgeCaps::RunTest(const FString& Parameters)
 	EvolveCard.ContentId = DTReforge::RowId(DTReforge::FindEvolve(P.Weapons[0].Def));
 	EvolveCard.TargetWeapon = P.Weapons[0].Id;
 	const TArray<FDTDormantSocket> Named = DTOffers::DormantAfterPick(P, EvolveCard);
-	TestEqual(TEXT("the card names the socket before the pick (R-MOD-08)"), Named.Num(), 1);
+	TestEqual(TEXT("the card names the socket before the pick (R-RFG-04)"), Named.Num(), 1);
+	TestTrue(TEXT("as handed back, not put to sleep (D-073)"), Named.Num() == 1 && Named[0].bHandBack);
 	TestFalse(TEXT("and reading it silences nothing"), P.Weapons[0].Sockets[0].bDormant);
-	P.Weapons[0].Evolve = DTReforge::FindEvolve(P.Weapons[0].Def);
+	const int32 RerollsBefore = P.Offer.RerollsLeft;
+	const FDTPickOutcome Outcome = DTOffers::ApplyPickState(P, EDTHandKind::Reforging, EvolveCard);
 	H.StepOnce();
 	const FDTWeaponSpec Spec = H.Weapons.GetLastSpec(0, 0);
 	TestTrue(TEXT("the row's caps"), Spec.EffectiveCaps == Evolved);
-	TestEqual(TEXT("still socketed"), P.Weapons[0].Sockets.Num(), 1);
-	TestTrue(TEXT("dormant"), P.Weapons[0].Sockets[0].bDormant);
+	TestEqual(TEXT("D-073: the refused modifier leaves its socket at the pick"), P.Weapons[0].Sockets.Num(), 0);
+	TestEqual(TEXT("and gives one reroll"), P.Offer.RerollsLeft, RerollsBefore + 1);
+	TestTrue(TEXT("the outcome names it"), Outcome.HandedBack.Num() == 1 && Outcome.HandedBack[0] == DTWeapons::ModifierId(Mod) && Outcome.RerollsGained == 1);
 	TestEqual(TEXT("declared caps follow the row"), DTReforge::DeclaredCaps(P.Weapons[0]).Mask, Evolved.Mask);
+	return true;
+}
+
+namespace DTReforgeTest
+{
+	static FDTOfferCard EvolveCardFor(const FDTWeaponInstance& Weapon)
+	{
+		FDTOfferCard Card;
+		Card.Kind = EDTCardKind::Reforging;
+		Card.ContentId = DTReforge::RowId(DTReforge::FindEvolve(Weapon.Def));
+		Card.TargetWeapon = Weapon.Id;
+		return Card;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgeHandBack, "Dusktracer.Reforging.HandBack", DTWeaponTestHarness::TestFlags) // T-RFG-04, D-073
+bool FDTReforgeHandBack::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	// Sweep Beam (Rail Lance) refuses Split Core, Scatter Shell and Pierce and accepts Chain Trigger (D-073 step 0's table).
+	struct FCase
+	{
+		const TCHAR* What;
+		TArray<const TCHAR*> Mods;
+		TArray<const TCHAR*> Back;
+	};
+	const TArray<FCase> Cases = {
+		{ TEXT("one refused"), { TEXT("Mod.Pierce"), TEXT("Mod.ChainTrigger") }, { TEXT("Mod.Pierce") } },
+		{ TEXT("two refused"), { TEXT("Mod.Pierce"), TEXT("Mod.SplitCore"), TEXT("Mod.ChainTrigger") }, { TEXT("Mod.Pierce"), TEXT("Mod.SplitCore") } },
+		{ TEXT("three refused"), { TEXT("Mod.Pierce"), TEXT("Mod.SplitCore"), TEXT("Mod.ScatterShell") }, { TEXT("Mod.Pierce"), TEXT("Mod.SplitCore"), TEXT("Mod.ScatterShell") } },
+	};
+	for (const FCase& Case : Cases)
+	{
+		FDTHarness H;
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RailLance")), 8, &Slot);
+		for (const TCHAR* Mod : Case.Mods)
+		{
+			TestEqual(FString::Printf(TEXT("%s: %s sockets on the plain lance"), Case.What, Mod), H.Weapons.Socket(H.Run, 0, Slot, FName(Mod)), EDTWeaponResult::Ok);
+		}
+		H.StepOnce();
+		FDTPlayerRunState& P = H.Run.GetPlayer(0);
+		const FDTOfferCard Card = EvolveCardFor(P.Weapons[Slot]);
+		// The card names each modifier it would hand back, and the count (the box's rows: one a modifier, then the rerolls).
+		const TArray<FDTDormantSocket> Named = DTOffers::DormantAfterPick(P, Card);
+		TestEqual(FString::Printf(TEXT("%s: the card names what comes back"), Case.What), Named.Num(), Case.Back.Num());
+		for (const FDTDormantSocket& Socket : Named)
+		{
+			TestTrue(FString::Printf(TEXT("%s: %s named as handed back"), Case.What, *Socket.Mod.ToString()),
+				Socket.bHandBack && Case.Back.ContainsByPredicate([&Socket](const TCHAR* M) { return Socket.Mod == FName(M); }));
+		}
+		TestFalse(FString::Printf(TEXT("%s: the box's reroll line has its count"), Case.What),
+			DTOfferText::HandBackRerolls(Named.Num()).ToString().IsEmpty());
+		const int32 Before = P.Offer.RerollsLeft;
+		const FDTPickOutcome Out = DTOffers::ApplyPickState(P, EDTHandKind::Reforging, Card);
+		H.StepOnce();
+		const FDTWeaponInstance& Now = P.Weapons[Slot];
+		TestEqual(FString::Printf(TEXT("%s: the refused sockets are freed"), Case.What), Now.Sockets.Num(), Case.Mods.Num() - Case.Back.Num());
+		TestEqual(FString::Printf(TEXT("%s: one reroll for each"), Case.What), P.Offer.RerollsLeft, Before + Case.Back.Num());
+		TestEqual(FString::Printf(TEXT("%s: the outcome counts them"), Case.What), Out.RerollsGained, Case.Back.Num());
+		TestEqual(FString::Printf(TEXT("%s: and names them"), Case.What), Out.HandedBack.Num(), Case.Back.Num());
+		TestTrue(FString::Printf(TEXT("%s: a modifier the evolved caps accept stays"), Case.What),
+			!Case.Mods.Contains(TEXT("Mod.ChainTrigger")) || Now.Sockets.ContainsByPredicate([](const FDTWeaponInstance::FSocket& S) { return S.ModId == FName(TEXT("Mod.ChainTrigger")); }));
+		for (const FDTWeaponInstance::FSocket& Socket : Now.Sockets)
+		{
+			TestFalse(FString::Printf(TEXT("%s: %s is not dormant"), Case.What, *Socket.ModId.ToString()), Socket.bDormant);
+		}
+		TestEqual(FString::Printf(TEXT("%s: the HUD's dormant list holds none"), Case.What), DTWeaponCompose::DormantSockets(P).Num(), 0);
+		// Back in the pool: the freed socket takes a modifier card the evolved caps express, and what came back can be drawn for a weapon
+		// that expresses it (here a Pulse Rifle given after the pick).
+		FDTOfferPool Pool;
+		for (const TCHAR* Mod : { TEXT("Mod.Pierce"), TEXT("Mod.SplitCore"), TEXT("Mod.ScatterShell"), TEXT("Mod.ChainTrigger"), TEXT("Mod.Conduit") })
+		{
+			Pool.Unlocked.Add(FName(Mod));
+		}
+		const FName Lance = P.Weapons[Slot].Id;
+		TestTrue(FString::Printf(TEXT("%s: the freed socket takes a modifier the evolved caps express"), Case.What),
+			DTOffers::Candidates(P, Pool).ContainsByPredicate([Lance](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Mod && C.TargetWeapon == Lance; }));
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.PulseRifle")), 1);
+		const TArray<FDTOfferCard> Cards = DTOffers::Candidates(P, Pool);
+		for (const TCHAR* Mod : Case.Back)
+		{
+			TestTrue(FString::Printf(TEXT("%s: %s can be drawn again"), Case.What, Mod), Cards.ContainsByPredicate([Mod](const FDTOfferCard& C) { return C.Kind == EDTCardKind::Mod && C.ContentId == FName(Mod); }));
+		}
+	}
+	{
+		// An evolution that refuses nothing changes nothing: Murmuration keeps the Seeker Swarm's sockets and gives no reroll.
+		FDTHarness H;
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.SeekerSwarm")), 8, &Slot);
+		H.Weapons.Socket(H.Run, 0, Slot, FName(TEXT("Mod.Pierce")));
+		H.Weapons.Socket(H.Run, 0, Slot, FName(TEXT("Mod.ChainTrigger")));
+		H.StepOnce();
+		FDTPlayerRunState& P = H.Run.GetPlayer(0);
+		const FDTOfferCard Card = EvolveCardFor(P.Weapons[Slot]);
+		TestEqual(TEXT("nothing refused: the card names nothing"), DTOffers::DormantAfterPick(P, Card).Num(), 0);
+		const int32 Before = P.Offer.RerollsLeft;
+		const FDTPickOutcome Out = DTOffers::ApplyPickState(P, EDTHandKind::Reforging, Card);
+		TestEqual(TEXT("nothing refused: both sockets stay"), P.Weapons[Slot].Sockets.Num(), 2);
+		TestEqual(TEXT("nothing refused: no reroll"), P.Offer.RerollsLeft, Before);
+		TestEqual(TEXT("nothing refused: nothing handed back"), Out.HandedBack.Num(), 0);
+	}
 	return true;
 }
 

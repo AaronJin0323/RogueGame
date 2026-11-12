@@ -505,6 +505,13 @@ FText DTOfferText::Dormant(const TCHAR* Key, const FDTDormantSocket& Socket)
 	return FText::Format(DTOfferStyleLocal::FromTable(DTOfferStyleLocal::ModifiersTable, Key), Args);
 }
 
+FText DTOfferText::HandBackRerolls(int32 Count)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Count"), FText::AsNumber(Count));
+	return FText::Format(DTOfferStyleLocal::FromTable(DTOfferStyleLocal::ModifiersTable, TEXT("HandBack.Rerolls")), Args);
+}
+
 FText DTOfferText::RoundsLeft(const FDTRoundsLeft& Rounds)
 {
 	FDTOfferCard Weapon;
@@ -595,6 +602,8 @@ TArray<TPair<FString, FString>> DTOfferText::AllKeys()
 	}
 	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Hud")));
 	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("Dormant.Card")));
+	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("HandBack.Card")));
+	Keys.AddUnique(TPair<FString, FString>(ModifiersTable, TEXT("HandBack.Rerolls")));
 	Keys.AddUnique(TPair<FString, FString>(WeaponsTable, TEXT("Rounds.None")));
 	Keys.AddUnique(TPair<FString, FString>(WeaponsTable, TEXT("Rounds.Some")));
 	return Keys;

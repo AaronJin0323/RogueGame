@@ -66,6 +66,9 @@ struct FDTPickOutcome
 	EDTReserveKind Reserve = EDTReserveKind::Count;
 	/** Reforging card: its row in DTCat::Reforges (reforging.md); Weapon names an evolved weapon. */
 	int32 ReforgeRow = INDEX_NONE;
+	/** An evolution's pick: the modifiers it handed back, and the rerolls that gave (R-RFG-04, D-073), already applied to the run state. */
+	TArray<FName> HandedBack;
+	int32 RerollsGained = 0;
 	bool bValid = false;
 };
 

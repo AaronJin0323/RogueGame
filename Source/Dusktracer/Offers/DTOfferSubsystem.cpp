@@ -556,7 +556,7 @@ bool UDTOfferSubsystem::Pick(int32 OwnerId, int32 Slot)
 				}
 			}
 		}
-		Telemetry->Records().RecordReforge(OwnerId, bEvolve, Card.ContentId, Card.TargetWeapon, Level, Dormant);
+		Telemetry->Records().RecordReforge(OwnerId, bEvolve, Card.ContentId, Card.TargetWeapon, Level, Dormant, Outcome.HandedBack, Outcome.RerollsGained);
 	}
 	if (Outcome.bValid && Card.Kind == EDTCardKind::Blessing)
 	{
