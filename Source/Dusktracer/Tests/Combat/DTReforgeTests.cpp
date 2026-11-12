@@ -107,10 +107,19 @@ bool FDTReforgeCatalog::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s has an Evolve row"), DTCat::Weapons[Weapon].Id), Row != INDEX_NONE);
 		const FDTCapList Caps = DTReforge::Caps(Row);
 		TestTrue(TEXT("an evolution declares caps"), Caps.Caps.Num() > 0);
+		// weapons.md R-WPN-08's one stated exception (D-070 ruling 11): Pulse Wall resolves Chain and StatusApply native, every other flag none.
+		const bool bWall = DTReforge::RowId(Row) == FName(TEXT("Evolve.RingEmitter"));
 		for (int32 Flag = 0; Flag < static_cast<int32>(DTCat::EFlag::Count); ++Flag)
 		{
-			TestTrue(FString::Printf(TEXT("%s resolves %s"), DTCat::Reforges[Row].Id, DTCat::FlagIds[Flag]),
-				DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat != DTCat::ECompat::None);
+			const DTCat::ECompat Compat = DTWeapons::ResolveFlag(Caps, static_cast<DTCat::EFlag>(Flag)).Compat;
+			if (!bWall)
+			{
+				TestTrue(FString::Printf(TEXT("%s resolves %s"), DTCat::Reforges[Row].Id, DTCat::FlagIds[Flag]), Compat != DTCat::ECompat::None);
+				continue;
+			}
+			const bool bKept = Flag == static_cast<int32>(DTCat::EFlag::Chain) || Flag == static_cast<int32>(DTCat::EFlag::StatusApply);
+			TestEqual(FString::Printf(TEXT("Pulse Wall: %s resolves %s"), DTCat::FlagIds[Flag], bKept ? TEXT("native") : TEXT("none")),
+				static_cast<int32>(Compat), static_cast<int32>(bKept ? DTCat::ECompat::Native : DTCat::ECompat::None));
 		}
 	}
 	for (const EDTPath Path : { EDTPath::Storm, EDTPath::Forge, EDTPath::Tide, EDTPath::Shade, EDTPath::Radiance, EDTPath::Quicksilver })
@@ -452,22 +461,115 @@ bool FDTReforgePulseWall::RunTest(const FString& Parameters)
 		bPushed = bPushed || H.View.Displacements.ContainsByPredicate([&H, Rim](const FDTDisplacement& D) { return D.EnemySerial == H.Enemies.GetSerials()[Rim] && D.Delta.X > 0.0f; });
 	}
 	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
-	TestTrue(TEXT("the band hurts the rim"), HitsOn(H, H.Enemies.GetSerials()[Rim]) > 0);
+	TestTrue(TEXT("the disc strikes the rim once the ring reaches it"), HitsOn(H, H.Enemies.GetSerials()[Rim]) > 0);
 	// One round's damage, per enemy: the Count and Cooldown of the weapon do not enter it (D-020).
 	const float Struck = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
 	for (const FDTHit& Hit : H.HitLog)
 	{
-		if (Hit.EnemySerial == H.Enemies.GetSerials()[Rim])
+		if (Hit.EnemySerial == H.Enemies.GetSerials()[Rim] || Hit.EnemySerial == H.Enemies.GetSerials()[Core])
 		{
 			TestNearlyEqual(TEXT("a tick strikes for dps x Damage x tick_s"), Hit.Damage, Struck, 0.01f);
 		}
 	}
 	TestTrue(TEXT("and pushes it out through a displacement"), bPushed);
 	TestEqual(TEXT("positions are not written by the weapon"), H.Enemies.GetPositions()[Rim], Before);
-	TestEqual(TEXT("what the ring passed is left alone"), HitsOn(H, H.Enemies.GetSerials()[Core]), 0);
+	// D-070: the whole disc strikes, so what stands near the centre is struck from the first ticks, more often than the rim.
 	return true;
 }
 
+namespace DTReforgeTest
+{
+	/** As the Enemies phase applies them (FDTEnemyPool::ApplyDisplacements): stale serials and the boss are left; then cleared. */
+	static void ApplyMoves(FDTHarness& H)
+	{
+		for (const FDTDisplacement& D : H.View.Displacements)
+		{
+			if (H.Enemies.GetSerials().IsValidIndex(D.EnemyIndex) && H.Enemies.GetSerials()[D.EnemyIndex] == D.EnemySerial &&
+				H.Enemies.GetRoles()[D.EnemyIndex] != EDTEnemyRole::Boss)
+			{
+				H.Enemies.SetPosition(D.EnemyIndex, H.Enemies.GetPositions()[D.EnemyIndex] + D.Delta);
+			}
+		}
+		H.View.Displacements.Reset();
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallDisc, "Dusktracer.Reforging.PulseWallDisc", DTWeaponTestHarness::TestFlags) // T-RFG-12, D-070
+bool FDTReforgePulseWallDisc::RunTest(const FString& Parameters)
+{
+	using namespace DTReforgeTest;
+	using namespace DTWeaponTestHarness;
+	{
+		// Every enemy inside the ring is struck each tick for one round's tick and pushed out once a tick by push_uu_s x tick_s;
+		// the boss is struck and stays; nothing outside the radius is touched.
+		FDTHarness H;
+		const int32 Row = GiveEvolved(H, TEXT("Weapon.RingEmitter"));
+		const float Radius = DTReforge::Param(Row, TEXT("radius_uu"));
+		const float TickS = DTReforge::Param(Row, TEXT("tick_s"));
+		const float Kick = DTReforge::Param(Row, TEXT("push_uu_s")) * TickS;
+		const int32 NearIndex = H.AddEnemy(FVector2f(Radius / 3.0f, 0.0f));
+		const int32 BossIndex = H.Enemies.Spawn(EDTEnemyRole::Boss, FVector2f(0.0f, -Radius / 2.0f));
+		const int32 FarIndex = H.AddEnemy(FVector2f(-(Radius + 200.0f), 0.0f));
+		const uint32 Near = H.Enemies.GetSerials()[NearIndex];
+		const uint32 Boss = H.Enemies.GetSerials()[BossIndex];
+		const uint32 Far = H.Enemies.GetSerials()[FarIndex];
+		const FVector2f BossAt = H.Enemies.GetPositions()[BossIndex];
+		H.StepOnce();
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f; // one ring only
+		ApplyMoves(H);
+		const int32 Steps = FMath::RoundToInt((DTReforge::Param(Row, TEXT("grow_s")) + 1.0f) / Dt);
+		int32 NearMoves = 0;
+		bool bKickSize = true;
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			H.StepOnce();
+			for (const FDTDisplacement& D : H.View.Displacements)
+			{
+				if (D.EnemySerial == Near)
+				{
+					++NearMoves;
+					bKickSize = bKickSize && FMath::IsNearlyEqual(D.Delta.Size(), Kick, 0.01f) && D.Delta.X > 0.0f;
+				}
+			}
+			ApplyMoves(H);
+		}
+		const float Tick = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * TickS;
+		const int32 NearHits = HitsOn(H, Near);
+		AddInfo(FString::Printf(TEXT("near: %d hits, %d pushes, ends at %.1f uu"), NearHits, NearMoves, H.Enemies.GetPositions()[NearIndex].Size()));
+		TestTrue(TEXT("what stands inside is struck each tick"), NearHits >= 3);
+		TestEqual(TEXT("and pushed once a tick, no more"), NearMoves, NearHits);
+		TestTrue(TEXT("each push is push_uu_s x tick_s, outward"), bKickSize);
+		for (const FDTHit& Hit : H.HitLog)
+		{
+			if (Hit.EnemySerial == Near || Hit.EnemySerial == Boss)
+			{
+				TestNearlyEqual(TEXT("a strike is dps x Damage x tick_s"), Hit.Damage, Tick, 0.01f);
+			}
+		}
+		TestTrue(TEXT("the boss is struck"), HitsOn(H, Boss) > 0);
+		TestEqual(TEXT("and stays where it stood"), H.Enemies.GetPositions()[BossIndex], BossAt);
+		TestEqual(TEXT("nothing outside the radius is touched"), HitsOn(H, Far), 0);
+		TestEqual(TEXT("one ring live"), H.Weapons.GetLiveFields(), 1);
+	}
+	{
+		// The round modifiers go dormant on the evolved weapon (R-MOD-08); Conduit and Chain Trigger stay live (D-070 rulings 5, 10).
+		FDTHarness H;
+		int32 Slot = INDEX_NONE;
+		H.Weapons.Give(H.Run, 0, FName(TEXT("Weapon.RingEmitter")), 8, &Slot);
+		TestEqual(TEXT("Pierce sockets on the plain weapon"), H.Weapons.Socket(H.Run, 0, Slot, TEXT("Mod.Pierce")), EDTWeaponResult::Ok);
+		TestEqual(TEXT("Conduit sockets on the plain weapon"), H.Weapons.Socket(H.Run, 0, Slot, TEXT("Mod.Conduit")), EDTWeaponResult::Ok);
+		FDTWeaponInstance& Owned = H.Run.GetPlayer(0).Weapons[Slot];
+		Owned.Evolve = DTReforge::FindEvolve(Owned.Def);
+		H.StepOnce();
+		const FDTWeaponInstance& Now = H.Run.GetPlayer(0).Weapons[Slot];
+		for (const FDTWeaponInstance::FSocket& Socket : Now.Sockets)
+		{
+			const bool bRound = Socket.ModId == FName(TEXT("Mod.Pierce"));
+			TestEqual(FString::Printf(TEXT("%s is %s on Pulse Wall"), *Socket.ModId.ToString(), bRound ? TEXT("dormant") : TEXT("live")), Socket.bDormant, bRound);
+		}
+	}
+	return true;
+}
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTReforgePulseWallGap, "Dusktracer.Reforging.PulseWallGap", DTWeaponTestHarness::TestFlags) // T-RFG-12
 bool FDTReforgePulseWallGap::RunTest(const FString& Parameters)
 {
@@ -919,11 +1021,8 @@ bool FDTReforgePulseWallLook::RunTest(const FString& Parameters)
 	{
 		return V.Kind == FDTWeaponVisual::EKind::Arc && V.ArcDeg >= 360.0f && FMath::IsNearlyEqual(V.Radius, Radius, 1.0f);
 	}));
-	const float Inner = Radius - DTReforge::Param(Row, TEXT("band_uu"));
-	TestTrue(TEXT("and the inner edge of what hurts"), Seen.ContainsByPredicate([Inner](const FDTWeaponVisual& V)
-	{
-		return V.Kind == FDTWeaponVisual::EKind::Arc && V.ArcDeg >= 360.0f && FMath::IsNearlyEqual(V.Radius, Inner, 1.0f);
-	}));
+	// D-070 ruling 8: one outer arc, no inner band edge (the whole disc strikes).
+	TestEqual(TEXT("and that one arc only"), Seen.FilterByPredicate([](const FDTWeaponVisual& V) { return V.Kind == FDTWeaponVisual::EKind::Arc && V.ArcDeg >= 360.0f; }).Num(), 1);
 	return true;
 }
 

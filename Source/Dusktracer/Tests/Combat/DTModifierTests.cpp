@@ -1049,7 +1049,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersChainTriggerPulseWall, "Dusktracer.
 bool FDTModifiersChainTriggerPulseWall::RunTest(const FString& Parameters)
 {
 	// One ring lives per weapon (R-RFG-12). Chain Trigger's free volley opens no second ring and does not start the live one again:
-	// the ring strikes its band once more where it stands, as the modifier's.
+	// the ring strikes what stands inside it once more where it stands, as the modifier's (D-070).
 	using namespace DTChainTriggerTest;
 	const uint16 Chain = ChainSource();
 	int32 OwnRim[2] = { 0, 0 };
@@ -1066,7 +1066,7 @@ bool FDTModifiersChainTriggerPulseWall::RunTest(const FString& Parameters)
 		H.StepMany(DTConst::SIM_FIXED_HZ); // the ring has grown and holds
 		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
 		TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
-		TestTrue(TEXT("and strikes its band as the weapon"), HitsOn(H, Rim, Own) > 0);
+		TestTrue(TEXT("and strikes the rim as the weapon"), HitsOn(H, Rim, Own) > 0);
 		const int32 Before = H.HitLog.Num();
 		if (Killed == 1)
 		{
@@ -1075,7 +1075,7 @@ bool FDTModifiersChainTriggerPulseWall::RunTest(const FString& Parameters)
 		H.StepMany(2);
 		if (Killed == 1)
 		{
-			TestEqual(TEXT("the band is struck once more, as Modifier.ChainTrigger"), HitsOn(H, Rim, Chain, Before), 1);
+			TestEqual(TEXT("the rim is struck once more, as Modifier.ChainTrigger"), HitsOn(H, Rim, Chain, Before), 1);
 			const float Tick = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
 			for (int32 Index = Before; Index < H.HitLog.Num(); ++Index)
 			{
@@ -1089,7 +1089,7 @@ bool FDTModifiersChainTriggerPulseWall::RunTest(const FString& Parameters)
 		TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
 		TestEqual(TEXT("one ring was ever opened"), H.Weapons.GetFieldsOpened(), 1);
 		TestEqual(TEXT("one kill is one strike"), HitsOn(H, Rim, Chain, Before), Killed);
-		TestEqual(TEXT("the ring did not start again: what it had passed is left alone"), HitsOn(H, Inner, Own, Before) + HitsOn(H, Inner, Chain, Before), 0);
+		// D-070: the whole disc strikes, so the free volley's one more strike reaches the inside too, once per kill.
 		OwnRim[Killed] = HitsOn(H, Rim, Own, Before);
 	}
 	TestTrue(TEXT("the wall holds and ticks on"), OwnRim[0] > 0);

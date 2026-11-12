@@ -1396,7 +1396,7 @@ namespace DTDashRingTest
 DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T-KEE-34, D-040
 {
 	// One ring lives per weapon (R-RFG-12). A dash volley opens no second ring and does not start the live one again (D-040):
-	// the ring strikes its band once more where it stands, at the Key's multiplier, as the volley's.
+	// the ring strikes what stands inside it once more where it stands, at the Key's multiplier, as the volley's (D-070).
 	using namespace DTDashRingTest;
 	const uint16 Quick = Src(EDTPath::Quicksilver);
 	int32 OwnRim[2] = { 0, 0 };
@@ -1411,13 +1411,13 @@ DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T
 		const uint16 Own = H.P().Weapons[0].SourceId;
 		TestEqual(TEXT("the weapon's ring lives"), H.Weapons.GetLiveFields(), 1);
 		const float OwnTick = MostOn(H, Rim, Own);
-		TestTrue(TEXT("and strikes its band as the weapon"), OwnTick > 0.0f);
+		TestTrue(TEXT("and strikes the rim as the weapon"), OwnTick > 0.0f);
 		H.HitLog.Reset();
 		if (Dashed == 1)
 		{
 			H.AddEnemy(FVector2f(-(Radius - 40.0f), 0.0f), 1.0f); // weak enough to die of the strike
 			HoldDash(H, FVector2f::ZeroVector);
-			TestEqual(TEXT("the band is struck once more, as Keeper.Quicksilver"), HitsOn(H, Rim, Quick), 1);
+			TestEqual(TEXT("the rim is struck once more, as Keeper.Quicksilver"), HitsOn(H, Rim, Quick), 1);
 			TestNearlyEqual(TEXT("for one tick of the row at the Key's multiplier"), MostOn(H, Rim, Quick), 1.5f * OwnTick, 0.01f);
 		}
 		else
@@ -1428,7 +1428,7 @@ DT_S2_TEST(FDTKeeperS2VectorPulseWall, "Card.Quicksilver.Vector.PulseWall") // T
 		TestEqual(TEXT("one ring, never two"), H.Weapons.GetLiveFields(), 1);
 		TestEqual(TEXT("one ring was ever opened"), H.Weapons.GetFieldsOpened(), 1);
 		TestEqual(TEXT("one dash is one strike"), HitsOn(H, Rim, Quick), Dashed);
-		TestEqual(TEXT("the ring did not start again: what it had passed is left alone"), HitsOn(H, Inner, Own) + HitsOn(H, Inner, Quick), 0);
+		// D-070: the whole disc strikes, so the dash volley's one more strike reaches the inside too, once per dash.
 		OwnRim[Dashed] = HitsOn(H, Rim, Own);
 		if (Dashed == 1)
 		{
