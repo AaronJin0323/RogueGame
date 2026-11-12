@@ -1,6 +1,6 @@
 # S4 audio: the fire family
 
-Branch `s4/audio-snd-fire`, from `dev/s4` at 42dcd73. It adds ten catalog rows in one family, `Fire`, their recipe file, their forty manifest lines and their rows of the generated table. Every row reads `no` in the catalog's `heard` column, so none becomes an asset and none can play (`02_Systems/audio.md` R-AUD-22). There is no engine code here; the generated table gains ten ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures. Nobody has heard them.
+Branch `s4/audio-snd-fire`, from `dev/s4` at 42dcd73. It adds ten catalog rows in one family, `Fire`, their recipe file, their forty manifest lines and their rows of the generated table. As first committed every row read `no` in the catalog's `heard` column (`02_Systems/audio.md` R-AUD-22). On 2026-11-13 the scheduler delegated the family on these readings, with the whole wave's thirty rows (D-056's Result on `main`): the rows read `delegated 2026-11-13`, and the family's files are SoundWaves in `Content/DT/Audio/SFX/`, imported by `Tools\audio\Audio.ps1` under the licence row that covers `SW_*`. Nothing raises them yet, so the game sounds as before. There is no engine code here; the generated table gains ten ids, which changes its shape, so the branch owes a whole gate. The Sound session wrote the recipes and judged them from numbers and pictures. Nobody has heard them.
 
 ## 1. Ten weapons, one gesture each
 
