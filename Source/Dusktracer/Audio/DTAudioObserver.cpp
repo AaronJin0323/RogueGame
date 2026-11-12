@@ -1,5 +1,7 @@
 #include "Audio/DTAudioObserver.h"
+#include "Audio/Observe/DTObserveDanger.h"
 #include "Audio/Observe/DTObserveInterface.h"
+#include "Audio/Observe/DTObserveWarn.h"
 #include "Core/DTSimSubsystem.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
@@ -8,6 +10,8 @@ FDTAudioObserver::FDTAudioObserver()
 {
 	// Wave 1's families, one file each (Validation/S4_audio_wave1.md §4.3). A family adds its line here.
 	Families.Add(MakeUnique<FDTObserveInterface>());
+	Families.Add(MakeUnique<FDTObserveWarn>());
+	Families.Add(MakeUnique<FDTObserveDanger>());
 }
 
 FDTAudioObserver::~FDTAudioObserver()
@@ -20,6 +24,13 @@ void FDTAudioObserver::Bind(UDTSimSubsystem& InSim)
 	Unbind();
 	Sim = &InSim;
 	StepEndHandle = InSim.OnStepEnd.AddRaw(this, &FDTAudioObserver::HandleStepEnd);
+	if (UWorld* World = InSim.GetWorld())
+	{
+		for (const TUniquePtr<IDTAudioFamily>& Family : Families)
+		{
+			Family->Begin(*World);
+		}
+	}
 }
 
 void FDTAudioObserver::Unbind()
@@ -27,6 +38,13 @@ void FDTAudioObserver::Unbind()
 	if (UDTSimSubsystem* Bound = Sim.Get())
 	{
 		Bound->OnStepEnd.Remove(StepEndHandle);
+	}
+	if (Sim.IsValid() || StepEndHandle.IsValid())
+	{
+		for (const TUniquePtr<IDTAudioFamily>& Family : Families)
+		{
+			Family->End();
+		}
 	}
 	StepEndHandle.Reset();
 	Sim.Reset();
