@@ -95,7 +95,7 @@
 | Key | Value | Unit | Tag | Dependents |
 |---|---|---|---|---|
 | C.GATED.DEBT_MAX | 5 | n | CORE | Harness/H03 §4 |
-| C.GATE.TEST_FLOOR | 597 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
+| C.GATE.TEST_FLOOR | 601 | n | CORE (equals the suite's count) | 11_Quality §1, Tools/Gate.ps1, Tools/RunTests.ps1 |
 | C.SPEC.LINES_MAX | 300 | lines | CORE | lint |
 | C.STATE.LINES_MAX | 100 | lines | CORE | STATE.md |
 
@@ -643,6 +643,9 @@ Presentation only (S4 wave 1 package B, D-043): no key here has a reader in the 
 | C.EAR.LINEUP_SPACING_UU | 320 | uu | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (slot size of `DT.Enemies.LineUp`) |
 | C.EAR.LINEUP_ROWS | 3 | n | GATED(S4) | enemy_art T-EAR-07, Debug/DTDebugEnemyArt, Tools/enemy_art_check.py (facings per role in the line-up) |
 | C.EAR.FRAME_MASK_TOLERANCE | 0.06 | ratio | GATED(S4) | enemy_art T-EAR-07, Tools/enemy_art_check.py (how far a pixel's channel must sit from the slot's floor to count as drawn) |
+| C.EAR.ELITE_PART_GAP_MAX_UU | 3 | uu | GATED(S4) | enemy_art R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests (widest gap between an elite part and its role hull, the shield's orbit excepted) |
+| C.EAR.ELITE_LIGHT_AREA_MAX_RATIO | 0.28 | ratio | GATED(S4) | enemy_art R-EAR-08, T-EAR-08, Enemies/DTElite, Tools/elite_anchors.py (the elite light's top-view area over its hull's top-view bounding area; a larger optic's light is scaled down about its centre) |
+| C.EAR.ELITE_PART_SINK_MAX_UU | 5 | uu | GATED(S4) | enemy_art R-EAR-08, T-EAR-08, Tools/enemy_art_check.py, Tests/Enemies/DTEnemyArtTests (deepest an elite part may sit inside its role hull) |
 
 ## Audio (02_Systems/audio.md)
 

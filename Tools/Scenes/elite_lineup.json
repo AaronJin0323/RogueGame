@@ -1,0 +1,9 @@
+{
+	"note": "T-EAR-08 (D-076): every role as an elite round the hero, one row per role (Swarm, Tank, Rusher, Turret, top to bottom) and one column per affix (Armored, Swift, Volatile, Splitter, Vampiric, Shielded) plus a last column with every affix, all turned the same way, drawn by the enemy renderer with no enemy in the pool. Its golden records the parts placed from the role hulls (enemy_art.md R-EAR-08); 'DT.Enemies.EliteLineUp cube' on the same staging is the placement from the hit circle, the before.",
+	"gate": "smoke",
+	"judge": "golden",
+	"cultures": ["en"],
+	"weather": "Dusk",
+	"seconds": 4,
+	"cmds": ["DT.God 1", "DT.Enemies.EliteLineUp"]
+}

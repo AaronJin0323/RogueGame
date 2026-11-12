@@ -302,7 +302,7 @@ namespace DTConst
 	inline constexpr float TEL_HERO_POS_INTERVAL_S = 2.5f; // s, CORE
 	inline constexpr int32 TEL_POWER_CHECK_LEVEL = 16; // level, CORE
 	// caps
-	inline constexpr int32 GATE_TEST_FLOOR = 597; // n, CORE
+	inline constexpr int32 GATE_TEST_FLOOR = 601; // n, CORE
 	inline constexpr int32 GATED_DEBT_MAX = 5; // n, CORE
 	inline constexpr int32 SPEC_LINES_MAX = 300; // lines, CORE
 	inline constexpr int32 STATE_LINES_MAX = 100; // lines, CORE
@@ -564,6 +564,9 @@ namespace DTConst
 	inline constexpr int32 EAR_LINEUP_SPACING_UU = 320; // uu, GATED(S4)
 	inline constexpr int32 EAR_LINEUP_ROWS = 3; // n, GATED(S4)
 	inline constexpr float EAR_FRAME_MASK_TOLERANCE = 0.06f; // ratio, GATED(S4)
+	inline constexpr int32 EAR_ELITE_PART_GAP_MAX_UU = 3; // uu, GATED(S4)
+	inline constexpr float EAR_ELITE_LIGHT_AREA_MAX_RATIO = 0.28f; // ratio, GATED(S4)
+	inline constexpr int32 EAR_ELITE_PART_SINK_MAX_UU = 5; // uu, GATED(S4)
 	// audio
 	inline constexpr int32 AUD_SAMPLE_RATE_HZ = 48000; // Hz, GATED(S4)
 	inline constexpr int32 AUD_DANGER_BAND_HZ_MIN = 2000; // Hz, GATED(S4)

@@ -87,8 +87,9 @@ private:
 	struct FRequests : public IDTAudioRequests
 	{
 		FDTAudioScheduler* Scheduler = nullptr;
-		virtual void Run(int32 Sound, int32 Count, int64 Step) override { Scheduler->Request(Sound, Count, Step); }
+		virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck) override { Scheduler->Request(Sound, Count, Step, bNoDuck); }
 		virtual void Ui(int32 Sound, int32 Count) override { Scheduler->RequestUi(Sound, Count); }
+		virtual void HeldDuck(float Db) override { Scheduler->SetHeldDuckDb(Db); }
 	};
 
 	void ResolveAssets();

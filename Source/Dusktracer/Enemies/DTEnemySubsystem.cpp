@@ -6,8 +6,17 @@
 #include "Core/DTRngStreams.h"
 #include "Core/DTRunState.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "Telemetry/DTTelemetryCore.h"
 #include "Telemetry/DTTelemetrySubsystem.h"
+
+#if !UE_BUILD_SHIPPING
+namespace DTEnemySubsystemLocal
+{
+	static TAutoConsoleVariable<int32> CVarEliteCubeAnchors(TEXT("dt.Exp.EliteCubeAnchors"), 0,
+		TEXT("Experiment, expires 2027-01-31: 1 places elite parts from the hit circle as for the cube on the role hulls too (before D-076), 0 from the role hulls (enemy_art.md R-EAR-08)"));
+}
+#endif
 
 void FDTEnemyResolveHitsPhase::SimStep(const FDTSimContext& Context)
 {
@@ -376,7 +385,12 @@ void UDTEnemySubsystem::SimRender(float Alpha)
 		Renderer->UpdateInstances(HullTransforms, Roles, OpticTransforms, OpticHulls);
 		const UDTSimSubsystem* SimForTime = Sim.Get();
 		const float Seconds = SimForTime ? static_cast<float>(SimForTime->GetStepIndex()) / static_cast<float>(DTConst::SIM_FIXED_HZ) : 0.0f;
-		DTElite::BuildParts(Pool, Alpha, Seconds, MeshSize, EliteParts);
+		// R-EAR-08: the parts sit on the role hulls that are drawn; the grey box (R-EAR-06) keeps the cube's placement.
+		bool bRoleAnchors = !Renderer->IsGreyBox();
+#if !UE_BUILD_SHIPPING
+		bRoleAnchors = bRoleAnchors && DTEnemySubsystemLocal::CVarEliteCubeAnchors.GetValueOnGameThread() == 0;
+#endif
+		DTElite::BuildParts(Pool, Alpha, Seconds, MeshSize, EliteParts, bRoleAnchors);
 		Renderer->UpdateParts(EliteParts);
 	}
 

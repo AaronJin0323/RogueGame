@@ -1,4 +1,4 @@
-// Enemy art tests (02_Systems/enemy_art.md T-EAR-01, T-EAR-02, T-EAR-03, T-EAR-06): the per-role render path, on a headless world.
+// Enemy art tests (02_Systems/enemy_art.md T-EAR-01, T-EAR-02, T-EAR-03, T-EAR-06, T-EAR-08): the per-role render path, on a headless world.
 // The shapes themselves are judged by Tools/enemy_art_check.py from their generators and from captured frames.
 
 #include "Misc/AutomationTest.h"
@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Enemies/DTElite.h"
+#include "Enemies/DTEnemyPool.h"
 #include "Enemies/DTEnemyRenderer.h"
 #include "Enemies/DTEnemySubsystem.h"
 #include "Enemies/DTEnemyTypes.h"
@@ -295,6 +296,142 @@ bool FDTEarGreyBox::RunTest(const FString& Parameters)
 		}
 	}
 	GreyBox->Set(Before, ECVF_SetByCode);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTEarEliteAnchors, "Dusktracer.EnemyArt.EliteAnchors", DTEnemyArtTest::Flags) // T-EAR-08
+bool FDTEarEliteAnchors::RunTest(const FString& Parameters)
+{
+	using namespace DTEnemyArtTest;
+	FArtWorld W;
+	if (!TestNotNull(TEXT("enemies"), W.Enemies) || !TestNotNull(TEXT("enemy renderer"), W.Renderer))
+	{
+		return false;
+	}
+	TestFalse(TEXT("every role mesh is in the build: no mesh fallback"), W.Renderer->IsUsingFallbackMesh());
+	const float Mesh = W.Renderer->GetMeshSizeUU();
+	// The generated anchors are read from the generators' lists; the committed meshes are what those lists build (Mesh.ps1 -Check).
+	// 0.02 drawn radii is under a uu at every role's elite size: the import's own rounding, nothing a person could see.
+	constexpr float AnchorTolerance = 0.02f;
+	const float GapMax = static_cast<float>(DTConst::EAR_ELITE_PART_GAP_MAX_UU);
+	const float SinkMax = static_cast<float>(DTConst::EAR_ELITE_PART_SINK_MAX_UU);
+	uint8 Every = 0;
+	for (int32 Affix = 0; Affix < static_cast<int32>(EDTAffix::Count); ++Affix)
+	{
+		Every |= DTElite::Bit(static_cast<EDTAffix>(Affix));
+	}
+
+	for (int32 Index = 0; Index < DTEliteAnchorsGen::NumRoles; ++Index)
+	{
+		const EDTEnemyRole Role = static_cast<EDTEnemyRole>(Index);
+		const FDTEliteAnchors* K = DTElite::Anchors(Role);
+		const UStaticMesh* HullMesh = W.Renderer->GetRoleHull(Role)->GetStaticMesh();
+		const UStaticMesh* OpticMesh = W.Renderer->GetRoleOptic(Role)->GetStaticMesh();
+		if (!TestNotNull(TEXT("anchors for every role with a mesh"), K) || !TestNotNull(TEXT("role hull"), HullMesh) || !TestNotNull(TEXT("role optic"), OpticMesh) || !K)
+		{
+			continue;
+		}
+		// Mesh units: one cube edge is one hit diameter, two drawn radii (enemy_art.md R-EAR-02).
+		const FBox Hull = HullMesh->GetBoundingBox();
+		const FBox Optic = OpticMesh->GetBoundingBox();
+		const float ToRadii = 2.0f / Mesh;
+		const FString What = FString::Printf(TEXT("role %d"), Index);
+		TestEqual(*(What + TEXT(": front")), K->Front, static_cast<float>(Hull.Max.X) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": rear")), K->Rear, static_cast<float>(-Hull.Min.X) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": half-width")), K->HalfWidth, static_cast<float>(FMath::Max(-Hull.Min.Y, Hull.Max.Y)) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": bottom")), K->Bottom, static_cast<float>(Hull.Min.Z) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": top")), K->Top, static_cast<float>(Hull.Max.Z) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": optic centre along the facing")), K->OpticX, static_cast<float>(Optic.GetCenter().X) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": optic centre height")), K->OpticZ, static_cast<float>(Optic.GetCenter().Z) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": optic half-size along")), K->OpticHalfX, static_cast<float>(Optic.GetExtent().X) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": optic half-size across")), K->OpticHalfY, static_cast<float>(Optic.GetExtent().Y) * ToRadii, AnchorTolerance);
+		TestEqual(*(What + TEXT(": optic half-size up")), K->OpticHalfZ, static_cast<float>(Optic.GetExtent().Z) * ToRadii, AnchorTolerance);
+
+		// One elite of the role with every affix, facing +X at the origin: its parts against the hull's bounds at the elite's scale.
+		FDTEnemyPool Pool;
+		FDTEnemySpawn Spec;
+		Spec.Role = Role;
+		Spec.bElite = true;
+		Spec.AffixMask = Every;
+		Pool.Spawn(Spec, nullptr, false);
+		TArray<FDTElitePart> Parts;
+		DTElite::BuildParts(Pool, 0.0f, 0.0f, Mesh, Parts, true);
+		const float R = Pool.GetRadii()[0] * static_cast<float>(DTConst::ELITE_DRAW_SCALE);
+		const float Scale = 2.0f * R / Mesh;
+		const FBox HullAt(Hull.Min * Scale, Hull.Max * Scale);
+		const FBox OpticAt(Optic.Min * Scale, Optic.Max * Scale);
+		const float Reach = K->Reach * R;
+		int32 Lights = 0;
+		for (const FDTElitePart& Part : Parts)
+		{
+			const FVector At = Part.Transform.GetLocation();
+			const FVector Half = 0.5 * Part.Transform.GetScale3D() * Mesh;
+			const double Turn = FMath::DegreesToRadians(Part.Transform.Rotator().Yaw);
+			const FVector Extent(FMath::Abs(FMath::Cos(Turn)) * Half.X + FMath::Abs(FMath::Sin(Turn)) * Half.Y, FMath::Abs(FMath::Sin(Turn)) * Half.X + FMath::Abs(FMath::Cos(Turn)) * Half.Y, Half.Z);
+			const FBox Box(At - Extent, At + Extent);
+			const FString Name = FString::Printf(TEXT("%s, part of affix %d"), *What, static_cast<int32>(Part.Affix));
+			TestTrue(*(Name + TEXT(": not sunk into the floor")), Box.Min.Z >= -SinkMax);
+			if (Part.Affix == EDTAffix::Count)
+			{
+				++Lights;
+				TestTrue(*(Name + TEXT(": the light's centre is inside the optic's bounds (elites.md R-ELT-10)")), OpticAt.ExpandBy(0.01).IsInside(At));
+				// R-EAR-08: the light's top view is at most C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's top-view bounds.
+				const FVector2D HullTop(HullAt.GetSize().X, HullAt.GetSize().Y);
+				TestTrue(*(Name + TEXT(": the light's top view within C.EAR.ELITE_LIGHT_AREA_MAX_RATIO of the hull's")),
+					4.0 * Half.X * Half.Y <= DTConst::EAR_ELITE_LIGHT_AREA_MAX_RATIO * HullTop.X * HullTop.Y * (1.0 + 2.0 * AnchorTolerance));
+				continue;
+			}
+			if (Part.Affix == EDTAffix::Shielded)
+			{
+				// The orbit clears the hull's longest reach.
+				TestTrue(*(Name + TEXT(": the shield's plate is outside the hull's reach")), FVector2D(At.X, At.Y).Size() - FVector2D(Half.X, Half.Y).Size() >= Reach - SinkMax);
+				continue;
+			}
+			// Against the bounds: no part stands farther than the gap limit outside them. The parts' own hull faces are judged by
+			// Tools/enemy_art_check.py `elite parts` on the generators' solids; this holds the code to the same anchors.
+			TestTrue(*(Name + TEXT(": within C.EAR.ELITE_PART_GAP_MAX_UU of the hull's bounds")), FMath::Sqrt(HullAt.ComputeSquaredDistanceToBox(Box)) <= GapMax + 0.01);
+		}
+		TestEqual(*(What + TEXT(": one light")), Lights, 1);
+
+		// No anchors (the grey box and the boss): exactly the hit-circle placement, as the four callers of Dusktracer.Elites.* call it.
+		TArray<FDTElitePart> Cube, Default;
+		DTElite::BuildParts(Pool, 0.0f, 0.0f, Mesh, Cube, false);
+		DTElite::BuildParts(Pool, 0.0f, 0.0f, Mesh, Default);
+		if (TestEqual(*(What + TEXT(": the default is the cube's placement")), Default.Num(), Cube.Num()))
+		{
+			for (int32 Part = 0; Part < Cube.Num(); ++Part)
+			{
+				TestTrue(*(What + TEXT(": same transform")), Default[Part].Transform.Equals(Cube[Part].Transform, 0.0));
+			}
+		}
+		const FDTElitePart* CubeLight = Cube.FindByPredicate([](const FDTElitePart& P) { return P.Affix == EDTAffix::Count; });
+		if (TestNotNull(*(What + TEXT(": a light on the cube")), CubeLight) && CubeLight)
+		{
+			// Today's formula (elites.md R-ELT-10 before D-076): one radius over the sim plane, at the nose or the middle.
+			const float Ratio = DTConst::ENEMIES_OPTIC_SCALE;
+			const float Nose = Role == EDTEnemyRole::Turret ? 0.0f : (1.0f - Ratio) * R;
+			TestTrue(*(What + TEXT(": the cube's light where it always was")), CubeLight->Transform.GetLocation().Equals(FVector(Nose, 0.0, DTConst::SIM_PLANE_Z_UU + R), 0.001));
+		}
+	}
+
+	// The boss keeps the cube whatever the caller asks.
+	FDTEnemyPool Boss;
+	FDTEnemySpawn Spec;
+	Spec.Role = EDTEnemyRole::Boss;
+	Spec.bElite = true;
+	Spec.AffixMask = DTElite::Bit(EDTAffix::Armored);
+	Boss.Spawn(Spec, nullptr, false);
+	TArray<FDTElitePart> Asked, Cube;
+	DTElite::BuildParts(Boss, 0.0f, 0.0f, Mesh, Asked, true);
+	DTElite::BuildParts(Boss, 0.0f, 0.0f, Mesh, Cube, false);
+	TestTrue(TEXT("no anchors for the boss"), DTElite::Anchors(EDTEnemyRole::Boss) == nullptr);
+	if (TestEqual(TEXT("the boss: the cube's parts"), Asked.Num(), Cube.Num()))
+	{
+		for (int32 Part = 0; Part < Cube.Num(); ++Part)
+		{
+			TestTrue(TEXT("the boss: the cube's transforms"), Asked[Part].Transform.Equals(Cube[Part].Transform, 0.0));
+		}
+	}
 	return true;
 }
 

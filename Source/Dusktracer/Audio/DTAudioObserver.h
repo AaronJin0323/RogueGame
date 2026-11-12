@@ -14,10 +14,12 @@ class IDTAudioRequests
 {
 public:
 	virtual ~IDTAudioRequests() = default;
-	/** A run sound at a sim step. */
-	virtual void Run(int32 Sound, int32 Count, int64 Step) = 0;
+	/** A run sound at a sim step. bNoDuck: this danger voice does not lower the Player group (the heartbeat under a held duck). */
+	virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck = false) = 0;
 	/** An interface sound now. */
 	virtual void Ui(int32 Sound, int32 Count) = 0;
+	/** The Player group held at least this deep for as long as it is asked (0 = no hold): the low-health hold of dt.Audio.LowHpHoldDb. */
+	virtual void HeldDuck(float Db) {}
 };
 
 /** One family's observer. */
@@ -31,6 +33,9 @@ public:
 	virtual void OnFrame(const UWorld& World, IDTAudioRequests& Out) {}
 	/** A new run in the same world. */
 	virtual void Reset() {}
+	/** The observer bound the world's sim: a family that listens to a public delegate binds it here, and lets it go in End. */
+	virtual void Begin(UWorld& World) {}
+	virtual void End() {}
 };
 
 class DUSKTRACER_API FDTAudioObserver
