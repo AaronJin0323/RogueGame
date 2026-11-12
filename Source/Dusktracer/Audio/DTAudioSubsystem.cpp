@@ -187,6 +187,16 @@ void UDTAudioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	// The frame's flush runs after every tickable of the world, the sim's step included, paused or not (R-AUD-05).
 	TickEndHandle = FWorldDelegates::OnWorldTickEnd.AddUObject(this, &UDTAudioSubsystem::HandleWorldTickEnd);
+	int32 Resolved = 0;
+	for (const TObjectPtr<USoundBase>& Asset : Assets)
+	{
+		Resolved += Asset ? 1 : 0;
+	}
+	// The silence of R-AUD-03, in the log of every run: which process this is, whether the engine sink exists, what holds the volume.
+	UE_LOG(LogDT, Log, TEXT("Audio: start: %s; %s; volume %s; %d of %d wave(s) resolved; duck mix %s"),
+		bTool ? TEXT("tool process") : (bSilent ? TEXT("automation") : TEXT("a person's launch")),
+		Sink.IsValid() && Sink->IsEngine() ? TEXT("engine sink") : TEXT("no engine sink"),
+		bTool ? TEXT("held at 0") : TEXT("left to the settings"), Resolved, Assets.Num(), DuckMix ? TEXT("found") : TEXT("missing"));
 }
 
 void UDTAudioSubsystem::HandleWorldTickEnd(UWorld* InWorld, ELevelTick TickType, float DeltaSeconds)
@@ -208,6 +218,16 @@ void UDTAudioSubsystem::Deinitialize()
 		// A person's run closes with one line of the timer (R-AUD-21); a tool run's log carries the same.
 		UE_LOG(LogDT, Log, TEXT("Audio: %d frame(s); p95 ms observe %.4f schedule %.4f hand %.4f; worst %.4f %.4f %.4f"), NumTimedFrames(),
 			PartMs(0, 0.95), PartMs(1, 0.95), PartMs(2, 0.95), PartWorstMs(0), PartWorstMs(1), PartWorstMs(2));
+	}
+	{
+		int64 Asked = 0, Played = 0, Missed = 0;
+		for (int32 Sound = 0; Sound < Scheduler.NumSounds(); ++Sound)
+		{
+			Asked += Scheduler.GetCounts(Sound).Asked;
+			Played += Scheduler.GetCounts(Sound).Played;
+			Missed += GetMissing(Sound);
+		}
+		UE_LOG(LogDT, Log, TEXT("Audio: end: asked %lld, voices started %lld, handed to the engine %lld, missing %lld"), Asked, Played, EngineStarts, Missed);
 	}
 	if (bLog)
 	{
