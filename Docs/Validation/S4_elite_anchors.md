@@ -25,7 +25,7 @@ The cube's anchors, the placement the grey box and the boss keep (R-EAR-06): fro
 
 ## 3. The placement per affix
 Every length times the elite's drawn radius R; P is `C.ELITE.PART_RATIO` x R. A part against a face sits at the face's middle height and never below that face's bottom. The shapes, counts and tokens are `elites.md` R-ELT-11's, unchanged.
-- **Light:** a box of the optic's own bounds, `LightCover` 1.15 over, centred where the optic sits: it covers the optic it takes the place of (R-ELT-10).
+- **Light:** a box of the optic's own bounds, `LightCover` 1.15 over, centred where the optic sits: it covers the optic it takes the place of (R-ELT-10). Its area seen from above is at most `C.EAR.ELITE_LIGHT_AREA_MAX_RATIO` 0.28 of the hull's top-view bounding area (front plus rear, by twice the half-width, from the same anchors); a larger one is scaled down about its centre, keeping its proportions. Before the cap the four read Swarm 0.138, Tank 0.139, Rusher 0.270, Turret 0.337: the first value asked, 0.35, caught none of them; 0.28 is the lowest that spares the Rusher, so only the Turret's light is scaled, by 0.91 along each side (its mirror's light from 1.43 x 1.23 to 1.30 x 1.13 radii seen from above). A cut deep enough to clear more of the Turret's disc would take the Rusher's nose strip too.
 - **Armored:** a plate along each flat side of the widest part that runs along the hull (at least 0.4 of its length, standing at its greatest width for at least half its own length), as long as that side, cut where another part stands in its way, as tall as the part it rests on and at most one radius.
 - **Swift:** each vane's front end at a corner of the rear face, the vane trailing back along its own line, at today's 30 degrees.
 - **Volatile:** the reactor against the tail on the centre line.
@@ -89,3 +89,4 @@ To come: the whole gate on the branch tip with `dev/s4` merged (01d6bb6, unmoved
 ## 11. Not verified
 - No person has looked at an elite on the new hulls, mended or not (D-076 Impact); the owner's sitting asks it (O-017 question 8).
 - The Swarm's side plates are short (0.36 R): its fuselage has a flat side only behind the swept arms. Whether an Armored Swarm reads as armoured is a human check.
+- The Armored plates are dark on a dark hull and read as a wider hull: that is the token's doing (`elites.md` R-ELT-11 keeps them `Pal.Enemy.Body`), and the models' package takes it up; nothing here changes it.
