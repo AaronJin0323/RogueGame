@@ -205,6 +205,8 @@ bool FDTUxCameraReach::RunTest(const FString& Parameters)
 	// numbers of this test) with the boss's real name in both cultures. Only what is drawn ACROSS the hero's column counts
 	// (R-UX-01): the boss bar. The name's line box, the corner blocks and every other fixed readout must stay off the column;
 	// the director's banner and the reaction toast under the boss row are transient and not counted.
+	// The text-size setting (settings.md R-SET-12) scales the name and every other line of text, never the bar: both ends are read.
+	const float TextLargest = static_cast<float>(DTConst::SETTINGS_TEXT_MAX_PCT) / DTConst::SETTINGS_TEXT_MIN_PCT;
 	const auto HeroColumnTop = [&](const FVector2f& View) -> double
 	{
 		const float HeroColumn = 0.5f * View.X; // the hero stands on the screen's vertical centre line
@@ -212,32 +214,48 @@ bool FDTUxCameraReach::RunTest(const FString& Parameters)
 		double Edge = 0.0;
 		for (const FString& Name : BossNames())
 		{
-			FDTHudContent Content = FixedContent();
-			Content.BossName = FText::FromString(Name);
-			const FDTHudLayout Layout = DTHud::Layout(View, 1.0f, Content, MeasureLine);
-			const FDTHudRect* Bar = Layout.Find(EDTHudElem::BossBar);
-			if (!TestNotNull(TEXT("the layout places the boss bar"), Bar))
+			double DefaultEdge = -1.0;
+			for (const float TextScale : { 1.0f, TextLargest })
 			{
-				return 0.0;
-			}
-			// The layout's boss row is the function the fight draws with.
-			FBox2f NameBox(ForceInit);
-			FBox2f BarBox(ForceInit);
-			DTHud::BossRow(View, MeasureLine(Name, DTUI::TypeStep(EDTType::Body) * S), NameBox, BarBox);
-			TestTrue(TEXT("the layout's boss bar is DTHud::BossRow's"), BarBox.Min.Equals(Bar->Box.Min, 0.01f) && BarBox.Max.Equals(Bar->Box.Max, 0.01f));
-			TestTrue(FString::Printf(TEXT("%.0fx%.0f: the boss bar (x %.0f to %.0f) crosses the hero's column"), View.X, View.Y, Bar->Box.Min.X, Bar->Box.Max.X),
-				Bar->Box.Min.X <= HeroColumn && Bar->Box.Max.X >= HeroColumn);
-			for (const FDTHudRect& Rect : Layout.Rects)
-			{
-				if (Rect.Kind == EDTHudElem::BossBar)
+				FDTHudContent Content = FixedContent();
+				Content.BossName = FText::FromString(Name);
+				const FDTHudLayout Layout = DTHud::Layout(View, TextScale, Content, MeasureLine);
+				const FDTHudRect* Bar = Layout.Find(EDTHudElem::BossBar);
+				const FDTHudRect* NameRect = Layout.Find(EDTHudElem::BossName);
+				if (!TestNotNull(TEXT("the layout places the boss bar"), Bar) || !TestNotNull(TEXT("and the boss's name"), NameRect))
 				{
-					continue;
+					return 0.0;
 				}
-				TestTrue(FString::Printf(TEXT("%.0fx%.0f: readout %d (x %.0f to %.0f, y %.0f to %.0f) stays %.0f px off the hero's column"), View.X, View.Y,
-					static_cast<int32>(Rect.Kind), Rect.Box.Min.X, Rect.Box.Max.X, Rect.Box.Min.Y, Rect.Box.Max.Y, ColumnMarginPx * S),
-					Rect.Box.Max.X < HeroColumn - ColumnMarginPx * S || Rect.Box.Min.X > HeroColumn + ColumnMarginPx * S);
+				// The layout's boss row is the function the fight draws with.
+				FBox2f NameBox(ForceInit);
+				FBox2f BarBox(ForceInit);
+				const FVector2f PlaceName = MeasureLine(Name, DTUI::TypeStep(EDTType::Body) * S);
+				DTHud::BossRow(View, PlaceName, MeasureLine(Name, DTUI::TypeStep(EDTType::Body) * S * TextScale), NameBox, BarBox);
+				TestTrue(TEXT("the layout's boss bar is DTHud::BossRow's"), BarBox.Min.Equals(Bar->Box.Min, 0.01f) && BarBox.Max.Equals(Bar->Box.Max, 0.01f));
+				AddInfo(FString::Printf(TEXT("%.0fx%.0f text %.2f: the name's line %.0f x %.0f px (%.0f at the default size), its box y %.1f to %.1f, x %.1f to %.1f; the bar y %.1f to %.1f, x %.1f to %.1f"),
+					View.X, View.Y, TextScale, NameRect->Box.GetSize().X, NameRect->Box.GetSize().Y, PlaceName.Y, NameRect->Box.Min.Y, NameRect->Box.Max.Y,
+					NameRect->Box.Min.X, NameRect->Box.Max.X, Bar->Box.Min.Y, Bar->Box.Max.Y, Bar->Box.Min.X, Bar->Box.Max.X));
+				// The bar is not text: the setting neither moves nor grows it.
+				if (DefaultEdge < 0.0)
+				{
+					DefaultEdge = Bar->Box.Max.Y;
+				}
+				TestEqual(FString::Printf(TEXT("%.0fx%.0f text %.2f: the bar's lower edge is the default size's"), View.X, View.Y, TextScale),
+					static_cast<double>(Bar->Box.Max.Y), DefaultEdge, 0.01);
+				TestTrue(FString::Printf(TEXT("%.0fx%.0f: the boss bar (x %.0f to %.0f) crosses the hero's column"), View.X, View.Y, Bar->Box.Min.X, Bar->Box.Max.X),
+					Bar->Box.Min.X <= HeroColumn && Bar->Box.Max.X >= HeroColumn);
+				for (const FDTHudRect& Rect : Layout.Rects)
+				{
+					if (Rect.Kind == EDTHudElem::BossBar)
+					{
+						continue;
+					}
+					TestTrue(FString::Printf(TEXT("%.0fx%.0f: readout %d (x %.0f to %.0f, y %.0f to %.0f) stays %.0f px off the hero's column"), View.X, View.Y,
+						static_cast<int32>(Rect.Kind), Rect.Box.Min.X, Rect.Box.Max.X, Rect.Box.Min.Y, Rect.Box.Max.Y, ColumnMarginPx * S),
+						Rect.Box.Max.X < HeroColumn - ColumnMarginPx * S || Rect.Box.Min.X > HeroColumn + ColumnMarginPx * S);
+				}
+				Edge = FMath::Max(Edge, static_cast<double>(Bar->Box.Max.Y) / View.Y);
 			}
-			Edge = FMath::Max(Edge, static_cast<double>(Bar->Box.Max.Y) / View.Y);
 		}
 		return Edge * 1080.0; // in rows of the 1080-row target, where the rule is read
 	};
