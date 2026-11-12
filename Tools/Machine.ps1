@@ -80,9 +80,26 @@ function Read-DTAlone([string]$LockDir) {
 	if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
 	$Text = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
 	$Token = ""
-	foreach ($Line in $Text) { if ($Line -match '^\s*token:\s*(\S+)\s*$') { $Token = $Matches[1] } }
+	$State = "held"
+	$Owner = $null
+	foreach ($Line in $Text) {
+		if ($Line -match '^\s*token:\s*(\S+)\s*$') { $Token = $Matches[1] }
+		elseif ($Line -match '^\s*state:\s*(pending|taken)\b') { $State = $Matches[1] }
+		elseif ($Line -match '^\s*owner:\s*PID\s+(\d+)\s+started\s+(\d+)\s*$') { $Owner = @{ Pid = [int]$Matches[1]; Ticks = [int64]$Matches[2] } }
+	}
+	# A pending take is a claim by a live Tools\Alone.ps1 -Take. A take stopped hard (its process killed, so its finally never ran) leaves the file
+	# behind; with its owner gone the claim is void, and the first reader removes it. A taken hold (state taken, or a hand-written file) never lapses.
+	if ($State -eq "pending" -and $Owner) {
+		$Alive = Get-Process -Id $Owner.Pid -ErrorAction SilentlyContinue
+		$Same = $false
+		if ($Alive) { try { $Same = ($Alive.StartTime.ToUniversalTime().Ticks -eq $Owner.Ticks) } catch { $Same = $true } }  # unreadable: assume alive
+		if (-not $Same) {
+			Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+			return $null
+		}
+	}
 	$First = @($Text | Where-Object { $_.Trim() } | Select-Object -First 2) -join " / "
-	return @{ Token = $Token; Text = $First }
+	return @{ Token = $Token; Text = $First; State = $State }
 }
 
 function Get-DTSlotHolders([string]$LockDir, [int]$Count) {

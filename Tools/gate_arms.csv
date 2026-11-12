@@ -1,0 +1,11 @@
+# The gate's arms step (Tools/Gate.ps1): five bot arms on seed 9107, each compared by input_hash, steps and, where a value stands here, bot.csv's SHA-256.
+# Each branch holds its own values. A carry keeps the branch's own file, as it keeps its test floor. A rule that moves an arm on purpose edits this file in the same branch and names its decision in the hand-over.
+# main's values: read on 2026-11-12 on build 842259e (Source, Content and Config equal to main's tip), two runs each, equal on every value and bot.csv byte for byte;
+# options as BotRuns printed them: one seed per arm from 9107, skill 1, policy All, 600 steps a frame, bot v1. Read by the Mechanics session on that build; the values are repeated in its hand-over to the scheduler.
+# bot.csv holds per-minute play columns only (no build stamp, date or path), so its hash does not move with a commit that leaves the sim alone. outcome and end_s are context and are not compared.
+arm,input_hash,steps,bot_csv_sha256,outcome,end_s
+None,fe30ec79,38179,74b385d41b094b3ac5bd4d26e5137c3b12cef0ec648fea4cc5986915ee1472ba,death,636.3167
+Random,a80e96ea,59844,6350b69b8d25168fe45e048044f166c8a74bb826018af6b29071b2832a033cb2,victory,997.4000
+Steered:Forge:Hammer,8dd4ffc6,58102,3c5bfb8b4b03266bc918e53863f7c31faa25522db04ca2ae5aa8667e7c512e65,victory,968.3667
+Steered:Storm:Tempest,32aa9ec9,59330,c66d8901a8507d8ac2c89d0b7425a3a0717313b1eb7504f8a04a30b057d039f2,victory,988.8333
+Steered:Tide:Frost,217db85a,59245,b30625e9886078c41086fc5c81acf724466e674f8b65b6f47d6c2ea6bf2a71d9,death,987.4167

@@ -61,9 +61,21 @@
 | D-057 | S4's second visual wave draws state at silhouette grade, and opens only on session A's reading | GO-NOGO | accepted as the plan of record; held until session A is read | `dev/s4` |
 | D-058 | Draw code is the Visual module's by name, wherever it sits | PROCESS | applied; amends D-055 item 1 | `main` |
 | D-059 | The Forge and Quicksilver trails keep their colours, and a colour-vision debt is read on the drawn frame | RULE | applied on the owner's word; closes O-015; evidence: `Validation/S4_o015.md` and `Tools/cvd_frame.py` on `dev/s4` | `main` |
-| D-060 | A payday's own kills add no Debt | RULE | accepted; the job is on `dev/s2` | `dev/s2` |
-| D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | accepted; amends D-020; the job is on `dev/s2` | `dev/s2` |
+| D-060 | A payday's own kills add no Debt | RULE | applied on `dev/s2`; hypothesis met (the cast row 1 940 801 to 146 580) | `dev/s2` |
+| D-061 | Pulse Wall's `dps` takes one measured pass, and D-020's hold on that number is lifted | TUNE | read: the number is not the cause, the cell stays at 2; a RULE on the band is the next draft | `dev/s2` |
 | D-062 | The L8 hand is drawn unweighted, and a person's all-Keepers run reserves no seat | text, RULE | accepted; the text on `main` now, the seats on `dev/s2` with the S2 kit | `main`, `dev/s2` |
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
-| D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | accepted; decides D-049's open item; the job is on `dev/s3` | `dev/s3` |
+| D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | applied on `dev/s3` (2f0d818); the bot measure is met (Keeper share 0.46 to 0.60); amended by D-069; the S3 session is open | `dev/s3` |
 | D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
+| D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; the interface family is merged as recipes (60c4f28), audible with the import job | `dev/s4` |
+| D-067 | Pulse Wall pushes out what its ring crosses | RULE | reverted by its own clause on 2026-11-12: hypothesis not met (nearest enemy 232 uu against 500, the build at 0.74 of its hold); nothing merged | `dev/s2` |
+| D-068 | The player's own fire is not drawn within 2.5 hero radii of the hero | RULE | applied on `dev/s4` (d09d4c9); the machine check is met; the owner's sitting is O-017; the perf reading of record is owed | `dev/s4` |
+| D-069 | The duos' door is earned by play: a run that holds six cards of two Keepers | RULE | applied on `dev/s3` with D-064 (2f0d818); its pool reading passes; the S3 session is open | `dev/s3` |
+| D-070 | Pulse Wall is the source's disc: everything inside the ring is struck and pushed out | RULE | not landed: 0.97 before the boss, 0.40 and 0.36 in the boss fight against 0.5; superseded by D-074 | `dev/s2` |
+| D-071 | Blade Halo: every blade strikes what it touches, on the source's rhythm | RULE | not landed: 0.89 before the boss against 0.9, and hits a minute did not move; what follows waits for the halo's note | `dev/s2` |
+| D-072 | Murmuration: a missile deals the row's damage and launches on the source's cooldown | RULE | applied on `dev/s2` (281959d); hypothesis met: 1.07 before the boss, 0.91 in the boss fight (the port 0.40) | `dev/s2` |
+| D-073 | A modifier an evolution refuses leaves its socket and comes back as a reroll | RULE | accepted; asked for by D-070; amends D-070 ruling 11; the job is on `dev/s2`, landed last of the four | `dev/s2` |
+| D-074 | A Pulse Wall volley keeps its rounds and opens the source's disc | RULE | accepted; replaces D-070; `[invented]`; the job is on `dev/s2` | `dev/s2` |
+| D-075 | A measuring arm for the bot: it holds its crowd at the carried weapon's reach | SYSTEM | accepted; a method decision after D-071's miss; `dev/s2` only, off by default; the job follows the readings of D-074 and D-072 | `dev/s2` |
+| D-076 | An elite's parts are placed on the hull the enemy has: a mend of wave 1, pulled out of the held wave | BUG | accepted; amends D-057 (W2-G leaves the hold); the job is on `dev/s4` | `dev/s4` |
+| D-077 | The look comes first; the Visual session designs it, guided by the owner's art direction 2.4 and aiming past it | RULE | applied on the owner's word at the sitting (the game looks crude; the earlier art book was the wrong one; the art direction 2.4 is guidance, its pictures are not copied, and the Visual session is to do better than them); amends D-057 | `dev/s4` |

@@ -120,10 +120,10 @@ The engine also leaves `Saved\Config\CrashReportClient\UECC-Windows-<guid>\Crash
 
 ## Options
 
-| Option | A tester sees after a crash | Sends or shows | Writes, and whether it can name the user or machine | `dev/s3` R-PKG-11, T-PKG-15 | Kind | Risk |
+| Option | A tester sees after a crash | Sends or shows | Writes, and whether it can name the user or machine | `dev/s3` R-PKG-11 and its test line | Kind | Risk |
 |---|---|---|---|---|---|---|
 | Kit line only (step 0) | the game freezes in about half the crashes; the host waits 15 s and ends it in Task Manager | nothing | the crash folder; the context and dump can name both | unchanged | none | a tester in front of a dead full-screen window, as often as not |
-| **No in-process dump in Shipping by default (built, R-PKG-16)** | the game closes in about 2 s | nothing; no dialog can appear in any case | nothing beyond the run file | unchanged: the Development proof build keeps the engine's path and its crash folder for the redaction check. The Development path still hangs, 5 to 9 of 10 here, so a check that crashes the proof build must expect a hang | `Source` (game module) | low: two engine globals set once at startup; a crash during engine start, before the module loads, keeps the engine's path |
+| **No in-process dump in Shipping by default (built, R-PKG-16)** | the game closes in about 2 s | nothing; no dialog can appear in any case | nothing beyond the run file | unchanged: the Development proof build keeps the engine's path and its crash folder for the redaction check of R-PKG-11 and its test line. The Development path still hangs, 5 to 9 of 10 here, so a check that crashes the proof build must expect a hang | `Source` (game module) | low: two engine globals set once at startup; a crash during engine start, before the module loads, keeps the engine's path |
 | The same, by a launch argument in `Play_*.bat` only | the same, when started through the launcher | nothing | nothing | unchanged | `Source` + `PackageFiles` | a person starting `Dusktracer.exe` directly still meets the hang, and R-PKG-02 still has a crash folder to answer for |
 | `MinidumpIncludeReferencedMemory=0` (`Config`) | a freeze as often (5 of 10) | nothing | a smaller dump | unchanged | `Config` | does not remove it |
 | No-reporter ini keys | none: a packaged game never reads them | | | | | unreachable |
@@ -136,7 +136,7 @@ The engine also leaves `Saved\Config\CrashReportClient\UECC-Windows-<guid>\Crash
 - A person may start the exe without the launcher.
 - `-DTCrashDump` gives a developer the engine's dump back for a diagnosis.
 
-**The kit.** Once both branches are on `main`, `S1_kit.md` "What the zip holds" gains three words after "This build writes no engine log": "and no crash dump".
+**The kit.** Done on this branch: `S1_kit.md` "What the zip holds" now reads "This build writes no engine log and no crash dump", and its "Crash or freeze" bullet names no dump or crash folder.
 
 ## Not tested
 
