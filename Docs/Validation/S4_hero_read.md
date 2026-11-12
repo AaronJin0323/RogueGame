@@ -131,14 +131,14 @@ In the Visual session's `Saved\S4Report\hero-zone\` (not in the repo): `tracer_c
 | 3 | off | 4.73 / 7.33 | 3.52 / 7.46 | 0.85 / 1.15 | 1.63 / 3.42 | PASS | an editor, five commandlets |
 | 3 | on | 4.44 / 5.94 | 8.29 / 9.57 | 0.72 / 0.99 | 1.49 / 2.83 | FAIL | an editor, five commandlets |
 
-The game thread p95 with the zone on never reads higher than with it off (spread off 0.06, on 1.40), as it should not: a round inside the zone skips its write. That is a bound and not a reading. The branch lands on it; the scheduler takes the zone's reading of record alone after landing (`dev/s4` 64b40cf against the landed tip, the S4 and S2 scenes, three rounds), and a cost beyond the spread sets `C.TRC.CLEAR_ZONE_RATIO` to 0 until it is understood.
+The game thread p95 with the zone on never reads higher than with it off (spread off 0.06, on 1.40), as it should not: a round inside the zone skips its write. That is a bound and not a reading. The branch lands on it; the scheduler takes the zone's reading of record alone after landing (`dev/s4` 64b40cf against the landed tip, the S4 and S2 scenes, three rounds), and a cost beyond the spread sets `C.TRC.CLEAR_ZONE_RATIO` to 0 until it is understood. The scheduler's comparison of the zone against its base, on one loaded evening, is `S4_perf_1080p.md`, "The clear zone against its base": no cost beyond the spread; a comparison of one evening, not a record.
 
 **Package E on this branch.** `& Tools\ImpactArt.ps1 -NoMeshCheck`: `IMPACT ART ACCEPTANCE: PASS` (the kind checks; ring pixels 258 of 250 and 153 of 140 at the hurt step, 901 and 526 six steps later).
 
 ## 9. Not verified
 
 - No person has looked, and nothing was seen in motion. Every figure is a held step of one seed.
-- The perf of the zone: §8 is a bound under heavy load; the reading of record is the scheduler's, after landing.
+- The perf of the zone: §8 is a bound under heavy load. The scheduler's comparison against the base (`S4_perf_1080p.md`, "The clear zone against its base") found no cost beyond the spread, on one loaded evening: a comparison, not a record; no record with the zone exists yet.
 - Several heroes: the zone is built for each player's hero and a round is hidden only in its owner's zone; no scene has two heroes.
 - A round that hits an enemy touching the hero is never drawn: package E's spark is then the only sign; whether it reads as a hit is for the sitting.
 - The tool reads the hero at the frame's centre (the camera follows it); a frame where the camera stops at the arena's edge and the hero is off centre was not shot or read.
