@@ -1,7 +1,7 @@
 # The gate's arms step (Tools/Gate.ps1): five bot arms on seed 9107, each compared by input_hash, steps and, where a value stands here, bot.csv's SHA-256.
 # Each branch holds its own values. A carry keeps the branch's own file, as it keeps its test floor. A rule that moves an arm on purpose edits this file in the same branch and names its decision in the hand-over.
 # main's values: read on 2026-11-12 on build 842259e (Source, Content and Config equal to main's tip), two runs each, equal on every value and bot.csv byte for byte;
-# options as BotRuns printed them: one seed per arm from 9107, skill 1, policy All, 600 steps a frame, bot v1. Record: the scheduler's scratch table arms9107_main.md (not in the repo).
+# options as BotRuns printed them: one seed per arm from 9107, skill 1, policy All, 600 steps a frame, bot v1. Read by the Mechanics session on that build; the values are repeated in its hand-over to the scheduler.
 # bot.csv holds per-minute play columns only (no build stamp, date or path), so its hash does not move with a commit that leaves the sim alone. outcome and end_s are context and are not compared.
 arm,input_hash,steps,bot_csv_sha256,outcome,end_s
 None,fe30ec79,38179,74b385d41b094b3ac5bd4d26e5137c3b12cef0ec648fea4cc5986915ee1472ba,death,636.3167
