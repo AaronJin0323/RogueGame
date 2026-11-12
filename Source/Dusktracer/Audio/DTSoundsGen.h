@@ -48,6 +48,14 @@ namespace DTCat
 		Snd_Kills_LayerCrowd,
 		Snd_Kills_LayerLow,
 		Snd_Kills_BossDefeated,
+		Snd_Pickup_Gem,
+		Snd_Pickup_Chest,
+		Snd_Hero_Heal,
+		Snd_Hero_LevelUp,
+		Snd_Hero_Dash,
+		Snd_Hero_DashReady,
+		Snd_Hero_IntercessionReady,
+		Snd_Hero_IntercessionCast,
 		Count
 	};
 
@@ -70,7 +78,7 @@ namespace DTCat
 		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
-	inline constexpr int32 SoundCount = 35;
+	inline constexpr int32 SoundCount = 43;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
 		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
@@ -108,5 +116,13 @@ namespace DTCat
 		{ TEXT("Snd.Kills.LayerCrowd"), TEXT("/Game/DT/Audio/SFX/SW_Kills_LayerCrowd"), ESoundSide::Player, ESoundClass::Player, 1, true, 0.42f, ESoundPitch::Fixed, ESoundNote::None, 0, 1, 0.0f, false, 4000, false },
 		{ TEXT("Snd.Kills.LayerLow"), TEXT("/Game/DT/Audio/SFX/SW_Kills_LayerLow"), ESoundSide::Player, ESoundClass::Player, 1, true, 0.42f, ESoundPitch::Fixed, ESoundNote::None, 0, 1, 0.0f, false, 4000, false },
 		{ TEXT("Snd.Kills.BossDefeated"), TEXT("/Game/DT/Audio/SFX/SW_Kills_BossDefeated"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.8f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 7526, false },
+		{ TEXT("Snd.Pickup.Gem"), TEXT("/Game/DT/Audio/SFX/SW_Pickup_Gem"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.25f, ESoundPitch::Ladder, ESoundNote::None, 50, 3, 0.25f, false, 80, false },
+		{ TEXT("Snd.Pickup.Chest"), TEXT("/Game/DT/Audio/SFX/SW_Pickup_Chest"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2876, false },
+		{ TEXT("Snd.Hero.Heal"), TEXT("/Game/DT/Audio/SFX/SW_Hero_Heal"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 300, 1, 0.0f, false, 1320, false },
+		{ TEXT("Snd.Hero.LevelUp"), TEXT("/Game/DT/Audio/SFX/SW_Hero_LevelUp"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 3006, false },
+		{ TEXT("Snd.Hero.Dash"), TEXT("/Game/DT/Audio/SFX/SW_Hero_Dash"), ESoundSide::Player, ESoundClass::Player, 2, false, 0.45f, ESoundPitch::Key, ESoundNote::A, 80, 2, 0.0f, false, 150, false },
+		{ TEXT("Snd.Hero.DashReady"), TEXT("/Game/DT/Audio/SFX/SW_Hero_DashReady"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.3f, ESoundPitch::Fixed, ESoundNote::None, 200, 1, 0.0f, false, 145, false },
+		{ TEXT("Snd.Hero.IntercessionReady"), TEXT("/Game/DT/Audio/SFX/SW_Hero_IntercessionReady"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 2016, false },
+		{ TEXT("Snd.Hero.IntercessionCast"), TEXT("/Game/DT/Audio/SFX/SW_Hero_IntercessionCast"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 4136, false },
 	};
 }

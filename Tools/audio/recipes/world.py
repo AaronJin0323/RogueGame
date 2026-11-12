@@ -5,6 +5,7 @@ A helper module: it holds no catalog sound of its own. The families' recipes bui
   bell     struck bronze, tuned so every partial is a note of the key  what is granted
   breath   a scrape, air                                               a slab moved, a tablet slid
   clunk    a heavy latch of the old machine                            the Keep's acts, the Warden
+  voices   a low choir on a dark vowel, never a word; a horn under it  the Six when they act
   hall     a great stone room baked into the file                      rare sounds only
 Everything ends in `world()`: no rumble below hearing, nothing in the danger band. Exact operations only, like the core.
 """
@@ -105,3 +106,39 @@ def clunk(note, amp=1.0, seed=3, ring_ms=30.0):
 	"""A heavy latch of the old machine: a low body, two dull metal partials, a soft knock of air."""
 	x = struck(hz(note), 0.2, ((1.0, 1.0, ring_ms), (2.1, 0.5, ring_ms * 0.5), (3.9, 0.3, ring_ms * 0.35)), 4.5, amp)
 	return add_at(x, breath(0.03, seed, 420.0, 4.0, 7.0, 0.5 * amp, 1.2), 0.0)
+
+
+# ---- the Six -------------------------------------------------------------------------------------------------------
+
+def stack(note, sec, harmonics, detune=0.0, to=None):
+	"""A harmonic tone (a voice, a horn) before its filter: partials at 1/n."""
+	f = hz(note) * (1.0 + detune)
+	f1 = f if to is None else hz(to) * (1.0 + detune)
+	n = n_of(sec)
+	out = [0.0] * n
+	for h in range(1, harmonics + 1):
+		part = osc(sec, f * h, f1 * h, 0.0, 0.7)
+		for i, s in enumerate(part):
+			out[i] += s / h
+	return out
+
+
+def voices(notes, sec, attack_ms, tau_ms, vowel=(450.0, 800.0), amp=1.0, to=None):
+	"""A small choir on a dark vowel: three detuned singers a note, two formants, nothing bright."""
+	n = n_of(sec)
+	raw = [0.0] * n
+	for k, note in enumerate(notes):
+		for d in (-0.0035, 0.0, 0.004):
+			part = stack(note, sec, 10, d, None if to is None else to[k])
+			for i, s in enumerate(part):
+				raw[i] += s
+	a = biquad(raw, "bp", vowel[0], 4.0)
+	b = biquad(raw, "bp", vowel[1], 5.0)
+	body = lp4(raw, 500.0)
+	x = [0.9 * p + 0.6 * q + 0.25 * r for p, q, r in zip(a, b, body)]
+	return gain(let_go(mul(x, env_ad(n, attack_ms, tau_ms))), amp / (3.0 * len(notes)))
+
+
+def horn(note, sec, attack_ms, tau_ms, amp=1.0, to=None):
+	x = lp4(stack(note, sec, 8, 0.0, to), 520.0)
+	return gain(let_go(mul(x, env_ad(n_of(sec), attack_ms, tau_ms))), amp)
