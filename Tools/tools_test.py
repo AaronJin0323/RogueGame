@@ -4389,11 +4389,13 @@ class HeroZone(unittest.TestCase):
 	def test_the_geometry_comes_from_the_constants(self):
 		import hero_zone
 		g = hero_zone.geometry(1920, 1080)
-		self.assertAlmostEqual(g["across"], 0.36)
-		self.assertEqual(g["centre"], (959.5, 539.5))
+		self.assertAlmostEqual(g["across"], 1080 / (2 * 1258.2), places=6)  # D-080: 42.9 px per metre at the aim point
+		cx, cy = g["centre"]
+		self.assertEqual(cx, 959.5)
+		self.assertAlmostEqual(cy, 488.0, places=1)  # the hero's actor above the centre by the aim shift (Tools/dtcamera.py)
 		self.assertLess(g["up"], g["across"])
 		x0, y0, x1, y1 = g["box"]
-		self.assertTrue(x0 < 959.5 < x1 and y0 < 539.5 < y1)
+		self.assertTrue(x0 < cx < x1 and y0 < cy < y1)
 		self.assertEqual(set(hero_zone.LIMITS), {1080, 810})
 
 

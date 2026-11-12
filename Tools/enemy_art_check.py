@@ -552,7 +552,8 @@ def frame_cells(constants, width, height):
 	tan_half_v = tan_half_h * 9.0 / 16.0
 	frame = float(constant(constants, "ARENA.CAMERA_FRAME_RADIUS_UU"))
 	distance = frame / tan_half_v
-	eye = (-distance * math.cos(pitch), 0.0, distance * math.sin(pitch))
+	# Aimed C.ARENA.CAMERA_AIM_SHIFT_UU from the hero toward the camera (D-080, Tools/dtcamera.py).
+	eye = (-distance * math.cos(pitch) - float(constant(constants, "ARENA.CAMERA_AIM_SHIFT_UU")), 0.0, distance * math.sin(pitch))
 	forward = (math.cos(pitch), 0.0, -math.sin(pitch))
 	up = (math.sin(pitch), 0.0, math.cos(pitch))
 	out = {}

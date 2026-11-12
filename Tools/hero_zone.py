@@ -23,6 +23,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dtcamera  # noqa: E402
 import dtconst  # noqa: E402
 import image_check  # noqa: E402
 
@@ -53,7 +54,9 @@ def geometry(width, height, c=None):
 	up = across * math.sin(pitch)
 	radius = float(c["HERO.RADIUS_UU"])
 	scale = float(c["HERO_ART.DRAW_SCALE"])
-	cx, cy = (width - 1) / 2.0, (height - 1) / 2.0
+	# The hero's actor on screen, from the camera's own sum: since D-080 it stands above the frame's centre (Tools/dtcamera.py).
+	hx, hy = dtcamera.project(c, width, height)
+	cx, cy = hx - 0.5, hy - 0.5
 	half = FIGURE_HALF_WIDTH_RADII * radius * scale * across
 	depth = FIGURE_DEPTH_RADII * radius * scale * up
 	tall = (float(c["HERO_ART.NECK_Z_UU"]) + FIGURE_HEAD_RADII * radius) * scale * math.cos(pitch) * across

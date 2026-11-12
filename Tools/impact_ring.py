@@ -2,7 +2,7 @@
 
 Usage:  python -I Tools/impact_ring.py <frame with effects.png> <same step without effects.png> [--radius-px N] [--need N]
 Counts the pixels in the hue of Pal.Enemy.Muzzle (the ring's token, read by name from Tools/dtpalette.py) inside a box of --radius-px
-round the frame's centre, where the camera holds the hero, that are not in that hue in the frame drawn without effects (dt.Impact.Draw 0).
+round the hero's actor on screen (Tools/dtcamera.py: above the frame's centre since D-080), that are not in that hue in the frame drawn without effects (dt.Impact.Draw 0).
 Prints "RING: PASS|FAIL (N pixels, need M)"; exit 0 / 1. Without --need it only reports (exit 0).
 """
 
@@ -11,6 +11,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dtcamera  # noqa: E402
+import dtconst  # noqa: E402
 import dtpalette  # noqa: E402
 import image_check  # noqa: E402
 
@@ -39,7 +41,9 @@ def count(on_path, off_path, radius_px):
 	if (w, h) != (w2, h2):
 		raise SystemExit(f"RING: FAIL (frames differ in size: {w}x{h} and {w2}x{h2})")
 	hue = token_hue("Pal.Enemy.Muzzle")
-	cx, cy = w // 2, h // 2
+	# The hero's actor on screen, from the camera's own sum: since D-080 it stands above the frame's centre (Tools/dtcamera.py).
+	hx, hy = dtcamera.project(dtconst.load(), w, h)
+	cx, cy = int(hx), int(hy)
 	added = 0
 	for y in range(max(0, cy - radius_px), min(h, cy + radius_px + 1)):
 		for x in range(max(0, cx - radius_px), min(w, cx + radius_px + 1)):
