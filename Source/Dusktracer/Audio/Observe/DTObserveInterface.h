@@ -14,6 +14,8 @@ struct FDTInterfaceView
 	int32 MenuFocus = 0;
 	EDTBindDevice MenuColumn = EDTBindDevice::Kbm;
 	EDTMenuStatus MenuStatus = EDTMenuStatus::None;
+	/** The settings rows' values packed into one number (DTInterfaceEvents::SettingsKey): a change while the settings screen is shown is a Step. */
+	uint64 SettingsKey = 0;
 	bool bHub = false;
 	EDTHubPage HubPage = EDTHubPage::Root;
 	int32 HubFocus = 0;
@@ -33,6 +35,8 @@ namespace DTInterfaceEvents
 {
 	/** How deep a menu screen sits: deeper is an Open, shallower a Back. */
 	DUSKTRACER_API int32 Depth(EDTMenuScreen Screen);
+	/** The values of the settings screen's rows (not the bindings, which the controls screen moves) as one number. */
+	DUSKTRACER_API uint64 SettingsKey(const FDTUserSettings& Settings);
 	DUSKTRACER_API void Diff(const FDTInterfaceView& Was, const FDTInterfaceView& Now, TFunctionRef<void(DTCat::ESoundId Sound, int32 Count)> Raise);
 	/** The view of a world now. */
 	DUSKTRACER_API FDTInterfaceView Read(const UWorld& World);

@@ -14,6 +14,8 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
 #include "Misc/CoreDelegates.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -32,7 +34,36 @@ namespace DTAudioSubsystemLocal
 	class FDTEngineSink : public IDTAudioSink
 	{
 	public:
-		explicit FDTEngineSink(UWorld* InWorld) : World(InWorld) {}
+		/** Pushes the duck's mix once, here: a silent process never makes this sink, so it never pushes a mix. */
+		FDTEngineSink(UWorld* InWorld, USoundMix* InDuckMix, USoundClass* InPlayerClass) : World(InWorld), DuckMix(InDuckMix), PlayerClass(InPlayerClass)
+		{
+			if (World.IsValid() && DuckMix.IsValid())
+			{
+				UGameplayStatics::PushSoundMixModifier(World.Get(), DuckMix.Get());
+				// The engine starts where the sender believes it is: 0 dB, whatever an earlier world left in the device.
+				SetPlayerDuckDb(0.0f);
+			}
+		}
+		/** One push, one pop: the world ends with SC_Player back at 0 dB and the mix taken off (R-AUD-05). */
+		virtual ~FDTEngineSink() override
+		{
+			if (World.IsValid() && DuckMix.IsValid())
+			{
+				if (PlayerClass.IsValid())
+				{
+					UGameplayStatics::ClearSoundMixClassOverride(World.Get(), DuckMix.Get(), PlayerClass.Get(), 0.0f);
+				}
+				UGameplayStatics::PopSoundMixModifier(World.Get(), DuckMix.Get());
+			}
+		}
+		virtual void SetPlayerDuckDb(float Db) override
+		{
+			if (World.IsValid() && DuckMix.IsValid() && PlayerClass.IsValid())
+			{
+				// No engine fade: the engine is given the scheduler's own curve, one value per frame it moves.
+				UGameplayStatics::SetSoundMixClassOverride(World.Get(), DuckMix.Get(), PlayerClass.Get(), FMath::Pow(10.0f, Db / 20.0f), 1.0f, 0.0f, true);
+			}
+		}
 		virtual void Start(const DTCat::FSoundRow& Row, const FDTAudioVoice& Voice, USoundBase* Sound) override
 		{
 			if (Sound && World.IsValid())
@@ -45,7 +76,12 @@ namespace DTAudioSubsystemLocal
 
 	private:
 		TWeakObjectPtr<UWorld> World;
+		TWeakObjectPtr<USoundMix> DuckMix;
+		TWeakObjectPtr<USoundClass> PlayerClass;
 	};
+
+	static const TCHAR* const DuckMixPath = TEXT("/Game/DT/Audio/Mix/SMX_Duck.SMX_Duck");
+	static const TCHAR* const PlayerClassPath = TEXT("/Game/DT/Audio/Mix/SC_Player.SC_Player");
 
 	static double Percentile(TArray<float> Values, double P)
 	{
@@ -144,13 +180,23 @@ void UDTAudioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		FApp::SetVolumeMultiplier(0.0f);
 	}
+	ResolveAssets();
 	if (!bSilent)
 	{
-		Sink = MakeShared<DTAudioSubsystemLocal::FDTEngineSink>(GetWorld());
+		Sink = MakeShared<DTAudioSubsystemLocal::FDTEngineSink>(GetWorld(), DuckMix, PlayerClass);
 	}
-	ResolveAssets();
 	// The frame's flush runs after every tickable of the world, the sim's step included, paused or not (R-AUD-05).
 	TickEndHandle = FWorldDelegates::OnWorldTickEnd.AddUObject(this, &UDTAudioSubsystem::HandleWorldTickEnd);
+	int32 Resolved = 0;
+	for (const TObjectPtr<USoundBase>& Asset : Assets)
+	{
+		Resolved += Asset ? 1 : 0;
+	}
+	// The silence of R-AUD-03, in the log of every run: which process this is, whether the engine sink exists, what holds the volume.
+	UE_LOG(LogDT, Log, TEXT("Audio: start: %s; %s; volume %s; %d of %d wave(s) resolved; duck mix %s"),
+		bTool ? TEXT("tool process") : (bSilent ? TEXT("automation") : TEXT("a person's launch")),
+		Sink.IsValid() && Sink->IsEngine() ? TEXT("engine sink") : TEXT("no engine sink"),
+		bTool ? TEXT("held at 0") : TEXT("left to the settings"), Resolved, Assets.Num(), DuckMix ? TEXT("found") : TEXT("missing"));
 }
 
 void UDTAudioSubsystem::HandleWorldTickEnd(UWorld* InWorld, ELevelTick TickType, float DeltaSeconds)
@@ -164,6 +210,7 @@ void UDTAudioSubsystem::HandleWorldTickEnd(UWorld* InWorld, ELevelTick TickType,
 void UDTAudioSubsystem::Deinitialize()
 {
 	FWorldDelegates::OnWorldTickEnd.Remove(TickEndHandle);
+	Sink.Reset(); // the engine sink takes its duck back while the world still stands
 	Observer.Unbind();
 	bBound = false;
 	if (NumTimedFrames() > 0)
@@ -171,6 +218,16 @@ void UDTAudioSubsystem::Deinitialize()
 		// A person's run closes with one line of the timer (R-AUD-21); a tool run's log carries the same.
 		UE_LOG(LogDT, Log, TEXT("Audio: %d frame(s); p95 ms observe %.4f schedule %.4f hand %.4f; worst %.4f %.4f %.4f"), NumTimedFrames(),
 			PartMs(0, 0.95), PartMs(1, 0.95), PartMs(2, 0.95), PartWorstMs(0), PartWorstMs(1), PartWorstMs(2));
+	}
+	{
+		int64 Asked = 0, Played = 0, Missed = 0;
+		for (int32 Sound = 0; Sound < Scheduler.NumSounds(); ++Sound)
+		{
+			Asked += Scheduler.GetCounts(Sound).Asked;
+			Played += Scheduler.GetCounts(Sound).Played;
+			Missed += GetMissing(Sound);
+		}
+		UE_LOG(LogDT, Log, TEXT("Audio: end: asked %lld, voices started %lld, handed to the engine %lld, missing %lld"), Asked, Played, EngineStarts, Missed);
 	}
 	if (bLog)
 	{
@@ -192,6 +249,8 @@ TStatId UDTAudioSubsystem::GetStatId() const
 
 void UDTAudioSubsystem::ResolveAssets()
 {
+	DuckMix = LoadObject<USoundMix>(nullptr, DTAudioSubsystemLocal::DuckMixPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	PlayerClass = LoadObject<USoundClass>(nullptr, DTAudioSubsystemLocal::PlayerClassPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	Assets.Reset();
 	AssetFirst.Reset();
 	for (const DTCat::FSoundRow& Row : DTAudio::Catalog())
@@ -306,6 +365,10 @@ void UDTAudioSubsystem::RunFrame(double Now)
 		{
 			VoiceLog.Add(Voice);
 		}
+	}
+	if (Sink.IsValid() && DuckSender.Next(Scheduler.GetDuckDb()))
+	{
+		Sink->SetPlayerDuckDb(DuckSender.Sent);
 	}
 	const uint64 C3 = FPlatformTime::Cycles64();
 	const int32 Slot = static_cast<int32>(TimedFrames % TimerFrames);

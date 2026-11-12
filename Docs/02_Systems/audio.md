@@ -13,7 +13,7 @@ The player hears danger before it lands, hears their own power as a texture that
 
 ### Mix
 - **R-AUD-04** Sound classes: Master over SFX, UI and Music; SFX holds Player and Danger. Master volume is the Settings row (`settings.md` R-SET-07); no other volume row exists. UI sounds play while the world is paused. Music is empty.
-- **R-AUD-05** Danger is heard first. A danger voice has kept slots (`C.AUD.VOICES_DANGER`), is never dropped for a player voice, is never delayed or pitch-varied, and reaches the engine in the frame it is asked for, first among that frame's voices and past the frame cap if it must. With no slot free it takes the slot of the oldest player voice (that engine voice ends on its own; the slot is counted as stolen). While one sounds the Player group is lowered by `C.AUD.DUCK_DB`, in within `C.AUD.DUCK_ATTACK_MS` and out over `C.AUD.DUCK_RELEASE_MS`, linear in dB on real time; the scheduler gives the curve, and the engine side applies it. While the heartbeat runs the low-end layer is lowered by `C.AUD.LOWHP_LOWEND_DUCK_DB`.
+- **R-AUD-05** Danger is heard first. A danger voice has kept slots (`C.AUD.VOICES_DANGER`), is never dropped for a player voice, is never delayed or pitch-varied, and reaches the engine in the frame it is asked for, first among that frame's voices and past the frame cap if it must. With no slot free it takes the slot of the oldest player voice (that engine voice ends on its own; the slot is counted as stolen). While one sounds the Player group is lowered by `C.AUD.DUCK_DB`, in within `C.AUD.DUCK_ATTACK_MS` and out over `C.AUD.DUCK_RELEASE_MS`, linear in dB on real time; the scheduler gives the curve, and the engine side applies it: on the frames the curve moved since the last send, the sink is given the Player group's gain, and the engine sink sets it as `SC_Player`'s volume in the sound mix `SMX_Duck` (pushed once, when that sink is made) with no engine fade, so the engine plays the scheduler's own curve; the engine side starts and ends a world with the Player group unlowered (the sink sets no duck as it pushes the mix, and clears the override and pops the mix when it goes). While the heartbeat runs the low-end layer is lowered by `C.AUD.LOWHP_LOWEND_DUCK_DB`.
 
 ### Scheduling
 - **R-AUD-06** A sound is asked for by id and count. Each id has its least interval, most voices and aggregation gain in `09_Catalog/sounds.csv`. Requests of one id in one step (in one frame for an interface sound) are one voice, louder by one plus the aggregation gain times log2 of their count, and never by more than `C.AUD.AGGREGATE_MAX`. A request inside the id's interval of the voice that sounds merges into it: it is counted and never carried.
@@ -74,9 +74,10 @@ Read and not owned: `C.PRE.DENSITY_LOD_KILLS_PER_S`, `C.ENM.KILL_RATE_WINDOW_S`,
 | `Tools/audio/sound_manifest.csv` | generated, committed | one line per file: name, frames, SHA-256, its measured numbers |
 | `Tools/audio/audio_metrics.py` | source | defines the measures the rules read: the activity line, the attack point, the spike windows, the onset detector, the level-seam window and the spectral distance's floors are named constants there, not keys |
 | `Tools/audio/recipes/<family>.py` | source | one pure function per sound over `Tools/audio/dtsynth.py` |
-| `Content/DT/Audio/SFX/SW_*` | asset | SoundWaves, imported by `Tools/audio/import_audio.py` |
+| `Tools/audio/audio_select.py` | source | what the import makes: one asset per variant of every row whose `heard` is `yes` or `delegated`, its package path as the table has it, its WAV checked against the manifest; plain Python |
+| `Content/DT/Audio/SFX/SW_*` | asset | SoundWaves, imported by `Tools/audio/import_audio.py`: mono, at `C.AUD.SAMPLE_RATE_HZ`, in their catalog class, looping as the catalog says, loading inline |
 | `Content/DT/Audio/Mix/*` | asset | the classes, the mix, the Player submix and its presets, made by the same script |
-| `Tools/audio/Audio.ps1`, `Tools/audio/AudioRun.ps1` | heavy entry scripts | the import and a real run's voice log; each takes the processor mask and then a heavy-job slot (`07_Technical` R-TEC-18). Every other audio tool is plain Python and takes none |
+| `Tools/audio/Audio.ps1`, `Tools/audio/AudioRun.ps1` | heavy entry scripts | `Audio.ps1` checks every selected WAV against the manifest (it never synthesises), runs the import through `Tools\EditorPython.bat`, then `Dusktracer.Audio.Assets` and `Dusktracer.Audio.Classes`, and prints `AUDIO IMPORT: PASS` or `FAIL`; `AudioRun.ps1`, a real run's voice log, is a later job. Each takes the processor mask and then a heavy-job slot (`07_Technical` R-TEC-18). Every other audio tool is plain Python and takes none |
 | `Saved/AudioGen/` | build output | the WAV files; not committed |
 | `Saved/Audio/<seed>_<time>.csv` | run output | on `-DTAudioLog`: the voice log (step, time, id, variant, volume, pitch, duck in dB, count), then the counts and the timer |
 
@@ -90,7 +91,7 @@ Interface events (the interface family, `Audio/Observe/DTObserveInterface`). Rea
 | `Snd.UI.Refuse` | an open menu's status changes to reserved, or to a key of the wrong device |
 | `Snd.UI.HandOpen` | an open hand has an id the last frame did not show, and it is not the reroll of the hand the last frame showed |
 | `Snd.UI.Pick`, `Snd.UI.Reroll`, `Snd.UI.Banish`, `Snd.UI.Lock` | the offer subsystem's decision, reroll, banish or lock count grew; one request carrying the growth |
-| `Snd.UI.Step` | not raised yet: the settings value step belongs to the next job |
+| `Snd.UI.Step` | a value of the settings screen's rows moved since the last frame while that screen was shown both frames (one request per move; opening the screen moves none; a held direction meets the row's interval) |
 
 Decided in the runtime job, where the plan left it open: interface sounds batch per frame; a voice holds its slot for its file's length (steps for run sounds, real seconds for interface sounds); danger takes a player voice's slot when none is free; the starts-per-second window is a second of sim time; a hand that opens and closes inside one frame (an unattended auto-pick) raises its pick and no hand-open; the interface is the world's, not the run's, and is not reset by a new run.
 
@@ -100,8 +101,8 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step.
 - T-AUD-01 `Dusktracer.Audio.SimUntouched`: one seed with audio on (observing, and asked for sounds) and off ends with equal steps, input hash, hero state and telemetry; no sim file includes an `Audio/` header (`Tools/tools_test.py`, the R-PRE-11 check).
 - T-AUD-02 `Dusktracer.Audio.Observer`: each moment of the interface event table raises its request once, on staged views, and an unchanged frame raises none; a fresh world reads as nothing shown; no file of `Audio/` names a take-once queue. `Dusktracer.Audio.NewRun`: a new run drops the run side only; the interface's voice, interval and waiting request stay.
 - T-AUD-03 `Dusktracer.Audio.Silent`: the two predicates on staged inputs (unattended; a hidden desktop with no flag; automation alone; a person); in the test process no engine sink exists while voices are scheduled, and in a tool process the volume reads zero straight after the world's start and again after a tick that follows a write.
-- T-AUD-04 PLANNED(S4) `Dusktracer.Audio.Classes`: every sound sits in its catalog class; interface sounds carry the paused flag.
-- T-AUD-05 `Dusktracer.Audio.DangerFirst`: with every player limit full a warning starts in its own frame, first and off the grid; the duck follows its curve; with no slot free danger takes player slots and no danger voice is dropped.
+- T-AUD-04 `Dusktracer.Audio.Classes`: the class tree is R-AUD-04's with volume and pitch one; every playable SoundWave sits in its catalog class and loads inline; `SC_UI` alone carries the paused flag; `SMX_Duck` exists.
+- T-AUD-05 `Dusktracer.Audio.DangerFirst`: with every player limit full a warning starts in its own frame, first and off the grid; the duck follows its curve; with no slot free danger takes player slots and no danger voice is dropped. With a recording sink, the duck is sent only on frames where the curve moved: down within `C.AUD.DUCK_ATTACK_MS`, nothing while it holds, back over `C.AUD.DUCK_RELEASE_MS`.
 - T-AUD-06 `Dusktracer.Audio.Aggregate`: a second request inside the interval merges; a batch is louder and capped.
 - T-AUD-07 `Dusktracer.Audio.Density`: a staged trace at `C.ENEMIES.CAP` enemies and `C.BULLETS.CAP` rounds (ten weapons, thousands of hits and about a hundred kills a second, on test rows) holds every cap, and no warning is dropped.
 - T-AUD-08 PLANNED(S4) `Dusktracer.Audio.Layers`: in the per-kill tier every kill sounds and no layer is on; each layer follows the tier, entering and leaving once per change of tier.
@@ -115,7 +116,7 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step.
 - T-AUD-16 PLANNED(S4) the `audio` step: format, length, peak, edges, loop seam, loudness, small speaker.
 - T-AUD-17 PLANNED(S4) the `audio` step: every pair of every confusion set.
 - T-AUD-18 PLANNED(S4) the `audio` step: the audibility floors and the density readings of the off-line mix, with a player-side sound failing as a control.
-- T-AUD-19 PLANNED(S4) `Dusktracer.Audio.Assets` (editor): frames, rate and PCM hash of each SoundWave equal the manifest; loops loop.
+- T-AUD-19 `Dusktracer.Audio.Assets` (editor): for every playable row and variant the SoundWave exists, mono, at the generator's rate, 16-bit, with the manifest's frames and the PCM SHA-1 of its manifest line (`pcm_sha1`), and loops as the catalog says; one changed sample is shown to be a mismatch. `Dusktracer.Audio.Playable`: with the assets present, each interface moment raised through a recording sink gets a non-null sound for every playable id, missing none.
 - T-AUD-22 the `audio` step: every row's `heard` cell is one of its four forms with a real date, and the verdict counts heard, delegated, rejected and not heard (`Tools/audio/audio_test.py`); the import's refusal of a row that is not `yes` or `delegated` is planned with the import job.
 - T-AUD-20 `Dusktracer.Audio.Counts`: asked equals played plus merged plus dropped, for every id, once nothing waits, and after a reset drops what waited.
 - T-AUD-21 `Dusktracer.Audio.Cost`: the density trace through observer and scheduler stays under ten times their planned share, a blow-up check; the reading of record is the scheduler's perf run before and after a merge, with audio's own timer beside it.
@@ -125,7 +126,7 @@ Gate step `audio` (`Tools/audio/audio_check.py`) and the `tests` step.
 None in this wave. Counts go to audio's own file (R-AUD-20); a shared effect-count record is a later change to `telemetry.md`.
 
 ## Text
-No new string. `ST_UI.Settings.Hint.Volume` stops saying the game has no sound; the change is asked of its owner.
+No new string. `ST_UI.Settings.Hint.Volume` changed with the import job: it says the row sets how loud the whole game is (en and zh-Hans; the zh line keeps its mark for the native reader).
 
 ## Out of scope
 A music bed and ambience; Keeper tier, passed-over and imbued sounds; per-hit position and crit; stereo direction; a spawn arrival cue and a Warden edge cue (D-036); per-Path Intercession casts; status, reaction and Reforging sounds; hub purchases; an echo, timbre tiers, fire beds and a run root; separate SFX and music volume rows. Reasons: `Validation/S4_audio_wave1.md` §4.4.

@@ -22,6 +22,12 @@
 #include "HAL/PlatformTime.h"
 #include "Offers/DTOfferSubsystem.h"
 #include "Internationalization/Regex.h"
+#include "Audio.h"
+#include "Misc/PackageName.h"
+#include "Misc/SecureHash.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
+#include "Sound/SoundWave.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -273,9 +279,23 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 	Expect(TEXT("the menu focus moves"), Step(V), One(ESoundId::Snd_UI_Focus));
 	V.Screen = EDTMenuScreen::Settings;
 	V.MenuFocus = 0;
-	Expect(TEXT("settings opens deeper"), Step(V), One(ESoundId::Snd_UI_Open));
+	V.SettingsKey = 3;
+	Expect(TEXT("settings opens deeper, and opening it is no Step"), Step(V), One(ESoundId::Snd_UI_Open));
+	V.SettingsKey = 4;
+	Expect(TEXT("a settings value moves on the settings screen: one Step"), Step(V), One(ESoundId::Snd_UI_Step));
+	Expect(TEXT("the value held raises nothing"), Step(V), TArray<ESoundId>());
+	{
+		FDTUserSettings A;
+		FDTUserSettings B = A;
+		B.VolumePct -= DTConst::SETTINGS_VOLUME_STEP_PCT;
+		FDTUserSettings C = A;
+		C.Bindings.Set(EDTBindSlot::Dash, EDTBindDevice::Kbm, EKeys::LeftShift);
+		TestTrue(TEXT("a volume step changes the settings key"), DTInterfaceEvents::SettingsKey(A) != DTInterfaceEvents::SettingsKey(B));
+		TestEqual(TEXT("a binding (the controls screen) does not"), DTInterfaceEvents::SettingsKey(A), DTInterfaceEvents::SettingsKey(C));
+	}
 	V.Screen = EDTMenuScreen::Controls;
-	Expect(TEXT("controls, as deep, opens"), Step(V), One(ESoundId::Snd_UI_Open));
+	V.SettingsKey = 5;
+	Expect(TEXT("controls, as deep, opens; a value moved off the settings screen is no Step"), Step(V), One(ESoundId::Snd_UI_Open));
 	V.MenuColumn = EDTBindDevice::Pad;
 	Expect(TEXT("the controls column moves the focus"), Step(V), One(ESoundId::Snd_UI_Focus));
 	V.MenuStatus = EDTMenuStatus::Reserved;
@@ -485,6 +505,51 @@ bool FDTAudTestDangerFirst::RunTest(const FString& Parameters)
 	TestTrue(TEXT("held while the warning sounds"), FMath::IsNearlyEqual(S.DuckDbAt(End - 0.01), static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f));
 	TestTrue(TEXT("halfway back at half the release"), FMath::IsNearlyEqual(S.DuckDbAt(End + Release / 2), DTConst::AUD_DUCK_DB / 2.0f, 0.01f));
 	TestTrue(TEXT("back at zero after the release"), FMath::IsNearlyEqual(S.DuckDbAt(End + Release + 0.01), 0.0f, 0.001f));
+
+	// The duck sent to the engine (R-AUD-05): a send only on frames where the curve moved; down within the attack, nothing while it holds,
+	// back over the release, then nothing.
+	{
+		const TArray<DTCat::FSoundRow> DuckRows = { Row(TEXT("Snd.Test.Danger"), ESoundSide::Danger, 1, 0.8f, ESoundPitch::Fixed, 0, 4, 0.0f, false, 500) };
+		FDTAudioScheduler D;
+		D.Configure(DuckRows, 1);
+		FDTDuckSender Sender;
+		FDTRecordingSink Sink;
+		TArray<FDTAudioVoice> Frame;
+		const double Start = 10.0;
+		const double Dt = 1.0 / DTConst::SIM_FIXED_HZ;
+		TArray<double> SendTimes;
+		for (int32 Index = 0; Index < 120; ++Index)
+		{
+			const double Now = Start + Index * Dt;
+			if (Index == 0)
+			{
+				D.Request(0, 1, 600);
+			}
+			Frame.Reset();
+			D.Frame(Now, 600 + Index, Frame);
+			if (Sender.Next(D.GetDuckDb()))
+			{
+				Sink.SetPlayerDuckDb(Sender.Sent);
+				SendTimes.Add(Now);
+			}
+		}
+		const double HoldEnd = Start + DuckRows[0].LengthMs / 1000.0;
+		const double ReleaseEnd = HoldEnd + DTConst::AUD_DUCK_RELEASE_MS / 1000.0;
+		TestTrue(TEXT("the duck is sent"), Sink.DuckSends.Num() > 0);
+		// A world starts at 0 dB whatever the engine kept: a fresh sender sends the curve's value on its first frame, 0 here.
+		TestTrue(TEXT("a fresh sender sends 0 dB first, though the curve has not moved"), Sink.DuckSends.Num() > 0 && Sink.DuckSends[0] == 0.0f && SendTimes[0] == Start);
+		{
+			FDTDuckSender Fresh;
+			TestTrue(TEXT("a fresh sender sends on its first frame"), Fresh.Next(0.0f));
+			TestFalse(TEXT("and not again while nothing moves"), Fresh.Next(0.0f));
+		}
+		const int32 FloorAt = Sink.DuckSends.IndexOfByPredicate([](float Db) { return FMath::IsNearlyEqual(Db, static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f); });
+		TestTrue(TEXT("down to C.AUD.DUCK_DB within C.AUD.DUCK_ATTACK_MS (one frame's grain)"), FloorAt != INDEX_NONE && SendTimes[FloorAt] <= Start + DTConst::AUD_DUCK_ATTACK_MS / 1000.0 + Dt);
+		TestTrue(TEXT("nothing sent while it holds"), !SendTimes.ContainsByPredicate([&](double T) { return T > SendTimes[FloorAt] && T < HoldEnd; }));
+		TestTrue(TEXT("back to zero at the release's end"), FMath::IsNearlyEqual(Sink.DuckSends.Last(), 0.0f, 0.001f) && SendTimes.Last() <= ReleaseEnd + Dt);
+		TestTrue(TEXT("the release is sent frame by frame"), SendTimes.FilterByPredicate([&](double T) { return T > HoldEnd; }).Num() >= FMath::FloorToInt((ReleaseEnd - HoldEnd) / Dt) - 1);
+		TestTrue(TEXT("every send follows the curve"), Algo::AllOf(Sink.DuckSends, [](float Db) { return Db <= 0.0f && Db >= DTConst::AUD_DUCK_DB - 0.001f; }));
+	}
 
 	// No slot left: danger takes the oldest player voice's slot, so no danger voice is dropped while a player voice holds one.
 	for (int32 Index = 0; Index < DTConst::AUD_VOICES_MAX - DTConst::AUD_VOICES_DANGER; ++Index)
@@ -799,6 +864,219 @@ bool FDTAudTestNewRun::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the interface interval still holds across runs"), S.GetCounts(1).Merged == 1);
 	TestTrue(TEXT("the interface request asked before the new run still plays"), Out.ContainsByPredicate([](const FDTAudioVoice& V) { return V.Sound == 2; }));
 	TestTrue(TEXT("the new run starts free of the old run's interval"), Out.ContainsByPredicate([](const FDTAudioVoice& V) { return V.Sound == 0; }));
+	return true;
+}
+
+namespace DTAudioTest
+{
+	static const TCHAR* ClassAssetOf(DTCat::ESoundClass Class)
+	{
+		switch (Class)
+		{
+		case DTCat::ESoundClass::Player: return TEXT("SC_Player");
+		case DTCat::ESoundClass::Danger: return TEXT("SC_Danger");
+		case DTCat::ESoundClass::UI:     return TEXT("SC_UI");
+		default:                         return TEXT("SC_Music");
+		}
+	}
+
+	static USoundWave* LoadWave(const DTCat::FSoundRow& Row, int32 Variant, FString& OutName)
+	{
+		const FString Package = Variant == 0 ? FString(Row.Asset) : FString::Printf(TEXT("%s_%d"), Row.Asset, Variant);
+		OutName = FPackageName::GetShortName(Package);
+		return LoadObject<USoundWave>(nullptr, *FString::Printf(TEXT("%s.%s"), *Package, *OutName), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
+
+	static USoundClass* LoadClass(const TCHAR* Name)
+	{
+		return LoadObject<USoundClass>(nullptr, *FString::Printf(TEXT("/Game/DT/Audio/Mix/%s.%s"), Name, Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
+
+	/** The SHA-1 of a PCM block, lower-case hex, as Tools/audio/audio_build.py writes pcm_sha1. */
+	static FString PcmSha1(const uint8* Data, int32 Size)
+	{
+		uint8 Hash[20];
+		FSHA1::HashBuffer(Data, Size, Hash);
+		return BytesToHex(Hash, 20).ToLower();
+	}
+
+	/** The manifest's lines by file name: column name to cell. */
+	static TMap<FString, TMap<FString, FString>> ReadManifest()
+	{
+		TMap<FString, TMap<FString, FString>> Out;
+		TArray<FString> Lines;
+		FFileHelper::LoadFileToStringArray(Lines, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Tools/audio/sound_manifest.csv")));
+		if (Lines.Num() == 0)
+		{
+			return Out;
+		}
+		TArray<FString> Header;
+		Lines[0].ParseIntoArray(Header, TEXT(","), false);
+		for (int32 Index = 1; Index < Lines.Num(); ++Index)
+		{
+			TArray<FString> Cells;
+			Lines[Index].ParseIntoArray(Cells, TEXT(","), false);
+			if (Cells.Num() != Header.Num())
+			{
+				continue;
+			}
+			TMap<FString, FString>& Line = Out.Add(Cells[0]);
+			for (int32 Cell = 0; Cell < Cells.Num(); ++Cell)
+			{
+				Line.Add(Header[Cell], Cells[Cell]);
+			}
+		}
+		return Out;
+	}
+}
+
+#if WITH_EDITORONLY_DATA
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestAssets, "Dusktracer.Audio.Assets", DTAudioTest::Flags) // T-AUD-19
+bool FDTAudTestAssets::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	const TMap<FString, TMap<FString, FString>> Manifest = ReadManifest();
+	TestTrue(TEXT("the manifest is read"), Manifest.Num() >= DTCat::SoundCount);
+	int32 Checked = 0;
+	for (const DTCat::FSoundRow& Row : DTAudio::Catalog())
+	{
+		if (!Row.bPlayable)
+		{
+			continue; // R-AUD-22: a row the owner did not accept has no asset to check
+		}
+		for (int32 Variant = 0; Variant < Row.Variants; ++Variant)
+		{
+			FString Name;
+			USoundWave* Wave = LoadWave(Row, Variant, Name);
+			const TMap<FString, FString>* Line = Manifest.Find(Name);
+			if (!TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), Wave) || !TestNotNull(*FString::Printf(TEXT("%s has a manifest line"), *Name), Line))
+			{
+				continue;
+			}
+			TestEqual(*FString::Printf(TEXT("%s: one channel"), *Name), Wave->NumChannels, 1);
+			TestEqual(*FString::Printf(TEXT("%s: the generator's rate"), *Name), static_cast<int32>(Wave->GetImportedSampleRate()), DTConst::AUD_SAMPLE_RATE_HZ);
+			TestEqual(*FString::Printf(TEXT("%s: loops as the catalog says"), *Name), static_cast<bool>(Wave->bLooping), Row.bLoop);
+			const FSharedBuffer Raw = Wave->RawData.GetPayload().Get();
+			FWaveModInfo Info;
+			if (!TestTrue(*FString::Printf(TEXT("%s holds a WAV"), *Name), Raw.GetSize() > 0 && Info.ReadWaveInfo(static_cast<const uint8*>(Raw.GetData()), static_cast<int32>(Raw.GetSize()))))
+			{
+				continue;
+			}
+			TestEqual(*FString::Printf(TEXT("%s: 16-bit"), *Name), static_cast<int32>(*Info.pBitsPerSample), 16);
+			TestEqual(*FString::Printf(TEXT("%s: frames equal the manifest's"), *Name), static_cast<int32>(Info.SampleDataSize / 2), FCString::Atoi(*(*Line)[TEXT("frames")]));
+			TestEqual(*FString::Printf(TEXT("%s: the PCM hashes to the manifest's"), *Name), PcmSha1(Info.SampleDataStart, Info.SampleDataSize), (*Line)[TEXT("pcm_sha1")]);
+			if (++Checked == 1)
+			{
+				// The comparison can fail: a copy with one sample changed reports a mismatch.
+				TArray<uint8> Copy(Info.SampleDataStart, Info.SampleDataSize);
+				Copy[Copy.Num() / 2] ^= 1;
+				TestNotEqual(TEXT("one changed sample is a mismatch"), PcmSha1(Copy.GetData(), Copy.Num()), (*Line)[TEXT("pcm_sha1")]);
+			}
+		}
+	}
+	TestTrue(TEXT("every playable variant was checked"), Checked > 0);
+	return true;
+}
+#endif
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestClasses, "Dusktracer.Audio.Classes", DTAudioTest::Flags) // T-AUD-04
+bool FDTAudTestClasses::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	// R-AUD-04: SC_Master over SC_SFX, SC_UI and SC_Music; SC_SFX over SC_Player and SC_Danger.
+	const TPair<const TCHAR*, const TCHAR*> Tree[] = { { TEXT("SC_Master"), nullptr }, { TEXT("SC_SFX"), TEXT("SC_Master") }, { TEXT("SC_UI"), TEXT("SC_Master") },
+		{ TEXT("SC_Music"), TEXT("SC_Master") }, { TEXT("SC_Player"), TEXT("SC_SFX") }, { TEXT("SC_Danger"), TEXT("SC_SFX") } };
+	for (const TPair<const TCHAR*, const TCHAR*>& Node : Tree)
+	{
+		USoundClass* Class = LoadClass(Node.Key);
+		if (!TestNotNull(*FString::Printf(TEXT("%s exists"), Node.Key), Class))
+		{
+			continue;
+		}
+		const USoundClass* Parent = Node.Value ? LoadClass(Node.Value) : nullptr;
+		TestTrue(*FString::Printf(TEXT("%s sits under %s"), Node.Key, Node.Value ? Node.Value : TEXT("nothing")), Class->ParentClass == Parent);
+		if (Parent)
+		{
+			TestTrue(*FString::Printf(TEXT("%s lists %s"), Node.Value, Node.Key), Parent->ChildClasses.Contains(Class));
+		}
+		TestEqual(*FString::Printf(TEXT("%s: volume 1"), Node.Key), Class->Properties.Volume, 1.0f);
+		TestEqual(*FString::Printf(TEXT("%s: pitch 1"), Node.Key), Class->Properties.Pitch, 1.0f);
+		TestEqual(*FString::Printf(TEXT("%s: the paused flag only on SC_UI"), Node.Key), static_cast<bool>(Class->Properties.bIsUISound), FCString::Strcmp(Node.Key, TEXT("SC_UI")) == 0);
+	}
+	TestTrue(TEXT("the duck's mix exists"), LoadObject<USoundMix>(nullptr, TEXT("/Game/DT/Audio/Mix/SMX_Duck.SMX_Duck"), nullptr, LOAD_NoWarn | LOAD_Quiet) != nullptr);
+	int32 Waves = 0;
+	for (const DTCat::FSoundRow& Row : DTAudio::Catalog())
+	{
+		for (int32 Variant = 0; Row.bPlayable && Variant < Row.Variants; ++Variant)
+		{
+			FString Name;
+			USoundWave* Wave = LoadWave(Row, Variant, Name);
+			if (!TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), Wave))
+			{
+				continue;
+			}
+			++Waves;
+			TestTrue(*FString::Printf(TEXT("%s sits in %s"), *Name, ClassAssetOf(Row.Class)), Wave->SoundClassObject && Wave->SoundClassObject->GetName() == ClassAssetOf(Row.Class));
+			TestTrue(*FString::Printf(TEXT("%s loads inline: a first play never waits"), *Name), Wave->LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline);
+		}
+	}
+	TestTrue(TEXT("the playable waves were read"), Waves > 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestPlayable, "Dusktracer.Audio.Playable", DTAudioTest::Flags) // T-AUD-19
+bool FDTAudTestPlayable::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	using DTCat::ESoundId;
+	// A person's launch would play them: each interface moment raised, through a recording sink in place of the engine sink, gets its asset.
+	DTAudioTest::FTestWorld Test;
+	UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
+	if (!TestNotNull(TEXT("the audio runtime"), Audio))
+	{
+		return false;
+	}
+	TestFalse(TEXT("T-AUD-03 holds: the test process has no engine sink"), Audio->HasEngineSink());
+	TSharedPtr<FDTRecordingSink> Sink = MakeShared<FDTRecordingSink>();
+	Audio->SetSinkForTest(Sink);
+	FDTInterfaceView Was;
+	TArray<FDTInterfaceView> Moments;
+	FDTInterfaceView V;
+	V.Screen = EDTMenuScreen::Pause; Moments.Add(V);                   // Open
+	V.MenuFocus = 1; Moments.Add(V);                                    // Focus
+	V.Screen = EDTMenuScreen::Settings; V.MenuFocus = 0; Moments.Add(V); // Open
+	V.SettingsKey = 9; Moments.Add(V);                                  // Step
+	V.Screen = EDTMenuScreen::Controls; Moments.Add(V);                 // Open
+	V.MenuStatus = EDTMenuStatus::Reserved; Moments.Add(V);             // Refuse
+	V.Screen = EDTMenuScreen::None; V.MenuStatus = EDTMenuStatus::None; Moments.Add(V); // Back
+	V.HandId = 1; Moments.Add(V);                                       // HandOpen
+	V.Rerolls = 1; V.HandId = 2; V.RerollOf = 1; Moments.Add(V);        // Reroll
+	V.Banishes = 1; Moments.Add(V);                                     // Banish
+	V.Locks = 1; Moments.Add(V);                                        // Lock
+	V.Decisions = 1; V.HandId = INDEX_NONE; Moments.Add(V);             // Pick
+	double Now = 100.0;
+	for (const FDTInterfaceView& Moment : Moments)
+	{
+		DTInterfaceEvents::Diff(Was, Moment, [&](ESoundId Sound, int32 Count) { Audio->RequestUi(static_cast<int32>(Sound), Count); });
+		Was = Moment;
+		Now += 1.0; // a second apart: every interval passes, no frame cap is reached
+		Audio->RunFrame(Now);
+	}
+	TSet<int32> Heard;
+	for (int32 Index = 0; Index < Sink->Voices.Num(); ++Index)
+	{
+		const int32 Sound = Sink->Voices[Index].Sound;
+		TestNotNull(*FString::Printf(TEXT("%s is given its asset"), DTCat::Sounds[Sound].Id), Sink->Sounds[Index]);
+		Heard.Add(Sound);
+	}
+	for (int32 Sound = 0; Sound < DTCat::SoundCount; ++Sound)
+	{
+		if (DTCat::Sounds[Sound].bPlayable)
+		{
+			TestTrue(*FString::Printf(TEXT("%s was raised and started"), DTCat::Sounds[Sound].Id), Heard.Contains(Sound));
+			TestEqual(*FString::Printf(TEXT("%s: missing 0"), DTCat::Sounds[Sound].Id), Audio->GetMissing(Sound), int64(0));
+		}
+	}
 	return true;
 }
 

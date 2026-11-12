@@ -72,7 +72,9 @@ PITCHES = ("fixed", "key", "ladder")
 NOTES = ("A", "C", "D", "E", "G")   # the key, A minor pentatonic: the note a `key` sound is written on (R-AUD-10, R-AUD-14)
 MANIFEST_NUMBERS = ["active_ms", "lead_ms", "attack_ms", "spike_db", "peak_db", "crest_db", "lk100", "small_spk_loss_db", "centroid_hz",
 	"danger_share_db", "low_share_db", "air_share_db", "onsets"]
-MANIFEST_COLUMNS = ["name", "frames", "sha256"] + MANIFEST_NUMBERS
+# pcm_sha1: the SHA-1 of the file's PCM samples alone (its data chunk), which the engine can compute (FSHA1) over what a SoundWave
+# holds: Dusktracer.Audio.Assets (T-AUD-19) compares an imported asset with it. The engine has no SHA-256 on this platform.
+MANIFEST_COLUMNS = ["name", "frames", "sha256", "pcm_sha1"] + MANIFEST_NUMBERS
 
 ID = re.compile(r"^Snd\.([A-Z][A-Za-z0-9]*)\.([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)$")
 RECIPE = re.compile(r"^([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\.([a-z_][a-z0-9_]*)$")
@@ -119,6 +121,11 @@ def read_catalog(path=CATALOG):
 		row["line"] = number
 		rows.append(row)
 	return rows, errors
+
+
+def dtsynth_rate():
+	"""C.AUD.SAMPLE_RATE_HZ, the rate every generated file is written at."""
+	return dtconst.load()["AUD.SAMPLE_RATE_HZ"]["value"]
 
 
 def heard_verdict(row):
@@ -442,7 +449,15 @@ def write_manifest(path, files, measures):
 		w.writerow(MANIFEST_COLUMNS)
 		for stem in sorted(files):
 			m = measures[stem]
-			w.writerow([stem, files[stem]["frames"], files[stem]["sha256"]] + [str(m[k]) if k == "onsets" else _tenth(m[k]) for k in MANIFEST_NUMBERS])
+			w.writerow([stem, files[stem]["frames"], files[stem]["sha256"], pcm_sha1(files[stem]["path"])] +
+			[str(m[k]) if k == "onsets" else _tenth(m[k]) for k in MANIFEST_NUMBERS])
+
+
+def pcm_sha1(path):
+	"""SHA-1 of a WAV file's PCM samples (its data chunk's bytes), as the engine hashes what a SoundWave holds."""
+	import wave
+	with wave.open(path, "rb") as w:
+		return hashlib.sha1(w.readframes(w.getnframes())).hexdigest()
 
 
 def _tenth(value):

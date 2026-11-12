@@ -102,9 +102,9 @@ What these figures do not cover:
 
 ## 5. What is not verified
 
-- No voice has been handed to the engine and nobody has heard the game through this runtime: every run was unattended. The engine sink, the UI flag while paused and the volumes the engine plays are read only by the owner's first attended launch.
-- No asset exists yet (`Content/DT/Audio/SFX/` is job 4's): every voice is counted as missing and silent.
-- The duck's curve is computed and logged per voice; nothing applies it to the Player group until job 4 makes the classes and the mix.
+- No voice has been handed to the engine and nobody has heard the game through this runtime: every run was unattended. The engine sink, the UI flag while paused and the volumes the engine plays are read only by the owner's first attended launch. (Still true after the import job: S4_audio_import.md.)
+- No asset exists yet (`Content/DT/Audio/SFX/` is job 4's): every voice is counted as missing and silent. Closed by the import job: the ten interface waves exist and every id resolves (`S4_audio_import.md`).
+- The duck's curve is computed and logged per voice; nothing applies it to the Player group until job 4 makes the classes and the mix. Closed by the import job: the engine sink sets `SC_Player` in `SMX_Duck` on the frames the curve moves (`S4_audio_import.md`).
 - The run families (danger, kills, fire, pickups, Keepers), the ladder pitch rule, the density layers, fire density and the heartbeat have seams and no behaviour. The duck is computed and not applied (the import job applies it through the sound mix). The run seed is read through the sim's non-const accessor, since it has no const one; audio only reads it.
-- The Step sound (a settings value moved) is not raised; job 4 has the settings grant.
+- The Step sound (a settings value moved) is not raised; job 4 has the settings grant. Closed by the import job: raised from the settings screen in the same one reader file (`S4_audio_import.md`).
 - A hand that opens and closes in one frame (the unattended auto-pick) raises its pick and no hand-open: in a person's run the hand stays open for frames.
