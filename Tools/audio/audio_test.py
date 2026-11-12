@@ -940,7 +940,7 @@ class Mix(unittest.TestCase):
 		self.assertFalse([e for e in errors if "Snd.Warn.Ping" in e], errors)
 		self.assertGreaterEqual(cr[0]["smr"], self.keys["AUD.DANGER_SMR_MIN_DB"])
 		self.assertGreaterEqual(cr[0]["over_mix"], self.keys["AUD.WARN_OVER_MIX_MIN_DB"])
-		self.assertAlmostEqual(cr[0]["smr_undocked"], cr[0]["smr"] + self.keys["AUD.DUCK_DB"])
+		self.assertAlmostEqual(cr[0]["smr_no_duck"], cr[0]["smr"] + self.keys["AUD.DUCK_DB"])
 		low = [e for e in errors if "Snd.Warn.Low" in e]
 		self.assertEqual(len(low), 2, errors)
 		self.assertIn("under C.AUD.DANGER_SMR_MIN_DB", low[0])
@@ -985,17 +985,81 @@ class Mix(unittest.TestCase):
 		errors = X.judge(self.keys, tr, [], None)
 		self.assertTrue([e for e in errors if "in C.AUD.DANGER_BAND_HZ, over C.AUD.PLAYER_BAND_SHARE_MAX_DB" in e], (tr, errors))
 
-	def test_crest_and_rise_are_judged(self):
-		tr = [dict(t, lk_int=-30.0, crest_db=self.keys["AUD.MIX_CREST_MAX_DB"] - 1.0) for t in self.readings]
+	def test_the_rise_is_judged(self):
+		tr = [dict(t, lk_int=-30.0) for t in self.readings]
 		self.assertEqual(X.judge(self.keys, tr, [], None), [])
 		tr[-1]["lk_int"] = tr[0]["lk_int"] + self.keys["AUD.DENSITY_RISE_MAX_DB"] + 0.5
-		tr[-1]["crest_db"] = self.keys["AUD.MIX_CREST_MAX_DB"] + 0.5
-		tr[0]["crest_db"] = self.keys["AUD.MIX_CREST_MAX_DB"] + 0.5   # the sparsest tier has no layer: printed, not judged
 		errors = X.judge(self.keys, tr, [], None)
-		self.assertTrue([e for e in errors if "loudness rises" in e and "C.AUD.DENSITY_RISE_MAX_DB" in e], errors)
-		crest = [e for e in errors if "C.AUD.MIX_CREST_MAX_DB" in e]
-		self.assertEqual(len(crest), 1 if X.TIERS[0] not in X.CREST_TIERS else 2, errors)
-		self.assertIn(f"mix at {X.TIERS[-1]} kills/s: crest", crest[-1])
+		self.assertEqual(len(errors), 1, errors)
+		self.assertIn("loudness rises", errors[0])
+		self.assertIn("C.AUD.DENSITY_RISE_MAX_DB", errors[0])
+
+	def counted_run(self, keys, used):
+		"""mix_model.run on the short render, counting every tier render (the run's own and the crest's extra seeds)."""
+		calls = []
+		real = X.render
+
+		def counting(*a, **k):
+			calls.append(1)
+			return real(*a, **k)
+		X.render = counting
+		try:
+			result = X.run(keys, self.roles, [], used, MIX_SECONDS, MIX_SKIP)
+		finally:
+			X.render = real
+		return result, len(calls)
+
+	def test_with_stand_ins_the_crest_is_printed_and_never_judged(self):
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 0})            # every tier's crest is over this limit
+		result, renders = self.counted_run(keys, list(X.ROLES))
+		self.assertTrue(all(t["crest_db"] > 0 for t in result["tiers"]))
+		self.assertFalse([e for e in result["errors"] if "crest" in e], result["errors"])
+		self.assertFalse([t for t in result["tiers"] if t["crest_judged"]])
+		self.assertEqual(renders, len(X.TIERS))                              # no extra seed rendered
+		lines = X.table(result)
+		self.assertIn("crest not judged: stand-ins for fire, kills, layers (printed on one seed)", lines)
+		for t in result["tiers"]:
+			self.assertTrue([ln for ln in lines if ln.startswith(f"{t['kps']:4d}/s") and f"{t['crest_db']:8.1f}" in ln], (t, lines))
+		partial = X.run(keys, self.roles, [], ["hit"], MIX_SECONDS, MIX_SKIP)   # one stand-in is enough to hold the judgement back
+		self.assertFalse([e for e in partial["errors"] if "crest" in e])
+
+	def test_with_no_stand_in_a_layered_tier_is_judged_on_the_median_of_its_seeds(self):
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 0})
+		result, renders = self.counted_run(keys, [])
+		layered = [t for t in result["tiers"] if t["layer_on"]]
+		self.assertEqual([t["kps"] for t in layered], [k for k in X.TIERS if k >= self.keys["PRE.DENSITY_LOD_KILLS_PER_S"]])
+		self.assertEqual(renders, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
+		crest = [e for e in result["errors"] if "C.AUD.MIX_CREST_MAX_DB" in e]
+		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {t['kps']}" for t in layered], result["errors"])
+		self.assertTrue(all(f"the median of {X.CREST_SEEDS} seeds" in e for e in crest))
+		sparse = [t for t in result["tiers"] if not t["layer_on"]]
+		self.assertTrue(sparse and not any(t["crest_judged"] for t in sparse))   # a tier with no layer is still not judged
+		for t in layered:
+			self.assertEqual(len(t["crest_seeds"]), X.CREST_SEEDS)
+			self.assertEqual(t["crest_seeds"][0], t["crest_db"])
+			self.assertEqual(t["crest_median"], X.crest_median(t["crest_seeds"]))
+			self.assertEqual(len(set(t["crest_seeds"])), X.CREST_SEEDS)        # the seeds draw different mixes
+		self.assertEqual(X.judge(self.keys, [dict(t, crest_median=self.keys["AUD.MIX_CREST_MAX_DB"] - 0.1) for t in result["tiers"]], [], None), [])
+
+	def test_the_judged_crest_is_the_median(self):
+		self.assertEqual(X.crest_median([14.3, 12.0, 13.1]), 13.1)
+		self.assertEqual(X.crest_median([15.0, 12.0, 13.9, 13.0, 14.2]), 13.9)
+		self.assertEqual(X.crest_median([12.0, 14.0, 13.0, 15.0]), 13.5)   # an even count: the mean of the two middle ones
+		self.assertEqual(X.crest_median([14.1]), 14.1)
+		self.assertEqual(X.CREST_SEEDS % 2, 1)                              # odd: the median is one seed's own reading
+		real = X.crest_of
+		draws = [14.6, 13.2, 13.4, 13.8, 12.9, 12.5][:X.CREST_SEEDS - 1]
+		it = iter(draws)
+		X.crest_of = lambda *a: next(it)
+		self.addCleanup(setattr, X, "crest_of", real)
+		keys = dict(self.keys, **{"AUD.MIX_CREST_MAX_DB": 14})
+		r = X.judge_crest(keys, self.roles, [{"kps": 100, "weapons": 10}], [{"kps": 100, "layer_on": True, "crest_db": 14.1, "crest_judged": False}], [])[0]
+		self.assertEqual(r["crest_seeds"], [14.1] + draws)
+		self.assertEqual(r["crest_median"], X.crest_median([14.1] + draws))
+		self.assertLess(r["crest_median"], 14)                                  # the first seed over the line by a tenth is not a finding ...
+		self.assertEqual(X.judge(keys, [dict(r, share_db=-60.0)], [], None), [])
+		over = dict(r, share_db=-60.0, crest_median=14.2)                       # ... the median over it is
+		self.assertEqual(X.judge(keys, [over], [], None), [f"mix at 100 kills/s: crest 14.2 dB (the median of {X.CREST_SEEDS} seeds) over C.AUD.MIX_CREST_MAX_DB 14 (R-AUD-18)"])
 
 	def test_two_runs_give_the_same_samples_and_readings(self):
 		a = X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.TIERS[-1],))
@@ -1044,9 +1108,6 @@ class Mix(unittest.TestCase):
 		options = {"seconds": MIX_SECONDS, "skip": MIX_SKIP}
 		with open(dtconst.CONSTANTS_YAML, encoding="utf-8") as f:
 			yaml = f.read()
-		# The stand-ins' crest sits at its limit and is the scheduler's open question (Validation/S4_audio_mix.md); this test is the
-		# step's wiring, so its tree lifts that one limit out of the way.
-		yaml = yaml.replace("AUD.MIX_CREST_MAX_DB:          { value: 14", "AUD.MIX_CREST_MAX_DB:          { value: 40")
 		path = os.path.join(tree.root, "constants.yaml")
 		with open(path, "w", encoding="utf-8", newline="\n") as f:
 			f.write(yaml)
