@@ -35,6 +35,7 @@ namespace DTHudLayoutLocal
 	constexpr float MeterBarH = 8.0f;
 	constexpr float LeftColumnW = 360.0f; // the widest a line of the bottom-left block may run before it wraps
 	constexpr float KeepOutStepPx = 1.0f; // spacing of the points tested along a rect's edge
+	constexpr int32 MaxKeepOutPasses = 8; // layouts of the bottom-left block while its growing pieces yield to the keep-out circle
 
 	// Tools/contrast_check.py HUD_MASKS; Tools/tools_test.py HudMasks holds the two lists equal.
 	const FVector4f Masks[] = { FVector4f(0.0f, 0.0f, 1.0f, 0.13f), FVector4f(0.0f, 0.77f, 0.23f, 1.0f) };
@@ -253,129 +254,172 @@ FDTHudLayout DTHud::Layout(const FVector2f& View, float TextScale, const FDTHudC
 	}
 
 	// ---- bottom left, one block per player, built downward from zero and then set on the bottom margin --------------------
+	// R-HUD-02: a piece that grows with the build keeps to the room left of R-UX-01's circle (less the block's gap). The block is
+	// laid out, set on its margin, the room read at each growing piece's rows, and laid out again with that room until it holds.
+	const float CircleGap = Gap * S;
+	const auto RoomRight = [&](float Y0, float Y1)
+	{
+		float Right = TNumericLimits<float>::Max();
+		for (float Y = FMath::Floor(Y0); Y <= Y1 + 1.0f; Y += KeepOutStepPx)
+		{
+			Right = FMath::Min(Right, KeepOutLeftEdge(View, Y) - CircleGap);
+		}
+		return Right;
+	};
 	float Bottom = View.Y - MarginBottom * S;
 	for (int32 Player = 0; Player < Content.Players.Num(); ++Player)
 	{
 		const FDTHudPlayerContent& P = Content.Players[Player];
 		const int32 First = Out.Rects.Num();
 		const float ColumnW = LeftColumnW * S;
+		// The widest each growing piece may run from Left: [0, Dormant) the dormant lines, then the aim line, then the meter labels.
+		TArray<float> Limit;
+		Limit.Init(ColumnW, P.Dormant.Num() + 1 + P.Meters.Num());
+		const int32 AimSlot = P.Dormant.Num();
 		float Y = 0.0f;
+		for (int32 Pass = 0; Pass < MaxKeepOutPasses; ++Pass)
+		{
+			Out.Rects.SetNum(First);
+			Y = 0.0f;
 
-		// Dormant sockets on top, each on its own solid panel (modifiers.md R-MOD-08), wrapped to the column.
-		for (int32 Index = 0; Index < P.Dormant.Num(); ++Index)
-		{
-			const float Scale = DTUI::TypeStep(EDTType::Body) * S * TextScale;
-			const float Pad = DormantPad * S;
-			const TArray<FString> Lines = DTOfferText::WrapLines(P.Dormant[Index].ToString(),
-				[&](const FString& Line) { return Measure(Line, Scale).X; }, ColumnW - 2.0f * Pad);
-			float Width = 0.0f;
-			float Height = 0.0f;
-			TArray<FVector2f> Sizes;
-			for (const FString& Line : Lines)
+			// Dormant sockets on top, each on its own solid panel (modifiers.md R-MOD-08), wrapped to the column or to the room.
+			for (int32 Index = 0; Index < P.Dormant.Num(); ++Index)
 			{
-				const FVector2f LineSize = Measure(Line, Scale);
-				Sizes.Add(LineSize);
-				Width = FMath::Max(Width, LineSize.X);
-				Height += LineSize.Y;
+				const float Scale = DTUI::TypeStep(EDTType::Body) * S * TextScale;
+				const float Pad = DormantPad * S;
+				const TArray<FString> Lines = DTOfferText::WrapLines(P.Dormant[Index].ToString(),
+					[&](const FString& Line) { return Measure(Line, Scale).X; }, FMath::Max(FMath::Min(ColumnW - 2.0f * Pad, Limit[Index] - Pad), 1.0f));
+				float Width = 0.0f;
+				float Height = 0.0f;
+				TArray<FVector2f> Sizes;
+				for (const FString& Line : Lines)
+				{
+					const FVector2f LineSize = Measure(Line, Scale);
+					Sizes.Add(LineSize);
+					Width = FMath::Max(Width, LineSize.X);
+					Height += LineSize.Y;
+				}
+				const int32 Panel = Add(EDTHudElem::DormantPanel, Player, Index, FVector2f(Left - Pad, Y), FVector2f(Width + 2.0f * Pad, Height + 2.0f * Pad));
+				float LineY = Y + Pad;
+				for (int32 Line = 0; Line < Lines.Num(); ++Line)
+				{
+					const int32 Rect = Add(EDTHudElem::DormantLine, Player, Index, FVector2f(Left, LineY), Sizes[Line], Panel);
+					Out.Rects[Rect].Line = Line;
+					Out.Rects[Rect].Wrapped = Lines[Line];
+					LineY += Sizes[Line].Y;
+				}
+				Y += Height + 2.0f * Pad + Gap * S;
 			}
-			const int32 Panel = Add(EDTHudElem::DormantPanel, Player, Index, FVector2f(Left - Pad, Y), FVector2f(Width + 2.0f * Pad, Height + 2.0f * Pad));
-			float LineY = Y + Pad;
-			for (int32 Line = 0; Line < Lines.Num(); ++Line)
-			{
-				const int32 Rect = Add(EDTHudElem::DormantLine, Player, Index, FVector2f(Left, LineY), Sizes[Line], Panel);
-				Out.Rects[Rect].Line = Line;
-				Out.Rects[Rect].Wrapped = Lines[Line];
-				LineY += Sizes[Line].Y;
-			}
-			Y += Height + 2.0f * Pad + Gap * S;
-		}
-		if (!P.AimMode.IsEmpty())
-		{
-			float Mul = 1.0f;
-			const FVector2f Aim = Fitted(P.AimMode, EDTType::Body, ColumnW, Mul);
-			Add(EDTHudElem::AimMode, Player, 0, FVector2f(Left, Y), Aim, INDEX_NONE, Mul);
-			Y += Aim.Y + Gap * S;
-		}
-		// Keeper meters (keepers.md R-KEE-38): a label, and a bar under it where the meter has a cap.
-		for (int32 Index = 0; Index < P.Meters.Num(); ++Index)
-		{
-			float Mul = 1.0f;
-			const FVector2f Label = Fitted(P.Meters[Index].Label, EDTType::Body, ColumnW, Mul);
-			Add(EDTHudElem::MeterLabel, Player, Index, FVector2f(Left, Y), Label, INDEX_NONE, Mul);
-			Y += Label.Y + LineGap * S;
-			if (P.Meters[Index].bBar)
-			{
-				Add(EDTHudElem::MeterBar, Player, Index, FVector2f(Left, Y), FVector2f(MeterBarW * S, MeterBarH * S));
-				Y += MeterBarH * S;
-			}
-			Y += Gap * S;
-		}
-		if (P.Dormant.Num() > 0 || P.Meters.Num() > 0 || !P.AimMode.IsEmpty())
-		{
-			Y += BlockGap * S - Gap * S;
-		}
-		// The three tool counters on one panel.
-		if (P.Tools.Num() > 0)
-		{
-			const float Pad = PanelPad * S;
-			float Width = 0.0f;
-			float Height = 0.0f;
-			TArray<FVector2f> Sizes;
-			TArray<float> Muls;
-			for (const FText& Tool : P.Tools)
+			if (!P.AimMode.IsEmpty())
 			{
 				float Mul = 1.0f;
-				const FVector2f Line = Fitted(Tool, EDTType::Body, ColumnW - 2.0f * Pad, Mul);
-				Sizes.Add(Line);
-				Muls.Add(Mul);
-				Width = FMath::Max(Width, Line.X);
-				Height += Line.Y;
+				const FVector2f Aim = Fitted(P.AimMode, EDTType::Body, FMath::Max(FMath::Min(ColumnW, Limit[AimSlot]), 1.0f), Mul);
+				Add(EDTHudElem::AimMode, Player, 0, FVector2f(Left, Y), Aim, INDEX_NONE, Mul);
+				Y += Aim.Y + Gap * S;
 			}
-			Height += LineGap * S * (P.Tools.Num() - 1);
-			const int32 Panel = Add(EDTHudElem::ToolPanel, Player, 0, FVector2f(Left, Y), FVector2f(Width + 2.0f * Pad, Height + 2.0f * Pad));
-			float LineY = Y + Pad;
-			for (int32 Index = 0; Index < P.Tools.Num(); ++Index)
+			// Keeper meters (keepers.md R-KEE-38): a label, and a bar under it where the meter has a cap.
+			for (int32 Index = 0; Index < P.Meters.Num(); ++Index)
 			{
-				Add(EDTHudElem::ToolLine, Player, Index, FVector2f(Left + Pad, LineY), Sizes[Index], Panel, Muls[Index]);
-				LineY += Sizes[Index].Y + LineGap * S;
+				float Mul = 1.0f;
+				const FVector2f Label = Fitted(P.Meters[Index].Label, EDTType::Body, FMath::Max(FMath::Min(ColumnW, Limit[AimSlot + 1 + Index]), 1.0f), Mul);
+				Add(EDTHudElem::MeterLabel, Player, Index, FVector2f(Left, Y), Label, INDEX_NONE, Mul);
+				Y += Label.Y + LineGap * S;
+				if (P.Meters[Index].bBar)
+				{
+					Add(EDTHudElem::MeterBar, Player, Index, FVector2f(Left, Y), FVector2f(MeterBarW * S, MeterBarH * S));
+					Y += MeterBarH * S;
+				}
+				Y += Gap * S;
 			}
-			Y += Height + 2.0f * Pad + BlockGap * S;
-		}
-		// The Intercession ring, with its label and the dash beside it.
-		{
-			const float RingPx = Ring * S;
-			const float TextX = Left + RingPx + RingGap * S;
-			const float TextW = FMath::Max(ColumnW - RingPx - RingGap * S, 1.0f);
-			float LabelMul = 1.0f;
-			float DashMul = 1.0f;
-			const FVector2f Label = P.Intercession.IsEmpty() ? FVector2f::ZeroVector : Fitted(P.Intercession, EDTType::Body, TextW, LabelMul);
-			const FVector2f Dash = P.Dash.IsEmpty() ? FVector2f::ZeroVector : Fitted(P.Dash, EDTType::Body, TextW, DashMul);
-			const float DashRowH = FMath::Max(Dash.Y, PipH * S);
-			const float TextH = Label.Y + Gap * S + DashRowH;
-			const float RowH = FMath::Max(RingPx, TextH);
-			Add(EDTHudElem::Ring, Player, 0, FVector2f(Left, Y + 0.5f * (RowH - RingPx)), FVector2f(RingPx, RingPx));
-			float TextY = Y + 0.5f * (RowH - TextH);
-			if (!P.Intercession.IsEmpty())
+			if (P.Dormant.Num() > 0 || P.Meters.Num() > 0 || !P.AimMode.IsEmpty())
 			{
-				Add(EDTHudElem::IntercessionLabel, Player, 0, FVector2f(TextX, TextY), Label, INDEX_NONE, LabelMul);
+				Y += BlockGap * S - Gap * S;
 			}
-			TextY += Label.Y + Gap * S;
-			if (!P.Dash.IsEmpty())
+			// The three tool counters on one panel.
+			if (P.Tools.Num() > 0)
 			{
-				Add(EDTHudElem::DashLabel, Player, 0, FVector2f(TextX, TextY + 0.5f * (DashRowH - Dash.Y)), Dash, INDEX_NONE, DashMul);
+				const float Pad = PanelPad * S;
+				float Width = 0.0f;
+				float Height = 0.0f;
+				TArray<FVector2f> Sizes;
+				TArray<float> Muls;
+				for (const FText& Tool : P.Tools)
+				{
+					float Mul = 1.0f;
+					const FVector2f Line = Fitted(Tool, EDTType::Body, ColumnW - 2.0f * Pad, Mul);
+					Sizes.Add(Line);
+					Muls.Add(Mul);
+					Width = FMath::Max(Width, Line.X);
+					Height += Line.Y;
+				}
+				Height += LineGap * S * (P.Tools.Num() - 1);
+				const int32 Panel = Add(EDTHudElem::ToolPanel, Player, 0, FVector2f(Left, Y), FVector2f(Width + 2.0f * Pad, Height + 2.0f * Pad));
+				float LineY = Y + Pad;
+				for (int32 Index = 0; Index < P.Tools.Num(); ++Index)
+				{
+					Add(EDTHudElem::ToolLine, Player, Index, FVector2f(Left + Pad, LineY), Sizes[Index], Panel, Muls[Index]);
+					LineY += Sizes[Index].Y + LineGap * S;
+				}
+				Y += Height + 2.0f * Pad + BlockGap * S;
 			}
-			float PipX = TextX + Dash.X + 2.0f * PipGap * S;
-			for (int32 Pip = 0; Pip < P.DashPips; ++Pip)
+			// The Intercession ring, with its label and the dash beside it.
 			{
-				Add(EDTHudElem::DashPip, Player, Pip, FVector2f(PipX, TextY + 0.5f * (DashRowH - PipH * S)), FVector2f(PipW * S, PipH * S));
-				PipX += (PipW + PipGap) * S;
+				const float RingPx = Ring * S;
+				const float TextX = Left + RingPx + RingGap * S;
+				const float TextW = FMath::Max(ColumnW - RingPx - RingGap * S, 1.0f);
+				float LabelMul = 1.0f;
+				float DashMul = 1.0f;
+				const FVector2f Label = P.Intercession.IsEmpty() ? FVector2f::ZeroVector : Fitted(P.Intercession, EDTType::Body, TextW, LabelMul);
+				const FVector2f Dash = P.Dash.IsEmpty() ? FVector2f::ZeroVector : Fitted(P.Dash, EDTType::Body, TextW, DashMul);
+				const float DashRowH = FMath::Max(Dash.Y, PipH * S);
+				const float TextH = Label.Y + Gap * S + DashRowH;
+				const float RowH = FMath::Max(RingPx, TextH);
+				Add(EDTHudElem::Ring, Player, 0, FVector2f(Left, Y + 0.5f * (RowH - RingPx)), FVector2f(RingPx, RingPx));
+				float TextY = Y + 0.5f * (RowH - TextH);
+				if (!P.Intercession.IsEmpty())
+				{
+					Add(EDTHudElem::IntercessionLabel, Player, 0, FVector2f(TextX, TextY), Label, INDEX_NONE, LabelMul);
+				}
+				TextY += Label.Y + Gap * S;
+				if (!P.Dash.IsEmpty())
+				{
+					Add(EDTHudElem::DashLabel, Player, 0, FVector2f(TextX, TextY + 0.5f * (DashRowH - Dash.Y)), Dash, INDEX_NONE, DashMul);
+				}
+				float PipX = TextX + Dash.X + 2.0f * PipGap * S;
+				for (int32 Pip = 0; Pip < P.DashPips; ++Pip)
+				{
+					Add(EDTHudElem::DashPip, Player, Pip, FVector2f(PipX, TextY + 0.5f * (DashRowH - PipH * S)), FVector2f(PipW * S, PipH * S));
+					PipX += (PipW + PipGap) * S;
+				}
+				Y += RowH;
 			}
-			Y += RowH;
-		}
-		const FVector2f Shift(0.0f, Bottom - Y);
-		for (int32 Index = First; Index < Out.Rects.Num(); ++Index)
-		{
-			Out.Rects[Index].Box = Out.Rects[Index].Box.ShiftBy(Shift);
+			const FVector2f Shift(0.0f, Bottom - Y);
+			for (int32 Index = First; Index < Out.Rects.Num(); ++Index)
+			{
+				Out.Rects[Index].Box = Out.Rects[Index].Box.ShiftBy(Shift);
+			}
+			// The room at each growing piece's rows as set; a limit only ever narrows, so the passes end.
+			bool bChanged = false;
+			for (int32 Index = First; Index < Out.Rects.Num(); ++Index)
+			{
+				const FDTHudRect& Rect = Out.Rects[Index];
+				const int32 Slot = Rect.Kind == EDTHudElem::DormantPanel ? Rect.Index : Rect.Kind == EDTHudElem::AimMode ? AimSlot
+					: Rect.Kind == EDTHudElem::MeterLabel ? AimSlot + 1 + Rect.Index : INDEX_NONE;
+				if (Slot == INDEX_NONE)
+				{
+					continue;
+				}
+				const float Room = RoomRight(Rect.Box.Min.Y, Rect.Box.Max.Y) - Left;
+				if (Room < Limit[Slot] - 0.5f && Rect.Box.Max.X > Left + Room)
+				{
+					Limit[Slot] = Room;
+					bChanged = true;
+				}
+			}
+			if (!bChanged)
+			{
+				break;
+			}
 		}
 		Bottom -= Y + BlockGap * S;
 	}
@@ -416,6 +460,20 @@ bool DTHud::UnprojectGround(const FVector2f& View, const FVector2f& Pixel, FVect
 	OutGround.X = Along - Lens.Shift;
 	OutGround.Y = NdcX * Lens.TanHalfHorizontal * (Lens.Distance + Along * Lens.CosPitch - Z * Lens.SinPitch);
 	return true;
+}
+
+float DTHud::KeepOutLeftEdge(const FVector2f& View, float PixelY)
+{
+	// A row of the screen is one line across the plane (the camera has no roll): the circle's left edge on it is the chord's end.
+	const float Radius = KeepOutRadiusUU();
+	const float Z = static_cast<float>(DTConst::SIM_PLANE_Z_UU);
+	FVector2f Centre;
+	if (!UnprojectGround(View, FVector2f(0.5f * View.X, PixelY), Centre, Z) || FMath::Abs(Centre.X) >= Radius)
+	{
+		return TNumericLimits<float>::Max();
+	}
+	const float HalfChord = FMath::Sqrt(Radius * Radius - Centre.X * Centre.X);
+	return ProjectGround(View, FVector2f(Centre.X, -HalfChord), Z).X;
 }
 
 bool DTHud::CoversKeepOut(const FVector2f& View, const FBox2f& Box)

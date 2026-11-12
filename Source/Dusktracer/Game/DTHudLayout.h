@@ -127,6 +127,8 @@ namespace DTHud
 	DUSKTRACER_API bool UnprojectGround(const FVector2f& View, const FVector2f& Pixel, FVector2f& OutGround, float Z = 0.0f);
 	/** R-HUD-02: true when Box covers any of the keep-out circle as the solo camera frames it, on the drawn plane (C.SIM.PLANE_Z_UU). */
 	DUSKTRACER_API bool CoversKeepOut(const FVector2f& View, const FBox2f& Box);
+	/** The pixel column where the keep-out circle (drawn plane) begins on screen row PixelY, from the left; FLT_MAX where the row misses it. */
+	DUSKTRACER_API float KeepOutLeftEdge(const FVector2f& View, float PixelY);
 
 	/** R-HUD-03: the parts of the frame Tools/contrast_check.py does not read (its HUD_MASKS), as fractions x0, y0, x1, y1. */
 	DUSKTRACER_API TConstArrayView<FVector4f> ContrastMasks();
