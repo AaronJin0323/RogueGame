@@ -37,7 +37,7 @@
 | D-033 | `run_start` says what made the run: `config` and `driver` | RULE | applied | `dev/s3` |
 | D-034 | The S3 exit's "pass 2 of 3" is two of three validators on each of the two Vision rows written that way | GO-NOGO | replaced by D-049 | `dev/s3` |
 | D-035 | On a save the duos' door opens the duo card; the reactions start when that card is taken | RULE | applied | `dev/s3` |
-| D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied | `main` |
+| D-036 | The camera frames 1500 uu of height: every attack starts on screen, and the frame is fixed | RULE | applied; amended by D-080 (the raised frame) | `main` |
 | D-037 | A gate check reads every run it launches, and a pool check has to be able to tell the pools apart | RULE | applied | `dev/s3` |
 | D-038 | A dash volley acts once on every weapon, each by its own shape; only Singularity's merge keeps the weapon's rule | RULE | applied; clause 3 replaced by D-040 | `dev/s2` |
 | D-039 | Chain Trigger's free volley acts on every weapon and never starts a live beam or ring again | RULE | applied | `dev/s2` |
@@ -81,3 +81,4 @@
 | D-077 | The look comes first; the Visual session designs it, guided by the owner's art direction 2.4 and aiming past it | RULE | applied on the owner's word at the sitting (the game looks crude; the earlier art book was the wrong one; the art direction 2.4 is guidance, its pictures are not copied, and the Visual session is to do better than them); amends D-057 | `dev/s4` |
 | D-078 | A Scatter Shell ring bursts once: a fault of the session build, mended on `main` before session A | BUG | accepted from the Mechanics session's Draft 16; the job is on `main`; the session A package is rebuilt after it | `main` |
 | D-079 | Blade Halo keeps its bolts: the drones go on firing and gain the source's blades | RULE | accepted from the Mechanics session's Draft 17; `[invented]`; closes D-071; the job is on `dev/s2`, after D-078 and before D-073 | `dev/s2` |
+| D-080 | The camera is raised: the hero stands above the centre, the reach is equal up and down, and the frame tightens to about 45 m | RULE | accepted on the owner's word (the camera is the scheduler's); amends D-036; the job is on `main`, before session A | `main` |
