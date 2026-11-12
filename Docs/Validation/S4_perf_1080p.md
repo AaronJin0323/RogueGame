@@ -65,6 +65,39 @@ The S4 scene read 7.16 and 7.26 ms proxied on P0 at the smaller size and 5.94 an
 - No render-thread reading and no hitch measure: p50 and p95 of 1800 frames only.
 - The perf scenes grant no Keeper blessings and play in one weather; Intercessions, statuses and the second weather are not on any scene here.
 - Package E's cost: not in these runs. The reading with the tap and package E, on 3cb9534, is `S4_e_feedback.md` §10.
+- The clear zone's cost (D-068): not in these runs. A comparison on one evening is the section below; no record with the zone exists yet.
+
+## The clear zone against its base, one evening (2026-11-12): a comparison, not a record
+
+**Conditions.** The scheduler's window `w2`. Three trees, each clean: `base`, `dev/s4` 64b40cf before the zone (`agent-aa7a88e9be0750f6a`); `zone`, d09d4c9, the clear zone's branch as handed over (`agent-a4ffafc84344cbaea`); `audio`, 1834e13, the audio runtime on top (`agent-a82ff951d2dcf6259`). The machine was taken at 18:07:57 and released at 18:21:18; the eighteen runs were logged from 18:09:16 to 18:21:18, each time a run's end (as in `S4_e_feedback.md` §10), the three builds in turn in each scene and round. `Tools\Perf.ps1 -Scene S4` and `-Scene S2` at their defaults, 1800 frames, three rounds; every run rendered 1920x1080 and asked 1920x1080. The machine was alone as to the sessions' own jobs: no other engine or compiler process of ours ran. It was **not quiet**: after Windows Update restarted the PC at 04:44, the owner's own programs were running (the scheduler names an Android emulator at about half a core and a video app). They are the owner's; nobody touches them.
+
+**The control.** Right after (window `control`, released 18:25:25), `main` f5d7334 at Caps read game thread p95 2.82, 2.75 and 2.81 ms (p50 2.14 to 2.23) and GPU p95 3.83 to 3.91 ms, against its reading of record in `S1_perf_1080p.md` (8f2579e, alone: 2.33 to 2.47 ms and 2.94 to 2.95 ms, the table above): about 0.35 ms more game thread and about 30 percent more GPU time. The base tree at Caps read 3.64, 2.93 and 2.97 ms, against 2.55 to 2.57 for 3cb9534 alone the night before (`S4_e_feedback.md` §10). So every build read slower than its record that evening, unchanged ones too.
+
+**Base against zone**, one row per scene and round (ms; GPU p95 raw, proxied x1.6 in brackets; `SimRender` and `SimTick` are the `DT/GameThread/*` scope rows, mean / p95):
+
+| Scene, round | Base: game thread p50 / p95 | Base: GPU p95 | Base: `SimRender` | Base: `SimTick` | Zone: game thread p50 / p95 | Zone: GPU p95 | Zone: `SimRender` | Zone: `SimTick` | Game thread p95, zone less base | `SimRender` mean, zone less base |
+|---|---|---|---|---|---|---|---|---|---|---|
+| S4, 1 | 3.48 / 5.02 | 4.17 (6.67) | 0.64 / 0.77 | 1.07 / 2.18 | 3.59 / 5.21 | 4.14 (6.63) | 0.68 / 0.93 | 1.15 / 2.29 | +0.19 | +0.04 |
+| S4, 2 | 3.53 / 5.07 | 4.18 (6.69) | 0.64 / 0.75 | 1.08 / 2.19 | 3.60 / 5.27 | 4.16 (6.65) | 0.69 / 0.96 | 1.17 / 2.30 | +0.20 | +0.05 |
+| S4, 3 | 3.76 / 5.36 | 4.13 (6.61) | 0.65 / 0.87 | 1.10 / 2.38 | 3.49 / 5.06 | 4.58 (7.32) | 0.66 / 0.79 | 1.09 / 2.20 | -0.30 | +0.01 |
+| S2, 1 | 3.18 / 4.74 | 4.10 (6.56) | 0.52 / 0.70 | 0.93 / 2.11 | 3.03 / 4.57 | 4.08 (6.53) | 0.54 / 0.72 | 0.97 / 1.99 | -0.17 | +0.02 |
+| S2, 2 | 3.10 / 4.69 | 4.09 (6.54) | 0.52 / 0.72 | 0.96 / 2.01 | 2.93 / 4.37 | 4.08 (6.53) | 0.50 / 0.56 | 0.88 / 1.89 | -0.32 | -0.02 |
+| S2, 3 | 3.21 / 4.89 | 4.50 (7.20) | 0.54 / 0.74 | 1.01 / 2.17 | 3.09 / 4.61 | 4.48 (7.17) | 0.54 / 0.69 | 0.97 / 2.03 | -0.28 | 0.00 |
+
+**What it shows.**
+- In the S4 scene the zone reads higher than its base in two rounds (+0.19, +0.20) and lower in the third (-0.30). The spread between a build's own three rounds is larger than any of those differences: the base's game thread p95 spans 5.02 to 5.36 (0.34), the zone's 5.06 to 5.27 (0.21).
+- In the S2 scene the zone reads lower in all three rounds (-0.17, -0.32, -0.28); the base spans 4.69 to 4.89 (0.20), the zone 4.37 to 4.61 (0.24).
+- The step: `SimTick` rises with the zone in the S4 scene's first two rounds (mean 1.07 and 1.08 to 1.15 and 1.17) and falls in the third (1.10 to 1.09); in the S2 scene it is level or lower. `SimTick` contains `SimRender` (`UDTSimSubsystem::Tick` opens the draw scope inside the step scope), so half of those two rises is the draw scope's own.
+- The GPU is level: 4.17 and 4.18 against 4.14 and 4.16 in the S4 scene's first two rounds, and within 0.02 in all three rounds of the S2 scene. In the S4 scene's third round the zone and audio builds read 4.58 and 4.61 and the base 4.13: the round moved, not one build, since the S2 scene's third round reads 4.48 to 4.53 for all three.
+- The one place the zone can be seen is the draw scope's mean in the S4 scene, a few hundredths of a millisecond (+0.04 and +0.05) in two of three rounds; the S2 scene does not show it.
+- So the zone shows no cost beyond the spread, which is what D-068 item 4 asked; its constant stays.
+
+**What it does not show.**
+- It compares two builds with each other on one loaded evening and replaces no record. Whether the S4 scene stands under the wave's 5.0 ms game thread ceiling is read again on a quiet machine; until then no branch is judged against the night before's absolutes.
+- The two builds are two trees, so a difference of a few hundredths may be the tree and not the zone. A pair on one build with the switch (`DT_TRACER_CLEAR_ZONE` 0 against the default) would tell, and was not taken alone.
+- The window also read a third build, the audio runtime; its lines are in the same files and belong to the runtime's own note.
+
+**Where the files are.** In the scheduler's worktree: `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_w2.txt` (one line per run), `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_w2.raw.txt` (the whole output), `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_control.txt` and `E:\Dusktracer\.claude\worktrees\central-project-scheduler-5e72c5\Saved\Logs\cps_window_control.raw.txt`.
 
 ## Where the files are
 The carry agent's worktree `E:\Dusktracer\.claude\worktrees\agent-aa7a88e9be0750f6a`: `Saved\Logs\perf_devs4_1080p.txt` (the output of all seven runs), `Saved\Perf\perf.csv` (the last seven rows, stamped fc5000b), and the captures under `Saved\Profiling\CSV\`.
