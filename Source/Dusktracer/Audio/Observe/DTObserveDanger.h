@@ -40,6 +40,8 @@ public:
 	virtual void Reset() override;
 	virtual void Begin(UWorld& World) override;
 	virtual void End() override;
+	/** One step's view after the world is read: the run's baseline on its first step, then the moments, the held duck (HoldDb below zero: form b). */
+	void Observe(const FDTDangerView& Now, IDTAudioRequests& Out, float HoldDb);
 
 private:
 	void HandleHeroEvent(const FDTHeroEvent& Event);

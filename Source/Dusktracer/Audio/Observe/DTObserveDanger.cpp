@@ -35,13 +35,14 @@ namespace DTDangerEvents
 		{
 			Raise(ESoundId::Snd_Danger_EnemyFire, static_cast<int32>(FMath::Min<int64>(Now.EnemyRounds - Was.EnemyRounds, MAX_int32)));
 		}
+		// The hero's public events, each its own sound: a blow that downs the hero is a hurt and a down (the scheduler orders and caps them).
+		if (Now.Hurt > 0)
+		{
+			Raise(ESoundId::Snd_Danger_HeroHurt, Now.Hurt);
+		}
 		if (Now.Down > 0)
 		{
-			Raise(ESoundId::Snd_Danger_HeroDown, 1);
-		}
-		else if (Now.Hurt > 0)
-		{
-			Raise(ESoundId::Snd_Danger_HeroHurt, 1);
+			Raise(ESoundId::Snd_Danger_HeroDown, Now.Down);
 		}
 		if (Now.bBossActive && Was.bBossActive && Now.BossPhase != Was.BossPhase)
 		{
@@ -127,20 +128,24 @@ void FDTObserveDanger::OnStep(const UWorld& World, int64 Step, IDTAudioRequests&
 	Now.Down = PendingDown;
 	PendingHurt = 0;
 	PendingDown = 0;
+	Observe(Now, Out, DTDangerEvents::LowHpHoldDb());
+}
+
+void FDTObserveDanger::Observe(const FDTDangerView& Now, IDTAudioRequests& Out, float HoldDb)
+{
 	if (!bPrimed)
 	{
 		// The first step of a run is the baseline: rounds already counted and a phase already set are not this step's news.
 		Last = Now;
 		Last.Hurt = Last.Down = 0;
-		Last.Step = Step - 1;
+		Last.Step = Now.Step - 1;
 		bPrimed = true;
 	}
-	const float Hold = DTDangerEvents::LowHpHoldDb();
-	const bool bHeld = Now.bLowHp && Hold < 0.0f;
+	const bool bHeld = Now.bLowHp && HoldDb < 0.0f;
 	DTDangerEvents::Diff(Last, Now, [&](DTCat::ESoundId Sound, int32 Count)
 	{
-		Out.Run(static_cast<int32>(Sound), Count, Step, bHeld && Sound == DTCat::ESoundId::Snd_Danger_Heartbeat);
+		Out.Run(static_cast<int32>(Sound), Count, Now.Step, bHeld && Sound == DTCat::ESoundId::Snd_Danger_Heartbeat);
 	});
-	Out.HeldDuck(bHeld ? Hold : 0.0f);
+	Out.HeldDuck(bHeld ? HoldDb : 0.0f);
 	Last = Now; // a counter that went down (a new pool) is the new baseline: Diff raised nothing for it
 }

@@ -1,4 +1,4 @@
-// The audio runtime (02_Systems/audio.md T-AUD-01, 02, 03, 05, 06, 07, 09, 10, 11, 20, 21).
+// The audio runtime (02_Systems/audio.md T-AUD-01, 02, 03, 05, 06, 07, 09, 10, 11, 12, 19, 20, 21).
 // Run headless: Tools\RunTests.ps1 -Filter Dusktracer.Audio
 
 #include "Misc/AutomationTest.h"
@@ -8,14 +8,18 @@
 #include "Audio/DTAudioSubsystem.h"
 #include "Audio/DTAudioTypes.h"
 #include "Audio/DTStingerQueue.h"
+#include "Audio/Observe/DTObserveDanger.h"
 #include "Audio/Observe/DTObserveInterface.h"
+#include "Audio/Observe/DTObserveWarn.h"
 #include "Bot/DTBotSubsystem.h"
 #include "Core/DTConstantsGen.h"
 #include "Core/DTSimSubsystem.h"
 #include "Director/DTDirector.h"
+#include "Enemies/DTEnemySubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/DTHudLayout.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -132,6 +136,11 @@ namespace DTAudioTest
 		FString Csv;
 		FString Jsonl;
 		int64 AudioAsked = 0;
+		/** Asked of the four warnings, and of enemy fire. */
+		int64 WarnAsked = 0;
+		int64 FireAsked = 0;
+		/** The nine Warn and Danger ids' counts, one line each. */
+		TArray<FString> DangerCounts;
 		bool bObserving = false;
 		bool bHasAudio = false;
 		int32 Decisions = 0;
@@ -153,7 +162,7 @@ namespace DTAudioTest
 	}
 
 	/** One bot run of BotSeconds on Seed; the audio runtime runs a frame every second of sim time when it is on. */
-	static FRunResult Play(int32 Seed)
+	static FRunResult Play(int32 Seed, bool bArmed = false)
 	{
 		FRunResult Result;
 		FTestWorld Test;
@@ -177,6 +186,16 @@ namespace DTAudioTest
 			Config.Skill = 0.6f;
 			Config.Seed = Seed;
 			Bot->Activate(Config);
+			if (UDTEnemySubsystem* Enemies = bArmed ? Test.World->GetSubsystem<UDTEnemySubsystem>() : nullptr)
+			{
+				// The opening flock neither shoots nor tells: two turrets and two rushers at the start, in both arms alike, bring telegraphs
+				// and enemy fire into the first seconds.
+				for (const FVector2f& At : { FVector2f(700.0f, 0.0f), FVector2f(-700.0f, 300.0f) })
+				{
+					Enemies->GetPool().Spawn(EDTEnemyRole::Turret, At);
+					Enemies->GetPool().Spawn(EDTEnemyRole::Rusher, At * 0.8f + FVector2f(0.0f, 200.0f));
+				}
+			}
 			const int32 Steps = BotSeconds * DTConst::SIM_FIXED_HZ;
 			if (Audio)
 			{
@@ -184,7 +203,8 @@ namespace DTAudioTest
 			}
 			while (Sim->GetStepIndex() < Steps && !Bot->IsRunFinished())
 			{
-				const int32 Chunk = FMath::Min<int32>(DTConst::SIM_FIXED_HZ, Steps - static_cast<int32>(Sim->GetStepIndex()));
+				// Armed, a frame follows every step, as in a person's run at the sim's rate: the counts are a real run's.
+				const int32 Chunk = FMath::Min<int32>(bArmed ? 1 : DTConst::SIM_FIXED_HZ, Steps - static_cast<int32>(Sim->GetStepIndex()));
 				if (Bot->RunSteps(Chunk) == 0)
 				{
 					break;
@@ -212,6 +232,19 @@ namespace DTAudioTest
 			{
 				Result.AudioAsked += Audio->GetScheduler().GetCounts(Sound).Asked;
 			}
+			if (Audio)
+			{
+				for (const DTCat::ESoundId Warn : { DTCat::ESoundId::Snd_Warn_Line, DTCat::ESoundId::Snd_Warn_Band, DTCat::ESoundId::Snd_Warn_Ring, DTCat::ESoundId::Snd_Warn_Arc })
+				{
+					Result.WarnAsked += Audio->GetScheduler().GetCounts(static_cast<int32>(Warn)).Asked;
+				}
+				Result.FireAsked = Audio->GetScheduler().GetCounts(static_cast<int32>(DTCat::ESoundId::Snd_Danger_EnemyFire)).Asked;
+				for (int32 Sound = static_cast<int32>(DTCat::ESoundId::Snd_Warn_Line); Sound <= static_cast<int32>(DTCat::ESoundId::Snd_Danger_BossPhase); ++Sound)
+				{
+					const FDTAudioCounts& C = Audio->GetScheduler().GetCounts(Sound);
+					Result.DangerCounts.Add(FString::Printf(TEXT("%s asked %lld played %lld merged %lld dropped %lld"), DTCat::Sounds[Sound].Id, C.Asked, C.Played, C.Merged, C.Dropped));
+				}
+			}
 			Result.bObserving = Audio && Audio->IsObserving();
 			if (const UDTOfferSubsystem* Offers = Test.World->GetSubsystem<UDTOfferSubsystem>())
 			{
@@ -235,12 +268,17 @@ bool FDTAudTestSimUntouched::RunTest(const FString& Parameters)
 	using namespace DTAudioTest;
 	FEnabledGuard Enabled;
 	Enabled.Set(1);
-	const FRunResult On = Play(31);
+	const FRunResult On = Play(31, true);
 	Enabled.Set(0);
-	const FRunResult Off = Play(31);
+	const FRunResult Off = Play(31, true);
 	TestTrue(TEXT("the run with audio played"), On.Steps > 0 && !On.Csv.IsEmpty());
-	AddInfo(FString::Printf(TEXT("audio on: observing %d, asked %lld, decisions %d"), On.bObserving, On.AudioAsked, On.Decisions));
+	AddInfo(FString::Printf(TEXT("audio on: observing %d, asked %lld (warnings %lld, enemy fire %lld), decisions %d"), On.bObserving, On.AudioAsked, On.WarnAsked, On.FireAsked, On.Decisions));
 	TestTrue(TEXT("with audio the world has the runtime, observing and asked for sounds (the picks)"), On.bHasAudio && On.bObserving && On.AudioAsked > 0);
+	TestTrue(TEXT("the danger observers were on: the run's telegraphs asked for warnings and its enemies' rounds for enemy fire"), On.WarnAsked > 0 && On.FireAsked > 0);
+	for (const FString& Line : On.DangerCounts)
+	{
+		AddInfo(FString::Printf(TEXT("danger count: %s"), *Line));
+	}
 	TestFalse(TEXT("dt.Audio.Enabled 0 at world creation: no audio runtime at all"), Off.bHasAudio);
 	TestEqual(TEXT("same steps"), Off.Steps, On.Steps);
 	TestEqual(TEXT("same input stream"), Off.InputHash, On.InputHash);
@@ -345,6 +383,111 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 	V.Decisions = 3;
 	V.HandId = INDEX_NONE;
 	Expect(TEXT("two picks in one frame raise two"), Step(V), (TArray<ESoundId>{ ESoundId::Snd_UI_Pick, ESoundId::Snd_UI_Pick }));
+
+	// The Warn family (R-AUD-02): each telegraph new this step raises its warning once, by shape; several of one shape are one request.
+	{
+		using FAsks = TArray<TPair<ESoundId, int32>>;
+		FAsks Asked;
+		const auto Warn = [&](TConstArrayView<FDTTelegraph> Before, TConstArrayView<FDTTelegraph> After)
+		{
+			Asked.Reset();
+			DTWarnEvents::NewThisStep(Before, After, [&](ESoundId Sound, int32 Count) { Asked.Emplace(Sound, Count); });
+			return Asked;
+		};
+		const auto Tell = [](EDTTelegraphShape Shape, FVector2f Origin, float Progress)
+		{
+			FDTTelegraph T;
+			T.Shape = Shape;
+			T.Origin = Origin;
+			T.Progress = Progress;
+			return T;
+		};
+		TestTrue(TEXT("band warns as a band"), DTWarnEvents::SoundOf(EDTTelegraphShape::Band) == ESoundId::Snd_Warn_Band);
+		TestTrue(TEXT("arc warns as an arc"), DTWarnEvents::SoundOf(EDTTelegraphShape::Arc) == ESoundId::Snd_Warn_Arc);
+		TestTrue(TEXT("aim line warns as a line"), DTWarnEvents::SoundOf(EDTTelegraphShape::AimLine) == ESoundId::Snd_Warn_Line);
+		for (const EDTTelegraphShape Shape : { EDTTelegraphShape::Ring, EDTTelegraphShape::RingGap, EDTTelegraphShape::SpiralLane, EDTTelegraphShape::HazardRing })
+		{
+			TestTrue(FString::Printf(TEXT("shape %d warns as a ring"), static_cast<int32>(Shape)), DTWarnEvents::SoundOf(Shape) == ESoundId::Snd_Warn_Ring);
+		}
+		// A standing telegraph: a hundred steps of one tell, its Progress growing and its origin drifting a little, raise exactly one warning.
+		TArray<FDTTelegraph> TWas;
+		int32 WarnRaised = 0;
+		for (int32 Index = 0; Index < 100; ++Index)
+		{
+			const TArray<FDTTelegraph> TNow = { Tell(EDTTelegraphShape::Band, FVector2f(500.0f + Index * 2.0f, 0.0f), Index / 100.0f) };
+			for (const TPair<ESoundId, int32>& Ask : Warn(TWas, TNow))
+			{
+				WarnRaised += Ask.Value;
+				TestTrue(TEXT("the standing band warns as a band"), Ask.Key == ESoundId::Snd_Warn_Band);
+			}
+			TWas = TNow;
+		}
+		TestEqual(TEXT("a standing telegraph raises exactly one warning"), WarnRaised, 1);
+		TestTrue(TEXT("the same telegraphs again raise nothing"), Warn(TWas, TWas).Num() == 0);
+		const TArray<FDTTelegraph> Rings = { TWas[0], Tell(EDTTelegraphShape::Ring, FVector2f(0.0f, 900.0f), 0.0f), Tell(EDTTelegraphShape::Ring, FVector2f(0.0f, -900.0f), 0.0f),
+			Tell(EDTTelegraphShape::Arc, FVector2f(-900.0f, 0.0f), 0.0f) };
+		TestTrue(TEXT("two new rings in one step are one request carrying two; the arc is its own"),
+			Warn(TWas, Rings) == FAsks({ { ESoundId::Snd_Warn_Ring, 2 }, { ESoundId::Snd_Warn_Arc, 1 } }));
+		TArray<FDTTelegraph> Again = Rings;
+		Again[0].Progress = 0.0f;
+		TestTrue(TEXT("a tell that starts again (its Progress drops) is new again"), Warn(Rings, Again) == FAsks({ { ESoundId::Snd_Warn_Band, 1 } }));
+		TArray<FDTTelegraph> Moved = Rings;
+		Moved[1].Origin += FVector2f(DTWarnEvents::MatchUU * 2.0f, 0.0f);
+		TestTrue(TEXT("a ring far from every ring of the last step is new"), Warn(Rings, Moved) == FAsks({ { ESoundId::Snd_Warn_Ring, 1 } }));
+		TestTrue(TEXT("a telegraph gone raises nothing"), Warn(Rings, TArray<FDTTelegraph>()).Num() == 0);
+	}
+
+	// The Danger family: enemy fire by the spawned counter's growth, the hero's events, the boss's phase (the heartbeat: T-AUD-12).
+	{
+		using FAsks = TArray<TPair<ESoundId, int32>>;
+		FAsks Asked;
+		FDTDangerView DWas;
+		const auto Danger = [&](const FDTDangerView& DNow)
+		{
+			Asked.Reset();
+			DTDangerEvents::Diff(DWas, DNow, [&](ESoundId Sound, int32 Count) { Asked.Emplace(Sound, Count); });
+			DWas = DNow;
+			return Asked;
+		};
+		FDTDangerView D;
+		D.Step = 10;
+		TestTrue(TEXT("nothing happening raises nothing"), Danger(D).Num() == 0);
+		D.Step = 11;
+		D.EnemyRounds = 7;
+		TestTrue(TEXT("seven rounds spawned in a step: one enemy-fire request carrying seven"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_EnemyFire, 7 } }));
+		D.Step = 12;
+		TestTrue(TEXT("an unchanged step raises none"), Danger(D).Num() == 0);
+		D.Step = 13;
+		D.EnemyRounds = 0;
+		TestTrue(TEXT("a counter that starts again raises nothing"), Danger(D).Num() == 0);
+		D.Step = 14;
+		D.Hurt = 1;
+		TestTrue(TEXT("the hero hurt"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_HeroHurt, 1 } }));
+		D.Step = 15;
+		D.Hurt = 0;
+		TestTrue(TEXT("the hurt is of its step only"), Danger(D).Num() == 0);
+		D.Step = 16;
+		D.Hurt = 1;
+		D.Down = 1;
+		TestTrue(TEXT("the blow that downs: hurt and down, one each"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_HeroHurt, 1 }, { ESoundId::Snd_Danger_HeroDown, 1 } }));
+		D.Step = 17;
+		D.Hurt = D.Down = 0;
+		D.bBossActive = true;
+		D.BossPhase = 1;
+		TestTrue(TEXT("the boss arriving at its first phase is no phase change"), Danger(D).Num() == 0);
+		D.Step = 18;
+		D.BossPhase = 2;
+		TestTrue(TEXT("a change of phase"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_BossPhase, 1 } }));
+		D.Step = 19;
+		TestTrue(TEXT("the phase held raises nothing"), Danger(D).Num() == 0);
+		D.Step = 20;
+		D.bBossActive = false;
+		D.BossPhase = 3;
+		TestTrue(TEXT("the boss gone raises nothing"), Danger(D).Num() == 0);
+		D.Step = 21;
+		D.bLowHp = true;
+		TestTrue(TEXT("low health inside one pulse raises nothing"), Danger(D).Num() == 0);
+	}
 
 	// A world with nothing open reads as nothing shown.
 	{
@@ -1118,4 +1261,394 @@ bool FDTAudTestCost::RunTest(const FString& Parameters)
 	return true;
 }
 
+namespace DTAudioTest
+{
+	/** Requests straight into a scheduler, as the subsystem's own; bPlain drops the hold and the no-duck flag (the runtime before form b). */
+	struct FToScheduler : public IDTAudioRequests
+	{
+		FDTAudioScheduler& S;
+		bool bPlain = false;
+		TArray<int64> Beats;
+		explicit FToScheduler(FDTAudioScheduler& In, bool bInPlain = false) : S(In), bPlain(bInPlain) {}
+		virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck) override
+		{
+			S.Request(Sound, Count, Step, bPlain ? false : bNoDuck);
+			if (Sound == static_cast<int32>(DTCat::ESoundId::Snd_Danger_Heartbeat))
+			{
+				Beats.Add(Step);
+			}
+		}
+		virtual void Ui(int32 Sound, int32 Count) override { S.RequestUi(Sound, Count); }
+		virtual void HeldDuck(float Db) override
+		{
+			if (!bPlain)
+			{
+				S.SetHeldDuckDb(Db);
+			}
+		}
+	};
+
+	static float LowHpValue() { return 100.0f * DTConst::HUD_LOW_HP_FRAC * 0.5f; }
+
+	/** The hero's HP at a step of the staged run: full, low, full, low, down. MaxHp is a hundred. */
+	static float StagedHp(int64 Step)
+	{
+		return Step < 300 ? 100.0f : Step < 1200 ? LowHpValue() : Step < 1500 ? 100.0f : Step < 1800 ? LowHpValue() : 0.0f;
+	}
+
+	/** The view of a staged step: the observer's own reading of the HUD's condition, on the HUD's clock. */
+	static FDTDangerView StagedView(int64 Step, float Hp)
+	{
+		FDTDangerView V;
+		V.Step = Step;
+		V.bLowHp = DTHud::LowHp(Hp, 100.0f, SecondsOf(Step), true).bLow;
+		return V;
+	}
+
+	struct FStagedFrame
+	{
+		double Now = 0.0;
+		int64 Step = 0;
+		bool bPaused = false;
+		float DuckDb = 0.0f;
+		TArray<FDTAudioVoice> Voices;
+	};
+
+	static void NoExtra(FDTAudioScheduler&, int64) {}
+
+	/** The staged run through the real table, a frame a step; PauseAt holds the sim for PauseFrames frames of real time. */
+	static TArray<FStagedFrame> StagedRun(float HoldDb, bool bPlain, int64 Steps, int64 PauseAt, int32 PauseFrames, TArray<int64>* OutBeats,
+		TFunctionRef<void(FDTAudioScheduler&, int64)> Extra)
+	{
+		FDTAudioScheduler S;
+		S.Configure(DTAudio::Catalog(), 5);
+		FDTObserveDanger Obs;
+		FToScheduler Out(S, bPlain);
+		TArray<FStagedFrame> Frames;
+		double Now = 50.0;
+		const double Dt = 1.0 / DTConst::SIM_FIXED_HZ;
+		for (int64 Step = 0; Step < Steps; ++Step)
+		{
+			Obs.Observe(StagedView(Step, StagedHp(Step)), Out, HoldDb);
+			Extra(S, Step);
+			FStagedFrame& F = Frames.AddDefaulted_GetRef();
+			F.Now = Now;
+			F.Step = Step;
+			S.Frame(Now, Step, F.Voices);
+			F.DuckDb = S.GetDuckDb();
+			Now += Dt;
+			for (int32 Hold = 0; Step == PauseAt && Hold < PauseFrames; ++Hold)
+			{
+				FStagedFrame& P = Frames.AddDefaulted_GetRef();
+				P.Now = Now;
+				P.Step = Step;
+				P.bPaused = true;
+				S.Frame(Now, Step, P.Voices); // the sim stopped: frames go on, no step ends
+				P.DuckDb = S.GetDuckDb();
+				Now += Dt;
+			}
+		}
+		if (OutBeats)
+		{
+			*OutBeats = Out.Beats;
+		}
+		return Frames;
+	}
+
+	static bool IsBeat(const FDTAudioVoice& V) { return V.Sound == static_cast<int32>(DTCat::ESoundId::Snd_Danger_Heartbeat); }
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestHeartbeat, "Dusktracer.Audio.Heartbeat", DTAudioTest::Flags) // T-AUD-12
+bool FDTAudTestHeartbeat::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	// R-AUD-12: the heartbeat runs exactly while the HUD's low-HP state does, one beat a pulse of the HP bar, on the HUD's clock and phase.
+	constexpr int64 Steps = 2000;
+	constexpr int64 PauseAt = 700;
+	constexpr int32 PauseFrames = 300;
+	TArray<int64> Asked;
+	const TArray<FStagedFrame> Frames = StagedRun(0.0f, false, Steps, PauseAt, PauseFrames, &Asked, NoExtra);
+	TArray<int64> Played;
+	int32 PausedBeats = 0;
+	for (const FStagedFrame& F : Frames)
+	{
+		for (const FDTAudioVoice& V : F.Voices)
+		{
+			if (IsBeat(V))
+			{
+				Played.Add(V.Step);
+				PausedBeats += F.bPaused ? 1 : 0;
+			}
+		}
+	}
+	TestTrue(TEXT("every beat asked for starts, on its step"), Played == Asked && Played.Num() > 0);
+	TestEqual(TEXT("the sim stopped five seconds: no beat while it stands"), PausedBeats, 0);
+	const double Period = DTConst::HUD_LOW_HP_PULSE_S * DTConst::SIM_FIXED_HZ; // steps a pulse
+	const double PulseS = DTConst::HUD_LOW_HP_PULSE_S;
+	int32 Wraps = 0;
+	for (int64 Step = 1; Step < Steps; ++Step)
+	{
+		const FDTHudLowHp Hud = DTHud::LowHp(StagedHp(Step), 100.0f, SecondsOf(Step), true);
+		// The HUD's pulse starts again (full) where its phase wraps: its own arithmetic, not the observer's.
+		const bool bWrap = FMath::Fmod(SecondsOf(Step), PulseS) < FMath::Fmod(SecondsOf(Step - 1), PulseS);
+		const bool bBeat = Asked.Contains(Step);
+		Wraps += Hud.bLow && bWrap ? 1 : 0;
+		if (bBeat)
+		{
+			TestTrue(FString::Printf(TEXT("step %lld: a beat only while the HUD shows low HP"), Step), Hud.bLow);
+			// The pulse's top falls between two steps; the beat is on the first step after it, the fill within a step's fall of full.
+			const float StepFall = 1.0f - DTHud::LowHp(StagedHp(Step), 100.0f, 1.0 / DTConst::SIM_FIXED_HZ, true).FillAlpha;
+			TestTrue(FString::Printf(TEXT("step %lld: a beat where the bar's fill starts full again (fill %.4f)"), Step, Hud.FillAlpha), bWrap && Hud.FillAlpha >= 1.0f - StepFall - 1.0e-4f);
+		}
+		else if (Hud.bLow && bWrap)
+		{
+			AddError(FString::Printf(TEXT("step %lld: the HP bar's pulse starts again with no beat"), Step));
+		}
+	}
+	TestEqual(TEXT("one beat for each of the HUD's pulses while low"), Asked.Num(), Wraps);
+	double Gaps = 0.0;
+	int32 NumGaps = 0;
+	for (int32 Index = 1; Index < Asked.Num(); ++Index)
+	{
+		const int64 Gap = Asked[Index] - Asked[Index - 1];
+		if (Gap < 2 * Period)
+		{
+			TestTrue(FString::Printf(TEXT("a gap of %lld steps is the pulse's period, to the step"), Gap), FMath::Abs(Gap - Period) <= 1.0);
+			Gaps += Gap;
+			++NumGaps;
+		}
+	}
+	TestTrue(TEXT("the beats keep the pulse's period on average"), NumGaps > 10 && FMath::IsNearlyEqual(Gaps / FMath::Max(1, NumGaps), Period, 0.1));
+	TestFalse(TEXT("none above the line"), Asked.ContainsByPredicate([](int64 S) { return S < 300 || (S >= 1200 && S < 1500); }));
+	TestFalse(TEXT("none once down"), Asked.ContainsByPredicate([](int64 S) { return S >= 1800; }));
+
+	// A new run resets it: the observer's baseline is the new run's first step, so the beat is on the new run's clock from its first pulse.
+	{
+		FDTAudioScheduler S;
+		S.Configure(DTAudio::Catalog(), 5);
+		FDTObserveDanger Obs;
+		FToScheduler Out(S);
+		for (int64 Step = 1000; Step < 1030; ++Step)
+		{
+			Obs.Observe(StagedView(Step, LowHpValue()), Out, 0.0f);
+		}
+		Out.Beats.Reset();
+		Obs.Reset();
+		S.ResetRun(6);
+		for (int64 Step = 0; Step < 3 * Period; ++Step)
+		{
+			Obs.Observe(StagedView(Step, LowHpValue()), Out, 0.0f);
+		}
+		TestTrue(TEXT("the new run's beats fall on its own pulses: its first step, then a period apart"),
+			Out.Beats.Num() == 3 && Out.Beats[0] == 0 && FMath::Abs(Out.Beats[1] - Period) <= 1.0 && FMath::Abs(Out.Beats[2] - 2 * Period) <= 1.0);
+		TestEqual(TEXT("the new run's first pulse starts full"), DTHud::LowHp(LowHpValue(), 100.0f, 0.0, true).FillAlpha, 1.0f);
+	}
+
+	// Form a's dip in numbers (the owner's first question): the duck the beats give the Player group over one beat in a steady low stretch.
+	{
+		const DTCat::FSoundRow& Beat = DTCat::Sounds[static_cast<int32>(DTCat::ESoundId::Snd_Danger_Heartbeat)];
+		FDTAudioScheduler S;
+		S.Configure(DTAudio::Catalog(), 5);
+		TArray<FDTAudioVoice> Out;
+		for (int32 Index = 0; Index < 4; ++Index)
+		{
+			const int64 Step = FMath::RoundToInt(Index * Period);
+			S.Request(static_cast<int32>(DTCat::ESoundId::Snd_Danger_Heartbeat), 1, Step);
+			Out.Reset();
+			S.Frame(10.0 + Index * PulseS, Step, Out);
+		}
+		const double From = 10.0 + 3 * PulseS; // the fourth beat: the curve is at rest when it starts
+		int32 MsBelow = 0;
+		double SumDb = 0.0;
+		double SumGain = 0.0;
+		float Depth = 0.0f;
+		const int32 Ms = FMath::RoundToInt(PulseS * 1000.0);
+		for (int32 M = 0; M < Ms; ++M)
+		{
+			const float Db = S.DuckDbAt(From + M / 1000.0 + 0.0005);
+			MsBelow += Db < -0.01f ? 1 : 0;
+			SumDb += Db;
+			SumGain += FMath::Pow(10.0, Db / 20.0);
+			Depth = FMath::Min(Depth, Db);
+		}
+		const double AvgDb = SumDb / Ms;
+		const double AvgGainDb = 20.0 * FMath::LogX(10.0, SumGain / Ms);
+		AddInfo(FString::Printf(TEXT("heartbeat form a: depth %.2f dB, %d ms of every %d below full (voice %d ms, release %d ms), average %.2f dB (by level), %.2f dB (by gain)"),
+			Depth, MsBelow, Ms, Beat.LengthMs, DTConst::AUD_DUCK_RELEASE_MS, AvgDb, AvgGainDb));
+		TestTrue(TEXT("form a dips to C.AUD.DUCK_DB"), FMath::IsNearlyEqual(Depth, static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f));
+		TestTrue(TEXT("below full for the voice and the release, to the ms"), FMath::Abs(MsBelow - (Beat.LengthMs + DTConst::AUD_DUCK_RELEASE_MS)) <= 1);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestLowHpHold, "Dusktracer.Audio.LowHpHold", DTAudioTest::Flags) // T-AUD-12, form b
+bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	constexpr int64 Steps = 2000;
+	constexpr float Hold = -4.0f;
+	constexpr int64 WarnAt = 600;
+	const int32 Ring = static_cast<int32>(DTCat::ESoundId::Snd_Warn_Ring);
+	const auto Warn = [Ring](FDTAudioScheduler& S, int64 Step)
+	{
+		if (Step == WarnAt)
+		{
+			S.Request(Ring, 1, Step);
+		}
+	};
+	const TArray<FStagedFrame> B = StagedRun(Hold, false, Steps, INDEX_NONE, 0, nullptr, Warn);
+	const auto At = [&](int64 Step) { return B[Step].DuckDb; };
+	TestEqual(TEXT("full while health is full"), At(299), 0.0f);
+	const double Attack = DTConst::AUD_DUCK_ATTACK_MS / 1000.0;
+	const int64 AttackSteps = FMath::CeilToInt(Attack * FMath::Abs(Hold / DTConst::AUD_DUCK_DB) * DTConst::SIM_FIXED_HZ) + 1;
+	const int64 ReleaseSteps = FMath::CeilToInt(DTConst::AUD_DUCK_RELEASE_MS / 1000.0 * DTConst::SIM_FIXED_HZ) + 1;
+	const int64 WarnEnd = WarnAt + FMath::CeilToInt((DTCat::Sounds[Ring].LengthMs + DTConst::AUD_DUCK_RELEASE_MS) / 1000.0 * DTConst::SIM_FIXED_HZ) + 2;
+	TestTrue(TEXT("health turns low: down to the hold within the duck's attack"), FMath::IsNearlyEqual(At(300 + AttackSteps), Hold, 0.01f));
+	// It goes down once, then stays level across the beats with no send while it holds.
+	FDTDuckSender Sender;
+	TArray<int64> Sends;
+	for (const FStagedFrame& F : B)
+	{
+		if (Sender.Next(F.DuckDb))
+		{
+			Sends.Add(F.Step);
+		}
+	}
+	TestFalse(TEXT("no send while it holds, beats and all"), Sends.ContainsByPredicate([&](int64 S) { return (S > 300 + AttackSteps && S < WarnAt) || (S > WarnEnd && S < 1200); }));
+	TestTrue(TEXT("level across the beats"), Algo::AllOf(B, [&](const FStagedFrame& F) { return F.Step <= 300 + AttackSteps || F.Step >= WarnAt || F.DuckDb == Hold; }));
+	int32 Beats = 0;
+	for (const FStagedFrame& F : B)
+	{
+		Beats += F.Step > 300 && F.Step < 1200 && F.Voices.ContainsByPredicate(IsBeat) ? 1 : 0;
+	}
+	TestTrue(TEXT("the beats still sound"), Beats > 10);
+	// A warning during it takes it to C.AUD.DUCK_DB and back to the hold.
+	float WarnDepth = 0.0f;
+	for (int64 Step = WarnAt; Step < WarnEnd; ++Step)
+	{
+		WarnDepth = FMath::Min(WarnDepth, At(Step));
+	}
+	TestTrue(TEXT("a warning takes it to C.AUD.DUCK_DB"), FMath::IsNearlyEqual(WarnDepth, static_cast<float>(DTConst::AUD_DUCK_DB), 0.01f));
+	TestTrue(TEXT("and back to the hold, not to full"), FMath::IsNearlyEqual(At(WarnEnd), Hold, 0.01f));
+	// Recovery: back to zero by the release.
+	TestTrue(TEXT("health recovers: back to full within the release"), At(1200 + ReleaseSteps) == 0.0f && At(1201) < 0.0f);
+	TestTrue(TEXT("down once more for the second low stretch"), FMath::IsNearlyEqual(At(1500 + AttackSteps), Hold, 0.01f));
+	TestTrue(TEXT("down: the hold ends"), At(1800 + ReleaseSteps) == 0.0f);
+	// The heartbeat's own voice adds no duck: across the beats before the warning the curve never goes past the hold.
+	float Lowest = 0.0f;
+	for (int64 Step = 300 + AttackSteps; Step < WarnAt; ++Step)
+	{
+		Lowest = FMath::Min(Lowest, At(Step));
+	}
+	AddInfo(FString::Printf(TEXT("heartbeat form b at %.1f dB: %.2f dB through every beat, held for as long as health is low (the average over a beat is the same)"), Hold, Lowest));
+	TestEqual(TEXT("the heartbeat does not duck past the hold"), Lowest, Hold);
+
+	// With the hold at zero nothing differs from form a, sample for sample: the same voices and the same curve as the runtime before form b.
+	{
+		const TArray<FStagedFrame> A = StagedRun(0.0f, false, Steps, 700, 120, nullptr, Warn);
+		const TArray<FStagedFrame> Plain = StagedRun(0.0f, true, Steps, 700, 120, nullptr, Warn);
+		bool bSame = A.Num() == Plain.Num();
+		for (int32 Index = 0; bSame && Index < A.Num(); ++Index)
+		{
+			bSame = A[Index].DuckDb == Plain[Index].DuckDb && A[Index].Voices.Num() == Plain[Index].Voices.Num();
+			for (int32 V = 0; bSame && V < A[Index].Voices.Num(); ++V)
+			{
+				const FDTAudioVoice& X = A[Index].Voices[V];
+				const FDTAudioVoice& Y = Plain[Index].Voices[V];
+				bSame = X.Sound == Y.Sound && X.Step == Y.Step && X.Variant == Y.Variant && X.Volume == Y.Volume && X.Pitch == Y.Pitch && X.DuckDb == Y.DuckDb && X.Count == Y.Count;
+			}
+		}
+		TestTrue(TEXT("hold 0: frame for frame, the curve and every voice equal form a's"), bSame && A.Num() > Steps);
+	}
+
+	// The console variable: there outside Shipping, off by default, never above zero.
+	IConsoleVariable* Var = IConsoleManager::Get().FindConsoleVariable(TEXT("dt.Audio.LowHpHoldDb"));
+	if (TestNotNull(TEXT("dt.Audio.LowHpHoldDb exists outside Shipping"), Var))
+	{
+		const float Was = Var->GetFloat();
+		TestEqual(TEXT("off by default"), Var->GetFloat(), 0.0f);
+		Var->Set(-4.0f, ECVF_SetByCode);
+		TestEqual(TEXT("it is read"), DTDangerEvents::LowHpHoldDb(), -4.0f);
+		Var->Set(3.0f, ECVF_SetByCode);
+		TestEqual(TEXT("never above zero"), DTDangerEvents::LowHpHoldDb(), 0.0f);
+		Var->Set(Was, ECVF_SetByCode);
+	}
+	return true;
+}
+
+#if WITH_EDITORONLY_DATA
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTAudTestDangerPlayable, "Dusktracer.Audio.DangerPlayable", DTAudioTest::Flags) // T-AUD-19
+bool FDTAudTestDangerPlayable::RunTest(const FString& Parameters)
+{
+	using namespace DTAudioTest;
+	using DTCat::ESoundId;
+	// Each danger moment raised by its observer's own rule, through a recording sink in place of the engine sink, gets its asset: all nine ids.
+	DTAudioTest::FTestWorld Test;
+	UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
+	if (!TestNotNull(TEXT("the audio runtime"), Audio))
+	{
+		return false;
+	}
+	TSharedPtr<FDTRecordingSink> Sink = MakeShared<FDTRecordingSink>();
+	Audio->SetSinkForTest(Sink);
+	const auto Ask = [&](ESoundId Sound, int32 Count) { Audio->RequestRun(static_cast<int32>(Sound), Count, 0); };
+	double Now = 100.0;
+	const auto Frame = [&]() { Now += 5.0; Audio->RunFrame(Now); }; // five seconds apart: every voice ends, every interval passes
+	Frame(); // the runtime meets the world's run first, so no request below is a run's leftover
+	for (const EDTTelegraphShape Shape : { EDTTelegraphShape::AimLine, EDTTelegraphShape::Band, EDTTelegraphShape::Ring, EDTTelegraphShape::Arc })
+	{
+		FDTTelegraph T;
+		T.Shape = Shape;
+		const TArray<FDTTelegraph> None;
+		const TArray<FDTTelegraph> One = { T };
+		DTWarnEvents::NewThisStep(None, One, Ask);
+		Frame();
+	}
+	FDTDangerView Base;
+	Base.Step = 1;
+	FDTDangerView Fire = Base;
+	Fire.EnemyRounds = 3;
+	FDTDangerView Hurt = Base;
+	Hurt.Hurt = 1;
+	FDTDangerView Down = Base;
+	Down.Down = 1;
+	FDTDangerView LowA = Base;
+	LowA.Step = 47;
+	LowA.bLowHp = true;
+	FDTDangerView LowB = LowA;
+	LowB.Step = 49;
+	FDTDangerView BossA = Base;
+	BossA.bBossActive = true;
+	BossA.BossPhase = 1;
+	FDTDangerView BossB = BossA;
+	BossB.BossPhase = 2;
+	const TPair<FDTDangerView, FDTDangerView> Moments[] = { { Base, Fire }, { Base, Hurt }, { Base, Down }, { LowA, LowB }, { BossA, BossB } };
+	for (const TPair<FDTDangerView, FDTDangerView>& Moment : Moments)
+	{
+		DTDangerEvents::Diff(Moment.Key, Moment.Value, Ask);
+		Frame();
+	}
+	TSet<int32> Heard;
+	for (int32 Index = 0; Index < Sink->Voices.Num(); ++Index)
+	{
+		const int32 Sound = Sink->Voices[Index].Sound;
+		TestNotNull(*FString::Printf(TEXT("%s is given its asset"), DTCat::Sounds[Sound].Id), Sink->Sounds[Index]);
+		Heard.Add(Sound);
+	}
+	int32 Judged = 0;
+	for (const ESoundId Id : { ESoundId::Snd_Warn_Line, ESoundId::Snd_Warn_Band, ESoundId::Snd_Warn_Ring, ESoundId::Snd_Warn_Arc, ESoundId::Snd_Danger_EnemyFire,
+		ESoundId::Snd_Danger_HeroHurt, ESoundId::Snd_Danger_HeroDown, ESoundId::Snd_Danger_Heartbeat, ESoundId::Snd_Danger_BossPhase })
+	{
+		const int32 Sound = static_cast<int32>(Id);
+		++Judged;
+		TestTrue(*FString::Printf(TEXT("%s is playable"), DTCat::Sounds[Sound].Id), DTCat::Sounds[Sound].bPlayable);
+		TestTrue(*FString::Printf(TEXT("%s was raised and started"), DTCat::Sounds[Sound].Id), Heard.Contains(Sound));
+		TestEqual(*FString::Printf(TEXT("%s: missing 0"), DTCat::Sounds[Sound].Id), Audio->GetMissing(Sound), int64(0));
+	}
+	TestEqual(TEXT("the nine danger ids were judged"), Judged, 9);
+	return true;
+}
+#endif
+
 #endif // WITH_DEV_AUTOMATION_TESTS
+

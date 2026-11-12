@@ -512,6 +512,15 @@ class Catalog(unittest.TestCase):
 		self.assertTrue(line.startswith("AUDIO: PASS (5 sounds: 1 heard, 1 delegated, 2 rejected, 1 not heard; 10 files, 7 tool tests; not active yet: "), line)
 		self.assertEqual(B.heard_counts([]), {"heard": 0, "delegated": 0, "rejected": 0, "not heard": 0})
 
+	def test_the_warnings_keep_the_warning_interval(self):
+		# R-AUD-06 on the real table: each of the four Snd.Warn rows waits C.AUD.WARN_MIN_INTERVAL_MS between its voices, no more and no less.
+		rows, errors = B.read_catalog()
+		self.assertEqual(errors, [])
+		warn = {r["id"]: int(r["interval_ms"]) for r in rows if r["id"].startswith("Snd.Warn.")}
+		self.assertEqual(sorted(warn), ["Snd.Warn.Arc", "Snd.Warn.Band", "Snd.Warn.Line", "Snd.Warn.Ring"])
+		floor = dtconst.load()["AUD.WARN_MIN_INTERVAL_MS"]["value"]
+		self.assertEqual(warn, {k: floor for k in warn})
+
 	def test_a_family_with_no_licence_row_fails(self):
 		text, _ = Tree([ROW, WARN], licences=("Content/DT/Audio/SFX/SW_Kill_*",)).check()
 		self.assertIn("family Danger has no audio row in licenses.csv", text)
