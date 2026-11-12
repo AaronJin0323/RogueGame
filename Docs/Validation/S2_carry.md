@@ -164,3 +164,78 @@ tools:      TOOLS: PASS (203 tests)
 GATE: PASS (4c53ad4; 14 not run; mask FFFFF3FC)
 ```
 Log: `Saved\Logs\c7s2_text.txt`.
+
+## Seventh carry: `main` 1e99644 into `dev/s2` 0d2f1ca, then `dev/s2` d1ceee1 (`carry8/s2`)
+`main` brought:
+- D-078: a Scatter Shell ring bursts once (`bRingChild` on a ring's child, R-MOD-05, `Dusktracer.Modifiers.ScatterOneGeneration`).
+- D-080: the raised camera (`ARENA.CAMERA_FRAME_RADIUS_UU`, `ARENA.CAMERA_AIM_SHIFT_UU`), and the boss row and the XP block where the first visual wave puts them (R-UX-01, T-UX-01).
+- The gate's `arms` step with `Tools/gate_arms.csv`, `Tools/bot_summary.py`'s emission block, the session reader on the drawn plane, and the records through its tip.
+
+`main`'s game code is that of 1a9aa55; its later commits are tools and documents. `dev/s2` moved during the leg by tools and one note (d1ceee1, the probe's field calibration). It merged clean as cbde5b0, before any heavy step but the build: the gate ran on the merged tip.
+
+Conflicts and resolutions:
+- `Docs/13_Decisions`, `STATE.md` and `AGENTS.md` take `main`'s side whole; `git diff 1e99644 -- Docs/13_Decisions Docs/STATE.md AGENTS.md` is empty.
+- `Combat/DTWeaponSim.cpp`: both lines at a round's expiry, `dev/s2`'s `bPayday` and D-078's `bRingChild`. The header merged clean, with `bRingChild` beside `bRingStrike`.
+- `Tests/Combat/DTModifierTests.cpp`: `dev/s2`'s file whole, with `main`'s `ScatterOneGeneration` before the closing `#endif`. A plain union of the two hunks cut the last lines of `dev/s2`'s `ChainTrigger.Singularity`, and the build said so; 04eaa7d mends it.
+- `Boss/DTBossSubsystem.cpp`: `main`'s position (the name in `NameBox`) with `dev/s2`'s scale (`NameScale * TextScale`).
+- `Game/DTHUD.cpp`: `main`'s banner position under the boss row, with `dev/s2`'s `TitleScale` (the setting's scale), and `dev/s2`'s reaction toast below it as it was.
+- `Progression/DTXPBar.h`: `main`'s top-right block and `BlockSpan`, with `dev/s2`'s `TextScale` argument. The .cpp merged clean and uses both.
+- `Tools/Gate.ps1`: `dev/s2`'s step list in the header with `main`'s `arms`; the body merged clean.
+- `Tools/bot_summary.py`: `dev/s2`'s deaths by minute and `main`'s emission and refusal lines.
+- `Tools/tools_test.py`: `main`'s `hashlib` import; the entry lists merged clean.
+- `number_change_log.csv`: both sides' rows.
+- `constants.yaml` and `08_Constants.md`: `GATE.TEST_FLOOR` is the merged count, 489. `08_Constants.md`'s row read 480 against the yaml's 486 before the carry, stale since D-060. No step compares the two values: the gate's `constants` step compares `constants.yaml` with the generated headers only, and `docs_lint.py` check 4 compares the two files' keys, not their values. `DTConstantsGen.h` is regenerated.
+- `Tools/gate_arms.csv` came as `main`'s file. It now holds `dev/s2`'s own five rows, with a header line naming this carry.
+
+**The boss row and the text-size setting** (read, mended nothing). On a 1920x1080 frame, with the name `The Warden` measured by `UFont::GetStringHeightAndWidth` at the setting's least (100 %) and largest (150 %) size, through `UDTBossSubsystem::BossRowLayout`:
+
+| | 100 % | 150 % |
+|---|---|---|
+| bar box (`BossRowRect`) | x 729.1 to 1289.1, y 15.0 to 29.0 | x 750.7 to 1310.7, y 15.0 to 29.0 |
+| name's line box | x 630.9 to 717.1, y 11.6 to 30.4 | x 609.3 to 738.7, y 6.9 to 35.1 |
+
+- The bar's lower edge is y 29 at both sizes: the bar's box does not grow with the setting.
+- The name stays left of the hero's column (x 960) at both sizes.
+- T-UX-01 reads `BossRowRect`, which takes no text scale, so it reads the same row at every size.
+- The name's line box reaches y 35.1 at 150 %, below the bar's edge, but off the column. The glyphs' own ink was not measured.
+
+**Counts.**
+- 489 tests (dev/s2 488, plus `ScatterOneGeneration`), 489 pass; floor 489, with a number-log row.
+- `tools_test.py` 248.
+- 08_Constants.md row mended.
+
+**Seed 9107** on the merged build (`input_hash`, steps, `bot.csv` SHA-256, outcome, end):
+
+| Arm | `dev/s2` before | carry8/s2 | Scatter Shell socketed |
+|---|---|---|---|
+| None | `00e0d4ec` | `00e0d4ec`, 44137, death 735.6 | none |
+| Random | `51369747` | `15a228cd`, 59951, victory 999.2 | Ring Emitter at 194.7 s |
+| Steered:Forge:Hammer | `e3293942` | `8831aba6`, 57482, victory 958.0 | Pulse Rifle at 569.5 s |
+| Steered:Storm:Tempest | `b046559b` | `0948c7be`, 59239, victory 987.3 | Pulse Rifle at 579.0 s |
+| Steered:Tide:Frost | `def51848` | `def51848`, 48598, death 810.0 | none |
+
+The three that moved are the three that socket Scatter Shell (D-078). The two that socket none read as before.
+
+**Goldens.** `arena_empty` en and zh-Hans were shot again with `Tools/image_check.py --update` on `Tools/Smoke.ps1` shots of the merged build. Against `dev/s2`'s old goldens the mean diff is 1.52 (en) and 1.59 (zh-Hans), of 12.0. The camera is the reason: the raised frame and the moved HUD.
+
+**D-074's judged pair read again** (D-078 item 7): `Steered:Storm:Tempest:Tide -Carry Weapon.RingEmitter` and its hold, 15 seeds, v2, skill 1.0, on the merged build.
+
+| Window | D-074 landed | carry8/s2 | Bar |
+|---|---|---|---|
+| before the boss | 1.01 | 1.00 | 0.95 |
+| boss fight, by the boss's measure (median; pooled) | 1.07 | 1.22; 1.14 | 0.9 |
+| boss fight, the old window | 1.12 | 1.18 | 0.9 |
+
+Both lines PASS.
+
+The emission block's last line:
+- Arm: "Emission budget: some weapon and socket set passes 0.05 (2 weapon run(s) over it; worst 0.146, Weapon.RingEmitter [ChainTrigger+LingeringField+ScatterShell] in Steered-Storm-Tempest-Tide-Carry-RingEmitter_s4)."
+- Hold: "Emission budget: some weapon and socket set passes 0.05 (1 weapon run(s) over it; worst 0.117, Weapon.RingEmitter [LingeringField+ScatterShell] in Steered-Storm-Tempest-Tide-Carry-RingEmitter_s11)."
+
+**Readings this carry makes stale on `dev/s2`:**
+- every reading with Scatter Shell socketed (D-078): seed 9107's Random, Forge:Hammer and Storm:Tempest arms;
+- the D-074, D-071 and D-079 batteries where a run sockets it;
+- the S2 exit battery;
+- every golden and frame shot before the raised camera (D-080).
+
+GATE_LINES
