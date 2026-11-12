@@ -42,3 +42,9 @@ Snd.Hero.Dash,Hero,player,body,Player,hero.dash,2,0,0.45,key,A,80,2,0,0,60,300,-
 Snd.Hero.DashReady,Hero,player,body,Player,hero.dash_ready,1,0,0.3,fixed,,200,1,0,0,40,250,-46,-30,act,no
 Snd.Hero.IntercessionReady,Hero,player,body,Player,hero.intercession_ready,1,0,0.6,fixed,,1000,1,0,0,400,3000,-34,-20,act,no
 Snd.Hero.IntercessionCast,Hero,player,body,Player,hero.intercession_cast,1,0,0.7,fixed,,1000,1,0,0,1200,6000,-26,-12,act,no
+Snd.Keeper.Storm.Pick,Keeper,ui,body,UI,keeper.storm_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no
+Snd.Keeper.Forge.Pick,Keeper,ui,body,UI,keeper.forge_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no
+Snd.Keeper.Tide.Pick,Keeper,ui,body,UI,keeper.tide_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no
+Snd.Keeper.Shade.Pick,Keeper,ui,body,UI,keeper.shade_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no
+Snd.Keeper.Radiance.Pick,Keeper,ui,body,UI,keeper.radiance_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no
+Snd.Keeper.Quicksilver.Pick,Keeper,ui,body,UI,keeper.quicksilver_pick,1,0,0.7,fixed,,500,1,0,0,300,3500,-32,-18,keeper,no

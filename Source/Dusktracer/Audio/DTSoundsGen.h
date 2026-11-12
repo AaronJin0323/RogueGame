@@ -56,6 +56,12 @@ namespace DTCat
 		Snd_Hero_DashReady,
 		Snd_Hero_IntercessionReady,
 		Snd_Hero_IntercessionCast,
+		Snd_Keeper_Storm_Pick,
+		Snd_Keeper_Forge_Pick,
+		Snd_Keeper_Tide_Pick,
+		Snd_Keeper_Shade_Pick,
+		Snd_Keeper_Radiance_Pick,
+		Snd_Keeper_Quicksilver_Pick,
 		Count
 	};
 
@@ -78,7 +84,7 @@ namespace DTCat
 		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
-	inline constexpr int32 SoundCount = 43;
+	inline constexpr int32 SoundCount = 49;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
 		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
@@ -124,5 +130,11 @@ namespace DTCat
 		{ TEXT("Snd.Hero.DashReady"), TEXT("/Game/DT/Audio/SFX/SW_Hero_DashReady"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.3f, ESoundPitch::Fixed, ESoundNote::None, 200, 1, 0.0f, false, 145, false },
 		{ TEXT("Snd.Hero.IntercessionReady"), TEXT("/Game/DT/Audio/SFX/SW_Hero_IntercessionReady"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.6f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 2016, false },
 		{ TEXT("Snd.Hero.IntercessionCast"), TEXT("/Game/DT/Audio/SFX/SW_Hero_IntercessionCast"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 4136, false },
+		{ TEXT("Snd.Keeper.Storm.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Storm_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2206, false },
+		{ TEXT("Snd.Keeper.Forge.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Forge_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 1946, false },
+		{ TEXT("Snd.Keeper.Tide.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Tide_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2166, false },
+		{ TEXT("Snd.Keeper.Shade.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Shade_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2186, false },
+		{ TEXT("Snd.Keeper.Radiance.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Radiance_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2346, false },
+		{ TEXT("Snd.Keeper.Quicksilver.Pick"), TEXT("/Game/DT/Audio/SFX/SW_Keeper_Quicksilver_Pick"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.7f, ESoundPitch::Fixed, ESoundNote::None, 500, 1, 0.0f, false, 2156, false },
 	};
 }
