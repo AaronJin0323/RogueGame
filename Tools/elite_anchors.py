@@ -179,7 +179,7 @@ def render():
 		values = ", ".join(f"{rows[role][name]:.6f}f" for name, _ in FIELDS)
 		lines.append(f"\t\t{{ {values} }}, // {role}")
 	lines += ["\t};", "}", ""]
-	return "\n".join(lines)
+	return "\r\n".join(lines)  # .h is eol=crlf (.gitattributes), so the committed bytes are what a checkout holds
 
 
 # --- placement (the mirror of DTElite::BuildParts) ----------------------------------------------------------------------------
