@@ -1460,6 +1460,10 @@ def run_text(end=900.0, reason="death", body=(), culture="en", run_end=True, dro
 	return "\n".join(lines) + "\n"
 
 
+# The frame's reaches on the drawn plane, C.SIM.PLANE_Z_UU above the floor (R-UX-01, D-080), at 16:9 and at 21:9.
+PLANE_DOWN, PLANE_UP, PLANE_SIDE, PLANE_SIDE_WIDE = 1416.05, 1522.05, 2249.39, 2952.3
+
+
 class SessionRead(unittest.TestCase):
 	"""Tools/session_read.py: returned zips are data, one run once, the sheet, and every S1 gate item or NOT READ (M1)."""
 
@@ -1707,21 +1711,44 @@ class SessionRead(unittest.TestCase):
 
 	def test_the_frame_comes_from_the_constants_and_tests_each_edge(self):
 		consts = dtconst_load()
+		floor = session_read.frame_on(consts, (16, 9), 0.0)
+		self.assertAlmostEqual(floor[0], 1402.37, places=2)  # on the floor, D-080's pins: 1258.2 uu framed, aimed 140.6 uu toward the camera
+		self.assertAlmostEqual(floor[1], 1571.52, places=2)
+		self.assertAlmostEqual(floor[2], 2269.58, places=2)
 		down, up, side0, slope = session_read.frame(consts)
-		self.assertAlmostEqual(down, 1402.37, places=2)  # D-080: 1258.2 uu framed, aimed 140.6 uu toward the camera
-		self.assertAlmostEqual(up, 1571.52, places=2)
-		self.assertAlmostEqual(side0, 2269.58, places=2)
-		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154
+		self.assertAlmostEqual(down, PLANE_DOWN, places=2)  # on the drawn plane, C.SIM.PLANE_Z_UU above the floor (R-UX-01)
+		self.assertAlmostEqual(up, PLANE_UP, places=2)
+		self.assertAlmostEqual(side0, PLANE_SIDE, places=2)
+		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154, on any plane
+		self.assertAlmostEqual(floor[3], slope)
 		fr = (down, up, side0, slope)
 		self.assertEqual(session_read.off_edges(0, 0, fr), [])
 		self.assertEqual([e for e, _ in session_read.off_edges(-1600, 0, fr)], ["bottom"])
 		self.assertEqual([e for e, _ in session_read.off_edges(2100, 0, fr)], ["top"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, 2700, fr)], ["right"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, -2700, fr)], ["left"])
-		self.assertEqual(session_read.off_edges(-1400, 1900, fr), [], "the bottom row is narrower: 1943 uu")
+		self.assertEqual(session_read.off_edges(-1400, 1900, fr), [], "the bottom row is narrower: 1923 uu")
+		self.assertEqual(session_read.off_edges(-1410, 0, fr), [], "drawn on screen, though off the floor's frame (1402)")
+		self.assertEqual([e for e, _ in session_read.off_edges(-1420, 0, fr)], ["bottom"])
+		self.assertEqual(session_read.off_edges(1500, 0, fr), [], "under the top edge before the fight")
+		self.assertEqual([e for e, _ in session_read.off_edges(1500, 0, fr, boss_row=True)], ["top"], "above the boss row's lower edge in the fight")
+		self.assertEqual([e for e, _ in session_read.off_edges(1550, 0, fr)], ["top"], "above the top edge, though inside the floor's frame (1571)")
+		self.assertEqual([e for e, _ in session_read.off_edges(1550, 0, fr, boss_row=True)], ["top"])
 		wide = session_read.frame(consts, (21, 9))
-		self.assertAlmostEqual(wide[0], down)
-		self.assertAlmostEqual(wide[2], 2978.8, places=1)
+		self.assertEqual((wide[0], wide[1]), (down, up), "a wider window moves only the sides")
+		self.assertAlmostEqual(wide[2], PLANE_SIDE_WIDE, places=1)
+
+	def test_the_boss_row_counts_from_boss_start(self):
+		boss = rec(900.0, "boss_start", -1, form="I", wins=0, players=1)
+		body = [hit(800.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1500, src_y=0), boss,
+			hit(950.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1500, src_y=0),
+			hit(960.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1550, src_y=0)]
+		self.put("T1", "1_20261111_120000", run_text(1000.0, body=body))
+		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
+		self.assertIn("D-036: 2 of 3 hits with a source off a 16:9 frame; by hit kind: Contact 2 of 3", text, "1 500 above: on before the fight, off in it")
+		self.assertIn(f"OFFFRAME: 1_20261111_120000 15:50 t 950.0 Tank Contact dx,dy 1500,0: at landing top edge {1500 - PLANE_DOWN:.0f} uu outside", text)
+		self.assertIn(f"OFFFRAME: 1_20261111_120000 16:00 t 960.0 Tank Contact dx,dy 1550,0: at landing top edge {1550 - PLANE_DOWN:.0f} uu outside", text)
+		self.assertNotIn("t 800.0 Tank", text.split("TIMELINE:")[0])
 
 	def test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate(self):
 		body = [rec(95.0, "hero_pos", x=-1500, y=0), rec(99.0, "hero_pos", x=-1500, y=0), rec(100.0, "hero_pos", x=0, y=0),
@@ -1731,11 +1758,12 @@ class SessionRead(unittest.TestCase):
 			hit(400.0, 0.1, hit_kind="Contact", role="Swarm", hero_x=0, hero_y=0, src_x=30, src_y=20)]
 		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
 		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
-		self.assertIn("D-036: frame at 16:9: down 1402.37, up 1571.52, side 2269.58", text)
+		self.assertIn(f"D-036: frame at 16:9 on the drawn plane (C.SIM.PLANE_Z_UU): down {PLANE_DOWN:.2f}, up {PLANE_UP:.2f} ({PLANE_DOWN:.2f} under the boss row in the fight), "
+			f"side {PLANE_SIDE:.2f} + 0.23315 x dx uu (C.ARENA.CAMERA_PITCH_DEG, C.ARENA.CAMERA_FOV_DEG, C.ARENA.CAMERA_FRAME_RADIUS_UU, C.ARENA.CAMERA_AIM_SHIFT_UU; up-screen is world +X)", text)
 		self.assertIn("D-036: 3 of 4 hits with a source off a 16:9 frame; by hit kind: Bullet 2 of 2, Contact 1 of 2", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 928 uu outside", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 198 uu outside", text)
-		self.assertIn("at landing right edge 430 uu outside; no hero_pos around the fire time: landing only", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 978 uu outside", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 184 uu outside", text)
+		self.assertIn("at landing right edge 451 uu outside; no hero_pos around the fire time: landing only", text)
 		self.assertIn("TIMELINE: 1_20261111_120000 1:40 100.0 hit Turret Bullet 0.100 of max HP, 0.500 left [off frame]", text)
 		self.assertIn("HUD m:ss is t from m*60+ss to m*60+ss+1", text)
 
