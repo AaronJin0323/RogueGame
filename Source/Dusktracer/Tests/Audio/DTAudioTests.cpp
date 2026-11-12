@@ -1029,7 +1029,8 @@ bool FDTAudTestPlayable::RunTest(const FString& Parameters)
 {
 	using namespace DTAudioTest;
 	using DTCat::ESoundId;
-	// A person's launch would play them: each interface moment raised, through a recording sink in place of the engine sink, gets its asset.
+	// A person's launch would play them: each interface moment raised, through a recording sink in place of the engine sink, gets its asset,
+	// for every playable interface id.
 	DTAudioTest::FTestWorld Test;
 	UDTAudioSubsystem* Audio = Test.World->GetSubsystem<UDTAudioSubsystem>();
 	if (!TestNotNull(TEXT("the audio runtime"), Audio))
@@ -1069,14 +1070,18 @@ bool FDTAudTestPlayable::RunTest(const FString& Parameters)
 		TestNotNull(*FString::Printf(TEXT("%s is given its asset"), DTCat::Sounds[Sound].Id), Sink->Sounds[Index]);
 		Heard.Add(Sound);
 	}
+	// Only the interface rows are judged here: a run family's rows are never raised by an interface moment, and its own wiring job proves them.
+	int32 Judged = 0;
 	for (int32 Sound = 0; Sound < DTCat::SoundCount; ++Sound)
 	{
-		if (DTCat::Sounds[Sound].bPlayable)
+		if (DTCat::Sounds[Sound].bPlayable && DTCat::Sounds[Sound].Side == DTCat::ESoundSide::UI)
 		{
+			++Judged;
 			TestTrue(*FString::Printf(TEXT("%s was raised and started"), DTCat::Sounds[Sound].Id), Heard.Contains(Sound));
 			TestEqual(*FString::Printf(TEXT("%s: missing 0"), DTCat::Sounds[Sound].Id), Audio->GetMissing(Sound), int64(0));
 		}
 	}
+	TestTrue(TEXT("the playable interface rows were judged"), Judged > 0);
 	return true;
 }
 
