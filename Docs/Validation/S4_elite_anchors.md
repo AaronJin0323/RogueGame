@@ -55,7 +55,7 @@ With the role anchors every role passes; by the hit circle every role fails (a t
 | Rusher | 946 | 1709 | 536 | 982 |
 | Turret | 1423 | 3421 | 821 | 1948 |
 
-On every role and at both sizes the light's lit pixels after are above before (1.4 to 2.4 times), as D-076 item 4 asks: not under today's. Over all seven columns (the lit affix parts too) the same holds: 2182 to 3256, 6231 to 8321, 3302 to 5410 and 5318 to 10172 at 1920x1080.
+On every role and at both sizes the light's lit pixels after are above before (1.4 to 2.4 times), as D-076 item 4 asks: not under today's. With the light's cap (`C.EAR.ELITE_LIGHT_AREA_MAX_RATIO` 0.28, shot again on the tree merged with `dev/s4` e61a850, 22:23), only the Turret moves: 3421 to 2854 at 1920x1080 and 1948 to 1623 at 1440x810, still 2.0 times its before; Swarm 961 and 526, Tank 2430 and 1381, Rusher 1709 and 979, as before within a few pixels. Seen at 3x the capped Turret shows a little more of its disc's rim; the light still covers most of the disc. Over all seven columns (the lit affix parts too) the same holds: 2182 to 3256, 6231 to 8321, 3302 to 5410 and 5318 to 10172 at 1920x1080.
 
 ## 6. The frames looked at
 In `E:\Dusktracer\.claude\worktrees\mod-visual-b112f1\Saved\S4Report\elite-anchors\` (not in the repo): the line-up at both sizes before and after; 3x crops of every role with Armored, with Volatile and with every affix, before beside after (`sheet_<column>_before_after.png`); `tracer_crossing` and `combat_staged` at 1920x1080 after; and `armored_rusher_crossing_before_after_3x.png`, the Armored Rushers of `tracer_crossing` from `hero-zone\tracer_crossing_36_on_1.png` (before) beside the same crop after. What I see:
