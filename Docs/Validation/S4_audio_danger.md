@@ -70,7 +70,9 @@ Two confusion sets. The warnings' distances are the session's reading of the sam
 
 Floors and limits: `C.AUD.DANGER_SMR_MIN_DB` for the five of zone warn, `C.AUD.HEARTBEAT_SMR_MIN_DB` for the heartbeat in the low zone, `C.AUD.WARN_OVER_MIX_MIN_DB` for the four of family `Warn`, `C.AUD.LIMIT_DBFS` for every peak. All nine hold. The control, a stand-in's fire read as a warning, reads -66.7 dB and fails, as it must.
 
-**The audio step fails on this branch, on one line that is not about these sounds:** `mix at 100 kills/s: crest 14.1 dB over C.AUD.MIX_CREST_MAX_DB 14 (R-AUD-18)`. It is the stand-in mix's crest, which reads 13.9, 12.7 and 14.1 dB in the three dense tiers, by the draw of one seed. The ruling on how the crest is judged while the player's side is stand-ins is asked of the scheduler; until it is given this branch cannot pass its gate.
+The audio step on this branch: `AUDIO: PASS (19 sounds: 0 heard, 10 delegated, 0 rejected, 9 not heard; 21 files, 67 tool tests; mix: 9 cue(s) over stand-ins for fire, kills, layers; 0 rebuilt, 31.4 s)`.
+
+**The crest is printed and not judged.** Before the scheduler's ruling of 2026-11-12 this branch failed on one line that is not about these sounds: the stand-in mix's crest at 100 kills a second, 14.1 dB against `C.AUD.MIX_CREST_MAX_DB`. By the ruling (R-AUD-18 as it now reads) the crest is judged only where no part of the mix is a stand-in and a layer is on, as a median over the model's seeds. It is worth knowing now that the stand-in mix would not pass that reading: its medians are 14.1, 15.0 and 14.4 dB in the three dense tiers. The first real family is read against the limit before it is tuned.
 
 ## 4. What is not verified
 
