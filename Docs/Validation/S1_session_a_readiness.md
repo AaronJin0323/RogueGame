@@ -114,6 +114,7 @@ D-046: T1 second run 770077_20261111_155626: boss not reached (bot_timeout at 1:
 D-046: 0 validator(s) reached the boss above half health on their second run
 SHEET: D-046 revert clause (question 7): at least two of three validators reach the boss above half HP on their second run and name nothing that threatened them
 D-036: frame at 16:9: down 1504.25, up 2041.16, side 2666.67 + 0.23315 x dx uu (C.ARENA.CAMERA_PITCH_DEG, C.ARENA.CAMERA_FOV_DEG, C.ARENA.CAMERA_FRAME_RADIUS_UU; up-screen is world +X)
+2026-11-12: the frame moved by D-080 (radius 1258.2 uu, aimed 140.6 uu toward the camera); the same reading now gives down 1402.37, up 1571.52, side 2269.58 + 0.23315 x dx uu on the floor.
 D-036: 0 of 0 hits with a source off a 16:9 frame
 D-036: the tester's screen shape is not in the files, so the sides are exact for 16:9 only (a wider screen shows more at the sides, never less height); a body shows up to its radius past an edge; a Bullet's source is where it was fired
 D-036: 0 of 2 run(s) reached the boss (question 12 is asked of those)
