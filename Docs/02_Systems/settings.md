@@ -21,7 +21,7 @@ Order on the screen, with the default first:
 | Row | Values | Effect now |
 |---|---|---|
 | Language | English, 中文 | every string, live |
-| Master volume | `C.SETTINGS.VOLUME_STEP_PCT` steps up to `C.SETTINGS.VOLUME_MAX_PCT`; default `C.SETTINGS.VOLUME_MAX_PCT` | the application volume; the game has no sound yet |
+| Master volume | `C.SETTINGS.VOLUME_STEP_PCT` steps up to `C.SETTINGS.VOLUME_MAX_PCT`; default `C.SETTINGS.VOLUME_MAX_PCT` | the application volume |
 | Graphics | Epic, High, Medium, Low | engine scalability level |
 | Window `[invented]` | Fullscreen, Windowed | window mode; the row's name comes from the brief's "display" |
 | Text size | `C.SETTINGS.TEXT_MIN_PCT` to `C.SETTINGS.TEXT_MAX_PCT` by `C.SETTINGS.TEXT_STEP_PCT` | HUD, offer screen, these screens |
