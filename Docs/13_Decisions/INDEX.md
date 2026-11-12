@@ -76,3 +76,4 @@
 | D-072 | Murmuration: a missile deals the row's damage and launches on the source's cooldown | RULE | accepted; the job is on `dev/s2`, after D-071 | `dev/s2` |
 | D-073 | A modifier an evolution refuses leaves its socket and comes back as a reroll | RULE | accepted; asked for by D-070; amends D-070 ruling 11; the job is on `dev/s2`, landed last of the four | `dev/s2` |
 | D-074 | A Pulse Wall volley keeps its rounds and opens the source's disc | RULE | accepted; replaces D-070; `[invented]`; the job is on `dev/s2` | `dev/s2` |
+| D-075 | A measuring arm for the bot: it holds its crowd at the carried weapon's reach | SYSTEM | accepted; a method decision after D-071's miss; `dev/s2` only, off by default; the job follows the readings of D-074 and D-072 | `dev/s2` |
