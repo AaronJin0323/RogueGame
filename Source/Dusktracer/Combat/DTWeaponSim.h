@@ -453,8 +453,6 @@ private:
 		/** A force field's strike (Pulse Wall's ring, R-RFG-12): no modifier moves what it strikes, and it starts no chain (D-074). A Blade
 		 * Halo's blade strike carries the same mark (R-RFG-07, D-079 item 3: its throttle scene refused bolts to the chain). */
 		bool bRingStrike = false;
-		/** A Blade Halo's blade strike (R-RFG-07). */
-		bool bBladeStrike = false;
 	};
 
 	/** A tracked round: an exact mirror of a pool bullet (same float ops), so hits and expiry map back to it. */

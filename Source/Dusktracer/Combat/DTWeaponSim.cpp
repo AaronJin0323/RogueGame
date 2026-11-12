@@ -2012,7 +2012,6 @@ void FDTWeaponSim::StrikeBlades(const FDTSimContext& Context, int32 OwnerId, int
 	{
 		// D-079 item 3: what the Pulse Wall's ring strike carries, the Patron's status and nothing a modifier places or moves.
 		Impacts[Index].bRingStrike = true;
-		Impacts[Index].bBladeStrike = true;
 	}
 }
 
