@@ -2111,7 +2111,8 @@ void FDTWeaponSim::StepForceField(const FDTSimContext& Context, FField& Field)
 		{
 			AddFieldHit(View, Field, *Runtime, Enemy, Field.SourceId, Field.DamagePerSecond * Field.TickS);
 		}
-		const float Move = Field.PushUuS * Dt;
+		// Pulse Wall (R-RFG-12, D-070): one push a tick, of push_uu_s x tick_s, as the source applies its kick; a pull zone moves every step.
+		const float Move = Field.IsWall() ? (bTick ? Field.PushUuS * Field.TickS : 0.0f) : Field.PushUuS * Dt;
 		if (Dist > KINDA_SMALL_NUMBER && Move != 0.0f)
 		{
 			FDTDisplacement& Push = View.Displacements.AddDefaulted_GetRef();
@@ -3781,6 +3782,10 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 	bool bBounced = false; // a modifier's and a Keeper's Ricochet are one bounce
 	for (const FDTResolvedFlag& Flag : Flags)
 	{
+		if (!Flag.IsNative() && !Flag.IsFallback())
+		{
+			continue; // a flag that resolves none does nothing on this weapon (weapons.md R-WPN-08: only Pulse Wall has one, D-070)
+		}
 		const FDTFlagParams& Params = Flag.Entry.Params;
 		const FName On = Params.GetWord(DTFlagParam::On);
 		switch (Flag.Entry.Flag)
@@ -4233,13 +4238,13 @@ void FDTWeaponSim::GatherVisuals(const FDTRunState& Run, const FDTWorldView& Vie
 	}
 	for (const FField& Field : Fields)
 	{
-		if (Field.BandUu > 0.0f)
+		if (Field.BandUu > 0.0f || Field.IsWall())
 		{
-			// A ring acts on its band only (R-RFG-12): draw that band's two edges as beaded arcs, never a filled disc.
+			// A ring draws as beaded arcs, never a filled disc: its outer edge, and a band's inner edge when it has one (R-RFG-12; D-070 ruling 8).
 			const float Outer = Field.CurrentRadius();
 			for (const float Radius : { Outer, Outer - Field.BandUu })
 			{
-				if (Radius > 0.0f)
+				if (Radius > 0.0f && (Radius == Outer || Field.BandUu > 0.0f))
 				{
 					FDTWeaponVisual& Ring = Out.AddDefaulted_GetRef();
 					Ring.Kind = FDTWeaponVisual::EKind::Arc;

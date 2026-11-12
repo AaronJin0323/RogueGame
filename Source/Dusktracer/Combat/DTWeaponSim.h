@@ -493,6 +493,8 @@ private:
 		/** A force field's strikes are impacts, so flags react (R-RFG-12). */
 		float TickS = 0.0f;
 		float TickIn = 0.0f;
+		/** Pulse Wall: a ring that grows and ticks (R-RFG-12); a Vortex pull zone does neither. */
+		bool IsWall() const { return bForce && GrowS > 0.0f && TickS > 0.0f; }
 		float CurrentRadius() const { return GrowS > 0.0f ? Radius * FMath::Min(1.0f, Age / GrowS) : Radius; }
 	};
 
