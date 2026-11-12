@@ -73,7 +73,7 @@
 | D-069 | The duos' door is earned by play: a run that holds six cards of two Keepers | RULE | applied on `dev/s3` with D-064 (2f0d818); its pool reading passes; the S3 session is open | `dev/s3` |
 | D-070 | Pulse Wall is the source's disc: everything inside the ring is struck and pushed out | RULE | not landed: 0.97 before the boss, 0.40 and 0.36 in the boss fight against 0.5; superseded by D-074 | `dev/s2` |
 | D-071 | Blade Halo: every blade strikes what it touches, on the source's rhythm | RULE | not landed: 0.89 before the boss against 0.9, and hits a minute did not move; what follows waits for the halo's note | `dev/s2` |
-| D-072 | Murmuration: a missile deals the row's damage and launches on the source's cooldown | RULE | accepted; the job is on `dev/s2`, after D-071 | `dev/s2` |
+| D-072 | Murmuration: a missile deals the row's damage and launches on the source's cooldown | RULE | applied on `dev/s2` (281959d); hypothesis met: 1.07 before the boss, 0.91 in the boss fight (the port 0.40) | `dev/s2` |
 | D-073 | A modifier an evolution refuses leaves its socket and comes back as a reroll | RULE | accepted; asked for by D-070; amends D-070 ruling 11; the job is on `dev/s2`, landed last of the four | `dev/s2` |
 | D-074 | A Pulse Wall volley keeps its rounds and opens the source's disc | RULE | accepted; replaces D-070; `[invented]`; the job is on `dev/s2` | `dev/s2` |
 | D-075 | A measuring arm for the bot: it holds its crowd at the carried weapon's reach | SYSTEM | accepted; a method decision after D-071's miss; `dev/s2` only, off by default; the job follows the readings of D-074 and D-072 | `dev/s2` |
