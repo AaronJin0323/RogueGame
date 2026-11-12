@@ -45,7 +45,7 @@ HUD_MASKS = ((0.0, 0.0, 1.0, 0.13), (0.0, 0.77, 0.23, 1.0))
 #   hues, sat, val   the display colour's hue ranges in degrees, saturation range and value range
 #   tone             the percentile of its pixels' luminance that stands for it
 #   second_tone      dual-tone (R-PRE-05): the other tone that may carry a ground, and the keys that find it
-# Pixel sizes are bound to the frame: 1280x720 at C.ARENA.CAMERA_FRAME_RADIUS_UU 1500 (D-036), 0.24 px per uu at the hero. A frame
+# Pixel sizes are bound to the frame: 1280x720 at C.ARENA.CAMERA_FRAME_RADIUS_UU 1258.2 aimed C.ARENA.CAMERA_AIM_SHIFT_UU 140.6 toward the camera (D-080), 0.28 px per uu at the hero (0.24 at D-036's 1500, where the limits below were set). A frame
 # radius move scales lengths by old / new and areas by its square; re-read them then (they were 3 and 4 to 200 at 2000).
 LIMITS = {
 	"telegraph": {
