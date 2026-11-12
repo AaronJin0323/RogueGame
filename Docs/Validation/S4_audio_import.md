@@ -32,6 +32,11 @@ The licence lint counts them: `LICENCE: PASS (114 file(s) against 22 row(s))`, a
 
 ## 2. The gate
 
+- The gate of record, on 232620b (`s4/audio-import` with `dev/s4` 01d6bb6 merged and `git lfs checkout` run): `GATE: PASS (232620b; 3 not run; mask FFFFF3FC)`, tests `597 run of 597 found, 0 failed, floor 597`, restart `276faf8e / 276faf8e`, meta `ba2a3ac8 / ba2a3ac8`, `TOOLS: PASS (416 tests)`, `LICENCE: PASS (114 file(s) against 22 row(s))`, `AUDIO: PASS (10 sounds: 0 heard, 10 delegated, 0 rejected, 0 not heard; 10 files, 58 tool tests; ...)`; build, shipping and devgame at 0 warnings; not run: pad, scope, mac. The commit after it is this note; the text steps were run on the final tip.
+- Before it, on 5264c35: `GATE: PASS (5264c35; 3 not run; mask FFFFF3FC)`, 597 of 597. Its smoke logs had no line that named the silence, so 232620b added one at the subsystem's start and one at its end, and the gate was run again.
+- Silence with the assets present, from that gate's `Saved\Logs\Smoke_combat_staged_en.log`: `LogDT: Audio: start: tool process; no engine sink; volume held at 0; 10 of 10 wave(s) resolved; duck mix found` and, at the run's end, `LogDT: Audio: end: asked 1, voices started 1, handed to the engine 0, missing 0`.
+- The five seed 9107 arms, each alone on 232620b, match `S4_p0.md` section 8 byte for byte: None `00e0d4ec` 44137 steps `b6a4878cb23adae7`; Random `51369747` 59380 `485ed85694ad5c92`; Steered:Forge:Hammer `e3293942` 57749 `b3cda2804c6a4664`; Steered:Storm:Tempest `b046559b` 60231 `cab7cae12d42f789`; Steered:Tide:Frost `def51848` 48598 `dc02a5d3f44c2d11`.
+
 ## 3. What is not verified
 
 - No voice has played aloud; the engine sink, the paused flag in play, the duck's class override and the volumes the engine plays are read only by the owner's first attended launch.
