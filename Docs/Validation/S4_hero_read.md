@@ -138,7 +138,7 @@ The game thread p95 with the zone on never reads higher than with it off (spread
 ## 9. Not verified
 
 - No person has looked, and nothing was seen in motion. Every figure is a held step of one seed.
-- The perf of the zone: §8 is a bound under heavy load. The scheduler's comparison against the base (`S4_perf_1080p.md`, "The clear zone against its base") found no cost beyond the spread, on one loaded evening: a comparison, not a record; no record with the zone exists yet.
+- The perf of the zone: §8 is a bound under heavy load. The scheduler's comparison against the base (`S4_perf_1080p.md`, "The clear zone against its base") found no cost beyond the spread, on one loaded evening: a comparison, not a record; no record with the zone exists yet. The bench (`S4_perf_1080p.md`, "The bench inside one game") puts the zone's cost at about 0.02 ms a frame at the round cap, in the per-round test of the two writers, and found the instance count not to be the cause.
 - Several heroes: the zone is built for each player's hero and a round is hidden only in its owner's zone; no scene has two heroes.
 - A round that hits an enemy touching the hero is never drawn: package E's spark is then the only sign; whether it reads as a hit is for the sitting.
 - The tool reads the hero at the frame's centre (the camera follows it); a frame where the camera stops at the arena's edge and the hero is off centre was not shot or read.
