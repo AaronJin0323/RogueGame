@@ -91,6 +91,8 @@ Decided on 2026-11-11, from the Mechanics session's drafts (`Validation/mechanic
 
 - **D-071, D-072** Two more weapon evolutions lose where the Pulse Wall did not: Blade Halo before the boss (eleven of fifteen bot runs die there) and Murmuration against the boss (it takes twice as long). For both, the earlier game's code plays differently from what was written here as a first guess: its blades all strike, faster and on a quicker orbit; its missiles hit at full strength, launch less often and may return to a target. Both take the earlier game's behaviour and numbers, each measured before the boss and against the boss, each taken out again if it misses. All ten evolutions differ from the earlier game somewhere; the other seven read well and are not touched until these three have been measured.
 
+- **D-073** When a weapon evolves, some of the modifiers you put on it may no longer fit. Until now they stayed in their sockets and did nothing for the rest of the run. Now each one leaves its socket, goes back into the pool, and gives you one reroll, and the card tells you which before you pick. That is what the earlier game did. It applies to evolutions only; the same question for a blessing's conversion in the first stage waits for session A, as planned.
+
 Decided earlier by the scheduler, in your classes, and shown to you only in `STATE.md`:
 - S2 started on `dev/s2` on 2026-10-31 with no record; S3 started on `dev/s3` (D-022); S4's first wave on `dev/s4` (D-043).
 - **D-013** The Patron pick at run start is not one of the 28 decisions. **D-015** Every run starts with the Pulse Rifle.

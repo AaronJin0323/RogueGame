@@ -74,3 +74,4 @@
 | D-070 | Pulse Wall is the source's disc: everything inside the ring is struck and pushed out | RULE | accepted; follows D-061 and D-067; closes D-020's open point; the job is on `dev/s2` | `dev/s2` |
 | D-071 | Blade Halo: every blade strikes what it touches, on the source's rhythm | RULE | accepted; the job is on `dev/s2`; may be built beside D-070 | `dev/s2` |
 | D-072 | Murmuration: a missile deals the row's damage and launches on the source's cooldown | RULE | accepted; the job is on `dev/s2`, after D-071 | `dev/s2` |
+| D-073 | A modifier an evolution refuses leaves its socket and comes back as a reroll | RULE | accepted; asked for by D-070; amends D-070 ruling 11; the job is on `dev/s2`, landed last of the four | `dev/s2` |
