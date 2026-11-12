@@ -17,6 +17,7 @@ Last line: AUDIOTESTS: PASS|FAIL (<n> tests, <s> s). Exit 0 / 1.
 """
 
 import contextlib
+import csv
 import hashlib
 import io
 import json
@@ -521,6 +522,18 @@ class Catalog(unittest.TestCase):
 		floor = dtconst.load()["AUD.WARN_MIN_INTERVAL_MS"]["value"]
 		self.assertEqual(warn, {k: floor for k in warn})
 
+	def test_every_weapon_has_its_fire_row_and_every_fire_row_its_weapon(self):
+		# R-AUD-07, the fire observer (Audio/Observe/DTObserveFire): Weapon.<Name> sounds as Snd.Fire.<Name>, matched by name, both ways.
+		rows, errors = B.read_catalog()
+		self.assertEqual(errors, [])
+		fire = {r["id"][len("Snd.Fire."):] for r in rows if r["family"] == "Fire"}
+		self.assertTrue(all(r["id"].startswith("Snd.Fire.") for r in rows if r["family"] == "Fire"))
+		with open(os.path.join(B.ROOT, "Docs", "09_Catalog", "weapons.csv"), encoding="utf-8", newline="") as f:
+			weapons = {line["id"][len("Weapon."):] for line in csv.DictReader(f) if line["id"].startswith("Weapon.")}
+		self.assertEqual(len(weapons), 10, weapons)
+		self.assertEqual(sorted(weapons - fire), [], "a weapon with no fire row")
+		self.assertEqual(sorted(fire - weapons), [], "a fire row with no weapon")
+
 	def test_a_family_with_no_licence_row_fails(self):
 		text, _ = Tree([ROW, WARN], licences=("Content/DT/Audio/SFX/SW_Kill_*",)).check()
 		self.assertIn("family Danger has no audio row in licenses.csv", text)
@@ -1017,6 +1030,184 @@ class Mix(unittest.TestCase):
 		self.assertIn("Snd.Hero.Faint: audibility", errors[0])
 		self.assertIn("under C.AUD.HEARTBEAT_SMR_MIN_DB", errors[0])
 
+	def test_the_heartbeat_is_read_under_the_hold_not_the_duck(self):
+		# R-AUD-12, R-AUD-18: the heartbeat adds no duck of its own; the mix stands C.AUD.LOWHP_HOLD_DB lower while it sounds.
+		beat, ping_cue = cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low"), cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")
+		k = self.keys
+		self.assertIn("AUD.LOWHP_HOLD_DB", X.KEYS_READ)
+		self.assertLess(k["AUD.LOWHP_HOLD_DB"], 0)
+		cr, _ = self.judged([beat, ping_cue])
+		low = X.low_mask_of(k, self.dense, MIX_SKIP)
+		self.assertEqual(low, X.mix_of(self.dense["parts"], low_db=k["AUD.LOWHP_LOWEND_DUCK_DB"], gain_db=k["AUD.LOWHP_HOLD_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):])
+		self.assertAlmostEqual(cr[0]["smr"], M.audibility(beat.played(0), low, *M.LOWZONE)[0], places=9)
+		self.assertAlmostEqual(cr[0]["smr_no_duck"], cr[0]["smr"] + k["AUD.LOWHP_HOLD_DB"], places=9)   # the hold taken off
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(cr[0]["peak_dbfs"], X.peak_on_top(low, beat.played(0), step), places=9)  # its peak on top: the held mix too
+		deeper_duck = dict(k, **{"AUD.DUCK_DB": k["AUD.DUCK_DB"] - 10})
+		cd, _ = self.judged([beat, ping_cue], keys=deeper_duck)
+		self.assertAlmostEqual(cd[0]["smr"], cr[0]["smr"], places=9)                      # the duck's depth does not move the heartbeat ...
+		self.assertAlmostEqual(cd[1]["smr"], cr[1]["smr"] + 10, places=6)                 # ... and still moves a warning
+		deeper_hold = dict(k, **{"AUD.LOWHP_HOLD_DB": k["AUD.LOWHP_HOLD_DB"] - 3})
+		ch, _ = self.judged([beat, ping_cue], keys=deeper_hold)
+		self.assertAlmostEqual(ch[0]["smr"], cr[0]["smr"] + 3, places=6)                  # the hold's depth does
+		self.assertAlmostEqual(ch[0]["smr_no_duck"], cr[0]["smr_no_duck"], places=6)      # and nothing lowered is the same reading
+		self.assertAlmostEqual(ch[1]["smr"], cr[1]["smr"], places=9)
+		faint = dict(k, **{"AUD.LOWHP_HOLD_DB": 0})                                       # no hold at all: the error names the hold
+		_, ef = self.judged([cue("Snd.Hero.Faint", thump(THUMP_LEVEL * X.db_gain(-30.0)), "low")], keys=faint)
+		self.assertTrue([e for e in ef if "Snd.Hero.Faint: audibility" in e and "held down by C.AUD.LOWHP_HOLD_DB" in e], ef)
+
+	def test_pairs_that_start_together_are_read_and_counted_and_never_an_error(self):
+		# R-AUD-04, R-AUD-18: two danger cues asked in one step start in one frame. Test cues as data: a click of 0.5 alone sits 6 dB under
+		# full scale, two of them together reach it; the hurt and the fall never start together.
+		def click(level, n=2400):
+			return [0.0] * 100 + [level] + [0.0] * n
+		k = self.keys
+		a = X.Source("Snd.Warn.ClickA", [click(0.1), click(0.5)], 1.0, side="danger", zone="warn", family="Warn")   # its loudest file is the second
+		b = X.Source("Snd.Warn.ClickB", [click(0.5)], 1.0, side="danger", zone="warn", family="Warn")
+		hurt = X.Source("Snd.Danger.HeroHurt", [click(0.2)], 1.0, side="danger", family="Danger")
+		down = X.Source("Snd.Danger.HeroDown", [click(0.2, 4800)], 1.0, side="danger", family="Danger")
+		cues = [a, b, hurt, down]
+		pairs = X.pair_readings(k, self.dense, cues, MIX_SKIP)
+		names = sorted(tuple(sorted((p["a"], p["b"]))) for p in pairs)
+		self.assertEqual(len(pairs), 5)                                                   # six pairs of four, less the hurt with the fall
+		self.assertNotIn(("Snd.Danger.HeroDown", "Snd.Danger.HeroHurt"), names)
+		ab = next(p for p in pairs if {p["a"], p["b"]} == {"Snd.Warn.ClickA", "Snd.Warn.ClickB"})
+		self.assertAlmostEqual(ab["bare_dbfs"], X.to_db(1.0), places=9)                  # each at its loudest file, on the same sample
+		mask = X.mix_of(self.dense["parts"], gain_db=k["AUD.DUCK_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):]
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(ab["mix_dbfs"], X.peak_on_top(mask, X._together(click(0.5), click(0.5)), step), places=9)
+		counts = X.pair_counts(k, pairs)
+		self.assertGreater(ab["bare_dbfs"], k["AUD.LIMIT_DBFS"])
+		self.assertEqual(counts["pairs"], 5)
+		self.assertEqual(counts["over_bare"], sum(1 for p in pairs if p["bare_dbfs"] > k["AUD.LIMIT_DBFS"]))
+		self.assertGreaterEqual(counts["over_bare"], 1)
+		self.assertEqual({counts["worst_bare"]["a"], counts["worst_bare"]["b"]}, {"Snd.Warn.ClickA", "Snd.Warn.ClickB"})
+		self.assertEqual(counts["worst_mix"], max(pairs, key=lambda p: p["mix_dbfs"]))
+		line = X.pair_text(counts)
+		self.assertTrue(line.startswith(f"pairs: 5 read; over C.AUD.LIMIT_DBFS {k['AUD.LIMIT_DBFS']}: {counts['over_bare']} bare, {counts['over_mix']} on the mix; "), line)
+		self.assertIn("(the limiter's, never an error)", line)
+		# Each cue alone stays under the line on the mix: no error. The pair over it is printed and counted, and is not one either.
+		cr, errors = self.judged(cues)
+		self.assertTrue(all(c["peak_dbfs"] <= k["AUD.LIMIT_DBFS"] for c in cr), cr)
+		self.assertEqual([e for e in errors if "peaks at" in e], [])
+		result, _ = self.counted_run(k, list(X.ROLES), cues)                             # stand-ins named: the crest stays out of it
+		self.assertEqual(len(result["pairs"]), 5)
+		self.assertEqual(result["pair_counts"]["over_bare"], counts["over_bare"])
+		self.assertFalse([e for e in result["errors"] if "ClickA" in e and "ClickB" in e], result["errors"])
+		lines = X.table(result)
+		self.assertIn(X.pair_text(result["pair_counts"]), lines)
+		self.assertTrue([ln for ln in lines if ln.startswith("Snd.Warn.ClickA + Snd.Warn.ClickB") or ln.startswith("Snd.Warn.ClickB + Snd.Warn.ClickA")], lines)
+		self.assertIn("pairs: none read (fewer than two danger cues that can start together)", X.table(self.counted_run(k, list(X.ROLES), [a])[0]))
+
+	def test_a_row_with_an_aggregation_gain_is_read_at_the_cap(self):
+		# R-AUD-06, R-AUD-18: a batch can lift a row with an aggregation gain to C.AUD.AGGREGATE_MAX; its loudness and its peak on top, and
+		# the pairs, read it there; its audibility stays the count of one.
+		k = self.keys
+		plain = cue("Snd.Danger.Pop", ping(PING_LEVEL), "warn", "Danger")
+		batched = X.Source("Snd.Danger.Pops", [ping(PING_LEVEL)], 1.0, agg_gain=0.25, side="danger", zone="warn", family="Danger")
+		cr, _ = self.judged([plain, batched])
+		cap = X.to_db(k["AUD.AGGREGATE_MAX"])
+		self.assertEqual(cr[0]["agg_db"], 0.0)
+		self.assertAlmostEqual(cr[1]["agg_db"], cap, places=9)
+		self.assertAlmostEqual(cr[1]["smr"], cr[0]["smr"], places=9)                       # audibility at a count of one
+		self.assertAlmostEqual(cr[1]["lk_max"], cr[0]["lk_max"] + cap, places=6)           # loudness at the cap
+		mask = X.mix_of(self.dense["parts"], gain_db=k["AUD.DUCK_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):]
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(cr[1]["peak_dbfs"], X.peak_on_top(mask, batched.played(0, cap), step), places=9)
+		pair = X.pair_readings(k, self.dense, [plain, batched], MIX_SKIP)[0]
+		self.assertAlmostEqual(pair["bare_dbfs"], X.peak_db(X._together(plain.played(0), batched.played(0, cap))), places=9)
+
+	def test_the_fire_is_the_fullest_build_of_the_loudest_rows_at_the_cap(self):
+		# Test rows as data: a weapons table with a fast orbiter, a spiral and slow weapons; fire rows told apart by their played level.
+		k = dict(self.keys, **{"AUD.FIRE_DENSE_VOICES_PER_S": 6, "WEAPON.SLOTS": 2})
+		path = os.path.join(SAVED, "weapons_fixture.csv")
+		with open(path, "w", encoding="utf-8", newline="") as f:
+			f.write("id,pattern,level,count,cooldown_s\n"
+				"Weapon.Slow,Aimed,1,1,2.0\nWeapon.Slow,Aimed,2,1,0.5\n"       # the last level counts: two a second
+				"Weapon.Drones,Orbiter,1,4,0.4\n"                               # four drones in turn: ten a second
+				"Weapon.Spiral,Spiral,1,3,0.05\n"                               # twenty a second
+				"Weapon.Mid,Aimed,1,2,0.25\n")                                  # four a second
+		cad = dict(X.weapon_cadences(path))
+		self.assertEqual(sorted(cad), ["Drones", "Mid", "Slow", "Spiral"])
+		self.assertAlmostEqual(cad["Slow"], 2.0)
+		self.assertAlmostEqual(cad["Drones"], 10.0)
+		self.assertAlmostEqual(cad["Spiral"], 20.0)
+		self.assertAlmostEqual(cad["Mid"], 4.0)
+		self.assertEqual(X.fire_voices(k, 2.0), 2.0)                     # slower than the cap: every firing
+		self.assertEqual(X.fire_voices(k, 7.0), 6.0)                     # at any rate past it, the cap (R-AUD-07)
+		self.assertEqual(X.fire_voices(k, 20.0), 6.0)
+		tone = dtsynth.osc(0.2, dtsynth.hz("A4"))
+		volume = {"Slow": 0.1, "Drones": 0.4, "Spiral": 0.2, "Mid": 0.3}
+		src = {n: X.Source(f"Snd.Fire.{n}", [tone], volume[n]) for n in cad}
+		weapons = [(src[n], n, cad[n]) for n in ("Slow", "Drones", "Spiral", "Mid")]
+		sources, rates, plan = X.fire_plan(k, weapons)
+		self.assertEqual([s.label for s in sources], ["Snd.Fire.Drones", "Snd.Fire.Mid"])     # C.WEAPON.SLOTS of them, the loudest first
+		self.assertEqual(rates, [6.0, 6.0])                                                   # each at the cap, whatever its own rate
+		self.assertAlmostEqual(plan["voices_per_s"], 12.0)
+		self.assertEqual([w[0] for w in plan["weapons"]], ["Drones", "Mid"])
+		self.assertEqual([w[2] for w in plan["weapons"]], [cad["Drones"], cad["Mid"]])       # its own cadence printed beside
+		self.assertIn("the fullest build: 2 weapons (C.WEAPON.SLOTS)", plan["case"])
+		self.assertGreater(X.played_level(src["Drones"]), X.played_level(src["Mid"]))
+		# The tiers fire the first weapons of the plan, at most all of it.
+		k4 = dict(k, **{"WEAPON.SLOTS": 4})
+		sources, rates, plan = X.fire_plan(k4, weapons)
+		self.assertEqual([s.label for s in sources], ["Snd.Fire.Drones", "Snd.Fire.Mid", "Snd.Fire.Spiral", "Snd.Fire.Slow"])
+		roles = dict(self.roles, fire=sources, fire_rates=rates)
+		self.assertEqual([len([s for s in X.tier_streams(k4, roles, kps, n) if s.source in sources]) for kps, n in zip(X.TIERS, X.WEAPONS_FIRING)],
+			[min(n, 4) for n in X.WEAPONS_FIRING])
+		self.assertEqual([s.rate for s in X.tier_streams(k4, roles, X.TIERS[0], 3)][:3], [6.0, 6.0, 6.0])
+		# On the real catalogs: every weapon of weapons.csv has a cadence, and the stand-ins play them.
+		real = X.weapon_cadences()
+		self.assertEqual(len(real), 10)
+		self.assertEqual(len(self.roles["fire"]), len(self.roles["fire_rates"]))
+		self.assertGreater(self.roles["fire_plan"]["voices_per_s"], 0.0)
+		self.assertIn(os.path.basename(X.WEAPONS_CSV), [os.path.basename(p) for p in X.FIRE_CATALOGS])
+		with self.assertRaises(ValueError):                              # a Fire row with no weapon is named, never guessed
+			X.player_roles([dict(ROW, id="Snd.Fire.Nothing", family="Fire", valid=True)], lambda row: [[0.0, 0.1, 0.0]], X.standins(B.Snapshot(B.RECIPES)), k)
+
+	def test_the_heartbeat_is_judged_on_its_median_and_its_least_seed_of_the_flood(self):
+		beat = cue("Snd.Hero.Beat", thump(THUMP_LEVEL), "low")
+		result, renders = self.counted_run(self.keys, list(X.ROLES), [beat])
+		c = result["cues"][0]
+		self.assertEqual(len(c["smr_seeds"]), X.CREST_SEEDS)
+		self.assertEqual(c["smr"], X.crest_median(c["smr_seeds"]))                          # the median, against C.AUD.HEARTBEAT_SMR_MIN_DB
+		self.assertEqual(c["smr_least"], min(c["smr_seeds"]))                               # the least draw, against C.AUD.WARN_OVER_MIX_MIN_DB
+		self.assertAlmostEqual(c["smr_no_duck"], c["smr"] + self.keys["AUD.LOWHP_HOLD_DB"], places=9)
+		self.assertAlmostEqual(c["smr_least_no_duck"], c["smr_least"] + self.keys["AUD.LOWHP_HOLD_DB"], places=9)
+		first, _ = X.cue_readings(self.keys, X.render_tiers(self.keys, self.roles, MIX_SECONDS, tiers=(X.FLOOD_KPS,))[0], [beat], None, MIX_SKIP)
+		self.assertAlmostEqual(c["smr_seeds"][0], first[0]["smr"], places=9)              # the run's own draw first
+		self.assertEqual(renders, len(X.TIERS) + X.CREST_SEEDS - 1)                         # the flood tier's extra seeds only
+		self.assertTrue([ln for ln in X.table(result) if ln.startswith("  Snd.Hero.Beat per seed: ")])
+		# With no stand-in the crest reads the same seeds: drawn once for both.
+		_, both = self.counted_run(self.keys, [], [beat])
+		layered = [t for t in result["tiers"] if t["layer_on"]]
+		self.assertEqual(both, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
+
+	def test_the_heartbeat_has_two_lines_median_and_least(self):
+		# Readings as data: passes both; fails the median only; fails the least only. Each error names its key and its figure.
+		k = self.keys
+		floor, warn = k["AUD.HEARTBEAT_SMR_MIN_DB"], k["AUD.WARN_OVER_MIX_MIN_DB"]
+		hold = k["AUD.LOWHP_HOLD_DB"]
+
+		def reading(seeds):
+			r = {"id": "Snd.Hero.Beat", "zone": "low", "family": "", "peak_dbfs": -20.0, "smr_seeds": list(seeds)}
+			r["smr"], r["smr_least"] = X.crest_median(seeds), min(seeds)
+			r["smr_no_duck"], r["smr_least_no_duck"] = r["smr"] + hold, r["smr_least"] + hold
+			return r
+		both = reading([floor + 1, floor + 2, floor + 1.5, warn + 1, floor + 3])
+		self.assertEqual(X.judge(k, [], [both], None), [])
+		median = reading([floor - 1, floor - 0.5, floor - 2, warn + 0.5, floor + 4])          # its median under 9, its least over 6
+		e = X.judge(k, [], [median], None)
+		self.assertEqual(len(e), 1, e)
+		self.assertIn(f"audibility {median['smr']:.1f} dB (the median of 5 seeds)", e[0])
+		self.assertIn(f"under C.AUD.HEARTBEAT_SMR_MIN_DB {floor}", e[0])
+		least = reading([floor + 1, floor + 1, floor + 1, warn - 1, floor + 2])               # its median over 9, its least under 6
+		e = X.judge(k, [], [least], None)
+		self.assertEqual(len(e), 1, e)
+		self.assertIn(f"audibility {warn - 1:.1f} dB on its least of 5 seeds", e[0])
+		self.assertIn(f"under C.AUD.WARN_OVER_MIX_MIN_DB {warn}, the floor a warning must clear", e[0])
+		self.assertIn("AUD.WARN_OVER_MIX_MIN_DB", X.KEYS_READ)
+
 	def test_the_mix_raised_12_db_fails_the_peak(self):
 		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]
 		self.assertFalse([e for e in self.judged(cues)[1] if "peaks at" in e])
@@ -1057,7 +1248,7 @@ class Mix(unittest.TestCase):
 		self.assertIn("loudness rises", errors[0])
 		self.assertIn("C.AUD.DENSITY_RISE_MAX_DB", errors[0])
 
-	def counted_run(self, keys, used):
+	def counted_run(self, keys, used, cues=()):
 		"""mix_model.run on the short render, counting every tier render (the run's own and the crest's extra seeds)."""
 		calls = []
 		real = X.render
@@ -1067,7 +1258,7 @@ class Mix(unittest.TestCase):
 			return real(*a, **k)
 		X.render = counting
 		try:
-			result = X.run(keys, self.roles, [], used, MIX_SECONDS, MIX_SKIP)
+			result = X.run(keys, self.roles, list(cues), used, MIX_SECONDS, MIX_SKIP)
 		finally:
 			X.render = real
 		return result, len(calls)
@@ -1093,8 +1284,14 @@ class Mix(unittest.TestCase):
 		self.assertEqual([t["kps"] for t in layered], [k for k in X.TIERS if k >= self.keys["PRE.DENSITY_LOD_KILLS_PER_S"]])
 		self.assertEqual(renders, len(X.TIERS) + len(layered) * (X.CREST_SEEDS - 1))
 		crest = [e for e in result["errors"] if "C.AUD.MIX_CREST_MAX_DB" in e]
-		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {t['kps']}" for t in layered], result["errors"])
+		self.assertEqual([e.split(" kills/s")[0] for e in crest], [f"mix at {X.FLOOD_KPS}"], result["errors"])   # judged on the flood tier only
 		self.assertTrue(all(f"the median of {X.CREST_SEEDS} seeds" in e for e in crest))
+		self.assertEqual([t["kps"] for t in layered if t["crest_judged"]], [X.FLOOD_KPS])
+		self.assertTrue(all("crest_median" in t for t in layered))                   # the other bedded tiers' medians are printed
+		lines = X.table(result)
+		for t in layered:
+			mark = "*" if t["kps"] == X.FLOOD_KPS else " "
+			self.assertTrue([ln for ln in lines if ln.startswith(f"{t['kps']:4d}/s") and f"{t['crest_median']:6.1f}{mark}" in ln], (t, lines))
 		sparse = [t for t in result["tiers"] if not t["layer_on"]]
 		self.assertTrue(sparse and not any(t["crest_judged"] for t in sparse))   # a tier with no layer is still not judged
 		for t in layered:
@@ -1154,7 +1351,9 @@ class Mix(unittest.TestCase):
 			for _, src, _, semis, _ in s["starts"]:
 				self.assertIn(semis, X.DEGREES[src.note] if src.pitch == "key" else (0,))
 			dropped += s["dropped"]
-		self.assertGreater(dropped, 0)                   # the densest tiers bind the start cap: the reading is the worst case
+		# The fire at the weapons' own cadences need not bind the start cap (the old model's every weapon at six a second did): drops are
+		# counted, not required.
+		self.assertGreaterEqual(dropped, 0)
 
 	def test_the_step_reads_the_mix_and_caches_it(self):
 		tree = Tree([PING_ROW], licences=("Content/DT/Audio/SFX/SW_Warn_*",), extra={"cues.py": CUE_RECIPES, "world.py": recipe_text("world.py"),
@@ -1201,6 +1400,7 @@ class Mix(unittest.TestCase):
 		base = X.cache_key(snap, tree.paths, self.keys, files)
 		self.assertEqual(X.cache_key(B.Snapshot(tree.paths.recipes), tree.paths, dict(self.keys), dict(files)), base)
 		changed = [X.cache_key(snap, tree.paths, dict(self.keys, **{"AUD.DUCK_DB": -7}), files), X.cache_key(snap, tree.paths, self.keys, {"SW_Warn_Ping": {"sha256": "b"}}),
+			X.cache_key(snap, tree.paths, dict(self.keys, **{"AUD.LOWHP_HOLD_DB": self.keys["AUD.LOWHP_HOLD_DB"] - 1}), files),
 			X.cache_key(snap, tree.paths, self.keys, files, "seconds")]
 		for name in ("catalog", "manifest"):
 			path = getattr(tree.paths, name)

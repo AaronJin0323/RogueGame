@@ -302,7 +302,7 @@ telemetry:
   TEL.HERO_POS_INTERVAL_S:     { value: 2.5,  unit: s,     tag: CORE,       dependents: [02_Systems/telemetry.md, Telemetry/DTTelemetryCore, T-TEL-10] }
   TEL.POWER_CHECK_LEVEL:       { value: 16,   unit: level, tag: CORE,       dependents: [Tools/probe.py, Tools/power_split.py, C.POWER.KEEPER_SHARE_L16, T-KEE-18] }
 caps:
-  GATE.TEST_FLOOR:             { value: 601,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1, Tools/RunTests.ps1] }
+  GATE.TEST_FLOOR:             { value: 603,   unit: n,     tag: CORE, dependents: [11_Quality.md, Tools/Gate.ps1, Tools/RunTests.ps1] }
   GATED.DEBT_MAX:              { value: 5,    unit: n,     tag: CORE, dependents: [Harness/H03] }
   SPEC.LINES_MAX:              { value: 300,  unit: lines, tag: CORE, dependents: [lint] }
   STATE.LINES_MAX:             { value: 100,  unit: lines, tag: CORE, dependents: [STATE.md] }
@@ -601,7 +601,6 @@ audio:
   AUD.VOICES_UI:                 { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.PLAYER_STARTS_PER_S_MAX:   { value: 60, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.STARTS_PER_FRAME_MAX:      { value: 4, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, R-AUD-21, T-AUD-07] }
-  AUD.FIRE_DENSE_SHOTS_PER_S:    { value: 8, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.FIRE_DENSE_VOICES_PER_S:   { value: 6, unit: per_s, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-07, T-AUD-07] }
   AUD.AGGREGATE_MAX:             { value: 1.6, unit: ratio, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-06, T-AUD-06] }
   AUD.SCAN_MAX:                  { value: 64, unit: n, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-02, T-AUD-02] }
@@ -623,3 +622,4 @@ audio:
   AUD.LADDER_SEMIS_MAX:          { value: 12, unit: semitones, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-15, T-AUD-15, Tools/audio/audio_check.py] }
   AUD.LOOP_SEAM_LEVEL_MAX_DB:    { value: 3, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-16, T-AUD-16, Tools/audio/audio_check.py] }
   AUD.LEVEL_JITTER_DB:           { value: 1, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-10, T-AUD-10, Audio/DTAudioScheduler] }
+  AUD.LOWHP_HOLD_DB:             { value: -4, unit: dB, tag: GATED(S4), dependents: [02_Systems/audio.md, R-AUD-12, T-AUD-12, Audio/Observe/DTObserveDanger, Tools/audio/mix_model.py] }

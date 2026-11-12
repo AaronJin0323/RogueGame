@@ -89,6 +89,7 @@ private:
 		FDTAudioScheduler* Scheduler = nullptr;
 		virtual void Run(int32 Sound, int32 Count, int64 Step, bool bNoDuck) override { Scheduler->Request(Sound, Count, Step, bNoDuck); }
 		virtual void Ui(int32 Sound, int32 Count) override { Scheduler->RequestUi(Sound, Count); }
+		virtual void Merged(int32 Sound, int32 Count) override { Scheduler->CountMerged(Sound, Count); }
 		virtual void HeldDuck(float Db) override { Scheduler->SetHeldDuckDb(Db); }
 	};
 

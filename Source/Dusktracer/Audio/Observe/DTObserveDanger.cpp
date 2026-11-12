@@ -12,9 +12,10 @@ namespace DTObserveDangerLocal
 #if !UE_BUILD_SHIPPING
 	static TAutoConsoleVariable<float> CVarLowHpHoldDb(
 		TEXT("dt.Audio.LowHpHoldDb"),
-		0.0f,
-		TEXT("Audio, the heartbeat's form for the owner's hearing (not in Shipping): 0 = each beat ducks the player's side as any danger voice does; ")
-		TEXT("below 0 = the player's side is held this many dB down for as long as health is low, the heartbeat riding on it without its own duck. Try -4."));
+		static_cast<float>(DTConst::AUD_LOWHP_HOLD_DB),
+		TEXT("Audio, the heartbeat's form (not in Shipping, where C.AUD.LOWHP_HOLD_DB holds): below 0 (the default, the key) = the player's side is held ")
+		TEXT("this many dB down for as long as health is low, the heartbeat riding on it without its own duck (form b); 0 = each beat ducks the player's ")
+		TEXT("side as any danger voice does (form a)."));
 #endif
 	constexpr int32 LocalOwner = 0; // the solo player, whose HP block the HUD draws
 }
@@ -61,7 +62,7 @@ namespace DTDangerEvents
 #if !UE_BUILD_SHIPPING
 		return FMath::Min(0.0f, DTObserveDangerLocal::CVarLowHpHoldDb.GetValueOnGameThread());
 #else
-		return 0.0f; // form a: in Shipping the variable does not exist
+		return FMath::Min(0.0f, static_cast<float>(DTConst::AUD_LOWHP_HOLD_DB)); // form b, the game's (R-AUD-12): in Shipping the variable does not exist
 #endif
 	}
 }

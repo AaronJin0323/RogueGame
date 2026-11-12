@@ -20,8 +20,9 @@
  *    C.AUD.DUCK_ATTACK_MS and comes back over C.AUD.DUCK_RELEASE_MS, linear in dB, on real time;
  *  - variation (R-AUD-10): variants in turn (round robin, so never the same file twice running); a `key` row draws a degree of
  *    C.AUD.KEY_SEMIS_MAX's key and a level within C.AUD.LEVEL_JITTER_DB from the scheduler's own stream; `fixed` never varies.
- * Seams left for later families (no behaviour yet): `ladder` pitch plays as written; the density layers (R-AUD-08), fire
- * density (R-AUD-07's shots per second) and the heartbeat (R-AUD-12) add their rules in Frame's resolve step.
+ * Seams left for later families (no behaviour yet): `ladder` pitch plays as written; the density layers (R-AUD-08) add their rule
+ * in Frame's resolve step. Fire density (R-AUD-07's shots per second) is the fire observer's (Audio/Observe/DTObserveFire), which
+ * counts what it withholds through CountMerged; the heartbeat's hold (R-AUD-12) is SetHeldDuckDb.
  */
 class DUSKTRACER_API FDTAudioScheduler
 {
@@ -36,6 +37,9 @@ public:
 
 	/** A run sound: Count events of Sound at sim step Step (an observer calls it at OnStepEnd). */
 	void Request(int32 Sound, int32 Count, int64 Step, bool bNoDuck = false);
+	/** Count events of Sound an observer withheld before asking (the fire density of R-AUD-07): counted as asked and as merged into the
+	 *  voice that sounds, so Asked = Played + Merged + Dropped still holds (R-AUD-20). Nothing is scheduled. */
+	void CountMerged(int32 Sound, int32 Count);
 	/** The held lowering of the Player group (dt.Audio.LowHpHoldDb), taken at the next Frame: Db < 0 holds that deep, 0 ends it. */
 	void SetHeldDuckDb(float Db) { PendingHeldDb = Db; }
 	/** An interface sound: Count events now, on real time. */
