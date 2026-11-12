@@ -67,7 +67,7 @@
 | D-063 | A rarity mark only where it changes the card | RULE | accepted; the Reserve sentence now, the lift after session A | `main` |
 | D-064 | A fresh save opens one archetype for each S1 Keeper | RULE | applied on `dev/s3` (2f0d818); the bot measure is met (Keeper share 0.46 to 0.60); amended by D-069; the S3 session is open | `dev/s3` |
 | D-065 | A packaged Shipping game that crashes ends: no in-process minidump and no crash folder by default | BUG | applied (`s1/crash-exit`, R-PKG-16); the session A package is rebuilt with it | `main` |
-| D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; no sound of it merged yet | `dev/s4` |
+| D-066 | The game's sound is stone and bronze; the voices are the Six; the old machine is the Keep | RULE | applied on the owner's word (the choice was left to the scheduler); closes O-016; the interface family is merged as recipes (60c4f28), audible with the import job | `dev/s4` |
 | D-067 | Pulse Wall pushes out what its ring crosses | RULE | reverted by its own clause on 2026-11-12: hypothesis not met (nearest enemy 232 uu against 500, the build at 0.74 of its hold); nothing merged | `dev/s2` |
 | D-068 | The player's own fire is not drawn within 2.5 hero radii of the hero | RULE | applied on `dev/s4` (d09d4c9); the machine check is met; the owner's sitting is O-017; the perf reading of record is owed | `dev/s4` |
 | D-069 | The duos' door is earned by play: a run that holds six cards of two Keepers | RULE | applied on `dev/s3` with D-064 (2f0d818); its pool reading passes; the S3 session is open | `dev/s3` |
