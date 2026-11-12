@@ -8,6 +8,7 @@ import contextlib
 import csv
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -1073,26 +1074,146 @@ class ReforgeStage(unittest.TestCase):
 			probe.read_reforge(runs, lines)
 		return lines
 
+	def rows_of(self, lines):
+		return {line.split(" | ")[0].lstrip("| "): line for line in lines if line.startswith("| Evolve.") or line.startswith("| Transform.")}
+
 	def test_the_reader(self):
 		lines = self.read(10, 1.5, 1.1)
-		rows = {line.split(" | ")[0].lstrip("| "): line for line in lines if line.startswith("| Evolve.") or line.startswith("| Transform.")}
+		rows = self.rows_of(lines)
 		self.assertIn("| 10 | 1.50 |", rows["Evolve.RingEmitter"])
 		self.assertIn("in band", rows["Evolve.RingEmitter"])
 		self.assertIn("Transform.Storm (10 builds) | 1.10 | Transform.Tide (10 builds) | 1.40 |", rows["Evolve.RingEmitter"])
-		self.assertTrue(any(line.startswith("| RF-b1-none_s101 | 0 | 0.000 |") for line in lines), "every scene's kills against the ceiling")
 		self.assertIn("under", rows["Transform.Storm"])
 		self.assertIn(probe.FIELD_SENTENCE, lines)
-		self.assertEqual(lines[-1], "REFORGE: 3 card(s) read, 2 in band, 1 under, 0 over; 0 not read (fewer than 10 builds); printed, judged nowhere")
-		self.assertTrue(lines[-2].startswith("CEILING: under"), lines[-2])
+		self.assertIn("HEALTH: not calibrated (no series beside this stage): read at its own health, as D-082 read it", lines)
+		self.assertEqual(lines[-2], "REFORGE: the crowd's side at its health: 3 card(s) read, 2 in band, 1 under, 0 over, 0 split; 0 not read (fewer than 10 builds); "
+			"0 scene(s) over the 120 that stand (\"at least\"); printed, judged nowhere")
+		self.assertTrue(lines[-1].startswith("REFORGE: no card is said to be in band here: by D-085 item 9"), lines[-1])
+		self.assertFalse([line for line in lines if "SATURATED" in line or "CEILING" in line], "the flag of 160 leaves the stage")
 
 	def test_fewer_than_ten_builds_is_not_read(self):
 		lines = self.read(9, 2.0, 1.4)
 		self.assertTrue(any("| Evolve.RingEmitter | 9 | 2.00 |" in line and "NOT READ" in line for line in lines), lines)
-		self.assertEqual(lines[-1], "REFORGE: 0 card(s) read, 0 in band, 0 under, 0 over; 3 not read (fewer than 10 builds); printed, judged nowhere")
+		self.assertTrue(lines[-2].startswith("REFORGE: the crowd's side at its health: 0 card(s) read, 0 in band, 0 under, 0 over, 0 split; 3 not read"), lines[-2])
 
-	def test_a_scene_at_the_ceiling_saturates_the_stage(self):
-		lines = self.read(10, 1.5, 1.5, kills=probe.REFILL_CEILING_KILLS)
-		self.assertTrue(lines[-2].startswith(f"CEILING: SATURATED (most kills in one scene's window {probe.REFILL_CEILING_KILLS} of"), lines[-2])
+	def test_at_least_and_split(self):
+		row = lambda dmg, kills, base, most: {"dmg": {f"b{i}": dmg for i in range(10)}, "kills": {f"b{i}": kills for i in range(10)},
+			"base": {f"b{i}": base for i in range(10)}, "most": most}
+		reading = probe.card_reading(row(1.5, 1.6, 40, probe.FIELD + 1), 1.3, 1.8)
+		self.assertEqual((reading["at_least"], reading["verdict"], reading["kills"]), (True, "in band", 1.6), "a scene over the 120 that stand: at least")
+		self.assertEqual(probe.lift_text(reading["dmg"], reading["at_least"]), "at least 1.50")
+		self.assertFalse(probe.card_reading(row(1.5, 1.6, 40, probe.FIELD), 1.3, 1.8)["at_least"], "the 120 that stand are not more than the field")
+		self.assertEqual(probe.card_reading(row(1.5, 2.1, 40, 50), 1.3, 1.8)["verdict"], "split", "damage in band, kills over: said, not settled")
+		self.assertEqual(probe.card_reading(row(1.2, 1.4, 40, 50), 1.3, 1.8)["verdict"], "split")
+		quiet = probe.card_reading(row(1.5, 2.1, probe.KILLS_LIFT_MIN - 1, 50), 1.3, 1.8)
+		self.assertEqual((quiet["kills"], quiet["verdict"]), (None, "in band"), "under twenty no-pick kills the lift by kills is not printed and splits nothing")
+		stage = {f"b{i}": {"none": {1: (1000.0, 50)}, "Evolve.RingEmitter": {1: (1500.0, probe.FIELD + 10)}} for i in range(10)}
+		table, readings = probe.stage_table(stage, {}, 1.3, 1.8, judged=True)
+		self.assertEqual(table[2], "| Evolve.RingEmitter | 10 | at least 1.50 | 1.50 | 1.50 | at least 2.60 | 50 | split | - | - | - | - |",
+			"the card's scenes killed over the field: at least, by damage and by kills")
+		far, _ = probe.stage_table(stage, {}, 1.3, 1.8, judged=False)
+		self.assertNotIn("split", far[2], "the far stage says no side")
+
+	# --- D-085: the play rate, the series and the health -------------------------------------------------------------------------
+
+	@staticmethod
+	def play_run(folder, minute_kills, hand_t=572.6, offer=True):
+		os.makedirs(folder)
+		recs = [{"t": 0.0, "kind": "run_start", "owner": -1, "interval_s": 60.0}]
+		recs += [{"t": 60.0 * (i + 1), "kind": "sources", "owner": 0, "interval": i, "kills": {"Weapon.PulseRifle": k - 10, "Weapon.ArcBlade": 10}}
+			for i, k in enumerate(minute_kills)]
+		if offer:
+			recs.append({"t": hand_t, "kind": "offer", "owner": 0, "hand_kind": "Reforging", "cards": []})
+		with open(os.path.join(folder, "1.jsonl"), "w", encoding="utf-8") as f:
+			f.write("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in sorted(recs, key=lambda r: r["t"])))
+
+	def test_the_play_rate_from_run_files(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.play_run(os.path.join(root, "a"), [100] * 9 + [260, 300])  # the hand at 572.6 s is in the tenth minute, interval 9
+			self.play_run(os.path.join(root, "b"), [100] * 9 + [254])
+			self.play_run(os.path.join(root, "c"), [100] * 10, offer=False)
+			self.assertAlmostEqual(probe.hand_kills(os.path.join(root, "a")), 260 * 10 / 60)
+			self.assertIsNone(probe.hand_kills(os.path.join(root, "c")), "no Reforging hand, no minute")
+			rate, lowest, highest, read, missing = probe.play_rate([os.path.join(root, x) for x in "abc"])
+		self.assertEqual((round(rate, 3), round(lowest, 3), round(highest, 3), read, missing), (round(257 * 10 / 60, 3), round(254 / 6, 3), round(260 / 6, 3), 2, 1))
+
+	def test_the_interpolation(self):
+		medians = {5.0: 200.0, 10.0: 98.0, 20.0: 27.0, 40.0: 1.0}
+		health, br, note = probe.fix_health(medians, 43.2)
+		self.assertEqual((br, note), ((10.0, 98.0, 20.0, 27.0), None), "inside the bracket of 10x and 20x")
+		self.assertAlmostEqual(health, math.exp(math.log(10) + (math.log(43.2) - math.log(98)) / (math.log(27) - math.log(98)) * math.log(2)))
+		self.assertAlmostEqual(health, 15.53, places=2)
+		# the series does not bracket: one halving below, read; never extrapolated past it
+		low = {5.0: 30.0, 10.0: 20.0, 20.0: 10.0, 40.0: 5.0}
+		health, br, note = probe.fix_health({**low, 2.5: 80.0}, 43.2)
+		self.assertEqual((br[:2], note), ((2.5, 80.0), "the series extended by one halving to 2.5x"))
+		self.assertEqual(probe.fix_health(low, 43.2), (None, None, "the series does not bracket it and its halving to 2.5x was not read"))
+		self.assertEqual(probe.fix_health({**low, 2.5: 40.0}, 43.2)[2], "no two stages with kills bracket it, the series extended by one halving to 2.5x")
+		high = {5.0: 400.0, 10.0: 300.0, 20.0: 200.0, 40.0: 100.0}
+		self.assertEqual(probe.fix_health({**high, 80.0: 20.0}, 43.2)[2], "the series extended by one doubling to 80x")
+		self.assertEqual(probe.fix_health({5.0: 90.0, 10.0: 60.0, 20.0: 0.0, 40.0: 0.0}, 43.2)[0], None, "a stage that kills nothing has no logarithm")
+
+	def calibration(self, root, per_battery, play=(260, 260), stages=None):
+		"""A series folder: two batteries of play runs and their builds' no-pick scenes; per_battery {battery: {mult: kills}}."""
+		series = os.path.join(root, "rf", "series")
+		runs = os.path.join(series, "runs")
+		rows, n = [], 0
+		for (battery, kills_at), minute in zip(sorted(per_battery.items()), play):
+			for seed in range(1, 11):
+				n += 1
+				folder = os.path.join(root, "play", battery, f"Steered-Carry_s{seed}")
+				self.play_run(folder, [100] * 9 + [minute])
+				rows.append([f"b{n}", folder, "Storm", "Tide", ""])
+				for mult, kills in kills_at.items():
+					self.write_scene(runs, f"{probe.series_prefix(mult)}-b{n}-none", n * 100 + 1, 1000.0, kills)
+		with open(os.path.join(series, "builds.csv"), "w", encoding="utf-8", newline="") as f:
+			w = csv.writer(f)
+			w.writerow(["build", "folder", "patron", "second", "cards"])
+			w.writerows(rows)
+		lines = []
+		return probe.calibration_of([series], lines), lines
+
+	def test_once_for_a_reading_each_battery_beside_it_and_not_firm(self):
+		same = {5.0: 200, 10.0: 98, 20.0: 27, 40.0: 1, 160.0: 3, 320.0: 0}
+		with tempfile.TemporaryDirectory() as root:
+			cal, lines = self.calibration(root, {"holdA": same, "holdB": same})
+		self.assertEqual(cal["health"], 16.0)
+		self.assertTrue(any(line.startswith("HEALTH: 16x fixed (15.5 interpolated) where the no-pick median meets 43.3, between 10x (98) and 20x (27)") for line in lines), lines)
+		self.assertIn("HEALTH: each battery alone, printed and never used: holdA 16x (play 43.3); holdB 16x (play 43.3)", lines)
+		self.assertFalse([line for line in lines if "NOT FIRM" in line])
+		self.assertIn("FAR: bodies that do not die at 320x (no pick kills nothing in 20 scene(s)); printed and never judged", lines,
+			"160x still kills: doubled once")
+		tough = {5.0: 400, 10.0: 300, 20.0: 200, 40.0: 100, 80.0: 30}
+		with tempfile.TemporaryDirectory() as root:
+			cal, lines = self.calibration(root, {"holdA": same, "holdB": tough})
+		self.assertTrue(lines[2].startswith("HEALTH: 49x fixed (49.0 interpolated) where the no-pick median meets 43.3, between 40x (50.5) and 80x (30)"), lines[2])
+		self.assertTrue(lines[2].endswith("; the series extended by one doubling to 80x"), lines[2])
+		self.assertEqual(lines[3], "HEALTH: each battery alone, printed and never used: holdA 16x (play 43.3); holdB 65x (play 43.3)")
+		self.assertEqual(lines[4], "HEALTH: NOT FIRM (pooled 49x; more than one stage of the series (2 times) away: holdA 16x)")
+		self.assertEqual(cal["health"], 49.0, "NOT FIRM is said; the pooled health is still the one read")
+
+	def test_room_above_raises_the_health(self):
+		with tempfile.TemporaryDirectory() as root:
+			cal, lines = self.calibration(root, {"holdA": {5.0: 200, 10.0: 98, 20.0: 27, 40.0: 1}}, play=(480,))  # 80 a window, over 60
+		self.assertTrue(cal["room"])
+		self.assertEqual(cal["health"], float(math.ceil(cal["raw"])))
+		self.assertTrue(lines[2].endswith("the play rate 80.0 is over half the standing field (60 of 120), so the health is raised until the no-pick median is not over 60"), lines[2])
+		self.assertIn("meets 60.0, between 10x (98) and 20x (27)", lines[2])
+		self.assertIn("FAR: not found (no stage of 160x, 320x, 640x read with no kill in any no-pick scene)", lines)
+
+	def test_the_series_and_the_calibrated_stage_are_written(self):
+		with tempfile.TemporaryDirectory() as root:
+			self.snapshots(os.path.join(root, "carry"), "Steered-Storm-Tempest-Tide-Carry-RingEmitter", [1])
+			rf = os.path.join(root, "rf")
+			with contextlib.redirect_stdout(io.StringIO()):
+				probe.gen_series(rf, [os.path.join(root, "carry")], 1)
+			jobs = self.jobs(os.path.join(rf, "series"))
+			self.assertEqual(sorted(jobs), sorted(f"{probe.series_prefix(m)}-b1-none" for m in probe.SERIES + probe.SERIES_EXTEND + probe.FAR_SERIES))
+			self.assertIn("hp_scale ", jobs["RS5-b1-none"][1])
+			self.assertNotIn("reforge", jobs["RS5-b1-none"][1])
+			with contextlib.redirect_stdout(io.StringIO()):
+				self.assertEqual(probe.gen_calibrated(rf, [os.path.join(root, "carry")], 1), 1, "no series read: no health, no scene")
+			self.assertFalse(os.path.exists(os.path.join(rf, "jobs.csv")))
 
 	def test_s2exit_band_step(self):
 		with open(os.path.join(TOOLS, "S2Exit.ps1"), encoding="utf-8") as f:
@@ -1102,6 +1223,10 @@ class ReforgeStage(unittest.TestCase):
 		self.assertEqual(len(band), 3, band)
 		self.assertTrue(any('"-CarryHold"' in c for c in band) and any('"-DeclineReforge"' in c for c in band), band)
 		self.assertIn("& python -I $Probe reforge $Rf --builds (Join-Path $Band \"carry\") --path-builds", text)
+		self.assertIn("& python -I $Probe reforge-series $Rf --builds (Join-Path $Band \"carry\") --path-builds", text)
+		self.assertIn('(Join-Path $Out ("bots_" + $SkillList[0])) --calibrated', text, "the second pass reads the first's series")
+		self.assertIn('(Join-Path $Rf "series\\jobs.csv")', text)
+		self.assertIn('"^(PLAY|SERIES|HEALTH|REFORGE|FAR):|^The field reads"', text)
 		self.assertRegex(text, r'\$BandArm = "Steered:Storm:Tempest:Tide"')
 
 

@@ -69,8 +69,11 @@ if (-not $ReadOnly) {
 		Invoke-BotRuns ($CarryArgs + @("-Out", (Join-Path $Band "carry"))) $UnlockArgs
 		Invoke-BotRuns ($CarryArgs + @("-CarryHold", "-Out", (Join-Path $Band "hold"))) $UnlockArgs
 		Invoke-BotRuns ($CarryArgs + @("-DeclineReforge", "-Out", (Join-Path $Band "decline"))) $UnlockArgs
-		& python -I $Probe reforge $Rf --builds (Join-Path $Band "carry") --path-builds (Join-Path $Out ("bots_" + $SkillList[0]))
-		Invoke-BotRuns @("-Jobs", (Join-Path $Rf "jobs.csv"), "-Out", (Join-Path $Rf "runs")) $JobUnlockArgs
+		# D-085: the no-pick series first (<Out>\rf\series), then the fixed and far stages at the health it gives; none when it gives none.
+		& python -I $Probe reforge-series $Rf --builds (Join-Path $Band "carry") --path-builds (Join-Path $Out ("bots_" + $SkillList[0]))
+		Invoke-BotRuns @("-Jobs", (Join-Path $Rf "series\jobs.csv"), "-Out", (Join-Path $Rf "series\runs")) $JobUnlockArgs
+		& python -I $Probe reforge $Rf --builds (Join-Path $Band "carry") --path-builds (Join-Path $Out ("bots_" + $SkillList[0])) --calibrated
+		if ($LASTEXITCODE -eq 0) { Invoke-BotRuns @("-Jobs", (Join-Path $Rf "jobs.csv"), "-Out", (Join-Path $Rf "runs")) $JobUnlockArgs }
 	}
 }
 
@@ -78,6 +81,6 @@ if (-not $ReadOnly) {
 $Rc = $LASTEXITCODE
 if (-not $NoBand -and (Test-Path (Join-Path $Rf "runs"))) {
 	# D-082: printed, judged nowhere; the reader's own sentence of item 7 comes with it.
-	& python -I $Probe read $Rf | Select-String "^(REFORGE|CEILING):|^The field reads" | ForEach-Object { $_.Line }
+	& python -I $Probe read $Rf | Select-String "^(PLAY|SERIES|HEALTH|REFORGE|FAR):|^The field reads" | ForEach-Object { $_.Line }
 }
 exit $Rc
