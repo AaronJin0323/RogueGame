@@ -158,6 +158,20 @@ def read_telemetry(folder):
 	return pick, intervals
 
 
+def fitted_after(folder, weapon, pick_t):
+	"""Player 0's `modifier_socketed` records into this weapon at or after pick_t."""
+	files = glob.glob(os.path.join(glob.escape(folder), "*.jsonl"))
+	count = 0
+	if files and pick_t is not None:
+		with open(files[0], encoding="utf-8") as stream:
+			for line in stream:
+				if '"kind":"modifier_socketed"' in line:
+					record = json.loads(line)
+					if record.get("owner", 0) == 0 and record.get("weapon") == weapon and float(record["t"]) >= pick_t:
+						count += 1
+	return count
+
+
 def damage_read(intervals, pick_t, weapon):
 	"""Damage per minute of the carried weapon and of the whole build, before and after pick_t, whole intervals only.
 
@@ -206,6 +220,11 @@ def read_carry_run(folder, to_boss):
 	run["pick_t"] = float(pick["t"]) if pick else None
 	run["level"] = int(pick.get("weapon_level", 0)) if pick else 0
 	run["dormant"] = (pick or {}).get("dormant", "")
+	# D-073: what the pick handed back and the rerolls that gave (the `reforge` record), and how many of the freed sockets the carried weapon
+	# took a modifier into again before the run's end (its `modifier_socketed` records after the pick, at most one a freed socket).
+	run["handed_back"] = [m for m in str((pick or {}).get("handed_back", "") or "").split(";") if m]
+	run["rerolls_gained"] = int((pick or {}).get("rerolls_gained", 0) or 0)
+	run["refitted"] = min(len(run["handed_back"]), fitted_after(folder, weapon, run["pick_t"])) if pick else 0
 	run["damage"] = damage_read(intervals, run["pick_t"], weapon) if pick else {}
 	run["survived_s"] = run["end_s"] - run["pick_t"] if pick else None
 	return run
@@ -241,7 +260,11 @@ def carry_rows(runs):
 			"survived": median([r["survived_s"] for r in took]),
 			"zero": sum(r["damage"].get("after") == 0 for r in took), "missing": sum(r["outcome"] == "missing" for r in group), "timeouts": sum(r["outcome"] == "timeout" for r in group),
 			"faults": sum(r["fault_lines"] for r in group), "fault_kinds": sorted({f for r in group for f in r["faults"]}),
-			"dormant": collections.Counter(d for r in took for d in str(r["dormant"]).split(";") if d)})
+			"dormant": collections.Counter(d for r in took for d in str(r["dormant"]).split(";") if d),
+			"handed_back": collections.Counter(m for r in took for m in r["handed_back"]), "rerolls_gained": sum(r["rerolls_gained"] for r in took),
+			"freed": sum(len(r["handed_back"]) for r in took), "refitted": sum(r["refitted"] for r in took),
+			"dormant_runs": sum(1 for r in took if r["dormant"]), "unmatched": [r["seed"] for r in took if r["rerolls_gained"] != len(r["handed_back"])],
+			"per_run": [(r["seed"], r["handed_back"], r["rerolls_gained"], r["refitted"]) for r in sorted(took, key=lambda r: r["seed"]) if r["handed_back"] or r["rerolls_gained"]]})
 	return out
 
 
@@ -265,6 +288,11 @@ def print_carry(root, hold):
 			f"{h['reach']}, {h['wins']}, {number(h['dpm_after'])}, {number(h['all_after'])}, {number(h['hits_after'])}, {number(h['survived'])}" if h else "-", r["faults"])))
 		if r["dormant"]:
 			print("  dormant:", r["dormant"].most_common())
+		if r["freed"] or r["rerolls_gained"] or r["dormant_runs"]:
+			print(f"  handed back (D-073): {r['handed_back'].most_common()}; rerolls gained {r['rerolls_gained']} for {r['freed']} handed back; "
+				f"runs with a dormant socket at the pick {r['dormant_runs']}; runs whose rerolls differ {r['unmatched'] or 'none'}; freed sockets fitted again {r['refitted']} of {r['freed']}")
+			for seed, back, rerolls, refit in r["per_run"]:
+				print(f"    s{seed}: handed back {';'.join(back) or '-'}, rerolls {rerolls}, fitted again {refit}")
 		for line in r["fault_kinds"][:6]:
 			print("  fault:", line[:160])
 		if r["missing"] or r["timeouts"]:
