@@ -4027,7 +4027,7 @@ void FDTWeaponSim::ReactToImpact(const FDTSimContext& Context, FDTBulletPool* Bu
 		}
 		case DTCat::EFlag::Chain:
 		{
-			if (!bEnemyHit || NumEnemies == 0)
+			if (!bEnemyHit || NumEnemies == 0 || Impact.bRingStrike) // D-074 ruling 10: a ring's strike carries status, not the chain
 			{
 				break;
 			}

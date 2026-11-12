@@ -443,7 +443,8 @@ bool FDTReforgePulseWall::RunTest(const FString& Parameters)
 	const int32 Core = H.AddEnemy(FVector2f(0.0f, 60.0f));
 	H.StepOnce();
 	TestEqual(TEXT("one ring"), H.Weapons.GetLiveFields(), 1);
-	TestEqual(TEXT("no rounds"), H.Bullets.Num(), 0);
+	// D-074: the volley fires its rounds as the plain weapon does.
+	TestEqual(TEXT("the volley fires its rounds"), H.Bullets.Num(), FMath::Max(1, H.Weapons.GetLastSpec(0, 0).Count));
 	const FVector2f Before = H.Enemies.GetPositions()[Rim];
 	bool bPushed = false;
 	for (int32 Step = 0; Step < FMath::RoundToInt((DTReforge::Param(Row, TEXT("grow_s")) + 0.5f) / Dt); ++Step)
@@ -454,12 +455,15 @@ bool FDTReforgePulseWall::RunTest(const FString& Parameters)
 	TestEqual(TEXT("still one ring"), H.Weapons.GetLiveFields(), 1);
 	TestTrue(TEXT("the disc strikes the rim once the ring reaches it"), HitsOn(H, H.Enemies.GetSerials()[Rim]) > 0);
 	// One round's damage, per enemy: the Count and Cooldown of the weapon do not enter it (D-020).
-	const float Struck = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * DTReforge::Param(Row, TEXT("tick_s"));
+	// D-074: a hit is either a ring's strike, dps x Damage x tick_s, or one of the volley's rounds, Damage.
+	const float Round = H.Weapons.GetLastSpec(0, 0).Damage;
+	const float Struck = DTReforge::Param(Row, TEXT("dps")) * Round * DTReforge::Param(Row, TEXT("tick_s"));
 	for (const FDTHit& Hit : H.HitLog)
 	{
 		if (Hit.EnemySerial == H.Enemies.GetSerials()[Rim] || Hit.EnemySerial == H.Enemies.GetSerials()[Core])
 		{
-			TestNearlyEqual(TEXT("a tick strikes for dps x Damage x tick_s"), Hit.Damage, Struck, 0.01f);
+			TestTrue(FString::Printf(TEXT("a hit is a tick's strike (%.2f) or a round (%.2f): %.2f"), Struck, Round, Hit.Damage),
+				FMath::IsNearlyEqual(Hit.Damage, Struck, 0.01f) || FMath::IsNearlyEqual(Hit.Damage, Round, 0.01f));
 		}
 	}
 	TestTrue(TEXT("and pushes it out through a displacement"), bPushed);
@@ -524,19 +528,25 @@ bool FDTReforgePulseWallDisc::RunTest(const FString& Parameters)
 			}
 			ApplyMoves(H);
 		}
-		const float Tick = DTReforge::Param(Row, TEXT("dps")) * H.Weapons.GetLastSpec(0, 0).Damage * TickS;
-		const int32 NearHits = HitsOn(H, Near);
-		AddInfo(FString::Printf(TEXT("near: %d hits, %d pushes, ends at %.1f uu"), NearHits, NearMoves, H.Enemies.GetPositions()[NearIndex].Size()));
-		TestTrue(TEXT("what stands inside is struck each tick"), NearHits >= 3);
-		TestEqual(TEXT("and pushed once a tick, no more"), NearMoves, NearHits);
-		TestTrue(TEXT("each push is push_uu_s x tick_s, outward"), bKickSize);
+		// D-074: the volley's rounds hit too, for Damage; a ring's strike is dps x Damage x tick_s, and only it pushes.
+		const float Round = H.Weapons.GetLastSpec(0, 0).Damage;
+		const float Tick = DTReforge::Param(Row, TEXT("dps")) * Round * TickS;
+		int32 NearHits = 0, NearRounds = 0;
 		for (const FDTHit& Hit : H.HitLog)
 		{
 			if (Hit.EnemySerial == Near || Hit.EnemySerial == Boss)
 			{
-				TestNearlyEqual(TEXT("a strike is dps x Damage x tick_s"), Hit.Damage, Tick, 0.01f);
+				const bool bStrike = FMath::IsNearlyEqual(Hit.Damage, Tick, 0.01f);
+				const bool bRound = FMath::IsNearlyEqual(Hit.Damage, Round, 0.01f);
+				TestTrue(FString::Printf(TEXT("a hit is a strike (%.2f) or a round (%.2f): %.2f"), Tick, Round, Hit.Damage), bStrike || bRound);
+				NearHits += (Hit.EnemySerial == Near && bStrike) ? 1 : 0;
+				NearRounds += (Hit.EnemySerial == Near && bRound) ? 1 : 0;
 			}
 		}
+		AddInfo(FString::Printf(TEXT("near: %d strikes, %d round hits, %d pushes, ends at %.1f uu"), NearHits, NearRounds, NearMoves, H.Enemies.GetPositions()[NearIndex].Size()));
+		TestTrue(TEXT("what stands inside is struck each tick"), NearHits >= 3);
+		TestEqual(TEXT("and pushed once a strike, no more"), NearMoves, NearHits);
+		TestTrue(TEXT("each push is push_uu_s x tick_s, outward"), bKickSize);
 		TestTrue(TEXT("the boss is struck"), HitsOn(H, Boss) > 0);
 		TestEqual(TEXT("and stays where it stood"), H.Enemies.GetPositions()[BossIndex], BossAt);
 		TestEqual(TEXT("nothing outside the radius is touched"), HitsOn(H, Far), 0);
@@ -577,12 +587,16 @@ namespace DTReforgeTest
 	}
 
 	/** Steps, recording any displacement of Serial toward the ring's centre (the hero at the origin): a pull, not the ring's push. */
-	static bool StepAndSeePull(FDTHarness& H, int32 Steps, uint32 Serial)
+	static bool StepAndSeePull(FDTHarness& H, int32 Steps, uint32 Serial, int32* OutMostFields = nullptr)
 	{
 		bool bPulled = false;
 		for (int32 Step = 0; Step < Steps; ++Step)
 		{
 			H.StepOnce();
+			if (OutMostFields)
+			{
+				*OutMostFields = FMath::Max(*OutMostFields, H.Weapons.GetLiveFields()); // the ring and any modifier's zones
+			}
 			for (const FDTDisplacement& D : H.View.Displacements)
 			{
 				const int32 Index = H.Enemies.GetSerials().IndexOfByKey(D.EnemySerial);
@@ -606,10 +620,8 @@ bool FDTReforgePulseWallStrike::RunTest(const FString& Parameters)
 		GiveWallWith(H, { TEXT("Mod.SplitCore"), TEXT("Mod.LingeringField"), TEXT("Mod.Backwash") });
 		H.StepOnce();
 		H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f; // one volley
-		const int32 Count = FMath::Max(1, H.Weapons.GetLastSpec(0, 0).Count);
-		const float Half = 0.5f * 360.0f / static_cast<float>(Count);
-		const FVector2f At = FVector2f(FMath::Cos(FMath::DegreesToRadians(Half)), FMath::Sin(FMath::DegreesToRadians(Half))) * 150.0f;
-		const int32 Index = H.AddEnemy(At);
+		H.Bullets.Reset(); // its rounds are cleared, so only the ring meets the enemy
+		const int32 Index = H.AddEnemy(FVector2f(150.0f, 0.0f));
 		const uint32 Serial = H.Enemies.GetSerials()[Index];
 		const int32 Before = H.HitLog.Num();
 		const bool bPulled = StepAndSeePull(H, Steps, Serial);
@@ -628,13 +640,23 @@ bool FDTReforgePulseWallStrike::RunTest(const FString& Parameters)
 		// which fans Split Core's children, leaves Lingering Field's zone and pulls it back toward the hero.
 		FDTHarness H;
 		GiveWallWith(H, { TEXT("Mod.SplitCore"), TEXT("Mod.LingeringField"), TEXT("Mod.Backwash") });
-		const int32 Index = H.AddEnemy(FVector2f(400.0f, 0.0f));
+		H.StepOnce();
+		H.Run.GetPlayer(0).Weapons[0].Cooldown = 1000.0f; // one volley
+		TestTrue(TEXT("the volley fires rounds"), H.Bullets.Num() > 0);
+		if (H.Bullets.Num() == 0)
+		{
+			return true;
+		}
+		// The enemy stands on one round's line, ahead of it.
+		const FVector2f Line = (H.Bullets.GetPositions()[0] - H.Bullets.GetPrevPositions()[0]).GetSafeNormal();
+		const int32 Index = H.AddEnemy(H.Bullets.GetPositions()[0] + Line * 200.0f);
 		const uint32 Serial = H.Enemies.GetSerials()[Index];
-		const int32 OpenedBefore = H.Weapons.GetFieldsOpened();
-		const bool bPulled = StepAndSeePull(H, Steps, Serial);
-		TestTrue(TEXT("a round strikes it"), H.Bullets.Num() > 0 || HitsOn(H, Serial) > 0);
+		int32 MostFields = 0;
+		const bool bPulled = StepAndSeePull(H, Steps, Serial, &MostFields);
+		TestTrue(TEXT("it is struck"), HitsOn(H, Serial) > 0);
+		// The ring's strikes neither pull nor place (the scene above), so the pull and the zone are the round's.
 		TestTrue(TEXT("Backwash pulls it on a round's hit"), bPulled);
-		TestTrue(TEXT("Lingering Field leaves a zone where the round struck"), H.Weapons.GetFieldsOpened() > OpenedBefore + 1);
+		TestTrue(TEXT("Lingering Field leaves a zone where the round struck: the ring and a zone live together"), MostFields >= 2);
 	}
 	return true;
 }
@@ -690,13 +712,20 @@ bool FDTReforgePulseWallGap::RunTest(const FString& Parameters)
 	H.AddEnemy(FVector2f(DTReforge::Param(Row, TEXT("radius_uu")) - 20.0f, 0.0f));
 	const float Life = DTReforge::Param(Row, TEXT("grow_s")) + DTReforge::Param(Row, TEXT("hold_s"));
 	const int32 Steps = FMath::RoundToInt(5.0f * Life / Dt);
-	int32 Dark = 0;
+	int32 Dark = 0, Stretch = 0, Longest = 0;
 	for (int32 Step = 0; Step < Steps; ++Step)
 	{
 		H.StepOnce();
-		Dark += H.Weapons.GetLiveFields() == 0 ? 1 : 0;
+		const bool bNone = H.Weapons.GetLiveFields() == 0;
+		Dark += bNone ? 1 : 0;
+		Stretch = bNone ? Stretch + 1 : 0;
+		Longest = FMath::Max(Longest, Stretch);
 	}
-	TestTrue(FString::Printf(TEXT("the cooldown equals the ring's life, so a ring follows a ring: %d of %d steps with none"), Dark, Steps), Dark <= 10);
+	// D-074: the weapon's cooldown is its own; the first volley after a ring closes opens the next, so no stretch without a ring
+	// outlasts one cooldown.
+	const int32 CooldownSteps = FMath::CeilToInt(H.Weapons.GetLastSpec(0, 0).Cooldown / Dt);
+	TestTrue(FString::Printf(TEXT("a ring follows a ring within one cooldown: longest stretch with none %d steps, cooldown %d steps (%d of %d steps with none)"),
+		Longest, CooldownSteps, Dark, Steps), Longest <= CooldownSteps + 1);
 	return true;
 }
 
