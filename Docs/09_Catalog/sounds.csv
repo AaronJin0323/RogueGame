@@ -28,3 +28,9 @@ Snd.Fire.RailLance,Fire,player,body,Player,fire.rail_lance,4,0,0.4,key,E,60,2,0.
 Snd.Fire.FlakMortar,Fire,player,body,Player,fire.flak_mortar,4,0,0.39,key,A,60,2,0.25,1,60,280,-36,-22,fire,no
 Snd.Fire.SeekerSwarm,Fire,player,body,Player,fire.seeker_swarm,4,0,0.3,key,E,60,2,0.25,1,80,300,-40,-24,fire,no
 Snd.Fire.SpiralProjector,Fire,player,body,Player,fire.spiral_projector,4,0,0.22,key,A,160,3,0.25,1,10,90,-44,-28,fire,no
+Snd.Kills.Hit,Kills,player,body,Player,kills.hit,4,0,0.28,key,E,100,3,0.25,1,15,120,-44,-28,kills,no
+Snd.Kills.Kill,Kills,player,body,Player,kills.kill,4,0,0.4,key,A,0,4,0,0,80,320,-38,-24,kills,no
+Snd.Kills.Elite,Kills,player,body,Player,kills.elite,2,0,0.7,key,A,150,2,0,0,300,1500,-34,-20,kills,no
+Snd.Kills.LayerCrowd,Kills,player,free,Player,kills.layer_crowd,1,1,0.42,fixed,,0,1,0,0,3900,4100,-42,-24,,no
+Snd.Kills.LayerLow,Kills,player,free,Player,kills.layer_low,1,1,0.42,fixed,,0,1,0,0,3900,4100,-42,-20,,no
+Snd.Kills.BossDefeated,Kills,player,free,Player,kills.boss_defeated,1,0,0.8,fixed,,1000,1,0,0,2500,7000,-26,-12,,no

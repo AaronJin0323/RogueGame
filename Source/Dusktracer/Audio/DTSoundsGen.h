@@ -42,6 +42,12 @@ namespace DTCat
 		Snd_Fire_FlakMortar,
 		Snd_Fire_SeekerSwarm,
 		Snd_Fire_SpiralProjector,
+		Snd_Kills_Hit,
+		Snd_Kills_Kill,
+		Snd_Kills_Elite,
+		Snd_Kills_LayerCrowd,
+		Snd_Kills_LayerLow,
+		Snd_Kills_BossDefeated,
 		Count
 	};
 
@@ -64,7 +70,7 @@ namespace DTCat
 		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
-	inline constexpr int32 SoundCount = 29;
+	inline constexpr int32 SoundCount = 35;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
 		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
@@ -96,5 +102,11 @@ namespace DTCat
 		{ TEXT("Snd.Fire.FlakMortar"), TEXT("/Game/DT/Audio/SFX/SW_Fire_FlakMortar"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.39f, ESoundPitch::Key, ESoundNote::A, 60, 2, 0.25f, true, 220, false },
 		{ TEXT("Snd.Fire.SeekerSwarm"), TEXT("/Game/DT/Audio/SFX/SW_Fire_SeekerSwarm"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.3f, ESoundPitch::Key, ESoundNote::E, 60, 2, 0.25f, true, 240, false },
 		{ TEXT("Snd.Fire.SpiralProjector"), TEXT("/Game/DT/Audio/SFX/SW_Fire_SpiralProjector"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.22f, ESoundPitch::Key, ESoundNote::A, 160, 3, 0.25f, true, 50, false },
+		{ TEXT("Snd.Kills.Hit"), TEXT("/Game/DT/Audio/SFX/SW_Kills_Hit"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.28f, ESoundPitch::Key, ESoundNote::E, 100, 3, 0.25f, true, 70, false },
+		{ TEXT("Snd.Kills.Kill"), TEXT("/Game/DT/Audio/SFX/SW_Kills_Kill"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.4f, ESoundPitch::Key, ESoundNote::A, 0, 4, 0.0f, false, 219, false },
+		{ TEXT("Snd.Kills.Elite"), TEXT("/Game/DT/Audio/SFX/SW_Kills_Elite"), ESoundSide::Player, ESoundClass::Player, 2, false, 0.7f, ESoundPitch::Key, ESoundNote::A, 150, 2, 0.0f, false, 933, false },
+		{ TEXT("Snd.Kills.LayerCrowd"), TEXT("/Game/DT/Audio/SFX/SW_Kills_LayerCrowd"), ESoundSide::Player, ESoundClass::Player, 1, true, 0.42f, ESoundPitch::Fixed, ESoundNote::None, 0, 1, 0.0f, false, 4000, false },
+		{ TEXT("Snd.Kills.LayerLow"), TEXT("/Game/DT/Audio/SFX/SW_Kills_LayerLow"), ESoundSide::Player, ESoundClass::Player, 1, true, 0.42f, ESoundPitch::Fixed, ESoundNote::None, 0, 1, 0.0f, false, 4000, false },
+		{ TEXT("Snd.Kills.BossDefeated"), TEXT("/Game/DT/Audio/SFX/SW_Kills_BossDefeated"), ESoundSide::Player, ESoundClass::Player, 1, false, 0.8f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 7526, false },
 	};
 }
