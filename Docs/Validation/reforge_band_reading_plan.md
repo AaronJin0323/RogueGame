@@ -9,7 +9,7 @@ A constant or a test id that exists only on `dev/s2` is written without its pref
 - The port: `reforging.md` R-RFG-18 keeps it as `REFORGE.POWER_MIN` 1.3 and `REFORGE.POWER_MAX` 1.8. The number log's row says how it was read: damage a minute after the pick over before it, on the same runs. It read 1.00, "may be a field cap", and the spec has carried the open line since.
 - D-081's supply reading: it is a field cap. Between the pick and the boss every arm of every battery kills what the timeline sends at the rate it sends it.
 - The carry batteries of D-061 to D-079 compare an evolution with its hold, and the hold takes its Path's card at that hand (`bot.md` R-BOT-18). They read a floor: an arm under about 0.95 is failing to clear what is sent.
-- So nothing has read the band: no reading has its denominator (the build without the pick), and none is on a measure a full-clear build cannot saturate. That holds for the seven Path cards as much as for the ten evolutions.
+- So nothing has read the band: no reading has its denominator (the build without the pick), and none is on a measure a full-clear build cannot saturate. That holds for the six Path cards as much as for the ten evolutions.
 
 ## What the hand offers
 - At `OFFER.REFORGING_LEVEL` (16) one milestone hand holds the Reforging cards: the Patron's transformation, the second Keeper's, and an evolution for each weapon at `OFFER.REFORGE_EVOLVE_MIN_LEVEL` (6) or more. The player takes one.
@@ -43,7 +43,7 @@ It is kept if all of this holds, and reported if any does not:
 - With it on, the run file holds no Reforging pick, and the run is the hold's run to the step of that hand.
 - A scene with no pick gives the same window damage, to the unit, as T-KEE-18's full configuration of the same snapshot.
 - No scene reaches the field's refill ceiling. If one does, the stage's field health is raised for every scene of the stage, and the note says by how much and why.
-- The seven Path cards and the ten evolutions each have at least ten builds read.
+- The six Path cards and the ten evolutions each have at least ten builds read.
 
 ### Cost, and what must exist before the exit battery
 | Piece | Kind | Before the exit battery |
@@ -61,7 +61,7 @@ It is kept if all of this holds, and reported if any does not:
 D-079's hand-over; the reader's block of D-081; D-073; this equipment beside it; the carry to the later branches; then the exit battery with the band's step in it.
 
 ### Not shown by any of this
-- What any of the seventeen cards reads. I expect nothing and predict nothing here.
+- What any of the sixteen cards reads. I expect nothing and predict nothing here.
 - How a person values a card. The band is a bot's bound, as the source says of it.
 - Whether 1.3 to 1.8 is the right band for this game; it is the source's, taken as it is.
 
