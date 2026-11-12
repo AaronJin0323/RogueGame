@@ -1290,6 +1290,70 @@ bool FDTModifiersChainTriggerSingularity::RunTest(const FString& Parameters)
 		TestNearlyEqual(TEXT("a mine the free volley laid is the modifier's, whatever joins it"), Blast, 2.0f * Most[0], 0.01f * Most[0]);
 		TestEqual(TEXT("and the weapon has none of it"), OwnHits, 0);
 	}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDTModifiersScatterOneGeneration, "Dusktracer.Modifiers.ScatterOneGeneration", DTWeaponTestHarness::TestFlags) // T-MOD-05 (D-078)
+bool FDTModifiersScatterOneGeneration::RunTest(const FString& Parameters)
+{
+	using namespace DTModifierTest;
+	using namespace DTWeaponTestHarness;
+	const FName Ring(TEXT("Weapon.RingEmitter"));
+	const FName Shell(TEXT("Mod.ScatterShell"));
+	const FName Split(TEXT("Mod.SplitCore"));
+	const int32 Steps = 10 * DTConst::SIM_FIXED_HZ;
+
+	// A level 8 Ring Emitter with Scatter Shell on an empty field: every round's flight ends and bursts one ring of six; a ring's
+	// child never bursts again (R-MOD-05), so the weapon asks for seven emissions a round and stays inside its budget (R-WPN-09).
+	FDTHarness Plain;
+	Plain.Weapons.Give(Plain.Run, 0, Ring, 8);
+	Plain.StepMany(Steps);
+	FDTHarness H;
+	H.Weapons.Give(H.Run, 0, Ring, 8);
+	TestEqual(TEXT("Scatter Shell socketed"), H.Weapons.Socket(H.Run, 0, 0, Shell), EDTWeaponResult::Ok);
+	H.StepMany(Steps);
+	const FDTWeaponCounters& With = H.Weapons.GetCounters(0, 0);
+	const int64 Rounds = Plain.Weapons.GetCounters(0, 0).Spawned;
+	const int64 Children = With.Spawned - Rounds;
+	AddInfo(FString::Printf(TEXT("rounds %lld, emitted with Scatter Shell %lld, refused %lld, max generation %d"), Rounds, With.Spawned, With.Throttled,
+		H.Weapons.GetMaxGeneration()));
+	TestEqual(TEXT("the budget refuses nothing"), With.Throttled, static_cast<int64>(0));
+	TestEqual(TEXT("no ring's child bursts: one generation"), H.Weapons.GetMaxGeneration(), 1);
+	TestTrue(TEXT("rounds burst into rings"), Children > 0);
+	TestEqual(TEXT("each burst is one ring of six"), Children % 6, static_cast<int64>(0));
+	TestTrue(TEXT("at most seven emissions a round"), With.Spawned <= 7 * Rounds);
+
+	// A mine's detonation still bursts one ring, and that ring's children do not burst again (a few enemies to lay mines at).
+	FDTHarness Mine;
+	FDTHarness MinePlain;
+	for (FDTHarness* Field : { &Mine, &MinePlain })
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			Field->AddEnemy(FVector2f(300.0f + 40.0f * Index, 0.0f));
+		}
+	}
+	Mine.Weapons.Give(Mine.Run, 0, TEXT("Weapon.GravityMine"), 1);
+	TestEqual(TEXT("Scatter Shell on the mine"), Mine.Weapons.Socket(Mine.Run, 0, 0, Shell), EDTWeaponResult::Ok);
+	MinePlain.Weapons.Give(MinePlain.Run, 0, TEXT("Weapon.GravityMine"), 1);
+	Mine.StepMany(Steps);
+	MinePlain.StepMany(Steps);
+	const int64 MineChildren = Mine.Weapons.GetCounters(0, 0).Spawned - MinePlain.Weapons.GetCounters(0, 0).Spawned;
+	TestTrue(TEXT("a detonation bursts a ring"), MineChildren > 0);
+	TestEqual(TEXT("a detonation's ring is six"), MineChildren % 6, static_cast<int64>(0));
+	TestEqual(TEXT("the mine's ring's children do not burst"), Mine.Weapons.GetMaxGeneration(), 1);
+
+	// Split Core still splits a Scatter Shell child that hits: enemies stand past the rounds' reach, where only ring children fly,
+	// so a second generation can only be Split Core's fan on a ring's child (the ring's child itself never bursts again).
+	FDTHarness Both;
+	for (int32 Index = 0; Index < 48; ++Index)
+	{
+		const float Angle = 2.0f * PI * static_cast<float>(Index) / 48.0f;
+		Both.AddEnemy(FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * 1600.0f);
+	}
+	Both.Weapons.Give(Both.Run, 0, Ring, 8);
+	Both.Weapons.Socket(Both.Run, 0, 0, Shell);
+	Both.Weapons.Socket(Both.Run, 0, 0, Split);
+	Both.StepMany(Steps);
+	TestTrue(TEXT("ring children reach the enemies"), Both.HitLog.Num() > 0);
+	TestEqual(TEXT("a ring's child that hits is split by Split Core, up to the generation cap"), Both.Weapons.GetMaxGeneration(), DTConst::MOD_SPLIT_GENERATIONS_MAX);
 	return true;
 }
 

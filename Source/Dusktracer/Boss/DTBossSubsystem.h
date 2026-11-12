@@ -52,6 +52,11 @@ public:
 	/** HUD hook (ADTHUD::DrawHUD): the boss name and its effective HP bar while the fight runs (boss.md Text). */
 	void DrawBossBar(UCanvas* Canvas, float TextScale = 1.0f) const;
 
+	/** The rows the boss row draws in, across a canvas ClipX wide: the HUD's lower edge on the hero's column in the fight (06_UX R-UX-01). */
+	static FBox2f BossRowRect(float ClipX);
+	/** The boss row at the top centre: the name (its line box, NameSize as drawn), then its bar on the same line. */
+	static void BossRowLayout(float ClipX, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar);
+
 	const FDTBossCore& GetCore() const { return Core; }
 	bool IsFightPending() const { return bStartRequested; }
 

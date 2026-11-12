@@ -458,26 +458,41 @@ def boss_start(extra):
 # ---- the frame (D-036) --------------------------------------------------------------------------------------------------
 
 def frame(consts, aspect=(16, 9)):
-	"""(down, up, side0, slope) of the ground the solo camera shows around the hero, in uu: dx up-screen (world +X) from -down to
-	up, |dy| up to side0 + slope * dx. The distance puts C.ARENA.CAMERA_FRAME_RADIUS_UU in half the frame height at the 16:9
-	target (ADTCameraPawn::ComputeFramingDistance, R-UX-01); the vertical field of view is held for any window, so another
-	shape moves only the sides, by (W/H)/(16/9)."""
+	"""(down, up, side0, slope) of what the solo camera shows around the hero, in uu, read on the plane bodies are drawn on,
+	C.SIM.PLANE_Z_UU above the floor, as R-UX-01 counts it (D-080): dx up-screen (world +X) from -down to up, |dy| up to
+	side0 + slope * dx. up is the reach to the top of the screen. While the boss fight runs the HUD draws the boss row across the
+	top of the hero's column, and R-UX-01 makes the reach up to that row's lower edge equal to the reach down (T-UX-01 holds it
+	within one pixel); so in the fight the up reach is down, and no pixel number is needed (off_edges' boss_row).
+	The distance puts C.ARENA.CAMERA_FRAME_RADIUS_UU in half the frame height at the 16:9 target (ADTCameraPawn::ComputeFramingDistance)
+	around the aim point, which is C.ARENA.CAMERA_AIM_SHIFT_UU from the hero toward the camera; the vertical field of view is held
+	for any window, so another shape moves only the sides, by (W/H)/(16/9). The telemetry's positions are on the floor, and a body
+	stands on it: a plane's reach is where the ray to the screen's edge meets the drawn height above the body's floor point."""
+	return frame_on(consts, aspect, consts["SIM.PLANE_Z_UU"]["value"])
+
+
+def frame_on(consts, aspect, z):
+	"""frame() on a plane z uu above the floor (z = 0 is the floor itself)."""
 	pitch = math.radians(consts["ARENA.CAMERA_PITCH_DEG"]["value"])
 	half_h = math.radians(consts["ARENA.CAMERA_FOV_DEG"]["value"]) / 2.0
 	radius = consts["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"]
-	tan_v = math.tan(half_h) / TARGET_ASPECT
-	half_v = math.atan(tan_v)
+	shift = consts["ARENA.CAMERA_AIM_SHIFT_UU"]["value"]
+	tan_h = math.tan(half_h)
+	tan_v = tan_h / TARGET_ASPECT
 	dist = radius / tan_v
-	height, back = dist * math.sin(pitch), dist * math.cos(pitch)
-	down = back - height / math.tan(pitch + half_v)
-	up = height / math.tan(pitch - half_v) - back
+	sin_p, cos_p = math.sin(pitch), math.cos(pitch)
+	down = (tan_v * (dist - z * sin_p) + z * cos_p) / (sin_p + tan_v * cos_p) + shift
+	up = (tan_v * (dist - z * sin_p) - z * cos_p) / (sin_p - tan_v * cos_p) - shift
 	scale = (aspect[0] / aspect[1]) / TARGET_ASPECT
-	return down, up, math.tan(half_h) * dist * scale, math.tan(half_h) * math.cos(pitch) * scale
+	slope = tan_h * cos_p * scale
+	return down, up, tan_h * (dist + shift * cos_p - z * sin_p) * scale, slope
 
 
-def off_edges(dx, dy, fr):
-	"""[(edge, uu outside)] of a source at (dx, dy) from the hero; [] when it is inside the frame."""
+def off_edges(dx, dy, fr, boss_row=False):
+	"""[(edge, uu outside)] of a source at (dx, dy) from the hero; [] when it is inside the frame. boss_row: the boss fight runs, so
+	the top edge is the boss row's lower edge, as far up as the frame reaches down (R-UX-01; see frame())."""
 	down, up, side0, slope = fr
+	if boss_row:
+		up = down
 	out = []
 	if dx < -down:
 		out.append(("bottom", -down - dx))
@@ -498,15 +513,17 @@ def hero_at(pos, t):
 	return None
 
 
-def frame_tests(rec, pos, fr):
-	"""{"landing": edges, "fire": edges or None, "fire_known": bool} of one hit with a source position."""
+def frame_tests(rec, pos, fr, boss_t=None):
+	"""{"landing": edges, "fire": edges or None, "fire_known": bool} of one hit with a source position. A hit at or after boss_t (the
+	run's boss_start) is read under the boss row, at landing and at the fire-time estimate alike."""
 	sx, sy = float(rec["src_x"]), float(rec["src_y"])
-	out = {"landing": off_edges(sx - float(rec.get("hero_x", 0.0)), sy - float(rec.get("hero_y", 0.0)), fr), "fire": None, "fire_known": False}
+	row = boss_t is not None and float(rec["t"]) >= boss_t
+	out = {"landing": off_edges(sx - float(rec.get("hero_x", 0.0)), sy - float(rec.get("hero_y", 0.0)), fr, row), "fire": None, "fire_known": False}
 	if rec.get("hit_kind") == "Bullet" and rec.get("flight_s") is not None:
 		at = hero_at(pos, float(rec["t"]) - float(rec["flight_s"]))
 		if at is not None:
 			out["fire_known"] = True
-			out["fire"] = off_edges(sx - at[0], sy - at[1], fr)
+			out["fire"] = off_edges(sx - at[0], sy - at[1], fr, row)
 	return out
 
 
@@ -905,7 +922,7 @@ def print_d036(sheet_runs, consts, aspect, fr):
 			kind = rec.get("hit_kind") or "-"
 			seen = by_kind.setdefault(kind, [0, 0])
 			seen[1] += 1
-			test = frame_tests(rec, r["extra"]["pos"], fr)
+			test = frame_tests(rec, r["extra"]["pos"], fr, boss_start(r["extra"]))
 			says = []
 			if test["landing"]:
 				says.append(("at landing", test["landing"]))
@@ -920,8 +937,9 @@ def print_d036(sheet_runs, consts, aspect, fr):
 			lines.append(f"OFFFRAME: {r['base']} {mss(rec['t'])} t {rec['t']:.1f} {rec.get('role')} {kind} dx,dy {dx:.0f},{dy:.0f}: "
 				+ "; ".join(f"{when} " + ", ".join(f"{e} edge {uu:.0f} uu outside" for e, uu in edges_) for when, edges_ in says) + note)
 	down, up, side0, slope = fr
-	print(f"D-036: frame at {shape}: down {down:.2f}, up {up:.2f}, side {side0:.2f} + {slope:.5f} x dx uu (C.ARENA.CAMERA_PITCH_DEG, "
-		"C.ARENA.CAMERA_FOV_DEG, C.ARENA.CAMERA_FRAME_RADIUS_UU; up-screen is world +X)")
+	print(f"D-036: frame at {shape} on the drawn plane (C.SIM.PLANE_Z_UU): down {down:.2f}, up {up:.2f} ({down:.2f} under the boss row in the fight), "
+		f"side {side0:.2f} + {slope:.5f} x dx uu (C.ARENA.CAMERA_PITCH_DEG, C.ARENA.CAMERA_FOV_DEG, C.ARENA.CAMERA_FRAME_RADIUS_UU, "
+		"C.ARENA.CAMERA_AIM_SHIFT_UU; up-screen is world +X)")
 	print(f"D-036: {off} of {total} hits with a source off a {shape} frame"
 		+ ("; by hit kind: " + ", ".join(f"{k} {v[0]} of {v[1]}" for k, v in sorted(by_kind.items())) if by_kind else ""))
 	for line in lines:
@@ -1061,7 +1079,7 @@ def print_timeline(r, fr):
 			continue
 		marks = [m for m, on in (("drop-in", rec.get("arrival")), ("charging", rec.get("charging"))) if on]
 		if "src_x" in rec and "src_y" in rec:
-			test = frame_tests(rec, extra["pos"], fr)
+			test = frame_tests(rec, extra["pos"], fr, boss_start(extra))
 			if test["landing"] or test["fire"]:
 				marks.append("off frame")
 		events.append((rec["t"], f"hit {rec.get('role')} {rec.get('hit_kind')} {max(0.0, float(rec.get('amount', 0.0))) / max_hp:.3f} of max HP, "

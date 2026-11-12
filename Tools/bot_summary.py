@@ -238,6 +238,63 @@ def read_casts(jsonl):
 	return casts, (statistics.mean(damage) if damage else None), (statistics.mean(raw) if raw else None), variant
 
 
+def read_refusals(jsonl):
+	"""{(weapon source, socket set): (spawned, refused)} of player 0 over the whole run, from the `weapon` records' `spawned` and
+	`throttled` (R-WPN-09) and the `modifier_socketed` records; the socket set is every modifier socketed on that weapon by the run's
+	end, or "-" (D-078: the next weapon and modifier pairing the emission budget refuses is found by a reader)."""
+	emitted, sockets = {}, {}
+	if not jsonl:
+		return {}
+	with open(jsonl, encoding="utf-8") as f:
+		for line in f:
+			if '"weapon"' not in line and '"modifier_socketed"' not in line:
+				continue
+			try:
+				rec = json.loads(line, object_pairs_hook=pressure.first_wins)
+			except ValueError:
+				continue
+			if rec.get("owner", -1) != 0:
+				continue
+			if rec.get("kind") == "weapon":
+				spawned, refused = emitted.get(rec.get("source"), (0, 0))
+				emitted[rec.get("source")] = (spawned + int(rec.get("spawned", 0)), refused + int(rec.get("throttled", 0)))
+			elif rec.get("kind") == "modifier_socketed":
+				sockets.setdefault(rec.get("weapon"), set()).add(str(rec.get("modifier", "")).replace("Mod.", ""))
+	return {(weapon, "+".join(sorted(sockets.get(weapon, ()))) or "-"): counts for weapon, counts in emitted.items()}
+
+
+REFUSED_SHARE_MARK = 0.05  # D-078's bar for a weapon's refused share of what it asks; printed, judged by no line here
+
+
+def refusal_lines(refusals):
+	"""The summary block: per weapon and socket set the runs, the worst run's refused share of asked and the pooled share, worst
+	first; and a last line saying whether any run's share passes REFUSED_SHARE_MARK. Printed only: no verdict, no exit code."""
+	sets = {}
+	for name, per_run in refusals:
+		for key, (spawned, refused) in per_run.items():
+			asked = spawned + refused
+			share = refused / asked if asked else 0.0
+			s = sets.setdefault(key, {"runs": 0, "worst": (0.0, ""), "spawned": 0, "refused": 0})
+			s["runs"] += 1
+			s["spawned"] += spawned
+			s["refused"] += refused
+			if share > s["worst"][0]:
+				s["worst"] = (share, name)
+	if not sets:
+		return ["", "Emission budget: no `weapon` record in any run."]
+	order = sorted(sets.items(), key=lambda kv: -kv[1]["worst"][0])
+	out = ["", f"Emission budget (R-WPN-09), worst refused share of asked by weapon and socket set (printed; the mark is {REFUSED_SHARE_MARK}):", "",
+		"| Weapon | Sockets | Runs | Worst run's refused share | In run | Pooled refused share |", "|---|---|---|---|---|---|"]
+	for (weapon, socket_set), s in order[:10]:
+		asked = s["spawned"] + s["refused"]
+		out.append(f"| {weapon} | {socket_set} | {s['runs']} | {s['worst'][0]:.3f} | {s['worst'][1] or '-'} | {s['refused'] / asked if asked else 0.0:.3f} |")
+	(weapon, socket_set), worst = order[0]
+	over = sum(1 for _, per_run in refusals for spawned, refused in per_run.values() if spawned + refused and refused / (spawned + refused) > REFUSED_SHARE_MARK)
+	out += ["", f"Emission budget: {'some' if over else 'no'} weapon and socket set passes {REFUSED_SHARE_MARK} "
+		f"({over} weapon run(s) over it; worst {worst['worst'][0]:.3f}, {weapon} [{socket_set}] in {worst['worst'][1] or '-'})."]
+	return out
+
+
 def summarise_run(folder, consts):
 	name = os.path.basename(folder)
 	label, _, seed = name.rpartition("_s")
@@ -445,6 +502,8 @@ def main(argv):
 		minutes = bot_compare.death_minutes(rs)
 		lines.append("| {} | {} | {} | {} |".format(label, len(minutes), round(statistics.median(minutes), 1) if minutes else "",
 			" ".join(f"{m}:{n}" for m, n in bot_compare.histogram(rs).items())))
+	lines += refusal_lines([(os.path.basename(d), read_refusals((glob.glob(os.path.join(d, "*.jsonl")) or [None])[0]))
+		for d in sorted(glob.glob(os.path.join(root, "*_s*"))) if os.path.isdir(d)])
 	lines += ["", "Per run: `summary.csv`."]
 
 	verdicts = []

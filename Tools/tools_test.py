@@ -6,6 +6,7 @@ Prints TOOLS: PASS (<n> tests) or TOOLS: FAIL (...); exit 0 / 1.
 
 import contextlib
 import csv
+import hashlib
 import io
 import json
 import os
@@ -263,6 +264,31 @@ class SwarmTtk(unittest.TestCase):
 
 	def test_no_jsonl_reads_nothing(self):
 		self.assertFalse(pressure.ttk_is_first_hit(None))
+
+
+class EmissionBudget(unittest.TestCase):
+	"""D-078: the battery summary prints the worst refused share of asked by weapon and socket set, and whether any passes 0.05."""
+
+	def run_file(self, folder, lines):
+		os.makedirs(folder)
+		with open(os.path.join(folder, "1_x.jsonl"), "w", encoding="utf-8") as f:
+			f.write("\n".join(lines) + "\n")
+		return os.path.join(folder, "1_x.jsonl")
+
+	def test_the_worst_set_comes_first_and_the_last_line_says_whether_one_passes(self):
+		with tempfile.TemporaryDirectory() as root:
+			bad = self.run_file(os.path.join(root, "A_s1"), [
+				'{"t":10.0,"kind":"modifier_socketed","owner":0,"weapon":"Weapon.RingEmitter","modifier":"Mod.ScatterShell"}',
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.RingEmitter","spawned":600,"throttled":400}',
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.PulseRifle","spawned":100,"throttled":0}'])
+			good = self.run_file(os.path.join(root, "A_s2"), [
+				'{"t":60.0,"kind":"weapon","owner":0,"source":"Weapon.RingEmitter","spawned":990,"throttled":10}'])
+			lines = bot_summary.refusal_lines([("A_s1", bot_summary.read_refusals(bad)), ("A_s2", bot_summary.read_refusals(good))])
+		self.assertIn("| Weapon.RingEmitter | ScatterShell | 1 | 0.400 | A_s1 | 0.400 |", lines)
+		self.assertIn("| Weapon.RingEmitter | - | 1 | 0.010 | A_s2 | 0.010 |", lines)
+		self.assertEqual(lines[-1], "Emission budget: some weapon and socket set passes 0.05 (1 weapon run(s) over it; worst 0.400, Weapon.RingEmitter [ScatterShell] in A_s1).")
+		quiet = bot_summary.refusal_lines([("A_s2", {("Weapon.RingEmitter", "-"): (990, 10)})])
+		self.assertTrue(quiet[-1].startswith("Emission budget: no weapon and socket set passes 0.05 (0 weapon run(s) over it"), quiet[-1])
 
 
 class Casts(unittest.TestCase):
@@ -2209,6 +2235,10 @@ def run_text(end=900.0, reason="death", body=(), culture="en", run_end=True, dro
 	return "\n".join(lines) + "\n"
 
 
+# The frame's reaches on the drawn plane, C.SIM.PLANE_Z_UU above the floor (R-UX-01, D-080), at 16:9 and at 21:9.
+PLANE_DOWN, PLANE_UP, PLANE_SIDE, PLANE_SIDE_WIDE = 1416.05, 1522.05, 2249.39, 2952.3
+
+
 class SessionRead(unittest.TestCase):
 	"""Tools/session_read.py: returned zips are data, one run once, the sheet, and every S1 gate item or NOT READ (M1)."""
 
@@ -2456,21 +2486,44 @@ class SessionRead(unittest.TestCase):
 
 	def test_the_frame_comes_from_the_constants_and_tests_each_edge(self):
 		consts = dtconst_load()
+		floor = session_read.frame_on(consts, (16, 9), 0.0)
+		self.assertAlmostEqual(floor[0], 1402.37, places=2)  # on the floor, D-080's pins: 1258.2 uu framed, aimed 140.6 uu toward the camera
+		self.assertAlmostEqual(floor[1], 1571.52, places=2)
+		self.assertAlmostEqual(floor[2], 2269.58, places=2)
 		down, up, side0, slope = session_read.frame(consts)
-		self.assertAlmostEqual(down, 1504.25, places=2)
-		self.assertAlmostEqual(up, 2041.16, places=2)
-		self.assertAlmostEqual(side0, 2666.67, places=2)
-		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154
+		self.assertAlmostEqual(down, PLANE_DOWN, places=2)  # on the drawn plane, C.SIM.PLANE_Z_UU above the floor (R-UX-01)
+		self.assertAlmostEqual(up, PLANE_UP, places=2)
+		self.assertAlmostEqual(side0, PLANE_SIDE, places=2)
+		self.assertAlmostEqual(slope, 0.23316, delta=1e-4)  # tan 25 deg x cos 60 deg = 0.233154, on any plane
+		self.assertAlmostEqual(floor[3], slope)
 		fr = (down, up, side0, slope)
 		self.assertEqual(session_read.off_edges(0, 0, fr), [])
 		self.assertEqual([e for e, _ in session_read.off_edges(-1600, 0, fr)], ["bottom"])
 		self.assertEqual([e for e, _ in session_read.off_edges(2100, 0, fr)], ["top"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, 2700, fr)], ["right"])
 		self.assertEqual([e for e, _ in session_read.off_edges(0, -2700, fr)], ["left"])
-		self.assertEqual(session_read.off_edges(-1500, 2300, fr), [], "the bottom row is narrower: 2316 uu")
+		self.assertEqual(session_read.off_edges(-1400, 1900, fr), [], "the bottom row is narrower: 1923 uu")
+		self.assertEqual(session_read.off_edges(-1410, 0, fr), [], "drawn on screen, though off the floor's frame (1402)")
+		self.assertEqual([e for e, _ in session_read.off_edges(-1420, 0, fr)], ["bottom"])
+		self.assertEqual(session_read.off_edges(1500, 0, fr), [], "under the top edge before the fight")
+		self.assertEqual([e for e, _ in session_read.off_edges(1500, 0, fr, boss_row=True)], ["top"], "above the boss row's lower edge in the fight")
+		self.assertEqual([e for e, _ in session_read.off_edges(1550, 0, fr)], ["top"], "above the top edge, though inside the floor's frame (1571)")
+		self.assertEqual([e for e, _ in session_read.off_edges(1550, 0, fr, boss_row=True)], ["top"])
 		wide = session_read.frame(consts, (21, 9))
-		self.assertAlmostEqual(wide[0], down)
-		self.assertAlmostEqual(wide[2], 3500.0, places=1)
+		self.assertEqual((wide[0], wide[1]), (down, up), "a wider window moves only the sides")
+		self.assertAlmostEqual(wide[2], PLANE_SIDE_WIDE, places=1)
+
+	def test_the_boss_row_counts_from_boss_start(self):
+		boss = rec(900.0, "boss_start", -1, form="I", wins=0, players=1)
+		body = [hit(800.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1500, src_y=0), boss,
+			hit(950.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1500, src_y=0),
+			hit(960.0, 0.1, hit_kind="Contact", role="Tank", hero_x=0, hero_y=0, src_x=1550, src_y=0)]
+		self.put("T1", "1_20261111_120000", run_text(1000.0, body=body))
+		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
+		self.assertIn("D-036: 2 of 3 hits with a source off a 16:9 frame; by hit kind: Contact 2 of 3", text, "1 500 above: on before the fight, off in it")
+		self.assertIn(f"OFFFRAME: 1_20261111_120000 15:50 t 950.0 Tank Contact dx,dy 1500,0: at landing top edge {1500 - PLANE_DOWN:.0f} uu outside", text)
+		self.assertIn(f"OFFFRAME: 1_20261111_120000 16:00 t 960.0 Tank Contact dx,dy 1550,0: at landing top edge {1550 - PLANE_DOWN:.0f} uu outside", text)
+		self.assertNotIn("t 800.0 Tank", text.split("TIMELINE:")[0])
 
 	def test_a_bullet_on_frame_at_landing_and_off_at_the_fire_time_estimate(self):
 		body = [rec(95.0, "hero_pos", x=-1500, y=0), rec(99.0, "hero_pos", x=-1500, y=0), rec(100.0, "hero_pos", x=0, y=0),
@@ -2480,11 +2533,12 @@ class SessionRead(unittest.TestCase):
 			hit(400.0, 0.1, hit_kind="Contact", role="Swarm", hero_x=0, hero_y=0, src_x=30, src_y=20)]
 		self.put("T1", "1_20261111_120000", run_text(900.0, body=body))
 		rc, text = self.read("--timeline", "1_20261111_120000.jsonl")
-		self.assertIn("D-036: frame at 16:9: down 1504.25, up 2041.16, side 2666.67", text)
+		self.assertIn(f"D-036: frame at 16:9 on the drawn plane (C.SIM.PLANE_Z_UU): down {PLANE_DOWN:.2f}, up {PLANE_UP:.2f} ({PLANE_DOWN:.2f} under the boss row in the fight), "
+			f"side {PLANE_SIDE:.2f} + 0.23315 x dx uu (C.ARENA.CAMERA_PITCH_DEG, C.ARENA.CAMERA_FOV_DEG, C.ARENA.CAMERA_FRAME_RADIUS_UU, C.ARENA.CAMERA_AIM_SHIFT_UU; up-screen is world +X)", text)
 		self.assertIn("D-036: 3 of 4 hits with a source off a 16:9 frame; by hit kind: Bullet 2 of 2, Contact 1 of 2", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 459 uu outside", text)
-		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 96 uu outside", text)
-		self.assertIn("at landing right edge 33 uu outside; no hero_pos around the fire time: landing only", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 1:40 t 100.0 Turret Bullet dx,dy 1000,0: at the fire-time estimate top edge 978 uu outside", text)
+		self.assertIn("OFFFRAME: 1_20261111_120000 3:20 t 200.0 Tank Contact dx,dy -1600,0: at landing bottom edge 184 uu outside", text)
+		self.assertIn("at landing right edge 451 uu outside; no hero_pos around the fire time: landing only", text)
 		self.assertIn("TIMELINE: 1_20261111_120000 1:40 100.0 hit Turret Bullet 0.100 of max HP, 0.500 left [off frame]", text)
 		self.assertIn("HUD m:ss is t from m*60+ss to m*60+ss+1", text)
 
@@ -2958,6 +3012,135 @@ class GateSlot(unittest.TestCase):
 			first, second, inherited = f.read().split()
 		self.assertEqual((first, inherited), ("held", "inherited=yes"))
 		self.assertIn(second, ("free", "none"))  # no second slot: never made, or made and free
+
+
+ARMS_STUB = r'''param([string]$Arms = "", [int]$FirstSeed = 1, [int]$Parallel = 1, [string]$Out = "")
+# The arms step's stand-in for BotRuns.ps1: one run folder per row of stub_arms.csv beside it, as BotRuns names them.
+New-Item -ItemType Directory -Force $Out | Out-Null
+Set-Content (Join-Path $Out "args.txt") "$Arms|$FirstSeed|$Parallel"
+foreach ($Row in (Import-Csv (Join-Path $PSScriptRoot "stub_arms.csv"))) {
+	$Dir = Join-Path $Out ("{0}_s{1}" -f ($Row.arm -replace ':', '-'), $FirstSeed)
+	New-Item -ItemType Directory -Force $Dir | Out-Null
+	[IO.File]::WriteAllText((Join-Path $Dir "bot.csv"), $Row.csv)
+	[IO.File]::WriteAllText((Join-Path $Dir "bot.csv.txt"), "outcome=death`nsteps=$($Row.steps)`ninput_hash=$($Row.input_hash)`n")
+}
+Write-Host "BOTRUNS: PASS (stub)"
+exit 0
+'''
+
+
+class GateArms(unittest.TestCase):
+	"""The gate's arms step: the five seed 9107 arms against Tools/gate_arms.csv, on a stand-in BotRuns; nothing here launches a game."""
+
+	ARMS = ("None", "Random", "Steered:Forge:Hammer", "Steered:Storm:Tempest", "Steered:Tide:Frost")
+
+	def setUp(self):
+		self.tmp = tempfile.TemporaryDirectory()
+		self.locks = os.path.join(self.tmp.name, "dt-locks")
+		os.makedirs(self.locks)
+		with open(os.path.join(self.locks, "slots.txt"), "w", encoding="ascii") as f:
+			f.write("2\n")
+		self.tools = os.path.join(self.tmp.name, "tree", "Tools")
+		os.makedirs(self.tools)
+		for name in ("Gate.ps1", "Machine.ps1"):
+			shutil.copy(os.path.join(TOOLS, name), self.tools)
+		for name in GateSlot.TEXT:
+			with open(os.path.join(self.tools, name), "w", encoding="utf-8") as f:
+				f.write("print('STUB: PASS')\n")
+		with open(os.path.join(self.tools, "BotRuns.ps1"), "w", encoding="utf-8") as f:
+			f.write(ARMS_STUB)
+		with open(os.path.join(TOOLS, "Gate.ps1"), encoding="utf-8") as f:
+			self.heavy = re.findall(r'Start-HeavyStep "(\w+)"\)', f.read())
+		self.rows = {arm: {"input_hash": "%08x" % (i + 1), "steps": str(1000 + i), "csv": f"minute\n{i}\n"} for i, arm in enumerate(self.ARMS)}
+
+	def tearDown(self):
+		self.tmp.cleanup()
+
+	def write(self, ran, baseline, with_sha=True):
+		with open(os.path.join(self.tools, "stub_arms.csv"), "w", encoding="utf-8", newline="") as f:
+			w = csv.writer(f)
+			w.writerow(["arm", "input_hash", "steps", "csv"])
+			for arm, row in ran.items():
+				w.writerow([arm, row["input_hash"], row["steps"], row["csv"]])
+		with open(os.path.join(self.tools, "gate_arms.csv"), "w", encoding="utf-8", newline="") as f:
+			f.write("# stand-in baseline\n")
+			w = csv.writer(f)
+			w.writerow(["arm", "input_hash", "steps", "bot_csv_sha256"])
+			for arm, row in baseline.items():
+				sha = hashlib.sha256(row["csv"].encode("utf-8")).hexdigest() if with_sha else ""
+				w.writerow([arm, row["input_hash"], row["steps"], sha])
+
+	def run_gate(self, skip_arms=False):
+		skip = ",".join(s for s in self.heavy if s != "arms" or skip_arms)
+		env = {k: v for k, v in os.environ.items() if k not in ("DT_HEAVY_HELD", "DT_ALONE_TOKEN")}
+		env.update({"DT_LOCK_DIR": self.locks, "DT_HEAVY_WAIT_MAX_S": "5", "DT_AFFINITY_FILE": os.path.join(self.tmp.name, "no_mask.txt")})
+		done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			f"& {ps_quote(os.path.join(self.tools, 'Gate.ps1'))} -Skip {skip}; exit $LASTEXITCODE"], capture_output=True, env=env, timeout=300)
+		out = (done.stdout + done.stderr).decode("utf-8", "replace")
+		return done.returncode, out, [line for line in out.splitlines() if line.startswith("arms:")]
+
+	def test_the_five_matching_pass_inside_one_run_of_botruns(self):
+		self.write(self.rows, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 0, out)
+		self.assertEqual(len(line), 1, out)
+		self.assertRegex(line[0], r"^arms:\s+PASS \(None 00000001, Random 00000002, Steered:Forge:Hammer 00000003, Steered:Storm:Tempest 00000004, Steered:Tide:Frost 00000005; \d+ s\)$")
+		with open(os.path.join(self.tmp.name, "tree", "Saved", "BotRuns", "gate_arms", "args.txt"), encoding="utf-8-sig") as f:
+			self.assertEqual(f.read().strip(), "None,Random,Steered:Forge:Hammer,Steered:Storm:Tempest,Steered:Tide:Frost|9107|5")
+
+	def test_a_moved_input_hash_names_the_arm_and_both_values(self):
+		ran = dict(self.rows, **{"Steered:Tide:Frost": dict(self.rows["Steered:Tide:Frost"], input_hash="deadbeef")})
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("FAIL (Steered:Tide:Frost input_hash 00000005 -> deadbeef;", line[0])
+		self.assertIn("GATE: FAIL at arms", out)
+
+	def test_a_moved_step_count_fails_the_same_way(self):
+		ran = dict(self.rows, Random=dict(self.rows["Random"], steps="1234"))
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("Random steps 1001 -> 1234", line[0])
+		self.assertNotIn("input_hash", line[0].split("; read ")[0])
+
+	def test_moved_bot_csv_bytes_fail_and_a_baseline_without_the_hash_does_not_compare_them(self):
+		ran = dict(self.rows)
+		ran["None"] = dict(self.rows["None"], csv="minute\nother\n")
+		self.write(ran, self.rows)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("None bot.csv sha256 ", line[0])
+		self.write(ran, self.rows, with_sha=False)
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 0, out)
+
+	def test_an_arm_missing_from_the_baseline_fails(self):
+		self.write(self.rows, {k: v for k, v in self.rows.items() if k != "Steered:Storm:Tempest"})
+		rc, out, line = self.run_gate()
+		self.assertEqual(rc, 1, out)
+		self.assertIn("Steered:Storm:Tempest has no row in Tools\\gate_arms.csv", line[0])
+
+	def test_skip_arms_skips_it_and_counts_it_not_run(self):
+		self.write(self.rows, {})
+		rc, out, line = self.run_gate(skip_arms=True)
+		self.assertEqual(rc, 0, out)
+		self.assertEqual([re.sub(r"\s+", " ", text) for text in line], ["arms: NOT RUN (skipped by -Skip)"])
+		self.assertRegex(out, r"GATE: PASS \([^;]*; %d not run;" % (len(self.heavy) + 2))
+		self.assertFalse(os.path.exists(os.path.join(self.tmp.name, "tree", "Saved", "BotRuns")))
+
+	def test_the_step_is_a_heavy_step_after_seed_and_main_holds_five_rows(self):
+		self.assertIn("arms", self.heavy)
+		self.assertEqual(self.heavy.index("arms"), self.heavy.index("seed") + 1)
+		with open(os.path.join(TOOLS, "gate_arms.csv"), encoding="utf-8") as f:
+			rows = list(csv.DictReader(line for line in f if not line.startswith("#")))
+		self.assertEqual([r["arm"] for r in rows], list(self.ARMS))
+		for r in rows:
+			self.assertRegex(r["input_hash"], r"^[0-9a-f]{8}$")
+			self.assertRegex(r["steps"], r"^\d+$")
+			self.assertRegex(r["bot_csv_sha256"], r"^([0-9a-f]{64})?$")
+		with open(os.path.join(TOOLS, "..", "Docs", "11_Quality.md"), encoding="utf-8") as f:
+			self.assertIn("arms", f.read())
 
 
 class GateMain(unittest.TestCase):

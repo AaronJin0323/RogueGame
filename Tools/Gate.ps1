@@ -3,7 +3,7 @@
 # Ends with "GATE: PASS (<commit>; <n> not run; mask <mask>)" or "GATE: FAIL at <step> (<commit>; mask <mask>)": the processor mask of D-052 (Tools\Machine.ps1) it ran under. A step that cannot run yet prints NOT RUN and is
 # never counted as passed; a Python step whose script is missing fails. Exit 0 = pass, 1 = fail. Logs: Saved\Logs\Gate_<step>.log.
 # Steps: cpu (Tools/cpu_canary.py: each processor the mask leaves in runs the fault loop of Validation/S4_py_fault.md), secrets, docs, constants, catalog, matrix, loc, tools (Tools/tools_test.py), build (0 warnings), locbuild (regenerates git-ignored text), nonunity (T-TEC-09),
-# shipping (T-TEC-12), devgame (the Development game target, 0 warnings), tests (Tools/RunTests.ps1, count = C.GATE.TEST_FLOOR), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame), windows (Tools/WindowCheck.ps1),
+# shipping (T-TEC-12), devgame (the Development game target, 0 warnings), tests (Tools/RunTests.ps1, count = C.GATE.TEST_FLOOR), smoke, restart (T-SET-28), seed (Tools/SeedCheck.ps1, T-TEC-16), arms (five bot arms on seed 9107 against Tools/gate_arms.csv), contrast (T-PRE-05, debts in Docs/Validation/contrast_debts.txt; then the HUD's dormant line on its own frame), windows (Tools/WindowCheck.ps1),
 # pad (Tools/PadCheck.ps1, T-PKG-08: NOT RUN without a current package or a real pad), then scope, which does not exist yet; mac is deferred (D-007).
 param(
 	[switch]$AllFiles,
@@ -165,6 +165,38 @@ if (Start-HeavyStep "seed") {
 	$Out | Set-Content (Join-Path $LogDir "Gate_seed.log") -Encoding utf8
 	Report "seed" ((($Out | Select-String "^SEEDCHECK:" | Select-Object -Last 1).Line) -replace "^SEEDCHECK:\s*", "")
 	if ($Rc -ne 0) { Show $Out "^  ! "; Fail "seed" }
+}
+if (Start-HeavyStep "arms") {
+	# The five bot arms on seed 9107, in parallel inside this run's slot, against this branch's own Tools\gate_arms.csv: input_hash and steps per arm,
+	# and bot.csv's SHA-256 where the file holds one. A miss names the arm and both values.
+	$ArmsStart = Get-Date
+	$ArmNames = @("None", "Random", "Steered:Forge:Hammer", "Steered:Storm:Tempest", "Steered:Tide:Frost")
+	$ArmsOut = Join-Path $Root "Saved\BotRuns\gate_arms"
+	if (Test-Path $ArmsOut) { Remove-Item $ArmsOut -Recurse -Force }
+	$Want = @(Get-Content (Join-Path $Root "Tools\gate_arms.csv") | Where-Object { $_ -and -not $_.StartsWith("#") } | ConvertFrom-Csv)
+	$Out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "Tools\BotRuns.ps1") -Arms ($ArmNames -join ",") -FirstSeed 9107 -Parallel $ArmNames.Count -Out $ArmsOut 2>&1
+	$Rc = $LASTEXITCODE
+	$Out | Set-Content (Join-Path $LogDir "Gate_arms.log") -Encoding utf8
+	$Miss = @(if ($Rc -ne 0) { "BotRuns exit $Rc" })
+	$Read = @()
+	foreach ($Arm in $ArmNames) {
+		$Row = $Want | Where-Object { $_.arm -eq $Arm } | Select-Object -First 1
+		$RunDir = Join-Path $ArmsOut ("{0}_s9107" -f ($Arm -replace ':', '-'))
+		$Kv = @{}
+		if (Test-Path (Join-Path $RunDir "bot.csv.txt")) { Get-Content (Join-Path $RunDir "bot.csv.txt") | ForEach-Object { $k, $v = $_ -split '=', 2; $Kv[$k] = $v } }
+		$Read += "$Arm $(if ($Kv['input_hash']) { $Kv['input_hash'] } else { '-' })"
+		if (-not $Row) { $Miss += "$Arm has no row in Tools\gate_arms.csv"; continue }
+		if ($Kv.Count -eq 0) { $Miss += "$Arm wrote no bot record"; continue }
+		if ($Kv['input_hash'] -ne $Row.input_hash) { $Miss += "$Arm input_hash $($Row.input_hash) -> $($Kv['input_hash'])" }
+		if ($Kv['steps'] -ne $Row.steps) { $Miss += "$Arm steps $($Row.steps) -> $($Kv['steps'])" }
+		if ($Row.bot_csv_sha256) {
+			$Sha = if (Test-Path (Join-Path $RunDir "bot.csv")) { (Get-FileHash (Join-Path $RunDir "bot.csv") -Algorithm SHA256).Hash.ToLowerInvariant() } else { "(none)" }
+			if ($Sha -ne $Row.bot_csv_sha256) { $Miss += "$Arm bot.csv sha256 $($Row.bot_csv_sha256.Substring(0, 12)) -> $($Sha.Substring(0, 12))" }
+		}
+	}
+	$ArmsSecs = [int]((Get-Date) - $ArmsStart).TotalSeconds
+	if ($Miss.Count) { Report "arms" ("FAIL ({0}; read {1}; {2} s)" -f ($Miss -join "; "), ($Read -join ", "), $ArmsSecs); Show $Out "^BOTRUNS:"; Fail "arms" }
+	Report "arms" ("PASS ({0}; {1} s)" -f ($Read -join ", "), $ArmsSecs)
 }
 if (Start-HeavyStep "contrast") {
 	# T-PRE-05: a staged late frame (one weather exists). Needs the arena_empty shot the smoke step left, for the hero.
