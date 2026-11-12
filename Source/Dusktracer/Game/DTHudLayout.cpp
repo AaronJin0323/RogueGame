@@ -64,19 +64,32 @@ const FDTHudRect* FDTHudLayout::Find(EDTHudElem Kind, int32 Player, int32 Index,
 	return Rects.FindByPredicate([=](const FDTHudRect& Rect) { return Rect.Kind == Kind && Rect.Player == Player && Rect.Index == Index && Rect.Line == Line; });
 }
 
-void DTHud::BossRow(const FVector2f& View, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar)
+void DTHud::BossRow(const FVector2f& View, const FVector2f& PlaceNameSize, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar, float* OutNameMul)
 {
 	using namespace DTHudLayoutLocal;
 	const float S = DTUI::CanvasScale(View.Y);
 	const float ColumnW = View.X - 2.0f * (MarginX + BarW + ColumnGap) * S;
-	const float BarWidth = FMath::Max(0.0f, FMath::Min(BossBarW * S, ColumnW - NameSize.X - BossNameGap * S));
-	const float RowW = NameSize.X + BossNameGap * S + BarWidth;
-	const float RowH = FMath::Max(NameSize.Y, BossBarH * S);
+	const float ColumnLeft = 0.5f * (View.X - ColumnW);
+	// The bar is not text: it is placed by the name at the default text size, so the text-size setting never moves or grows it.
+	// Its lower edge is what 06_UX R-UX-01 counts on the hero's column (D-080).
+	const float BarWidth = FMath::Max(0.0f, FMath::Min(BossBarW * S, ColumnW - PlaceNameSize.X - BossNameGap * S));
+	const float RowW = PlaceNameSize.X + BossNameGap * S + BarWidth;
+	const float RowH = FMath::Max(PlaceNameSize.Y, BossBarH * S);
 	const float X = 0.5f * (View.X - RowW);
 	const float Y = CentreTop * S;
-	OutName = FBox2f(FVector2f(X, Y + 0.5f * (RowH - NameSize.Y)), FVector2f(X + NameSize.X, Y + 0.5f * (RowH + NameSize.Y)));
-	const float BarX = X + NameSize.X + BossNameGap * S;
+	const float BarX = X + PlaceNameSize.X + BossNameGap * S;
 	OutBar = FBox2f(FVector2f(BarX, Y + 0.5f * (RowH - BossBarH * S)), FVector2f(BarX + BarWidth, Y + 0.5f * (RowH + BossBarH * S)));
+	// The name takes the text size: its right edge stays at the gap and it grows leftward, away from the bar and the hero's column,
+	// centred on the bar's height; past the centre column's left edge it shrinks to fit, as the layout's other fitted lines do.
+	const float Right = BarX - BossNameGap * S;
+	const float Mul = NameSize.X > 0.0f && Right - NameSize.X < ColumnLeft ? FMath::Max(0.0f, Right - ColumnLeft) / NameSize.X : 1.0f;
+	const FVector2f Name = NameSize * Mul;
+	const float CentreY = OutBar.GetCenter().Y;
+	OutName = FBox2f(FVector2f(Right - Name.X, CentreY - 0.5f * Name.Y), FVector2f(Right, CentreY + 0.5f * Name.Y));
+	if (OutNameMul)
+	{
+		*OutNameMul = Mul;
+	}
 }
 
 FDTHudLayout DTHud::Layout(const FVector2f& View, float TextScale, const FDTHudContent& Content, FDTHudMeasure Measure)
@@ -211,12 +224,15 @@ FDTHudLayout DTHud::Layout(const FVector2f& View, float TextScale, const FDTHudC
 		float Y = CentreTop * S;
 		if (!Content.BossName.IsEmpty())
 		{
-			// Never shrunk: UDTBossSubsystem::DrawBossBar draws the name at its step and gives the bar what the column has left.
+			// UDTBossSubsystem::DrawBossBar draws the same row: the bar placed by the name at the default text size, the name at the
+			// player's, shrunk only if it would leave the centre column.
+			const FVector2f PlaceName = Measure(Content.BossName.ToString(), DTUI::TypeStep(EDTType::Body) * S);
 			const FVector2f Name = Size(Content.BossName, EDTType::Body);
 			FBox2f NameBox(ForceInit);
 			FBox2f BarBox(ForceInit);
-			BossRow(View, Name, NameBox, BarBox);
-			Add(EDTHudElem::BossName, 0, 0, NameBox.Min, NameBox.GetSize());
+			float NameMul = 1.0f;
+			BossRow(View, PlaceName, Name, NameBox, BarBox, &NameMul);
+			Add(EDTHudElem::BossName, 0, 0, NameBox.Min, NameBox.GetSize(), INDEX_NONE, NameMul);
 			Add(EDTHudElem::BossBar, 0, 0, BarBox.Min, BarBox.GetSize());
 			Y = FMath::Max(NameBox.Max.Y, BarBox.Max.Y) + Gap * S;
 		}

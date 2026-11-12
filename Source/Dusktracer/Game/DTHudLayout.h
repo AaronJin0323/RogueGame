@@ -111,8 +111,13 @@ namespace DTHud
 	/** R-HUD-01. Culture enters through the content's text and Measure. */
 	DUSKTRACER_API FDTHudLayout Layout(const FVector2f& View, float TextScale, const FDTHudContent& Content, FDTHudMeasure Measure);
 
-	/** The boss row at the top centre: the name, then its bar on the same line. NameSize is the name as drawn. */
-	DUSKTRACER_API void BossRow(const FVector2f& View, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar);
+	/**
+	 * The boss row at the top centre: the name, then its bar on the same line. PlaceNameSize is the name at the default text size,
+	 * which places the bar (the bar never moves or grows with the text-size setting: 06_UX R-UX-01 counts its lower edge); NameSize
+	 * is the name as drawn, which grows leftward from the gap and shrinks by OutNameMul if it would leave the centre column.
+	 */
+	DUSKTRACER_API void BossRow(const FVector2f& View, const FVector2f& PlaceNameSize, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar,
+		float* OutNameMul = nullptr);
 
 	/** R-UX-01's ground circle: the farthest point an enemy attack can start plus a Tank's diameter, in uu. */
 	DUSKTRACER_API float KeepOutRadiusUU();

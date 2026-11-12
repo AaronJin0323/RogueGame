@@ -239,6 +239,11 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas, float TextScale) const
 	using namespace DTBossSubsystemLocal;
 	UFont* const Font = GEngine->GetLargeFont();
 	const FText Name = FText::FromStringTable(TEXT("ST_Enemies"), TEXT("Enemy.Boss.Name")); // one row for the bar and the Codex (boss.md Text)
+	// The name at the default text size places the bar; the name as drawn takes the player's (DTHud::BossRow).
+	const float S = DTUI::CanvasScale(Canvas->ClipY);
+	float PlaceW = 0.0f;
+	float PlaceH = 0.0f;
+	Canvas->TextSize(Font, Name.ToString(), PlaceW, PlaceH, NameScale * S, NameScale * S);
 	float NameW = 0.0f;
 	float NameH = 0.0f;
 	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale * TextScale, NameScale * TextScale);
@@ -247,10 +252,11 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas, float TextScale) const
 	// under the hero stays clear (R-HUD-02). TextScale is the canvas scale times the player's text size.
 	FBox2f NameBox(ForceInit);
 	FBox2f BarBox(ForceInit);
-	DTHud::BossRow(FVector2f(Canvas->ClipX, Canvas->ClipY), FVector2f(NameW, NameH), NameBox, BarBox);
+	float NameMul = 1.0f;
+	DTHud::BossRow(FVector2f(Canvas->ClipX, Canvas->ClipY), FVector2f(PlaceW, PlaceH), FVector2f(NameW, NameH), NameBox, BarBox, &NameMul);
 
 	FCanvasTextItem Label(FVector2D(NameBox.Min), Name, Font, DTHudStyle::Duty(EDTHudDuty::Text));
-	Label.Scale = FVector2D(NameScale * TextScale, NameScale * TextScale);
+	Label.Scale = FVector2D(NameScale * TextScale * NameMul, NameScale * TextScale * NameMul);
 	Label.EnableShadow(FLinearColor::Black);
 	Canvas->DrawItem(Label);
 

@@ -516,7 +516,8 @@ bool FDTHudPlaces::RunTest(const FString& Parameters)
 		bOk &= Box(EDTHudElem::Banner).Min.Y >= Box(EDTHudElem::BossBar).Max.Y && Box(EDTHudElem::Banner).Min.Y >= Box(EDTHudElem::BossName).Max.Y;
 		bOk &= Box(EDTHudElem::Toast).Min.Y >= Box(EDTHudElem::Banner).Max.Y;
 		bOk &= FMath::Abs(Box(EDTHudElem::Banner).GetCenter().X - Mid.X) <= 1.0f && FMath::Abs(Box(EDTHudElem::Toast).GetCenter().X - Mid.X) <= 1.0f;
-		bOk &= FMath::Abs(0.5f * (Box(EDTHudElem::BossName).Min.X + Box(EDTHudElem::BossBar).Max.X) - Mid.X) <= 1.0f;
+		// The row is centred at the default text size; a larger size grows the name leftward and leaves the bar where it was (D-080).
+		bOk &= Scale != 1.0f || FMath::Abs(0.5f * (Box(EDTHudElem::BossName).Min.X + Box(EDTHudElem::BossBar).Max.X) - Mid.X) <= 1.0f;
 		bOk &= Box(EDTHudElem::BossBar).Min.X > Box(EDTHudElem::BossName).Max.X && Box(EDTHudElem::BossBar).GetSize().X > 4.0f * Box(EDTHudElem::BossBar).GetSize().Y;
 		// Bottom left, from the floor of the block up: the ring row, the tools, the meters, the aim line, the dormant sockets.
 		bOk &= Box(EDTHudElem::Ring).Max.X < Mid.X && Box(EDTHudElem::Ring).Min.Y > Mid.Y;
