@@ -1,9 +1,10 @@
-// DT.PerfScene S2 [NoDuoFields|NoReactions] [Hp=<x>]: the S2 perf proof scene (Docs/Validation/S2_perf.md; R-TEC-12: not in Shipping).
+// DT.PerfScene S2 [NoDuoFields|NoReactions] [Drones] [Hp=<x>]: the S2 perf proof scene (Docs/Validation/S2_perf.md; R-TEC-12: not in Shipping).
 // A fixed build owning every S2 system, a crowd held at the cap and a hero walking through it; the bullet cap is met by filler rounds
 // that hit and deal nothing (DTPerfScene::FillerRound). Every frame it writes what fired to the CSV capture as DT/S2Sum_* (monotonic:
 // the capture reads last minus first) and DT/S2Live_* (the capture reads the median); Tools/Perf.ps1 -Scene S2 judges them.
 // NoDuoFields drops the two duo cards that open fields (the control of the emit-cap reading); NoReactions leaves Reaction.Duos out of
-// the pool, so the proof must fail. Hp= replaces C.PERF.S2_CROWD_HP_SCALE (the sweep of S2_perf.md).
+// the pool, so the proof must fail. Hp= replaces C.PERF.S2_CROWD_HP_SCALE (the sweep of S2_perf.md). Drones puts an evolved Orbital Drones,
+// with the same three modifiers, in the Spiral Projector's place (D-079 item 5, the Blade Halo's perf bound); absent, the scene is as before.
 
 #include "CoreMinimal.h"
 
@@ -61,6 +62,8 @@ namespace DTDebugPerfScene
 		{ TEXT("Weapon.SeekerSwarm"), TEXT("Evolve.SeekerSwarm"), { TEXT("Mod.Pierce"), TEXT("Mod.Spillover"), TEXT("Mod.LingeringField") } },
 		{ TEXT("Weapon.SpiralProjector"), nullptr, { TEXT("Mod.Pierce"), TEXT("Mod.Backwash"), TEXT("Mod.Spillover") } }
 	};
+	/** The Drones option's line, in the Spiral Projector's place (D-079 item 5). */
+	static const FWeaponLine DronesLine = { TEXT("Weapon.OrbitalDrones"), TEXT("Evolve.OrbitalDrones"), { TEXT("Mod.Pierce"), TEXT("Mod.Backwash"), TEXT("Mod.Spillover") } };
 	/** One archetype of every Keeper, every card of it. Forge and Tide are the two that enchant: Burn and Chill are what Steam reads. */
 	static const TCHAR* const Archetypes[] =
 	{
@@ -89,6 +92,7 @@ namespace DTDebugPerfScene
 		TWeakObjectPtr<UWorld> World;
 		bool bNoDuoFields = false;
 		bool bNoReactions = false;
+		bool bDrones = false;
 		float HpScale = static_cast<float>(DTConst::PERF_S2_CROWD_HP_SCALE);
 
 		void LatchInput()
@@ -156,8 +160,10 @@ namespace DTDebugPerfScene
 					Keepers->Bless(0, FName(DTCat::Reactions[Row].BlessingId));
 				}
 			}
-			for (const FWeaponLine& Line : Build)
+			for (const FWeaponLine& BuildLine : Build)
 			{
+				const bool bSwap = bDrones && FCString::Strcmp(BuildLine.Id, TEXT("Weapon.SpiralProjector")) == 0;
+				const FWeaponLine& Line = bSwap ? DronesLine : BuildLine;
 				const FName Id(Line.Id);
 				EDTWeaponResult Result = Weapons->Give(0, Id, DTConst::WEAPON_LEVEL_MAX);
 				if (Result == EDTWeaponResult::AlreadyOwned)
@@ -183,6 +189,10 @@ namespace DTDebugPerfScene
 			Enemies->SetKeepHpScale(HpScale);
 			Enemies->SetKeepPopulation(DTConst::ENEMIES_CAP); // HoldElites queues first, so an elite takes the first slot a death frees
 			UE_LOG(LogDT, Log, TEXT("PerfScene: build stands (duos %d, duo fields %d)"), bNoReactions ? 0 : 1, bNoDuoFields ? 0 : 1);
+			if (bDrones)
+			{
+				UE_LOG(LogDT, Log, TEXT("PerfScene: Drones: Weapon.OrbitalDrones evolved in the Spiral Projector's place"));
+			}
 		}
 
 		static void Grant(FDTPlayerRunState& Player, FName Id, FName Weapon)
@@ -359,7 +369,7 @@ namespace DTDebugPerfScene
 		UDTSimSubsystem* Sim = World ? World->GetSubsystem<UDTSimSubsystem>() : nullptr;
 		if (!Sim || Args.Num() < 1 || !Args[0].Equals(TEXT("S2"), ESearchCase::IgnoreCase) || Scenes().Contains(World))
 		{
-			UE_LOG(LogDT, Warning, TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Hp=<x>]: game worlds only, once"));
+			UE_LOG(LogDT, Warning, TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Drones] [Hp=<x>]: game worlds only, once"));
 			return;
 		}
 		static bool bCleanupBound = false;
@@ -372,6 +382,7 @@ namespace DTDebugPerfScene
 		Scene->World = World;
 		Scene->bNoDuoFields = Args.Contains(TEXT("NoDuoFields"));
 		Scene->bNoReactions = Args.Contains(TEXT("NoReactions"));
+		Scene->bDrones = Args.Contains(TEXT("Drones"));
 		for (const FString& Arg : Args)
 		{
 			if (Arg.StartsWith(TEXT("Hp=")))
@@ -385,7 +396,7 @@ namespace DTDebugPerfScene
 	}
 
 	static FAutoConsoleCommandWithWorldAndArgs StartCmd(TEXT("DT.PerfScene"),
-		TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Hp=<x>]: the S2 perf proof scene (Tools/Perf.ps1 -Scene S2)"),
+		TEXT("DT.PerfScene S2 [NoDuoFields|NoReactions] [Drones] [Hp=<x>]: the S2 perf proof scene (Tools/Perf.ps1 -Scene S2)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Start));
 }
 
