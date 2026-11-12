@@ -26,6 +26,9 @@ CLASSES = {"Player": "SC_Player", "Danger": "SC_Danger", "UI": "SC_UI", "Music":
 # The class tree of R-AUD-04: each class's parent (SC_Master has none).
 CLASS_TREE = {"SC_Master": None, "SC_SFX": "SC_Master", "SC_UI": "SC_Master", "SC_Music": "SC_Master", "SC_Player": "SC_SFX", "SC_Danger": "SC_SFX"}
 DUCK_MIX = "SMX_Duck"
+# The game's own submix (R-AUD-04): every class of CLASS_TREE outputs to it, and it holds one dynamics processor set as a limiter.
+SUBMIX = "SMX_Game"
+LIMITER = "SMX_GameLimiter"
 
 
 def select(catalog=B.CATALOG, manifest=B.MANIFEST, out=B.OUT):
@@ -61,8 +64,8 @@ def select(catalog=B.CATALOG, manifest=B.MANIFEST, out=B.OUT):
 
 
 def expected_packages(assets):
-	"""Every package the import may leave under /Game/DT/Audio: the waves, the classes and the duck mix."""
-	return {a["package"] for a in assets} | {f"{MIX}/{name}" for name in CLASS_TREE} | {f"{MIX}/{DUCK_MIX}"}
+	"""Every package the import may leave under /Game/DT/Audio: the waves, the classes, the duck mix, the game's submix and its limiter."""
+	return {a["package"] for a in assets} | {f"{MIX}/{name}" for name in CLASS_TREE} | {f"{MIX}/{name}" for name in (DUCK_MIX, SUBMIX, LIMITER)}
 
 
 def main(argv):

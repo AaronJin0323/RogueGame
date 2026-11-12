@@ -1043,6 +1043,49 @@ class Mix(unittest.TestCase):
 		_, ef = self.judged([cue("Snd.Hero.Faint", thump(THUMP_LEVEL * X.db_gain(-30.0)), "low")], keys=faint)
 		self.assertTrue([e for e in ef if "Snd.Hero.Faint: audibility" in e and "held down by C.AUD.LOWHP_HOLD_DB" in e], ef)
 
+	def test_pairs_that_start_together_are_read_and_counted_and_never_an_error(self):
+		# R-AUD-04, R-AUD-18: two danger cues asked in one step start in one frame. Test cues as data: a click of 0.5 alone sits 6 dB under
+		# full scale, two of them together reach it; the hurt and the fall never start together.
+		def click(level, n=2400):
+			return [0.0] * 100 + [level] + [0.0] * n
+		k = self.keys
+		a = X.Source("Snd.Warn.ClickA", [click(0.1), click(0.5)], 1.0, side="danger", zone="warn", family="Warn")   # its loudest file is the second
+		b = X.Source("Snd.Warn.ClickB", [click(0.5)], 1.0, side="danger", zone="warn", family="Warn")
+		hurt = X.Source("Snd.Danger.HeroHurt", [click(0.2)], 1.0, side="danger", family="Danger")
+		down = X.Source("Snd.Danger.HeroDown", [click(0.2, 4800)], 1.0, side="danger", family="Danger")
+		cues = [a, b, hurt, down]
+		pairs = X.pair_readings(k, self.dense, cues, MIX_SKIP)
+		names = sorted(tuple(sorted((p["a"], p["b"]))) for p in pairs)
+		self.assertEqual(len(pairs), 5)                                                   # six pairs of four, less the hurt with the fall
+		self.assertNotIn(("Snd.Danger.HeroDown", "Snd.Danger.HeroHurt"), names)
+		ab = next(p for p in pairs if {p["a"], p["b"]} == {"Snd.Warn.ClickA", "Snd.Warn.ClickB"})
+		self.assertAlmostEqual(ab["bare_dbfs"], X.to_db(1.0), places=9)                  # each at its loudest file, on the same sample
+		mask = X.mix_of(self.dense["parts"], gain_db=k["AUD.DUCK_DB"])[int(MIX_SKIP * k["AUD.SAMPLE_RATE_HZ"]):]
+		step = int(k["AUD.SAMPLE_RATE_HZ"] * k["AUD.MASK_WINDOW_MS"] / 1000.0)
+		self.assertAlmostEqual(ab["mix_dbfs"], X.peak_on_top(mask, X._together(click(0.5), click(0.5)), step), places=9)
+		counts = X.pair_counts(k, pairs)
+		self.assertGreater(ab["bare_dbfs"], k["AUD.LIMIT_DBFS"])
+		self.assertEqual(counts["pairs"], 5)
+		self.assertEqual(counts["over_bare"], sum(1 for p in pairs if p["bare_dbfs"] > k["AUD.LIMIT_DBFS"]))
+		self.assertGreaterEqual(counts["over_bare"], 1)
+		self.assertEqual({counts["worst_bare"]["a"], counts["worst_bare"]["b"]}, {"Snd.Warn.ClickA", "Snd.Warn.ClickB"})
+		self.assertEqual(counts["worst_mix"], max(pairs, key=lambda p: p["mix_dbfs"]))
+		line = X.pair_text(counts)
+		self.assertTrue(line.startswith(f"pairs: 5 read; over C.AUD.LIMIT_DBFS {k['AUD.LIMIT_DBFS']}: {counts['over_bare']} bare, {counts['over_mix']} on the mix; "), line)
+		self.assertIn("(the limiter's, never an error)", line)
+		# Each cue alone stays under the line on the mix: no error. The pair over it is printed and counted, and is not one either.
+		cr, errors = self.judged(cues)
+		self.assertTrue(all(c["peak_dbfs"] <= k["AUD.LIMIT_DBFS"] for c in cr), cr)
+		self.assertEqual([e for e in errors if "peaks at" in e], [])
+		result, _ = self.counted_run(k, list(X.ROLES), cues)                             # stand-ins named: the crest stays out of it
+		self.assertEqual(len(result["pairs"]), 5)
+		self.assertEqual(result["pair_counts"]["over_bare"], counts["over_bare"])
+		self.assertFalse([e for e in result["errors"] if "ClickA" in e and "ClickB" in e], result["errors"])
+		lines = X.table(result)
+		self.assertIn(X.pair_text(result["pair_counts"]), lines)
+		self.assertTrue([ln for ln in lines if ln.startswith("Snd.Warn.ClickA + Snd.Warn.ClickB") or ln.startswith("Snd.Warn.ClickB + Snd.Warn.ClickA")], lines)
+		self.assertIn("pairs: none read (fewer than two danger cues that can start together)", X.table(self.counted_run(k, list(X.ROLES), [a])[0]))
+
 	def test_the_mix_raised_12_db_fails_the_peak(self):
 		cues = [cue("Snd.Warn.Ping", ping(PING_LEVEL), "warn", "Warn")]
 		self.assertFalse([e for e in self.judged(cues)[1] if "peaks at" in e])
@@ -1083,7 +1126,7 @@ class Mix(unittest.TestCase):
 		self.assertIn("loudness rises", errors[0])
 		self.assertIn("C.AUD.DENSITY_RISE_MAX_DB", errors[0])
 
-	def counted_run(self, keys, used):
+	def counted_run(self, keys, used, cues=()):
 		"""mix_model.run on the short render, counting every tier render (the run's own and the crest's extra seeds)."""
 		calls = []
 		real = X.render
@@ -1093,7 +1136,7 @@ class Mix(unittest.TestCase):
 			return real(*a, **k)
 		X.render = counting
 		try:
-			result = X.run(keys, self.roles, [], used, MIX_SECONDS, MIX_SKIP)
+			result = X.run(keys, self.roles, list(cues), used, MIX_SECONDS, MIX_SKIP)
 		finally:
 			X.render = real
 		return result, len(calls)

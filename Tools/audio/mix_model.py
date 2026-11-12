@@ -17,7 +17,9 @@ the densest mix lowered as it would be while that row sounds: a `warn` zone row'
 lowered by C.AUD.DUCK_DB; a `low` zone row (the heartbeat, which adds no duck of its own: R-AUD-12) in the low zone over the
 mix held C.AUD.LOWHP_HOLD_DB lower, with the low layer lowered by C.AUD.LOWHP_LOWEND_DUCK_DB too; a `Warn` family row's
 loudness over the ducked mix; and the peak of the mix, lowered the same way, with each danger sound on top. The loudest
-player-side sound is read as a warning, as a control: it must not reach the floor. Every limit is a key; this file holds the
+player-side sound is read as a warning, as a control: it must not reach the floor. Last, every pair of danger cues that can
+start in one frame is read at its loudest files, bare and on the ducked mix, against C.AUD.LIMIT_DBFS: printed and counted,
+never an error, since the limiter on the game's submix is for those (R-AUD-04). Every limit is a key; this file holds the
 model's own named constants only.
 
 This is a model of the mix, not the engine's mixer, and band energy is a proxy for hearing.
@@ -83,6 +85,8 @@ FRAME_HZ = 60                               # a frame is 1/60 s: the frame cap c
 SEED = 1                                    # the one seed: tier k draws from Rng(SEED * 1000 + its kills a second)
 CADENCE_JITTER = (0.4, 1.2)                 # a stream's owed requests grow by rate * step * (0.4 + 1.2 u): a mix, not a clock
 AUDITION_GAP_S = 2.0                        # the audition file sounds each danger cue this far apart
+# Danger cues that never start in one frame: a step that holds a down raises the fall alone (Audio/Observe/DTObserveDanger).
+EXCLUSIVE_PAIRS = (("Snd.Danger.HeroHurt", "Snd.Danger.HeroDown"),)
 # A key voice's draws: its written note's own five degrees, in semitones (R-AUD-10).
 DEGREES = {"A": (-5, -2, 0, 3, 5), "C": (-5, -3, 0, 2, 4), "D": (-5, -2, 0, 2, 5), "E": (-4, -2, 0, 3, 5), "G": (-5, -3, 0, 2, 5)}
 
@@ -485,6 +489,47 @@ def cue_readings(keys, dense, cues, control, skip=SKIP_SECONDS):
 	return out, ctl
 
 
+def loudest_file(cue):
+	"""The played samples of the cue's variant with the highest peak (the first of equals)."""
+	files = [cue.played(v) for v in range(len(cue.variants))]
+	return max(files, key=lambda x: max((abs(s) for s in x), default=0.0))
+
+
+def _together(a, b):
+	"""Two sounds started on the same sample, summed."""
+	n = max(len(a), len(b))
+	return [(a[i] if i < len(a) else 0.0) + (b[i] if i < len(b) else 0.0) for i in range(n)]
+
+
+def pair_readings(keys, dense, cues, skip=SKIP_SECONDS):
+	"""Every pair of two different danger cues that can start in one frame (R-AUD-05: danger never waits, so two asked in one step start
+	together), each at its loudest file, both on the same sample: the peak bare, and with the pair on top of the densest tier's mix ducked by
+	C.AUD.DUCK_DB at alignments C.AUD.MASK_WINDOW_MS apart. EXCLUSIVE_PAIRS never start together. A pair over C.AUD.LIMIT_DBFS is read and
+	counted, never an error: the limiter on the game's submix is for it (R-AUD-04). [{a, b, bare_dbfs, mix_dbfs}]."""
+	configure(keys)
+	sr = keys["AUD.SAMPLE_RATE_HZ"]
+	mask = mix_of(dense["parts"], gain_db=keys["AUD.DUCK_DB"])[int(skip * sr):]
+	step = int(sr * keys["AUD.MASK_WINDOW_MS"] / 1000.0)
+	excluded = {frozenset(p) for p in EXCLUSIVE_PAIRS}
+	loud = [(c.label, loudest_file(c)) for c in cues]
+	out = []
+	for i, (a, xa) in enumerate(loud):
+		for b, xb in loud[i + 1:]:
+			if a == b or frozenset((a, b)) in excluded:
+				continue
+			both = _together(xa, xb)
+			out.append({"a": a, "b": b, "bare_dbfs": peak_db(both), "mix_dbfs": peak_on_top(mask, both, step)})
+	return out
+
+
+def pair_counts(keys, pairs):
+	"""{pairs, over_bare, over_mix, worst_bare, worst_mix}: how many pairs pass C.AUD.LIMIT_DBFS bare and on the mix, and the worst of each
+	(None with no pair)."""
+	limit = keys["AUD.LIMIT_DBFS"]
+	return {"limit": limit, "pairs": len(pairs), "over_bare": sum(1 for p in pairs if p["bare_dbfs"] > limit), "over_mix": sum(1 for p in pairs if p["mix_dbfs"] > limit),
+		"worst_bare": max(pairs, key=lambda p: p["bare_dbfs"], default=None), "worst_mix": max(pairs, key=lambda p: p["mix_dbfs"], default=None)}
+
+
 def loudest_player(roles):
 	"""The loudest player-side one-shot by played loudness (lk100 at its volume), as written: the control."""
 	seen, best = [], None
@@ -537,12 +582,14 @@ def judge(keys, tiers, cues, control):
 
 
 def run(keys, roles, cues, used=(), seconds=TIER_SECONDS, skip=SKIP_SECONDS, seed=SEED):
-	"""The whole reading: {standins, tiers, rise_db, cues, control, errors}, JSON-serialisable."""
+	"""The whole reading: {standins, tiers, rise_db, cues, control, pairs, pair_counts, errors}, JSON-serialisable. The pairs are read
+	and counted and never judged (pair_readings)."""
 	tiers = render_tiers(keys, roles, seconds, seed=seed)
 	tr = judge_crest(keys, roles, tiers, tier_readings(keys, tiers, skip), used, seconds, skip, seed)
 	cr, ctl = cue_readings(keys, tiers[-1], cues, loudest_player(roles), skip)
+	pairs = pair_readings(keys, tiers[-1], cues, skip)
 	return {"standins": list(used), "tiers": tr, "rise_db": tr[-1]["lk_int"] - tr[0]["lk_int"], "cues": cr, "control": ctl,
-		"errors": judge(keys, tr, cr, ctl)}
+		"pairs": pairs, "pair_counts": pair_counts(keys, pairs), "errors": judge(keys, tr, cr, ctl)}
 
 
 # ---- the catalog's mix, and its cache key ------------------------------------------------------------------------
@@ -603,6 +650,29 @@ def table(result):
 		lines.append("no danger-side row in the catalog: no cue read")
 	if result["control"]:
 		lines.append(f"control {result['control']['id']}: read as a warning, SMR {result['control']['smr']:.1f} dB (must stay under the floor)")
+	lines += pair_table(result)
+	return lines
+
+
+def pair_text(counts):
+	"""The pairs' count line."""
+	if not counts or not counts["pairs"]:
+		return "pairs: none read (fewer than two danger cues that can start together)"
+	wb, wm = counts["worst_bare"], counts["worst_mix"]
+	return (f"pairs: {counts['pairs']} read; over C.AUD.LIMIT_DBFS {counts['limit']}: {counts['over_bare']} bare, {counts['over_mix']} on the mix; "
+		f"worst bare {wb['a']} with {wb['b']} {wb['bare_dbfs']:+.2f} dBFS, worst on the mix {wm['a']} with {wm['b']} {wm['mix_dbfs']:+.2f} dBFS "
+		"(the limiter's, never an error)")
+
+
+def pair_table(result):
+	"""The pairs as printable lines: one per pair, the worst on the mix first, then the count line."""
+	pairs = result.get("pairs") or []
+	lines = []
+	if pairs:
+		lines.append("pair (both start in one frame, each its loudest file)                bare dBFS  on mix dBFS")
+		for p in sorted(pairs, key=lambda p: -p["mix_dbfs"]):
+			lines.append(f"{p['a'] + ' + ' + p['b']:68s} {p['bare_dbfs']:9.2f}  {p['mix_dbfs']:11.2f}")
+	lines.append(pair_text(result.get("pair_counts")))
 	return lines
 
 

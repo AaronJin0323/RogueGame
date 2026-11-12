@@ -30,8 +30,12 @@
 #include "Misc/PackageName.h"
 #include "Misc/SecureHash.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundMix.h"
+#include "Sound/SoundSubmix.h"
 #include "Sound/SoundWave.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/UnrealType.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -1183,6 +1187,36 @@ bool FDTAudTestClasses::RunTest(const FString& Parameters)
 		TestEqual(*FString::Printf(TEXT("%s: the paused flag only on SC_UI"), Node.Key), static_cast<bool>(Class->Properties.bIsUISound), FCString::Strcmp(Node.Key, TEXT("SC_UI")) == 0);
 	}
 	TestTrue(TEXT("the duck's mix exists"), LoadObject<USoundMix>(nullptr, TEXT("/Game/DT/Audio/Mix/SMX_Duck.SMX_Duck"), nullptr, LOAD_NoWarn | LOAD_Quiet) != nullptr);
+	// R-AUD-04: one submix for the whole game, holding one dynamics processor set as a limiter at C.AUD.LIMIT_DBFS; every class routes to it.
+	// Read by reflection, so this module needs no AudioMixer header: USubmixEffectDynamicsProcessorPreset's Settings, its type and threshold.
+	USoundSubmix* Game = LoadObject<USoundSubmix>(nullptr, TEXT("/Game/DT/Audio/Mix/SMX_Game.SMX_Game"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (TestNotNull(TEXT("the game's submix SMX_Game exists"), Game))
+	{
+		TestEqual(TEXT("SMX_Game holds one effect"), Game->SubmixEffectChain.Num(), 1);
+		const USoundEffectSubmixPreset* Preset = Game->SubmixEffectChain.Num() > 0 ? Game->SubmixEffectChain[0].Get() : nullptr;
+		if (TestNotNull(TEXT("its effect is set"), Preset))
+		{
+			TestEqual(TEXT("its effect is SMX_GameLimiter"), Preset->GetName(), FString(TEXT("SMX_GameLimiter")));
+			TestEqual(TEXT("a dynamics processor"), Preset->GetClass()->GetName(), FString(TEXT("SubmixEffectDynamicsProcessorPreset")));
+			const FStructProperty* SettingsProp = FindFProperty<FStructProperty>(Preset->GetClass(), TEXT("Settings"));
+			const FEnumProperty* TypeProp = SettingsProp ? FindFProperty<FEnumProperty>(SettingsProp->Struct, TEXT("DynamicsProcessorType")) : nullptr;
+			const FNumericProperty* ThresholdProp = SettingsProp ? FindFProperty<FNumericProperty>(SettingsProp->Struct, TEXT("ThresholdDb")) : nullptr;
+			const FNumericProperty* KneeProp = SettingsProp ? FindFProperty<FNumericProperty>(SettingsProp->Struct, TEXT("KneeBandwidthDb")) : nullptr;
+			if (TestTrue(TEXT("its settings are read"), SettingsProp && TypeProp && ThresholdProp && KneeProp))
+			{
+				const void* Settings = SettingsProp->ContainerPtrToValuePtr<void>(Preset);
+				const int64 Type = TypeProp->GetUnderlyingProperty()->GetSignedIntPropertyValue(TypeProp->ContainerPtrToValuePtr<void>(Settings));
+				TestEqual(TEXT("set as a limiter"), TypeProp->GetEnum()->GetNameStringByValue(Type), FString(TEXT("Limiter")));
+				TestEqual(TEXT("at C.AUD.LIMIT_DBFS"), ThresholdProp->GetFloatingPointPropertyValue(ThresholdProp->ContainerPtrToValuePtr<void>(Settings)), static_cast<double>(DTConst::AUD_LIMIT_DBFS));
+				TestEqual(TEXT("a hard knee: nothing under the line is touched"), KneeProp->GetFloatingPointPropertyValue(KneeProp->ContainerPtrToValuePtr<void>(Settings)), 0.0);
+			}
+		}
+		for (const TPair<const TCHAR*, const TCHAR*>& Node : Tree)
+		{
+			const USoundClass* Class = LoadClass(Node.Key);
+			TestTrue(*FString::Printf(TEXT("%s routes to SMX_Game"), Node.Key), Class && Class->Properties.DefaultSubmix == Game && !Class->Properties.bApplyEffects);
+		}
+	}
 	int32 Waves = 0;
 	for (const DTCat::FSoundRow& Row : DTAudio::Catalog())
 	{

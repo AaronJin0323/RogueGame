@@ -16,13 +16,15 @@ In order:
   5  the per-file rules of the C.AUD.* keys (T-AUD-15, T-AUD-16), variants not byte-identical, and every pair of every
      confusion set (T-AUD-17);
   6  the mix (R-AUD-18, T-AUD-18; Tools/audio/mix_model.py): once the catalog has a danger-side row, every one is read against
-     the densest player mix, and the mix's density readings are judged. The readings are cached in <out>/mix.json under a key
-     over everything they depend on (mix_model.cache_key); with no danger-side row there is nothing to read.
+     the densest player mix, and the mix's density readings are judged. The pairs of danger cues that start in one frame are
+     read and counted, never judged (the limiter on the game's submix is for them, R-AUD-04). The readings are cached in
+     <out>/mix.json under a key over everything they depend on (mix_model.cache_key); with no danger-side row there is nothing
+     to read.
 Not active yet, and named so in the verdict, never passed: the mix checks while the catalog has no danger-side row, and the
 generated C++ table (Source/Dusktracer/Audio/DTSoundsGen.h): it is held to gen_sounds.py as soon as it exists.
 
 Last line: AUDIO: PASS (<n> sounds: <a> heard, <d> delegated, <r> rejected, <x> not heard; <m> files, <t> tool tests; [mix: <c> cue(s)
-over stand-ins for <roles>;] <what is not active yet>) or AUDIO: FAIL (<k> error(s)). The counts are the catalog's heard column
+over stand-ins for <roles> [(<p> pair(s): <b> bare and <q> on the mix over C.AUD.LIMIT_DBFS, for the limiter)];] <what is not active yet>) or AUDIO: FAIL (<k> error(s)). The counts are the catalog's heard column
 (R-AUD-22, T-AUD-22).
 Every error line starts with `error: `; whatever escapes the checks is one such line and a FAIL. Exit 0 / 1.
 """
@@ -329,7 +331,10 @@ def header_errors(rows, header_path, manifest=None):
 def mix_text(mix):
 	"""The verdict's words for what the mix read."""
 	roles = mix_model.standin_text(mix["standins"])
-	return f"mix: {len(mix['cues'])} cue(s) over " + (f"stand-ins for {roles}" if roles else "the catalog's player side")
+	pc = mix.get("pair_counts") or {}
+	pairs = (f" ({pc['pairs']} pair(s): {pc['over_bare']} bare and {pc['over_mix']} on the mix over C.AUD.LIMIT_DBFS, for the limiter)"
+		if pc.get("pairs") else "")
+	return f"mix: {len(mix['cues'])} cue(s) over " + (f"stand-ins for {roles}" if roles else "the catalog's player side") + pairs
 
 
 def mix_check(rows, files, paths, snapshot, options=None):
