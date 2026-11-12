@@ -6,7 +6,7 @@
 - **Build:** branch `s1/m2-readings` from `main` 842259e. One `Tools\Build.bat` (DusktracerEditor Development), `Result: Succeeded`, and no rebuild after it. Every run file's `run_start.build` reads `842259e`, clean, with `bot_fast` 600.
   - `git diff --stat e4926d4 842259e -- Source Content Config Dusktracer.uproject` prints `Source/Dusktracer/Dusktracer.cpp | 17 +++++++++++++++++`. That is the crash-exit change (D-065), compiled out of editors.
 - **Settings:** the nineteen arms of `S1_d045_sources_3.md`, fifteen seeds from first seed 1, policy All, 600 steps a frame, `-MaxSeconds` 1100, **`-Parallel 6`**. Only `-Skill` changes between rows. The skill 1.0 row is that note's battery.
-- **The restart.** Windows restarted the PC at 04:44 during the first skill 0.25 battery, at 210 of 285 runs. That folder was moved aside unread (`Saved\BotRuns\skill_025_cut`), and the row was run again whole.
+- **The restart.** Windows restarted the PC at 04:44 during the first skill 0.25 battery, at 210 of 285 runs. That folder was moved aside unread (`Saved\BotRuns\skill_025_cut`), and the row was run again whole. The owner's play session paused heavy jobs from 20:12 to 20:21 on 2026-11-12; no battery of this note was running then, and none was run again because of it.
 
 ```
 & Tools\BotRuns.ps1 -Arms <the nineteen arms, as in S1_d045_sources_3.md> -Seeds 15 -Skill 0.75 -Parallel 6 -Out Saved\BotRuns\skill_075

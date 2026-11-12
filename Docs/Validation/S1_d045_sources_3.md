@@ -7,6 +7,7 @@
   - `git diff --stat e4926d4 842259e -- Source Content Config Dusktracer.uproject` prints `Source/Dusktracer/Dusktracer.cpp | 17 +++++++++++++++++`, `1 file changed, 17 insertions(+)`. That is the crash-exit change (D-065, `package.md` R-PKG-16), which is compiled out of editors, so it cannot move a bot run.
 - **Settings:** the nineteen arms of `S1_d045_sources_2.md`, fifteen seeds from first seed 1, skill 1.0, policy All, 600 steps a frame, `-MaxSeconds` 1100.
   - **`-Parallel 6`**, not the 14 of the earlier batteries: other sessions share this PC now.
+- **Interruptions:** Windows restarted the PC at 04:44 on 2026-11-12 during the first skill 0.25 battery of `S1_skill_rows.md`, and the owner's play session paused heavy jobs from 20:12 to 20:21 on 2026-11-12. That second pause cut the 9107 control run `arms9107_b`, which was run again. Neither touched this battery, which had ended at 01:58.
 - **Wall time:** 01:40:06 to 01:58:12, about 18 minutes. About 7 minutes of that went on waiting for a machine slot: all four were held by other worktrees' gates and batteries.
 
 ```
