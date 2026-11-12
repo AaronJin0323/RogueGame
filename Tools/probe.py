@@ -3,8 +3,10 @@
 Usage:  python -I Tools/probe.py intercession <dir> [--seeds 5] [--stage S1|S2|all]            writes the T-KEE-15 scenes and <dir>/jobs.csv
         python -I Tools/probe.py ablation <dir> --builds <runs> [--seeds 1] [--stage S1|S2|all] [--max-build <seed>]  writes the T-KEE-18 scenes from bot.csv.L16 snapshots
         & Tools\\BotRuns.ps1 -Jobs <dir>\\jobs.csv -Parallel 14 -Out <dir>\\runs   runs them headless
-        python -I Tools/probe.py reforge <dir> --builds <runs>[,<runs>...] [--path-builds <runs>[,...]] [--seeds 1] [--hp-mult 40] [--max-build <seed>]  writes the Reforging band's scenes (D-082)
-        python -I Tools/probe.py read <dir> [--check]                      reads the runs, writes <dir>/probe.md
+        python -I Tools/probe.py reforge <dir> --builds <runs>[,<runs>...] [--path-builds <runs>[,...]] [--seeds 1] [--hp-mult 40] [--max-build <seed>]  writes one stage of the Reforging band's scenes (D-082)
+        python -I Tools/probe.py reforge-series <dir> --builds ... [--path-builds ...]   D-085, pass 1: the no-pick scenes of the series, <dir>/series
+        python -I Tools/probe.py reforge <dir> --builds ... [--path-builds ...] --calibrated   pass 2: fixes the health from <dir>/series, writes the fixed and far stages
+        python -I Tools/probe.py read <dir> [--check] [--series <stage dir>[,...]] [--far <stage dir>] [--out <dir>]   reads the runs, writes <dir>/probe.md (or <out>)
 
 A scene (Source/Dusktracer/Bot/DTProbeScript.h) is a build, a refilled swarm field and a window: the hero takes no damage and
 walks one route in the crowd (stand, walk, dash; FDTBotBrain::ProbeInput), the same steps for every build unless a cast moved
@@ -31,17 +33,26 @@ The Reforging band (D-082, reforging.md R-RFG-18): each level 16 snapshot is rea
 each card its hand can hold (the Patron's and the second Keeper's transformations, the evolution of each weapon at
 C.OFFER.REFORGE_EVOLVE_MIN_LEVEL). A card's lift on a build is its window damage over the no-pick scene's, same seed; the card reads
 the median over its builds against C.REFORGE.POWER_MIN..MAX, NOT READ on fewer than REFORGE_MIN_BUILDS builds, and each evolution
-prints the Patron's transformation on the same builds beside it. Every scene's kills are written to <dir>/kills.csv against the
-refill's ceiling (REFILL_CEILING_KILLS); a scene at it marks the stage SATURATED. The no-pick scene of a showcase arm's snapshot is
-T-KEE-18's full configuration, script and seed. Printed only.
+prints the Patron's transformation on the same builds beside it. The no-pick scene of a showcase arm's snapshot is T-KEE-18's full
+configuration, script and seed. Printed only.
 
-Prints T-KEE-15: PASS|FAIL (...) and T-KEE-18: PASS|FAIL (...); with --check exit 1 on FAIL or no reading, else 0. REFORGE: and CEILING:
-lines are printed and never judged.
+The field's health (D-085): the play rate is the median, over the play runs whose snapshots are read, of the kills in the minute that
+holds the Reforging hand's offer, scaled to the window; the health is where the no-pick scenes on SERIES kill that many at the median,
+interpolated on the logarithms between the two stages that bracket it and rounded to a whole multiple (one halving or doubling of
+SERIES_EXTEND when the series does not bracket; raised so the no-pick median is not over half the standing field). One health for the
+reading; each battery's own is printed and never used, and HEALTH: NOT FIRM when one is more than a stage away. The fixed stage is read
+whole: the lift by damage (judged), the lift by kills where the no-pick median is KILLS_LIFT_MIN or more, "at least" where a scene of
+the card killed more than the FIELD that stand, and per card the crowd's side only: in band, under, over, split or NOT READ. The far
+stage, bodies that do not die, is printed and never judged. Every fixed scene's kills go to <dir>/kills.csv.
+
+Prints T-KEE-15: PASS|FAIL (...) and T-KEE-18: PASS|FAIL (...); with --check exit 1 on FAIL or no reading, else 0. The PLAY:, SERIES:,
+HEALTH:, REFORGE: and FAR: lines are printed and never judged.
 """
 
 import csv
 import glob
 import json
+import math
 import os
 import re
 import statistics
@@ -79,10 +90,18 @@ CONFIGS = ("full", "no_keepers", "no_package", "no_mods", "no_levels", "no_extra
 CONTROL = ("no_second", "no_second_no_package")  # the package gain again, the second Keeper's cards off both sides
 DROPS = ("no_keepers", "no_mods", "no_levels", "no_extra")
 REFORGE_NONE = "none"  # the reforge stage's scene with no Reforging pick: the band's denominator (D-082 item 1)
-# The refill's ceiling (S1_keeper_power.md §3): at 10x HP the strong arms killed 160 to 176 in a 10 s window and their numbers
-# pressed together; a scene whose kills reach the low end of that range may be reading the refill, not the build (D-082 item 2).
-REFILL_CEILING_KILLS = 160
 REFORGE_MIN_BUILDS = 10  # D-082 item 10: a card read on fewer builds than this is NOT READ
+# D-085: the field's health is fixed by the rate play kills at. The no-pick scenes are read on SERIES (times the health play gives a
+# body at the minute) and the health is interpolated between the two stages that bracket the play rate; SERIES_EXTEND is the one
+# halving below and the one doubling above it, read only when the series does not bracket (never extrapolated). The far stage, bodies
+# that do not die, is the first of FAR_SERIES (160, doubled) at which no no-pick scene kills anything.
+SERIES = (5.0, 10.0, 20.0, 40.0)
+SERIES_EXTEND = (2.5, 80.0)
+FAR_SERIES = (160.0, 320.0, 640.0)
+ROOM_KILLS = FIELD / 2  # item 4: the no-pick build leaves room above it, at most half the standing field
+KILLS_LIFT_MIN = 20  # item 5: the lift by kills is printed where the no-pick median is this many kills or more
+FIRM_FACTOR = 2.0  # one stage of the series: a battery's own health this far from the pooled one makes the health NOT FIRM
+SPLIT_INSIDE_GAP = 0.1  # D-085 ruling 12: a card whose lift by damage over all builds and over the inside builds differ by more is split
 FIELD_SENTENCE = ("The field reads power when the weapon is used: the probe's hero takes no damage and walks inside the crowd, so a "
 	"contact weapon reads at its best here; whether a build survives using it is the play arms' (D-082 item 7).")
 
@@ -267,38 +286,81 @@ def reforge_builds(builds_roots, max_build=None):
 	return out
 
 
-def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None, path_roots=()):
-	"""D-082: per level 16 snapshot, on ablation's field and window, one scene with no pick and one per Reforging card the hand
-	can hold: the Patron's transformation, the second Keeper's, and the evolution of each weapon at the evolution level. The snapshots of
-	path_roots (the showcase arms' folders at the exit) read the two transformations only."""
+def reforge_jobs(out_dir, builds_roots, seeds, stages, max_build=None, path_roots=(), cards_too=True):
+	"""The scenes of one or more stages, [(label prefix, health multiple)], into out_dir: per level 16 snapshot, on ablation's field
+	and window, one scene with no pick and (cards_too) one per Reforging card the hand can hold: the Patron's transformation, the
+	second Keeper's, and the evolution of each weapon at the evolution level. The snapshots of path_roots (the showcase arms' folders
+	at the exit) read the two transformations only. Writes builds.csv; returns the jobs, stage by stage and card by card."""
 	consts = dtconst.load()
 	os.makedirs(out_dir, exist_ok=True)
-	hp = field_hp(consts, mult)
-	by_card, index = {}, []
+	index, jobs = [], []
 	path_only = {os.path.abspath(f) for root in path_roots for f in glob.glob(os.path.join(root, "*_s*"))}
-	for count, folder, build in reforge_builds(list(builds_roots) + list(path_roots), max_build):
-		patron, second, blessings, weapons = build
-		evolutions = [] if os.path.abspath(folder) in path_only else evolvable(weapons, consts)
-		picks = [REFORGE_NONE, f"Transform.{patron}"] + ([f"Transform.{second}"] if second else []) + evolutions
-		for card in picks:
-			tag = f"RF-b{count}-{card}"
-			script = os.path.join(out_dir, tag + ".txt")
-			with open(script, "w", encoding="utf-8", newline="\n") as f:
-				f.write(scene(patron, second, blessings, weapons, FIELD, hp, ABLATE_WARMUP_S, ABLATE_WINDOW_S)
-					+ (f"reforge {card}\n" if card != REFORGE_NONE else ""))
-			for seed in range(1, seeds + 1):
-				# a build's cards share its seed, so they are listed card by card, as ablation's configurations are: two runs of one
-				# seed then start minutes apart and their telemetry names never collide
-				by_card.setdefault(card if card in (REFORGE_NONE, f"Transform.{patron}") else ("second" if card.startswith("Transform.") else card), []).append(
-					[tag, count * 100 + seed, os.path.abspath(script)])
-		index.append([f"b{count}", os.path.abspath(folder), patron, second or "", ";".join(picks[1:])])
+	snapshots = reforge_builds(list(builds_roots) + list(path_roots), max_build)
+	for prefix, mult in stages:
+		hp = field_hp(consts, mult)
+		by_card = {}
+		for count, folder, build in snapshots:
+			patron, second, blessings, weapons = build
+			evolutions = [] if os.path.abspath(folder) in path_only else evolvable(weapons, consts)
+			picks = [REFORGE_NONE, f"Transform.{patron}"] + ([f"Transform.{second}"] if second else []) + evolutions
+			if prefix == stages[0][0]:
+				index.append([f"b{count}", os.path.abspath(folder), patron, second or "", ";".join(picks[1:])])
+			for card in picks if cards_too else [REFORGE_NONE]:
+				tag = f"{prefix}-b{count}-{card}"
+				script = os.path.join(out_dir, tag + ".txt")
+				with open(script, "w", encoding="utf-8", newline="\n") as f:
+					f.write(scene(patron, second, blessings, weapons, FIELD, hp, ABLATE_WARMUP_S, ABLATE_WINDOW_S)
+						+ (f"reforge {card}\n" if card != REFORGE_NONE else ""))
+				for seed in range(1, seeds + 1):
+					# a build's cards share its seed, so they are listed card by card, as ablation's configurations are: two runs of one
+					# seed then start minutes apart and their telemetry names never collide
+					by_card.setdefault(card if card in (REFORGE_NONE, f"Transform.{patron}") else ("second" if card.startswith("Transform.") else card), []).append(
+						[tag, count * 100 + seed, os.path.abspath(script)])
+		jobs += [job for card in by_card for job in by_card[card]]
 	with open(os.path.join(out_dir, "builds.csv"), "w", encoding="utf-8", newline="") as f:
 		w = csv.writer(f)
 		w.writerow(["build", "folder", "patron", "second", "cards"])
 		w.writerows(index)
+	return jobs
+
+
+def gen_reforge(out_dir, builds_roots, seeds, mult=FIELD_HP_MULT, max_build=None, path_roots=()):
+	"""D-082: one stage of the band's scenes at a health multiple given by hand (--hp-mult), every card and no pick."""
+	jobs = reforge_jobs(out_dir, builds_roots, seeds, [("RF", mult)], max_build, path_roots)
 	with open(os.path.join(out_dir, "hp_mult.txt"), "w", encoding="utf-8") as f:
 		f.write(f"{mult:g}\n")
-	write_jobs(out_dir, [job for card in by_card for job in by_card[card]])
+	write_jobs(out_dir, jobs)
+
+
+def series_prefix(mult):
+	return f"RS{mult:g}"
+
+
+def gen_series(out_dir, builds_roots, seeds, max_build=None, path_roots=()):
+	"""D-085, the first pass: the no-pick scenes of every snapshot on SERIES, SERIES_EXTEND and FAR_SERIES, into <out_dir>/series.
+	The reforge stage's second pass (--calibrated) reads them, fixes the health and writes the fixed and far stages."""
+	series = os.path.join(out_dir, "series")
+	stages = [(series_prefix(m), m) for m in sorted(SERIES + SERIES_EXTEND + FAR_SERIES)]
+	write_jobs(series, reforge_jobs(series, builds_roots, seeds, stages, max_build, path_roots, cards_too=False))
+
+
+def gen_calibrated(out_dir, builds_roots, seeds, max_build=None, path_roots=()):
+	"""D-085, the second pass: the health from <out_dir>/series (see calibrate), then every card and no pick at that health (RF-)
+	and at the far stage's (RD-). Prints the calibration's lines; writes no scene when the health is not found. Returns 0 or 1."""
+	lines = []
+	cal = calibration_of(series_paths(out_dir), lines)
+	print("\n".join(lines))
+	if cal is None or cal["health"] is None:
+		return 1
+	stages = [("RF", cal["health"])] + ([("RD", cal["far"])] if cal["far"] is not None else [])
+	jobs = reforge_jobs(out_dir, builds_roots, seeds, stages, max_build, path_roots)
+	with open(os.path.join(out_dir, "hp_mult.txt"), "w", encoding="utf-8") as f:
+		f.write(f"{cal['health']:g}\n")
+	if cal["far"] is not None:
+		with open(os.path.join(out_dir, "far_mult.txt"), "w", encoding="utf-8") as f:
+			f.write(f"{cal['far']:g}\n")
+	write_jobs(out_dir, jobs)
+	return 0
 
 
 def read_run(folder):
@@ -504,74 +566,304 @@ def read_kills(folder):
 	return kills
 
 
-def reforge_lifts(runs):
-	"""{card: {build: lift}} from {label: {seed: (damage, ...)}}: the card's window damage over the same build's no-pick damage,
-	seed by seed, the mean over seeds."""
-	scenes = {}
-	for label, seeds in runs.items():
-		if not label.startswith("RF-"):
-			continue
-		build, _, card = label[3:].partition("-")
-		scenes.setdefault(build, {})[card] = seeds
+def read_scene(folder):
+	"""(window damage, window kills) of one reforge scene, or None without telemetry or a run_end."""
+	value = read_run(folder)
+	if value is None:
+		return None
+	return value[0], read_kills(folder)
+
+
+def scenes_of(runs_root, prefix):
+	"""{build: {card: {seed: (damage, kills)}}} of the scenes labelled <prefix>-<build>-<card> under runs_root."""
 	out = {}
-	for build, cards in scenes.items():
+	for folder in glob.glob(os.path.join(glob.escape(runs_root), f"{prefix}-*_s*")):
+		label, _, seed = os.path.basename(folder).rpartition("_s")
+		head, _, rest = label.partition("-")
+		if head != prefix:
+			continue
+		build, _, card = rest.partition("-")
+		value = read_scene(folder)
+		if value is not None:
+			out.setdefault(build, {}).setdefault(card, {})[int(seed)] = value
+	return out
+
+
+def read_builds(stage_dir):
+	"""{build: row} of a stage folder's builds.csv, or {}."""
+	path = os.path.join(stage_dir, "builds.csv")
+	if not os.path.exists(path):
+		return {}
+	with open(path, encoding="utf-8", newline="") as f:
+		return {r["build"]: r for r in csv.DictReader(f)}
+
+
+def read_mult(stage_dir, name="hp_mult.txt"):
+	path = os.path.join(stage_dir, name)
+	if not os.path.exists(path):
+		return None
+	with open(path, encoding="utf-8") as f:
+		return float(f.read().strip())
+
+
+def runs_of(stage_dir):
+	return os.path.join(stage_dir, "runs") if os.path.isdir(os.path.join(stage_dir, "runs")) else stage_dir
+
+
+# --- D-085: the play rate and the field's health -----------------------------------------------------------------------------------
+
+def hand_kills(folder, window=ABLATE_WINDOW_S):
+	"""Kills in the minute that holds the Reforging hand, scaled to the probe's window, from a play run's own file; or None.
+	The hand's time is its `offer` record (hand_kind Reforging), for a hold, a decline and a pick alike: every run that reached the
+	hand has one. The minute is the `sources` interval of player 0 that holds that time: interval i covers [i, i + 1) x interval_s."""
+	files = glob.glob(os.path.join(glob.escape(folder), "*.jsonl"))
+	if not files:
+		return None
+	interval_s, hand_t, kills = 60.0, None, {}
+	with open(files[0], encoding="utf-8") as stream:
+		for line in stream:
+			if '"kind":"run_start"' in line:
+				interval_s = float(json.loads(line).get("interval_s") or 60.0)
+			elif '"kind":"offer"' in line and '"hand_kind":"Reforging"' in line and hand_t is None:
+				record = json.loads(line)
+				if record.get("owner", 0) == 0:
+					hand_t = float(record["t"])
+			elif '"kind":"sources"' in line:
+				record = json.loads(line)
+				if record.get("owner", 0) == 0:
+					kills[int(record.get("interval", 0))] = sum((record.get("kills") or {}).values())
+	if hand_t is None:
+		return None
+	minute = kills.get(int(hand_t // interval_s))
+	return None if minute is None else minute * window / interval_s
+
+
+def play_rate(folders):
+	"""(median, lowest, highest, runs read, runs without the hand's minute) over play run folders."""
+	values = [v for v in (hand_kills(f) for f in folders) if v is not None]
+	if not values:
+		return None, None, None, 0, len(folders)
+	return statistics.median(values), min(values), max(values), len(values), len(folders) - len(values)
+
+
+def bracket(points, target):
+	"""(health, (h1, k1, h2, k2)) where {health: no-pick median kills} meets target between two neighbouring stages, linearly on the
+	logarithms of health and kills; (None, None) when no two stages with kills bracket it."""
+	pts = sorted(points.items())
+	for (h1, k1), (h2, k2) in zip(pts, pts[1:]):
+		if k1 >= target >= k2 and k1 > 0 and k2 > 0:
+			if k1 == k2:
+				return h1, (h1, k1, h2, k2)
+			x = (math.log(target) - math.log(k1)) / (math.log(k2) - math.log(k1))
+			return math.exp(math.log(h1) + x * (math.log(h2) - math.log(h1))), (h1, k1, h2, k2)
+	return None, None
+
+
+def fix_health(medians, target):
+	"""(health, bracket, note) on SERIES, extended by one halving or doubling of SERIES_EXTEND only when the series does not bracket
+	target and the extension was read; (None, None, why) otherwise. Never extrapolated."""
+	core = {m: medians[m] for m in SERIES if m in medians}
+	if len(core) < 2:
+		return None, None, "fewer than two stages of the series read"
+	health, br = bracket(core, target)
+	if health is not None:
+		return health, br, None
+	lowest, highest = min(core), max(core)
+	if target > core[lowest]:
+		ext, word = SERIES_EXTEND[0], "halving"
+	elif target < core[highest]:
+		ext, word = SERIES_EXTEND[1], "doubling"
+	else:
+		return None, None, "no two stages with kills bracket it"
+	if ext not in medians:
+		return None, None, f"the series does not bracket it and its {word} to {ext:g}x was not read"
+	health, br = bracket({**core, ext: medians[ext]}, target)
+	note = f"the series extended by one {word} to {ext:g}x"
+	return (health, br, note) if health is not None else (None, None, f"no two stages with kills bracket it, {note}")
+
+
+def stage_kills(stage, builds=None):
+	"""The no-pick scenes' kills of one stage {build: {card: {seed: (damage, kills)}}}, over builds (all when None)."""
+	return [v[1] for b, cards in stage.items() if builds is None or b in builds for v in cards.get(REFORGE_NONE, {}).values()]
+
+
+def series_paths(out_dir):
+	path = os.path.join(out_dir, "series")
+	return [path] if os.path.isdir(path) else []
+
+
+def load_series(paths):
+	"""({health multiple: stage}, {build: builds.csv row}) from series folders (RS<mult>- labels, gen_series) or from stage folders
+	read one by one (an hp_mult.txt and RF- labels, gen_reforge --hp-mult); only the no-pick scenes count."""
+	stages, builds = {}, {}
+	for path in paths:
+		builds.update(read_builds(path))
+		runs = runs_of(path)
+		mult = read_mult(path)
+		if mult is not None and glob.glob(os.path.join(glob.escape(runs), "RF-*")):
+			stages[mult] = scenes_of(runs, "RF")
+			continue
+		prefixes = {os.path.basename(f).split("-", 1)[0] for f in glob.glob(os.path.join(glob.escape(runs), "RS*-*_s*"))}
+		for prefix in prefixes:
+			stages[float(prefix[2:])] = scenes_of(runs, prefix)
+	return stages, builds
+
+
+def health_of(stages, folders, builds=None):
+	"""One calibration: the play rate of folders, each stage's no-pick median, the health and how it was found."""
+	rate, lowest, highest, read, missing = play_rate(folders)
+	medians = {m: statistics.median(k) for m, k in ((m, stage_kills(s, builds)) for m, s in stages.items()) if k}
+	out = {"rate": rate, "lowest": lowest, "highest": highest, "read": read, "missing": missing, "medians": medians,
+		"health": None, "raw": None, "bracket": None, "note": None, "room": False, "why": None}
+	if rate is None:
+		out["why"] = "no play run with the Reforging hand's minute"
+		return out
+	target = rate
+	if rate > ROOM_KILLS:
+		target, out["room"] = ROOM_KILLS, True
+	raw, br, note = fix_health(medians, target)
+	if raw is None:
+		out["why"] = note
+		return out
+	out.update(raw=raw, bracket=br, note=note, health=float(max(1, math.ceil(raw - 1e-9) if out["room"] else round(raw))))
+	return out
+
+
+def calibration_of(paths, lines):
+	"""D-085 items 1 to 4 and 8 on the series under paths: the play rate, the series, the health fixed once for the reading, each
+	battery's own (printed, never used), and the far stage. Appends the lines; returns the pooled calibration with "far", or None."""
+	stages, builds = load_series(paths)
+	if not stages:
+		return None
+	folders = [row["folder"] for row in builds.values()]
+	cal = health_of(stages, folders)
+	if cal["rate"] is None:
+		lines.append(f"PLAY: not read ({cal['why']})")
+	else:
+		lines.append(f"PLAY: the play rate {cal['rate']:.1f} kills a window ({ABLATE_WINDOW_S:g} s): the median over {cal['read']} run(s), "
+			f"{cal['lowest']:.1f} to {cal['highest']:.1f}, of the kills in the minute that holds the Reforging hand (its offer record, each run's "
+			f"own file), scaled to the window" + (f"; {cal['missing']} run(s) without that minute left out" if cal["missing"] else ""))
+	cells = []
+	for m in sorted(stages):
+		kills = stage_kills(stages[m])
+		if kills:
+			cells.append(f"{m:g}x {statistics.median(kills):g} ({max(kills)})")
+	lines.append(f"SERIES: no pick, kills in the window, median (highest) over each stage's scenes: {'; '.join(cells)}")
+	if cal["health"] is None:
+		lines.append(f"HEALTH: NOT FOUND ({cal['why'] or 'no play rate'}); no stage is fixed and no card is read")
+	else:
+		h1, k1, h2, k2 = cal["bracket"]
+		target = ROOM_KILLS if cal["room"] else cal["rate"]
+		lines.append(f"HEALTH: {cal['health']:g}x fixed ({cal['raw']:.2f} interpolated) where the no-pick median meets {target:.2f}, between "
+			f"{h1:g}x ({k1:g}) and {h2:g}x ({k2:g}), on the logarithms of health and kills"
+			+ (f"; {cal['note']}" if cal["note"] else "")
+			+ (f"; the play rate {cal['rate']:.1f} is over half the standing field ({ROOM_KILLS:g} of {FIELD}), so the health is raised until "
+				f"the no-pick median is not over {ROOM_KILLS:g}" if cal["room"] else ""))
+		per = {}
+		for build, row in builds.items():
+			per.setdefault(os.path.dirname(row["folder"].rstrip("\\/")), set()).add(build)
+		cells, loose = [], []
+		for battery in sorted(per):
+			one = health_of(stages, [builds[b]["folder"] for b in per[battery]], per[battery])
+			name = os.path.basename(battery)
+			if one["health"] is None:
+				cells.append(f"{name} not found ({one['why']})")
+				loose.append(f"{name} not found")
+				continue
+			cells.append(f"{name} {one['health']:g}x ({one['raw']:.2f}; play {one['rate']:.1f})")
+			if max(one["health"] / cal["health"], cal["health"] / one["health"]) > FIRM_FACTOR + 1e-9:
+				loose.append(f"{name} {one['health']:g}x")
+		lines.append(f"HEALTH: each battery alone, printed and never used: {'; '.join(cells)}")
+		if loose:
+			lines.append(f"HEALTH: NOT FIRM (pooled {cal['health']:g}x; more than one stage of the series ({FIRM_FACTOR:g} times) away: {'; '.join(loose)})")
+	cal["far"] = None
+	for m in FAR_SERIES:
+		kills = stage_kills(stages.get(m, {}))
+		if kills and statistics.median(kills) == 0 and max(kills) == 0:
+			cal["far"] = m
+			lines.append(f"FAR: bodies that do not die at {m:g}x (no pick kills nothing in {len(kills)} scene(s)); printed and never judged")
+			break
+	if cal["far"] is None:
+		lines.append(f"FAR: not found (no stage of {', '.join(f'{m:g}x' for m in FAR_SERIES)} read with no kill in any no-pick scene)")
+	return cal
+
+
+def card_rows(stage):
+	"""{card: {"dmg": {build: lift}, "kills": {build: lift}, "base": {build: no-pick kills}, "most": the card's highest scene kills}}
+	from one stage: each lift the card's window figure over the same build's no-pick figure, seed by seed, the mean over seeds."""
+	out = {}
+	for build, cards in stage.items():
 		base = cards.get(REFORGE_NONE)
 		if not base:
 			continue
 		for card, seeds in cards.items():
 			if card == REFORGE_NONE:
 				continue
-			ratios = [seeds[s][0] / base[s][0] for s in seeds if s in base and base[s][0] > 0]
-			if ratios:
-				out.setdefault(card, {})[build] = statistics.mean(ratios)
+			common = [s for s in seeds if s in base]
+			dmg = [seeds[s][0] / base[s][0] for s in common if base[s][0] > 0]
+			if not dmg:
+				continue
+			row = out.setdefault(card, {"dmg": {}, "kills": {}, "base": {}, "most": 0, "past": 0, "scenes": 0})
+			row["past"] += sum(1 for s in common if seeds[s][1] > FIELD)
+			row["scenes"] += len(common)
+			row["dmg"][build] = statistics.mean(dmg)
+			kills = [seeds[s][1] / base[s][1] for s in common if base[s][1] > 0]
+			if kills:
+				row["kills"][build] = statistics.mean(kills)
+			row["base"][build] = statistics.mean(base[s][1] for s in common)
+			row["most"] = max([row["most"]] + [seeds[s][1] for s in common])
 	return out
 
 
-def read_reforge(root, lines):
-	"""D-082: per card, the median lift over its builds against REFORGE.POWER_MIN..MAX; each evolution beside its builds' own Patron
-	transformation; how near each scene's kills come to the refill's ceiling. Printed only: it judges nothing and sets no exit code."""
-	consts = dtconst.load()
-	low, high = consts["REFORGE.POWER_MIN"]["value"], consts["REFORGE.POWER_MAX"]["value"]
-	need = REFORGE_MIN_BUILDS
-	runs = read_all(root)
-	lifts = reforge_lifts(runs)
-	keepers = {}
-	builds_csv = os.path.join(os.path.dirname(root.rstrip("\\/")), "builds.csv")
-	if os.path.exists(builds_csv):
-		with open(builds_csv, encoding="utf-8", newline="") as f:
-			keepers = {r["build"]: (r["patron"], r["second"]) for r in csv.DictReader(f)}
-	most, most_at, every = 0, "-", []
-	for folder in sorted(glob.glob(os.path.join(root, "RF-*_s*"))):
-		kills = read_kills(folder)
-		if kills is not None:
-			every.append([os.path.basename(folder), kills, f"{kills / REFILL_CEILING_KILLS:.3f}"])
-			if kills > most:
-				most, most_at = kills, os.path.basename(folder)
-	with open(os.path.join(os.path.dirname(root.rstrip("\\/")), "kills.csv"), "w", encoding="utf-8", newline="") as f:
-		w = csv.writer(f)
-		w.writerow(["scene", "kills_in_window", "of_ceiling"])
-		w.writerows(every)
-	if not lifts:
-		lines.append("REFORGE: n/a (no card with a no-pick scene beside it)")
-		return None
-	lines += ["", f"## Reforging band on the probe's field (lift = window damage with the card / without it; band {low}-{high}; "
-		f"a card on fewer than {need} builds is not read)", "", FIELD_SENTENCE, "",
-		"| Card | Builds | Median lift | Lowest | Highest | Band | The Patron's card on the same builds | Its median | The second Keeper's card on the same builds | Its median |",
-		"|---|---|---|---|---|---|---|---|---|---|"]
-	read = inband = under = over = 0
-	for card in sorted(lifts, key=lambda c: (not c.startswith("Transform."), c)):
-		per = lifts[card]
-		n = len(per)
-		med = statistics.median(per.values())
-		if n < need:
-			verdict = "NOT READ"
-		elif med < low:
-			verdict, under = "under", under + 1
-		elif med > high:
-			verdict, over = "over", over + 1
-		else:
-			verdict, inband = "in band", inband + 1
-		read += n >= need
+def side(value, low, high):
+	return "under" if value < low else "over" if value > high else "in band"
+
+
+def card_reading(row, low, high, need=REFORGE_MIN_BUILDS):
+	"""One card on one stage: builds, the lift by damage (judged), the lift by kills where the no-pick median is KILLS_LIFT_MIN or
+	more, "at least" when one of its scenes killed more than the FIELD that stand, and the crowd's side: in band, under, over, split
+	(damage and kills on different sides of a bound; item 10: said, not settled) or NOT READ (fewer than need builds)."""
+	n = len(row["dmg"])
+	dmg = statistics.median(row["dmg"].values())
+	base = statistics.median(row["base"].values())
+	kills = statistics.median(row["kills"].values()) if base >= KILLS_LIFT_MIN and row["kills"] else None
+	# Ruling 12: the same medians over the builds whose no-pick scene stays inside the field (kills not over FIELD); a build past it is
+	# bound by the ring on both sides and presses a lift toward one.
+	inside = [b for b, k in row["base"].items() if k <= FIELD]
+	in_dmg = statistics.median(row["dmg"][b] for b in inside) if inside else None
+	in_base = statistics.median(row["base"][b] for b in inside) if inside else 0
+	in_kills_v = [row["kills"][b] for b in inside if b in row["kills"]]
+	in_kills = statistics.median(in_kills_v) if in_base >= KILLS_LIFT_MIN and in_kills_v else None
+	reasons = []
+	if n < need:
+		verdict = "NOT READ"
+	else:
+		if kills is not None and side(kills, low, high) != side(dmg, low, high):
+			reasons.append("damage and kills, all builds")
+		if len(inside) >= need and in_kills is not None and side(in_kills, low, high) != side(in_dmg, low, high):
+			reasons.append("damage and kills, inside builds")
+		if len(inside) >= need and abs(dmg - in_dmg) > SPLIT_INSIDE_GAP + 1e-9:
+			reasons.append(f"all and inside builds by damage {abs(dmg - in_dmg):.2f} apart")
+		verdict = f"split ({'; '.join(reasons)})" if reasons else side(dmg, low, high)
+	return {"n": n, "dmg": dmg, "lowest": min(row["dmg"].values()), "highest": max(row["dmg"].values()), "kills": kills, "base": base,
+		"at_least": row["most"] > FIELD, "verdict": verdict, "past": row.get("past", 0), "scenes": row.get("scenes", n),
+		"inside": len(inside), "in_dmg": in_dmg, "in_kills": in_kills}
+
+
+def lift_text(value, at_least):
+	return ("at least " if at_least else "") + f"{value:.2f}"
+
+
+def stage_table(stage, keepers, low, high, judged):
+	"""The lines of one stage's table and {card: reading}. The fixed stage is judged on the crowd's side; the far stage is not."""
+	rows = card_rows(stage)
+	readings = {card: card_reading(row, low, high) for card, row in rows.items()}
+	head = (f"| Card | Builds | Lift by damage (median) | Lowest | Highest | Lift by kills (median) | No-pick kills (median) | Scenes past the {FIELD} that stand |"
+		f" Builds with the no-pick scene inside the field | Lift by damage, inside | Lift by kills, inside |" + (" Crowd's side |" if judged else ""))
+	head += " The Patron's card on the same builds | Its median | The second Keeper's card on the same builds | Its median |"
+	lines = [head, "|" + "---|" * (head.count("|") - 1)]
+	for card in sorted(readings, key=lambda c: (not c.startswith("Transform."), c)):
+		r, per = readings[card], rows[card]["dmg"]
 		beside = []
 		for which in (0, 1):  # the hand offers both Keepers' transformations beside an evolution: each on the same builds
 			cell, cell_med = "-", "-"
@@ -579,22 +871,77 @@ def read_reforge(root, lines):
 				paired = {}
 				for build in per:
 					keeper = keepers.get(build, ("", ""))[which]
-					if keeper and build in lifts.get(f"Transform.{keeper}", {}):
-						paired[build] = (f"Transform.{keeper}", lifts[f"Transform.{keeper}"][build])
+					if keeper and build in rows.get(f"Transform.{keeper}", {}).get("dmg", {}):
+						paired[build] = (f"Transform.{keeper}", rows[f"Transform.{keeper}"]["dmg"][build])
 				if paired:
 					names = sorted({name for name, _ in paired.values()})
 					cell, cell_med = f"{'/'.join(names)} ({len(paired)} builds)", f"{statistics.median(v for _, v in paired.values()):.2f}"
 			beside += [cell, cell_med]
-		lines.append(f"| {card} | {n} | {med:.2f} | {min(per.values()):.2f} | {max(per.values()):.2f} | {verdict} | {' | '.join(beside)} |")
-	saturated = most >= REFILL_CEILING_KILLS
-	lines += ["", f"### Every scene's kills in its window, against the refill's ceiling of {REFILL_CEILING_KILLS} (also <dir>/kills.csv)", "",
-		"| Scene | Kills | Of the ceiling |", "|---|---|---|"]
-	lines += [f"| {scene} | {kills} | {share} |" for scene, kills, share in every]
+		kills = "-" if r["kills"] is None else lift_text(r["kills"], r["at_least"])
+		inside = (f" {r['inside']} | {'-' if r['in_dmg'] is None else lift_text(r['in_dmg'], r['at_least'])} | "
+			f"{'-' if r['in_kills'] is None else lift_text(r['in_kills'], r['at_least'])} |")
+		lines.append(f"| {card} | {r['n']} | {lift_text(r['dmg'], r['at_least'])} | {r['lowest']:.2f} | {r['highest']:.2f} | {kills} | {r['base']:g} | {r['past']} of {r['scenes']} |"
+			+ inside
+			+ (f" {r['verdict']} |" if judged else "") + f" {' | '.join(beside)} |")
+	return lines, readings
+
+
+def read_reforge(root, lines, series=None, far=None, out=None):
+	"""D-082 as amended by D-085: the calibration (play rate, series, health, each battery's, the far stage), then the fixed stage read
+	whole on the crowd's side and the far stage printed. root is the fixed stage's runs; series the calibration's folders (default
+	<dir>/series); far a stage folder read one by one (default the RD- scenes beside the fixed ones). Printed only: no exit code."""
+	consts = dtconst.load()
+	low, high = consts["REFORGE.POWER_MIN"]["value"], consts["REFORGE.POWER_MAX"]["value"]
+	need = REFORGE_MIN_BUILDS
+	out_dir = os.path.dirname(root.rstrip("\\/"))
+	cal = calibration_of(series if series is not None else series_paths(out_dir), lines)
+	if cal is None:
+		lines.append("HEALTH: not calibrated (no series beside this stage): read at its own health, as D-082 read it")
+	keepers = {b: (r["patron"], r["second"]) for b, r in read_builds(out_dir).items()}
+	fixed = scenes_of(root, "RF")
+	mult = read_mult(out_dir)
+	if cal is not None and cal["health"] is not None and mult is not None and mult != cal["health"]:
+		lines.append(f"HEALTH: this stage is read at {mult:g}x, not at the {cal['health']:g}x the series fixed")
+	every = sorted((f"RF-{build}-{card}_s{seed}", v[1]) for build, cards in fixed.items() for card, seeds in cards.items() for seed, v in seeds.items())
+	with open(os.path.join(out or out_dir, "kills.csv"), "w", encoding="utf-8", newline="") as f:
+		w = csv.writer(f)
+		w.writerow(["scene", "kills_in_window", "over_the_field"])
+		w.writerows([scene_name, kills, "yes" if kills > FIELD else ""] for scene_name, kills in every)
+	table, readings = stage_table(fixed, keepers, low, high, judged=True)
+	if not readings:
+		lines.append("REFORGE: n/a (no card with a no-pick scene beside it)")
+		return None
+	at_mult = f"{mult:g}x" if mult is not None else "its health"
+	lines += ["", f"## Reforging band on the probe's field at {at_mult}, the crowd's side (lift = window damage with the card / without it, applied "
+		f"damage; band {low}-{high}; the lift by kills beside it where the no-pick median is {KILLS_LIFT_MIN} kills or more; \"at least\" where a "
+		f"scene of the card killed more than the {FIELD} that stand; a card on fewer than {need} builds is not read)", "", FIELD_SENTENCE, ""] + table
+	over_field = sum(r["past"] for r in readings.values())  # the cards' scenes; the no-pick scenes' own count is the FIELD: line
+	counts = {w: sum(1 for r in readings.values() if r["verdict"].split(" (")[0] == w) for w in ("in band", "under", "over", "split", "NOT READ")}
+	none_kills = stage_kills(fixed)
+	none_past = sum(1 for k in none_kills if k > FIELD)
 	lines.append("")
-	lines.append(f"CEILING: {'SATURATED' if saturated else 'under'} (most kills in one scene's window {most} of the refill's ceiling "
-		f"{REFILL_CEILING_KILLS}, {100.0 * most / REFILL_CEILING_KILLS:.0f} %, {most_at})")
-	lines.append(f"REFORGE: {read} card(s) read, {inband} in band, {under} under, {over} over; {len(lifts) - read} not read "
-		f"(fewer than {need} builds); printed, judged nowhere")
+	lines.append(f"FIELD: {none_past} of {len(none_kills)} no-pick scene(s) at {at_mult} killed past the {FIELD} that stand (highest {max(none_kills) if none_kills else 0}), "
+		f"{len(none_kills) - none_past} inside it (ruling 12: each card is read on all its builds and on those inside); "
+		f"the room-above rule reads their median, {statistics.median(none_kills) if none_kills else 0:g}, against {ROOM_KILLS:g}")
+	if none_past * 2 > len(none_kills):
+		lines.append(f"FIELD: CROWDED (more than half the no-pick scenes killed past the {FIELD} that stand); the stage is read all the same and no verdict word moves by it")
+	lines.append(f"REFORGE: the crowd's side at {at_mult}: {len(readings) - counts['NOT READ']} card(s) read, {counts['in band']} in band, {counts['under']} under, "
+		f"{counts['over']} over, {counts['split']} split; {counts['NOT READ']} not read (fewer than {need} builds); {over_field} card scene(s) over the "
+		f"{FIELD} that stand (\"at least\"); printed, judged nowhere")
+	lines.append("REFORGE: no card is said to be in band here: by D-085 item 9 a card is in band when it is at least C.REFORGE.POWER_MIN on one side "
+		"and at most C.REFORGE.POWER_MAX on both, and the boss's side comes from play")
+	far_stage, far_mult = ({}, None)
+	if far is not None:
+		far_stage, far_mult = scenes_of(runs_of(far), "RF"), read_mult(far)
+		keepers_far = {b: (r["patron"], r["second"]) for b, r in read_builds(far).items()} or keepers
+	else:
+		far_stage, far_mult, keepers_far = scenes_of(root, "RD"), read_mult(out_dir, "far_mult.txt"), keepers
+	if far_stage:
+		far_table, far_readings = stage_table(far_stage, keepers_far, low, high, judged=False)
+		at_far = f"{far_mult:g}x" if far_mult is not None else "its health"
+		lines += ["", f"### Bodies that do not die, at {at_far}: printed and never judged (D-085 item 7)", ""] + far_table
+		lines.append("")
+		lines.append(f"FAR: bodies that do not die at {at_far}: {len(far_readings)} card(s) printed, judged nowhere")
 	return None
 
 
@@ -609,10 +956,16 @@ def main(argv):
 	if command == "intercession":
 		gen_intercession(target, seeds or 5, mult, stage)
 		return 0
-	if command == "reforge":
+	if command in ("reforge", "reforge-series"):
 		max_build = int(argv[argv.index("--max-build") + 1]) if "--max-build" in argv else None
 		paths = argv[argv.index("--path-builds") + 1].split(",") if "--path-builds" in argv else []
-		gen_reforge(target, argv[argv.index("--builds") + 1].split(",") if "--builds" in argv else [], seeds or 1, mult, max_build, paths)
+		roots = argv[argv.index("--builds") + 1].split(",") if "--builds" in argv else []
+		if command == "reforge-series":
+			gen_series(target, roots, seeds or 1, max_build, paths)
+			return 0
+		if "--calibrated" in argv:
+			return gen_calibrated(target, roots, seeds or 1, max_build, paths)
+		gen_reforge(target, roots, seeds or 1, mult, max_build, paths)
 		return 0
 	if command == "ablation":
 		max_build = int(argv[argv.index("--max-build") + 1]) if "--max-build" in argv else None
@@ -622,12 +975,17 @@ def main(argv):
 		print(__doc__)
 		return 2
 	runs = os.path.join(target, "runs") if os.path.isdir(os.path.join(target, "runs")) else target
+	out = argv[argv.index("--out") + 1] if "--out" in argv else None  # probe.md and kills.csv go here, so a folder read is left as it was
+	if out:
+		os.makedirs(out, exist_ok=True)
 	lines = [f"# Probe readings, {target}"]
 	results = [r for r in (read_intercession(runs, lines) if glob.glob(os.path.join(runs, "IK-*")) else None,
 		read_ablation(runs, lines) if glob.glob(os.path.join(runs, "AB-*")) else None) if r is not None]
 	if glob.glob(os.path.join(runs, "RF-*")):
-		read_reforge(runs, lines)  # printed only: it sets no exit code (D-082)
-	with open(os.path.join(target, "probe.md"), "w", encoding="utf-8") as f:
+		series = argv[argv.index("--series") + 1].split(",") if "--series" in argv else None
+		far = argv[argv.index("--far") + 1] if "--far" in argv else None
+		read_reforge(runs, lines, series, far, out)  # printed only: it sets no exit code (D-082, D-085)
+	with open(os.path.join(out or target, "probe.md"), "w", encoding="utf-8") as f:
 		f.write("\n".join(lines) + "\n")
 	print("\n".join(lines))
 	return 0 if "--check" not in argv or (results and all(results)) else 1
