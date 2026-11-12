@@ -32,6 +32,16 @@ namespace DTCat
 		Snd_Danger_HeroDown,
 		Snd_Danger_Heartbeat,
 		Snd_Danger_BossPhase,
+		Snd_Fire_PulseRifle,
+		Snd_Fire_RingEmitter,
+		Snd_Fire_OrbitalDrones,
+		Snd_Fire_ArcBlade,
+		Snd_Fire_GravityMine,
+		Snd_Fire_ScatterCannon,
+		Snd_Fire_RailLance,
+		Snd_Fire_FlakMortar,
+		Snd_Fire_SeekerSwarm,
+		Snd_Fire_SpiralProjector,
 		Count
 	};
 
@@ -54,7 +64,7 @@ namespace DTCat
 		bool bPlayable;        // heard is yes or delegated: only then is an asset loaded or a voice started (R-AUD-22)
 	};
 
-	inline constexpr int32 SoundCount = 19;
+	inline constexpr int32 SoundCount = 29;
 	inline constexpr FSoundRow Sounds[SoundCount] =
 	{
 		{ TEXT("Snd.UI.Focus"), TEXT("/Game/DT/Audio/SFX/SW_UI_Focus"), ESoundSide::UI, ESoundClass::UI, 1, false, 0.5f, ESoundPitch::Fixed, ESoundNote::None, 40, 2, 0.0f, false, 332, true },
@@ -76,5 +86,15 @@ namespace DTCat
 		{ TEXT("Snd.Danger.HeroDown"), TEXT("/Game/DT/Audio/SFX/SW_Danger_HeroDown"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 3766, true },
 		{ TEXT("Snd.Danger.Heartbeat"), TEXT("/Game/DT/Audio/SFX/SW_Danger_Heartbeat"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 300, 1, 0.0f, false, 400, true },
 		{ TEXT("Snd.Danger.BossPhase"), TEXT("/Game/DT/Audio/SFX/SW_Danger_BossPhase"), ESoundSide::Danger, ESoundClass::Danger, 1, false, 0.9f, ESoundPitch::Fixed, ESoundNote::None, 1000, 1, 0.0f, false, 4126, true },
+		{ TEXT("Snd.Fire.PulseRifle"), TEXT("/Game/DT/Audio/SFX/SW_Fire_PulseRifle"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.35f, ESoundPitch::Key, ESoundNote::A, 60, 3, 0.25f, true, 130, false },
+		{ TEXT("Snd.Fire.RingEmitter"), TEXT("/Game/DT/Audio/SFX/SW_Fire_RingEmitter"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.4f, ESoundPitch::Key, ESoundNote::E, 60, 2, 0.25f, true, 200, false },
+		{ TEXT("Snd.Fire.OrbitalDrones"), TEXT("/Game/DT/Audio/SFX/SW_Fire_OrbitalDrones"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.25f, ESoundPitch::Key, ESoundNote::E, 60, 3, 0.25f, true, 60, false },
+		{ TEXT("Snd.Fire.ArcBlade"), TEXT("/Game/DT/Audio/SFX/SW_Fire_ArcBlade"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.35f, ESoundPitch::Key, ESoundNote::A, 60, 2, 0.25f, true, 220, false },
+		{ TEXT("Snd.Fire.GravityMine"), TEXT("/Game/DT/Audio/SFX/SW_Fire_GravityMine"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.45f, ESoundPitch::Key, ESoundNote::A, 60, 2, 0.25f, true, 420, false },
+		{ TEXT("Snd.Fire.ScatterCannon"), TEXT("/Game/DT/Audio/SFX/SW_Fire_ScatterCannon"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.38f, ESoundPitch::Key, ESoundNote::A, 60, 3, 0.25f, true, 160, false },
+		{ TEXT("Snd.Fire.RailLance"), TEXT("/Game/DT/Audio/SFX/SW_Fire_RailLance"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.4f, ESoundPitch::Key, ESoundNote::E, 60, 2, 0.25f, true, 340, false },
+		{ TEXT("Snd.Fire.FlakMortar"), TEXT("/Game/DT/Audio/SFX/SW_Fire_FlakMortar"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.39f, ESoundPitch::Key, ESoundNote::A, 60, 2, 0.25f, true, 220, false },
+		{ TEXT("Snd.Fire.SeekerSwarm"), TEXT("/Game/DT/Audio/SFX/SW_Fire_SeekerSwarm"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.3f, ESoundPitch::Key, ESoundNote::E, 60, 2, 0.25f, true, 240, false },
+		{ TEXT("Snd.Fire.SpiralProjector"), TEXT("/Game/DT/Audio/SFX/SW_Fire_SpiralProjector"), ESoundSide::Player, ESoundClass::Player, 4, false, 0.22f, ESoundPitch::Key, ESoundNote::A, 160, 3, 0.25f, true, 50, false },
 	};
 }
