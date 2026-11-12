@@ -382,7 +382,7 @@ namespace DTCat
 		{ TEXT("Transform.Quicksilver"), false, TEXT("Keeper.Quicksilver"), TEXT("Slipstream"), { ECap::Projectile }, 0, TEXT("dash_charges=1;dmg_mult=1;per_stack=0.01;per_100uu=1;dash_stacks=5;hit_loss=10;decay_per_s=2;leak_per_s=0.15") },
 		{ TEXT("Evolve.PulseRifle"), true, TEXT("Weapon.PulseRifle"), TEXT("OrbitLaunch"), { ECap::Orbit, ECap::Projectile, ECap::Aimed, ECap::Expiry }, 4, TEXT("blades=6;launch_s=0.4;pierce=3;dmg_ratio=0.6") },
 		{ TEXT("Evolve.ScatterCannon"), true, TEXT("Weapon.ScatterCannon"), TEXT("EmbedBlast"), { ECap::Projectile, ECap::Area, ECap::Aimed, ECap::Expiry }, 4, TEXT("pellets=8;embed_s=0.5;embed_r_uu=60;blast_dmg=0.5") },
-		{ TEXT("Evolve.OrbitalDrones"), true, TEXT("Weapon.OrbitalDrones"), TEXT("ContactBlades"), { ECap::Orbit }, 1, TEXT("blades=4;speed_ratio=0.8;speed_ref_uu_s=600;dmg_ratio=1.5;contact_r_uu=60") },
+		{ TEXT("Evolve.OrbitalDrones"), true, TEXT("Weapon.OrbitalDrones"), TEXT("ContactBlades"), { ECap::Orbit }, 1, TEXT("blades=4;speed_ratio=0.8;speed_ref_uu_s=600;speed_cap=1.5;dmg_ratio=1.33;contact_r_uu=30;contact_tick_s=0.15;orbit_deg_s=260;orbit_r_uu=150") },
 		{ TEXT("Evolve.RailLance"), true, TEXT("Weapon.RailLance"), TEXT("SweepBeam"), { ECap::Beam, ECap::Continuous, ECap::Aimed }, 3, TEXT("beam_s=1.5;sweep_deg=120;reach_uu=950;tick_s=0.1;width_deg=12;dmg_ratio=0.6") },
 		{ TEXT("Evolve.FlakMortar"), true, TEXT("Weapon.FlakMortar"), TEXT("CarpetLine"), { ECap::Lob, ECap::Area }, 2, TEXT("blasts=5;walk_uu=600;step_s=0.12;dmg_ratio=0.25") },
 		{ TEXT("Evolve.ArcBlade"), true, TEXT("Weapon.ArcBlade"), TEXT("MoveSpin"), { ECap::Melee, ECap::Area }, 2, TEXT("hits_s=2;arc_deg=360;dmg_ratio=0.6;move_min_uu_s=50") },

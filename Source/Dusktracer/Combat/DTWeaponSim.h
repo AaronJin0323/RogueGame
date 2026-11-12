@@ -225,6 +225,8 @@ public:
 	int32 GetLivePillars() const;
 	/** Where a Blade Halo's blades orbit now (R-RFG-07). */
 	float GetBladeRadius(int32 OwnerId, int32 Slot) const;
+	/** Where an orbiting weapon's first drone or blade stands on its turn, in degrees (R-RFG-07; tests). */
+	float GetDroneAngle(int32 OwnerId, int32 Slot) const;
 	int32 GetTrackedRounds() const { return Rounds.Num(); }
 	/** Highest split generation of any round spawned this run (R-MOD-05 check). */
 	int32 GetMaxGeneration() const { return MaxGeneration; }

@@ -311,21 +311,121 @@ bool FDTReforgeBladeHalo::RunTest(const FString& Parameters)
 	using namespace DTWeaponTestHarness;
 	FDTHarness H;
 	const int32 Row = GiveEvolved(H, TEXT("Weapon.OrbitalDrones"));
-	const float Orbit = static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU);
-	const int32 Near = H.AddEnemy(FVector2f(Orbit, 0.0f));
-	const int32 Far = H.AddEnemy(FVector2f(Orbit + 400.0f, 0.0f));
-	RunSteps(H, 300);
+	const float Rest = DTReforge::Param(Row, TEXT("orbit_r_uu"));
+	const float Contact = DTReforge::Param(Row, TEXT("contact_r_uu"));
+	const int32 Blades = FMath::RoundToInt(DTReforge::Param(Row, TEXT("blades")));
+	const int32 TickSteps = FMath::RoundToInt(DTReforge::Param(Row, TEXT("contact_tick_s")) / Dt);
+	// A probe for the enemy's own radius, which the contact test counts; it sits far off and is never reached.
+	const int32 Probe = H.AddEnemy(FVector2f(5000.0f, 0.0f));
+	const float Own = H.Enemies.GetRadii()[Probe];
+	// A full ring on the rest orbit, every 10 degrees, so each blade touches some wherever the turn has carried it.
+	TArray<int32> Ring;
+	for (int32 Index = 0; Index < 36; ++Index)
+	{
+		Ring.Add(H.AddEnemy(FVector2f(Rest, 0.0f).GetRotated(10.0f * static_cast<float>(Index))));
+	}
+	// Two rings off the orbit, every 3 degrees: one a unit inside a blade's reach (its contact plus the enemy's radius), one two units outside.
+	TArray<int32> Inside;
+	TArray<int32> Outside;
+	for (int32 Index = 0; Index < 120; ++Index)
+	{
+		Inside.Add(H.AddEnemy(FVector2f(Rest + Contact + Own - 1.0f, 0.0f).GetRotated(3.0f * static_cast<float>(Index))));
+		Outside.Add(H.AddEnemy(FVector2f(Rest + Contact + Own + 2.0f, 0.0f).GetRotated(3.0f * static_cast<float>(Index))));
+	}
+	const auto RingAngles = [&](int32 From)
+	{
+		TArray<float> Angles;
+		for (int32 Index = From; Index < H.HitLog.Num(); ++Index)
+		{
+			const FVector2f At = H.HitLog[Index].Position;
+			if (FMath::Abs(At.Size() - Rest) < 1.0f)
+			{
+				Angles.Add(FMath::RadiansToDegrees(FMath::Atan2(At.Y, At.X)));
+			}
+		}
+		return Angles;
+	};
+	// The first tick: step until the blades strike (the weapon composes on its first step).
+	int32 Before = 0;
+	for (int32 Step = 0; Step <= TickSteps + 2 && H.HitLog.Num() == 0; ++Step)
+	{
+		Before = H.HitLog.Num();
+		H.StepOnce();
+	}
+	TArray<float> First = RingAngles(Before);
+	TestTrue(TEXT("the first tick strikes the ring"), First.Num() > 0);
+	// Every blade strikes on the tick, not one in turn: the ring's hits of that one step fall in every quarter the blades stand in.
+	TSet<int32> Quarters;
+	for (const float Angle : First)
+	{
+		Quarters.Add(FMath::FloorToInt(FMath::Fmod(Angle - First[0] + 405.0f, 360.0f) / 90.0f) % 4);
+	}
+	TestEqual(TEXT("every blade strikes on the same tick"), Quarters.Num(), Blades);
+	// And none strikes again before the next tick.
+	const int32 AfterFirst = H.HitLog.Num();
+	for (int32 Step = 1; Step < TickSteps; ++Step)
+	{
+		H.StepOnce();
+	}
+	TestEqual(TEXT("no strike between ticks"), H.HitLog.Num(), AfterFirst);
+	H.StepOnce();
+	H.StepOnce();
+	TestTrue(TEXT("the next tick strikes"), H.HitLog.Num() > AfterFirst);
+	// The reach counts the enemy's own radius: over a few turns the inner off-orbit ring is struck, the outer never.
+	RunSteps(H, 600);
+	int32 InsideHits = 0;
+	for (const int32 Enemy : Inside)
+	{
+		InsideHits += HitsOn(H, H.Enemies.GetSerials()[Enemy]);
+	}
+	int32 OutsideHits = 0;
+	for (const int32 Enemy : Outside)
+	{
+		OutsideHits += HitsOn(H, H.Enemies.GetSerials()[Enemy]);
+	}
+	TestTrue(TEXT("an enemy within contact_r_uu plus its own radius is struck"), InsideHits > 0);
+	TestEqual(TEXT("one just outside is not"), OutsideHits, 0);
+	TestEqual(TEXT("the probe out of reach is not"), HitsOn(H, H.Enemies.GetSerials()[Probe]), 0);
 	TestEqual(TEXT("no bolts"), H.Bullets.Num(), 0);
-	TestTrue(TEXT("a blade strikes what it touches"), HitsOn(H, H.Enemies.GetSerials()[Near]) > 0);
-	TestEqual(TEXT("and nothing out of reach"), HitsOn(H, H.Enemies.GetSerials()[Far]), 0);
-	TestEqual(TEXT("the blade count"), H.Weapons.GetLastSpec(0, 0).Count, FMath::RoundToInt(DTReforge::Param(Row, TEXT("blades"))));
-	const float Still = H.Weapons.GetBladeRadius(0, 0);
-	const FVector2f Speed(DTReforge::Param(Row, TEXT("speed_ref_uu_s")) * Dt, 0.0f);
-	H.View.HeroPositions[0] += Speed;
-	H.StepOnce();
-	H.View.HeroPositions[0] += Speed;
-	H.StepOnce();
-	TestNearlyEqual(TEXT("the orbit widens with speed"), H.Weapons.GetBladeRadius(0, 0), Still * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio"))), 0.5f);
+	TestEqual(TEXT("the blade count"), H.Weapons.GetLastSpec(0, 0).Count, Blades);
+
+	// The blades turn at the row's speed, and the plain drones still at their constant.
+	{
+		const float Turn = DTReforge::Param(Row, TEXT("orbit_deg_s"));
+		const float From = H.Weapons.GetDroneAngle(0, 0);
+		H.StepOnce();
+		TestNearlyEqual(TEXT("the blades turn at orbit_deg_s"), FMath::Fmod(H.Weapons.GetDroneAngle(0, 0) - From + 360.0f, 360.0f), Turn * Dt, 0.01f);
+		FDTHarness Plain;
+		Plain.Weapons.Give(Plain.Run, 0, FName(TEXT("Weapon.OrbitalDrones")), 8);
+		Plain.StepOnce();
+		const float PlainFrom = Plain.Weapons.GetDroneAngle(0, 0);
+		Plain.StepOnce();
+		TestNearlyEqual(TEXT("the plain drones turn at their constant"), FMath::Fmod(Plain.Weapons.GetDroneAngle(0, 0) - PlainFrom + 360.0f, 360.0f),
+			static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S) * Dt, 0.01f);
+		TestEqual(TEXT("and orbit at their constant"), Plain.Weapons.GetBladeRadius(0, 0), static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_RADIUS_UU));
+	}
+	// The orbit rests at orbit_r_uu, widens with speed, and stops widening at speed_cap times the reference speed.
+	{
+		FDTHarness Moving;
+		GiveEvolved(Moving, TEXT("Weapon.OrbitalDrones"));
+		Moving.StepOnce();
+		TestNearlyEqual(TEXT("the orbit rests at orbit_r_uu"), Moving.Weapons.GetBladeRadius(0, 0), Rest, 0.01f);
+		const float Reference = DTReforge::Param(Row, TEXT("speed_ref_uu_s"));
+		const float Ratio = DTReforge::Param(Row, TEXT("speed_ratio"));
+		const float Cap = DTReforge::Param(Row, TEXT("speed_cap"));
+		const auto MoveAt = [&](float SpeedUuS)
+		{
+			for (int32 Step = 0; Step < 2; ++Step)
+			{
+				Moving.View.HeroPositions[0] += FVector2f(SpeedUuS * Dt, 0.0f);
+				Moving.StepOnce();
+			}
+			return Moving.Weapons.GetBladeRadius(0, 0);
+		};
+		TestNearlyEqual(TEXT("the orbit widens with speed"), MoveAt(Reference), Rest * (1.0f + Ratio), 0.5f);
+		TestNearlyEqual(TEXT("up to speed_cap times the reference"), MoveAt(Cap * Reference), Rest * (1.0f + Ratio * Cap), 0.5f);
+		TestNearlyEqual(TEXT("and no further"), MoveAt(3.0f * Cap * Reference), Rest * (1.0f + Ratio * Cap), 0.5f);
+	}
 	return true;
 }
 

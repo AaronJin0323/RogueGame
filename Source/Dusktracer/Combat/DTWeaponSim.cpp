@@ -504,6 +504,11 @@ float FDTWeaponSim::GetBladeRadius(int32 OwnerId, int32 Slot) const
 	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot) ? BladeOrbit(Players[OwnerId], Players[OwnerId].Weapons[Slot]) : 0.0f;
 }
 
+float FDTWeaponSim::GetDroneAngle(int32 OwnerId, int32 Slot) const
+{
+	return Players.IsValidIndex(OwnerId) && Players[OwnerId].Weapons.IsValidIndex(Slot) ? Players[OwnerId].Weapons[Slot].DroneAngleDeg : 0.0f;
+}
+
 bool FDTWeaponSim::TryEmit(FWeaponRuntime& Runtime)
 {
 	if (Runtime.EmitRing.Num() == 0)
@@ -1264,7 +1269,9 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 	}
 	if (!bFreeVolley)
 	{
-		Runtime.DroneAngleDeg = FMath::Fmod(Runtime.DroneAngleDeg + static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S) * Context.StepSeconds, 360.0f);
+		// The plain drones turn at the constant; a Blade Halo at its row's `orbit_deg_s` (R-RFG-07).
+		const float TurnDegS = Spec.Evolve == EDTEvolve::ContactBlades ? DTReforge::Param(Spec.EvolveRow, TEXT("orbit_deg_s")) : static_cast<float>(DTConst::WEAPON_DRONE_ORBIT_DEG_S);
+		Runtime.DroneAngleDeg = FMath::Fmod(Runtime.DroneAngleDeg + TurnDegS * Context.StepSeconds, 360.0f);
 		Runtime.DroneTimer -= Context.StepSeconds;
 	}
 	if (Spec.Evolve == EDTEvolve::ContactBlades)
@@ -1275,7 +1282,7 @@ void FDTWeaponSim::StepDrones(const FDTSimContext& Context, FDTBulletPool* Bulle
 		}
 		else if (Players.IsValidIndex(Owner))
 		{
-			// A free volley: every blade touches once where it is, as the volley's source; the turn is not spent (R-RFG-07).
+			// A free volley: every blade touches once where it is, as the volley's source (R-RFG-07); the contact tick is not moved.
 			// A dash volley's touch is at its multiplier (keepers.md R-KEE-34); a kill's, Mod.ChainTrigger's, at the row's damage.
 			const float Orbit = BladeOrbit(Players[Owner], Runtime);
 			const float Contact = DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu"));
@@ -1965,8 +1972,11 @@ float FDTWeaponSim::BladeOrbit(const FPlayerRuntime& Player, const FWeaponRuntim
 	{
 		return Base;
 	}
+	// R-RFG-07: the row's own rest radius, widened by the hero's speed, the speed counted no higher than `speed_cap` x `speed_ref_uu_s`.
 	const int32 Row = Runtime.Spec.EvolveRow;
-	return Base * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio")) * Player.HeroSpeed / DTReforge::Param(Row, TEXT("speed_ref_uu_s")));
+	const float Reference = DTReforge::Param(Row, TEXT("speed_ref_uu_s"));
+	const float CountedSpeed = FMath::Min(Player.HeroSpeed, DTReforge::Param(Row, TEXT("speed_cap")) * Reference);
+	return DTReforge::Param(Row, TEXT("orbit_r_uu")) * (1.0f + DTReforge::Param(Row, TEXT("speed_ratio")) * CountedSpeed / Reference);
 }
 
 void FDTWeaponSim::StepBlades(const FDTSimContext& Context, FDTPlayerRunState& Player, int32 Slot, FWeaponRuntime& Runtime)
@@ -1975,15 +1985,20 @@ void FDTWeaponSim::StepBlades(const FDTSimContext& Context, FDTPlayerRunState& P
 	{
 		return;
 	}
+	// R-RFG-07: each `contact_tick_s`, every blade strikes every enemy within `contact_r_uu` of it, the enemy's own radius counted (HitCircle).
 	const FDTWeaponSpec& Spec = Runtime.Spec;
 	const int32 Owner = Player.PlayerIndex;
 	const int32 Blades = FMath::Max(1, Spec.Count);
-	Runtime.DroneTimer = FMath::Max(Runtime.DroneTimer, -Spec.Cooldown) + Spec.Cooldown / static_cast<float>(Blades);
-	const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Runtime.NextDrone) / static_cast<float>(Blades);
-	Runtime.NextDrone = (Runtime.NextDrone + 1) % Blades;
+	const float ContactTick = FMath::Max(DTReforge::Param(Spec.EvolveRow, TEXT("contact_tick_s")), Context.StepSeconds);
+	Runtime.DroneTimer = FMath::Max(Runtime.DroneTimer, -ContactTick) + ContactTick;
 	const FVector2f Hero = DTWeaponSimLocal::HeroOf(*Context.View, Owner);
-	const FVector2f At = Hero + DTWeaponSimLocal::Rotate(FVector2f(BladeOrbit(Players[Owner], Runtime), 0.0f), Angle);
-	StrikeCircle(Context, Owner, Slot, Runtime, At, Hero, DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu")), Spec.Damage, Player.Weapons[Slot].SourceId, false);
+	const float Ring = BladeOrbit(Players[Owner], Runtime);
+	const float Contact = DTReforge::Param(Spec.EvolveRow, TEXT("contact_r_uu"));
+	for (int32 Blade = 0; Blade < Blades; ++Blade)
+	{
+		const float Angle = Runtime.DroneAngleDeg + 360.0f * static_cast<float>(Blade) / static_cast<float>(Blades);
+		StrikeCircle(Context, Owner, Slot, Runtime, Hero + DTWeaponSimLocal::Rotate(FVector2f(Ring, 0.0f), Angle), Hero, Contact, Spec.Damage, Player.Weapons[Slot].SourceId, false);
+	}
 }
 
 void FDTWeaponSim::StepBeam(const FDTSimContext& Context, int32 OwnerId, int32 Slot, FWeaponRuntime& Runtime)

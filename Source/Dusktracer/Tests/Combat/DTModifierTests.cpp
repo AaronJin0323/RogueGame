@@ -1003,7 +1003,7 @@ bool FDTModifiersChainTriggerBladeHalo::RunTest(const FString& Parameters)
 			H.AddEnemy(FVector2f(Orbit, 0.0f).GetRotated(10.0f * static_cast<float>(Index)));
 		}
 		const uint16 Own = H.Run.GetPlayer(0).Weapons[0].SourceId;
-		int32 MostPerTouch = 0; // the most enemies one blade's own touch reaches on this ring
+		int32 MostPerTouch = 0; // the most enemies the weapon's own strikes of one step reach on this ring (every blade on a tick, R-RFG-07)
 		for (int32 Step = 0; Step < DTConst::SIM_FIXED_HZ + DTConst::SIM_FIXED_HZ / 2; ++Step)
 		{
 			if (Killed == 1 && Step == DTConst::SIM_FIXED_HZ / 2)
@@ -1041,7 +1041,7 @@ bool FDTModifiersChainTriggerBladeHalo::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("and still no bolts"), H.Bullets.Num(), 0);
 	}
-	TestEqual(TEXT("no blade's turn is spent"), OwnHits[1], OwnHits[0]);
+	TestEqual(TEXT("the free volley moves no contact tick: the weapon's own strikes are unchanged"), OwnHits[1], OwnHits[0]);
 	return true;
 }
 
