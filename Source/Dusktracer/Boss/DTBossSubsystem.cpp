@@ -28,6 +28,7 @@ namespace DTBossSubsystemLocal
 	constexpr float RowTopPx = RowBottomPx - BarHeightPx;
 	constexpr float NameGapPx = 12.0f;
 	constexpr float NameScale = 1.25f;
+	constexpr float NameRaisePx = 1.0f;
 	// Each side of the centre column: the top-right block's margin, width and the gap to the column (FDTXPBar's block).
 	constexpr float SideBlockPx = 24.0f + 360.0f + 24.0f;
 }
@@ -45,8 +46,9 @@ void UDTBossSubsystem::BossRowLayout(float ClipX, const FVector2f& NameSize, FBo
 	const float ColumnW = ClipX - 2.0f * SideBlockPx;
 	const float BarW = FMath::Max(0.0f, FMath::Min(BarMaxWidthPx, ColumnW - NameSize.X - NameGapPx));
 	const float X = 0.5f * (ClipX - (NameSize.X + NameGapPx + BarW));
-	// The name's line box is centred on the row; its drawn glyphs sit inside the row's rows (measured on a 1080 frame).
-	const float NameY = Row.Min.Y + 0.5f * (BarHeightPx - NameSize.Y);
+	// The name's line box is centred on the row and raised by NameRaisePx, so that its drawn glyphs sit inside the row's rows in
+	// every culture (measured on 1080 frames: zh-Hans ink reached row 29 when centred).
+	const float NameY = Row.Min.Y + 0.5f * (BarHeightPx - NameSize.Y) - NameRaisePx;
 	OutName = FBox2f(FVector2f(X, NameY), FVector2f(X + NameSize.X, NameY + NameSize.Y));
 	const float BarX = X + NameSize.X + NameGapPx;
 	OutBar = FBox2f(FVector2f(BarX, Row.Min.Y), FVector2f(BarX + BarW, Row.Max.Y));
