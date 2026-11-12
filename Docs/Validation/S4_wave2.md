@@ -33,7 +33,7 @@ Seven packages after a foundations package: 21 rows opened or finished, 26 with 
 | W2-A | Statuses on hulls | 6 | 12 d | 12 d |
 | W2-B | Pickups | 2 | 2 d | 2 d |
 | W2-C | Weapons past the tracer | 4 | 6 d | 6 d |
-| W2-G | Elite parts on the role hulls | 1 (leftover) | 7 d | 1 d |
+| ~~W2-G~~ | ~~Elite parts on the role hulls~~ (pulled forward as wave 1's mend: D-076) | 1 (leftover) | 7 d | 1 d |
 | W2-E | The hero's stride | 1 (leftover) | 4 d | 1.5 d |
 | W2-D | Impact, second pass | 2 | 8 d | 6.5 d |
 | W2-H | Offer screen pass (only on the call of §5 item 3) | 5 | 4.5 d | 5 d |
@@ -85,6 +85,8 @@ Gems and chests stop being cubes.
 - **Held out:** Arc Blade (r8, the bead rule), Seeker Swarm (r9, the trail method), muzzle bloom (r3, the mount call), every Reforging row.
 
 ### W2-G. Elite parts on the role hulls
+
+**Struck from this wave (D-076).** It left the held wave as wave 1's mend and is built on `s4/elite-anchors` (`02_Systems/enemy_art.md` R-EAR-08, `Validation/S4_elite_anchors.md`). The text below is kept as it was planned.
 
 - **Row:** §2.6 r8 leftover. `S4_b_enemies.md` §2: "The parts were placed for a cube: side plates and the light float clear of the lower hulls."
 - **What it is:** an anchor table per role for today's affix parts, so each sits on the hull it belongs to. The parts stay today's shapes and the elite light keeps its rule (`elites.md` R-ELT-10); only the offsets a cube needed move.

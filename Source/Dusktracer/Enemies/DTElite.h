@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Math/RandomStream.h"
 #include "Core/DTSimTypes.h"
+#include "Enemies/DTEliteAnchorsGen.h"
 
 class FDTEnemyPool;
 
@@ -40,8 +41,14 @@ namespace DTElite
 	DUSKTRACER_API FText LabelText(uint8 Mask);
 	/** R-ELT-12: the live elites that carry a label: nearest to At first, at most C.ELITE.LABELS_MAX. */
 	DUSKTRACER_API void LabelledElites(const FDTEnemyPool& Pool, const FVector2f& At, TArray<int32>& OutIndices);
-	/** R-ELT-10, R-ELT-11: every part of every elite at render time. Reads the pool, never writes it. */
-	DUSKTRACER_API void BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, float MeshSizeUU, TArray<FDTElitePart>& Out);
+	/**
+	 * R-ELT-10, R-ELT-11: every part of every elite at render time. Reads the pool, never writes it. bRoleAnchors places the parts of
+	 * Swarm, Tank, Rusher and Turret from their role hulls (enemy_art.md R-EAR-08, DTEliteAnchorsGen.h); false, and always for the
+	 * boss, places them from the hit circle as for the cube (the grey box of R-EAR-06).
+	 */
+	DUSKTRACER_API void BuildParts(const FDTEnemyPool& Pool, float Alpha, float Seconds, float MeshSizeUU, TArray<FDTElitePart>& Out, bool bRoleAnchors = false);
+	/** R-EAR-08: the anchors of Role's hull, or nullptr for a role drawn as the cube (the boss). */
+	DUSKTRACER_API const FDTEliteAnchors* Anchors(EDTEnemyRole Role);
 	/** "Armored,Swift" for logs and telemetry. */
 	DUSKTRACER_API FString MaskNames(uint8 Mask);
 }
