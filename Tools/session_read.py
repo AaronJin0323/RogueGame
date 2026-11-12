@@ -460,19 +460,22 @@ def boss_start(extra):
 def frame(consts, aspect=(16, 9)):
 	"""(down, up, side0, slope) of the ground the solo camera shows around the hero, in uu: dx up-screen (world +X) from -down to
 	up, |dy| up to side0 + slope * dx. The distance puts C.ARENA.CAMERA_FRAME_RADIUS_UU in half the frame height at the 16:9
-	target (ADTCameraPawn::ComputeFramingDistance, R-UX-01); the vertical field of view is held for any window, so another
-	shape moves only the sides, by (W/H)/(16/9)."""
+	target (ADTCameraPawn::ComputeFramingDistance, R-UX-01) around the aim point, which is C.ARENA.CAMERA_AIM_SHIFT_UU from the
+	hero toward the camera (D-080); the vertical field of view is held for any window, so another shape moves only the sides,
+	by (W/H)/(16/9). On the floor, as the telemetry's positions are."""
 	pitch = math.radians(consts["ARENA.CAMERA_PITCH_DEG"]["value"])
 	half_h = math.radians(consts["ARENA.CAMERA_FOV_DEG"]["value"]) / 2.0
 	radius = consts["ARENA.CAMERA_FRAME_RADIUS_UU"]["value"]
+	shift = consts["ARENA.CAMERA_AIM_SHIFT_UU"]["value"]
 	tan_v = math.tan(half_h) / TARGET_ASPECT
 	half_v = math.atan(tan_v)
 	dist = radius / tan_v
 	height, back = dist * math.sin(pitch), dist * math.cos(pitch)
-	down = back - height / math.tan(pitch + half_v)
-	up = height / math.tan(pitch - half_v) - back
+	down = back - height / math.tan(pitch + half_v) + shift
+	up = height / math.tan(pitch - half_v) - back - shift
 	scale = (aspect[0] / aspect[1]) / TARGET_ASPECT
-	return down, up, math.tan(half_h) * dist * scale, math.tan(half_h) * math.cos(pitch) * scale
+	slope = math.tan(half_h) * math.cos(pitch) * scale
+	return down, up, math.tan(half_h) * dist * scale + slope * shift, slope
 
 
 def off_edges(dx, dy, fr):
