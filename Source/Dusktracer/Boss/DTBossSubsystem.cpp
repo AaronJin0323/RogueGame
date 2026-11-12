@@ -18,12 +18,38 @@
 
 namespace DTBossSubsystemLocal
 {
-	// Bar layout (pixels at the drawn canvas size): bottom centre, clear of the hero block (bottom left) and the XP bar (top).
-	constexpr float BarWidthRatio = 0.5f;
+	// Row layout (pixels at the drawn canvas size): the name, then its bar, on one line at the top centre, in the rectangle the
+	// first visual wave gives it (D-080 item 11); the XP row sits in the top-right block (FDTXPBar), out of the hero's column.
+	constexpr float BarMaxWidthPx = 560.0f;
 	constexpr float BarHeightPx = 14.0f;
-	constexpr float BottomPx = 48.0f;
-	constexpr float NameGapPx = 6.0f;
+	// The row's lower edge, y 29.0 at 1080 (rows 15 to 28): the HUD's lower edge on the hero's column that 06_UX R-UX-01 counts
+	// and T-UX-01 reads (through BossRowRect). One pixel lower breaks the rule: the reach up to y 30 is 1 412.39 uu, under 1 416.
+	constexpr float RowBottomPx = 29.0f;
+	constexpr float RowTopPx = RowBottomPx - BarHeightPx;
+	constexpr float NameGapPx = 12.0f;
 	constexpr float NameScale = 1.25f;
+	// Each side of the centre column: the top-right block's margin, width and the gap to the column (FDTXPBar's block).
+	constexpr float SideBlockPx = 24.0f + 360.0f + 24.0f;
+}
+
+FBox2f UDTBossSubsystem::BossRowRect(float ClipX)
+{
+	using namespace DTBossSubsystemLocal;
+	return FBox2f(FVector2f(0.0f, RowTopPx), FVector2f(ClipX, RowBottomPx));
+}
+
+void UDTBossSubsystem::BossRowLayout(float ClipX, const FVector2f& NameSize, FBox2f& OutName, FBox2f& OutBar)
+{
+	using namespace DTBossSubsystemLocal;
+	const FBox2f Row = BossRowRect(ClipX);
+	const float ColumnW = ClipX - 2.0f * SideBlockPx;
+	const float BarW = FMath::Max(0.0f, FMath::Min(BarMaxWidthPx, ColumnW - NameSize.X - NameGapPx));
+	const float X = 0.5f * (ClipX - (NameSize.X + NameGapPx + BarW));
+	// The name's line box is centred on the row; its drawn glyphs sit inside the row's rows (measured on a 1080 frame).
+	const float NameY = Row.Min.Y + 0.5f * (BarHeightPx - NameSize.Y);
+	OutName = FBox2f(FVector2f(X, NameY), FVector2f(X + NameSize.X, NameY + NameSize.Y));
+	const float BarX = X + NameSize.X + NameGapPx;
+	OutBar = FBox2f(FVector2f(BarX, Row.Min.Y), FVector2f(BarX + BarW, Row.Max.Y));
 }
 
 bool UDTBossSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -242,11 +268,14 @@ void UDTBossSubsystem::DrawBossBar(UCanvas* Canvas) const
 	float NameH = 0.0f;
 	Canvas->TextSize(Font, Name.ToString(), NameW, NameH, NameScale, NameScale);
 
-	const float BarW = Canvas->ClipX * BarWidthRatio;
-	const float BarX = (Canvas->ClipX - BarW) * 0.5f;
-	const float BarY = Canvas->ClipY - BottomPx - BarHeightPx;
+	FBox2f NameBox(ForceInit);
+	FBox2f BarBox(ForceInit);
+	BossRowLayout(Canvas->ClipX, FVector2f(NameW, NameH), NameBox, BarBox);
+	const float BarW = BarBox.GetSize().X;
+	const float BarX = BarBox.Min.X;
+	const float BarY = BarBox.Min.Y;
 
-	FCanvasTextItem Label(FVector2D((Canvas->ClipX - NameW) * 0.5f, BarY - NameGapPx - NameH), Name, Font, DTPal::Linear(DTPal::UI_Text));
+	FCanvasTextItem Label(FVector2D(NameBox.Min.X, NameBox.Min.Y), Name, Font, DTPal::Linear(DTPal::UI_Text));
 	Label.Scale = FVector2D(NameScale, NameScale);
 	Label.EnableShadow(FLinearColor::Black);
 	Canvas->DrawItem(Label);
