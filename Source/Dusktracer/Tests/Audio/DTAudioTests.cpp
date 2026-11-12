@@ -435,6 +435,38 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 		Moved[1].Origin += FVector2f(DTWarnEvents::MatchUU * 2.0f, 0.0f);
 		TestTrue(TEXT("a ring far from every ring of the last step is new"), Warn(Rings, Moved) == FAsks({ { ESoundId::Snd_Warn_Ring, 1 } }));
 		TestTrue(TEXT("a telegraph gone raises nothing"), Warn(Rings, TArray<FDTTelegraph>()).Num() == 0);
+
+		// The view's order is not stable (a kill's swap-remove, an orphan at the end): the nearest fit wins, not the first.
+		const FVector2f P0(1000.0f, 0.0f);
+		const FVector2f P60 = P0 + FVector2f(60.0f, 0.0f);
+		{
+			const TArray<FDTTelegraph> Before = { Tell(EDTTelegraphShape::Band, P0, 0.10f), Tell(EDTTelegraphShape::Band, P60, 0.50f) };
+			const TArray<FDTTelegraph> After = { Tell(EDTTelegraphShape::Band, P60, 0.52f), Tell(EDTTelegraphShape::Band, P0, 0.12f) };
+			TestTrue(TEXT("two bands 60 uu apart trade places in the list, both going on: no warning"), Warn(Before, After).Num() == 0);
+		}
+		{
+			const TArray<FDTTelegraph> Before = { Tell(EDTTelegraphShape::Band, P0, 0.10f), Tell(EDTTelegraphShape::Band, P60, 0.30f),
+				Tell(EDTTelegraphShape::Band, P0 + FVector2f(0.0f, 90.0f), 0.60f) };
+			const TArray<FDTTelegraph> After = { Tell(EDTTelegraphShape::Band, P60, 0.32f), Tell(EDTTelegraphShape::Band, P0 + FVector2f(0.0f, 90.0f), 0.62f),
+				Tell(EDTTelegraphShape::Band, P0, 0.12f) };
+			TestTrue(TEXT("three bands inside the match distance, the first moved to the end going on (an orphan): no warning"), Warn(Before, After).Num() == 0);
+		}
+		{
+			TArray<FDTTelegraph> Before;
+			TArray<FDTTelegraph> After;
+			for (int32 Line = 0; Line < 5; ++Line)
+			{
+				Before.Add(Tell(EDTTelegraphShape::AimLine, P0, 0.40f));
+				After.Add(Tell(EDTTelegraphShape::AimLine, P0, 0.42f));
+			}
+			After.Insert(Tell(EDTTelegraphShape::AimLine, P0 + FVector2f(0.0f, 100.0f), 0.0f), 2);
+			TestTrue(TEXT("a fan's five lines from one origin stay five; a sixth 100 uu away at 0 is exactly one new"), Warn(Before, After) == FAsks({ { ESoundId::Snd_Warn_Line, 1 } }));
+		}
+		{
+			const TArray<FDTTelegraph> Before = { Tell(EDTTelegraphShape::Ring, P0, 0.2f), Tell(EDTTelegraphShape::Ring, P0, 0.8f) };
+			const TArray<FDTTelegraph> After = { Tell(EDTTelegraphShape::Ring, P0, 0.0f), Tell(EDTTelegraphShape::Ring, P0, 0.22f) };
+			TestTrue(TEXT("two rings from one origin, the 0.8 gone and a new one at 0: exactly one new"), Warn(Before, After) == FAsks({ { ESoundId::Snd_Warn_Ring, 1 } }));
+		}
 	}
 
 	// The Danger family: enemy fire by the spawned counter's growth, the hero's events, the boss's phase (the heartbeat: T-AUD-12).
@@ -469,7 +501,11 @@ bool FDTAudTestObserver::RunTest(const FString& Parameters)
 		D.Step = 16;
 		D.Hurt = 1;
 		D.Down = 1;
-		TestTrue(TEXT("the blow that downs: hurt and down, one each"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_HeroHurt, 1 }, { ESoundId::Snd_Danger_HeroDown, 1 } }));
+		TestTrue(TEXT("the blow that downs sounds as the fall alone"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_HeroDown, 1 } }));
+		D.Step = 17;
+		D.Hurt = 2;
+		D.Down = 0;
+		TestTrue(TEXT("two hurts and no down: one hurt request carrying two"), Danger(D) == FAsks({ { ESoundId::Snd_Danger_HeroHurt, 2 } }));
 		D.Step = 17;
 		D.Hurt = D.Down = 0;
 		D.bBossActive = true;
@@ -1542,6 +1578,40 @@ bool FDTAudTestLowHpHold::RunTest(const FString& Parameters)
 	}
 	AddInfo(FString::Printf(TEXT("heartbeat form b at %.1f dB: %.2f dB through every beat, held for as long as health is low (the average over a beat is the same)"), Hold, Lowest));
 	TestEqual(TEXT("the heartbeat does not duck past the hold"), Lowest, Hold);
+
+	// A new depth asked while the hold stands (a console trial while low): deeper by the attack's slope from where the curve is, in that
+	// frame's update; shallower at once.
+	{
+		FDTAudioScheduler S;
+		S.Configure(DTAudio::Catalog(), 5);
+		FDTObserveDanger Obs;
+		FToScheduler Out(S);
+		TArray<FDTAudioVoice> Voices;
+		const double Dt = 1.0 / DTConst::SIM_FIXED_HZ;
+		TArray<float> Curve;
+		float Mid = 0.0f;
+		for (int64 Step = 0; Step < 200; ++Step)
+		{
+			const float Depth = Step < 60 ? -4.0f : Step < 120 ? -6.0f : -2.0f;
+			Obs.Observe(StagedView(Step, LowHpValue()), Out, Depth);
+			Voices.Reset();
+			S.Frame(20.0 + Step * Dt, Step, Voices);
+			Curve.Add(S.GetDuckDb());
+			if (Step == 60)
+			{
+				Mid = S.DuckDbAt(20.0 + Step * Dt + 0.004); // four ms into the attack
+			}
+		}
+		const float Slope = static_cast<float>(DTConst::AUD_DUCK_DB) / (DTConst::AUD_DUCK_ATTACK_MS / 1000.0f); // dB a second
+		TestEqual(TEXT("held at -4 first"), Curve[59], -4.0f);
+		TestEqual(TEXT("-6 asked while low: the attack starts in that frame from where the curve is"), Curve[60], -4.0f);
+		TestTrue(TEXT("and goes on by the attack's slope, a frame later"), FMath::IsNearlyEqual(Curve[61], FMath::Max(-6.0f, -4.0f + Slope * static_cast<float>(Dt)), 0.01f));
+		TestTrue(FString::Printf(TEXT("four ms in, the attack's slope: %.3f dB"), Mid), FMath::IsNearlyEqual(Mid, -4.0f + Slope * 0.004f, 0.01f));
+		TestEqual(TEXT("held at -6"), Curve[119], -6.0f);
+		TestTrue(TEXT("never past -6 on the way"), Algo::AllOf(Curve, [](float Db) { return Db >= -6.0f - 0.001f; }));
+		TestEqual(TEXT("-2 asked while low: up at once, in that frame"), Curve[120], -2.0f);
+		TestEqual(TEXT("and held there"), Curve[199], -2.0f);
+	}
 
 	// With the hold at zero nothing differs from form a, sample for sample: the same voices and the same curve as the runtime before form b.
 	{

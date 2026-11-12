@@ -25,18 +25,25 @@ namespace DTWarnEvents
 		static_assert(DTConst::AUD_SCAN_MAX <= 64, "the matched set is one 64-bit word");
 		for (const FDTTelegraph& Tele : Now)
 		{
-			bool bKnown = false;
-			for (int32 Index = 0; Index < Was.Num() && !bKnown; ++Index)
+			// The nearest of last step's unmatched telegraphs that fits; among equally near, the greatest Progress (see the header for why).
+			int32 Best = INDEX_NONE;
+			float BestDist = MatchUU * MatchUU;
+			for (int32 Index = 0; Index < Was.Num(); ++Index)
 			{
 				const FDTTelegraph& Old = Was[Index];
-				if (!(Taken & (1ull << Index)) && Old.Shape == Tele.Shape && Old.Progress <= Tele.Progress + UE_KINDA_SMALL_NUMBER
-					&& FVector2f::DistSquared(Old.Origin, Tele.Origin) <= MatchUU * MatchUU)
+				const float Dist = FVector2f::DistSquared(Old.Origin, Tele.Origin);
+				if (!(Taken & (1ull << Index)) && Old.Shape == Tele.Shape && Old.Progress <= Tele.Progress + UE_KINDA_SMALL_NUMBER && Dist <= BestDist
+					&& (Best == INDEX_NONE || Dist < BestDist || Old.Progress > Was[Best].Progress))
 				{
-					Taken |= 1ull << Index;
-					bKnown = true;
+					Best = Index;
+					BestDist = Dist;
 				}
 			}
-			if (!bKnown)
+			if (Best != INDEX_NONE)
+			{
+				Taken |= 1ull << Best;
+			}
+			else
 			{
 				const DTCat::ESoundId Sound = SoundOf(Tele.Shape);
 				for (int32 Slot = 0; Slot < NumWarn; ++Slot)

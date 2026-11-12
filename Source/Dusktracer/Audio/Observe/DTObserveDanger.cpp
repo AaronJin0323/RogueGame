@@ -35,14 +35,15 @@ namespace DTDangerEvents
 		{
 			Raise(ESoundId::Snd_Danger_EnemyFire, static_cast<int32>(FMath::Min<int64>(Now.EnemyRounds - Was.EnemyRounds, MAX_int32)));
 		}
-		// The hero's public events, each its own sound: a blow that downs the hero is a hurt and a down (the scheduler orders and caps them).
-		if (Now.Hurt > 0)
-		{
-			Raise(ESoundId::Snd_Danger_HeroHurt, Now.Hurt);
-		}
+		// The hero's public events. A step that holds a down sounds as the fall alone: the hurt and the fall started in one frame read over
+		// C.AUD.LIMIT_DBFS and five dB above either alone (the Sound session's decision, 2026-11-13). Hurts with no down keep their count.
 		if (Now.Down > 0)
 		{
 			Raise(ESoundId::Snd_Danger_HeroDown, Now.Down);
+		}
+		else if (Now.Hurt > 0)
+		{
+			Raise(ESoundId::Snd_Danger_HeroHurt, Now.Hurt);
 		}
 		if (Now.bBossActive && Was.bBossActive && Now.BossPhase != Was.BossPhase)
 		{

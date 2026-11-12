@@ -14,8 +14,11 @@ namespace DTWarnEvents
 
 	/**
 	 * How "new" is known: the view carries no id, so a telegraph of this step is the one of the last step when that one has the same shape,
-	 * a Progress no greater, and an origin within MatchUU; each of the last step's telegraphs is matched at most once. Anything left
-	 * unmatched is new. So a telegraph that stands for many steps (its Progress only grows, its origin stays or moves a little) is new once,
+	 * a Progress no greater, and an origin within MatchUU; each of the last step's telegraphs is matched at most once, and of those that fit
+	 * the nearest is taken (among equally near, the greatest Progress). Not the first that fits: the view's order is not stable. A kill
+	 * swap-removes the last enemy into the dead one's slot, and an arrival killed in its wind-up goes on as an orphan at the list's end, so
+	 * two tells of one pack can trade places in a step; the first fit would let one take the other's entry and call the other new. A tell's
+	 * own entry is a few uu away at most, so it wins in any order. Anything left unmatched is new. So a telegraph that stands for many steps (its Progress only grows, its origin stays or moves a little) is new once,
 	 * and a tell that starts again where the last one ended (its Progress drops) is new again.
 	 */
 	inline constexpr float MatchUU = 150.0f; // an origin moves at most this far in one step: a draining elite walks a few uu, a turret none

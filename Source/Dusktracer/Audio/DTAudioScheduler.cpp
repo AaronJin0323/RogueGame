@@ -365,5 +365,12 @@ void FDTAudioScheduler::UpdateDuck(double Now)
 	{
 		Held.HoldUntil = Now;
 	}
+	else if (bHolding && PendingHeldDb != Held.Floor)
+	{
+		// A new depth while the hold stands (a console trial): deeper by the attack's slope from where the curve is, shallower at once.
+		Held.From = PendingHeldDb < Held.Floor ? Held.At(Now) : PendingHeldDb;
+		Held.Start = Now;
+		Held.Floor = PendingHeldDb;
+	}
 	DuckDb = DuckDbAt(Now);
 }
