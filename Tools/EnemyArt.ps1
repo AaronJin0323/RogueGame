@@ -9,6 +9,7 @@
 # The game is launched as Tools\Smoke.ps1 launches it (UnrealEditor -game -RenderOffScreen, on the hidden desktop of Tools\HiddenLaunch.ps1, -DTShot): the
 # editor binary keeps its files under this tree's Saved. -ForceRes makes -ResX and -ResY the frame's size: without it the engine shrinks a frame
 # larger than 1280x720 on this desktop (1920x1080 came out 888x500), and the judge refuses a frame at the wrong density. Shots: Saved\EnemyArt\lineup_<px per m>.png; the judged masks: Saved\EnemyArt\masks_frames.png and masks_geometry.png.
+# Its fixed folders and every shot and log path go through Tools\OutDir.ps1 (inside this worktree, or a FAIL line before the slot).
 # Not a gate step: Blender is not started by the gate. Run it in the package's own acceptance.
 # Prints "ENEMY ART ACCEPTANCE: PASS|FAIL (...)"; exit 0 / 1. A silhouette reading is a proxy: it does not replace a person naming the role.
 param(
@@ -21,14 +22,15 @@ param(
 trap { Write-Host "ENEMY ART ACCEPTANCE: FAIL (script error: $_)"; exit 1 }
 
 . (Join-Path $PSScriptRoot "Machine.ps1"); $DTMask = Set-DTAffinity  # D-052: first, so every child inherits the processor mask
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "OutDir.ps1")  # before the slot: a refused folder costs nothing
+try { $OutDir = Resolve-DTOutDir "Saved\EnemyArt" $Root; $LogDir = Resolve-DTOutDir "Saved\Logs" $Root } catch { Write-Host "ENEMY ART ACCEPTANCE: FAIL ($($_.Exception.Message))"; exit 1 }
 if (-not ($NoFrames -and $NoMeshCheck)) { $DTHeavy = Enter-DTHeavy -What "EnemyArt" }  # D-055 item 7: one slot for Blender and the game; the geometry checks alone are Python
 
-$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $UERoot = if ($env:UE_ROOT) { $env:UE_ROOT } else { "E:\UE5\UE_5.8" }
 . (Join-Path $PSScriptRoot "HiddenLaunch.ps1")
 $Exe = Join-Path $UERoot "Engine\Binaries\Win64\UnrealEditor.exe"
 $Project = Join-Path $Root "Dusktracer.uproject"
-$OutDir = Join-Path $Root "Saved\EnemyArt"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $Failed = @()
 
@@ -66,8 +68,8 @@ else {
 	foreach ($Density in $Densities) {
 		$ResY = [int][math]::Round($Density * 2.0 * $Radius / 100.0)
 		$ResX = [int][math]::Round($ResY * 16.0 / 9.0)
-		$Shot = Join-Path $OutDir ("lineup_{0}.png" -f [int]$Density)
-		$Log = Join-Path $Root ("Saved\Logs\EnemyArt_{0}.log" -f [int]$Density)
+		$Shot = Resolve-DTOutDir (Join-Path $OutDir ("lineup_{0}.png" -f [int]$Density)) $Root
+		$Log = Resolve-DTOutDir (Join-Path $LogDir ("EnemyArt_{0}.log" -f [int]$Density)) $Root
 		foreach ($Old in $Shot, $Log) { if (Test-Path $Old) { Remove-Item $Old -Force } }
 		$ArgList = @("`"$Project`"", "/Game/DT/Maps/L_Arena_Test", "-game", "-windowed", "-RenderOffScreen", "-ResX=$ResX", "-ResY=$ResY", "-ForceRes", "-LiveCoding=false", "-nosplash",
 			"-unattended", "-culture=en", "-ABSLOG=`"$Log`"", "-DTShot=`"$Shot`"", ("-DTShotAfter={0}" -f $Seconds), "-DTNoDirector",
